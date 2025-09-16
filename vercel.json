@@ -1,0 +1,20 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXTAUTH_URL": "https://studioflow-workflow.vercel.app"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_APP_NAME": "StudioFlow by Meisner Interiors",
+      "NEXT_PUBLIC_COMPANY_NAME": "Interior Design Studio"
+    }
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

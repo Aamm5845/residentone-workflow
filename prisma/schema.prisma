@@ -1,0 +1,491 @@
+// ResidentOne Project Workflow Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Core Business Models
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  projects  Project[]
+  assets    Asset[]
+  clients   Client[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  DESIGNER    // Aaron's role
+  RENDERER    // Vitor's role  
+  DRAFTER     // Sammy's role
+  FFE         // Shaya's role
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(DESIGNER)
+  orgId         String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  
+  // Workflow assignments
+  createdProjects   Project[] @relation("CreatedByUser")
+  assignedStages    Stage[]
+  assignedTasks     Task[]
+  comments          Comment[]
+  sentApprovals     Approval[] @relation("SentByUser")
+  decidedApprovals  Approval[] @relation("DecidedByUser")
+  uploadedAssets    Asset[]
+  notifications     Notification[]
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  projects     Project[]
+
+  @@unique([orgId, email])
+}
+
+enum ProjectType {
+  RESIDENTIAL
+  COMMERCIAL
+  HOSPITALITY
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  PENDING_APPROVAL
+  APPROVED
+  COMPLETED
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  type        ProjectType   @default(RESIDENTIAL)
+  status      ProjectStatus @default(DRAFT)
+  clientId    String
+  dueDate     DateTime?
+  budget      Float?
+  orgId       String
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id])
+  createdBy    User         @relation("CreatedByUser", fields: [createdById], references: [id])
+  
+  rooms        Room[]
+  assets       Asset[]
+  approvals    Approval[]
+  comments     Comment[]
+  tasks        Task[]
+}
+
+enum RoomType {
+  // Entry & Circulation
+  ENTRANCE
+  FOYER
+  STAIRCASE
+  
+  // Living Spaces
+  LIVING_ROOM
+  DINING_ROOM
+  KITCHEN
+  STUDY_ROOM
+  OFFICE
+  PLAYROOM
+  
+  // Bedrooms
+  MASTER_BEDROOM
+  GIRLS_ROOM
+  BOYS_ROOM
+  GUEST_BEDROOM
+  
+  // Bathrooms
+  POWDER_ROOM
+  MASTER_BATHROOM
+  FAMILY_BATHROOM
+  GIRLS_BATHROOM
+  BOYS_BATHROOM
+  GUEST_BATHROOM
+  
+  // Utility
+  LAUNDRY_ROOM
+  
+  // Special
+  SUKKAH
+  
+  // Legacy room types (keep for compatibility)
+  BEDROOM
+  BATHROOM
+  FAMILY_ROOM
+  HALLWAY
+  PANTRY
+  LAUNDRY
+  MUDROOM
+  CLOSET
+  OUTDOOR
+  OTHER
+}
+
+enum RoomStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  NEEDS_ATTENTION
+}
+
+model Room {
+  id          String     @id @default(cuid())
+  projectId   String
+  type        RoomType
+  name        String?    // Custom name override
+  status      RoomStatus @default(NOT_STARTED)
+  currentStage String?   // Current active stage
+  progressFFE  Int       @default(0) // FFE progress percentage
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stages      Stage[]
+  ffeItems    FFEItem[]
+  comments    Comment[]
+  assets      Asset[]
+  approvals   Approval[]
+  tasks       Task[]
+}
+
+enum StageType {
+  DESIGN
+  THREE_D
+  CLIENT_APPROVAL
+  DRAWINGS
+  FFE
+}
+
+enum StageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  NEEDS_ATTENTION
+  PENDING_APPROVAL
+  REVISION_REQUESTED
+}
+
+model Stage {
+  id          String      @id @default(cuid())
+  roomId      String
+  type        StageType
+  status      StageStatus @default(NOT_STARTED)
+  assignedTo  String?     // User ID of assigned team member
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  assignedUser User?     @relation(fields: [assignedTo], references: [id])
+  
+  // Design stage sections
+  designSections DesignSection[]
+  comments       Comment[]
+  assets         Asset[]
+  tasks          Task[]
+
+  @@unique([roomId, type])
+}
+
+// Design stage structure
+enum DesignSectionType {
+  WALLS
+  FURNITURE  
+  LIGHTING
+  GENERAL
+}
+
+model DesignSection {
+  id        String            @id @default(cuid())
+  stageId   String
+  type      DesignSectionType
+  content   String?           // Rich text content
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  stage    Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  assets   Asset[]
+  comments Comment[]
+
+  @@unique([stageId, type])
+}
+
+// FFE Management
+enum FFEStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SOURCING
+  PROPOSED
+  APPROVED
+  ORDERED
+  DELIVERED
+  COMPLETED
+}
+
+model FFEItem {
+  id           String    @id @default(cuid())
+  roomId       String
+  name         String
+  status       FFEStatus @default(NOT_STARTED)
+  supplierLink String?
+  notes        String?
+  price        Float?
+  leadTime     String?
+  category     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  assets   Asset[]
+  comments Comment[]
+}
+
+// Client Approval System
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REVISION_REQUESTED
+  EXPIRED
+}
+
+model Approval {
+  id          String         @id @default(cuid())
+  projectId   String?
+  roomId      String?
+  token       String         @unique @default(cuid())
+  status      ApprovalStatus @default(PENDING)
+  sentById    String?        // User who sent the approval
+  decidedById String?        // User/client who made the decision
+  sentAt      DateTime?
+  decidedAt   DateTime?
+  message     String?        // Client message with decision
+  revisionReason String?     // Reason for revision request
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sentBy      User?    @relation("SentByUser", fields: [sentById], references: [id])
+  decidedBy   User?    @relation("DecidedByUser", fields: [decidedById], references: [id])
+  
+  assets      Asset[]
+  comments    Comment[]
+}
+
+// Comments and Collaboration
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  projectId String?
+  roomId    String?
+  stageId   String?
+  sectionId String?
+  ffeItemId String?
+  approvalId String?
+  mentions  String?  // JSON array of user IDs
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author    User            @relation(fields: [authorId], references: [id])
+  project   Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room      Room?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage     Stage?          @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  section   DesignSection?  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  ffeItem   FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  approval  Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  
+  assets    Asset[]
+}
+
+// Asset Management (Files, Images, Links)
+enum AssetType {
+  IMAGE
+  PDF
+  DOCUMENT
+  LINK
+  RENDER
+  DRAWING
+  OTHER
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  title       String
+  filename    String?
+  url         String
+  type        AssetType
+  size        Int?
+  mimeType    String?
+  provider    String?   // "dropbox", "s3", "local", "external"
+  metadata    String?   // JSON metadata
+  uploadedBy  String
+  orgId       String
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  sectionId   String?
+  ffeItemId   String?
+  approvalId  String?
+  commentId   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  uploader    User            @relation(fields: [uploadedBy], references: [id])
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage       Stage?          @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  section     DesignSection?  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  ffeItem     FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  approval    Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  comment     Comment?        @relation(fields: [commentId], references: [id], onDelete: Cascade)
+}
+
+// Notification System
+enum NotificationType {
+  STAGE_ASSIGNED
+  STAGE_COMPLETED
+  MENTION
+  DUE_DATE_REMINDER
+  PROJECT_UPDATE
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  relatedId   String?          // ID of related object (stage, project, comment, etc.)
+  relatedType String?          // Type of related object
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Room Presets System
+model RoomPreset {
+  id          String   @id @default(cuid())
+  roomType    RoomType
+  name        String
+  description String?
+  ffeItems    String   // JSON array of default FFE items
+  sections    String   // JSON configuration for design sections
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([roomType, name])
+}
+
+// Task Management (Optional granularity)
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  assignedTo  String?
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  assignee User?    @relation(fields: [assignedTo], references: [id])
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room     Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage    Stage?   @relation(fields: [stageId], references: [id], onDelete: Cascade)
+}
+
