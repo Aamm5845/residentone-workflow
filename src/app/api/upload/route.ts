@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { getDropboxStorage, DropboxStorage } from '@/lib/dropbox-storage'
+import { getDropboxStorage } from '@/lib/dropbox-storage'
 
 // File upload configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB

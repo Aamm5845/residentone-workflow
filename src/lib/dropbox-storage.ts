@@ -39,7 +39,7 @@ export class DropboxStorage {
 
     this.dbx = new Dropbox({ 
       accessToken: this.config.accessToken,
-      fetch: fetch as any
+      fetch: fetch as unknown as typeof fetch
     });
   }
 
@@ -147,7 +147,7 @@ export class DropboxStorage {
   /**
    * List files in a directory
    */
-  async listFiles(directoryPath: string = '/interior-design'): Promise<any[]> {
+  async listFiles(directoryPath: string = '/interior-design'): Promise<unknown[]> {
     try {
       const response = await this.dbx.filesListFolder({ path: directoryPath });
       return response.result.entries;
@@ -174,9 +174,10 @@ export class DropboxStorage {
       for (const folder of folders) {
         try {
           await this.dbx.filesCreateFolderV2({ path: folder });
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Ignore if folder already exists
-          if (error?.error?.error_summary?.includes('path/conflict/folder')) {
+          const err = error as {error?: {error_summary?: string}};
+          if (err?.error?.error_summary?.includes('path/conflict/folder')) {
             continue;
           }
           throw error;
@@ -192,7 +193,7 @@ export class DropboxStorage {
    * Get account information and storage quota
    * Handles both personal and business accounts
    */
-  async getAccountInfo(): Promise<any> {
+  async getAccountInfo(): Promise<unknown> {
     try {
       const response = await this.dbx.usersGetCurrentAccount();
       const spaceUsage = await this.dbx.usersGetSpaceUsage();
@@ -202,9 +203,10 @@ export class DropboxStorage {
         storage: spaceUsage.result,
         accountType: 'personal'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle Dropbox Business team accounts
-      if (error.message && error.message.includes('Dropbox Business team')) {
+      const err = error as {message?: string};
+      if (err.message && err.message.includes('Dropbox Business team')) {
         return {
           account: { name: { display_name: 'Business Team Account' }, email: 'team@business.com' },
           storage: { used: 0, allocation: { allocated: 0 } },
