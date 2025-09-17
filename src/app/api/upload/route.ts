@@ -75,30 +75,58 @@ export async function POST(request: NextRequest) {
       if (dropboxStorage) {
         console.log('☁️ Using Dropbox cloud storage')
         
-        // Convert file to buffer
-        const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        
-        // Upload to Dropbox with organized folder structure
-        const uploadResult = await dropboxStorage.uploadFile(
-          buffer,
-          fileName,
-          projectId || 'general',
-          file.type,
-          roomId,
-          sectionId
-        )
-        
-        fileUrl = uploadResult.url
-        storageType = 'cloud'
-        
-        // Create project structure if this is a new project
-        if (projectId) {
-          try {
-            await dropboxStorage.createProjectStructure(projectId)
-          } catch (structureError) {
-            console.log('📁 Project structure already exists or error creating it:', structureError)
+        try {
+          // Convert file to buffer
+          const bytes = await file.arrayBuffer()
+          const buffer = Buffer.from(bytes)
+          
+          console.log(`💾 Uploading file: ${fileName} (${formatFileSize(file.size)})`)
+          console.log(`📁 Project: ${projectId}, Room: ${roomId}, Section: ${sectionId}`)
+          
+          // Upload to Dropbox with organized folder structure
+          const uploadResult = await dropboxStorage.uploadFile(
+            buffer,
+            fileName,
+            projectId || 'general',
+            file.type,
+            roomId,
+            sectionId
+          )
+          
+          console.log('✅ Dropbox upload successful:', uploadResult.url)
+          fileUrl = uploadResult.url
+          storageType = 'cloud'
+          
+          // Create project structure if this is a new project
+          if (projectId) {
+            try {
+              await dropboxStorage.createProjectStructure(projectId)
+            } catch (structureError) {
+              console.log('📁 Project structure already exists or error creating it:', structureError)
+            }
           }
+        } catch (dropboxError) {
+          console.error('❌ Dropbox upload failed:', dropboxError)
+          console.log('🔄 Falling back to local storage')
+          
+          // Fall back to local storage
+          console.log('💾 Using local file storage (Dropbox fallback)')
+          
+          // Ensure upload directory exists
+          await mkdir(UPLOAD_DIR, { recursive: true })
+    
+          // Create project-specific subdirectory
+          const projectDir = path.join(UPLOAD_DIR, projectId || 'general')
+          await mkdir(projectDir, { recursive: true })
+    
+          // Save file locally
+          const bytes = await file.arrayBuffer()
+          const buffer = Buffer.from(bytes)
+          const filePath = path.join(projectDir, fileName)
+          
+          await writeFile(filePath, buffer)
+          fileUrl = `/uploads/${projectId || 'general'}/${fileName}`
+          storageType = 'local'
         }
         
       } else {

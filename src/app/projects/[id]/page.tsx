@@ -209,7 +209,7 @@ export default async function ProjectDetail({ params }: Props) {
             <p className="text-gray-600">Click on any room to access the detailed workspace</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {project.rooms.map((room: any) => {
               const roomProgress = getRoomProgress(room)
               const currentPhase = getCurrentPhase(room)
@@ -220,38 +220,33 @@ export default async function ProjectDetail({ params }: Props) {
                   href={`/projects/${project.id}/rooms/${room.id}`}
                   className="group"
                 >
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.02]">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.01]">
                     {/* Room Thumbnail */}
-                    <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+                    <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         {(() => {
                           const roomIconData = getRoomIcon(room.type)
                           const IconComponent = roomIconData.icon
                           return (
-                            <div className={`w-16 h-16 ${roomIconData.color} rounded-2xl flex items-center justify-center shadow-lg`}>
-                              <IconComponent className="w-8 h-8 text-white" />
+                            <div className={`w-12 h-12 ${roomIconData.color} rounded-xl flex items-center justify-center shadow-md`}>
+                              <IconComponent className="w-6 h-6 text-white" />
                             </div>
                           )
                         })()}
                       </div>
                       
                       {/* Current Phase Badge */}
-                      <div className="absolute top-3 right-3">
-                        <div className="bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 border border-gray-200">
-                          <div className="flex items-center space-x-1">
-                            <span className="text-sm">{currentPhase.icon}</span>
-                            <span className="text-xs font-medium text-gray-700 hidden sm:inline">
-                              {currentPhase.name.length > 15 ? currentPhase.name.substring(0, 12) + '...' : currentPhase.name}
-                            </span>
-                          </div>
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 border border-gray-200 text-xs">
+                          <span className="text-xs">{currentPhase.icon}</span>
                         </div>
                       </div>
                       
                       {/* Progress Ring */}
-                      <div className="absolute bottom-3 left-3">
+                      <div className="absolute bottom-2 left-2">
                         <div className="relative">
-                          <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                          <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 36 36">
                             <path
                               d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
                               fill="none"
@@ -274,29 +269,27 @@ export default async function ProjectDetail({ params }: Props) {
                             </defs>
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-700">{roomProgress}%</span>
+                            <span className="text-[10px] font-bold text-gray-700">{roomProgress}%</span>
                           </div>
                         </div>
                       </div>
                     </div>
                     
                     {/* Room Info */}
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-purple-600 transition-colors truncate">
                           {room.name || formatRoomType(room.type)}
                         </h3>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
+                          <MoreVertical className="w-3 h-3" />
                         </Button>
                       </div>
                       
                       {/* Progress Summary */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">
-                            {room.stages.filter((s: any) => s.status === 'COMPLETED').length}/{room.stages.length} phases complete
-                          </span>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-600">
+                          {room.stages.filter((s: any) => s.status === 'COMPLETED').length}/{room.stages.length} phases
                         </div>
                         
                         {/* Stage Pills */}
@@ -304,7 +297,7 @@ export default async function ProjectDetail({ params }: Props) {
                           {room.stages.slice(0, 4).map((stage: any, index: number) => (
                             <div
                               key={stage.id}
-                              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                                 stage.status === 'COMPLETED' 
                                   ? 'bg-green-500' 
                                   : stage.status === 'IN_PROGRESS'
@@ -314,6 +307,11 @@ export default async function ProjectDetail({ params }: Props) {
                             />
                           ))}
                         </div>
+                        
+                        {/* Current Phase Text */}
+                        <div className="text-xs text-gray-500 truncate">
+                          {currentPhase.name}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -322,12 +320,11 @@ export default async function ProjectDetail({ params }: Props) {
             })}
             
             {/* Add New Room Card */}
-            <div className="bg-white rounded-xl shadow-sm border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors">
-              <div className="aspect-square flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors">
+              <div className="aspect-[4/3] flex items-center justify-center">
                 <div className="text-center">
-                  <Plus className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-600">Add New Room</p>
-                  <p className="text-xs text-gray-500 mt-1">Start designing another space</p>
+                  <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                  <p className="text-xs font-medium text-gray-600">Add Room</p>
                 </div>
               </div>
             </div>
