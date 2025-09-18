@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   Upload, 
@@ -21,7 +21,10 @@ import {
   Eye,
   Edit3,
   Save,
-  Target
+  Target,
+  Play,
+  Square,
+  Image
 } from 'lucide-react'
 
 interface DesignStageProps {
@@ -30,9 +33,14 @@ interface DesignStageProps {
   project: any
   onComplete: () => void
   onReopen?: () => void
+  onStart?: () => void
   onAddComment: (sectionId: string, content: string, mentions: string[]) => void
   onUploadFile: (sectionId: string, file: File) => void
   onUpdateSection: (sectionId: string, content: string) => void
+  onMarkSectionComplete: (sectionId: string, isComplete: boolean) => void
+  onDeleteFile?: (assetId: string) => void
+  onDeleteComment?: (commentId: string) => void
+  onEditComment?: (commentId: string, content: string) => void
 }
 
 const DESIGN_SECTIONS = [
@@ -72,23 +80,48 @@ export default function DesignStage({
   project, 
   onComplete, 
   onReopen,
+  onStart,
   onAddComment, 
   onUploadFile, 
-  onUpdateSection 
+  onUpdateSection,
+  onMarkSectionComplete,
+  onDeleteFile,
+  onDeleteComment,
+  onEditComment
 }: DesignStageProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['FURNITURE']))
+  // Start with all sections collapsed for better UX
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set())
   const [sectionContent, setSectionContent] = useState<Record<string, string>>({})
+  
+  // Initialize completed sections from database
+  const getCompletedSectionsFromDB = () => {
+    const completed = new Set<string>()
+    stage.designSections?.forEach((section: any) => {
+      if (section.completed) {
+        completed.add(section.type)
+      }
+    })
+    return completed
+  }
+  
+  const [completedSections, setCompletedSections] = useState<Set<string>>(getCompletedSectionsFromDB())
   const [newComment, setNewComment] = useState('')
+  
+  // Update completed sections when stage data changes
+  useEffect(() => {
+    setCompletedSections(getCompletedSectionsFromDB())
+  }, [stage.designSections])
   const [selectedSection, setSelectedSection] = useState<string | null>(null)
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set())
+  const [editingComments, setEditingComments] = useState<Set<string>>(new Set())
+  const [editingCommentContent, setEditingCommentContent] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Calculate overall progress
-  const completedSections = stage.designSections?.filter((s: any) => s.content && s.content.length > 50) || []
-  const progress = (completedSections.length / DESIGN_SECTIONS.length) * 100
-
+  // Calculate overall progress based on completed sections
+  const progress = (completedSections.size / DESIGN_SECTIONS.length) * 100
   const isStageComplete = progress === 100 && stage.status === 'IN_PROGRESS'
+  const canStart = stage.status === 'NOT_STARTED'
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections)
@@ -98,6 +131,22 @@ export default function DesignStage({
       newExpanded.add(sectionId)
     }
     setExpandedSections(newExpanded)
+  }
+
+  const toggleSectionComplete = async (sectionId: string) => {
+    const isComplete = !completedSections.has(sectionId)
+    
+    // Optimistically update UI
+    const newCompleted = new Set(completedSections)
+    if (isComplete) {
+      newCompleted.add(sectionId)
+    } else {
+      newCompleted.delete(sectionId)
+    }
+    setCompletedSections(newCompleted)
+    
+    // Call the API to persist the change
+    onMarkSectionComplete?.(sectionId, isComplete)
   }
 
   const startEditing = (sectionId: string, currentContent: string = '') => {
@@ -135,18 +184,86 @@ export default function DesignStage({
     }
   }
 
-  const getSectionProgress = (sectionId: string) => {
-    const section = stage.designSections?.find((s: any) => s.type === sectionId)
-    if (!section) return 0
-    
-    // Calculate progress based on content length, files, and comments
-    let progress = 0
-    if (section.content && section.content.length > 50) progress += 60
-    if (section.assets && section.assets.length > 0) progress += 30
-    if (section.comments && section.comments.length > 0) progress += 10
-    
-    return Math.min(progress, 100)
+  const handleDeleteFile = async (assetId: string) => {
+    if (window.confirm('Are you sure you want to delete this file?')) {
+      try {
+        const response = await fetch(`/api/assets/${assetId}`, {
+          method: 'DELETE',
+        })
+        if (response.ok) {
+          // Refresh the page to show updated data
+          window.location.reload()
+        } else {
+          alert('Failed to delete file. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error)
+        alert('Failed to delete file. Please try again.')
+      }
+    }
   }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        const response = await fetch(`/api/comments/${commentId}`, {
+          method: 'DELETE',
+        })
+        if (response.ok) {
+          // Refresh the page to show updated data
+          window.location.reload()
+        } else {
+          alert('Failed to delete comment. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error)
+        alert('Failed to delete comment. Please try again.')
+      }
+    }
+  }
+
+  const startEditingComment = (commentId: string, currentContent: string) => {
+    setEditingComments(new Set([...editingComments, commentId]))
+    setEditingCommentContent({ ...editingCommentContent, [commentId]: currentContent })
+  }
+
+  const saveEditedComment = async (commentId: string) => {
+    const content = editingCommentContent[commentId]
+    if (content?.trim()) {
+      try {
+        const response = await fetch(`/api/comments/${commentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: content.trim() })
+        })
+        
+        if (response.ok) {
+          const newEditing = new Set(editingComments)
+          newEditing.delete(commentId)
+          setEditingComments(newEditing)
+          // Refresh the page to show updated data
+          window.location.reload()
+        } else {
+          alert('Failed to update comment. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error updating comment:', error)
+        alert('Failed to update comment. Please try again.')
+      }
+    }
+  }
+
+  const cancelEditingComment = (commentId: string) => {
+    const newEditing = new Set(editingComments)
+    newEditing.delete(commentId)
+    setEditingComments(newEditing)
+    const newContent = { ...editingCommentContent }
+    delete newContent[commentId]
+    setEditingCommentContent(newContent)
+  }
+
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg">
@@ -181,6 +298,8 @@ export default function DesignStage({
               <div className="text-2xl font-bold text-gray-900">{Math.round(progress)}%</div>
               <div className="text-sm text-gray-500">Complete</div>
             </div>
+            
+            {/* Start Design button is handled by RoomActions component */}
             
             {isStageComplete && stage.status !== 'COMPLETED' && (
               <Button 
@@ -232,50 +351,90 @@ export default function DesignStage({
       <div className="p-6 space-y-6">
         {DESIGN_SECTIONS.map((sectionDef) => {
           const section = stage.designSections?.find((s: any) => s.type === sectionDef.id)
-          const sectionProgress = getSectionProgress(sectionDef.id)
           const isExpanded = expandedSections.has(sectionDef.id)
           const isEditing = editingSections.has(sectionDef.id)
           const isUploading = uploadingFiles.has(sectionDef.id)
+          const isCompleted = completedSections.has(sectionDef.id)
+          const hasContent = section?.content && section.content.length > 0
+          const hasAssets = section?.assets && section.assets.length > 0
 
           return (
-            <div key={sectionDef.id} className="border border-gray-200 rounded-lg">
+            <div key={sectionDef.id} className={`border-2 rounded-lg transition-all duration-200 ${
+              isCompleted ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'
+            }`}>
               {/* Section Header */}
-              <div 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => toggleSection(sectionDef.id)}
-              >
+              <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
+                    {/* Expand/Collapse Button */}
+                    <button
+                      onClick={() => toggleSection(sectionDef.id)}
+                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      )}
+                    </button>
                     
+                    {/* Section Icon */}
                     <div className={`w-10 h-10 ${sectionDef.color} rounded-lg flex items-center justify-center text-white text-lg`}>
                       {sectionDef.icon}
                     </div>
                     
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{sectionDef.name}</h3>
-                      <p className="text-sm text-gray-600">{sectionDef.description}</p>
+                    {/* Section Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className={`font-semibold ${
+                          isCompleted ? 'text-green-900' : 'text-gray-900'
+                        }`}>{sectionDef.name}</h3>
+                        
+                        {/* Status Indicators */}
+                        <div className="flex items-center space-x-1">
+                          {hasContent && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <FileText className="w-3 h-3 mr-1" />
+                              Content
+                            </span>
+                          )}
+                          {hasAssets && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <Image className="w-3 h-3 mr-1" />
+                              Files
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className={`text-sm ${
+                        isCompleted ? 'text-green-600' : 'text-gray-600'
+                      }`}>{sectionDef.description}</p>
                     </div>
                   </div>
                   
+                  {/* Completion Toggle */}
                   <div className="flex items-center space-x-3">
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">{Math.round(sectionProgress)}%</div>
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`${sectionDef.color} h-2 rounded-full transition-all duration-300`}
-                          style={{ width: `${sectionProgress}%` }}
-                        />
-                      </div>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleSectionComplete(sectionDef.id)
+                      }}
+                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                        isCompleted 
+                          ? 'bg-green-500 border-green-500 text-white' 
+                          : 'border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      {isCompleted && (
+                        <CheckCircle className="w-4 h-4" />
+                      )}
+                    </button>
                     
-                    {sectionProgress === 100 && (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    )}
+                    <span className={`text-sm font-medium ${
+                      isCompleted ? 'text-green-700' : 'text-gray-500'
+                    }`}>
+                      {isCompleted ? 'Complete' : 'Pending'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -406,9 +565,21 @@ export default function DesignStage({
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-medium text-gray-900 truncate">{asset.title}</h4>
-                                <button className="text-blue-600 hover:text-blue-700">
-                                  <Eye className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center space-x-2">
+                                  <button 
+                                    className="text-blue-600 hover:text-blue-700"
+                                    title="Preview file"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteFile(asset.id)}
+                                    className="text-red-600 hover:text-red-700"
+                                    title="Delete file"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                               <div className="flex items-center space-x-4 mt-1">
                                 <span className="text-xs text-gray-500">
@@ -428,14 +599,14 @@ export default function DesignStage({
                         </div>
                       ))}
                       
-                      {/* Upload Placeholder */}
+                      {/* Compact Upload Area */}
                       <div 
-                        className="aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-purple-400 transition-colors"
+                        className="h-20 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-purple-400 transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        <div className="text-center">
-                          <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                          <p className="text-xs text-gray-500">Add Files</p>
+                        <div className="flex items-center space-x-2 text-gray-500">
+                          <Plus className="w-5 h-5" />
+                          <span className="text-sm font-medium">Add Files</span>
                         </div>
                       </div>
                     </div>
@@ -447,24 +618,74 @@ export default function DesignStage({
                     
                     {/* Existing Comments */}
                     <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
-                      {section?.comments?.map((comment: any) => (
-                        <div key={comment.id} className="flex space-x-3">
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-gray-600" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <span className="text-sm font-medium text-gray-900">{comment.author?.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(comment.createdAt).toLocaleString()}
-                                </span>
+                      {section?.comments?.map((comment: any) => {
+                        const isEditing = editingComments.has(comment.id)
+                        return (
+                          <div key={comment.id} className="flex space-x-3">
+                            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="bg-gray-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-gray-900">{comment.author?.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(comment.createdAt).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <button
+                                      onClick={() => startEditingComment(comment.id, comment.content)}
+                                      className="text-gray-500 hover:text-blue-600 text-xs"
+                                      title="Edit comment"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      className="text-gray-500 hover:text-red-600 text-xs"
+                                      title="Delete comment"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                                
+                                {isEditing ? (
+                                  <div className="space-y-2">
+                                    <textarea
+                                      value={editingCommentContent[comment.id] || ''}
+                                      onChange={(e) => setEditingCommentContent({
+                                        ...editingCommentContent,
+                                        [comment.id]: e.target.value
+                                      })}
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                      rows={2}
+                                    />
+                                    <div className="flex justify-end space-x-2">
+                                      <button
+                                        onClick={() => cancelEditingComment(comment.id)}
+                                        className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => saveEditedComment(comment.id)}
+                                        className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                                      >
+                                        Save
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-800">{comment.content}</p>
+                                )}
                               </div>
-                              <p className="text-sm text-gray-800">{comment.content}</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                     
                     {/* Add Comment */}
@@ -474,9 +695,9 @@ export default function DesignStage({
                       </div>
                       <div className="flex-1">
                         <textarea
-                          value={selectedSection === sectionDef.id ? newComment : ''}
+                          value={selectedSection === section?.id ? newComment : ''}
                           onChange={(e) => {
-                            setSelectedSection(sectionDef.id)
+                            setSelectedSection(section?.id)
                             setNewComment(e.target.value)
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
@@ -490,7 +711,7 @@ export default function DesignStage({
                           <Button 
                             size="sm"
                             onClick={handleAddComment}
-                            disabled={!newComment.trim() || selectedSection !== sectionDef.id}
+                            disabled={!newComment.trim() || selectedSection !== section?.id}
                             className="bg-purple-600 hover:bg-purple-700 text-white"
                           >
                             <Send className="w-4 h-4 mr-1" />

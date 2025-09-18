@@ -140,6 +140,27 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
     }
   }
 
+  const handleMarkSectionComplete = async (sectionType: string, isComplete: boolean) => {
+    try {
+      const response = await fetch(`/api/stages/${stage.id}/sections`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sectionType, 
+          isComplete,
+          action: 'mark_complete'
+        })
+      })
+
+      if (response.ok) {
+        const updatedStage = await response.json()
+        setStage(updatedStage)
+      }
+    } catch (error) {
+      console.error('Error marking section complete:', error)
+    }
+  }
+
   // Render appropriate stage component based on stage type
   switch (stage.type) {
     case 'DESIGN':
@@ -153,6 +174,7 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
           onUpdateSection={handleUpdateSection}
           onAddComment={handleAddComment}
           onUploadFile={handleUploadFile}
+          onMarkSectionComplete={handleMarkSectionComplete}
         />
       )
     

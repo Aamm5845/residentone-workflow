@@ -21,7 +21,7 @@ export async function PATCH(
     }
 
     const data = await request.json()
-    const { sectionType, content } = data
+    const { sectionType, content, isComplete, action } = data
 
     // Find the stage and verify access
     const stage = await prisma.stage.findFirst({
@@ -52,9 +52,13 @@ export async function PATCH(
     
     if (designSection) {
       // Update existing section
+      const updateData: any = {}
+      if (content !== undefined) updateData.content = content
+      if (action === 'mark_complete' && isComplete !== undefined) updateData.completed = isComplete
+      
       designSection = await prisma.designSection.update({
         where: { id: designSection.id },
-        data: { content }
+        data: updateData
       })
     } else {
       // Create new section
@@ -62,7 +66,8 @@ export async function PATCH(
         data: {
           stageId: stage.id,
           type: sectionType,
-          content
+          content: content || '',
+          completed: isComplete || false
         }
       })
     }

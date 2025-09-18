@@ -36,7 +36,14 @@ export default async function ProjectDetail({ params }: Props) {
           include: {
             stages: {
               include: {
-                assignedUser: true
+                assignedUser: true,
+                designSections: {
+                  select: {
+                    id: true,
+                    type: true,
+                    completed: true
+                  }
+                }
               }
             },
             assets: true,
@@ -77,8 +84,30 @@ export default async function ProjectDetail({ params }: Props) {
   }
 
   const getRoomProgress = (room: any) => {
-    const completedStages = room.stages.filter((stage: any) => stage.status === 'COMPLETED').length
-    return room.stages.length > 0 ? Math.round((completedStages / room.stages.length) * 100) : 0
+    let totalProgress = 0
+    let progressCount = 0
+    
+    room.stages.forEach((stage: any) => {
+      if (stage.status === 'COMPLETED') {
+        totalProgress += 100
+        progressCount += 1
+      } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections) {
+        // For design stage, calculate progress based on completed sections
+        const completedSections = stage.designSections.filter((section: any) => section.completed).length
+        const sectionProgress = stage.designSections.length > 0 ? (completedSections / stage.designSections.length) * 100 : 0
+        totalProgress += sectionProgress
+        progressCount += 1
+      } else if (stage.status === 'IN_PROGRESS') {
+        // For other stages in progress, assume 50% completion
+        totalProgress += 50
+        progressCount += 1
+      } else {
+        // Not started stages contribute 0
+        progressCount += 1
+      }
+    })
+    
+    return progressCount > 0 ? Math.round(totalProgress / progressCount) : 0
   }
 
   const getRoomIcon = (roomType: string) => {
@@ -142,59 +171,61 @@ export default async function ProjectDetail({ params }: Props) {
   return (
     <DashboardLayout session={session}>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="px-6 py-6">
+        {/* Modern Header */}
+        <div className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Link href="/projects">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Projects
+                    Back to Projects
                   </Button>
                 </Link>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <Users className="w-4 h-4" />
-                      <span>{project.client.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>{project.rooms.length} rooms</span>
-                    </div>
-                    {project.dueDate && (
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Due {formatDate(project.dueDate)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
               
               <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">{overallProgress}%</div>
-                  <div className="text-sm text-gray-500">Complete</div>
-                </div>
-                <Button variant="outline">
+                <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50">
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  Project Settings
                 </Button>
-                <Button>
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Room
                 </Button>
               </div>
             </div>
             
-            {/* Overall Progress Bar */}
+            {/* Project Title & Info */}
             <div className="mt-6">
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <h1 className="text-3xl font-bold text-gray-900 mb-3">{project.name}</h1>
+              <div className="flex items-center space-x-6 text-sm text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4" />
+                  <span className="font-medium">{project.client.name}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>{project.rooms.length} rooms</span>
+                </div>
+                {project.dueDate && (
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>Due {formatDate(project.dueDate)}</span>
+                  </div>
+                )}
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="font-medium">{overallProgress}% Complete</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                  className="bg-gradient-to-r from-purple-500 to-purple-600 h-1.5 rounded-full transition-all duration-500"
                   style={{ width: `${overallProgress}%` }}
                 />
               </div>
@@ -202,116 +233,101 @@ export default async function ProjectDetail({ params }: Props) {
           </div>
         </div>
 
-        {/* Rooms Dashboard */}
-        <div className="px-6 py-8">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Project Rooms</h2>
-            <p className="text-gray-600">Click on any room to access the detailed workspace</p>
+        {/* Modern Rooms Section */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">Rooms</h2>
+              <p className="text-gray-600 mt-1">Manage and track progress for all project rooms</p>
+            </div>
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Room
+            </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          {/* Room Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {project.rooms.map((room: any) => {
               const roomProgress = getRoomProgress(room)
               const currentPhase = getCurrentPhase(room)
+              const roomIconData = getRoomIcon(room.type)
+              const IconComponent = roomIconData.icon
               
               return (
                 <Link
                   key={room.id}
                   href={`/projects/${project.id}/rooms/${room.id}`}
-                  className="group"
+                  className="group block"
                 >
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.01]">
-                    {/* Room Thumbnail */}
-                    <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        {(() => {
-                          const roomIconData = getRoomIcon(room.type)
-                          const IconComponent = roomIconData.icon
-                          return (
-                            <div className={`w-12 h-12 ${roomIconData.color} rounded-xl flex items-center justify-center shadow-md`}>
-                              <IconComponent className="w-6 h-6 text-white" />
-                            </div>
-                          )
-                        })()}
-                      </div>
-                      
-                      {/* Current Phase Badge */}
-                      <div className="absolute top-2 right-2">
-                        <div className="bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 border border-gray-200 text-xs">
-                          <span className="text-xs">{currentPhase.icon}</span>
+                  <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-purple-200 transition-all duration-200 group-hover:scale-[1.02]">
+                    {/* Room Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-12 h-12 ${roomIconData.color} rounded-lg flex items-center justify-center shadow-sm`}>
+                          <IconComponent className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      
-                      {/* Progress Ring */}
-                      <div className="absolute bottom-2 left-2">
-                        <div className="relative">
-                          <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
-                              fill="none"
-                              stroke="#e5e7eb"
-                              strokeWidth="2"
-                            />
-                            <path
-                              d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
-                              fill="none"
-                              stroke="url(#gradient)"
-                              strokeWidth="2"
-                              strokeDasharray={`${roomProgress}, 100`}
-                              className="transition-all duration-500"
-                            />
-                            <defs>
-                              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#8b5cf6" />
-                                <stop offset="100%" stopColor="#ec4899" />
-                              </linearGradient>
-                            </defs>
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[10px] font-bold text-gray-700">{roomProgress}%</span>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                            {room.name || formatRoomType(room.type)}
+                          </h3>
+                          <div className="flex items-center space-x-1 mt-1">
+                            <span className="text-xs text-gray-500">{currentPhase.icon}</span>
+                            <span className="text-xs text-gray-500">{currentPhase.name}</span>
                           </div>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-gray-900">{roomProgress}%</div>
+                        <div className="text-xs text-gray-500">Complete</div>
+                      </div>
                     </div>
                     
-                    {/* Room Info */}
-                    <div className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-purple-600 transition-colors truncate">
-                          {room.name || formatRoomType(room.type)}
-                        </h3>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
-                          <MoreVertical className="w-3 h-3" />
-                        </Button>
+                    {/* Progress Bar */}
+                    <div className="mb-4">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${roomProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Stages Overview */}
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                        Workflow Stages
+                      </div>
+                      <div className="grid grid-cols-5 gap-2">
+                        {room.stages.map((stage: any, index: number) => {
+                          const stageProgress = stage.status === 'COMPLETED' ? 100 : 
+                                             stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections ?
+                                             stage.designSections.filter((s: any) => s.completed).length / stage.designSections.length * 100 :
+                                             stage.status === 'IN_PROGRESS' ? 50 : 0
+                          
+                          return (
+                            <div key={stage.id} className="text-center">
+                              <div className="text-xs mb-1">{getPhaseIcon(stage.type)}</div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div 
+                                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                                    stage.status === 'COMPLETED' ? 'bg-green-500' :
+                                    stage.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                    'bg-gray-300'
+                                  }`}
+                                  style={{ width: `${stageProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                       
-                      {/* Progress Summary */}
-                      <div className="space-y-1">
-                        <div className="text-xs text-gray-600">
-                          {room.stages.filter((s: any) => s.status === 'COMPLETED').length}/{room.stages.length} phases
-                        </div>
-                        
-                        {/* Stage Pills */}
-                        <div className="flex flex-wrap gap-1">
-                          {room.stages.slice(0, 4).map((stage: any, index: number) => (
-                            <div
-                              key={stage.id}
-                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                stage.status === 'COMPLETED' 
-                                  ? 'bg-green-500' 
-                                  : stage.status === 'IN_PROGRESS'
-                                  ? 'bg-blue-500'
-                                  : 'bg-gray-200'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        
-                        {/* Current Phase Text */}
-                        <div className="text-xs text-gray-500 truncate">
-                          {currentPhase.name}
-                        </div>
+                      {/* Stage Summary */}
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>{room.stages.filter((s: any) => s.status === 'COMPLETED').length} completed</span>
+                        <span>{room.stages.filter((s: any) => s.status === 'IN_PROGRESS').length} active</span>
+                        <span>{room.stages.filter((s: any) => s.status === 'NOT_STARTED').length} pending</span>
                       </div>
                     </div>
                   </div>
@@ -320,12 +336,13 @@ export default async function ProjectDetail({ params }: Props) {
             })}
             
             {/* Add New Room Card */}
-            <div className="bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors">
-              <div className="aspect-[4/3] flex items-center justify-center">
-                <div className="text-center">
-                  <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-gray-600">Add Room</p>
+            <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-6 hover:border-purple-400 transition-colors cursor-pointer group">
+              <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-100 transition-colors">
+                  <Plus className="w-6 h-6 text-gray-400 group-hover:text-purple-600" />
                 </div>
+                <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition-colors">Add New Room</h3>
+                <p className="text-sm text-gray-500 mt-1">Create a new room for this project</p>
               </div>
             </div>
           </div>

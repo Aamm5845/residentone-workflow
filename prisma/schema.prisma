@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -44,6 +44,18 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// Password Reset Tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+
+  @@unique([email, token])
+}
+
 // Core Business Models
 model Organization {
   id        String   @id @default(cuid())
@@ -76,13 +88,13 @@ model User {
   image         String?
   password      String?
   role          UserRole  @default(DESIGNER)
-  orgId         String
+  orgId         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts     Account[]
   sessions     Session[]
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   
   // Workflow assignments
   createdProjects   Project[] @relation("CreatedByUser")
@@ -278,6 +290,7 @@ model DesignSection {
   stageId   String
   type      DesignSectionType
   content   String?           // Rich text content
+  completed Boolean           @default(false) // Section completion status
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 

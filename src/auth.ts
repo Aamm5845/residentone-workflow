@@ -68,20 +68,6 @@ export default NextAuth({
           
         } catch (error) {
           console.error('💥 Database auth error:', error)
-          
-          // Fallback authentication for demo
-          if (credentials.email === 'admin@example.com' && credentials.password === 'password') {
-            console.log('🔄 Using fallback authentication for demo')
-            return {
-              id: 'fallback-admin',
-              email: 'admin@example.com',
-              name: 'Admin User',
-              role: 'OWNER' as UserRole,
-              orgId: 'fallback-org',
-              orgName: 'Interior Design Studio'
-            }
-          }
-          
           return null
         }
       },

@@ -87,24 +87,57 @@ You should see:
 🎉 All Dropbox tests passed! Your integration is working correctly.
 ```
 
-## 📁 File Organization
+## 📁 Improved File Organization (✅ IMPLEMENTED)
 
-Your files will be automatically organized in Dropbox as:
+Files are now automatically organized with a structured hierarchy to prevent mixing:
 
 ```
-/interior-design/
-├── project-123/
-│   ├── rooms/
-│   │   ├── living-room/
-│   │   │   └── sections/
-│   │   │       └── inspiration/
-│   │   └── bedroom/
-│   ├── inspiration/
-│   ├── documents/
-│   └── presentations/
-└── project-456/
-    └── ...
+/Organizations/
+  └── {orgId}/
+      └── Projects/
+          └── {Project_Name}/
+              └── Rooms/
+                  └── {Room_Name}/
+                      └── Stages/
+                          └── {Stage_Type}/
+                              └── Sections/
+                                  └── {Section_Type}/
+                                      ├── file1.jpg
+                                      ├── file2.pdf
+                                      └── file3.png
 ```
+
+### Example Structure:
+```
+/Organizations/
+  └── cm123abc456/
+      └── Projects/
+          └── Modern_Apartment_Downtown/
+              └── Rooms/
+                  ├── Living_Room/
+                  │   └── Stages/
+                  │       ├── Design/
+                  │       │   └── Sections/
+                  │       │       ├── Furniture/
+                  │       │       ├── Lighting/
+                  │       │       ├── Walls/
+                  │       │       └── General/
+                  │       ├── Three_D/
+                  │       ├── Drawings/
+                  │       └── FFE/
+                  └── Master_Bedroom/
+                      └── Stages/
+                          └── Design/
+                              └── Sections/
+                                  ├── Furniture/
+                                  └── Lighting/
+```
+
+### Benefits:
+- ✅ **No File Mixing**: Each section has dedicated folders
+- ✅ **Easy Navigation**: Intuitive hierarchy
+- ✅ **Automatic Organization**: No manual folder creation needed
+- ✅ **Scalable Structure**: Grows with your projects
 
 ## 🔒 Security Best Practices
 

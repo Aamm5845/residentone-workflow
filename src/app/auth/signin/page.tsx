@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { signIn, SessionProvider } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Building, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
@@ -12,7 +13,17 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Check for success message from URL params
+  useEffect(() => {
+    const urlMessage = searchParams.get('message')
+    if (urlMessage) {
+      setMessage(urlMessage)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +88,12 @@ function SignInForm() {
             <p className="text-slate-600">Sign in to access your projects</p>
           </div>
 
+          {message && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+              {message}
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
@@ -137,20 +154,28 @@ function SignInForm() {
           </form>
 
           <div className="mt-6 text-center space-y-3">
-            <p className="text-slate-600 text-sm">
-              Demo Credentials: admin@example.com / password
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                console.log('🗺 Test button clicked!')
-                alert('JavaScript is working! Redirecting to dashboard...')
-                window.location.href = '/dashboard'
-              }}
-              className="text-sm text-blue-600 hover:text-blue-700 underline"
+            <Link
+              href="/auth/forgot-password"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
-              Test - Go to Dashboard
-            </button>
+              Forgot your password?
+            </Link>
+            
+            <div className="border-t border-slate-200 pt-4">
+              <p className="text-slate-600 text-sm mb-2">
+                Don't have an account?
+              </p>
+              <Link
+                href="/auth/signup"
+                className="inline-block bg-white border border-slate-300 hover:border-slate-400 text-slate-700 px-6 py-2 rounded-lg font-medium text-sm"
+              >
+                Create Account
+              </Link>
+            </div>
+            
+            <p className="text-slate-600 text-xs pt-2">
+              Demo: admin@example.com / password
+            </p>
           </div>
         </div>
       </div>
@@ -161,7 +186,16 @@ function SignInForm() {
 export default function SignIn() {
   return (
     <SessionProvider>
-      <SignInForm />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto mb-4"></div>
+            <p className="text-slate-600">Loading...</p>
+          </div>
+        </div>
+      }>
+        <SignInForm />
+      </Suspense>
     </SessionProvider>
   )
 }

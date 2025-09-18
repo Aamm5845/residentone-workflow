@@ -2,8 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
+import { uploadToDropbox, createFolderStructure } from '@/lib/dropbox'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
+
+// Local storage upload function
+async function uploadToLocal(buffer: Buffer, fileName: string, stageId: string) {
+  // Create organized local folder structure
+  const uploadDir = join(process.cwd(), 'public', 'uploads', 'stages', stageId)
+  
+  try {
+    await mkdir(uploadDir, { recursive: true })
+  } catch (error) {
+    // Directory might already exist, ignore error
+  }
+
+  // Write file to disk
+  const filePath = join(uploadDir, fileName)
+  await writeFile(filePath, buffer)
+  
+  return {
+    url: `/uploads/stages/${stageId}/${fileName}`,
+    provider: 'local',
+    metadata: JSON.stringify({
+      localPath: filePath,
+      uploadDate: new Date().toISOString()
+    })
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -75,17 +101,55 @@ export async function POST(
     const fileExtension = file.name.split('.').pop()
     const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
-    // Create uploads directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'stages', resolvedParams.id)
-    try {
-      await mkdir(uploadDir, { recursive: true })
-    } catch (error) {
-      // Directory might already exist, ignore error
-    }
+    // Try Dropbox first, fall back to local storage if it fails
+    let fileUrl: string
+    let provider: string
+    let metadata: string | null = null
 
-    // Write file to disk
-    const filePath = join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
+    // Check if Dropbox is configured
+    const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
+    if (dropboxToken && dropboxToken !== 'your-dropbox-access-token-here') {
+      try {
+        // Create upload context for organized Dropbox folder structure
+        const uploadContext = {
+          orgId: session.user.orgId,
+          projectId: stage.room.project.id,
+          projectName: stage.room.project.name,
+          roomId: stage.room.id,
+          roomName: stage.room.name || stage.room.type,
+          stageType: stage.type,
+          sectionType: sectionId
+        }
+
+        // Ensure folder structure exists in Dropbox
+        await createFolderStructure(uploadContext)
+
+        // Upload file to Dropbox
+        const dropboxResult = await uploadToDropbox(buffer, fileName, uploadContext)
+        fileUrl = dropboxResult.url
+        provider = 'dropbox'
+        metadata = JSON.stringify({
+          dropboxPath: dropboxResult.path,
+          uploadContext: uploadContext
+        })
+        
+        console.log('File uploaded to Dropbox successfully')
+      } catch (dropboxError) {
+        console.warn('Dropbox upload failed, falling back to local storage:', dropboxError)
+        // Fall back to local storage
+        const result = await uploadToLocal(buffer, fileName, resolvedParams.id)
+        fileUrl = result.url
+        provider = result.provider
+        metadata = result.metadata
+      }
+    } else {
+      console.log('Dropbox not configured, using local storage')
+      // Use local storage
+      const result = await uploadToLocal(buffer, fileName, resolvedParams.id)
+      fileUrl = result.url
+      provider = result.provider
+      metadata = result.metadata
+    }
 
     // Determine asset type
     let assetType = 'DOCUMENT'
@@ -100,11 +164,12 @@ export async function POST(
       data: {
         title: file.name,
         filename: fileName,
-        url: `/uploads/stages/${resolvedParams.id}/${fileName}`,
+        url: fileUrl,
         type: assetType as any,
         size: file.size,
         mimeType: file.type,
-        provider: 'local',
+        provider: provider as any,
+        metadata: metadata,
         uploadedBy: session.user.id,
         orgId: session.user.orgId,
         projectId: stage.room.project.id,

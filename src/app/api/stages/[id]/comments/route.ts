@@ -35,7 +35,11 @@ export async function POST(
         }
       },
       include: {
-        room: true
+        room: {
+          include: {
+            project: true
+          }
+        }
       }
     })
 
@@ -48,6 +52,8 @@ export async function POST(
       data: {
         content,
         authorId: session.user.id,
+        projectId: stage.room?.project?.id || stage.room.projectId,
+        roomId: stage.room.id,
         stageId: stage.id,
         sectionId,
         mentions: mentions.length > 0 ? JSON.stringify(mentions) : null

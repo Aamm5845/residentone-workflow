@@ -48,6 +48,7 @@ interface DesignSection {
   id: string
   type: string
   content?: string
+  completed?: boolean
 }
 
 interface FFEItem {
@@ -115,6 +116,7 @@ export default function RoomManagement({
   onStageStart, 
   onStageComplete 
 }: RoomManagementProps) {
+  // Keep rooms collapsed by default to reduce visual clutter
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null)
   const [showAddItems, setShowAddItems] = useState(false)
 
@@ -123,8 +125,30 @@ export default function RoomManagement({
   )
 
   const getStageProgress = () => {
-    const completedStages = room.stages.filter(stage => stage.status === 'COMPLETED').length
-    return (completedStages / room.stages.length) * 100
+    let totalProgress = 0
+    let progressCount = 0
+    
+    room.stages.forEach(stage => {
+      if (stage.status === 'COMPLETED') {
+        totalProgress += 100
+        progressCount += 1
+      } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections) {
+        // For design stage, calculate progress based on completed sections
+        const completedSections = stage.designSections.filter((section: any) => section.completed).length
+        const sectionProgress = (completedSections / stage.designSections.length) * 100
+        totalProgress += sectionProgress
+        progressCount += 1
+      } else if (stage.status === 'IN_PROGRESS') {
+        // For other stages in progress, assume 50% completion
+        totalProgress += 50
+        progressCount += 1
+      } else {
+        // Not started stages contribute 0
+        progressCount += 1
+      }
+    })
+    
+    return progressCount > 0 ? totalProgress / progressCount : 0
   }
 
   const getNextActionableStage = () => {
@@ -144,13 +168,13 @@ export default function RoomManagement({
   const StatusIcon = ROOM_STATUS_CONFIG[room.status as keyof typeof ROOM_STATUS_CONFIG]?.icon || Clock
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Room Header */}
-      <div className="p-6 border-b border-gray-100">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
+      {/* Room Header - More Compact */}
+      <div className="p-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Settings className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <Settings className="w-5 h-5 text-white" />
             </div>
             
             <div>
@@ -182,23 +206,24 @@ export default function RoomManagement({
             
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setExpandedRoom(expandedRoom === room.id ? null : room.id)}
             >
               <ChevronRight className={`w-4 h-4 transition-transform ${expandedRoom === room.id ? 'rotate-90' : ''}`} />
-              {expandedRoom === room.id ? 'Hide Details' : 'Show Details'}
+              {expandedRoom === room.id ? 'Collapse' : 'Expand'}
             </Button>
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mt-4">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Overall Progress</span>
+        {/* Compact Progress Bar */}
+        <div className="mt-3">
+          <div className="flex justify-between text-xs text-gray-600 mb-1">
+            <span>Progress</span>
             <span>{Math.round(getStageProgress())}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
-              className="bg-gradient-to-r from-purple-500 to-blue-600 h-3 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-purple-500 to-blue-600 h-2 rounded-full transition-all duration-500"
               style={{ width: `${getStageProgress()}%` }}
             />
           </div>
