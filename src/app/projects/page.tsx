@@ -20,26 +20,66 @@ export default async function Projects() {
     redirect('/auth/signin')
   }
 
-  // Fetch projects from database
-  const projects = await prisma.project.findMany({
-    where: { orgId: session.user.orgId },
-    include: {
-      client: true,
-      rooms: {
-        include: {
-          stages: true
+  // Fetch projects from database with fallback handling
+  let projects: any[] = []
+  
+  try {
+    projects = await prisma.project.findMany({
+      where: { orgId: session.user.orgId },
+      include: {
+        client: true,
+        rooms: {
+          include: {
+            stages: true
+          }
+        },
+        _count: {
+          select: { 
+            rooms: true,
+            assets: true,
+            approvals: true
+          }
         }
       },
-      _count: {
-        select: { 
-          rooms: true,
-          assets: true,
-          approvals: true
-        }
-      }
-    },
-    orderBy: { updatedAt: 'desc' }
-  })
+      orderBy: { updatedAt: 'desc' }
+    })
+  } catch (error) {
+    console.error('Error fetching projects:', error)
+    // Fallback to basic query without new columns if migration hasn't run yet
+    try {
+      projects = await prisma.project.findMany({
+        where: { orgId: session.user.orgId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          type: true,
+          status: true,
+          dueDate: true,
+          budget: true,
+          createdAt: true,
+          updatedAt: true,
+          client: true,
+          rooms: {
+            include: {
+              stages: true
+            }
+          },
+          _count: {
+            select: { 
+              rooms: true,
+              assets: true,
+              approvals: true
+            }
+          }
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+    } catch (fallbackError) {
+      console.error('Fallback query also failed:', fallbackError)
+      projects = []
+    }
+  }
 
   return (
     <DashboardLayout session={session}>
