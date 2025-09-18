@@ -1,6 +1,12 @@
-# StudioFlow by Meisner Interiors - Interior Design Workflow Management
+# ResidentOne Workflow 🏠✨
 
-A comprehensive project workflow management system designed specifically for interior designers, inspired by your firm's real workflow: Design → 3D → Client Approval → (parallel) Drawings + FFE.
+**Professional Interior Design Project Management System**
+
+A modern, full-stack web application built for interior design studios to manage projects, collaborate with teams, and streamline client workflows.
+
+## 🚀 Live Demo
+
+**Production**: [https://residentone-workflow-5go27pngw-aarons-projects-644a474e.vercel.app](https://residentone-workflow-5go27pngw-aarons-projects-644a474e.vercel.app)
 
 ## 🏗️ Features
 
@@ -183,12 +189,13 @@ Each user sees navigation and features relevant to their role:
 ## 🚀 Development
 
 ### Tech Stack
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Lucide Icons
 - **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: SQLite (development) / PostgreSQL (production)
-- **Authentication**: NextAuth.js with credentials
-- **File Storage**: Dropbox API integration
-- **Email**: Nodemailer with SMTP
+- **Database**: PostgreSQL (Supabase) with connection pooling
+- **Authentication**: NextAuth.js with JWT sessions
+- **Deployment**: Vercel with automatic deployments
+- **File Storage**: Dropbox API integration (optional)
+- **Email**: Nodemailer with SMTP (optional)
 
 ### Project Structure
 ```
