@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { getDropboxStorage } from '@/lib/dropbox-storage'
+import { uploadToDropbox, createFolderStructure } from '@/lib/dropbox'
 
 // File upload configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -68,82 +68,66 @@ export async function POST(request: NextRequest) {
     try {
       let fileUrl: string
       let storageType: 'cloud' | 'local'
+      let assetId: string | null = null
       
-      // Try Dropbox cloud storage first, fall back to local if not configured
-      const dropboxStorage = getDropboxStorage()
+      // Convert file to buffer once
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
       
-      if (dropboxStorage) {
+      // Check if Dropbox is configured and try it first
+      const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
+      if (dropboxToken && dropboxToken !== 'your-dropbox-access-token-here') {
         console.log('☁️ Using Dropbox cloud storage')
         
         try {
-          // Convert file to buffer
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          
           console.log(`💾 Uploading file: ${fileName} (${formatFileSize(file.size)})`)
           console.log(`📁 Project: ${projectId}, Room: ${roomId}, Section: ${sectionId}`)
           
+          // Create upload context for organized Dropbox folder structure
+          const uploadContext = {
+            orgId: (session.user as any)?.orgId || 'default',
+            projectId: projectId || 'general',
+            projectName: projectId || 'General Files',
+            roomId: roomId || 'general',
+            roomName: roomId || 'General Room',
+            stageType: 'DESIGN',
+            sectionType: sectionId || 'uploads'
+          }
+          
+          // Ensure folder structure exists
+          await createFolderStructure(uploadContext)
+          
           // Upload to Dropbox with organized folder structure
-          const uploadResult = await dropboxStorage.uploadFile(
-            buffer,
-            fileName,
-            projectId || 'general',
-            file.type,
-            roomId,
-            sectionId
-          )
+          const uploadResult = await uploadToDropbox(buffer, fileName, uploadContext)
           
           console.log('✅ Dropbox upload successful:', uploadResult.url)
           fileUrl = uploadResult.url
           storageType = 'cloud'
           
-          // Create project structure if this is a new project
-          if (projectId) {
-            try {
-              await dropboxStorage.createProjectStructure(projectId)
-            } catch (structureError) {
-              console.log('📁 Project structure already exists or error creating it:', structureError)
-            }
-          }
         } catch (dropboxError) {
           console.error('❌ Dropbox upload failed:', dropboxError)
           console.log('🔄 Falling back to local storage')
           
           // Fall back to local storage
-          console.log('💾 Using local file storage (Dropbox fallback)')
-          
-          // Ensure upload directory exists
           await mkdir(UPLOAD_DIR, { recursive: true })
-    
-          // Create project-specific subdirectory
           const projectDir = path.join(UPLOAD_DIR, projectId || 'general')
           await mkdir(projectDir, { recursive: true })
-    
-          // Save file locally
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          const filePath = path.join(projectDir, fileName)
           
+          const filePath = path.join(projectDir, fileName)
           await writeFile(filePath, buffer)
           fileUrl = `/uploads/${projectId || 'general'}/${fileName}`
           storageType = 'local'
         }
         
       } else {
-        console.log('💾 Using local file storage (fallback)')
+        console.log('💾 Using local file storage (Dropbox not configured)')
         
         // Ensure upload directory exists
         await mkdir(UPLOAD_DIR, { recursive: true })
-
-        // Create project-specific subdirectory
         const projectDir = path.join(UPLOAD_DIR, projectId || 'general')
         await mkdir(projectDir, { recursive: true })
-
-        // Save file locally
-        const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const filePath = path.join(projectDir, fileName)
         
+        const filePath = path.join(projectDir, fileName)
         await writeFile(filePath, buffer)
         fileUrl = `/uploads/${projectId || 'general'}/${fileName}`
         storageType = 'local'
@@ -162,8 +146,8 @@ export async function POST(request: NextRequest) {
         url: fileUrl,
         uploadedAt: new Date().toISOString(),
         uploadedBy: {
-          id: session.user.id || 'unknown',
-          name: session.user.name || 'Unknown User'
+          id: (session.user as any)?.id || 'unknown',
+          name: session.user?.name || 'Unknown User'
         },
         sectionId,
         roomId,

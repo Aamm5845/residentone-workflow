@@ -44,9 +44,12 @@ export async function POST(
     } | null
     const resolvedParams = await params
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    
+    // Get orgId with fallback
+    const orgId = (session.user as any)?.orgId || 'default'
 
     // Parse form data
     const formData = await request.formData()
@@ -63,7 +66,7 @@ export async function POST(
         id: resolvedParams.id,
         room: {
           project: {
-            orgId: session.user.orgId
+            orgId: orgId
           }
         }
       },
@@ -112,7 +115,7 @@ export async function POST(
       try {
         // Create upload context for organized Dropbox folder structure
         const uploadContext = {
-          orgId: session.user.orgId,
+          orgId: orgId,
           projectId: stage.room.project.id,
           projectName: stage.room.project.name,
           roomId: stage.room.id,
@@ -170,8 +173,8 @@ export async function POST(
         mimeType: file.type,
         provider: provider as any,
         metadata: metadata,
-        uploadedBy: session.user.id,
-        orgId: session.user.orgId,
+        uploadedBy: (session.user as any)?.id || 'unknown',
+        orgId: orgId,
         projectId: stage.room.project.id,
         roomId: stage.room.id,
         stageId: stage.id,
