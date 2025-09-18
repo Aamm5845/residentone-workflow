@@ -21,6 +21,7 @@ import {
   Pencil,
   Users
 } from 'lucide-react'
+import { STAGE_CONFIG, getStageIcon, TOTAL_WORKFLOW_STAGES } from '@/constants/workflow'
 
 interface Room {
   id: string
@@ -68,38 +69,8 @@ interface RoomManagementProps {
   onStageComplete: (stageId: string) => void
 }
 
-const STAGE_CONFIG = {
-  DESIGN: {
-    name: 'Design',
-    icon: Palette,
-    color: 'bg-purple-500',
-    description: 'Create design concepts and mood boards'
-  },
-  THREE_D: {
-    name: '3D Rendering',
-    icon: Box,
-    color: 'bg-blue-500',
-    description: 'Generate 3D visualizations and renderings'
-  },
-  CLIENT_APPROVAL: {
-    name: 'Client Approval',
-    icon: CheckCheck,
-    color: 'bg-green-500',
-    description: 'Client review and approval process'
-  },
-  DRAWINGS: {
-    name: 'Technical Drawings',
-    icon: Pencil,
-    color: 'bg-orange-500',
-    description: 'Create technical drawings and specifications'
-  },
-  FFE: {
-    name: 'FFE Sourcing',
-    icon: Settings,
-    color: 'bg-indigo-500',
-    description: 'Furniture, fixtures & equipment sourcing'
-  }
-}
+// Using centralized STAGE_CONFIG from constants/workflow.ts
+// Note: FFE is now integrated into DRAWINGS stage
 
 const ROOM_STATUS_CONFIG = {
   NOT_STARTED: { name: 'Not Started', color: 'bg-gray-100 text-gray-800', icon: Clock },
@@ -128,7 +99,12 @@ export default function RoomManagement({
     let totalProgress = 0
     let progressCount = 0
     
-    room.stages.forEach(stage => {
+    // Only count the 4 main workflow stages, ignore any legacy FFE stages
+    const relevantStages = room.stages.filter(stage => 
+      ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+    )
+    
+    relevantStages.forEach(stage => {
       if (stage.status === 'COMPLETED') {
         totalProgress += 100
         progressCount += 1
@@ -237,9 +213,14 @@ export default function RoomManagement({
           <div>
             <h4 className="text-md font-semibold text-gray-900 mb-4">Workflow Stages</h4>
             <div className="space-y-3">
-              {room.stages.map((stage, index) => {
-                const StageConfig = STAGE_CONFIG[stage.type as keyof typeof STAGE_CONFIG]
-                const StageIcon = StageConfig?.icon || Settings
+              {room.stages.filter(stage => 
+                ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+              ).map((stage, index) => {
+                const stageConfig = STAGE_CONFIG[stage.type as keyof typeof STAGE_CONFIG]
+                const StageIcon = stage.type === 'DESIGN' ? Palette : 
+                                stage.type === 'THREE_D' ? Box : 
+                                stage.type === 'CLIENT_APPROVAL' ? CheckCheck : 
+                                stage.type === 'DRAWINGS' ? Pencil : Settings
                 const isActive = currentStageIndex === index
                 const isCompleted = stage.status === 'COMPLETED'
                 const canStart = stage.status === 'NOT_STARTED' && (index === 0 || room.stages[index - 1].status === 'COMPLETED')
@@ -257,13 +238,13 @@ export default function RoomManagement({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 ${StageConfig?.color} rounded-lg flex items-center justify-center`}>
+                        <div className={`w-10 h-10 ${stageConfig?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center`}>
                           <StageIcon className="w-5 h-5 text-white" />
                         </div>
                         
                         <div>
-                          <h5 className="font-medium text-gray-900">{StageConfig?.name}</h5>
-                          <p className="text-sm text-gray-600">{StageConfig?.description}</p>
+                          <h5 className="font-medium text-gray-900">{stageConfig?.name || 'Unknown Stage'}</h5>
+                          <p className="text-sm text-gray-600">{stageConfig?.description || 'Stage description'}</p>
                           {stage.assignedUser && (
                             <div className="flex items-center space-x-1 mt-1">
                               <User className="w-3 h-3 text-gray-400" />

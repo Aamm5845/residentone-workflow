@@ -20,36 +20,26 @@ export default async function Projects() {
     redirect('/auth/signin')
   }
 
-  // Fetch projects with fallback
-  let projects: any[] = []
-  
-  try {
-    projects = await prisma.project.findMany({
-      where: { orgId: session.user.orgId },
-      include: {
-        client: true,
-        rooms: {
-          include: {
-            stages: true
-          }
-        },
-        _count: {
-          select: { 
-            rooms: true,
-            assets: true,
-            approvals: true
-          }
+  // Fetch projects from database
+  const projects = await prisma.project.findMany({
+    where: { orgId: session.user.orgId },
+    include: {
+      client: true,
+      rooms: {
+        include: {
+          stages: true
         }
       },
-      orderBy: { updatedAt: 'desc' }
-    })
-  } catch (error) {
-    console.warn('Database unavailable, using fallback data')
-    
-    // Import and use fallback data
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    projects = fallbackProjects
-  }
+      _count: {
+        select: { 
+          rooms: true,
+          assets: true,
+          approvals: true
+        }
+      }
+    },
+    orderBy: { updatedAt: 'desc' }
+  })
 
   return (
     <DashboardLayout session={session}>
@@ -106,7 +96,7 @@ export default async function Projects() {
           </div>
 
           {/* Project Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {projects.map((project) => {
               const completedStages = project.rooms.reduce((total: number, room: any) => {
                 return total + room.stages.filter((stage: any) => stage.status === 'COMPLETED').length
@@ -133,12 +123,12 @@ export default async function Projects() {
 
               return (
                 <Link key={project.id} href={`/projects/${project.id}`} className="group">
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200">
                     {/* Project Thumbnail */}
-                    <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+                    <div className="aspect-[16/9] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Building className="w-12 h-12 text-gray-300" />
+                        <Building className="w-8 h-8 text-gray-300" />
                       </div>
                       {/* Status Badge */}
                       <div className="absolute top-3 right-3">
@@ -163,18 +153,18 @@ export default async function Projects() {
                     </div>
                     
                     {/* Project Info */}
-                    <div className="p-5">
+                    <div className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-purple-600 transition-colors">
+                          <h3 className="text-base font-semibold text-gray-900 truncate group-hover:text-purple-600 transition-colors">
                             {project.name}
                           </h3>
-                          <p className="text-sm text-gray-600 mt-1">{project.client.name}</p>
+                          <p className="text-sm text-gray-600 mt-0.5">{project.client.name}</p>
                         </div>
                       </div>
                       
                       {/* Room Tags */}
-                      <div className="flex flex-wrap gap-1.5 mb-4">
+                      <div className="flex flex-wrap gap-1.5 mb-3">
                         {project.rooms.slice(0, 3).map((room: any) => (
                           <span 
                             key={room.id}

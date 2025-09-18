@@ -14,25 +14,21 @@ export async function GET(request: NextRequest) {
       }
     } | null
     
-    if (!session?.user) {
+    if (!session?.user?.orgId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // In fallback/demo mode, we'll return fallback projects 
-    // In a real deployment, this would use the database
-    console.log('Database unavailable, using fallback project data')
-    
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    return NextResponse.json(fallbackProjects)
-    
-    /* Original database code - commented out for fallback mode
     const projects = await prisma.project.findMany({
       where: { orgId: session.user.orgId },
       include: {
         client: true,
         rooms: {
           include: {
-            stages: true
+            stages: {
+              include: {
+                assignedUser: true
+              }
+            }
           }
         },
         _count: {
@@ -46,7 +42,6 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: 'desc' }
     })
     return NextResponse.json(projects)
-    */
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -67,44 +62,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // In fallback mode, just return a mock success response
-    const data = await request.json()
-    console.log('Database unavailable, using fallback auth - cannot create projects in demo mode')
+    const { orgId } = session.user
     
-    // Create a mock project response for the frontend
-    const mockProject = {
-      id: `project-${Date.now()}`,
-      name: data.name,
-      description: data.description || null,
-      type: data.type,
-      budget: data.budget || null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      status: 'IN_PROGRESS',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      client: {
-        id: 'mock-client',
-        name: data.clientName || 'Mock Client',
-        email: data.clientEmail || 'client@example.com',
-        phone: data.clientPhone || null
-      },
-      rooms: data.selectedRooms.map((roomData: any, index: number) => ({
-        id: `room-${Date.now()}-${index}`,
-        type: typeof roomData === 'string' ? roomData : roomData.type,
-        name: typeof roomData === 'string' ? null : (roomData.customName || roomData.name),
-        status: 'NOT_STARTED',
-        stages: [
-          { id: `stage-${Date.now()}-${index}-1`, type: 'DESIGN', status: 'NOT_STARTED' },
-          { id: `stage-${Date.now()}-${index}-2`, type: 'THREE_D', status: 'NOT_STARTED' },
-          { id: `stage-${Date.now()}-${index}-3`, type: 'DRAWINGS', status: 'NOT_STARTED' },
-          { id: `stage-${Date.now()}-${index}-4`, type: 'FFE', status: 'NOT_STARTED' }
-        ]
-      }))
-    }
-    
-    return NextResponse.json(mockProject, { status: 201 })
-
-    /* Original database code - commented out for fallback mode
     const data = await request.json()
     const {
       name,
@@ -193,7 +152,7 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create all workflow stages for each room
+      // Create 4 workflow stages for each room (DRAWINGS+FFE combined)
       const stages = [
         {
           roomId: room.id,
@@ -218,34 +177,29 @@ export async function POST(request: NextRequest) {
           type: 'DRAWINGS' as StageType,
           status: 'NOT_STARTED' as StageStatus,
           assignedTo: drafter?.id || null
-        },
-        {
-          roomId: room.id,
-          type: 'FFE' as StageType,
-          status: 'NOT_STARTED' as StageStatus,
-          assignedTo: ffe?.id || null
         }
+        // Note: FFE is now handled as part of DRAWINGS stage
       ]
 
       await prisma.stage.createMany({
         data: stages
       })
 
-      // Create design sections for the design stage
-      const designStage = await prisma.stage.findFirst({
-        where: { roomId: room.id, type: 'DESIGN' }
-      })
+      // TODO: Create design sections for the design stage (temporarily disabled due to schema sync issues)
+      // const designStage = await projectPrisma.stage.findFirst({
+      //   where: { roomId: room.id, type: 'DESIGN' }
+      // })
 
-      if (designStage) {
-        await prisma.designSection.createMany({
-          data: [
-            { stageId: designStage.id, type: 'WALLS' },
-            { stageId: designStage.id, type: 'FURNITURE' },
-            { stageId: designStage.id, type: 'LIGHTING' },
-            { stageId: designStage.id, type: 'GENERAL' }
-          ]
-        })
-      }
+      // if (designStage) {
+      //   await projectPrisma.designSection.createMany({
+      //     data: [
+      //       { stageId: designStage.id, type: 'WALLS' },
+      //       { stageId: designStage.id, type: 'FURNITURE' },
+      //       { stageId: designStage.id, type: 'LIGHTING' },
+      //       { stageId: designStage.id, type: 'GENERAL' }
+      //     ]
+      //   })
+      // }
 
       // Create default FFE items based on room type
       const defaultFFEItems = await getDefaultFFEItems(roomType as RoomType)
@@ -268,7 +222,11 @@ export async function POST(request: NextRequest) {
         client: true,
         rooms: {
           include: {
-            stages: true,
+            stages: {
+              include: {
+                assignedUser: true
+              }
+            },
             ffeItems: true
           }
         }
@@ -276,7 +234,6 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(fullProject, { status: 201 })
-    */
   } catch (error) {
     console.error('Error creating project:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

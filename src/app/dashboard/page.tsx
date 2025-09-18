@@ -82,15 +82,13 @@ export default async function Dashboard() {
     recentProjects = recentProjectsData
     
   } catch (error) {
-    console.warn('Database unavailable, using fallback data')
+    console.error('Error fetching dashboard data:', error)
     
-    // Import and use fallback data
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    
-    activeProjects = 2
-    totalClients = 2
-    pendingApprovals = 1
-    recentProjects = fallbackProjects
+    // Provide empty defaults if database is unavailable
+    activeProjects = 0
+    totalClients = 0
+    pendingApprovals = 0
+    recentProjects = []
   }
 
   const stats = [

@@ -73,26 +73,8 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
       }
     })
   } catch (error) {
-    console.warn('Database unavailable, using fallback data')
-    
-    // Import and use fallback data to find the stage
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    for (const project of fallbackProjects) {
-      for (const room of project.rooms) {
-        const foundStage = room.stages.find((s: any) => s.id === resolvedParams.id)
-        if (foundStage) {
-          stage = {
-            ...foundStage,
-            room: {
-              ...room,
-              project
-            }
-          }
-          break
-        }
-      }
-      if (stage) break
-    }
+    console.error('Error fetching stage data:', error)
+    stage = null
   }
 
   if (!stage) {

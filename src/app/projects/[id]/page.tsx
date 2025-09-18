@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation } from 'lucide-react'
+import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { formatDate, formatRoomType } from '@/lib/utils'
@@ -40,8 +41,7 @@ export default async function ProjectDetail({ params }: Props) {
                 designSections: {
                   select: {
                     id: true,
-                    type: true,
-                    completed: true
+                    type: true
                   }
                 }
               }
@@ -53,10 +53,8 @@ export default async function ProjectDetail({ params }: Props) {
       }
     })
   } catch (error) {
-    console.warn('Database unavailable, using fallback')
-    // Use fallback project data
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    project = fallbackProjects.find((p: any) => p.id === id) || fallbackProjects[0]
+    console.error('Error fetching project:', error)
+    redirect('/projects')
   }
 
   if (!project) {
@@ -73,29 +71,25 @@ export default async function ProjectDetail({ params }: Props) {
   const overallProgress = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0
 
   const getPhaseIcon = (phaseType: string) => {
-    switch (phaseType) {
-      case 'DESIGN': return '🎨'
-      case 'THREE_D': return '🎥'
-      case 'CLIENT_APPROVAL': return '👥'
-      case 'DRAWINGS': return '📐'
-      case 'FFE': return '🛋️'
-      default: return '⏳'
-    }
+    return getStageIcon(phaseType)
   }
 
   const getRoomProgress = (room: any) => {
     let totalProgress = 0
     let progressCount = 0
     
-    room.stages.forEach((stage: any) => {
+    // Only count the 4 main workflow stages, ignore any legacy FFE stages
+    const relevantStages = room.stages.filter((stage: any) => 
+      ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+    )
+    
+    relevantStages.forEach((stage: any) => {
       if (stage.status === 'COMPLETED') {
         totalProgress += 100
         progressCount += 1
       } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections) {
-        // For design stage, calculate progress based on completed sections
-        const completedSections = stage.designSections.filter((section: any) => section.completed).length
-        const sectionProgress = stage.designSections.length > 0 ? (completedSections / stage.designSections.length) * 100 : 0
-        totalProgress += sectionProgress
+        // For design stage in progress, assume 50% completion since we don't track section completion
+        totalProgress += 50
         progressCount += 1
       } else if (stage.status === 'IN_PROGRESS') {
         // For other stages in progress, assume 50% completion
@@ -298,8 +292,10 @@ export default async function ProjectDetail({ params }: Props) {
                       <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">
                         Workflow Stages
                       </div>
-                      <div className="grid grid-cols-5 gap-2">
-                        {room.stages.map((stage: any, index: number) => {
+                      <div className="grid grid-cols-4 gap-2">
+                        {room.stages.filter((stage: any) => 
+                          ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+                        ).map((stage: any, index: number) => {
                           const stageProgress = stage.status === 'COMPLETED' ? 100 : 
                                              stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections ?
                                              stage.designSections.filter((s: any) => s.completed).length / stage.designSections.length * 100 :

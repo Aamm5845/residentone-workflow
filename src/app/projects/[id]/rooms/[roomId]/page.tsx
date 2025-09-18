@@ -56,11 +56,8 @@ export default async function RoomWorkspace({ params }: Props) {
     room = projectData?.rooms.find((r: any) => r.id === roomId)
     
   } catch (error) {
-    console.warn('Database unavailable, using fallback')
-    // Use fallback data
-    const { fallbackProjects } = await import('@/lib/fallback-data')
-    project = fallbackProjects.find((p: any) => p.id === id) || fallbackProjects[0]
-    room = project?.rooms.find((r: any) => r.id === roomId) || project?.rooms[0]
+    console.error('Error fetching project data:', error)
+    redirect(`/projects/${id}`)
   }
 
   if (!project || !room) {
@@ -157,13 +154,13 @@ export default async function RoomWorkspace({ params }: Props) {
                 <span>🎥</span>
                 <span>3D Rendering</span>
               </TabsTrigger>
+              <TabsTrigger value="client_approval" className="flex items-center space-x-2">
+                <span>👥</span>
+                <span>Client Approval</span>
+              </TabsTrigger>
               <TabsTrigger value="drawings" className="flex items-center space-x-2">
                 <span>📐</span>
-                <span>Drafting</span>
-              </TabsTrigger>
-              <TabsTrigger value="ffe" className="flex items-center space-x-2">
-                <span>🛋️</span>
-                <span>FFE</span>
+                <span>Drawings & FFE</span>
               </TabsTrigger>
             </TabsList>
 
@@ -177,14 +174,17 @@ export default async function RoomWorkspace({ params }: Props) {
               <RenderingPhaseContent roomId={roomId} />
             </TabsContent>
 
-            {/* Drafting Phase Content */}
-            <TabsContent value="drawings" className="space-y-8 mt-8">
-              <DraftingPhaseContent roomId={roomId} />
+            {/* Client Approval Phase Content */}
+            <TabsContent value="client_approval" className="space-y-8 mt-8">
+              <ClientApprovalPhaseContent roomId={roomId} />
             </TabsContent>
 
-            {/* FFE Phase Content */}
-            <TabsContent value="ffe" className="space-y-8 mt-8">
-              <FFEPhaseContent roomId={roomId} />
+            {/* Drafting + FFE Phase Content */}
+            <TabsContent value="drawings" className="space-y-8 mt-8">
+              <DraftingPhaseContent roomId={roomId} />
+              <div className="mt-12">
+                <FFEPhaseContent roomId={roomId} />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
@@ -217,6 +217,32 @@ function DesignPhaseContent({ roomId, projectId }: { roomId: string; projectId: 
         {designSections.map((section) => (
           <DesignBoard key={section.id} section={section} roomId={roomId} projectId={projectId} />
         ))}
+      </div>
+    </div>
+  )
+}
+
+// Client Approval Phase Component
+function ClientApprovalPhaseContent({ roomId }: { roomId: string }) {
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">Client Approval</h3>
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Send for Approval
+        </Button>
+      </div>
+      
+      <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">👥</span>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Client Approval Workspace</h3>
+        <p className="text-gray-600 mb-6">Send designs and renderings to client for review and approval.</p>
+        <Button variant="outline">
+          Create Approval Request
+        </Button>
       </div>
     </div>
   )
@@ -279,7 +305,7 @@ function FFEPhaseContent({ roomId }: { roomId: string }) {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-gray-900">Furniture, Fixtures & Equipment</h3>
+        <h3 className="text-xl font-semibold text-gray-900">FFE Sourcing & Specifications</h3>
         <Button>
           <Plus className="w-4 h-4 mr-2" />
           Add Item
