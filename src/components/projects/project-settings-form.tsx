@@ -96,6 +96,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const onSubmit = async (data: ProjectSettingsFormData) => {
     try {
       setIsLoading(true)
+      console.log('Form data being submitted:', data)
 
       const submitData = {
         ...data,
@@ -103,6 +104,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         dueDate: data.dueDate || null,
         coverImageUrl: currentCoverImage,
       }
+      
+      console.log('Processed submit data:', submitData)
 
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
@@ -112,11 +115,22 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         body: JSON.stringify(submitData),
       })
 
+      console.log('Response status:', response.status)
+      
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update project')
+        const errorText = await response.text()
+        console.error('API Error response:', errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to update project`)
       }
-
+      
+      const result = await response.json()
+      console.log('Update successful:', result)
       alert('Project updated successfully!')
       router.refresh()
     } catch (error) {

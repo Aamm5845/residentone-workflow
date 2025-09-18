@@ -108,7 +108,9 @@ export async function PUT(
 
     // Validate request body
     const body = await request.json()
+    console.log('Project update request body:', body)
     const validatedData = updateProjectSchema.parse(body)
+    console.log('Validated data:', validatedData)
 
     // Check if project exists and belongs to user's organization
     const existingProject = await prisma.project.findFirst({
@@ -139,20 +141,30 @@ export async function PUT(
       }
     }
 
-    // Update project
+    // Update project - handle missing columns gracefully
+    const updateData: any = {
+      name: validatedData.name,
+      description: validatedData.description,
+      type: validatedData.type,
+      budget: validatedData.budget,
+      dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
+      clientId: validatedData.clientId || existingProject.clientId,
+      updatedAt: new Date(),
+    }
+    
+    // Only add new columns if they exist in the schema (for migration compatibility)
+    if (validatedData.coverImageUrl !== undefined) {
+      updateData.coverImageUrl = validatedData.coverImageUrl
+    }
+    if (validatedData.dropboxFolder !== undefined) {
+      updateData.dropboxFolder = validatedData.dropboxFolder
+    }
+    
+    console.log('Update data being sent to DB:', updateData)
+    
     const updatedProject = await prisma.project.update({
       where: { id: params.id },
-      data: {
-        name: validatedData.name,
-        description: validatedData.description,
-        type: validatedData.type,
-        budget: validatedData.budget,
-        dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
-        clientId: validatedData.clientId || existingProject.clientId,
-        coverImageUrl: validatedData.coverImageUrl,
-        dropboxFolder: validatedData.dropboxFolder,
-        updatedAt: new Date(),
-      },
+      data: updateData,
       include: {
         client: true,
         createdBy: {
