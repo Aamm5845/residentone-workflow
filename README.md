@@ -1,4 +1,5 @@
-# ResidentOne Workflow 🏠✨
+# ResidentOne Workflow
+<!-- Test auto-deploy: 2025-09-18 -->
 
 **Professional Interior Design Project Management System**
 
