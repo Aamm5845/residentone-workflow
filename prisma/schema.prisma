@@ -137,18 +137,20 @@ enum ProjectStatus {
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  type        ProjectType   @default(RESIDENTIAL)
-  status      ProjectStatus @default(DRAFT)
-  clientId    String
-  dueDate     DateTime?
-  budget      Float?
-  orgId       String
-  createdById String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  type          ProjectType   @default(RESIDENTIAL)
+  status        ProjectStatus @default(DRAFT)
+  clientId      String
+  dueDate       DateTime?
+  budget        Float?
+  coverImageUrl String?       // Project cover image URL from Dropbox
+  dropboxFolder String?       // Custom Dropbox folder path for project
+  orgId         String
+  createdById   String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   client       Client       @relation(fields: [clientId], references: [id])

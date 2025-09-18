@@ -152,3 +152,53 @@ export async function listDropboxFiles(folderPath: string): Promise<any[]> {
     return []
   }
 }
+
+/**
+ * Upload image to Dropbox for generic use (avatars, project covers, etc.)
+ * Format: /Organizations/{orgId}/images/{filename}
+ */
+export async function uploadImage(
+  file: Buffer,
+  fileName: string,
+  orgId: string,
+  imageType: 'avatar' | 'project-cover' | 'general' = 'general'
+): Promise<{ url: string; path: string }> {
+  if (!dbx) {
+    throw new Error('Dropbox not configured')
+  }
+  
+  try {
+    // Create organized path based on image type
+    const basePath = `/Organizations/${orgId}/images`
+    const typePath = imageType === 'general' ? basePath : `${basePath}/${imageType}`
+    const fullPath = `${typePath}/${fileName}`
+    
+    // Upload file to Dropbox
+    const response = await dbx.filesUpload({
+      path: fullPath,
+      contents: file,
+      mode: 'add',
+      autorename: true
+    })
+    
+    // Get a shared link for the file
+    let sharedLink: string
+    try {
+      const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+        path: response.result.path_lower!
+      })
+      sharedLink = linkResponse.result.url
+    } catch (linkError) {
+      // If link creation fails, use direct download URL
+      sharedLink = `https://www.dropbox.com/s/${response.result.id}/direct`
+    }
+    
+    return {
+      url: sharedLink,
+      path: response.result.path_lower!
+    }
+  } catch (error) {
+    console.error('Dropbox image upload error:', error)
+    throw new Error('Failed to upload image to Dropbox')
+  }
+}

@@ -179,9 +179,11 @@ export default async function ProjectDetail({ params }: Props) {
               </div>
               
               <div className="flex items-center space-x-3">
-                <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Project Settings
+                <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50" asChild>
+                  <Link href={`/projects/${project.id}/settings`}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Project Settings
+                  </Link>
                 </Button>
                 <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
                   <Plus className="w-4 h-4 mr-2" />
