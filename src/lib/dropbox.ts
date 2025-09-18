@@ -38,7 +38,7 @@ export function createDropboxPath(context: UploadContext): string {
   const sanitizedStage = sanitize(stageType.replace('_', ' '))
   const sanitizedSection = sanitize(sectionType.replace('_', ' '))
   
-  return `/Organizations/${orgId}/Projects/${sanitizedProject}/Rooms/${sanitizedRoom}/Stages/${sanitizedStage}/Sections/${sanitizedSection}`
+  return `/Meisner Interiors Team Folder/Projects/${sanitizedProject}/Rooms/${sanitizedRoom}/Stages/${sanitizedStage}/Sections/${sanitizedSection}`
 }
 
 /**
@@ -169,7 +169,7 @@ export async function uploadImage(
   
   try {
     // Create organized path based on image type
-    const basePath = `/Organizations/${orgId}/images`
+    const basePath = `/Meisner Interiors Team Folder/Images`
     const typePath = imageType === 'general' ? basePath : `${basePath}/${imageType}`
     const fullPath = `${typePath}/${fileName}`
     

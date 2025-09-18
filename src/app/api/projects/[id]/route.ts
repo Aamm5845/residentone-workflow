@@ -235,22 +235,124 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    // Perform soft delete (mark as deleted) instead of hard delete to preserve data integrity
-    const deletedProject = await prisma.project.update({
-      where: { id: params.id },
-      data: {
-        status: 'COMPLETED' as ProjectStatus, // Use COMPLETED as deleted status
-        name: `[DELETED] ${existingProject.name}`,
-        updatedAt: new Date(),
+    // Perform actual deletion with cascade
+    // Delete in order: assets -> approvals -> comments -> tasks -> stages -> rooms -> project
+    await prisma.$transaction(async (tx) => {
+      // Delete all project assets
+      await tx.asset.deleteMany({
+        where: { projectId: params.id }
+      })
+      
+      // Delete all project approvals
+      await tx.approval.deleteMany({
+        where: { projectId: params.id }
+      })
+      
+      // Delete all project comments
+      await tx.comment.deleteMany({
+        where: { projectId: params.id }
+      })
+      
+      // Delete all project tasks
+      await tx.task.deleteMany({
+        where: { projectId: params.id }
+      })
+      
+      // Get all room IDs for this project
+      const rooms = await tx.room.findMany({
+        where: { projectId: params.id },
+        select: { id: true }
+      })
+      
+      const roomIds = rooms.map(room => room.id)
+      
+      if (roomIds.length > 0) {
+        // Delete room-related data
+        await tx.asset.deleteMany({
+          where: { roomId: { in: roomIds } }
+        })
+        
+        await tx.comment.deleteMany({
+          where: { roomId: { in: roomIds } }
+        })
+        
+        await tx.task.deleteMany({
+          where: { roomId: { in: roomIds } }
+        })
+        
+        await tx.approval.deleteMany({
+          where: { roomId: { in: roomIds } }
+        })
+        
+        await tx.fFEItem.deleteMany({
+          where: { roomId: { in: roomIds } }
+        })
+        
+        // Get all stage IDs
+        const stages = await tx.stage.findMany({
+          where: { roomId: { in: roomIds } },
+          select: { id: true }
+        })
+        
+        const stageIds = stages.map(stage => stage.id)
+        
+        if (stageIds.length > 0) {
+          // Delete stage-related data
+          await tx.asset.deleteMany({
+            where: { stageId: { in: stageIds } }
+          })
+          
+          await tx.comment.deleteMany({
+            where: { stageId: { in: stageIds } }
+          })
+          
+          await tx.task.deleteMany({
+            where: { stageId: { in: stageIds } }
+          })
+          
+          // Delete design sections
+          const sections = await tx.designSection.findMany({
+            where: { stageId: { in: stageIds } },
+            select: { id: true }
+          })
+          
+          const sectionIds = sections.map(section => section.id)
+          
+          if (sectionIds.length > 0) {
+            await tx.asset.deleteMany({
+              where: { sectionId: { in: sectionIds } }
+            })
+            
+            await tx.comment.deleteMany({
+              where: { sectionId: { in: sectionIds } }
+            })
+          }
+          
+          await tx.designSection.deleteMany({
+            where: { stageId: { in: stageIds } }
+          })
+          
+          // Delete stages
+          await tx.stage.deleteMany({
+            where: { id: { in: stageIds } }
+          })
+        }
+        
+        // Delete rooms
+        await tx.room.deleteMany({
+          where: { id: { in: roomIds } }
+        })
       }
+      
+      // Finally delete the project
+      await tx.project.delete({
+        where: { id: params.id }
+      })
     })
-
-    // TODO: Consider implementing hard delete with cascade in the future
-    // This would require careful handling of related data (rooms, stages, assets, etc.)
     
     return NextResponse.json({
       success: true,
-      message: 'Project has been marked as deleted',
+      message: 'Project has been permanently deleted',
       projectId: params.id,
       originalName: existingProject.name
     })
