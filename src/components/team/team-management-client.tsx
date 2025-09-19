@@ -63,6 +63,8 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🚀 Team member form submitted!')
+    console.log('Form data:', formData)
     setIsLoading(true)
 
     try {

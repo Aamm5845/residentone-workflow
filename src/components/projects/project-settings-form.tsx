@@ -19,7 +19,7 @@ const projectSettingsSchema = z.object({
   budget: z.string().optional(),
   dueDate: z.string().optional(),
   clientId: z.string().min(1, "Client is required"),
-  coverImageUrl: z.string().url().optional().nullable(),
+  coverImageUrl: z.string().min(1).optional().nullable(), // Accept relative URLs
   dropboxFolder: z.string().optional().nullable(),
 })
 
@@ -96,6 +96,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const onSubmit = async (data: ProjectSettingsFormData) => {
     try {
       setIsLoading(true)
+      console.log('🚀 Project settings form submitted!')
       console.log('Form data being submitted:', data)
 
       const submitData = {
@@ -399,7 +400,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !isDirty}
+              disabled={isLoading}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
               {isLoading ? 'Saving...' : 'Save Changes'}
