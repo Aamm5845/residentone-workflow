@@ -43,8 +43,9 @@ function canChangeToRole(currentUserRole: string, targetRole: UserRole): boolean
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
+  const { params } = await context.params
   try {
     const session = await getSession() as AuthSession | null
     
@@ -99,8 +100,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
+  const { params } = await context.params
   try {
     const session = await getSession() as AuthSession | null
     
@@ -211,8 +213,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
+  const { params } = await context.params
   try {
     const session = await getSession() as AuthSession | null
     

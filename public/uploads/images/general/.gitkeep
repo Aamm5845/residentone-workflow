@@ -1,0 +1,2 @@
+# This file ensures the general images upload directory is preserved in Git
+# Uploaded general images will be stored here when using local storage

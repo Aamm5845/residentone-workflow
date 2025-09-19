@@ -4,10 +4,18 @@ import { Dropbox } from 'dropbox'
 let dbx: Dropbox | null = null
 
 if (process.env.DROPBOX_ACCESS_TOKEN && process.env.DROPBOX_ACCESS_TOKEN !== 'your-dropbox-access-token-here') {
-  dbx = new Dropbox({
-    accessToken: process.env.DROPBOX_ACCESS_TOKEN,
-    fetch: fetch
-  })
+  try {
+    dbx = new Dropbox({
+      accessToken: process.env.DROPBOX_ACCESS_TOKEN,
+      fetch: fetch
+    })
+    console.log('✅ Dropbox client initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize Dropbox client:', error)
+    dbx = null
+  }
+} else {
+  console.warn('⚠️ Dropbox not configured: Missing or invalid access token')
 }
 
 interface UploadContext {

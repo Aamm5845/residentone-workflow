@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { uploadImage } from '@/lib/dropbox'
+import { writeFile, mkdir } from 'fs/promises'
+import path from 'path'
 import { z } from 'zod'
 
 // Validation schema
@@ -17,6 +19,14 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session?.user?.orgId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // For profile pictures and project covers, we can use local storage as fallback
+    const useLocalStorage = !process.env.DROPBOX_ACCESS_TOKEN || 
+                           process.env.DROPBOX_ACCESS_TOKEN === 'your-dropbox-access-token-here'
+    
+    if (useLocalStorage) {
+      console.log('⚠️ Using local file storage (Dropbox not configured or unavailable)')
     }
 
     // Parse form data
@@ -56,22 +66,31 @@ export async function POST(request: NextRequest) {
     const fileName = `${timestamp}_${Math.random().toString(36).substring(7)}.${fileExtension}`
 
     try {
-      // Upload to Dropbox
-      const { url, path } = await uploadImage(
-        buffer,
-        fileName,
-        session.user.orgId,
-        imageType
-      )
+      let uploadResult
+      
+      if (useLocalStorage) {
+        // Use local file storage
+        uploadResult = await uploadImageLocally(buffer, fileName, imageType)
+      } else {
+        // Use Dropbox storage
+        const { url, path } = await uploadImage(
+          buffer,
+          fileName,
+          session.user.orgId,
+          imageType
+        )
+        uploadResult = { url, path }
+      }
 
       return NextResponse.json({
         success: true,
-        url,
-        path,
+        url: uploadResult.url,
+        path: uploadResult.path || uploadResult.url,
         fileName,
         originalName: file.name,
         size: file.size,
         type: file.type,
+        storage: useLocalStorage ? 'local' : 'dropbox'
       })
     } catch (uploadError) {
       console.error('Upload error:', uploadError)
@@ -84,6 +103,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       error: 'Internal server error' 
     }, { status: 500 })
+  }
+}
+
+// Local file storage function
+async function uploadImageLocally(
+  buffer: Buffer,
+  fileName: string,
+  imageType: 'avatar' | 'project-cover' | 'general'
+): Promise<{ url: string; path: string }> {
+  try {
+    // Create organized folder structure
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'images', imageType)
+    await mkdir(uploadDir, { recursive: true })
+    
+    // Save file
+    const filePath = path.join(uploadDir, fileName)
+    await writeFile(filePath, buffer)
+    
+    // Generate public URL
+    const publicUrl = `/uploads/images/${imageType}/${fileName}`
+    
+    console.log(`✅ Image saved locally: ${publicUrl}`)
+    
+    return {
+      url: publicUrl,
+      path: filePath
+    }
+  } catch (error) {
+    console.error('Local upload error:', error)
+    throw new Error('Failed to save image locally')
   }
 }
 
