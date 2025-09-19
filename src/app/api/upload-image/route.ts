@@ -21,12 +21,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // For profile pictures and project covers, we can use local storage as fallback
-    const useLocalStorage = !process.env.DROPBOX_ACCESS_TOKEN || 
-                           process.env.DROPBOX_ACCESS_TOKEN === 'your-dropbox-access-token-here'
+    // Check if we should use local storage (Dropbox unavailable or expired)
+    const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
+    const useLocalStorage = !dropboxToken || 
+                           dropboxToken === 'your-dropbox-access-token-here' ||
+                           dropboxToken.length < 10  // Token too short/invalid
     
     if (useLocalStorage) {
-      console.log('⚠️ Using local file storage (Dropbox not configured or unavailable)')
+      console.log('⚠️ Using local file storage (Dropbox not available)')
+    } else {
+      console.log('☁️ Attempting Dropbox upload (will fallback to local if failed)')
     }
 
     // Parse form data
@@ -67,19 +71,32 @@ export async function POST(request: NextRequest) {
 
     try {
       let uploadResult
+      let storageUsed = 'unknown'
       
       if (useLocalStorage) {
-        // Use local file storage
+        // Use local file storage directly
+        console.log('📁 Uploading to local storage...')
         uploadResult = await uploadImageLocally(buffer, fileName, imageType)
+        storageUsed = 'local'
       } else {
-        // Use Dropbox storage
-        const { url, path } = await uploadImage(
-          buffer,
-          fileName,
-          session.user.orgId,
-          imageType
-        )
-        uploadResult = { url, path }
+        // Try Dropbox first, fallback to local on error
+        try {
+          console.log('☁️ Attempting Dropbox upload...')
+          const { url, path } = await uploadImage(
+            buffer,
+            fileName,
+            session.user.orgId,
+            imageType
+          )
+          uploadResult = { url, path }
+          storageUsed = 'dropbox'
+          console.log('✅ Dropbox upload successful')
+        } catch (dropboxError) {
+          console.log('❌ Dropbox upload failed, falling back to local storage')
+          console.error('Dropbox error:', dropboxError.message)
+          uploadResult = await uploadImageLocally(buffer, fileName, imageType)
+          storageUsed = 'local-fallback'
+        }
       }
 
       return NextResponse.json({
@@ -90,7 +107,7 @@ export async function POST(request: NextRequest) {
         originalName: file.name,
         size: file.size,
         type: file.type,
-        storage: useLocalStorage ? 'local' : 'dropbox'
+        storage: storageUsed
       })
     } catch (uploadError) {
       console.error('Upload error:', uploadError)

@@ -38,7 +38,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = await context.params
+  const params = await context.params
   try {
     const session = await getSession() as AuthSession | null
     
@@ -93,7 +93,7 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = await context.params
+  const params = await context.params
   try {
     const session = await getSession() as AuthSession | null
     
@@ -212,7 +212,7 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = await context.params
+  const params = await context.params
   try {
     const session = await getSession() as AuthSession | null
     
