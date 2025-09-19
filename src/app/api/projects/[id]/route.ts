@@ -29,9 +29,9 @@ interface AuthSession extends Session {
   }
 }
 
-// Helper function to check if user can modify project
+// Helper function to check if user can modify project - now allows all authenticated users
 function canModifyProject(session: AuthSession): boolean {
-  return ['OWNER', 'ADMIN'].includes(session.user.role)
+  return true // Allow all authenticated users to modify projects
 }
 
 export async function GET(

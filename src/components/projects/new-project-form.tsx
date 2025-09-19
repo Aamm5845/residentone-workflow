@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2 } from 'lucide-react'
+import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera } from 'lucide-react'
+import Image from 'next/image'
 
 interface NewProjectFormProps {
   session: any
@@ -71,6 +72,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     clientPhone: '',
     budget: '',
     dueDate: '',
+    coverImageUrl: '',
     selectedRooms: [] as Array<{ type: string; name: string; customName?: string }>
   })
 
@@ -78,9 +80,44 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
   const [showCustomRoomDialog, setShowCustomRoomDialog] = useState(false)
   const [customRoomBase, setCustomRoomBase] = useState('')
   const [customRoomName, setCustomRoomName] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [currentCoverImage, setCurrentCoverImage] = useState('')
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      setUploadingImage(true)
+      
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      formDataUpload.append('imageType', 'project-cover')
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formDataUpload,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image')
+      }
+
+      const data = await response.json()
+      setCurrentCoverImage(data.url)
+      setFormData(prev => ({ ...prev, coverImageUrl: data.url }))
+      
+      alert('Image uploaded successfully!')
+    } catch (error) {
+      console.error('Image upload error:', error)
+      alert('Failed to upload image. Please try again.')
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   const handleClientSelect = (client: any) => {
@@ -168,6 +205,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
           ...formData,
           budget: formData.budget ? parseFloat(formData.budget) : null,
           dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+          coverImageUrl: currentCoverImage || null,
         })
       })
 
@@ -255,6 +293,65 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                   <option value="COMMERCIAL">Commercial</option>
                   <option value="HOSPITALITY">Hospitality</option>
                 </select>
+              </div>
+
+              {/* Project Cover Image */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Project Cover Image (Optional)
+                </h4>
+                
+                <div className="flex items-center space-x-6">
+                  {currentCoverImage && (
+                    <div className="relative">
+                      <Image
+                        src={currentCoverImage}
+                        alt="Project cover"
+                        width={120}
+                        height={80}
+                        className="rounded-lg object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCurrentCoverImage('')
+                          setFormData(prev => ({ ...prev, coverImageUrl: '' }))
+                        }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <input
+                      type="file"
+                      id="cover-image"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="cover-image">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingImage}
+                        className="cursor-pointer"
+                        asChild
+                      >
+                        <span>
+                          <Upload className="w-4 h-4 mr-2" />
+                          {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                        </span>
+                      </Button>
+                    </label>
+                    <p className="text-sm text-gray-500 mt-1">
+                      PNG, JPG, WebP up to 4MB
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Budget */}

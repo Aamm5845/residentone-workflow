@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { uploadImage } from '@/lib/dropbox'
+import { put } from '@vercel/blob'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { z } from 'zod'
@@ -73,13 +74,30 @@ export async function POST(request: NextRequest) {
       let uploadResult
       let storageUsed = 'unknown'
       
-      if (useLocalStorage) {
-        // Use local file storage directly
+      // Use Vercel Blob Storage for profile and project images
+      if (imageType === 'avatar' || imageType === 'project-cover') {
+        try {
+          console.log('☁️ Uploading to Vercel Blob Storage...')
+          const blob = await put(fileName, buffer, {
+            access: 'public',
+            contentType: file.type,
+          })
+          uploadResult = { url: blob.url, path: blob.url }
+          storageUsed = 'vercel-blob'
+          console.log('✅ Vercel Blob upload successful:', blob.url)
+        } catch (vercelError) {
+          console.log('❌ Vercel Blob upload failed, falling back to local storage')
+          console.error('Vercel Blob error:', vercelError.message)
+          uploadResult = await uploadImageLocally(buffer, fileName, imageType)
+          storageUsed = 'local-fallback'
+        }
+      } else if (useLocalStorage) {
+        // Use local file storage for other image types when Dropbox not available
         console.log('📁 Uploading to local storage...')
         uploadResult = await uploadImageLocally(buffer, fileName, imageType)
         storageUsed = 'local'
       } else {
-        // Try Dropbox first, fallback to local on error
+        // Try Dropbox for other image types, fallback to local on error
         try {
           console.log('☁️ Attempting Dropbox upload...')
           const { url, path } = await uploadImage(

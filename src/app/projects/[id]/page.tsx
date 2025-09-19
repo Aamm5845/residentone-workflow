@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { formatDate, formatRoomType } from '@/lib/utils'
 import ProjectSaveSuccess from '@/components/projects/project-save-success'
+import RoomGridClient from '@/components/projects/room-grid-client'
 
 interface Props {
   params: { id: string }
@@ -313,8 +314,10 @@ export default async function ProjectDetail({ params }: Props) {
           </div>
           
           {/* Room Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {project.rooms.map((room: any) => {
+          <RoomGridClient 
+            initialRooms={project.rooms}
+            projectId={project.id}
+            roomCards={project.rooms.map((room: any) => {
               const roomProgress = getRoomProgress(room)
               const currentPhase = getCurrentPhase(room)
               const roomIconData = getRoomIcon(room.type)
@@ -528,18 +531,7 @@ export default async function ProjectDetail({ params }: Props) {
                 </Link>
               )
             })}
-            
-            {/* Add New Room Card */}
-            <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-6 hover:border-purple-400 transition-colors cursor-pointer group">
-              <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-100 transition-colors">
-                  <Plus className="w-6 h-6 text-gray-400 group-hover:text-purple-600" />
-                </div>
-                <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition-colors">Add New Room</h3>
-                <p className="text-sm text-gray-500 mt-1">Create a new room for this project</p>
-              </div>
-            </div>
-          </div>
+          />
         </div>
       </div>
     </DashboardLayout>

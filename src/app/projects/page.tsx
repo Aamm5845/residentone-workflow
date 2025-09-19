@@ -6,6 +6,7 @@ import { Plus, Search, Filter, MoreVertical, Building } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Session } from 'next-auth'
 
 export default async function Projects() {
@@ -57,6 +58,7 @@ export default async function Projects() {
           status: true,
           dueDate: true,
           budget: true,
+          coverImageUrl: true,
           createdAt: true,
           updatedAt: true,
           client: true,
@@ -163,13 +165,25 @@ export default async function Projects() {
 
               return (
                 <Link key={project.id} href={`/projects/${project.id}`} className="group">
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200 h-full flex flex-col">
                     {/* Project Thumbnail */}
                     <div className="aspect-[16/9] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Building className="w-8 h-8 text-gray-300" />
-                      </div>
+                      {project.coverImageUrl ? (
+                        <Image
+                          src={project.coverImageUrl}
+                          alt={project.name}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        />
+                      ) : (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Building className="w-8 h-8 text-gray-300" />
+                          </div>
+                        </>
+                      )}
                       {/* Status Badge */}
                       <div className="absolute top-3 right-3">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${currentPhase.color} backdrop-blur-sm`}>
@@ -193,7 +207,7 @@ export default async function Projects() {
                     </div>
                     
                     {/* Project Info */}
-                    <div className="p-4">
+                    <div className="p-4 flex-1 flex flex-col">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-gray-900 truncate group-hover:text-purple-600 transition-colors">
@@ -221,7 +235,7 @@ export default async function Projects() {
                       </div>
                       
                       {/* Meta Info */}
-                      <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center justify-between text-sm text-gray-500 mt-auto">
                         <span>{project.rooms.length} room{project.rooms.length !== 1 ? 's' : ''}</span>
                         <span>Updated {formatDate(project.updatedAt)}</span>
                       </div>
