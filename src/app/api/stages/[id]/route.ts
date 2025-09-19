@@ -73,6 +73,11 @@ export async function PATCH(
         completedById: null
       })
       activityAction = ActivityActions.STAGE_REOPENED
+    } else if (action === 'assign') {
+      updateData = withUpdateAttribution(session, {
+        assignedTo
+      })
+      activityAction = ActivityActions.STAGE_ASSIGNED
     }
     
     if (dueDate) {

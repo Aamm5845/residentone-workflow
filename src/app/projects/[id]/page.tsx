@@ -7,6 +7,7 @@ import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { formatDate, formatRoomType } from '@/lib/utils'
+import ProjectSaveSuccess from '@/components/projects/project-save-success'
 
 interface Props {
   params: { id: string }
@@ -75,33 +76,42 @@ export default async function ProjectDetail({ params }: Props) {
   }
 
   const getRoomProgress = (room: any) => {
-    let totalProgress = 0
-    let progressCount = 0
+    // Map actual database stage types to our 5-phase display system
+    // Database has: DESIGN, DESIGN_CONCEPT, THREE_D, CLIENT_APPROVAL, DRAWINGS, FFE
+    // We want to show: DESIGN_CONCEPT (combines DESIGN+DESIGN_CONCEPT), THREE_D, CLIENT_APPROVAL, DRAWINGS, FFE
+    const stageTypeMap: Record<string, string> = {
+      'DESIGN': 'DESIGN_CONCEPT',
+      'DESIGN_CONCEPT': 'DESIGN_CONCEPT', 
+      'THREE_D': 'THREE_D',
+      'CLIENT_APPROVAL': 'CLIENT_APPROVAL', 
+      'DRAWINGS': 'DRAWINGS',
+      'FFE': 'FFE'
+    }
     
-    // Only count the 4 main workflow stages, ignore any legacy FFE stages
-    const relevantStages = room.stages.filter((stage: any) => 
-      ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
-    )
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     
-    relevantStages.forEach((stage: any) => {
-      if (stage.status === 'COMPLETED') {
-        totalProgress += 100
-        progressCount += 1
-      } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections) {
-        // For design stage in progress, assume 50% completion since we don't track section completion
-        totalProgress += 50
-        progressCount += 1
-      } else if (stage.status === 'IN_PROGRESS') {
-        // For other stages in progress, assume 50% completion
-        totalProgress += 50
-        progressCount += 1
+    // Count only COMPLETED phases for progress (matching room phase board logic)
+    let completedPhases = 0
+    
+    phaseIds.forEach(phaseId => {
+      if (phaseId === 'DESIGN_CONCEPT') {
+        // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        
+        if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+          completedPhases++
+        }
       } else {
-        // Not started stages contribute 0
-        progressCount += 1
+        const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+        
+        if (matchingStage?.status === 'COMPLETED') {
+          completedPhases++
+        }
       }
     })
     
-    return progressCount > 0 ? Math.round(totalProgress / progressCount) : 0
+    return Math.round((completedPhases / phaseIds.length) * 100)
   }
 
   const getRoomIcon = (roomType: string) => {
@@ -137,24 +147,83 @@ export default async function ProjectDetail({ params }: Props) {
   }
 
   const getCurrentPhase = (room: any) => {
-    const inProgressStage = room.stages.find((stage: any) => stage.status === 'IN_PROGRESS')
-    if (inProgressStage) {
-      return {
-        name: inProgressStage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
-        icon: getPhaseIcon(inProgressStage.type),
-        type: inProgressStage.type
+    // Use the same 5-phase mapping as the progress calculation
+    const stageTypeMap: Record<string, string> = {
+      'DESIGN': 'DESIGN_CONCEPT',
+      'DESIGN_CONCEPT': 'DESIGN_CONCEPT', 
+      'THREE_D': 'THREE_D',
+      'CLIENT_APPROVAL': 'CLIENT_APPROVAL',
+      'DRAWINGS': 'DRAWINGS',
+      'FFE': 'FFE'
+    }
+    
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+    const phaseNames: Record<string, string> = {
+      'DESIGN_CONCEPT': 'Design Concept',
+      'THREE_D': '3D Rendering',
+      'CLIENT_APPROVAL': 'Client Approval',
+      'DRAWINGS': 'Drawings',
+      'FFE': 'FFE'
+    }
+    
+    // Find the first IN_PROGRESS phase
+    for (const phaseId of phaseIds) {
+      if (phaseId === 'DESIGN_CONCEPT') {
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        
+        if (designConceptStage?.status === 'IN_PROGRESS' || designStage?.status === 'IN_PROGRESS') {
+          return {
+            name: phaseNames[phaseId],
+            icon: getPhaseIcon('DESIGN_CONCEPT'),
+            type: 'DESIGN_CONCEPT'
+          }
+        }
+      } else {
+        const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+        
+        if (matchingStage?.status === 'IN_PROGRESS') {
+          return {
+            name: phaseNames[phaseId],
+            icon: getPhaseIcon(matchingStage.type),
+            type: matchingStage.type
+          }
+        }
       }
     }
     
-    const nextStage = room.stages.find((stage: any) => stage.status === 'NOT_STARTED')
-    if (nextStage) {
-      return {
-        name: `Up Next: ${nextStage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}`,
-        icon: getPhaseIcon(nextStage.type),
-        type: nextStage.type
+    // Find the next NOT_STARTED phase
+    for (const phaseId of phaseIds) {
+      if (phaseId === 'DESIGN_CONCEPT') {
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        
+        const isDesignStarted = designStage?.status !== 'NOT_STARTED'
+        const isDesignConceptStarted = designConceptStage?.status !== 'NOT_STARTED'
+        const isDesignCompleted = designStage?.status === 'COMPLETED'
+        const isDesignConceptCompleted = designConceptStage?.status === 'COMPLETED'
+        
+        if (!isDesignStarted && !isDesignConceptStarted) {
+          return {
+            name: `Up Next: ${phaseNames[phaseId]}`,
+            icon: getPhaseIcon('DESIGN_CONCEPT'),
+            type: 'DESIGN_CONCEPT'
+          }
+        }
+      } else {
+        const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+        
+        if (!matchingStage || matchingStage.status === 'NOT_STARTED') {
+          return {
+            name: `Up Next: ${phaseNames[phaseId]}`,
+            icon: getPhaseIcon(phaseId),
+            type: phaseId
+          }
+        }
       }
     }
     
+    // All phases are complete
     return {
       name: 'Complete',
       icon: '✅',
@@ -164,6 +233,7 @@ export default async function ProjectDetail({ params }: Props) {
 
   return (
     <DashboardLayout session={session}>
+      <ProjectSaveSuccess />
       <div className="min-h-screen bg-gray-50">
         {/* Modern Header */}
         <div className="bg-white shadow-sm">
@@ -250,13 +320,63 @@ export default async function ProjectDetail({ params }: Props) {
               const roomIconData = getRoomIcon(room.type)
               const IconComponent = roomIconData.icon
               
+              // Determine room status based on phases
+              const stageTypeMap: Record<string, string> = {
+                'DESIGN': 'DESIGN_CONCEPT',
+                'DESIGN_CONCEPT': 'DESIGN_CONCEPT', 
+                'THREE_D': 'THREE_D',
+                'CLIENT_APPROVAL': 'CLIENT_APPROVAL',
+                'DRAWINGS': 'DRAWINGS',
+                'FFE': 'FFE'
+              }
+              
+              const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+              
+              let completedCount = 0
+              let hasInProgress = false
+              
+              phaseIds.forEach(phaseId => {
+                if (phaseId === 'DESIGN_CONCEPT') {
+                  const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+                  const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+                  
+                  if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+                    completedCount++
+                  } else if (designConceptStage?.status === 'IN_PROGRESS' || designStage?.status === 'IN_PROGRESS') {
+                    hasInProgress = true
+                  }
+                } else {
+                  const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+                  
+                  if (matchingStage?.status === 'COMPLETED') {
+                    completedCount++
+                  } else if (matchingStage?.status === 'IN_PROGRESS') {
+                    hasInProgress = true
+                  }
+                }
+              })
+              
+              const isCompleted = completedCount === 5
+              const isInProgress = hasInProgress || completedCount > 0
+              
+              // Determine room card styling
+              const getRoomCardStyle = () => {
+                if (isCompleted) {
+                  return "bg-gradient-to-br from-green-50 to-green-100 border-green-300 hover:border-green-400"
+                } else if (isInProgress) {
+                  return "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 hover:border-blue-400"
+                } else {
+                  return "bg-white border-gray-200 hover:border-purple-200"
+                }
+              }
+              
               return (
                 <Link
                   key={room.id}
                   href={`/projects/${project.id}/rooms/${room.id}`}
                   className="group block"
                 >
-                  <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-purple-200 transition-all duration-200 group-hover:scale-[1.02]">
+                  <div className={`rounded-xl border p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02] ${getRoomCardStyle()}`}>
                     {/* Room Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
@@ -264,7 +384,11 @@ export default async function ProjectDetail({ params }: Props) {
                           <IconComponent className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                          <h3 className={`font-semibold transition-colors ${
+                            isCompleted ? 'text-green-800 group-hover:text-green-900' :
+                            isInProgress ? 'text-blue-800 group-hover:text-blue-900' :
+                            'text-gray-900 group-hover:text-purple-600'
+                          }`}>
                             {room.name || formatRoomType(room.type)}
                           </h3>
                           <div className="flex items-center space-x-1 mt-1">
@@ -283,7 +407,11 @@ export default async function ProjectDetail({ params }: Props) {
                     <div className="mb-4">
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            isCompleted ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                            isInProgress ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                            'bg-gradient-to-r from-gray-400 to-gray-500'
+                          }`}
                           style={{ width: `${roomProgress}%` }}
                         />
                       </div>
@@ -294,38 +422,106 @@ export default async function ProjectDetail({ params }: Props) {
                       <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">
                         Workflow Stages
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {room.stages.filter((stage: any) => 
-                          ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
-                        ).map((stage: any, index: number) => {
-                          const stageProgress = stage.status === 'COMPLETED' ? 100 : 
-                                             stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections ?
-                                             stage.designSections.filter((s: any) => s.completed).length / stage.designSections.length * 100 :
-                                             stage.status === 'IN_PROGRESS' ? 50 : 0
+                      <div className="grid grid-cols-5 gap-2">
+                        {(() => {
+                          const stageTypeMap: Record<string, string> = {
+                            'DESIGN': 'DESIGN_CONCEPT',
+                            'DESIGN_CONCEPT': 'DESIGN_CONCEPT',
+                            'THREE_D': 'THREE_D',
+                            'CLIENT_APPROVAL': 'CLIENT_APPROVAL',
+                            'DRAWINGS': 'DRAWINGS',
+                            'FFE': 'FFE'
+                          }
                           
-                          return (
-                            <div key={stage.id} className="text-center">
-                              <div className="text-xs mb-1">{getPhaseIcon(stage.type)}</div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div 
-                                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                                    stage.status === 'COMPLETED' ? 'bg-green-500' :
-                                    stage.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                                    'bg-gray-300'
-                                  }`}
-                                  style={{ width: `${stageProgress}%` }}
-                                />
+                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+                          
+                          return phaseIds.map((phaseId, index) => {
+                            // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed/in_progress
+                            let matchingStage = null
+                            if (phaseId === 'DESIGN_CONCEPT') {
+                              // Find the most advanced of DESIGN or DESIGN_CONCEPT stages
+                              const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+                              const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+                              
+                              // Prefer DESIGN_CONCEPT if it exists, otherwise use DESIGN
+                              matchingStage = designConceptStage || designStage
+                            } else {
+                              matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+                            }
+                            
+                            // Get the correct icon for each phase
+                            const phaseIcons: Record<string, string> = {
+                              'DESIGN_CONCEPT': '🎨',
+                              'THREE_D': '🎥',
+                              'CLIENT_APPROVAL': '👥',
+                              'DRAWINGS': '📜',
+                              'FFE': '🛋️'
+                            }
+                            
+                            return (
+                              <div key={phaseId} className="text-center">
+                                <div className="text-xs mb-2">{phaseIcons[phaseId]}</div>
+                                <div className="flex justify-center">
+                                  <div 
+                                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                      matchingStage?.status === 'COMPLETED' ? 'bg-green-500' :
+                                      matchingStage?.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                      'bg-gray-300'
+                                    }`}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })
+                        })()}
                       </div>
                       
                       {/* Stage Summary */}
                       <div className="flex justify-between text-xs text-gray-600">
-                        <span>{room.stages.filter((s: any) => s.status === 'COMPLETED').length} completed</span>
-                        <span>{room.stages.filter((s: any) => s.status === 'IN_PROGRESS').length} active</span>
-                        <span>{room.stages.filter((s: any) => s.status === 'NOT_STARTED').length} pending</span>
+                        {(() => {
+                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+                          
+                          let completed = 0
+                          let active = 0
+                          let pending = 0
+                          
+                          phaseIds.forEach(phaseId => {
+                            let matchingStage = null
+                            
+                            if (phaseId === 'DESIGN_CONCEPT') {
+                              // For DESIGN_CONCEPT phase, check both DESIGN and DESIGN_CONCEPT stages
+                              const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+                              const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+                              
+                              // Use the most advanced status between the two
+                              if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+                                matchingStage = { status: 'COMPLETED' }
+                              } else if (designConceptStage?.status === 'IN_PROGRESS' || designStage?.status === 'IN_PROGRESS') {
+                                matchingStage = { status: 'IN_PROGRESS' }
+                              } else {
+                                matchingStage = { status: 'NOT_STARTED' }
+                              }
+                            } else {
+                              matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+                            }
+                            
+                            if (matchingStage?.status === 'COMPLETED') {
+                              completed++
+                            } else if (matchingStage?.status === 'IN_PROGRESS') {
+                              active++
+                            } else {
+                              pending++
+                            }
+                          })
+                          
+                          return (
+                            <>
+                              <span>{completed} completed</span>
+                              <span>{active} active</span>
+                              <span>{pending} pending</span>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>

@@ -3,7 +3,7 @@
 
 export const WORKFLOW_STAGES = [
   'DESIGN_CONCEPT',
-  'THREE_D', 
+  'RENDERING', 
   'CLIENT_APPROVAL',
   'DRAWINGS',
   'FFE'
@@ -31,7 +31,7 @@ export const STAGE_CONFIG = {
     },
     description: 'Create stunning design concepts, mood boards, and material selections'
   },
-  THREE_D: {
+  RENDERING: {
     name: '3D Rendering',
     icon: '🎥', 
     baseColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',

@@ -19,7 +19,7 @@ const projectSettingsSchema = z.object({
   budget: z.string().optional(),
   dueDate: z.string().optional(),
   clientId: z.string().min(1, "Client is required"),
-  coverImageUrl: z.string().min(1).optional().nullable(), // Accept relative URLs
+  coverImageUrl: z.union([z.string(), z.null(), z.undefined()]).optional(), // Accept any string, null, or undefined
   dropboxFolder: z.string().optional().nullable(),
 })
 
@@ -94,10 +94,13 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
+    console.log('✅ onSubmit function called!')
     try {
       setIsLoading(true)
       console.log('🚀 Project settings form submitted!')
       console.log('Form data being submitted:', data)
+      console.log('Form errors:', errors)
+      console.log('Form isDirty:', isDirty)
 
       const submitData = {
         ...data,
@@ -132,8 +135,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       
       const result = await response.json()
       console.log('Update successful:', result)
-      alert('Project updated successfully!')
-      router.refresh()
+      
+      // Navigate back to the project page after successful save
+      router.push(`/projects/${project.id}?saved=true`)
+      // Note: You can add a toast notification here instead of alert if preferred
     } catch (error) {
       console.error('Update error:', error)
       alert(error instanceof Error ? error.message : 'Failed to update project')
@@ -180,7 +185,26 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={(e) => {
+        console.log('📋 Form onSubmit event triggered!')
+        console.log('Event:', e)
+        
+        // Add error handling to see what happens in handleSubmit
+        const handleSubmitWithLogging = handleSubmit(
+          (data) => {
+            console.log('✅ handleSubmit SUCCESS - calling onSubmit with data:', data)
+            onSubmit(data)
+          },
+          (errors) => {
+            console.error('❌ handleSubmit FAILED - validation errors:', errors)
+            console.error('All form values:', watch()) // Get all current form values
+            console.error('Specific coverImageUrl value:', watch('coverImageUrl'))
+            console.error('Type of coverImageUrl:', typeof watch('coverImageUrl'))
+          }
+        )
+        
+        return handleSubmitWithLogging(e)
+      }} className="space-y-8">
         {/* Basic Information */}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -402,6 +426,19 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               type="submit"
               disabled={isLoading}
               className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={(e) => {
+                console.log('Save button clicked!')
+                console.log('Current form errors:', errors)
+                console.log('Is form valid?', Object.keys(errors).length === 0)
+                console.log('Form isDirty:', isDirty)
+                console.log('Button type:', e.currentTarget.type)
+                console.log('Form element:', e.currentTarget.form)
+                // Try to trigger form submission manually if needed
+                if (Object.keys(errors).length === 0) {
+                  console.log('Attempting manual form submission...')
+                  e.currentTarget.form?.requestSubmit()
+                }
+              }}
             >
               {isLoading ? 'Saving...' : 'Save Changes'}
             </Button>

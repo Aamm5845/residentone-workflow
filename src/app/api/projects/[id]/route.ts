@@ -11,9 +11,9 @@ const updateProjectSchema = z.object({
   description: z.string().optional(),
   type: z.nativeEnum(ProjectType).optional(),
   budget: z.number().positive().optional().nullable(),
-  dueDate: z.string().datetime().optional().nullable(),
+  dueDate: z.string().optional().nullable(), // Accept date strings like '2024-12-31'
   clientId: z.string().optional(),
-  coverImageUrl: z.string().url().optional().nullable(),
+  coverImageUrl: z.string().optional().nullable(), // Allow relative URLs and empty strings
   dropboxFolder: z.string().optional().nullable(),
 })
 
