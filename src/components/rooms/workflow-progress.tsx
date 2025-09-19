@@ -170,7 +170,7 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
               </div>
             </div>
           </div>
-        ))
+        )
       })}
       </div>
     </div>
