@@ -28,43 +28,36 @@ function SignInForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('🎯 Form submitted!')
-    console.log('🔎 Event:', e)
     
     setIsLoading(true)
     setError('')
     
     console.log('🔐 Form data:', { email, password })
-    console.log('🧪 Current values:', { emailValue: email, passwordValue: password })
     
-    // Simple direct check first
-    if (email === 'admin@example.com' && password === 'password') {
-      console.log('✅ Credentials match! Creating session and redirecting...')
+    try {
+      // Use NextAuth to authenticate against the database
+      const result = await signIn('credentials', {
+        email: email,
+        password: password,
+        redirect: false
+      })
       
-      try {
-        // Try to sign in with NextAuth (for production)
-        const result = await signIn('credentials', {
-          email: email,
-          password: password,
-          redirect: false
-        })
-        
-        if (result?.ok) {
-          console.log('✅ NextAuth signin successful')
-          window.location.href = '/dashboard'
-          return
-        }
-      } catch (authError) {
-        console.log('⚠️ NextAuth not available, using fallback redirect')
+      if (result?.ok) {
+        console.log('✅ Authentication successful')
+        router.push('/dashboard')
+        return
+      } else if (result?.error) {
+        console.log('❌ Authentication failed:', result.error)
+        setError('Invalid email or password. Please check your credentials.')
+      } else {
+        console.log('❌ Authentication failed: Unknown error')
+        setError('Authentication failed. Please try again.')
       }
-      
-      // Fallback: direct redirect (dashboard should handle fallback session)
-      console.log('🔄 Using fallback authentication flow')
-      window.location.href = '/dashboard'
-      return
+    } catch (authError) {
+      console.error('⚠️ Authentication error:', authError)
+      setError('Something went wrong. Please try again.')
     }
     
-    console.log('❌ Credentials do not match')
-    setError('Invalid credentials. Please use admin@example.com / password')
     setIsLoading(false)
   }
 
@@ -173,9 +166,6 @@ function SignInForm() {
               </Link>
             </div>
             
-            <p className="text-slate-600 text-xs pt-2">
-              Demo: admin@example.com / password
-            </p>
           </div>
         </div>
       </div>
