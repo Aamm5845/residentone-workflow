@@ -10,7 +10,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1, "Name is required").max(200).optional(),
   email: z.string().email("Invalid email address").optional(),
   role: z.nativeEnum(UserRole).optional(),
-  image: z.string().url().optional().nullable(),
+  image: z.string().min(1).optional().nullable(), // Accept relative URLs from local storage
 })
 
 interface AuthSession extends Session {
@@ -119,7 +119,9 @@ export async function PUT(
 
     // Validate request body
     const body = await request.json()
+    console.log('Team member update request body:', body)
     const validatedData = updateUserSchema.parse(body)
+    console.log('Validated data:', validatedData)
 
     // Check if user exists and belongs to same organization
     const existingUser = await prisma.user.findFirst({
