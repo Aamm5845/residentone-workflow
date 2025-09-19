@@ -239,6 +239,7 @@ model Room {
 }
 
 enum StageType {
+  DESIGN
   DESIGN_CONCEPT
   THREE_D
   CLIENT_APPROVAL
