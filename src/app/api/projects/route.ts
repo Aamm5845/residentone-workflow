@@ -152,11 +152,17 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create 4 workflow stages for each room (DRAWINGS+FFE combined)
+      // Create all 6 workflow stages for each room
       const stages = [
         {
           roomId: room.id,
           type: 'DESIGN' as StageType,
+          status: 'NOT_STARTED' as StageStatus,
+          assignedTo: designer?.id || null
+        },
+        {
+          roomId: room.id,
+          type: 'DESIGN_CONCEPT' as StageType,
           status: 'NOT_STARTED' as StageStatus,
           assignedTo: designer?.id || null
         },
@@ -177,8 +183,13 @@ export async function POST(request: NextRequest) {
           type: 'DRAWINGS' as StageType,
           status: 'NOT_STARTED' as StageStatus,
           assignedTo: drafter?.id || null
+        },
+        {
+          roomId: room.id,
+          type: 'FFE' as StageType,
+          status: 'NOT_STARTED' as StageStatus,
+          assignedTo: ffe?.id || null
         }
-        // Note: FFE is now handled as part of DRAWINGS stage
       ]
 
       await prisma.stage.createMany({

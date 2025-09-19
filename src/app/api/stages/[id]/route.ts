@@ -2,21 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
+import { 
+  withUpdateAttribution, 
+  withCompletionAttribution,
+  logActivity,
+  ActivityActions,
+  EntityTypes,
+  getIPAddress,
+  isValidAuthSession,
+  type AuthSession
+} from '@/lib/attribution'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession() as Session & {
-      user: {
-        id: string
-        orgId: string
-      }
-    } | null
+    const session = await getSession()
     const resolvedParams = await params
+    const ipAddress = getIPAddress(request)
     
-    if (!session?.user) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -41,20 +47,32 @@ export async function PATCH(
     
     // Update stage based on action
     let updateData: any = {}
+    let activityAction: string = ActivityActions.STAGE_STATUS_CHANGED
     
     if (action === 'start') {
-      updateData.status = 'IN_PROGRESS'
-      updateData.startedAt = new Date() // Add startedAt timestamp
-      if (assignedTo) updateData.assignedTo = assignedTo
+      updateData = withUpdateAttribution(session, {
+        status: 'IN_PROGRESS',
+        startedAt: new Date(),
+        ...(assignedTo && { assignedTo })
+      })
+      activityAction = ActivityActions.STAGE_STARTED
     } else if (action === 'complete') {
-      updateData.status = 'COMPLETED'
-      updateData.completedAt = new Date()
+      updateData = withCompletionAttribution(session, {
+        status: 'COMPLETED'
+      })
+      activityAction = ActivityActions.STAGE_COMPLETED
     } else if (action === 'pause') {
-      updateData.status = 'ON_HOLD'
+      updateData = withUpdateAttribution(session, {
+        status: 'ON_HOLD'
+      })
     } else if (action === 'reopen') {
-      updateData.status = 'IN_PROGRESS'
-      updateData.completedAt = null
-      updateData.startedAt = new Date() // Reset startedAt when reopening
+      updateData = withUpdateAttribution(session, {
+        status: 'IN_PROGRESS',
+        completedAt: null,
+        startedAt: new Date(),
+        completedById: null
+      })
+      activityAction = ActivityActions.STAGE_REOPENED
     }
     
     if (dueDate) {
@@ -67,8 +85,30 @@ export async function PATCH(
       include: {
         assignedUser: {
           select: { name: true, email: true }
+        },
+        updatedBy: {
+          select: { name: true, email: true }
+        },
+        completedBy: {
+          select: { name: true, email: true }
         }
       }
+    })
+
+    // Log the activity
+    await logActivity({
+      session,
+      action: activityAction,
+      entity: EntityTypes.STAGE,
+      entityId: resolvedParams.id,
+      details: {
+        action,
+        stageName: `${stage.type} - ${stage.room?.name || stage.room?.type}`,
+        previousStatus: stage.status,
+        newStatus: updateData.status,
+        assignedTo
+      },
+      ipAddress
     })
     
     return NextResponse.json(updatedStage)
@@ -84,15 +124,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession() as Session & {
-      user: {
-        id: string
-        orgId: string
-      }
-    } | null
+    const session = await getSession()
     const resolvedParams = await params
     
-    if (!session?.user) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

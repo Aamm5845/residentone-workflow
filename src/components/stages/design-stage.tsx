@@ -89,15 +89,15 @@ export default function DesignStage({
   onDeleteComment,
   onEditComment
 }: DesignStageProps) {
-  // Ensure this component only renders for DESIGN_CONCEPT stages
-  if (stage.type !== 'DESIGN_CONCEPT') {
+  // Ensure this component only renders for DESIGN stages
+  if (stage.type !== 'DESIGN') {
     return (
       <div className="bg-white border border-red-200 rounded-lg p-6 text-center">
         <div className="text-red-500 mb-2">
           <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
           <h3 className="font-semibold">Invalid Stage Type</h3>
         </div>
-        <p className="text-gray-600">Design Stage component can only be used for Design Concept phases.</p>
+        <p className="text-gray-600">Design Stage component can only be used for Design phases.</p>
         <p className="text-sm text-gray-500 mt-1">Current stage type: {stage.type}</p>
       </div>
     )

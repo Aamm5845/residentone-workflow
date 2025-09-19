@@ -50,40 +50,8 @@ interface MessageData {
 }
 
 export default function DesignBoard({ section, roomId, projectId }: DesignBoardProps) {
-  const [files, setFiles] = React.useState<FileData[]>([
-    { 
-      id: '1', 
-      name: 'Hardwood Sample', 
-      originalName: 'hardwood-oak-sample.jpg',
-      type: 'image', 
-      url: '/api/placeholder/300/200', 
-      uploadedAt: new Date(),
-      size: 245760,
-      uploadedBy: { id: 'user1', name: 'Sarah Designer' },
-      metadata: {
-        sizeFormatted: '240 KB',
-        extension: '.jpg',
-        isImage: true,
-        isPDF: false
-      }
-    },
-    { 
-      id: '2', 
-      name: 'Paint Color Palette', 
-      originalName: 'color-palette-2024.pdf',
-      type: 'pdf', 
-      url: '/api/placeholder/300/200', 
-      uploadedAt: new Date(),
-      size: 1024000,
-      uploadedBy: { id: 'user2', name: 'Design Team' },
-      metadata: {
-        sizeFormatted: '1.0 MB',
-        extension: '.pdf',
-        isImage: false,
-        isPDF: true
-      }
-    },
-  ])
+  const [files, setFiles] = React.useState<FileData[]>([])
+  const [loading, setLoading] = React.useState(true)
   const [messages, setMessages] = React.useState<MessageData[]>([])
   const [newMessage, setNewMessage] = React.useState('')
   const [isUploading, setIsUploading] = React.useState(false)
@@ -93,16 +61,37 @@ export default function DesignBoard({ section, roomId, projectId }: DesignBoardP
   const [previewFile, setPreviewFile] = React.useState<FileData | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Load messages on component mount
+  // Load files and messages on component mount
   React.useEffect(() => {
-    fetch(`/api/messages?sectionId=${section.id}&roomId=${roomId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setMessages(data.messages)
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        
+        // Load files for this section
+        const filesResponse = await fetch(`/api/upload?sectionId=${section.id}&roomId=${roomId}`)
+        if (filesResponse.ok) {
+          const filesData = await filesResponse.json()
+          if (filesData.success && filesData.files) {
+            setFiles(filesData.files)
+          }
         }
-      })
-      .catch(err => console.error('Failed to load messages:', err))
+        
+        // Load messages
+        const messagesResponse = await fetch(`/api/messages?sectionId=${section.id}&roomId=${roomId}`)
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json()
+          if (messagesData.success && messagesData.messages) {
+            setMessages(messagesData.messages)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadData()
   }, [section.id, roomId])
 
   // Handle ESC key for closing preview modal

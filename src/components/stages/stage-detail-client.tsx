@@ -163,7 +163,7 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
 
   // Render appropriate stage component based on stage type
   switch (stage.type) {
-    case 'DESIGN_CONCEPT':
+    case 'DESIGN':
       return (
         <DesignStage
           stage={stage}

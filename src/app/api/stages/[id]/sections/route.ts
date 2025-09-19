@@ -2,21 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
+import {
+  withCreateAttribution,
+  withUpdateAttribution,
+  withCompletionAttribution,
+  logActivity,
+  ActivityActions,
+  EntityTypes,
+  getIPAddress,
+  isValidAuthSession,
+  type AuthSession
+} from '@/lib/attribution'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession() as Session & {
-      user: {
-        id: string
-        orgId: string
-      }
-    } | null
+    const session = await getSession()
     const resolvedParams = await params
+    const ipAddress = getIPAddress(request)
     
-    if (!session?.user?.orgId) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -52,9 +59,16 @@ export async function PATCH(
     
     if (designSection) {
       // Update existing section
-      const updateData: any = {}
-      if (content !== undefined) updateData.content = content
-      if (action === 'mark_complete' && isComplete !== undefined) updateData.completed = isComplete
+      let updateData: any = {}
+      if (content !== undefined) {
+        updateData = withUpdateAttribution(session, { content })
+      }
+      if (action === 'mark_complete' && isComplete !== undefined) {
+        const completionData = isComplete 
+          ? withCompletionAttribution(session, { completed: isComplete })
+          : withUpdateAttribution(session, { completed: isComplete, completedById: null })
+        updateData = { ...updateData, ...completionData }
+      }
       
       designSection = await prisma.designSection.update({
         where: { id: designSection.id },
@@ -63,14 +77,37 @@ export async function PATCH(
     } else {
       // Create new section
       designSection = await prisma.designSection.create({
-        data: {
+        data: withCreateAttribution(session, {
           stageId: stage.id,
           type: sectionType,
           content: content || '',
-          completed: isComplete || false
-        }
+          completed: isComplete || false,
+          ...(isComplete && { completedById: session.user.id })
+        })
       })
     }
+
+    // Log the activity
+    let activityAction = content !== undefined ? ActivityActions.SECTION_UPDATED : ActivityActions.SECTION_COMPLETED
+    if (!designSection.id) {
+      activityAction = ActivityActions.SECTION_CREATED
+    }
+
+    await logActivity({
+      session,
+      action: activityAction,
+      entity: EntityTypes.DESIGN_SECTION,
+      entityId: designSection.id,
+      details: {
+        sectionType,
+        stageName: `${stage.type} - ${stage.room?.name || stage.room?.type}`,
+        projectName: stage.room?.project.name,
+        action,
+        hasContent: !!content,
+        isComplete
+      },
+      ipAddress
+    })
 
     // Get updated stage with all sections
     const updatedStage = await prisma.stage.findUnique({
@@ -86,6 +123,15 @@ export async function PATCH(
                 }
               },
               orderBy: { createdAt: 'desc' }
+            },
+            createdBy: {
+              select: { name: true, email: true }
+            },
+            updatedBy: {
+              select: { name: true, email: true }
+            },
+            completedBy: {
+              select: { name: true, email: true }
             }
           }
         },

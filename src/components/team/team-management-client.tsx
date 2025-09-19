@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera } from 'lucide-react'
+import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
@@ -223,12 +223,156 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
   )
 }
 
+// Password management interfaces
+interface SetPasswordDialogProps {
+  member: any
+  isOpen: boolean
+  onClose: () => void
+  currentUserRole: string
+}
+
+function SetPasswordDialog({ member, isOpen, onClose, currentUserRole }: SetPasswordDialogProps) {
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [forceChange, setForceChange] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(`/api/team/${member.id}/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password, forceChange }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to set password')
+      }
+
+      alert(`Password set successfully for ${member.name}${forceChange ? '. User must change password on next login.' : ''}`)
+      onClose()
+    } catch (error) {
+      console.error('Set password error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to set password')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <Shield className="w-6 h-6 text-orange-600" />
+          <h3 className="text-lg font-semibold text-gray-900">
+            Set Password for {member.name}
+          </h3>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter new password"
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              >
+                {showPassword ? '👁️‍🗨️' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password
+            </label>
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              required
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="forceChange"
+              checked={forceChange}
+              onChange={(e) => setForceChange(e.target.checked)}
+              className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+            />
+            <label htmlFor="forceChange" className="text-sm text-gray-700">
+              Force password change on next login
+            </label>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {isLoading ? 'Setting...' : 'Set Password'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function TeamManagementClient({ teamMembers, currentUser }: TeamManagementClientProps) {
   const [editingMember, setEditingMember] = useState<any>(null)
+  const [setPasswordMember, setSetPasswordMember] = useState<any>(null)
   const [members, setMembers] = useState(teamMembers)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const canManageTeam = ['OWNER', 'ADMIN'].includes(currentUser.role)
+  const isOwner = currentUser.role === 'OWNER'
 
   const handleEditMember = async (memberData: any) => {
     try {
@@ -283,6 +427,33 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
     } catch (error) {
       console.error('Remove error:', error)
       alert(error instanceof Error ? error.message : 'Failed to remove team member')
+    }
+  }
+
+  const handleResetPassword = async (memberId: string, memberName: string) => {
+    if (!confirm(`Send password reset email to ${memberName}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/team/${memberId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to send password reset')
+      }
+
+      const result = await response.json()
+      setOpenDropdown(null)
+      alert(result.message || 'Password reset email sent successfully!')
+    } catch (error) {
+      console.error('Reset password error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to send password reset')
     }
   }
 
@@ -386,7 +557,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       </button>
                       
                       {openDropdown === member.id && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-10">
                           <div className="py-1">
                             <button
                               onClick={() => {
@@ -399,14 +570,44 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                               Edit Member
                             </button>
                             
+                            {/* Password Management Options */}
+                            {canManageTeam && member.id !== currentUser.id && (
+                              <>
+                                <div className="border-t border-gray-100 my-1"></div>
+                                <button
+                                  onClick={() => handleResetPassword(member.id, member.name)}
+                                  className="flex items-center px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 w-full text-left"
+                                >
+                                  <Key className="h-4 w-4 mr-2" />
+                                  Reset Password
+                                </button>
+                                
+                                {isOwner && (
+                                  <button
+                                    onClick={() => {
+                                      setSetPasswordMember(member)
+                                      setOpenDropdown(null)
+                                    }}
+                                    className="flex items-center px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 w-full text-left"
+                                  >
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Set Password
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            
                             {currentUser.role === 'OWNER' && member.id !== currentUser.id && (
-                              <button
-                                onClick={() => handleRemoveMember(member.id, member.name)}
-                                className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
-                              >
-                                <UserMinus className="h-4 w-4 mr-2" />
-                                Remove Member
-                              </button>
+                              <>
+                                <div className="border-t border-gray-100 my-1"></div>
+                                <button
+                                  onClick={() => handleRemoveMember(member.id, member.name)}
+                                  className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
+                                >
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  Remove Member
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -434,6 +635,15 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
           isOpen={true}
           onClose={() => setEditingMember(null)}
           onSave={handleEditMember}
+          currentUserRole={currentUser.role}
+        />
+      )}
+
+      {setPasswordMember && (
+        <SetPasswordDialog
+          member={setPasswordMember}
+          isOpen={true}
+          onClose={() => setSetPasswordMember(null)}
           currentUserRole={currentUser.role}
         />
       )}

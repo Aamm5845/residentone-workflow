@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // NextAuth.js required models
@@ -64,10 +65,11 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  projects  Project[]
-  assets    Asset[]
-  clients   Client[]
+  users        User[]
+  projects     Project[]
+  assets       Asset[]
+  clients      Client[]
+  activityLogs ActivityLog[]
 }
 
 enum UserRole {
@@ -89,22 +91,36 @@ model User {
   password      String?
   role          UserRole  @default(DESIGNER)
   orgId         String?
+  mustChangePassword Boolean @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts     Account[]
   sessions     Session[]
+  userSessions UserSession[]
   organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   
   // Workflow assignments
   createdProjects   Project[] @relation("CreatedByUser")
-  assignedStages    Stage[]
+  updatedProjects   Project[] @relation("UpdatedByUser")
+  createdRooms      Room[] @relation("CreatedByUserRoom")
+  updatedRooms      Room[] @relation("UpdatedByUserRoom")
+  createdStages     Stage[] @relation("CreatedByUserStage")
+  updatedStages     Stage[] @relation("UpdatedByUserStage")
+  completedStages   Stage[] @relation("CompletedByUserStage")
+  assignedStages    Stage[] @relation("AssignedToUser")
   assignedTasks     Task[]
   comments          Comment[]
   sentApprovals     Approval[] @relation("SentByUser")
   decidedApprovals  Approval[] @relation("DecidedByUser")
   uploadedAssets    Asset[]
   notifications     Notification[]
+  activityLogs      ActivityLog[]
+  createdSections   DesignSection[] @relation("CreatedByUserSection")
+  updatedSections   DesignSection[] @relation("UpdatedByUserSection")
+  completedSections DesignSection[] @relation("CompletedByUserSection")
+  createdFFEItems   FFEItem[] @relation("CreatedByUserFFE")
+  updatedFFEItems   FFEItem[] @relation("UpdatedByUserFFE")
 }
 
 model Client {
@@ -149,12 +165,14 @@ model Project {
   dropboxFolder String?       // Custom Dropbox folder path for project
   orgId         String
   createdById   String
+  updatedById   String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   client       Client       @relation(fields: [clientId], references: [id])
   createdBy    User         @relation("CreatedByUser", fields: [createdById], references: [id])
+  updatedBy    User?        @relation("UpdatedByUser", fields: [updatedById], references: [id])
   
   rooms        Room[]
   assets       Asset[]
@@ -226,10 +244,14 @@ model Room {
   status      RoomStatus @default(NOT_STARTED)
   currentStage String?   // Current active stage
   progressFFE  Int       @default(0) // FFE progress percentage
+  createdById String?
+  updatedById String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation("CreatedByUserRoom", fields: [createdById], references: [id])
+  updatedBy   User?       @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
   stages      Stage[]
   ffeItems    FFEItem[]
   comments    Comment[]
@@ -266,11 +288,17 @@ model Stage {
   dueDate     DateTime?
   startedAt   DateTime?   // When the stage was started
   completedAt DateTime?
+  createdById String?
+  updatedById String?
+  completedById String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  assignedUser User?     @relation(fields: [assignedTo], references: [id])
+  assignedUser User?     @relation("AssignedToUser", fields: [assignedTo], references: [id])
+  createdBy    User?     @relation("CreatedByUserStage", fields: [createdById], references: [id])
+  updatedBy    User?     @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
+  completedBy  User?     @relation("CompletedByUserStage", fields: [completedById], references: [id])
   
   // Design stage sections
   designSections DesignSection[]
@@ -295,12 +323,18 @@ model DesignSection {
   type      DesignSectionType
   content   String?           // Rich text content
   completed Boolean           @default(false) // Section completion status
+  createdById String?
+  updatedById String?
+  completedById String?
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  stage    Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  assets   Asset[]
-  comments Comment[]
+  stage       Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("CreatedByUserSection", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
+  completedBy User?     @relation("CompletedByUserSection", fields: [completedById], references: [id])
+  assets      Asset[]
+  comments    Comment[]
 
   @@unique([stageId, type])
 }
@@ -327,12 +361,16 @@ model FFEItem {
   price        Float?
   leadTime     String?
   category     String?
+  createdById  String?
+  updatedById  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  assets   Asset[]
-  comments Comment[]
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("CreatedByUserFFE", fields: [createdById], references: [id])
+  updatedBy User?     @relation("UpdatedByUserFFE", fields: [updatedById], references: [id])
+  assets    Asset[]
+  comments  Comment[]
 }
 
 // Client Approval System
@@ -504,5 +542,42 @@ model Task {
   project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   room     Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   stage    Stage?   @relation(fields: [stageId], references: [id], onDelete: Cascade)
+}
+
+// User Session Management for tracking active sessions
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  deviceId  String
+  ipAddress String?
+  userAgent String?
+  lastSeen  DateTime @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+}
+
+// Activity Log for comprehensive tracking
+model ActivityLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String
+  details   Json?    // Additional context data
+  ipAddress String?
+  orgId     String?
+  createdAt DateTime @default(now())
+
+  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([orgId])
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
