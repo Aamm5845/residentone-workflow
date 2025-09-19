@@ -27,10 +27,7 @@ export default async function ProjectSettings({ params }: Props) {
     redirect('/auth/signin')
   }
 
-  // Only allow OWNER and ADMIN to access project settings
-  if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
-    redirect('/projects')
-  }
+  // Allow all authenticated users to access project settings
 
   const { id } = await params
 

@@ -41,6 +41,21 @@ interface DashboardData {
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
+// Helper function to format due dates
+const formatDueDate = (dueDate: string | null): string => {
+  if (!dueDate) return 'No due date'
+  const date = new Date(dueDate)
+  const today = new Date()
+  const diffTime = date.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) return 'Overdue'
+  if (diffDays === 0) return 'Due today'
+  if (diffDays === 1) return 'Due tomorrow'
+  if (diffDays <= 7) return `Due in ${diffDays} days`
+  return date.toLocaleDateString()
+}
+
 export default function InteractiveDashboard({ user }: { user: any }) {
   const [refreshing, setRefreshing] = useState(false)
   
@@ -65,20 +80,6 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       toast.error('Failed to refresh data')
     }
     setRefreshing(false)
-  }
-
-  const formatDueDate = (dueDate: string | null): string => {
-    if (!dueDate) return 'No due date'
-    const date = new Date(dueDate)
-    const today = new Date()
-    const diffTime = date.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays < 0) return 'Overdue'
-    if (diffDays === 0) return 'Due today'
-    if (diffDays === 1) return 'Due tomorrow'
-    if (diffDays <= 7) return `Due in ${diffDays} days`
-    return date.toLocaleDateString()
   }
 
   const isLoading = !statsData || !tasksData
