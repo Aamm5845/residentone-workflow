@@ -104,3 +104,4 @@ test-dropbox.js
 # Local uploads directory (files will be in Dropbox)
 public/uploads/*
 !public/uploads/.gitkeep
+.env*.local
