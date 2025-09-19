@@ -21,7 +21,7 @@ import {
   Pencil,
   Users
 } from 'lucide-react'
-import { STAGE_CONFIG, getStageIcon, TOTAL_WORKFLOW_STAGES } from '@/constants/workflow'
+import { WORKFLOW_STAGES, STAGE_CONFIG, getStageConfig, getStageStatusColor, getStageStatusTextColor, type StageStatus } from '@/constants/workflow'
 
 interface Room {
   id: string
@@ -69,8 +69,8 @@ interface RoomManagementProps {
   onStageComplete: (stageId: string) => void
 }
 
-// Using centralized STAGE_CONFIG from constants/workflow.ts
-// Note: FFE is now integrated into DRAWINGS stage
+// Using centralized STAGE_CONFIG from constants/workflow.ts with 5 phases
+// Design Concept → 3D Rendering → Client Approval → Drawings → FFE
 
 const ROOM_STATUS_CONFIG = {
   NOT_STARTED: { name: 'Not Started', color: 'bg-gray-100 text-gray-800', icon: Clock },
@@ -99,17 +99,17 @@ export default function RoomManagement({
     let totalProgress = 0
     let progressCount = 0
     
-    // Only count the 4 main workflow stages, ignore any legacy FFE stages
+    // Count all 5 main workflow stages
     const relevantStages = room.stages.filter(stage => 
-      ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+      WORKFLOW_STAGES.includes(stage.type as any)
     )
     
     relevantStages.forEach(stage => {
       if (stage.status === 'COMPLETED') {
         totalProgress += 100
         progressCount += 1
-      } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN' && stage.designSections) {
-        // For design stage, calculate progress based on completed sections
+      } else if (stage.status === 'IN_PROGRESS' && stage.type === 'DESIGN_CONCEPT' && stage.designSections) {
+        // For design concept stage, calculate progress based on completed sections
         const completedSections = stage.designSections.filter((section: any) => section.completed).length
         const sectionProgress = (completedSections / stage.designSections.length) * 100
         totalProgress += sectionProgress
@@ -214,86 +214,105 @@ export default function RoomManagement({
             <h4 className="text-md font-semibold text-gray-900 mb-4">Workflow Stages</h4>
             <div className="space-y-3">
               {room.stages.filter(stage => 
-                ['DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS'].includes(stage.type)
+                WORKFLOW_STAGES.includes(stage.type as any)
               ).map((stage, index) => {
-                const stageConfig = STAGE_CONFIG[stage.type as keyof typeof STAGE_CONFIG]
-                const StageIcon = stage.type === 'DESIGN' ? Palette : 
-                                stage.type === 'THREE_D' ? Box : 
-                                stage.type === 'CLIENT_APPROVAL' ? CheckCheck : 
-                                stage.type === 'DRAWINGS' ? Pencil : Settings
-                const isActive = currentStageIndex === index
-                const isCompleted = stage.status === 'COMPLETED'
-                const canStart = stage.status === 'NOT_STARTED' && (index === 0 || room.stages[index - 1].status === 'COMPLETED')
+                const stageConfig = getStageConfig(stage.type)
+                const status = stage.status as StageStatus
+                const isActive = status === 'IN_PROGRESS'
+                const isCompleted = status === 'COMPLETED'
+                const canStart = status === 'NOT_STARTED' // Allow any phase to start independently
 
                 return (
                   <div 
                     key={stage.id}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      isActive 
-                        ? 'border-purple-500 bg-purple-50' 
-                        : isCompleted
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 bg-gray-50'
+                    className={`p-5 rounded-xl transition-all duration-300 hover:shadow-lg group ${
+                      getStageStatusColor(stage.type, status)
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 ${stageConfig?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center`}>
-                          <StageIcon className="w-5 h-5 text-white" />
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <div className={`w-12 h-12 ${stageConfig.baseColor} rounded-xl flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110`}>
+                            <span className="text-lg text-white">{stageConfig.icon}</span>
+                          </div>
+                          {/* Status indicator */}
+                          <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                            isCompleted ? 'bg-green-500' :
+                            isActive ? 'bg-blue-500 animate-pulse' :
+                            'bg-gray-300'
+                          }`} />
                         </div>
                         
-                        <div>
-                          <h5 className="font-medium text-gray-900">{stageConfig?.name || 'Unknown Stage'}</h5>
-                          <p className="text-sm text-gray-600">{stageConfig?.description || 'Stage description'}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <h5 className={`font-semibold text-lg ${
+                              getStageStatusTextColor(stage.type, status)
+                            }`}>{stageConfig.name}</h5>
+                            <div className={`px-2 py-1 rounded-full text-xs font-bold ${
+                              isCompleted ? 'bg-green-100 text-green-800' :
+                              isActive ? 'bg-blue-100 text-blue-800 animate-pulse' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {isCompleted ? 'COMPLETED' : isActive ? 'IN PROGRESS' : 'NOT STARTED'}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">{stageConfig.description}</p>
                           {stage.assignedUser && (
-                            <div className="flex items-center space-x-1 mt-1">
-                              <User className="w-3 h-3 text-gray-400" />
-                              <span className="text-xs text-gray-500">{stage.assignedUser.name}</span>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-600 font-medium">{stage.assignedUser.name}</span>
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-col items-end space-y-2">
                         {stage.status === 'COMPLETED' && stage.completedAt && (
-                          <span className="text-xs text-green-600">
+                          <span className="text-xs text-green-600 font-medium">
                             Completed {new Date(stage.completedAt).toLocaleDateString()}
                           </span>
                         )}
                         
-                        {canStart && (
-                          <Button 
-                            size="sm"
-                            onClick={() => onStageStart(stage.id)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
-                          >
-                            Start Stage
-                          </Button>
-                        )}
-                        
-                        {stage.status === 'IN_PROGRESS' && (
-                          <>
+                        <div className="flex space-x-2">
+                          {canStart && (
                             <Button 
                               size="sm"
-                              variant="outline"
-                              onClick={() => window.open(`/stages/${stage.id}`, '_blank')}
+                              onClick={() => onStageStart(stage.id)}
+                              className={`font-semibold text-white shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${
+                                stageConfig.baseColor
+                              }`}
                             >
-                              Open Details
+                              <Play className="w-4 h-4 mr-1" />
+                              Start
                             </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => onStageComplete(stage.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              Mark Complete
-                            </Button>
-                          </>
-                        )}
+                          )}
+                          
+                          {isActive && (
+                            <>
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/stages/${stage.id}`, '_blank')}
+                                className="border-2 hover:bg-gray-50 font-semibold"
+                              >
+                                Open Workspace
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => onStageComplete(stage.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Complete
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Design Sections for Design Stage */}
-                    {stage.type === 'DESIGN' && stage.designSections && isActive && (
+                    {/* Design Sections for Design Concept Stage */}
+                    {stage.type === 'DESIGN_CONCEPT' && stage.designSections && isActive && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <h6 className="text-sm font-medium text-gray-900 mb-3">Design Sections</h6>
                         <div className="grid grid-cols-2 gap-3">

@@ -44,6 +44,7 @@ export async function PATCH(
     
     if (action === 'start') {
       updateData.status = 'IN_PROGRESS'
+      updateData.startedAt = new Date() // Add startedAt timestamp
       if (assignedTo) updateData.assignedTo = assignedTo
     } else if (action === 'complete') {
       updateData.status = 'COMPLETED'
@@ -53,6 +54,7 @@ export async function PATCH(
     } else if (action === 'reopen') {
       updateData.status = 'IN_PROGRESS'
       updateData.completedAt = null
+      updateData.startedAt = new Date() // Reset startedAt when reopening
     }
     
     if (dueDate) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { CheckCircle, User, Calendar, Box, Upload, MessageSquare } from 'lucide-react'
+import { CheckCircle, User, Calendar, Box, Upload, MessageSquare, AlertTriangle } from 'lucide-react'
 
 interface ThreeDStageProps {
   stage: any
@@ -19,6 +19,20 @@ export default function ThreeDStage({
   project, 
   onComplete 
 }: ThreeDStageProps) {
+  // Ensure this component only renders for THREE_D stages
+  if (stage.type !== 'THREE_D') {
+    return (
+      <div className="bg-white border border-red-200 rounded-lg p-6 text-center">
+        <div className="text-red-500 mb-2">
+          <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+          <h3 className="font-semibold">Invalid Stage Type</h3>
+        </div>
+        <p className="text-gray-600">3D Rendering Stage component can only be used for 3D Rendering phases.</p>
+        <p className="text-sm text-gray-500 mt-1">Current stage type: {stage.type}</p>
+      </div>
+    )
+  }
+  
   return (
     <div className="bg-white border border-gray-200 rounded-lg">
       {/* Stage Header */}

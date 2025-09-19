@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DesignBoard from '@/components/rooms/design-board'
 import RoomActions from '@/components/rooms/room-actions'
 import WorkflowProgress from '@/components/rooms/workflow-progress'
+import { WORKFLOW_STAGES, getStageConfig } from '@/constants/workflow'
 
 interface Props {
   params: { id: string; roomId: string }
@@ -71,13 +72,26 @@ export default async function RoomWorkspace({ params }: Props) {
   }
 
   const getCurrentPhase = () => {
+    // Find the first in-progress stage
     const inProgressStage = room.stages.find((stage: any) => stage.status === 'IN_PROGRESS')
     if (inProgressStage) return inProgressStage.type
     
+    // Find the first not-started stage
     const nextStage = room.stages.find((stage: any) => stage.status === 'NOT_STARTED')
     if (nextStage) return nextStage.type
     
-    return 'DESIGN' // Default to design phase
+    return 'DESIGN_CONCEPT' // Default to design concept phase
+  }
+
+  const getTabValue = (phaseType: string) => {
+    switch (phaseType) {
+      case 'DESIGN_CONCEPT': return 'design_concept'
+      case 'THREE_D': return 'three_d'
+      case 'CLIENT_APPROVAL': return 'client_approval'
+      case 'DRAWINGS': return 'drawings'
+      case 'FFE': return 'ffe'
+      default: return 'design_concept'
+    }
   }
 
   const roomProgress = getRoomProgress()
@@ -144,29 +158,27 @@ export default async function RoomWorkspace({ params }: Props) {
 
         {/* Main Content - Phase Tabs */}
         <div className="px-6 py-8">
-          <Tabs defaultValue={currentPhase?.toLowerCase() || 'design'} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="design" className="flex items-center space-x-2">
-                <span>🎨</span>
-                <span>Design</span>
-              </TabsTrigger>
-              <TabsTrigger value="three_d" className="flex items-center space-x-2">
-                <span>🎥</span>
-                <span>3D Rendering</span>
-              </TabsTrigger>
-              <TabsTrigger value="client_approval" className="flex items-center space-x-2">
-                <span>👥</span>
-                <span>Client Approval</span>
-              </TabsTrigger>
-              <TabsTrigger value="drawings" className="flex items-center space-x-2">
-                <span>📐</span>
-                <span>Drawings & FFE</span>
-              </TabsTrigger>
+          <Tabs defaultValue={getTabValue(currentPhase) || 'design_concept'} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 bg-gray-100 p-1 rounded-xl">
+              {WORKFLOW_STAGES.map((stageType) => {
+                const config = getStageConfig(stageType)
+                const tabValue = getTabValue(stageType)
+                return (
+                  <TabsTrigger 
+                    key={stageType}
+                    value={tabValue} 
+                    className="flex items-center space-x-2 rounded-lg py-3 px-4 text-sm font-medium transition-all duration-200 hover:bg-white/70 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  >
+                    <span className="text-lg">{config.icon}</span>
+                    <span className="hidden sm:inline">{config.name}</span>
+                  </TabsTrigger>
+                )
+              })}
             </TabsList>
 
-            {/* Design Phase Content */}
-            <TabsContent value="design" className="space-y-8 mt-8">
-              <DesignPhaseContent roomId={roomId} projectId={id} />
+            {/* Design Concept Phase Content */}
+            <TabsContent value="design_concept" className="space-y-8 mt-8">
+              <DesignConceptPhaseContent roomId={roomId} projectId={id} />
             </TabsContent>
 
             {/* 3D Rendering Phase Content */}
@@ -179,12 +191,14 @@ export default async function RoomWorkspace({ params }: Props) {
               <ClientApprovalPhaseContent roomId={roomId} />
             </TabsContent>
 
-            {/* Drafting + FFE Phase Content */}
+            {/* Technical Drawings Phase Content */}
             <TabsContent value="drawings" className="space-y-8 mt-8">
               <DraftingPhaseContent roomId={roomId} />
-              <div className="mt-12">
-                <FFEPhaseContent roomId={roomId} />
-              </div>
+            </TabsContent>
+
+            {/* FFE Phase Content */}
+            <TabsContent value="ffe" className="space-y-8 mt-8">
+              <FFEPhaseContent roomId={roomId} />
             </TabsContent>
           </Tabs>
         </div>
@@ -193,8 +207,8 @@ export default async function RoomWorkspace({ params }: Props) {
   )
 }
 
-// Design Phase Component with Pinterest-style boards
-function DesignPhaseContent({ roomId, projectId }: { roomId: string; projectId: string }) {
+// Design Concept Phase Component with Pinterest-style boards
+function DesignConceptPhaseContent({ roomId, projectId }: { roomId: string; projectId: string }) {
   const designSections = [
     { id: 'floor', name: 'Floor', icon: '🏠' },
     { id: 'walls', name: 'Walls', icon: '🎨' },
@@ -292,21 +306,25 @@ function DraftingPhaseContent({ roomId }: { roomId: string }) {
   )
 }
 
-// FFE Phase Component
+// FFE Phase Component - Premium Furniture, Fixtures & Equipment
 function FFEPhaseContent({ roomId }: { roomId: string }) {
   const ffeCategories = [
-    { name: 'Beds', icon: '🛏️', items: [] },
-    { name: 'Sofas', icon: '🛋️', items: [] },
-    { name: 'Rugs', icon: '🟫', items: [] },
-    { name: 'Lighting', icon: '💡', items: [] },
-    { name: 'Accessories', icon: '🎨', items: [] }
+    { name: 'Furniture', icon: '🛌️', items: [], color: 'from-amber-500 to-orange-500' },
+    { name: 'Lighting', icon: '💡', items: [], color: 'from-yellow-400 to-amber-500' },
+    { name: 'Textiles', icon: '🛋️', items: [], color: 'from-pink-500 to-rose-500' },
+    { name: 'Art & Accessories', icon: '🎨', items: [], color: 'from-purple-500 to-indigo-500' },
+    { name: 'Window Treatments', icon: '🎨', items: [], color: 'from-blue-500 to-cyan-500' },
+    { name: 'Hardware & Fixtures', icon: '⚙️', items: [], color: 'from-gray-500 to-slate-600' }
   ]
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-gray-900">FFE Sourcing & Specifications</h3>
-        <Button>
+        <div>
+          <h3 className="text-2xl font-bold text-gray-900">Furniture, Fixtures & Equipment</h3>
+          <p className="text-gray-600 mt-1">Premium sourcing and detailed specifications for all interior elements</p>
+        </div>
+        <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg">
           <Plus className="w-4 h-4 mr-2" />
           Add Item
         </Button>
@@ -317,21 +335,49 @@ function FFEPhaseContent({ roomId }: { roomId: string }) {
           <FFECategory key={category.name} category={category} />
         ))}
       </div>
+      
+      {/* FFE Summary Statistics */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">FFE Project Summary</h4>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">0</div>
+            <div className="text-sm text-gray-600">Items Sourced</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">$0</div>
+            <div className="text-sm text-gray-600">Total Budget</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">0%</div>
+            <div className="text-sm text-gray-600">Approved</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">0</div>
+            <div className="text-sm text-gray-600">Suppliers</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-// FFE Category Component
+// FFE Category Component with Premium Styling
 function FFECategory({ category }: { category: any }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <span className="text-xl">{category.icon}</span>
-            <h4 className="font-semibold text-gray-900">{category.name}</h4>
+            <div className={`w-10 h-10 bg-gradient-to-r ${category.color} rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
+              <span className="text-lg text-white">{category.icon}</span>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900">{category.name}</h4>
+              <p className="text-xs text-gray-500">{category.items.length} items</p>
+            </div>
           </div>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="hover:bg-gray-100">
             <Plus className="w-4 h-4" />
           </Button>
         </div>

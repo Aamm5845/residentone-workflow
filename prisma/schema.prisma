@@ -239,7 +239,7 @@ model Room {
 }
 
 enum StageType {
-  DESIGN
+  DESIGN_CONCEPT
   THREE_D
   CLIENT_APPROVAL
   DRAWINGS
@@ -263,6 +263,7 @@ model Stage {
   status      StageStatus @default(NOT_STARTED)
   assignedTo  String?     // User ID of assigned team member
   dueDate     DateTime?
+  startedAt   DateTime?   // When the stage was started
   completedAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

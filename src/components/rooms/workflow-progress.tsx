@@ -1,7 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { Play, CheckCircle } from 'lucide-react'
+import { WORKFLOW_STAGES, getStageConfig, getStageStatusColor, getStageStatusTextColor, type StageStatus } from '@/constants/workflow'
+import { useStageActions } from '@/hooks/useWorkflow'
 
 interface WorkflowProgressProps {
   room: any
@@ -9,100 +13,166 @@ interface WorkflowProgressProps {
 
 export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   const router = useRouter()
+  const { startStage, isLoading } = useStageActions()
+  const [error, setError] = useState<string | null>(null)
 
-  const getPhaseIcon = (phaseType: string) => {
-    switch (phaseType) {
-      case 'DESIGN': return '🎨'
-      case 'THREE_D': return '🎥'
-      case 'DRAWINGS': return '📐'
-      case 'FFE': return '🛋️'
-      default: return '⏳'
+  const handleStartPhase = async (stageId: string, stageType: string) => {
+    setError(null)
+    try {
+      await startStage(stageId)
+      // SWR will automatically update the UI without page reload
+    } catch (error) {
+      setError(`Failed to start ${stageType} phase. Please try again.`)
+      console.error('Error starting stage:', error)
     }
   }
 
-  const handleStartDesign = () => {
-    const designStage = room.stages.find((s: any) => s.type === 'DESIGN')
-    if (designStage) {
-      router.push(`/stages/${designStage.id}`)
-    }
-  }
 
   return (
-    <div className="flex space-x-4 overflow-x-auto pb-4">
-      {['DESIGN', 'THREE_D', 'DRAWINGS', 'FFE'].map((phase, index) => {
-        const phaseStage = room.stages.find((s: any) => s.type === phase)
-        const isActive = phaseStage?.status === 'IN_PROGRESS'
-        const isCompleted = phaseStage?.status === 'COMPLETED'
-        const isNext = !isCompleted && !isActive && room.stages.findIndex((s: any) => s.status === 'IN_PROGRESS') < 0 && index === 0
+    <div className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {error}
+          <button 
+            onClick={() => setError(null)}
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      <div className="flex space-x-4 overflow-x-auto pb-4">
+      {WORKFLOW_STAGES.map((stageType) => {
+        const stageConfig = getStageConfig(stageType)
+        const phaseStage = room.stages.find((s: any) => s.type === stageType)
+        const status = phaseStage?.status as StageStatus || 'NOT_STARTED'
+        const isCompleted = status === 'COMPLETED'
+        const isActive = status === 'IN_PROGRESS'
+        const canStart = status === 'NOT_STARTED'
+        const isStarting = isLoading === phaseStage?.id
         
         return (
-          <div key={phase} className="flex-shrink-0 w-64">
-            <div className={`rounded-lg border-2 transition-all duration-200 ${
-              isActive ? 'border-blue-400 bg-blue-50' :
-              isCompleted ? 'border-green-400 bg-green-50' :
-              isNext ? 'border-purple-400 bg-purple-50' :
-              'border-gray-200 bg-gray-50'
+          <div key={stageType} className="flex-shrink-0 w-72 group">
+            <div className={`rounded-xl border-2 transition-all duration-300 transform group-hover:scale-105 ${
+              getStageStatusColor(stageType, status)
             }`}>
-              <div className="px-4 py-3 border-b border-current/20">
+              <div className="px-5 py-4 border-b border-current/10 bg-gradient-to-r from-transparent to-black/5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">{getPhaseIcon(phase)}</span>
-                    <h4 className="font-medium text-gray-900">
-                      {phase === 'THREE_D' ? '3D' : phase.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
-                    </h4>
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      stageConfig.baseColor
+                    } shadow-md`}>
+                      <span className="text-lg text-white">{stageConfig.icon}</span>
+                    </div>
+                    <div>
+                      <h4 className={`font-semibold text-base ${
+                        getStageStatusTextColor(stageType, status)
+                      }`}>
+                        {stageConfig.name}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">{stageConfig.description}</p>
+                    </div>
                   </div>
-                  <div className={`w-3 h-3 rounded-full ${
-                    isCompleted ? 'bg-green-500' :
-                    isActive ? 'bg-blue-500' :
-                    isNext ? 'bg-purple-500' :
-                    'bg-gray-300'
-                  }`} />
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className={`w-4 h-4 rounded-full ${
+                      isCompleted ? 'bg-green-500 ring-2 ring-green-200' :
+                      isActive ? 'bg-blue-500 animate-pulse ring-2 ring-blue-200' :
+                      'bg-gray-300'
+                    }`} />
+                    <span className="text-xs font-medium ${
+                      isCompleted ? 'text-green-600' :
+                      isActive ? 'text-blue-600' :
+                      'text-gray-400'
+                    }">
+                      {isCompleted ? 'Done' : isActive ? 'Active' : 'Pending'}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="p-4 min-h-[120px]">
-                {isCompleted && (
-                  <div className="flex items-center space-x-2 text-green-600 text-sm">
-                    <span>✅</span>
-                    <span>Phase Complete</span>
-                  </div>
-                )}
-                {isActive && (
-                  <div className="flex items-center space-x-2 text-blue-600 text-sm">
-                    <span>🔄</span>
-                    <span>In Progress</span>
-                  </div>
-                )}
-                {isNext && phase === 'DESIGN' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2 text-purple-600 text-sm">
-                      <span>⏳</span>
-                      <span>Ready to Start</span>
+              <div className="p-5 min-h-[140px] flex flex-col justify-between">
+                <div className="space-y-3">
+                  {isCompleted && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-green-800 text-sm">Completed</span>
+                        <p className="text-xs text-green-600">Phase finished successfully</p>
+                      </div>
                     </div>
+                  )}
+                  {isActive && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Play className="w-5 h-5 text-blue-600 animate-pulse" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-blue-800 text-sm">In Progress</span>
+                        <p className="text-xs text-blue-600">Currently working on this phase</p>
+                      </div>
+                    </div>
+                  )}
+                  {canStart && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-500">⏳</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-700 text-sm">Ready to Start</span>
+                        <p className="text-xs text-gray-500">Click below to begin this phase</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-auto pt-2">
+                  {canStart && phaseStage && (
                     <Button 
                       size="sm" 
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={handleStartDesign}
+                      className={`w-full text-white font-semibold ${
+                        stageConfig.baseColor
+                      } hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 shadow-md`}
+                      onClick={() => handleStartPhase(phaseStage.id, stageType)}
+                      disabled={isStarting}
                     >
-                      Start Design
+                      {isStarting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Start {stageConfig.name}
+                        </>
+                      )}
                     </Button>
-                  </div>
-                )}
-                {isNext && phase !== 'DESIGN' && (
-                  <div className="flex items-center space-x-2 text-purple-600 text-sm">
-                    <span>⏳</span>
-                    <span>Ready to Start</span>
-                  </div>
-                )}
-                {!isCompleted && !isActive && !isNext && (
-                  <div className="text-gray-500 text-sm">
-                    <span>Pending</span>
-                  </div>
-                )}
+                  )}
+                  {isActive && phaseStage && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="w-full border-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 font-semibold"
+                      onClick={() => router.push(`/stages/${phaseStage.id}`)}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Open Workspace
+                    </Button>
+                  )}
+                  {isCompleted && (
+                    <div className="text-center py-2">
+                      <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
+                      <span className="text-xs text-green-600 font-medium">Phase Complete</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        )
+        ))
       })}
+      </div>
     </div>
   )
 }
