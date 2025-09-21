@@ -16,15 +16,12 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession() as AuthSession | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch all team members in the organization
+    // Fetch all team members (no org filtering)
     const teamMembers = await prisma.user.findMany({
-      where: { 
-        orgId: session.user.orgId 
-      },
       select: {
         id: true,
         name: true,
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession() as AuthSession | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -118,13 +115,19 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
+    // Get shared organization (first organization in the system)
+    const sharedOrg = await prisma.organization.findFirst()
+    if (!sharedOrg) {
+      return NextResponse.json({ error: 'No shared organization found' }, { status: 500 })
+    }
+
     // Create new team member (without password - they'll need to set it via invitation)
     const newUser = await prisma.user.create({
       data: {
         name: name.trim(),
         email: email.toLowerCase(),
         role,
-        orgId: session.user.orgId,
+        orgId: sharedOrg.id,
         image: image || null,
         // No password - user will be invited to set one
       },
@@ -148,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     // Auto-assign the new user to existing phases based on their role
     try {
-      const assignmentResult = await autoAssignUserToPhases(newUser.id, role, session.user.orgId)
+      const assignmentResult = await autoAssignUserToPhases(newUser.id, role, sharedOrg.id)
       console.log(`Auto-assigned ${assignmentResult.assignedCount} phases to new user: ${assignmentResult.phases.join(', ')}`)
     } catch (assignmentError) {
       console.error('Failed to auto-assign phases to new user:', assignmentError)

@@ -16,7 +16,7 @@ export default async function Stages({ searchParams }: { searchParams: Promise<{
     }
   } | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -25,11 +25,7 @@ export default async function Stages({ searchParams }: { searchParams: Promise<{
   const statusFilter = resolvedSearchParams.status
 
   // Build where clause based on filters
-  const whereClause: any = {
-    room: {
-      project: { orgId: session.user.orgId }
-    }
-  }
+  const whereClause: any = {}
 
   if (statusFilter === 'active') {
     whereClause.status = 'IN_PROGRESS' // Only truly active stages

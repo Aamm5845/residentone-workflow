@@ -47,13 +47,16 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create default organization for new user
-    const organization = await prisma.organization.create({
-      data: {
-        name: `${name}'s Design Studio`,
-        slug: `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`
-      }
-    })
+    // Find or create shared organization
+    let organization = await prisma.organization.findFirst()
+    if (!organization) {
+      organization = await prisma.organization.create({
+        data: {
+          name: 'Shared Design Studio',
+          slug: 'shared-design-studio'
+        }
+      })
+    }
 
     // Create user
     const user = await prisma.user.create({

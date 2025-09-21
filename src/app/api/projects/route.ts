@@ -15,12 +15,11 @@ export async function GET(request: NextRequest) {
       }
     } | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const projects = await prisma.project.findMany({
-      where: { orgId: session.user.orgId },
       include: {
         client: true,
         rooms: {
@@ -61,12 +60,16 @@ export async function POST(request: NextRequest) {
       }
     } | null
     
-    if (!session?.user?.orgId) {
-      console.log('❌ Unauthorized - no session or orgId')
+    if (!session?.user) {
+      console.log('❌ Unauthorized - no session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { orgId } = session.user
+    // Get shared organization
+    const sharedOrg = await prisma.organization.findFirst()
+    if (!sharedOrg) {
+      return NextResponse.json({ error: 'No shared organization found' }, { status: 500 })
+    }
     
     const data = await request.json()
     console.log('📝 Request data received:', { 
@@ -101,12 +104,12 @@ export async function POST(request: NextRequest) {
     } = data
 
     // Find or create client (handle unique constraint on orgId + email)
-    console.log('👤 Checking for existing client:', { email: clientEmail, orgId: session.user.orgId })
+    console.log('👤 Checking for existing client:', { email: clientEmail, orgId: sharedOrg.id })
     
     let client = await prisma.client.findFirst({
       where: {
         email: clientEmail,
-        orgId: session.user.orgId
+        orgId: sharedOrg.id
       }
     })
     
@@ -130,7 +133,7 @@ export async function POST(request: NextRequest) {
           name: clientName,
           email: clientEmail,
           phone: clientPhone || null,
-          orgId: session.user.orgId
+          orgId: sharedOrg.id
         }
       })
       console.log('✅ Client created successfully:', { id: client.id, name: client.name })
@@ -149,7 +152,7 @@ export async function POST(request: NextRequest) {
       name: name,
       type: type as ProjectType,
       clientId: client.id,
-      orgId: session.user.orgId,
+      orgId: sharedOrg.id,
       createdById: session.user.id
       // Removed: description, status, budget, dueDate - adding back one by one if this works
     }
@@ -314,7 +317,7 @@ export async function POST(request: NextRequest) {
 
       // Auto-assign stages to team members based on their roles
       try {
-        const assignmentResult = await autoAssignPhasesToTeam(room.id, session.user.orgId)
+        const assignmentResult = await autoAssignPhasesToTeam(room.id, sharedOrg.id)
         console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for room ${room.id}`)
       } catch (assignmentError) {
         console.error('Failed to auto-assign phases to team:', assignmentError)

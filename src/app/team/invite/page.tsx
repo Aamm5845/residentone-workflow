@@ -13,7 +13,7 @@ export default async function InviteTeamMember() {
     }
   } | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 

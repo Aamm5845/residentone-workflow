@@ -17,7 +17,7 @@ export default async function TeamManagement() {
     }
   } | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -29,7 +29,6 @@ export default async function TeamManagement() {
   
   try {
     teamMembers = await prisma.user.findMany({
-      where: { orgId: session.user.orgId },
       include: {
         organization: true,
         assignedStages: {

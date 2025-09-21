@@ -16,7 +16,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
     }
   } | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -24,9 +24,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
   const statusFilter = searchParams.status
 
   // Build where clause based on filters
-  const whereClause: any = {
-    project: { orgId: session.user.orgId }
-  }
+  const whereClause: any = {}
 
   if (statusFilter === 'active') {
     whereClause.stages = {

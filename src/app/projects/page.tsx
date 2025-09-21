@@ -17,7 +17,7 @@ export default async function Projects({ searchParams }: { searchParams: Promise
     }
   } | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -27,7 +27,7 @@ export default async function Projects({ searchParams }: { searchParams: Promise
   const timeframeFilter = resolvedSearchParams.timeframe
 
   // Build where clause based on filters
-  const whereClause: any = { orgId: session.user.orgId }
+  const whereClause: any = {}
   
   if (statusFilter === 'active') {
     whereClause.status = { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
