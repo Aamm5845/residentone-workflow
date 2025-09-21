@@ -156,8 +156,13 @@ export async function POST(
             roomId: renderingVersion.room.id,
             stageId: renderingVersion.stageId,
             renderingVersionId: versionId,
-            uploadedBy: session.user.id   // ✅ FIX: required relation
+            uploader: {
+              connect: {
+                id: session.user.id
+              }
+            }
           })
+        })
         })
 
         uploadedAssets.push(asset)

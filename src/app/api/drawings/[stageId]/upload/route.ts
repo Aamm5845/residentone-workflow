@@ -119,12 +119,16 @@ export async function POST(
             size: file.size,
             mimeType: file.type,
             provider: 'vercel-blob',
-            uploadedBy: session.user.id,
             orgId: session.user.orgId!,
             projectId: stage.room.projectId,
             roomId: stage.roomId,
             stageId: stageId,
-            drawingChecklistItemId: checklistItemId
+            drawingChecklistItemId: checklistItemId,
+            uploader: {
+              connect: {
+                id: session.user.id
+              }
+            }
           },
           include: {
             uploader: {

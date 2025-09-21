@@ -111,7 +111,11 @@ export async function POST(request: NextRequest) {
         roomId: section.stage.room.id,
         stageId: section.stage.id,
         sectionId: section.id,
-        uploadedBy: session.user.id
+        uploader: {
+          connect: {
+            id: session.user.id
+          }
+        }
       })
     })
 
