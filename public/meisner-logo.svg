@@ -1,0 +1,17 @@
+<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo icon at top -->
+  <g transform="translate(200, 30)">
+    <!-- House outline -->
+    <rect x="-25" y="0" width="50" height="35" fill="none" stroke="black" stroke-width="3"/>
+    <!-- Door/window element -->
+    <ellipse cx="0" cy="17.5" rx="8" ry="15" fill="none" stroke="black" stroke-width="2"/>
+    <!-- Roof dot -->
+    <circle cx="0" cy="-8" r="4" fill="black"/>
+  </g>
+  
+  <!-- MEISNER text -->
+  <text x="200" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="300" fill="black">MEISNER</text>
+  
+  <!-- INTERIORS text -->
+  <text x="200" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="300" fill="black" letter-spacing="8">INTERIORS</text>
+</svg>

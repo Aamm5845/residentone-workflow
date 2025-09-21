@@ -1,0 +1,45 @@
+🛡️ RESIDENTONE BACKUP SYSTEM - QUICK REFERENCE
+=====================================================
+
+📋 DAILY COMMANDS (memorize these):
+    npm run backup:simple    <- Before EVERY change
+    npm run backup:full      <- When server stopped
+    npm run backup:restore   <- If something breaks
+
+📁 BACKUP LOCATION:
+    C:\Users\ADMIN\Desktop\residentone-workflow\backups\
+
+⚡ SETUP (run once):
+    npm run backup:schedule
+    npm run backup:simple
+
+🔄 WORKFLOW:
+    1. Morning: npm run backup:simple && npm run dev
+    2. Before changes: npm run backup:simple  
+    3. Evening: Stop server -> npm run backup:full
+
+🚨 EMERGENCY:
+    npm run backup:list
+    npm run backup:restore
+
+💡 BACKUP TYPES:
+    Simple  = Config/structure (1KB, instant, always works)
+    Full    = Database data (100KB-5MB, needs server stopped)
+    
+📊 FILES CREATED:
+    ✅ scripts/backup-prisma.js       - Full database backup
+    ✅ scripts/restore-prisma.js      - Database restore utility  
+    ✅ scripts/simple-backup.js       - Quick config backup
+    ✅ scripts/backup-database.js     - PostgreSQL backup (needs tools)
+    ✅ scripts/restore-database.js    - PostgreSQL restore (needs tools)
+    ✅ scripts/daily-backup.ps1       - Windows scheduled backup
+    ✅ BACKUP-GUIDE.md               - Complete documentation
+    ✅ BACKUP-README.md              - Detailed instructions
+
+🎯 REMEMBER:
+    - Simple backup before EVERY change
+    - Full backup daily/before deployment  
+    - Test restore monthly
+    - Copy backups to external storage weekly
+
+STATUS: ✅ READY TO USE!

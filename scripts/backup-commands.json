@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "backup": "node scripts/backup-database.js",
+    "backup:restore": "node scripts/restore-database.js",
+    "backup:schedule": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1 -SetupSchedule",
+    "backup:manual": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1",
+    "backup:list": "dir backups\\database-backup-*.* /O-D",
+    "dev:backup": "npm run backup && npm run dev"
+  }
+}

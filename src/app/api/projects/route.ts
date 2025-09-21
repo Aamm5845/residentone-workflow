@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 POST /api/projects - Starting project creation')
+    
     const session = await getSession() as Session & {
       user: {
         id: string
@@ -59,54 +61,43 @@ export async function POST(request: NextRequest) {
     } | null
     
     if (!session?.user?.orgId) {
+      console.log('❌ Unauthorized - no session or orgId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { orgId } = session.user
     
     const data = await request.json()
+    console.log('📋 Request data received:', { 
+      name: data.name, 
+      contractorsCount: data.contractors?.length || 0,
+      roomsCount: data.selectedRooms?.length || 0
+    })
+    
     const {
       name,
       description,
       type,
-      clientId,
       clientName,
       clientEmail,
       clientPhone,
+      projectAddress,
       budget,
       dueDate,
-      selectedRooms
+      selectedRooms,
+      coverImages,
+      contractors
     } = data
 
-    // Create or find client
-    let client
-    if (clientId && clientId !== 'new') {
-      // Find existing client
-      client = await prisma.client.findUnique({
-        where: { id: clientId }
-      })
-    } else {
-      // Create new client
-      const existingClient = await prisma.client.findFirst({
-        where: {
-          orgId: session.user.orgId,
-          email: clientEmail
-        }
-      })
-
-      if (existingClient) {
-        client = existingClient
-      } else {
-        client = await prisma.client.create({
-          data: {
-            name: clientName,
-            email: clientEmail,
-            phone: clientPhone || null,
-            orgId: session.user.orgId
-          }
-        })
+    // Create client (clients are no longer saved with addresses)
+    const client = await prisma.client.create({
+      data: {
+        name: clientName,
+        email: clientEmail,
+        phone: clientPhone || null,
+        orgId: session.user.orgId
       }
-    }
+    })
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found or created' }, { status: 400 })
@@ -119,13 +110,33 @@ export async function POST(request: NextRequest) {
         description: description || null,
         type: type as ProjectType,
         clientId: client.id,
+        address: projectAddress || null,
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
+        coverImages: coverImages || [],
         orgId: session.user.orgId,
         createdById: session.user.id,
         status: 'IN_PROGRESS'
       }
     })
+
+    // Create project contractors relationships
+    console.log('👷 Processing contractors:', { contractorsCount: contractors?.length || 0 })
+    if (contractors && contractors.length > 0) {
+      console.log('✅ Creating contractor relationships:', contractors.map(c => ({ id: c.id, type: c.type })))
+      const projectContractors = contractors.map((contractor: any) => ({
+        projectId: project.id,
+        contractorId: contractor.id,
+        role: contractor.type // Map 'type' to 'role' field in ProjectContractor
+      }))
+      
+      await prisma.projectContractor.createMany({
+        data: projectContractors
+      })
+      console.log('✅ Contractor relationships created successfully')
+    } else {
+      console.log('ℹ️ No contractors to process')
+    }
 
     // Get team members for stage assignments
     const teamMembers = await prisma.user.findMany({
@@ -227,6 +238,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Return the created project with full details
+    console.log('📊 Fetching full project details...')
     const fullProject = await prisma.project.findUnique({
       where: { id: project.id },
       include: {
@@ -244,6 +256,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('🎉 Project creation completed successfully! Returning response with status 201')
+    console.log('📦 Project details:', { id: fullProject?.id, name: fullProject?.name, roomsCount: fullProject?.rooms?.length })
+    
     return NextResponse.json(fullProject, { status: 201 })
   } catch (error) {
     console.error('Error creating project:', error)

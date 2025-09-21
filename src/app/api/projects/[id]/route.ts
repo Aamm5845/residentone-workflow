@@ -13,7 +13,7 @@ const updateProjectSchema = z.object({
   budget: z.number().positive().optional().nullable(),
   dueDate: z.string().optional().nullable(), // Accept date strings like '2024-12-31'
   clientId: z.string().optional(),
-  coverImageUrl: z.string().optional().nullable(), // Allow relative URLs and empty strings
+  coverImages: z.array(z.string()).optional().nullable(), // Array of image URLs
   dropboxFolder: z.string().optional().nullable(),
 })
 
@@ -155,8 +155,8 @@ export async function PUT(
     }
     
     // Only add new columns if they exist in the schema (for migration compatibility)
-    if (validatedData.coverImageUrl !== undefined) {
-      updateData.coverImageUrl = validatedData.coverImageUrl
+    if (validatedData.coverImages !== undefined) {
+      updateData.coverImages = validatedData.coverImages
     }
     if (validatedData.dropboxFolder !== undefined) {
       updateData.dropboxFolder = validatedData.dropboxFolder

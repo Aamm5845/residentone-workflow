@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera } from 'lucide-react'
@@ -49,12 +49,6 @@ const ROOM_CATEGORIES = {
 // Flatten room types for easier access
 const ROOM_TYPES = Object.values(ROOM_CATEGORIES).flat()
 
-const CLIENT_SUGGESTIONS = [
-  { name: 'John & Jane Johnson', email: 'john@studioflow.com', phone: '(555) 123-4567' },
-  { name: 'Michael & Sarah Smith', email: 'michael@example.com', phone: '(555) 987-6543' },
-  { name: 'David & Emma Johnson', email: 'david@example.com', phone: '(555) 555-0123' },
-  { name: 'Create New Client', email: '', phone: '' },
-]
 
 export default function NewProjectForm({ session }: NewProjectFormProps) {
   const router = useRouter()
@@ -66,52 +60,62 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     name: '',
     description: '',
     type: 'RESIDENTIAL',
-    clientId: '',
     clientName: '',
     clientEmail: '',
     clientPhone: '',
+    projectAddress: '',
     budget: '',
     dueDate: '',
-    coverImageUrl: '',
-    selectedRooms: [] as Array<{ type: string; name: string; customName?: string }>
+    coverImages: [] as string[], // Support multiple images
+    selectedRooms: [] as Array<{ type: string; name: string; customName?: string }>,
+    contractors: [] as Array<{ id?: string; businessName: string; contactName: string; email: string; phone: string; address: string; type: 'contractor' | 'subcontractor' }>
   })
 
-  const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [showCustomRoomDialog, setShowCustomRoomDialog] = useState(false)
   const [customRoomBase, setCustomRoomBase] = useState('')
   const [customRoomName, setCustomRoomName] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [currentCoverImage, setCurrentCoverImage] = useState('')
+  const [showContractorDialog, setShowContractorDialog] = useState(false)
+  const [contractorType, setContractorType] = useState<'contractor' | 'subcontractor'>('contractor')
+  const [contractorForm, setContractorForm] = useState({ businessName: '', contactName: '', email: '', phone: '', address: '' })
+  const [existingContractors, setExistingContractors] = useState<any[]>([])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const files = event.target.files
+    if (!files) return
 
     try {
       setUploadingImage(true)
+      const uploadedUrls = []
       
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      formDataUpload.append('imageType', 'project-cover')
+      for (const file of Array.from(files)) {
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', file)
+        formDataUpload.append('imageType', 'project-cover')
 
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
-        body: formDataUpload,
-      })
+        const response = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formDataUpload,
+        })
 
-      if (!response.ok) {
-        throw new Error('Failed to upload image')
+        if (!response.ok) {
+          throw new Error('Failed to upload image')
+        }
+
+        const data = await response.json()
+        uploadedUrls.push(data.url)
       }
-
-      const data = await response.json()
-      setCurrentCoverImage(data.url)
-      setFormData(prev => ({ ...prev, coverImageUrl: data.url }))
       
-      alert('Image uploaded successfully!')
+      setFormData(prev => ({ 
+        ...prev, 
+        coverImages: [...prev.coverImages, ...uploadedUrls]
+      }))
+      
+      alert(`${uploadedUrls.length} image(s) uploaded successfully!`)
     } catch (error) {
       console.error('Image upload error:', error)
       alert('Failed to upload image. Please try again.')
@@ -120,27 +124,21 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     }
   }
 
-  const handleClientSelect = (client: any) => {
-    if (client.name === 'Create New Client') {
-      setShowNewClientForm(true)
-      setFormData(prev => ({ 
-        ...prev, 
-        clientId: '',
-        clientName: '',
-        clientEmail: '',
-        clientPhone: ''
-      }))
-    } else {
-      setShowNewClientForm(false)
-      setFormData(prev => ({ 
-        ...prev, 
-        clientId: client.id || 'new',
-        clientName: client.name,
-        clientEmail: client.email,
-        clientPhone: client.phone
-      }))
+  // Load existing contractors on mount
+  useEffect(() => {
+    const loadContractors = async () => {
+      try {
+        const response = await fetch('/api/contractors')
+        if (response.ok) {
+          const contractors = await response.json()
+          setExistingContractors(contractors)
+        }
+      } catch (error) {
+        console.error('Error loading contractors:', error)
+      }
     }
-  }
+    loadContractors()
+  }, [])
 
   const toggleRoom = (roomType: string) => {
     const roomInfo = ROOM_TYPES.find(r => r.value === roomType)
@@ -166,6 +164,81 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     setCustomRoomBase(baseRoomType)
     setCustomRoomName('')
     setShowCustomRoomDialog(true)
+  }
+
+  // Contractor management functions
+  const addContractor = (type: 'contractor' | 'subcontractor') => {
+    setContractorType(type)
+    setContractorForm({ businessName: '', contactName: '', email: '', phone: '', address: '' })
+    setShowContractorDialog(true)
+  }
+
+  const selectExistingContractor = (contractor: any, type: 'contractor' | 'subcontractor') => {
+    const newContractor = {
+      id: contractor.id,
+      businessName: contractor.businessName,
+      contactName: contractor.contactName || '',
+      email: contractor.email,
+      phone: contractor.phone,
+      address: contractor.address,
+      type
+    }
+    setFormData(prev => ({
+      ...prev,
+      contractors: [...prev.contractors, newContractor]
+    }))
+  }
+
+  const saveNewContractor = async () => {
+    if (!contractorForm.businessName || !contractorForm.email) return
+    
+    try {
+      // Save to database
+      const response = await fetch('/api/contractors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contractorForm)
+      })
+      
+      if (response.ok) {
+        const savedContractor = await response.json()
+        
+        // Add to form data
+        const newContractor = {
+          id: savedContractor.id,
+          ...contractorForm,
+          type: contractorType
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          contractors: [...prev.contractors, newContractor]
+        }))
+        
+        // Update existing contractors list
+        setExistingContractors(prev => [...prev, savedContractor])
+        
+        setShowContractorDialog(false)
+        setContractorForm({ businessName: '', contactName: '', email: '', phone: '', address: '' })
+      }
+    } catch (error) {
+      console.error('Error saving contractor:', error)
+      alert('Failed to save contractor')
+    }
+  }
+
+  const removeContractor = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      contractors: prev.contractors.filter((_, i) => i !== index)
+    }))
+  }
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      coverImages: prev.coverImages.filter((_, i) => i !== index)
+    }))
   }
 
   const saveCustomRoom = () => {
@@ -205,7 +278,8 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
           ...formData,
           budget: formData.budget ? parseFloat(formData.budget) : null,
           dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
-          coverImageUrl: currentCoverImage || null,
+          coverImages: formData.coverImages,
+          contractors: formData.contractors,
         })
       })
 
@@ -295,45 +369,48 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 </select>
               </div>
 
-              {/* Project Cover Image */}
+              {/* Project Cover Images */}
               <div className="mb-6">
                 <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
                   <Camera className="w-4 h-4 mr-2" />
-                  Project Cover Image (Optional)
+                  Project Cover Images (Optional)
                 </h4>
                 
-                <div className="flex items-center space-x-6">
-                  {currentCoverImage && (
-                    <div className="relative">
-                      <Image
-                        src={currentCoverImage}
-                        alt="Project cover"
-                        width={120}
-                        height={80}
-                        className="rounded-lg object-cover border border-gray-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentCoverImage('')
-                          setFormData(prev => ({ ...prev, coverImageUrl: '' }))
-                        }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                      >
-                        ×
-                      </button>
+                <div className="space-y-4">
+                  {/* Existing Images */}
+                  {formData.coverImages.length > 0 && (
+                    <div className="grid grid-cols-3 gap-4">
+                      {formData.coverImages.map((imageUrl, index) => (
+                        <div key={index} className="relative">
+                          <Image
+                            src={imageUrl}
+                            alt={`Project cover ${index + 1}`}
+                            width={120}
+                            height={80}
+                            className="rounded-lg object-cover border border-gray-200 w-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                   
                   <div>
                     <input
                       type="file"
-                      id="cover-image"
+                      id="cover-images"
                       accept="image/*"
+                      multiple
                       onChange={handleImageUpload}
                       className="hidden"
                     />
-                    <label htmlFor="cover-image">
+                    <label htmlFor="cover-images">
                       <Button
                         type="button"
                         variant="outline"
@@ -343,12 +420,12 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                       >
                         <span>
                           <Upload className="w-4 h-4 mr-2" />
-                          {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                          {uploadingImage ? 'Uploading...' : 'Upload Images'}
                         </span>
                       </Button>
                     </label>
                     <p className="text-sm text-gray-500 mt-1">
-                      PNG, JPG, WebP up to 4MB
+                      PNG, JPG, WebP up to 4MB each. Select multiple images.
                     </p>
                   </div>
                 </div>
@@ -389,88 +466,104 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               </div>
             </div>
 
-            {/* Client Selection */}
+            {/* Client Information */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
               
-              {!showNewClientForm ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Client
-                  </label>
-                  <div className="grid grid-cols-1 gap-3">
-                    {CLIENT_SUGGESTIONS.map((client, index) => (
-                      <div
-                        key={index}
-                        onClick={() => handleClientSelect(client)}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                          formData.clientName === client.name
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            client.name === 'Create New Client' ? 'bg-green-100' : 'bg-gray-100'
-                          }`}>
-                            {client.name === 'Create New Client' ? (
-                              <Plus className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <User className="w-5 h-5 text-gray-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{client.name}</p>
-                            {client.email && (
-                              <p className="text-sm text-gray-600">{client.email} • {client.phone}</p>
-                            )}
-                          </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <input
+                    type="text"
+                    value={formData.clientName}
+                    onChange={(e) => handleInputChange('clientName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Client Name *"
+                    required
+                  />
+                  <input
+                    type="email"
+                    value={formData.clientEmail}
+                    onChange={(e) => handleInputChange('clientEmail', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Email Address *"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    value={formData.clientPhone}
+                    onChange={(e) => handleInputChange('clientPhone', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Phone Number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Project Address */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Address</h3>
+              
+              <div>
+                <input
+                  type="text"
+                  value={formData.projectAddress}
+                  onChange={(e) => handleInputChange('projectAddress', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="123 Main Street, City, State ZIP *"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Contractors and Subcontractors */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contractors & Subcontractors</h3>
+              
+              {/* Selected Contractors */}
+              {formData.contractors.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Selected:</h4>
+                  <div className="space-y-2">
+                    {formData.contractors.map((contractor, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                        <div>
+                          <p className="font-medium text-gray-900">{contractor.businessName}</p>
+                          <p className="text-sm text-gray-600">{contractor.type} • {contractor.contactName}</p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => removeContractor(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">New Client Details</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowNewClientForm(false)}
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-4">
-                    <input
-                      type="text"
-                      value={formData.clientName}
-                      onChange={(e) => handleInputChange('clientName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Client Name *"
-                      required
-                    />
-                    <input
-                      type="email"
-                      value={formData.clientEmail}
-                      onChange={(e) => handleInputChange('clientEmail', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Email Address *"
-                      required
-                    />
-                    <input
-                      type="tel"
-                      value={formData.clientPhone}
-                      onChange={(e) => handleInputChange('clientPhone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Phone Number"
-                    />
-                  </div>
-                </div>
               )}
+              
+              {/* Add Contractor Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addContractor('contractor')}
+                  className="flex items-center justify-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Contractor
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addContractor('subcontractor')}
+                  className="flex items-center justify-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Subcontractor
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -612,6 +705,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 </div>
               </div>
             )}
+
           </div>
         )}
 
@@ -711,6 +805,115 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
           </div>
         </div>
       </div>
+
+      {/* Contractor Dialog */}
+      {showContractorDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Add {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}
+            </h3>
+            
+            {/* Existing Contractors */}
+            {existingContractors.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Select Existing:</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {existingContractors.map((contractor) => (
+                    <div
+                      key={contractor.id}
+                      onClick={() => {
+                        selectExistingContractor(contractor, contractorType)
+                        setShowContractorDialog(false)
+                      }}
+                      className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors"
+                    >
+                      <p className="font-medium text-gray-900">{contractor.businessName || contractor.name}</p>
+                      <p className="text-sm text-gray-600">{contractor.contactName || ''}</p>
+                      {contractor.email && (
+                        <p className="text-sm text-gray-500">{contractor.email} • {contractor.phone}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="my-4 flex items-center">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-3 text-sm text-gray-500 bg-white">OR</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+              </div>
+            )}
+            
+            {/* New Contractor Form */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700">Add New {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}:</h4>
+              
+              <input
+                type="text"
+                value={contractorForm.businessName}
+                onChange={(e) => setContractorForm(prev => ({ ...prev, businessName: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Business Name *"
+                required
+              />
+              
+              <input
+                type="text"
+                value={contractorForm.contactName}
+                onChange={(e) => setContractorForm(prev => ({ ...prev, contactName: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Contact Name"
+              />
+              
+              <input
+                type="text"
+                value={contractorForm.address}
+                onChange={(e) => setContractorForm(prev => ({ ...prev, address: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Business Address (Optional)"
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  type="email"
+                  value={contractorForm.email}
+                  onChange={(e) => setContractorForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Email Address *"
+                  required
+                />
+                <input
+                  type="tel"
+                  value={contractorForm.phone}
+                  onChange={(e) => setContractorForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Phone Number"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowContractorDialog(false)
+                  setContractorForm({ businessName: '', contactName: '', email: '', phone: '', address: '' })
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveNewContractor}
+                disabled={!contractorForm.businessName || !contractorForm.email}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Add {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

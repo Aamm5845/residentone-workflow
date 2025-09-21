@@ -15,7 +15,18 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "build:full": "prisma db push --accept-data-loss && prisma generate && next build"
+    "build:full": "prisma db push --accept-data-loss && prisma generate && next build",
+    "backup": "node scripts/backup-prisma.js",
+    "backup:simple": "node scripts/simple-backup.js",
+    "backup:full": "node scripts/backup-prisma.js",
+    "backup:emergency": "node scripts/simple-backup.js",
+    "backup:restore": "node scripts/restore-prisma.js",
+    "backup:pg": "node scripts/backup-database.js",
+    "backup:restore:pg": "node scripts/restore-database.js",
+    "backup:schedule": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1 -SetupSchedule",
+    "backup:manual": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1",
+    "backup:list": "dir backups\\database-backup-*.* /O-D",
+    "dev:safe": "npm run backup && npm run dev"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -41,6 +52,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.543.0",
     "mailgun.js": "^12.0.3",
+    "nanoid": "^5.1.5",
     "next": "15.5.2",
     "next-auth": "^4.24.11",
     "node-fetch": "^2.7.0",

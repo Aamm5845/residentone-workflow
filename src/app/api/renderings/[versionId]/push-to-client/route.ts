@@ -126,6 +126,19 @@ export async function POST(
         clientApprovalAssets.push(clientApprovalAsset)
       }
 
+      // Automatically start the Client Approval stage if it's not started
+      let clientApprovalStageOpened = false
+      if (clientApprovalStage.status === 'NOT_STARTED') {
+        await tx.stage.update({
+          where: { id: clientApprovalStage.id },
+          data: withUpdateAttribution(session, {
+            status: 'IN_PROGRESS',
+            startedAt: new Date()
+          })
+        })
+        clientApprovalStageOpened = true
+      }
+
       // Log activity for rendering version
       await logActivity({
         session,
@@ -175,7 +188,8 @@ export async function POST(
         clientApprovalVersion: {
           ...clientApprovalVersion,
           assets: clientApprovalAssets
-        }
+        },
+        clientApprovalStageOpened
       }
     })
 

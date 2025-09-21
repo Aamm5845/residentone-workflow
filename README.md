@@ -116,6 +116,54 @@ npx prisma db seed
 npm run db:generate
 ```
 
+## 💾 Backup & Recovery System
+
+### Safe Backup (Recommended for Regular Use)
+- **Location**: Team Management page → Production Database Backup
+- **Contains**: All project data, users (without passwords), files metadata
+- **Excludes**: Passwords, authentication tokens, file content
+- **Use Case**: Regular backups, development, data migration
+- **File Size**: Small (< 1MB typically)
+
+### Complete Backup (Disaster Recovery Only)
+- **Location**: Team Management page → Complete Backup
+- **Contains**: ALL data including passwords, auth tokens, embedded file content
+- **Security**: Contains sensitive authentication data
+- **Use Case**: Full disaster recovery scenarios only
+- **File Size**: Very large (includes all actual files)
+- **Access**: Owner role only
+
+### Using the Backup System
+```bash
+# Create immediate backup via CLI
+npm run backup
+
+# Schedule automated daily backups
+npm run backup:schedule
+
+# List available backups
+npm run backup:list
+
+# Interactive restore from backup
+npm run backup:restore
+
+# Test backup system
+node test-complete-backup.js
+```
+
+### Best Practices
+1. **Daily Safe Backups**: Use automated scheduling for safe backups
+2. **Weekly Complete Backups**: Create complete backups for disaster recovery
+3. **Test Restores**: Regularly test backup integrity
+4. **Secure Storage**: Store complete backups in secure, encrypted locations
+5. **Before Updates**: Always backup before software updates
+
+### API Endpoints
+- `GET /api/admin/backup` - Create safe backup
+- `GET /api/admin/backup-complete` - Create complete backup (Owner only)
+- `POST /api/admin/restore` - Restore from safe backup
+- `POST /api/admin/restore-complete` - Restore from complete backup (Owner only)
+
 ## 🏢 System Architecture
 
 ### User Roles & Permissions
@@ -140,6 +188,15 @@ npm run db:generate
 - **Comments**: Collaboration with mentions and attachments
 
 ## 🔧 Configuration
+
+### Backup File Security
+⚠️ **IMPORTANT**: Complete backups contain sensitive data:
+- User passwords (hashed)
+- Authentication sessions and tokens
+- Embedded file content (base64 encoded)
+- All database records without filtering
+
+Store complete backups securely and never commit them to version control.
 
 ### Environment Variables
 Copy `.env.example` to `.env.local` and configure:

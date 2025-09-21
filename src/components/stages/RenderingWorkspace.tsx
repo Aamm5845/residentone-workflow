@@ -108,6 +108,7 @@ export default function RenderingWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [completingPhase, setCompletingPhase] = useState(false)
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -282,8 +283,15 @@ export default function RenderingWorkspace({
       })
 
       if (response.ok) {
+        const result = await response.json()
         await fetchRenderingVersions()
-        alert('Successfully pushed to Client Approval! Version is now available in the Client Approval workspace.')
+        
+        // Check if Client Approval stage was opened
+        if (result.clientApprovalStageOpened) {
+          alert('Successfully pushed to Client Approval! The Client Approval phase has been automatically opened and is ready for processing.')
+        } else {
+          alert('Successfully pushed to Client Approval! Version is now available in the Client Approval workspace.')
+        }
       } else {
         const error = await response.json()
         alert(`Failed to push to client: ${error.error}`)
@@ -324,6 +332,38 @@ export default function RenderingWorkspace({
     } catch (error) {
       console.error('Error deleting version:', error)
       alert('Failed to delete version')
+    }
+  }
+
+  // Complete the entire 3D Rendering phase
+  const handleCompletePhase = async () => {
+    if (!window.confirm('Mark the entire 3D Rendering phase as complete? This will move the project to the next stage.')) {
+      return
+    }
+
+    setCompletingPhase(true)
+    try {
+      const response = await fetch(`/api/stages/${stage.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'complete' })
+      })
+
+      if (response.ok) {
+        alert('3D Rendering phase completed successfully! The project has moved to the next stage.')
+        // Call the parent complete handler to refresh the project view
+        onComplete()
+      } else {
+        const error = await response.json()
+        alert(`Failed to complete phase: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error completing phase:', error)
+      alert('Failed to complete phase')
+    } finally {
+      setCompletingPhase(false)
     }
   }
 
@@ -408,14 +448,25 @@ export default function RenderingWorkspace({
         {/* Create New Version Button */}
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Rendering Versions</h3>
-          <Button
-            onClick={createNewVersion}
-            disabled={creatingVersion}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {creatingVersion ? 'Creating...' : 'New Version'}
-          </Button>
+          <div className="flex items-center space-x-3">
+            {stage.status === 'IN_PROGRESS' && renderingVersions.some(v => v.status === 'COMPLETED') && (
+              <Button
+                onClick={handleCompletePhase}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Mark Phase Complete
+              </Button>
+            )}
+            <Button
+              onClick={createNewVersion}
+              disabled={creatingVersion}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {creatingVersion ? 'Creating...' : 'New Version'}
+            </Button>
+          </div>
         </div>
 
         {/* Loading State */}

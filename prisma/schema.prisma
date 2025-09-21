@@ -1,14 +1,12 @@
-// ResidentOne Project Workflow Database Schema
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // Use PostgreSQL for production
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -22,8 +20,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -44,7 +41,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Password Reset Tokens
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String
@@ -56,106 +52,732 @@ model PasswordResetToken {
   @@unique([email, token])
 }
 
-// Core Business Models
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users        User[]
-  projects     Project[]
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  activityLogs ActivityLog[]
   assets       Asset[]
   clients      Client[]
-  activityLogs ActivityLog[]
+  contractors  Contractor[]
+  projects     Project[]
   tags         Tag[]
+  users        User[]
+}
+
+model User {
+  id                         String                   @id @default(cuid())
+  name                       String?
+  email                      String                   @unique
+  emailVerified              DateTime?
+  image                      String?
+  password                   String?
+  role                       UserRole                 @default(DESIGNER)
+  orgId                      String?
+  mustChangePassword         Boolean                  @default(false)
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  accounts                   Account[]
+  activities                 Activity[]
+  activityLogs               ActivityLog[]
+  decidedApprovals           Approval[]               @relation("DecidedByUser")
+  sentApprovals              Approval[]               @relation("SentByUser")
+  uploadedAssets             Asset[]
+  assetPins                  AssetPin[]               @relation("UserAssetPins")
+  assetTags                  AssetTag[]               @relation("UserAssetTags")
+  completedChecklists        ChecklistItem[]          @relation("ChecklistCompletedBy")
+  createdChecklists          ChecklistItem[]          @relation("ChecklistCreatedBy")
+  createdClientAccessTokens  ClientAccessToken[]      @relation("ClientAccessTokenCreatedBy")
+  clientApprovalActivities   ClientApprovalActivity[]
+  aaronApprovalVersions      ClientApprovalVersion[]  @relation("ClientApprovalAaronApprovedBy")
+  sentClientApprovalVersions ClientApprovalVersion[]  @relation("ClientApprovalSentBy")
+  comments                   Comment[]
+  commentPins                CommentPin[]             @relation("UserCommentPins")
+  commentTags                CommentTag[]             @relation("UserCommentTags")
+  completedSections          DesignSection[]          @relation("CompletedByUserSection")
+  createdSections            DesignSection[]          @relation("CreatedByUserSection")
+  updatedSections            DesignSection[]          @relation("UpdatedByUserSection")
+  createdFFEItems            FFEItem[]                @relation("CreatedByUserFFE")
+  updatedFFEItems            FFEItem[]                @relation("UpdatedByUserFFE")
+  notifications              Notification[]
+  createdProjects            Project[]                @relation("CreatedByUser")
+  updatedProjects            Project[]                @relation("UpdatedByUser")
+  renderingNotes             RenderingNote[]
+  completedRenderingVersions RenderingVersion[]       @relation("RenderingVersionCompletedBy")
+  createdRenderingVersions   RenderingVersion[]       @relation("RenderingVersionCreatedBy")
+  updatedRenderingVersions   RenderingVersion[]       @relation("RenderingVersionUpdatedBy")
+  createdRooms               Room[]                   @relation("CreatedByUserRoom")
+  updatedRooms               Room[]                   @relation("UpdatedByUserRoom")
+  sessions                   Session[]
+  assignedStages             Stage[]                  @relation("AssignedToUser")
+  completedStages            Stage[]                  @relation("CompletedByUserStage")
+  createdStages              Stage[]                  @relation("CreatedByUserStage")
+  updatedStages              Stage[]                  @relation("UpdatedByUserStage")
+  assignedTasks              Task[]
+  organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userSessions               UserSession[]
+}
+
+model Client {
+  id           String       @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  orgId        String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  company      String?
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  projects     Project[]
+
+  @@unique([orgId, email])
+}
+
+model Contractor {
+  id                 String              @id @default(cuid())
+  businessName       String
+  contactName        String?
+  email              String
+  phone              String?
+  address            String?
+  type               ContractorType      @default(CONTRACTOR)
+  specialty          String?
+  notes              String?
+  isActive           Boolean             @default(true)
+  orgId              String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  projectContractors ProjectContractor[]
+
+  @@unique([orgId, email])
+  @@index([orgId, type])
+  @@index([orgId, isActive])
+}
+
+model ProjectContractor {
+  id           String     @id @default(cuid())
+  projectId    String
+  contractorId String
+  role         String?
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, contractorId])
+  @@index([projectId])
+  @@index([contractorId])
+}
+
+model Project {
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  type               ProjectType         @default(RESIDENTIAL)
+  status             ProjectStatus       @default(DRAFT)
+  clientId           String
+  dueDate            DateTime?
+  budget             Float?
+  dropboxFolder      String?
+  orgId              String
+  createdById        String
+  updatedById        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  coverImages        Json?
+  address            String?
+  approvals          Approval[]
+  assets             Asset[]
+  clientAccessTokens ClientAccessToken[]
+  comments           Comment[]
+  client             Client              @relation(fields: [clientId], references: [id])
+  createdBy          User                @relation("CreatedByUser", fields: [createdById], references: [id])
+  organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  updatedBy          User?               @relation("UpdatedByUser", fields: [updatedById], references: [id])
+  projectContractors ProjectContractor[]
+  rooms              Room[]
+  tasks              Task[]
+}
+
+model Room {
+  id                String             @id @default(cuid())
+  projectId         String
+  type              RoomType
+  name              String?
+  status            RoomStatus         @default(NOT_STARTED)
+  currentStage      String?
+  progressFFE       Int                @default(0)
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  approvals         Approval[]
+  assets            Asset[]
+  comments          Comment[]
+  ffeItems          FFEItem[]
+  renderingVersions RenderingVersion[]
+  createdBy         User?              @relation("CreatedByUserRoom", fields: [createdById], references: [id])
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  updatedBy         User?              @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
+  stages            Stage[]
+  tasks             Task[]
+}
+
+model Stage {
+  id                     String                  @id @default(cuid())
+  roomId                 String
+  type                   StageType
+  status                 StageStatus             @default(NOT_STARTED)
+  assignedTo             String?
+  dueDate                DateTime?
+  startedAt              DateTime?
+  completedAt            DateTime?
+  createdById            String?
+  updatedById            String?
+  completedById          String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  activities             Activity[]
+  assets                 Asset[]
+  clientApprovalVersions ClientApprovalVersion[]
+  comments               Comment[]
+  designSections         DesignSection[]
+  drawingChecklist       DrawingChecklistItem[]
+  renderingVersions      RenderingVersion[]
+  assignedUser           User?                   @relation("AssignedToUser", fields: [assignedTo], references: [id])
+  completedBy            User?                   @relation("CompletedByUserStage", fields: [completedById], references: [id])
+  createdBy              User?                   @relation("CreatedByUserStage", fields: [createdById], references: [id])
+  room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
+  tasks                  Task[]
+
+  @@unique([roomId, type])
+}
+
+model DesignSection {
+  id             String            @id @default(cuid())
+  stageId        String
+  type           DesignSectionType
+  content        String?
+  completed      Boolean           @default(false)
+  createdById    String?
+  updatedById    String?
+  completedById  String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  assets         Asset[]
+  checklistItems ChecklistItem[]
+  comments       Comment[]
+  completedBy    User?             @relation("CompletedByUserSection", fields: [completedById], references: [id])
+  createdBy      User?             @relation("CreatedByUserSection", fields: [createdById], references: [id])
+  stage          Stage             @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy      User?             @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
+
+  @@unique([stageId, type])
+}
+
+model Tag {
+  id           String       @id @default(cuid())
+  name         String
+  type         TagType      @default(CUSTOM)
+  color        String?
+  description  String?
+  orgId        String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assetTags    AssetTag[]
+  commentTags  CommentTag[]
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model AssetTag {
+  id        String   @id @default(cuid())
+  assetId   String
+  tagId     String
+  userId    String
+  createdAt DateTime @default(now())
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserAssetTags", fields: [userId], references: [id])
+
+  @@unique([assetId, tagId])
+  @@index([assetId])
+  @@index([tagId])
+}
+
+model CommentTag {
+  id        String   @id @default(cuid())
+  commentId String
+  tagId     String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserCommentTags", fields: [userId], references: [id])
+
+  @@unique([commentId, tagId])
+  @@index([commentId])
+  @@index([tagId])
+}
+
+model AssetPin {
+  id        String   @id @default(cuid())
+  assetId   String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserAssetPins", fields: [userId], references: [id])
+
+  @@index([assetId])
+}
+
+model CommentPin {
+  id        String   @id @default(cuid())
+  commentId String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserCommentPins", fields: [userId], references: [id])
+
+  @@index([commentId])
+}
+
+model ChecklistItem {
+  id            String        @id @default(cuid())
+  sectionId     String
+  title         String
+  description   String?
+  completed     Boolean       @default(false)
+  order         Int           @default(0)
+  createdById   String
+  completedById String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  completedAt   DateTime?
+  completedBy   User?         @relation("ChecklistCompletedBy", fields: [completedById], references: [id])
+  createdBy     User          @relation("ChecklistCreatedBy", fields: [createdById], references: [id])
+  section       DesignSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@index([order])
+}
+
+model FFEItem {
+  id           String    @id @default(cuid())
+  roomId       String
+  name         String
+  status       FFEStatus @default(NOT_STARTED)
+  supplierLink String?
+  notes        String?
+  price        Float?
+  leadTime     String?
+  category     String?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  assets       Asset[]
+  comments     Comment[]
+  createdBy    User?     @relation("CreatedByUserFFE", fields: [createdById], references: [id])
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  updatedBy    User?     @relation("UpdatedByUserFFE", fields: [updatedById], references: [id])
+}
+
+model ClientApprovalVersion {
+  id                  String                    @id @default(cuid())
+  stageId             String
+  renderingVersionId  String?                   @unique
+  version             String
+  status              ClientApprovalStageStatus @default(DRAFT)
+  approvedByAaron     Boolean                   @default(false)
+  aaronApprovedAt     DateTime?
+  aaronApprovedById   String?
+  sentToClientAt      DateTime?
+  sentById            String?
+  emailOpenedAt       DateTime?
+  followUpCompletedAt DateTime?
+  followUpNotes       String?
+  clientDecision      ApprovalStatus?           @default(PENDING)
+  clientDecidedAt     DateTime?
+  clientMessage       String?
+  notes               String?
+  followUpSentAt      DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  clientApprovals     ClientApproval[]
+  activityLogs        ClientApprovalActivity[]
+  assets              ClientApprovalAsset[]
+  emailLogs           ClientApprovalEmailLog[]
+  aaronApprovedBy     User?                     @relation("ClientApprovalAaronApprovedBy", fields: [aaronApprovedById], references: [id])
+  renderingVersion    RenderingVersion?         @relation(fields: [renderingVersionId], references: [id])
+  sentBy              User?                     @relation("ClientApprovalSentBy", fields: [sentById], references: [id])
+  stage               Stage                     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  newEmailLogs        EmailLog[]
+}
+
+model ClientApprovalAsset {
+  id             String                @id @default(cuid())
+  versionId      String
+  assetId        String
+  includeInEmail Boolean               @default(true)
+  displayOrder   Int                   @default(0)
+  createdAt      DateTime              @default(now())
+  asset          Asset                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  version        ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, assetId])
+}
+
+model ClientApprovalEmailLog {
+  id              String                @id @default(cuid())
+  versionId       String
+  to              String
+  subject         String
+  htmlContent     String
+  sentAt          DateTime              @default(now())
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  followUpSentAt  DateTime?
+  trackingPixelId String                @unique
+  version         ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+model ClientApprovalActivity {
+  id        String                @id @default(cuid())
+  versionId String
+  type      String
+  message   String
+  userId    String?
+  metadata  String?
+  createdAt DateTime              @default(now())
+  user      User?                 @relation(fields: [userId], references: [id])
+  version   ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id             String         @id @default(cuid())
+  projectId      String?
+  roomId         String?
+  token          String         @unique @default(cuid())
+  status         ApprovalStatus @default(PENDING)
+  sentById       String?
+  decidedById    String?
+  sentAt         DateTime?
+  decidedAt      DateTime?
+  message        String?
+  revisionReason String?
+  expiresAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  decidedBy      User?          @relation("DecidedByUser", fields: [decidedById], references: [id])
+  project        Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room           Room?          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sentBy         User?          @relation("SentByUser", fields: [sentById], references: [id])
+  assets         Asset[]
+  comments       Comment[]
+}
+
+model Comment {
+  id          String         @id @default(cuid())
+  content     String
+  authorId    String
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  sectionId   String?
+  ffeItemId   String?
+  approvalId  String?
+  mentions    String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  assets      Asset[]
+  approval    Approval?      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  author      User           @relation(fields: [authorId], references: [id])
+  ffeItem     FFEItem?       @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  section     DesignSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stage       Stage?         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  commentPin  CommentPin?
+  commentTags CommentTag[]
+}
+
+model Asset {
+  id                     String                @id @default(cuid())
+  title                  String
+  filename               String?
+  url                    String
+  type                   AssetType
+  size                   Int?
+  mimeType               String?
+  provider               String?
+  metadata               String?
+  description            String?
+  userDescription        String?
+  uploadedBy             String
+  orgId                  String
+  projectId              String?
+  roomId                 String?
+  stageId                String?
+  sectionId              String?
+  ffeItemId              String?
+  approvalId             String?
+  commentId              String?
+  renderingVersionId     String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  drawingChecklistItemId String?
+  approval               Approval?             @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  comment                Comment?              @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  drawingChecklistItem   DrawingChecklistItem? @relation(fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
+  ffeItem                FFEItem?              @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  organization           Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project                Project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  renderingVersion       RenderingVersion?     @relation(fields: [renderingVersionId], references: [id], onDelete: Cascade)
+  room                   Room?                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  section                DesignSection?        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stage                  Stage?                @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  uploader               User                  @relation(fields: [uploadedBy], references: [id])
+  assetPin               AssetPin?
+  assetTags              AssetTag[]
+  clientApprovalAssets   ClientApprovalAsset[]
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  relatedId   String?
+  relatedType String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RoomPreset {
+  id          String   @id @default(cuid())
+  roomType    RoomType
+  name        String
+  description String?
+  ffeItems    String
+  sections    String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([roomType, name])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  assignedTo  String?
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  assignee    User?      @relation(fields: [assignedTo], references: [id])
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage       Stage?     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  deviceId  String
+  ipAddress String?
+  userAgent String?
+  lastSeen  DateTime @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+}
+
+model EmailLog {
+  id        String                @id @default(cuid())
+  versionId String
+  to        String
+  subject   String
+  html      String
+  sentAt    DateTime              @default(now())
+  openedAt  DateTime?
+  type      String
+  metadata  Json?
+  version   ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+model ClientApproval {
+  id         String                @id @default(cuid())
+  versionId  String
+  approvedBy String
+  approvedAt DateTime              @default(now())
+  decision   String
+  comments   String?
+  version    ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  stageId   String
+  type      String
+  message   String
+  userId    String?
+  timestamp DateTime @default(now())
+  stage     Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model RenderingVersion {
+  id                    String                 @id @default(cuid())
+  roomId                String
+  stageId               String
+  version               String
+  customName            String?
+  status                RenderingVersionStatus @default(IN_PROGRESS)
+  pushedToClientAt      DateTime?
+  createdById           String
+  updatedById           String?
+  completedById         String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  completedAt           DateTime?
+  assets                Asset[]
+  clientApprovalVersion ClientApprovalVersion?
+  notes                 RenderingNote[]
+  completedBy           User?                  @relation("RenderingVersionCompletedBy", fields: [completedById], references: [id])
+  createdBy             User                   @relation("RenderingVersionCreatedBy", fields: [createdById], references: [id])
+  room                  Room                   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage                 Stage                  @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy             User?                  @relation("RenderingVersionUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([roomId, version])
+  @@index([stageId])
+  @@index([createdAt])
+}
+
+model RenderingNote {
+  id        String           @id @default(cuid())
+  versionId String
+  content   String
+  authorId  String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  author    User             @relation(fields: [authorId], references: [id])
+  version   RenderingVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@index([createdAt])
+}
+
+model DrawingChecklistItem {
+  id          String               @id @default(cuid())
+  stageId     String
+  type        DrawingChecklistType
+  name        String
+  description String?
+  completed   Boolean              @default(false)
+  order       Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  completedAt DateTime?
+  assets      Asset[]
+  stage       Stage                @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, type])
+  @@index([stageId])
+  @@index([order])
+}
+
+model ActivityLog {
+  id           String        @id @default(cuid())
+  actorId      String?
+  action       String
+  entity       String
+  entityId     String
+  details      Json?
+  ipAddress    String?
+  orgId        String?
+  createdAt    DateTime      @default(now())
+  actor        User?         @relation(fields: [actorId], references: [id])
+  organization Organization? @relation(fields: [orgId], references: [id])
+
+  @@index([actorId])
+  @@index([orgId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model ClientAccessToken {
+  id             String            @id @default(cuid())
+  projectId      String
+  token          String            @unique @default(cuid())
+  name           String?
+  active         Boolean           @default(true)
+  expiresAt      DateTime?
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  lastAccessedAt DateTime?
+  accessCount    Int               @default(0)
+  lastAccessedIP String?
+  accessLogs     ClientAccessLog[]
+  createdBy      User              @relation("ClientAccessTokenCreatedBy", fields: [createdById], references: [id])
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([token])
+  @@index([active])
+  @@index([expiresAt])
+}
+
+model ClientAccessLog {
+  id        String            @id @default(cuid())
+  tokenId   String
+  ipAddress String?
+  userAgent String?
+  action    String
+  metadata  Json?
+  createdAt DateTime          @default(now())
+  token     ClientAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId])
+  @@index([createdAt])
+  @@index([action])
 }
 
 enum UserRole {
   OWNER
   ADMIN
-  DESIGNER    // Aaron's role
-  RENDERER    // Vitor's role  
-  DRAFTER     // Sammy's role
-  FFE         // Shaya's role
+  DESIGNER
+  RENDERER
+  DRAFTER
+  FFE
   VIEWER
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          UserRole  @default(DESIGNER)
-  orgId         String?
-  mustChangePassword Boolean @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  accounts     Account[]
-  sessions     Session[]
-  userSessions UserSession[]
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  
-  // Workflow assignments
-  createdProjects   Project[] @relation("CreatedByUser")
-  updatedProjects   Project[] @relation("UpdatedByUser")
-  createdRooms      Room[] @relation("CreatedByUserRoom")
-  updatedRooms      Room[] @relation("UpdatedByUserRoom")
-  createdStages     Stage[] @relation("CreatedByUserStage")
-  updatedStages     Stage[] @relation("UpdatedByUserStage")
-  completedStages   Stage[] @relation("CompletedByUserStage")
-  assignedStages    Stage[] @relation("AssignedToUser")
-  assignedTasks     Task[]
-  comments          Comment[]
-  sentApprovals     Approval[] @relation("SentByUser")
-  decidedApprovals  Approval[] @relation("DecidedByUser")
-  uploadedAssets    Asset[]
-  notifications     Notification[]
-  activityLogs      ActivityLog[]
-  createdSections   DesignSection[] @relation("CreatedByUserSection")
-  updatedSections   DesignSection[] @relation("UpdatedByUserSection")
-  completedSections DesignSection[] @relation("CompletedByUserSection")
-  createdFFEItems   FFEItem[] @relation("CreatedByUserFFE")
-  updatedFFEItems   FFEItem[] @relation("UpdatedByUserFFE")
-  
-  // Client Approval relations
-  aaronApprovalVersions     ClientApprovalVersion[] @relation("ClientApprovalAaronApprovedBy")
-  sentClientApprovalVersions ClientApprovalVersion[] @relation("ClientApprovalSentBy")
-  clientApprovalActivities  ClientApprovalActivity[]
-  activities                Activity[]
-  
-  // 3D Rendering Workspace relations
-  createdRenderingVersions  RenderingVersion[] @relation("RenderingVersionCreatedBy")
-  updatedRenderingVersions  RenderingVersion[] @relation("RenderingVersionUpdatedBy")
-  completedRenderingVersions RenderingVersion[] @relation("RenderingVersionCompletedBy")
-  renderingNotes            RenderingNote[]
-  
-  // Design Concept Workspace relations
-  assetTags        AssetTag[]     @relation("UserAssetTags")
-  commentTags      CommentTag[]   @relation("UserCommentTags")
-  assetPins        AssetPin[]     @relation("UserAssetPins")
-  commentPins      CommentPin[]   @relation("UserCommentPins")
-  createdChecklists ChecklistItem[] @relation("ChecklistCreatedBy")
-  completedChecklists ChecklistItem[] @relation("ChecklistCompletedBy")
-}
-
-model Client {
-  id          String   @id @default(cuid())
-  name        String
-  email       String
-  phone       String?
-  orgId       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  projects     Project[]
-
-  @@unique([orgId, email])
+enum ContractorType {
+  CONTRACTOR
+  SUBCONTRACTOR
 }
 
 enum ProjectType {
@@ -172,70 +794,28 @@ enum ProjectStatus {
   COMPLETED
 }
 
-model Project {
-  id            String        @id @default(cuid())
-  name          String
-  description   String?
-  type          ProjectType   @default(RESIDENTIAL)
-  status        ProjectStatus @default(DRAFT)
-  clientId      String
-  dueDate       DateTime?
-  budget        Float?
-  coverImageUrl String?       // Project cover image URL from Dropbox
-  dropboxFolder String?       // Custom Dropbox folder path for project
-  orgId         String
-  createdById   String
-  updatedById   String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id])
-  createdBy    User         @relation("CreatedByUser", fields: [createdById], references: [id])
-  updatedBy    User?        @relation("UpdatedByUser", fields: [updatedById], references: [id])
-  
-  rooms        Room[]
-  assets       Asset[]
-  approvals    Approval[]
-  comments     Comment[]
-  tasks        Task[]
-}
-
 enum RoomType {
-  // Entry & Circulation
   ENTRANCE
   FOYER
   STAIRCASE
-  
-  // Living Spaces
   LIVING_ROOM
   DINING_ROOM
   KITCHEN
   STUDY_ROOM
   OFFICE
   PLAYROOM
-  
-  // Bedrooms
   MASTER_BEDROOM
   GIRLS_ROOM
   BOYS_ROOM
   GUEST_BEDROOM
-  
-  // Bathrooms
   POWDER_ROOM
   MASTER_BATHROOM
   FAMILY_BATHROOM
   GIRLS_BATHROOM
   BOYS_BATHROOM
   GUEST_BATHROOM
-  
-  // Utility
   LAUNDRY_ROOM
-  
-  // Special
   SUKKAH
-  
-  // Legacy room types (keep for compatibility)
   BEDROOM
   BATHROOM
   FAMILY_ROOM
@@ -254,31 +834,6 @@ enum RoomStatus {
   ON_HOLD
   COMPLETED
   NEEDS_ATTENTION
-}
-
-model Room {
-  id          String     @id @default(cuid())
-  projectId   String
-  type        RoomType
-  name        String?    // Custom name override
-  status      RoomStatus @default(NOT_STARTED)
-  currentStage String?   // Current active stage
-  progressFFE  Int       @default(0) // FFE progress percentage
-  createdById String?
-  updatedById String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  project           Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy         User?               @relation("CreatedByUserRoom", fields: [createdById], references: [id])
-  updatedBy         User?               @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
-  stages            Stage[]
-  ffeItems          FFEItem[]
-  comments          Comment[]
-  assets            Asset[]
-  approvals         Approval[]
-  tasks             Task[]
-  renderingVersions RenderingVersion[]  // 3D Rendering versions
 }
 
 enum StageType {
@@ -300,47 +855,6 @@ enum StageStatus {
   REVISION_REQUESTED
 }
 
-model Stage {
-  id          String      @id @default(cuid())
-  roomId      String
-  type        StageType
-  status      StageStatus @default(NOT_STARTED)
-  assignedTo  String?     // User ID of assigned team member
-  dueDate     DateTime?
-  startedAt   DateTime?   // When the stage was started
-  completedAt DateTime?
-  createdById String?
-  updatedById String?
-  completedById String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  assignedUser User?     @relation("AssignedToUser", fields: [assignedTo], references: [id])
-  createdBy    User?     @relation("CreatedByUserStage", fields: [createdById], references: [id])
-  updatedBy    User?     @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
-  completedBy  User?     @relation("CompletedByUserStage", fields: [completedById], references: [id])
-  
-  // Design stage sections
-  designSections DesignSection[]
-  comments       Comment[]
-  assets         Asset[]
-  tasks          Task[]
-  
-  // Client Approval extensions
-  clientApprovalVersions ClientApprovalVersion[]
-  activities             Activity[]
-  
-  // 3D Rendering Workspace extensions
-  renderingVersions      RenderingVersion[]
-  
-  // Drawings Workspace extensions
-  drawingChecklist       DrawingChecklistItem[]
-
-  @@unique([roomId, type])
-}
-
-// Design stage structure
 enum DesignSectionType {
   GENERAL
   WALL_COVERING
@@ -348,30 +862,6 @@ enum DesignSectionType {
   FLOOR
 }
 
-model DesignSection {
-  id        String            @id @default(cuid())
-  stageId   String
-  type      DesignSectionType
-  content   String?           // Rich text content
-  completed Boolean           @default(false) // Section completion status
-  createdById String?
-  updatedById String?
-  completedById String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  stage         Stage           @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  createdBy     User?           @relation("CreatedByUserSection", fields: [createdById], references: [id])
-  updatedBy     User?           @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
-  completedBy   User?           @relation("CompletedByUserSection", fields: [completedById], references: [id])
-  assets        Asset[]
-  comments      Comment[]
-  checklistItems ChecklistItem[]
-
-  @@unique([stageId, type])
-}
-
-// Design Concept Workspace Extensions
 enum TagType {
   MUST_HAVE
   OPTIONAL
@@ -379,102 +869,6 @@ enum TagType {
   CUSTOM
 }
 
-model Tag {
-  id          String   @id @default(cuid())
-  name        String
-  type        TagType  @default(CUSTOM)
-  color       String?  // Hex color code for tag display
-  description String?
-  orgId       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  assetTags    AssetTag[]
-  commentTags  CommentTag[]
-
-  @@unique([orgId, name])
-  @@index([orgId])
-}
-
-model AssetTag {
-  id      String @id @default(cuid())
-  assetId String
-  tagId   String
-  userId  String // Who tagged it
-  createdAt DateTime @default(now())
-
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  user  User  @relation("UserAssetTags", fields: [userId], references: [id])
-
-  @@unique([assetId, tagId])
-  @@index([assetId])
-  @@index([tagId])
-}
-
-model CommentTag {
-  id        String @id @default(cuid())
-  commentId String
-  tagId     String
-  userId    String // Who tagged it
-  createdAt DateTime @default(now())
-
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  user    User    @relation("UserCommentTags", fields: [userId], references: [id])
-
-  @@unique([commentId, tagId])
-  @@index([commentId])
-  @@index([tagId])
-}
-
-model AssetPin {
-  id      String   @id @default(cuid())
-  assetId String   @unique
-  userId  String   // Who pinned it
-  createdAt DateTime @default(now())
-
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  user  User  @relation("UserAssetPins", fields: [userId], references: [id])
-
-  @@index([assetId])
-}
-
-model CommentPin {
-  id        String   @id @default(cuid())
-  commentId String   @unique
-  userId    String   // Who pinned it
-  createdAt DateTime @default(now())
-
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User    @relation("UserCommentPins", fields: [userId], references: [id])
-
-  @@index([commentId])
-}
-
-model ChecklistItem {
-  id           String   @id @default(cuid())
-  sectionId    String
-  title        String
-  description  String?
-  completed    Boolean  @default(false)
-  order        Int      @default(0)
-  createdById  String
-  completedById String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  completedAt  DateTime?
-
-  section     DesignSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  createdBy   User          @relation("ChecklistCreatedBy", fields: [createdById], references: [id])
-  completedBy User?         @relation("ChecklistCompletedBy", fields: [completedById], references: [id])
-
-  @@index([sectionId])
-  @@index([order])
-}
-
-// FFE Management
 enum FFEStatus {
   NOT_STARTED
   IN_PROGRESS
@@ -486,29 +880,6 @@ enum FFEStatus {
   COMPLETED
 }
 
-model FFEItem {
-  id           String    @id @default(cuid())
-  roomId       String
-  name         String
-  status       FFEStatus @default(NOT_STARTED)
-  supplierLink String?
-  notes        String?
-  price        Float?
-  leadTime     String?
-  category     String?
-  createdById  String?
-  updatedById  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  createdBy User?     @relation("CreatedByUserFFE", fields: [createdById], references: [id])
-  updatedBy User?     @relation("UpdatedByUserFFE", fields: [updatedById], references: [id])
-  assets    Asset[]
-  comments  Comment[]
-}
-
-// Client Approval System
 enum ApprovalStatus {
   PENDING
   APPROVED
@@ -527,151 +898,6 @@ enum ClientApprovalStageStatus {
   REVISION_REQUESTED
 }
 
-// Client Approval Stage Extensions
-model ClientApprovalVersion {
-  id                    String                    @id @default(cuid())
-  stageId               String
-  renderingVersionId    String?                   @unique // Link to rendering version
-  version               String                    // v1, v2, etc.
-  status                ClientApprovalStageStatus @default(DRAFT)
-  
-  // Aaron's Internal Approval
-  approvedByAaron       Boolean                   @default(false)
-  aaronApprovedAt       DateTime?
-  aaronApprovedById     String?
-  
-  // Client Communication
-  sentToClientAt        DateTime?
-  sentById              String?
-  emailOpenedAt         DateTime?
-  followUpCompletedAt   DateTime?
-  followUpNotes         String?
-  
-  // Client Decision
-  clientDecision        ApprovalStatus?           @default(PENDING)
-  clientDecidedAt       DateTime?
-  clientMessage         String?
-  notes                 String?                   // General notes
-  followUpSentAt        DateTime?                 // When follow-up email was sent
-  
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
-  
-  stage                 Stage                     @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  renderingVersion      RenderingVersion?         @relation(fields: [renderingVersionId], references: [id])
-  aaronApprovedBy       User?                     @relation("ClientApprovalAaronApprovedBy", fields: [aaronApprovedById], references: [id])
-  sentBy                User?                     @relation("ClientApprovalSentBy", fields: [sentById], references: [id])
-  
-  assets                ClientApprovalAsset[]
-  emailLogs             ClientApprovalEmailLog[]
-  activityLogs          ClientApprovalActivity[]
-  
-  // New relations
-  newEmailLogs          EmailLog[]
-  clientApprovals       ClientApproval[]
-}
-
-// Assets for Client Approval (renderings)
-model ClientApprovalAsset {
-  id              String                  @id @default(cuid())
-  versionId       String
-  assetId         String                  // Reference to main Asset table
-  includeInEmail  Boolean                 @default(true)
-  displayOrder    Int                     @default(0)
-  createdAt       DateTime                @default(now())
-  
-  version         ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  asset           Asset                   @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  
-  @@unique([versionId, assetId])
-}
-
-// Email tracking for client approval
-model ClientApprovalEmailLog {
-  id              String                  @id @default(cuid())
-  versionId       String
-  to              String
-  subject         String
-  htmlContent     String                  // Store email HTML for reference
-  sentAt          DateTime                @default(now())
-  openedAt        DateTime?
-  clickedAt       DateTime?
-  followUpSentAt  DateTime?
-  trackingPixelId String                  @unique
-  
-  version         ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
-}
-
-// Activity log for client approval workflow
-model ClientApprovalActivity {
-  id          String                  @id @default(cuid())
-  versionId   String
-  type        String                  // upload, aaron_approved, sent_to_client, client_opened, etc.
-  message     String
-  userId      String?
-  metadata    String?                 // JSON for additional data
-  createdAt   DateTime                @default(now())
-  
-  version     ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  user        User?                   @relation(fields: [userId], references: [id])
-}
-
-model Approval {
-  id          String         @id @default(cuid())
-  projectId   String?
-  roomId      String?
-  token       String         @unique @default(cuid())
-  status      ApprovalStatus @default(PENDING)
-  sentById    String?        // User who sent the approval
-  decidedById String?        // User/client who made the decision
-  sentAt      DateTime?
-  decidedAt   DateTime?
-  message     String?        // Client message with decision
-  revisionReason String?     // Reason for revision request
-  expiresAt   DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room        Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  sentBy      User?    @relation("SentByUser", fields: [sentById], references: [id])
-  decidedBy   User?    @relation("DecidedByUser", fields: [decidedById], references: [id])
-  
-  assets      Asset[]
-  comments    Comment[]
-}
-
-// Comments and Collaboration
-model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  authorId  String
-  projectId String?
-  roomId    String?
-  stageId   String?
-  sectionId String?
-  ffeItemId String?
-  approvalId String?
-  mentions  String?  // JSON array of user IDs
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  author    User            @relation(fields: [authorId], references: [id])
-  project   Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room      Room?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage     Stage?          @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  section   DesignSection?  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  ffeItem   FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
-  approval  Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  
-  assets      Asset[]
-  
-  // Design Concept Workspace relations
-  commentTags CommentTag[]
-  commentPin  CommentPin?
-}
-
-// Asset Management (Files, Images, Links)
 enum AssetType {
   IMAGE
   PDF
@@ -682,53 +908,6 @@ enum AssetType {
   OTHER
 }
 
-model Asset {
-  id                String    @id @default(cuid())
-  title             String
-  filename          String?
-  url               String
-  type              AssetType
-  size              Int?
-  mimeType          String?
-  provider          String?   // "dropbox", "s3", "local", "external"
-  metadata          String?   // JSON metadata
-  description       String?   // Per-image description for renderings
-  userDescription   String?   // User-provided description for design concept uploads
-  uploadedBy        String
-  orgId             String
-  projectId         String?
-  roomId            String?
-  stageId           String?
-  sectionId         String?
-  ffeItemId         String?
-  approvalId            String?
-  commentId             String?
-  renderingVersionId    String?   // Link to rendering version
-  drawingChecklistItemId String?  // Link to drawings checklist item
-  createdAt             DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  uploader         User                @relation(fields: [uploadedBy], references: [id])
-  organization     Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  project          Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room             Room?               @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage            Stage?              @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  section          DesignSection?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  ffeItem          FFEItem?            @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
-  approval         Approval?           @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  comment               Comment?             @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  renderingVersion      RenderingVersion?    @relation(fields: [renderingVersionId], references: [id], onDelete: Cascade)
-  drawingChecklistItem  DrawingChecklistItem? @relation(fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
-  
-  // Client Approval relations
-  clientApprovalAssets ClientApprovalAsset[]
-  
-  // Design Concept Workspace relations
-  assetTags AssetTag[]
-  assetPin  AssetPin?
-}
-
-// Notification System
 enum NotificationType {
   STAGE_ASSIGNED
   STAGE_COMPLETED
@@ -737,37 +916,6 @@ enum NotificationType {
   PROJECT_UPDATE
 }
 
-model Notification {
-  id          String           @id @default(cuid())
-  userId      String
-  type        NotificationType
-  title       String
-  message     String
-  read        Boolean          @default(false)
-  relatedId   String?          // ID of related object (stage, project, comment, etc.)
-  relatedType String?          // Type of related object
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// Room Presets System
-model RoomPreset {
-  id          String   @id @default(cuid())
-  roomType    RoomType
-  name        String
-  description String?
-  ffeItems    String   // JSON array of default FFE items
-  sections    String   // JSON configuration for design sections
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([roomType, name])
-}
-
-// Task Management (Optional granularity)
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -776,137 +924,12 @@ enum TaskStatus {
   CANCELLED
 }
 
-model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(TODO)
-  assignedTo  String?
-  projectId   String?
-  roomId      String?
-  stageId     String?
-  dueDate     DateTime?
-  completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  assignee User?    @relation(fields: [assignedTo], references: [id])
-  project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room     Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage    Stage?   @relation(fields: [stageId], references: [id], onDelete: Cascade)
-}
-
-// User Session Management for tracking active sessions
-model UserSession {
-  id        String   @id @default(cuid())
-  userId    String
-  deviceId  String
-  ipAddress String?
-  userAgent String?
-  lastSeen  DateTime @updatedAt
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, deviceId])
-}
-
-// New Email System for Client Approval
-model EmailLog {
-  id        String    @id @default(cuid())
-  versionId String
-  to        String
-  subject   String
-  html      String    // Email HTML content
-  sentAt    DateTime  @default(now())
-  openedAt  DateTime? // When tracking pixel was loaded
-  type      String    // DELIVERY, FOLLOW_UP, CONFIRMATION
-  metadata  Json?     // Additional tracking data (IP, user agent, etc.)
-  
-  version   ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-}
-
-// Client Approval Decision Records
-model ClientApproval {
-  id         String   @id @default(cuid())
-  versionId  String
-  approvedBy String   // Email of person who approved
-  approvedAt DateTime @default(now())
-  decision   String   // APPROVED or REVISION_REQUESTED
-  comments   String?  // Optional comments from client
-  
-  version    ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-}
-
-// Activity Log for Client Approval Workflow
-model Activity {
-  id        String    @id @default(cuid())
-  stageId   String
-  type      String    // EMAIL_SENT, CLIENT_DECISION, AARON_APPROVED, etc.
-  message   String
-  userId    String?   // Null for client actions
-  timestamp DateTime  @default(now())
-  
-  stage     Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  user      User?     @relation(fields: [userId], references: [id])
-}
-
-// 3D Rendering Workspace Models
 enum RenderingVersionStatus {
   IN_PROGRESS
   COMPLETED
   PUSHED_TO_CLIENT
 }
 
-model RenderingVersion {
-  id            String                  @id @default(cuid())
-  roomId        String
-  stageId       String
-  version       String                  // V1, V2, etc. (per room)
-  customName    String?                 // Optional custom name override
-  status        RenderingVersionStatus  @default(IN_PROGRESS)
-  pushedToClientAt DateTime?
-  createdById   String
-  updatedById   String?
-  completedById String?
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
-  completedAt   DateTime?
-
-  room         Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage        Stage @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  createdBy    User  @relation("RenderingVersionCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User? @relation("RenderingVersionUpdatedBy", fields: [updatedById], references: [id])
-  completedBy  User? @relation("RenderingVersionCompletedBy", fields: [completedById], references: [id])
-  
-  assets       Asset[]         // Files for this version
-  notes        RenderingNote[] // Notes feed
-  
-  // Link to client approval when pushed
-  clientApprovalVersion ClientApprovalVersion?
-
-  @@unique([roomId, version]) // Ensure unique version numbers per room
-  @@index([stageId])
-  @@index([createdAt])
-}
-
-model RenderingNote {
-  id        String   @id @default(cuid())
-  versionId String
-  content   String
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  version   RenderingVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  author    User             @relation(fields: [authorId], references: [id])
-  
-  @@index([versionId])
-  @@index([createdAt])
-}
-
-// Drawings Workspace Models
 enum DrawingChecklistType {
   LIGHTING
   ELEVATION
@@ -914,45 +937,3 @@ enum DrawingChecklistType {
   FLOORPLAN
   CUSTOM
 }
-
-model DrawingChecklistItem {
-  id          String              @id @default(cuid())
-  stageId     String
-  type        DrawingChecklistType
-  name        String              // Display name (e.g., "Lighting Plans")
-  description String?             // Optional description
-  completed   Boolean             @default(false)
-  order       Int                 @default(0)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  completedAt DateTime?
-  
-  stage       Stage               @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  assets      Asset[]             // Files linked to this checklist item
-  
-  @@unique([stageId, type]) // One item per type per stage
-  @@index([stageId])
-  @@index([order])
-}
-
-// Activity Log for comprehensive tracking
-model ActivityLog {
-  id        String   @id @default(cuid())
-  actorId   String?
-  action    String
-  entity    String
-  entityId  String
-  details   Json?    // Additional context data
-  ipAddress String?
-  orgId     String?
-  createdAt DateTime @default(now())
-
-  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
-
-  @@index([actorId])
-  @@index([orgId])
-  @@index([entity, entityId])
-  @@index([createdAt])
-}
-

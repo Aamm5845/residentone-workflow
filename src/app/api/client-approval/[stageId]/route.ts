@@ -307,6 +307,21 @@ export async function POST(
         clientApprovalAssets.push(clientApprovalAsset)
       }
 
+      // Automatically start the Client Approval stage if it's not started
+      let clientApprovalStageOpened = false
+      if (currentStage.status === 'NOT_STARTED') {
+        await tx.stage.update({
+          where: { id: stageId },
+          data: {
+            status: 'IN_PROGRESS',
+            startedAt: new Date(),
+            updatedById: session.user.id,
+            updatedAt: new Date()
+          }
+        })
+        clientApprovalStageOpened = true
+      }
+
       return {
         clientApprovalVersion: {
           ...clientApprovalVersion,
@@ -315,14 +330,16 @@ export async function POST(
             asset: renderingVersion.assets.find(a => a.id === asset.assetId),
             includeInEmail: asset.includeInEmail
           }))
-        }
+        },
+        clientApprovalStageOpened
       }
     })
     
     // Return the newly created client approval version
     return NextResponse.json({
       success: true,
-      currentVersion: result.clientApprovalVersion
+      currentVersion: result.clientApprovalVersion,
+      clientApprovalStageOpened: result.clientApprovalStageOpened
     }, { status: 201 })
 
   } catch (error) {

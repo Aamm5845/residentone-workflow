@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
+import { Building, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
 
 const ROOM_CATEGORIES = {
   'Entry & Circulation': [
@@ -42,6 +42,12 @@ const ROOM_CATEGORIES = {
 
 const ROOM_TYPES = Object.values(ROOM_CATEGORIES).flat()
 
+interface Floor {
+  id: string
+  name: string
+  order: number
+}
+
 interface AddRoomDialogProps {
   projectId: string
   onRoomAdded: (room: any) => void
@@ -51,7 +57,28 @@ interface AddRoomDialogProps {
 export default function AddRoomDialog({ projectId, onRoomAdded, onClose }: AddRoomDialogProps) {
   const [selectedRoomType, setSelectedRoomType] = useState('')
   const [customRoomName, setCustomRoomName] = useState('')
+  const [selectedFloor, setSelectedFloor] = useState('')
+  const [floors, setFloors] = useState<Floor[]>([])
   const [isAdding, setIsAdding] = useState(false)
+  const [loadingFloors, setLoadingFloors] = useState(true)
+
+  // Load floors on mount
+  useEffect(() => {
+    const loadFloors = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/floors`)
+        if (response.ok) {
+          const floorsData = await response.json()
+          setFloors(floorsData)
+        }
+      } catch (error) {
+        console.error('Error loading floors:', error)
+      } finally {
+        setLoadingFloors(false)
+      }
+    }
+    loadFloors()
+  }, [projectId])
 
   const addNewRoom = async () => {
     if (!selectedRoomType) return
@@ -65,7 +92,8 @@ export default function AddRoomDialog({ projectId, onRoomAdded, onClose }: AddRo
         body: JSON.stringify({
           type: selectedRoomType,
           name: roomTypeData?.label,
-          customName: customRoomName.trim() || null
+          customName: customRoomName.trim() || null,
+          floorId: selectedFloor || null
         })
       })
 
@@ -75,6 +103,7 @@ export default function AddRoomDialog({ projectId, onRoomAdded, onClose }: AddRo
         onClose()
         setSelectedRoomType('')
         setCustomRoomName('')
+        setSelectedFloor('')
       } else {
         throw new Error('Failed to create room')
       }
@@ -125,17 +154,49 @@ export default function AddRoomDialog({ projectId, onRoomAdded, onClose }: AddRo
         </div>
 
         {selectedRoomType && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Custom Room Name (Optional)
-            </label>
-            <input
-              type="text"
-              value={customRoomName}
-              onChange={(e) => setCustomRoomName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="e.g., Boys Bedroom 2, Living Room - Main"
-            />
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Room Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={customRoomName}
+                onChange={(e) => setCustomRoomName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="e.g., Boys Bedroom 2, Living Room - Main"
+              />
+            </div>
+            
+            {/* Floor Selection */}
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Assign to Floor (Optional)
+              </label>
+              {loadingFloors ? (
+                <div className="text-sm text-gray-500">Loading floors...</div>
+              ) : floors.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  No floors available. Room will not be assigned to a floor.
+                </div>
+              ) : (
+                <select
+                  value={selectedFloor}
+                  onChange={(e) => setSelectedFloor(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">No floor assignment</option>
+                  {floors.map((floor) => (
+                    <option key={floor.id} value={floor.id}>
+                      {floor.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-xs text-gray-600 mt-1">
+                Assigning rooms to floors helps organize them in the client portal.
+              </p>
+            </div>
           </div>
         )}
         

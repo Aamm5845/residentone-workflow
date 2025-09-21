@@ -25,7 +25,7 @@ export async function POST(
     const { orgId } = session.user
 
     const data = await request.json()
-    const { type, name, customName } = data
+    const { type, name, customName, floorId } = data
 
     // Verify project belongs to user's organization
     const project = await prisma.project.findFirst({
@@ -39,10 +39,25 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Validate floor if provided
+    if (floorId) {
+      const floor = await prisma.floor.findFirst({
+        where: {
+          id: floorId,
+          projectId: project.id
+        }
+      })
+      
+      if (!floor) {
+        return NextResponse.json({ error: 'Floor not found' }, { status: 404 })
+      }
+    }
+
     // Create new room
     const room = await prisma.room.create({
       data: {
         projectId: project.id,
+        floorId: floorId || undefined,
         type: type as RoomType,
         name: customName || name,
         status: 'NOT_STARTED'

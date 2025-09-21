@@ -105,3 +105,10 @@ test-dropbox.js
 public/uploads/*
 !public/uploads/.gitkeep
 .env*.local
+
+# Database backups (sensitive data - keep local only)
+backups/
+*.sql
+*.dump
+backup-log.txt
+export-data.sql
