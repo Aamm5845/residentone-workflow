@@ -58,13 +58,24 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if this is the first user (should be OWNER) or a subsequent user (should be VIEWER)
+    const existingUserCount = await prisma.user.count({
+      where: {
+        orgId: {
+          not: null
+        }
+      }
+    })
+    
+    const userRole = existingUserCount === 0 ? 'OWNER' : 'VIEWER'
+
     // Create user
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: email.toLowerCase(),
         password: hashedPassword,
-        role: 'OWNER', // First user becomes owner of their organization
+        role: userRole,
         orgId: organization.id
       },
       include: {

@@ -148,6 +148,26 @@ export async function PUT(
           error: 'Only owners can modify owner roles.' 
         }, { status: 403 })
       }
+
+      // Check if another user already has this role (enforce unique roles)
+      const userWithRole = await prisma.user.findFirst({
+        where: {
+          role: validatedData.role,
+          id: { not: params.userId },
+          orgId: { not: null } // Only check active users
+        },
+        select: {
+          id: true,
+          name: true,
+          role: true
+        }
+      })
+
+      if (userWithRole) {
+        return NextResponse.json({ 
+          error: `Another user (${userWithRole.name}) already has the role '${validatedData.role}'. Each role can only be assigned to one team member at a time.` 
+        }, { status: 400 })
+      }
     }
 
     // Check if email is unique (if changing email)

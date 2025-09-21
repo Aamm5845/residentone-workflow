@@ -120,6 +120,25 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
+    // Check if another user already has this role (enforce unique roles)
+    const userWithRole = await prisma.user.findFirst({
+      where: {
+        role: role,
+        orgId: { not: null } // Only check active users
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true
+      }
+    })
+
+    if (userWithRole) {
+      return NextResponse.json({ 
+        error: `Another user (${userWithRole.name}) already has the role '${role}'. Each role can only be assigned to one team member at a time.` 
+      }, { status: 400 })
+    }
+
     // Get shared organization (first organization in the system)
     const sharedOrg = await prisma.organization.findFirst()
     if (!sharedOrg) {

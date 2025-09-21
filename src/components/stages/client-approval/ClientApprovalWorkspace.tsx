@@ -651,6 +651,7 @@ export default function ClientApprovalWorkspace({
   const statusConfig = getStatusConfig(currentVersion.status)
 
   return (
+    <>
     <div className="bg-white min-h-screen">
       {/* Status Badge */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -1292,5 +1293,6 @@ export default function ClientApprovalWorkspace({
         </div>
       </div>
     )}
+    </>
   )
 }
