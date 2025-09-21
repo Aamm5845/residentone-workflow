@@ -12,7 +12,6 @@ import {
   FolderOpen, 
   Users, 
   Settings, 
-  Bell,
   Menu,
   X,
   LogOut,
@@ -26,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -96,9 +96,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 </Link>
               </Button>
               
-              <Button variant="ghost" size="icon">
-                <Bell className="h-5 w-5" />
-              </Button>
+              <NotificationBell />
               
               <Button variant="ghost" size="icon" asChild>
                 <Link href="/preferences">

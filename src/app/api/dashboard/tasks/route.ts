@@ -10,11 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user-specific tasks based on their assignments
+    // Get user-specific IN_PROGRESS tasks (tasks that are actively being worked on)
     const userTasks = await prisma.stage.findMany({
       where: {
         assignedTo: session.user.id,
-        status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION'] },
+        status: 'IN_PROGRESS', // Only show tasks that are actively in progress
         room: {
           project: {
             orgId: session.user.orgId

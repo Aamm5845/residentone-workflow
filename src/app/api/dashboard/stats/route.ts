@@ -26,13 +26,13 @@ export async function GET() {
           status: { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
         }
       }),
-      // Count rooms that have at least one active stage (IN_PROGRESS or NEEDS_ATTENTION)
+      // Count rooms that have at least one IN_PROGRESS stage (truly active)
       prisma.room.count({
         where: { 
           project: { orgId: session.user.orgId },
           stages: {
             some: {
-              status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+              status: 'IN_PROGRESS'
             }
           }
         }

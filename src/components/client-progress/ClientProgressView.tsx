@@ -15,7 +15,13 @@ import {
   Star,
   Mail,
   Phone,
-  Globe
+  Globe,
+  DoorOpen,
+  Navigation,
+  Gamepad2,
+  Bed,
+  Bath,
+  Settings
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -148,6 +154,54 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
     }
   }
 
+  // Room type configuration matching the main program
+  const ROOM_CATEGORIES = {
+    'Entry & Circulation': [
+      { value: 'ENTRANCE', label: 'Entrance', icon: DoorOpen, color: 'bg-gray-600' },
+      { value: 'FOYER', label: 'Foyer', icon: Home, color: 'bg-gray-500' },
+      { value: 'STAIRCASE', label: 'Staircase', icon: Navigation, color: 'bg-gray-400' },
+    ],
+    'Living Spaces': [
+      { value: 'LIVING_ROOM', label: 'Living Room', icon: Home, color: 'bg-green-500' },
+      { value: 'DINING_ROOM', label: 'Dining Room', icon: Home, color: 'bg-orange-500' },
+      { value: 'KITCHEN', label: 'Kitchen', icon: Home, color: 'bg-red-500' },
+      { value: 'STUDY_ROOM', label: 'Study Room', icon: Settings, color: 'bg-purple-400' },
+      { value: 'OFFICE', label: 'Office', icon: Settings, color: 'bg-purple-500' },
+      { value: 'PLAYROOM', label: 'Playroom', icon: Gamepad2, color: 'bg-pink-500' },
+    ],
+    'Bedrooms': [
+      { value: 'MASTER_BEDROOM', label: 'Master Bedroom', icon: Bed, color: 'bg-blue-600' },
+      { value: 'GIRLS_ROOM', label: 'Girls Room', icon: Bed, color: 'bg-pink-400' },
+      { value: 'BOYS_ROOM', label: 'Boys Room', icon: Bed, color: 'bg-blue-400' },
+      { value: 'GUEST_BEDROOM', label: 'Guest Bedroom', icon: Bed, color: 'bg-indigo-400' },
+    ],
+    'Bathrooms': [
+      { value: 'POWDER_ROOM', label: 'Powder Room', icon: Bath, color: 'bg-cyan-300' },
+      { value: 'MASTER_BATHROOM', label: 'Master Bathroom', icon: Bath, color: 'bg-cyan-600' },
+      { value: 'FAMILY_BATHROOM', label: 'Family Bathroom', icon: Bath, color: 'bg-cyan-500' },
+      { value: 'GIRLS_BATHROOM', label: 'Girls Bathroom', icon: Bath, color: 'bg-pink-300' },
+      { value: 'BOYS_BATHROOM', label: 'Boys Bathroom', icon: Bath, color: 'bg-blue-300' },
+      { value: 'GUEST_BATHROOM', label: 'Guest Bathroom', icon: Bath, color: 'bg-cyan-400' },
+    ],
+    'Utility': [
+      { value: 'LAUNDRY_ROOM', label: 'Laundry Room', icon: Settings, color: 'bg-indigo-500' },
+    ],
+    'Special': [
+      { value: 'SUKKAH', label: 'Sukkah', icon: Home, color: 'bg-green-700' },
+    ],
+  }
+  
+  const ROOM_TYPES = Object.values(ROOM_CATEGORIES).flat()
+  
+  const getRoomTypeConfig = (roomType: string) => {
+    return ROOM_TYPES.find(rt => rt.value === roomType) || {
+      value: roomType,
+      label: roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+      icon: Home,
+      color: 'bg-gray-500'
+    }
+  }
+
   const formatRoomName = (room: Room) => {
     return room.name || room.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
   }
@@ -213,19 +267,19 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
           <div className="max-w-6xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gray-50 rounded-lg p-2 flex items-center justify-center">
+                <div className="w-16 h-16 bg-white rounded-xl shadow-sm p-3 flex items-center justify-center border border-gray-100">
                   <Image 
                     src="/meisner-logo.svg" 
                     alt="Meisner Interiors Logo" 
-                    width={32} 
-                    height={32}
-                    className="w-8 h-8"
+                    width={48} 
+                    height={48}
+                    className="w-12 h-12"
                     priority
                   />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Meisner Interiors</h2>
-                  <p className="text-sm text-gray-600">Project Progress Portal</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Meisner Interiors</h2>
+                  <p className="text-base text-gray-600">Project Progress Portal</p>
                 </div>
               </div>
               <div className="flex items-center space-x-6 text-sm text-gray-600">
@@ -246,8 +300,8 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="mb-6">
             <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Home className="w-6 h-6 text-gray-700" />
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Home className="w-8 h-8 text-white" />
               </div>
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">{projectData.name}</h1>
@@ -394,12 +448,12 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gray-50 rounded p-1">
+              <div className="w-10 h-10 bg-white rounded-lg shadow-sm p-2 border border-gray-100">
                 <Image 
                   src="/meisner-logo.svg" 
                   alt="Meisner Interiors" 
-                  width={24} 
-                  height={24}
+                  width={28} 
+                  height={28}
                   className="w-full h-full"
                 />
               </div>
@@ -426,17 +480,74 @@ interface RoomCardProps {
 }
 
 function RoomCard({ room, downloadingAsset, handleDownload, formatRoomName, getPhaseIcon, getPhaseStatusColor }: RoomCardProps) {
+  // Get room type configuration for icons and colors
+  const getRoomTypeConfig = (roomType: string) => {
+    const ROOM_CATEGORIES = {
+      'Entry & Circulation': [
+        { value: 'ENTRANCE', label: 'Entrance', icon: DoorOpen, color: 'bg-gray-600' },
+        { value: 'FOYER', label: 'Foyer', icon: Home, color: 'bg-gray-500' },
+        { value: 'STAIRCASE', label: 'Staircase', icon: Navigation, color: 'bg-gray-400' },
+      ],
+      'Living Spaces': [
+        { value: 'LIVING_ROOM', label: 'Living Room', icon: Home, color: 'bg-green-500' },
+        { value: 'DINING_ROOM', label: 'Dining Room', icon: Home, color: 'bg-orange-500' },
+        { value: 'KITCHEN', label: 'Kitchen', icon: Home, color: 'bg-red-500' },
+        { value: 'STUDY_ROOM', label: 'Study Room', icon: Settings, color: 'bg-purple-400' },
+        { value: 'OFFICE', label: 'Office', icon: Settings, color: 'bg-purple-500' },
+        { value: 'PLAYROOM', label: 'Playroom', icon: Gamepad2, color: 'bg-pink-500' },
+      ],
+      'Bedrooms': [
+        { value: 'MASTER_BEDROOM', label: 'Master Bedroom', icon: Bed, color: 'bg-blue-600' },
+        { value: 'GIRLS_ROOM', label: 'Girls Room', icon: Bed, color: 'bg-pink-400' },
+        { value: 'BOYS_ROOM', label: 'Boys Room', icon: Bed, color: 'bg-blue-400' },
+        { value: 'GUEST_BEDROOM', label: 'Guest Bedroom', icon: Bed, color: 'bg-indigo-400' },
+      ],
+      'Bathrooms': [
+        { value: 'POWDER_ROOM', label: 'Powder Room', icon: Bath, color: 'bg-cyan-300' },
+        { value: 'MASTER_BATHROOM', label: 'Master Bathroom', icon: Bath, color: 'bg-cyan-600' },
+        { value: 'FAMILY_BATHROOM', label: 'Family Bathroom', icon: Bath, color: 'bg-cyan-500' },
+        { value: 'GIRLS_BATHROOM', label: 'Girls Bathroom', icon: Bath, color: 'bg-pink-300' },
+        { value: 'BOYS_BATHROOM', label: 'Boys Bathroom', icon: Bath, color: 'bg-blue-300' },
+        { value: 'GUEST_BATHROOM', label: 'Guest Bathroom', icon: Bath, color: 'bg-cyan-400' },
+      ],
+      'Utility': [
+        { value: 'LAUNDRY_ROOM', label: 'Laundry Room', icon: Settings, color: 'bg-indigo-500' },
+      ],
+      'Special': [
+        { value: 'SUKKAH', label: 'Sukkah', icon: Home, color: 'bg-green-700' },
+      ],
+    }
+    
+    const ROOM_TYPES = Object.values(ROOM_CATEGORIES).flat()
+    
+    return ROOM_TYPES.find(rt => rt.value === roomType) || {
+      value: roomType,
+      label: roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+      icon: Home,
+      color: 'bg-gray-500'
+    }
+  }
+  
+  const roomConfig = getRoomTypeConfig(room.type)
+  const RoomIcon = roomConfig.icon
+  
   return (
     <div className="bg-white border-b border-gray-100 last:border-b-0">
       {/* Room Header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="font-medium text-gray-900">{formatRoomName(room)}</h4>
-            <p className="text-sm text-gray-600">{room.progress}% Complete</p>
+          <div className="flex items-center space-x-3">
+            <div className={`w-12 h-12 ${roomConfig.color} rounded-lg flex items-center justify-center shadow-sm`}>
+              <RoomIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 text-lg">{formatRoomName(room)}</h4>
+              <p className="text-sm text-gray-600">{room.progress}% Complete</p>
+            </div>
           </div>
           <div className="text-right">
-            <div className="text-lg font-semibold text-gray-900">{room.progress}%</div>
+            <div className="text-2xl font-bold text-gray-900">{room.progress}%</div>
+            <div className="text-xs text-gray-500">Progress</div>
           </div>
         </div>
         

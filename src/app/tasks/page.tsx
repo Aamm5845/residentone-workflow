@@ -8,11 +8,13 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import type { Session } from 'next-auth'
 
-export default async function Tasks({ searchParams }: { searchParams: { status?: string } }) {
+export default async function Tasks({ searchParams }: { searchParams: { status?: string, search?: string } }) {
   const session = await getSession() as Session & {
     user: {
       id: string
       orgId: string
+      name: string
+      role: string
     }
   } | null
   
@@ -22,14 +24,16 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
 
   // Handle filtering based on query parameters
   const statusFilter = searchParams.status
+  const searchTerm = searchParams.search
 
-  let overdueTasks: any[] = []
+  let userTasks: any[] = []
   
   try {
     if (statusFilter === 'overdue') {
-      // Get overdue stages
+      // Get user's overdue tasks (assigned to them)
       const overdueStages = await prisma.stage.findMany({
         where: {
+          assignedTo: session.user.id,
           room: {
             project: { orgId: session.user.orgId }
           },
@@ -128,11 +132,67 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
       }))
 
       // Combine and sort by overdue time (most overdue first)
-      overdueTasks = [...transformedStages, ...transformedApprovals].sort((a, b) => b.overdueBy - a.overdueBy)
+      userTasks = [...transformedStages, ...transformedApprovals].sort((a, b) => b.overdueBy - a.overdueBy)
+    } else {
+      // Get all user's assigned IN_PROGRESS tasks
+      const userStages = await prisma.stage.findMany({
+        where: {
+          assignedTo: session.user.id,
+          room: {
+            project: { orgId: session.user.orgId }
+          },
+          status: 'IN_PROGRESS',
+          ...(searchTerm && {
+            OR: [
+              { room: { name: { contains: searchTerm, mode: 'insensitive' } } },
+              { room: { type: { contains: searchTerm, mode: 'insensitive' } } },
+              { room: { project: { name: { contains: searchTerm, mode: 'insensitive' } } } },
+              { room: { project: { client: { name: { contains: searchTerm, mode: 'insensitive' } } } } },
+              { type: { contains: searchTerm, mode: 'insensitive' } }
+            ]
+          })
+        },
+        include: {
+          room: {
+            include: {
+              project: {
+                include: {
+                  client: true
+                }
+              }
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }]
+      })
+
+      // Transform user stages into task format
+      userTasks = userStages.map(stage => ({
+        id: stage.id,
+        type: 'stage' as const,
+        title: `${stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} - ${stage.room.name || stage.room.type.replace('_', ' ')}`,
+        projectName: stage.room.project.name,
+        clientName: stage.room.project.client.name,
+        dueDate: stage.dueDate,
+        status: stage.status,
+        assignedUser: stage.assignedUser,
+        roomId: stage.room.id,
+        projectId: stage.room.project.id,
+        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        urgencyLevel: stage.dueDate && stage.dueDate < new Date() ? 'high' : 'medium',
+        stageType: stage.type
+      }))
     }
   } catch (error) {
-    console.error('Error fetching overdue tasks:', error)
-    overdueTasks = []
+    console.error('Error fetching user tasks:', error)
+    userTasks = []
   }
 
   const getUrgencyColor = (urgencyLevel: string) => {
@@ -182,10 +242,10 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {statusFilter === 'overdue' ? 'Overdue Tasks' : 'All Tasks'}
+              {statusFilter === 'overdue' ? 'My Overdue Tasks' : 'My Tasks'}
             </h1>
             <p className="text-gray-600 mt-1">
-              {overdueTasks.length} {statusFilter === 'overdue' ? 'overdue' : ''} tasks requiring attention
+              {userTasks.length} {statusFilter === 'overdue' ? 'overdue' : 'active'} tasks assigned to you
             </p>
             {statusFilter && (
               <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
@@ -194,10 +254,26 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
             )}
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+            {/* Search Form */}
+            <form method="GET" className="flex items-center space-x-2">
+              {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+              <input
+                type="text"
+                name="search"
+                placeholder="Search tasks..."
+                defaultValue={searchTerm}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <Button type="submit" variant="outline" size="sm">
+                Search
+              </Button>
+            </form>
+            <Link href={statusFilter === 'overdue' ? '/tasks' : '/tasks?status=overdue'}>
+              <Button variant="outline" size="sm">
+                <Filter className="w-4 h-4 mr-2" />
+                {statusFilter === 'overdue' ? 'Show All' : 'Show Overdue'}
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -242,9 +318,9 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
 
         {/* Tasks List */}
         <div className="space-y-6">
-          {overdueTasks.length > 0 ? (
+          {userTasks.length > 0 ? (
             <div className="space-y-4">
-              {overdueTasks.map((task) => (
+              {userTasks.map((task) => (
                 <Link key={`${task.type}-${task.id}`} href={getTaskHref(task)}>
                   <div className="bg-white rounded-lg shadow-sm border-l-4 border-l-red-500 p-6 hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-start justify-between">
@@ -329,12 +405,18 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                 )}
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {statusFilter === 'overdue' ? 'No overdue tasks! 🎉' : 'No tasks found'}
+                {statusFilter === 'overdue' 
+                  ? 'No overdue tasks! 🎉' 
+                  : searchTerm 
+                    ? `No tasks found for "${searchTerm}"` 
+                    : 'No active tasks assigned to you'}
               </h3>
               <p className="text-gray-600 mb-6">
                 {statusFilter === 'overdue' 
-                  ? 'All tasks are on track and client approvals are up to date.'
-                  : 'Tasks will appear here as they become available.'}
+                  ? 'All your assigned tasks are on track!'
+                  : searchTerm
+                    ? 'Try adjusting your search terms or check the spelling.'
+                    : 'You have no tasks currently in progress. Great job staying on top of your work!'}
               </p>
               <Button asChild>
                 <Link href="/projects">
