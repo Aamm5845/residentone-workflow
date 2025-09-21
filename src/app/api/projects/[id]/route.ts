@@ -7,7 +7,7 @@ import type { Session } from 'next-auth'
 
 // Validation schemas
 const updateProjectSchema = z.object({
-  name: z.string().min(1, "Project name is required").max(200),
+  name: z.string().min(1, "Project name is required").max(200).optional(),
   description: z.string().optional(),
   type: z.nativeEnum(ProjectType).optional(),
   budget: z.number().positive().optional().nullable(),
@@ -145,13 +145,27 @@ export async function PUT(
 
     // Update project - handle missing columns gracefully
     const updateData: any = {
-      name: validatedData.name,
-      description: validatedData.description,
-      type: validatedData.type,
-      budget: validatedData.budget,
-      dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
-      clientId: validatedData.clientId || existingProject.clientId,
       updatedAt: new Date(),
+    }
+    
+    // Only update fields that are provided
+    if (validatedData.name !== undefined) {
+      updateData.name = validatedData.name
+    }
+    if (validatedData.description !== undefined) {
+      updateData.description = validatedData.description
+    }
+    if (validatedData.type !== undefined) {
+      updateData.type = validatedData.type
+    }
+    if (validatedData.budget !== undefined) {
+      updateData.budget = validatedData.budget
+    }
+    if (validatedData.dueDate !== undefined) {
+      updateData.dueDate = validatedData.dueDate ? new Date(validatedData.dueDate) : null
+    }
+    if (validatedData.clientId !== undefined) {
+      updateData.clientId = validatedData.clientId
     }
     
     // Only add new columns if they exist in the schema (for migration compatibility)
