@@ -7,7 +7,7 @@ export interface Notification {
   type: string
   title: string
   message: string
-  readAt: string | null
+  read: boolean
   relatedId?: string | null
   relatedType?: string | null
   createdAt: string
@@ -139,7 +139,7 @@ export function useNotifications({
         setNotifications(prev => 
           prev.map(notif => 
             notificationIds.includes(notif.id) 
-              ? { ...notif, readAt: new Date().toISOString() }
+              ? { ...notif, read: true }
               : notif
           )
         )
@@ -147,7 +147,7 @@ export function useNotifications({
       } else {
         // Mark all as read
         setNotifications(prev => 
-          prev.map(notif => ({ ...notif, readAt: new Date().toISOString() }))
+          prev.map(notif => ({ ...notif, read: true }))
         )
         setUnreadCount(0)
       }
@@ -170,7 +170,7 @@ export function useNotifications({
 
   // Get unread notifications only
   const getUnreadNotifications = useCallback(() => {
-    return notifications.filter(notif => !notif.readAt)
+    return notifications.filter(notif => !notif.read)
   }, [notifications])
 
   // Get notifications by type
@@ -213,17 +213,13 @@ export function useNotifications({
   }
 }
 
-// Notification types enum for consistency
+// Notification types enum for consistency (matches Prisma schema)
 export const NotificationTypes = {
-  TASK_ASSIGNMENT: 'TASK_ASSIGNMENT',
-  TASK_COMPLETION: 'TASK_COMPLETION',
-  PROJECT_UPDATE: 'PROJECT_UPDATE',
-  DEADLINE_REMINDER: 'DEADLINE_REMINDER',
-  MESSAGE: 'MESSAGE',
+  STAGE_ASSIGNED: 'STAGE_ASSIGNED',
+  STAGE_COMPLETED: 'STAGE_COMPLETED',
   MENTION: 'MENTION',
-  APPROVAL_REQUEST: 'APPROVAL_REQUEST',
-  APPROVAL_RESPONSE: 'APPROVAL_RESPONSE',
-  SYSTEM: 'SYSTEM'
+  DUE_DATE_REMINDER: 'DUE_DATE_REMINDER',
+  PROJECT_UPDATE: 'PROJECT_UPDATE'
 } as const
 
 export type NotificationType = typeof NotificationTypes[keyof typeof NotificationTypes]

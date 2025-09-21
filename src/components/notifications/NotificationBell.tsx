@@ -33,36 +33,53 @@ export function NotificationBell({ className }: NotificationBellProps) {
   } = useNotifications({ limit: 20 })
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.readAt) {
+    if (!notification.read) {
       await markSingleAsRead(notification.id)
     }
     
     // Handle navigation based on notification type and related data
     if (notification.relatedId && notification.relatedType) {
-      // Navigate to related entity (project, task, etc.)
-      // This would depend on your routing structure
-      console.log('Navigate to:', notification.relatedType, notification.relatedId)
+      let navigateUrl = ''
+      
+      switch (notification.relatedType) {
+        case 'STAGE':
+          navigateUrl = `/stages/${notification.relatedId}`
+          break
+        case 'PROJECT':
+          navigateUrl = `/projects/${notification.relatedId}`
+          break
+        case 'ROOM':
+          navigateUrl = `/rooms/${notification.relatedId}`
+          break
+        case 'COMMENT':
+        case 'MESSAGE':
+          // For mentions in comments/messages, we might need additional context
+          // This could be enhanced to navigate to the specific comment/section
+          navigateUrl = `/stages/${notification.relatedId}`
+          break
+        default:
+          console.log('Unknown related type:', notification.relatedType)
+          return
+      }
+      
+      if (navigateUrl) {
+        window.location.href = navigateUrl
+      }
     }
   }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'TASK_ASSIGNMENT':
+      case 'STAGE_ASSIGNED':
         return '📋'
-      case 'TASK_COMPLETION':
+      case 'STAGE_COMPLETED':
         return '✅'
       case 'PROJECT_UPDATE':
         return '📄'
-      case 'DEADLINE_REMINDER':
+      case 'DUE_DATE_REMINDER':
         return '⏰'
-      case 'MESSAGE':
-        return '💬'
       case 'MENTION':
-        return '💬'
-      case 'APPROVAL_REQUEST':
-        return '🔍'
-      case 'APPROVAL_RESPONSE':
-        return '✅'
+        return '👤'
       default:
         return '📢'
     }
@@ -70,20 +87,16 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'TASK_ASSIGNMENT':
+      case 'STAGE_ASSIGNED':
         return 'bg-blue-500'
-      case 'TASK_COMPLETION':
+      case 'STAGE_COMPLETED':
         return 'bg-green-500'
       case 'PROJECT_UPDATE':
         return 'bg-purple-500'
-      case 'DEADLINE_REMINDER':
+      case 'DUE_DATE_REMINDER':
         return 'bg-orange-500'
-      case 'MESSAGE':
       case 'MENTION':
         return 'bg-indigo-500'
-      case 'APPROVAL_REQUEST':
-      case 'APPROVAL_RESPONSE':
-        return 'bg-yellow-500'
       default:
         return 'bg-gray-500'
     }
@@ -165,10 +178,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
                   {/* Notification Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
-                      <p className={`text-sm ${!notification.readAt ? 'font-semibold' : ''}`}>
+                      <p className={`text-sm ${!notification.read ? 'font-semibold' : ''}`}>
                         {notification.title}
                       </p>
-                      {!notification.readAt && (
+                      {!notification.read && (
                         <Dot className="text-blue-500 flex-shrink-0" size={20} />
                       )}
                     </div>
@@ -183,7 +196,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                   </div>
                   
                   {/* Mark as read button */}
-                  {!notification.readAt && (
+                  {!notification.read && (
                     <Button
                       variant="ghost"
                       size="sm"

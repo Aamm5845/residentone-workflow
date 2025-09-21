@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const notifications = await prisma.notification.findMany({
       where: {
         userId: session.user.id,
-        ...(unreadOnly && { readAt: null })
+        ...(unreadOnly && { read: false })
       },
       orderBy: { createdAt: 'desc' },
       take: limit
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const unreadCount = await prisma.notification.count({
       where: {
         userId: session.user.id,
-        readAt: null
+        read: false
       }
     })
 
@@ -139,12 +139,11 @@ export async function PATCH(request: NextRequest) {
       await prisma.notification.updateMany({
         where: {
           userId: session.user.id,
-          readAt: null
+          read: false
         },
         data: {
-          readAt: new Date(),
-          updatedAt: new Date(),
-          updatedById: session.user.id
+          read: true,
+          updatedAt: new Date()
         }
       })
 
@@ -160,9 +159,8 @@ export async function PATCH(request: NextRequest) {
           userId: session.user.id // Ensure user can only mark their own notifications
         },
         data: {
-          readAt: new Date(),
-          updatedAt: new Date(),
-          updatedById: session.user.id
+          read: true,
+          updatedAt: new Date()
         }
       })
 

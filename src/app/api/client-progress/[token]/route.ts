@@ -152,8 +152,17 @@ export async function GET(
 
 // Helper function to process room data
 function processRoomData(room: any) {
-  // Calculate room progress
-  const totalPhases = 5 // Design, 3D, Client Approval, Drawings, FFE
+  // Define the workflow stages in order (handling both DESIGN and DESIGN_CONCEPT types)
+  const WORKFLOW_STAGES = [
+    { type: 'DESIGN', name: 'Design Concept', alternateTypes: ['DESIGN_CONCEPT'] },
+    { type: 'THREE_D', name: '3D Rendering', alternateTypes: [] },
+    { type: 'CLIENT_APPROVAL', name: 'Client Approval', alternateTypes: [] },
+    { type: 'DRAWINGS', name: 'Drawings', alternateTypes: [] },
+    { type: 'FFE', name: 'FFE', alternateTypes: [] }
+  ]
+
+  // Calculate room progress based on actual stages
+  const totalPhases = WORKFLOW_STAGES.length
   const completedPhases = room.stages.filter((stage: any) => 
     stage.status === 'COMPLETED'
   ).length
@@ -164,39 +173,29 @@ function processRoomData(room: any) {
     .flatMap((stage: any) => stage.renderingVersions)
     .filter((version: any) => version.clientApprovalVersion?.clientDecision === 'APPROVED')
 
+  // Create dynamic phases based on actual database stages
+  const phases = WORKFLOW_STAGES.map(workflowStage => {
+    // Try to find a stage by primary type or alternate types
+    const dbStage = room.stages.find((stage: any) => {
+      return stage.type === workflowStage.type || 
+             workflowStage.alternateTypes.includes(stage.type)
+    })
+    
+    return {
+      name: workflowStage.name,
+      status: dbStage ? mapStageStatus(dbStage.status) : 'PENDING',
+      completedAt: dbStage?.completedAt || null,
+      startedAt: dbStage?.startedAt || null
+    }
+  })
+
   return {
     id: room.id,
     name: room.name,
     type: room.type,
     status: room.status,
     progress,
-    phases: [
-      {
-        name: 'Design Concept',
-        status: getPhaseStatus(room.stages, 'DESIGN_CONCEPT'),
-        completedAt: getPhaseCompletedAt(room.stages, 'DESIGN_CONCEPT')
-      },
-      {
-        name: '3D Rendering',
-        status: getPhaseStatus(room.stages, 'THREE_D'),
-        completedAt: getPhaseCompletedAt(room.stages, 'THREE_D')
-      },
-      {
-        name: 'Client Approval',
-        status: getPhaseStatus(room.stages, 'CLIENT_APPROVAL'),
-        completedAt: getPhaseCompletedAt(room.stages, 'CLIENT_APPROVAL')
-      },
-      {
-        name: 'Drawings',
-        status: getPhaseStatus(room.stages, 'DRAWINGS'),
-        completedAt: getPhaseCompletedAt(room.stages, 'DRAWINGS')
-      },
-      {
-        name: 'FFE',
-        status: getPhaseStatus(room.stages, 'FFE'),
-        completedAt: getPhaseCompletedAt(room.stages, 'FFE')
-      }
-    ],
+    phases,
     approvedRenderings: approvedRenderings.map((version: any) => ({
       id: version.id,
       version: version.version,
@@ -215,23 +214,16 @@ function processRoomData(room: any) {
   }
 }
 
-// Helper function to get phase status
-function getPhaseStatus(stages: any[], stageType: string) {
-  const stage = stages.find(s => s.type === stageType)
-  if (!stage) return 'PENDING'
-  
-  switch (stage.status) {
+// Helper function to map database stage status to client-friendly status
+function mapStageStatus(dbStatus: string): 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' {
+  switch (dbStatus) {
     case 'COMPLETED':
       return 'COMPLETED'
     case 'IN_PROGRESS':
+    case 'NEEDS_ATTENTION':
       return 'IN_PROGRESS'
+    case 'NOT_STARTED':
     default:
       return 'PENDING'
   }
-}
-
-// Helper function to get phase completion date
-function getPhaseCompletedAt(stages: any[], stageType: string) {
-  const stage = stages.find(s => s.type === stageType)
-  return stage?.completedAt || null
 }

@@ -22,7 +22,7 @@ export async function POST(
     }
 
     const data = await request.json()
-    const { sectionId, content, mentions = [] } = data
+    const { sectionId, sectionType, content, mentions = [] } = data
 
     // Verify stage access
     const stage = await prisma.stage.findFirst({
@@ -35,6 +35,7 @@ export async function POST(
         }
       },
       include: {
+        designSections: true,
         room: {
           include: {
             project: true
@@ -47,6 +48,23 @@ export async function POST(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
+    // Find or create design section if sectionType is provided
+    let designSectionId = sectionId
+    if (sectionType && !sectionId) {
+      let designSection = stage.designSections?.find(section => section.type === sectionType)
+      
+      if (!designSection) {
+        designSection = await prisma.designSection.create({
+          data: {
+            stageId: stage.id,
+            type: sectionType as any,
+            content: ''
+          }
+        })
+      }
+      designSectionId = designSection.id
+    }
+
     // Create comment
     const comment = await prisma.comment.create({
       data: {
@@ -55,7 +73,7 @@ export async function POST(
         projectId: stage.room?.project?.id || stage.room.projectId,
         roomId: stage.room.id,
         stageId: stage.id,
-        sectionId,
+        sectionId: designSectionId,
         mentions: mentions.length > 0 ? JSON.stringify(mentions) : null
       },
       include: {

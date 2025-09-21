@@ -100,9 +100,20 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Flatten all comments from all sections
+  // Flatten all comments from all sections and transform data
   const allComments = sections.reduce<Comment[]>((acc, section) => {
-    return [...acc, ...section.comments.map(comment => ({ ...comment, sectionType: section.type }))]
+    const transformedComments = section.comments.map(comment => ({
+      ...comment,
+      sectionType: section.type,
+      // Transform database structure to expected format
+      isPinned: !!comment.commentPin,
+      likes: comment.commentLikes?.length || 0,
+      isLiked: false, // Simplified for now
+      replies: [], // TODO: Implement threaded comments if needed
+      mentions: comment.mentions ? JSON.parse(comment.mentions) : [],
+      tags: comment.commentTags?.map((ct: any) => ct.tag) || []
+    }))
+    return [...acc, ...transformedComments]
   }, [])
 
   // Build threaded comments structure
@@ -174,14 +185,13 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
     if (!newMessage.trim()) return
 
     const messageData = {
+      sectionType: selectedSection !== 'all' ? selectedSection : 'GENERAL',
       content: newMessage.trim(),
-      stageId,
-      parentId: replyingTo,
-      sectionType: selectedSection !== 'all' ? selectedSection : 'GENERAL'
+      mentions: [] // Extract mentions from content if needed
     }
 
     try {
-      const response = await fetch('/api/design/comments', {
+      const response = await fetch(`/api/stages/${stageId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(messageData)
@@ -204,10 +214,9 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
   // Handle comment interactions
   const handleLikeComment = async (commentId: string) => {
     try {
-      const response = await fetch('/api/design/comments/like', {
+      const response = await fetch(`/api/comments/${commentId}/like`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commentId })
+        headers: { 'Content-Type': 'application/json' }
       })
 
       if (response.ok) {
@@ -220,10 +229,10 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
 
   const handlePinComment = async (commentId: string, isPinned: boolean) => {
     try {
-      const response = await fetch('/api/design/comments/pin', {
+      const response = await fetch(`/api/comments/${commentId}/pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commentId, isPinned: !isPinned })
+        body: JSON.stringify({ isPinned: !isPinned })
       })
 
       if (response.ok) {
@@ -239,7 +248,7 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
     if (!confirm('Are you sure you want to delete this comment?')) return
 
     try {
-      const response = await fetch(`/api/design/comments/${commentId}`, {
+      const response = await fetch(`/api/comments/${commentId}`, {
         method: 'DELETE'
       })
 
@@ -267,11 +276,10 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
     if (!editingComment || !editContent.trim()) return
 
     try {
-      const response = await fetch('/api/design/comments', {
+      const response = await fetch(`/api/comments/${editingComment}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          commentId: editingComment,
           content: editContent.trim()
         })
       })

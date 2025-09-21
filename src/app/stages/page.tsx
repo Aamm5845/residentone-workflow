@@ -31,7 +31,9 @@ export default async function Stages({ searchParams }: { searchParams: { status?
   }
 
   if (statusFilter === 'active') {
-    whereClause.status = 'IN_PROGRESS'
+    whereClause.status = {
+      in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION', 'PENDING_APPROVAL', 'REVISION_REQUESTED']
+    }
   }
 
   // Fetch stages from database

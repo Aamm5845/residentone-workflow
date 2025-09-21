@@ -96,6 +96,7 @@ model User {
   comments                   Comment[]
   commentPins                CommentPin[]             @relation("UserCommentPins")
   commentTags                CommentTag[]             @relation("UserCommentTags")
+  commentLikes               CommentLike[]            @relation("UserCommentLikes")
   completedSections          DesignSection[]          @relation("CompletedByUserSection")
   createdSections            DesignSection[]          @relation("CreatedByUserSection")
   updatedSections            DesignSection[]          @relation("UpdatedByUserSection")
@@ -351,6 +352,18 @@ model CommentPin {
   @@index([commentId])
 }
 
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserCommentLikes", fields: [userId], references: [id])
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
+
 model ChecklistItem {
   id            String        @id @default(cuid())
   sectionId     String
@@ -509,6 +522,7 @@ model Comment {
   stage       Stage?         @relation(fields: [stageId], references: [id], onDelete: Cascade)
   commentPin  CommentPin?
   commentTags CommentTag[]
+  commentLikes CommentLike[]
 }
 
 model Asset {

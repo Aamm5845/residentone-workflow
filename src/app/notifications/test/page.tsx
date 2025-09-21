@@ -9,8 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications, NotificationTypes } from '@/hooks/useNotifications'
 import { 
-  notifyTaskAssignment,
-  notifyTaskCompletion,
+  notifyStageAssignment,
+  notifyStageCompletion,
   notifyProjectUpdate,
   notifyDeadlineReminder,
   notifyMessage
@@ -25,7 +25,7 @@ export default function NotificationTestPage() {
   
   // Form states for manual notification creation
   const [notificationForm, setNotificationForm] = useState({
-    type: NotificationTypes.TASK_ASSIGNMENT,
+    type: NotificationTypes.STAGE_ASSIGNED,
     title: '',
     message: '',
     relatedId: '',
@@ -62,7 +62,7 @@ export default function NotificationTestPage() {
       if (response.ok) {
         toast.success('Notification created successfully!')
         setNotificationForm({
-          type: NotificationTypes.TASK_ASSIGNMENT,
+          type: NotificationTypes.STAGE_ASSIGNED,
           title: '',
           message: '',
           relatedId: '',
@@ -81,18 +81,19 @@ export default function NotificationTestPage() {
     }
   }
 
-  const createSampleTaskAssignment = async () => {
+  const createSampleStageAssignment = async () => {
     setLoading(true)
     try {
-      await notifyTaskAssignment({
+      await notifyStageAssignment({
         assigneeId: session.user.id,
         assignerName: 'Test Manager',
-        taskTitle: 'Create bedroom design concept',
+        stageType: 'Design Concept',
         projectName: 'Luxury Penthouse Redesign',
-        taskId: 'task-123',
+        roomName: 'Master Bedroom',
+        stageId: 'stage-123',
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
       })
-      toast.success('Task assignment notification created!')
+      toast.success('Stage assignment notification created!')
       fetchNotifications()
     } catch (error) {
       toast.error('Failed to create notification')
@@ -101,17 +102,18 @@ export default function NotificationTestPage() {
     }
   }
 
-  const createSampleTaskCompletion = async () => {
+  const createSampleStageCompletion = async () => {
     setLoading(true)
     try {
-      await notifyTaskCompletion({
+      await notifyStageCompletion({
         notifyUserId: session.user.id,
         completedByName: 'Jane Designer',
-        taskTitle: 'Living room color palette',
+        stageType: 'Design Phase',
         projectName: 'Downtown Loft Project',
-        taskId: 'task-456'
+        roomName: 'Living Room',
+        stageId: 'stage-456'
       })
-      toast.success('Task completion notification created!')
+      toast.success('Stage completion notification created!')
       fetchNotifications()
     } catch (error) {
       toast.error('Failed to create notification')
@@ -144,10 +146,11 @@ export default function NotificationTestPage() {
     try {
       await notifyDeadlineReminder({
         userId: session.user.id,
-        taskTitle: 'Final presentation prep',
+        stageType: 'Final Presentation',
         projectName: 'Executive Conference Room',
+        roomName: 'Main Conference Room',
         dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-        taskId: 'task-999'
+        stageId: 'stage-999'
       })
       toast.success('Deadline reminder notification created!')
       fetchNotifications()
@@ -219,18 +222,18 @@ export default function NotificationTestPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Button 
-                onClick={createSampleTaskAssignment} 
+                onClick={createSampleStageAssignment} 
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                📋 Task Assignment
+                📋 Stage Assignment
               </Button>
               <Button 
-                onClick={createSampleTaskCompletion} 
+                onClick={createSampleStageCompletion} 
                 disabled={loading}
                 className="bg-green-600 hover:bg-green-700"
               >
-                ✅ Task Completion
+                ✅ Stage Completion
               </Button>
               <Button 
                 onClick={createSampleProjectUpdate} 

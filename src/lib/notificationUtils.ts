@@ -32,55 +32,59 @@ export async function createNotification(params: CreateNotificationParams) {
   }
 }
 
-// Task assignment notification
-export async function notifyTaskAssignment({
+// Stage assignment notification
+export async function notifyStageAssignment({
   assigneeId,
   assignerName,
-  taskTitle,
+  stageType,
   projectName,
-  taskId,
+  roomName,
+  stageId,
   dueDate
 }: {
   assigneeId: string
   assignerName: string
-  taskTitle: string
+  stageType: string
   projectName: string
-  taskId: string
+  roomName: string
+  stageId: string
   dueDate?: string
 }) {
   const dueDateText = dueDate ? ` (due ${new Date(dueDate).toLocaleDateString()})` : ''
   
   return createNotification({
     userId: assigneeId,
-    type: NotificationTypes.TASK_ASSIGNMENT,
-    title: 'New Task Assigned',
-    message: `${assignerName} assigned you "${taskTitle}" in ${projectName}${dueDateText}`,
-    relatedId: taskId,
-    relatedType: 'TASK'
+    type: NotificationTypes.STAGE_ASSIGNED,
+    title: 'New Stage Assigned',
+    message: `${assignerName} assigned you ${stageType} for ${roomName} in ${projectName}${dueDateText}`,
+    relatedId: stageId,
+    relatedType: 'STAGE'
   })
 }
 
-// Task completion notification (notify project manager/client)
-export async function notifyTaskCompletion({
+// Stage completion notification
+export async function notifyStageCompletion({
   notifyUserId,
   completedByName,
-  taskTitle,
+  stageType,
   projectName,
-  taskId
+  roomName,
+  stageId
 }: {
   notifyUserId: string
   completedByName: string
-  taskTitle: string
+  stageType: string
   projectName: string
-  taskId: string
+  roomName: string
+  stageId: string
 }) {
   return createNotification({
     userId: notifyUserId,
-    type: NotificationTypes.TASK_COMPLETION,
-    title: 'Task Completed',
-    message: `${completedByName} completed "${taskTitle}" in ${projectName}`,
-    relatedId: taskId,
-    relatedType: 'TASK'
+    type: NotificationTypes.STAGE_COMPLETED,
+    title: 'Stage Completed',
+    message: `${completedByName} completed ${stageType} for ${roomName} in ${projectName}`,
+    relatedId: stageId,
+    relatedType: 'STAGE'
   })
 }
 
@@ -111,16 +115,18 @@ export async function notifyProjectUpdate({
 // Deadline reminder notification
 export async function notifyDeadlineReminder({
   userId,
-  taskTitle,
+  stageType,
   projectName,
+  roomName,
   dueDate,
-  taskId
+  stageId
 }: {
   userId: string
-  taskTitle: string
+  stageType: string
   projectName: string
+  roomName: string
   dueDate: string
-  taskId: string
+  stageId: string
 }) {
   const daysUntilDue = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   const timeText = daysUntilDue === 0 ? 'today' : 
@@ -129,15 +135,15 @@ export async function notifyDeadlineReminder({
   
   return createNotification({
     userId,
-    type: NotificationTypes.DEADLINE_REMINDER,
+    type: NotificationTypes.DUE_DATE_REMINDER,
     title: 'Deadline Reminder',
-    message: `"${taskTitle}" in ${projectName} is due ${timeText}`,
-    relatedId: taskId,
-    relatedType: 'TASK'
+    message: `${stageType} for ${roomName} in ${projectName} is due ${timeText}`,
+    relatedId: stageId,
+    relatedType: 'STAGE'
   })
 }
 
-// Message/comment notification
+// Message/comment notification (using project update type as closest match)
 export async function notifyMessage({
   userId,
   senderName,
@@ -155,7 +161,7 @@ export async function notifyMessage({
 }) {
   return createNotification({
     userId,
-    type: NotificationTypes.MESSAGE,
+    type: NotificationTypes.PROJECT_UPDATE,
     title: 'New Message',
     message: `${senderName} commented in ${contextTitle}: "${messagePreview}"`,
     relatedId,
@@ -189,57 +195,6 @@ export async function notifyMention({
   })
 }
 
-// Approval request notification
-export async function notifyApprovalRequest({
-  approverId,
-  requesterName,
-  itemTitle,
-  itemType,
-  relatedId
-}: {
-  approverId: string
-  requesterName: string
-  itemTitle: string
-  itemType: string
-  relatedId: string
-}) {
-  return createNotification({
-    userId: approverId,
-    type: NotificationTypes.APPROVAL_REQUEST,
-    title: 'Approval Requested',
-    message: `${requesterName} requested approval for ${itemType}: "${itemTitle}"`,
-    relatedId,
-    relatedType: itemType.toUpperCase()
-  })
-}
-
-// Approval response notification
-export async function notifyApprovalResponse({
-  requesterId,
-  approverName,
-  itemTitle,
-  approved,
-  relatedId,
-  relatedType
-}: {
-  requesterId: string
-  approverName: string
-  itemTitle: string
-  approved: boolean
-  relatedId: string
-  relatedType: string
-}) {
-  const action = approved ? 'approved' : 'rejected'
-  
-  return createNotification({
-    userId: requesterId,
-    type: NotificationTypes.APPROVAL_RESPONSE,
-    title: `Request ${approved ? 'Approved' : 'Rejected'}`,
-    message: `${approverName} ${action} "${itemTitle}"`,
-    relatedId,
-    relatedType
-  })
-}
 
 // Batch create notifications for multiple users
 export async function createBatchNotifications(notifications: CreateNotificationParams[]) {

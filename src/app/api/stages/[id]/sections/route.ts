@@ -47,6 +47,19 @@ export async function GET(
               include: {
                 author: {
                   select: { id: true, name: true, role: true }
+                },
+                commentPin: {
+                  select: { userId: true }
+                },
+                commentLikes: {
+                  select: { userId: true }
+                },
+                commentTags: {
+                  include: {
+                    tag: {
+                      select: { id: true, name: true, color: true }
+                    }
+                  }
                 }
               },
               orderBy: { createdAt: 'desc' }
