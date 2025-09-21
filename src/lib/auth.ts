@@ -1,9 +1,9 @@
 import NextAuth, { NextAuthOptions, getServerSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from '@/lib/prisma'
+import { prisma } from "@/lib/prisma"
 import type { Session } from "next-auth"
 
-// ✅ Define and export authOptions
+// ✅ Export authOptions so other files can import it
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -14,6 +14,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email) return null
+
         try {
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
@@ -29,28 +30,26 @@ export const authOptions: NextAuthOptions = {
             orgId: user.orgId,
             orgName: user.organization?.name
           }
-        } catch (error) {
-          console.warn("Error in authorize:", error)
+        } catch (err) {
+          console.warn("Prisma authorize error:", err)
           return null
         }
       }
     })
   ],
-  session: {
-    strategy: "jwt"
-  }
+  session: { strategy: "jwt" }
 }
 
+// ✅ Required for NextAuth API route
 export default NextAuth(authOptions)
 
-// ✅ getSession wrapper with your fallback logic
+// ✅ getSession helper with fallback logic
 export async function getSession() {
   try {
     const session = (await getServerSession(authOptions)) as Session | null
 
     if (session?.user?.email) {
       try {
-        // Try to get user details from database
         const user = await prisma.user.findUnique({
           where: { email: session.user.email },
           include: { organization: true }
@@ -68,10 +67,8 @@ export async function getSession() {
             }
           }
         }
-      } catch (dbError) {
+      } catch {
         console.warn("Database unavailable, using fallback auth")
-
-        // Return enhanced session with fallback orgId when database fails
         return {
           ...session,
           user: {
@@ -91,12 +88,9 @@ export async function getSession() {
       }
     }
 
-    // No NextAuth session, return null
     return null
-  } catch (error) {
-    console.warn("NextAuth unavailable, checking for fallback auth")
-
-    // If NextAuth fails completely, create a mock session for fallback auth
+  } catch {
+    console.warn("NextAuth unavailable, returning mock fallback session")
     return {
       user: {
         id: "fallback-admin",
