@@ -10,6 +10,10 @@ import {
   getIPAddress,
   isValidAuthSession
 } from '@/lib/attribution'
+import { 
+  handleWorkflowTransition,
+  type WorkflowEvent
+} from '@/lib/phase-transitions'
 
 // POST /api/renderings/[versionId]/push-to-client - Push rendering version to client approval
 export async function POST(
@@ -126,18 +130,8 @@ export async function POST(
         clientApprovalAssets.push(clientApprovalAsset)
       }
 
-      // Automatically start the Client Approval stage if it's not started
-      let clientApprovalStageOpened = false
-      if (clientApprovalStage.status === 'NOT_STARTED') {
-        await tx.stage.update({
-          where: { id: clientApprovalStage.id },
-          data: withUpdateAttribution(session, {
-            status: 'IN_PROGRESS',
-            startedAt: new Date()
-          })
-        })
-        clientApprovalStageOpened = true
-      }
+      // The automatic stage transition will be handled by the phase transition utility
+      // after the transaction completes
 
       // Log activity for rendering version
       await logActivity({
@@ -188,10 +182,38 @@ export async function POST(
         clientApprovalVersion: {
           ...clientApprovalVersion,
           assets: clientApprovalAssets
-        },
-        clientApprovalStageOpened
+        }
       }
     })
+
+    // Handle automatic phase transition after successful push to client
+    try {
+      const workflowEvent: WorkflowEvent = {
+        type: 'RENDERING_PUSHED_TO_CLIENT',
+        roomId: renderingVersion.roomId,
+        stageType: 'THREE_D',
+        details: {
+          renderingVersionId: versionId,
+          version: renderingVersion.version,
+          assetCount: renderingVersion.assets.length
+        }
+      }
+      
+      const transitionResult = await handleWorkflowTransition(workflowEvent, session, ipAddress)
+      
+      if (transitionResult.transitionsTriggered.length > 0) {
+        console.log(`Phase transitions triggered by push-to-client:`, transitionResult.transitionsTriggered)
+        // Add transition info to the response
+        result.phaseTransitions = transitionResult.transitionsTriggered
+      }
+      
+      if (transitionResult.errors.length > 0) {
+        console.error('Phase transition errors:', transitionResult.errors)
+      }
+    } catch (transitionError) {
+      console.error('Error handling phase transitions:', transitionError)
+      // Don't fail the main operation if transitions fail
+    }
 
     return NextResponse.json(result, { status: 201 })
   } catch (error) {

@@ -284,14 +284,24 @@ export default function RenderingWorkspace({
 
       if (response.ok) {
         const result = await response.json()
-        await fetchRenderingVersions()
         
-        // Check if Client Approval stage was opened
-        if (result.clientApprovalStageOpened) {
-          alert('🎉 Successfully pushed to Client Approval!\n\n✅ The Client Approval phase has been automatically opened and is ready for processing.\n\n👉 You can now navigate to the Client Approval workspace to manage approvals and send to clients.')
+        // Show success message with phase transition info
+        let message = '🎉 Successfully pushed to Client Approval!'
+        
+        if (result.phaseTransitions && result.phaseTransitions.length > 0) {
+          message += '\n\n✅ The Client Approval phase has been automatically started and is ready for processing.'
         } else {
-          alert('✅ Successfully pushed to Client Approval!\n\nVersion is now available in the Client Approval workspace. The Client Approval phase was already active.')
+          message += '\n\n✅ Version is now available in the Client Approval workspace.'
         }
+        
+        message += '\n\n👉 The page will refresh to show the updated phase status.'
+        
+        alert(message)
+        
+        // Force page refresh to ensure phase status is updated throughout the UI
+        // This is especially important because the push-to-client triggers automatic
+        // phase transitions that need to be reflected in the room phase board
+        window.location.reload()
       } else {
         const error = await response.json()
         alert(`Failed to push to client: ${error.error}`)

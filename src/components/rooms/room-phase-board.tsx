@@ -66,14 +66,18 @@ export default function RoomPhaseBoard({
             body: JSON.stringify({ action: 'start' })
           })
           
-          if (!response.ok) throw new Error('Failed to start phase')
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to start phase')
+          }
           
-          // Refresh the page to show updated state
-          router.refresh()
+          // Force a hard refresh to ensure all phase statuses are updated
+          // This is important because starting one phase might trigger other phase transitions
+          window.location.reload()
         }
       } catch (error) {
         console.error('Error starting phase:', error)
-        alert('Failed to start phase. Please try again.')
+        alert(`Failed to start phase: ${error instanceof Error ? error.message : 'Unknown error'}`)
       } finally {
         setLoading(null)
       }
@@ -100,12 +104,17 @@ export default function RoomPhaseBoard({
         body: JSON.stringify({ action })
       })
       
-      if (!response.ok) throw new Error('Failed to update phase status')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update phase status')
+      }
       
-      router.refresh()
+      // Force a hard refresh to ensure all related phase transitions are reflected
+      // This is especially important when completing phases triggers other phase transitions
+      window.location.reload()
     } catch (error) {
       console.error('Error updating phase status:', error)
-      alert('Failed to update phase status. Please try again.')
+      alert(`Failed to update phase status: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(null)
     }
@@ -125,12 +134,16 @@ export default function RoomPhaseBoard({
         body: JSON.stringify({ action: 'assign', assignedTo: memberId })
       })
       
-      if (!response.ok) throw new Error('Failed to assign phase')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to assign phase')
+      }
       
+      // Refresh to show updated assignment
       router.refresh()
     } catch (error) {
       console.error('Error assigning phase:', error)
-      alert('Failed to assign phase. Please try again.')
+      alert(`Failed to assign phase: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(null)
       setSelectedPhaseForAssignment(null)
@@ -144,18 +157,25 @@ export default function RoomPhaseBoard({
         const phase = phases.find(p => p.id === phaseId)
         if (!phase?.stageId) return
         
-        return fetch(`/api/stages/${phase.stageId}`, {
+        const response = await fetch(`/api/stages/${phase.stageId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'assign', assignedTo: memberId })
         })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to assign ${phaseId}`)
+        }
+        
+        return response
       })
       
       await Promise.all(updatePromises)
       router.refresh()
     } catch (error) {
       console.error('Error bulk assigning phases:', error)
-      alert('Failed to save assignments. Please try again.')
+      alert(`Failed to save assignments: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(null)
       setShowBulkAssignmentModal(false)

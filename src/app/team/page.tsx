@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
 import TeamManagementClient from '@/components/team/team-management-client'
-import ProductionBackup from '@/components/admin/ProductionBackup'
 import type { Session } from 'next-auth'
 
 export default async function TeamManagement() {
@@ -114,15 +113,6 @@ export default async function TeamManagement() {
           teamMembers={teamMembers}
           currentUser={session.user}
         />
-        
-        {/* Owner-only admin functions */}
-        {session.user.role === 'OWNER' && (
-          <div className="mt-8">
-            <div className="border-t border-gray-200 pt-6">
-              <ProductionBackup />
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   )

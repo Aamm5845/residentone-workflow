@@ -557,7 +557,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       </button>
                       
                       {openDropdown === member.id && (
-                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                           <div className="py-1">
                             <button
                               onClick={() => {
@@ -651,7 +651,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
       {/* Click outside handler */}
       {openDropdown && (
         <div
-          className="fixed inset-0 z-0"
+          className="fixed inset-0 z-40"
           onClick={() => setOpenDropdown(null)}
         />
       )}

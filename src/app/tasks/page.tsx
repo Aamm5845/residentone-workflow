@@ -314,6 +314,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                       </span>
                     </div>
                   </div>
+                  </div>
                 </Link>
               ))}
             </div>

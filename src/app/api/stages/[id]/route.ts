@@ -12,6 +12,10 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { 
+  handleWorkflowTransition,
+  type WorkflowEvent
+} from '@/lib/phase-transitions'
 
 export async function PATCH(
   request: NextRequest,
@@ -96,6 +100,9 @@ export async function PATCH(
         },
         completedBy: {
           select: { name: true, email: true }
+        },
+        room: {
+          select: { id: true }
         }
       }
     })
@@ -115,6 +122,31 @@ export async function PATCH(
       },
       ipAddress
     })
+    
+    // Handle automatic phase transitions when stages are completed
+    if (action === 'complete' && updatedStage.room) {
+      try {
+        const workflowEvent: WorkflowEvent = {
+          type: 'STAGE_COMPLETED',
+          roomId: updatedStage.room.id,
+          stageType: stage.type,
+          stageId: resolvedParams.id
+        }
+        
+        const transitionResult = await handleWorkflowTransition(workflowEvent, session, ipAddress)
+        
+        if (transitionResult.transitionsTriggered.length > 0) {
+          console.log(`Phase transitions triggered:`, transitionResult.transitionsTriggered)
+        }
+        
+        if (transitionResult.errors.length > 0) {
+          console.error('Phase transition errors:', transitionResult.errors)
+        }
+      } catch (transitionError) {
+        console.error('Error handling phase transitions:', transitionError)
+        // Don't fail the main operation if transitions fail
+      }
+    }
     
     return NextResponse.json(updatedStage)
   } catch (error) {

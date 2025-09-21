@@ -7,6 +7,7 @@ import ThreeDStage from './three-d-stage'
 import ClientApprovalStage from './client-approval-stage'
 import DrawingsStage from './drawings-stage'
 import FFEStage from './ffe-stage'
+import DesignConceptStage from './design-concept-stage'
 import { getStageName } from '@/constants/workflow'
 
 interface StageDetailClientProps {
@@ -165,8 +166,9 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
   // Render appropriate stage component based on stage type
   switch (stage.type) {
     case 'DESIGN':
+    case 'DESIGN_CONCEPT':
       return (
-        <DesignStage
+        <DesignConceptStage
           stage={stage}
           room={stage.room}
           project={stage.room.project}
