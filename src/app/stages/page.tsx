@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import type { Session } from 'next-auth'
 
-export default async function Stages({ searchParams }: { searchParams: { status?: string } }) {
+export default async function Stages({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const session = await getSession() as Session & {
     user: {
       id: string
@@ -21,7 +21,8 @@ export default async function Stages({ searchParams }: { searchParams: { status?
   }
 
   // Handle filtering based on query parameters
-  const statusFilter = searchParams.status
+  const resolvedSearchParams = await searchParams
+  const statusFilter = resolvedSearchParams.status
 
   // Build where clause based on filters
   const whereClause: any = {
@@ -31,9 +32,14 @@ export default async function Stages({ searchParams }: { searchParams: { status?
   }
 
   if (statusFilter === 'active') {
-    whereClause.status = {
-      in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION', 'PENDING_APPROVAL', 'REVISION_REQUESTED']
-    }
+    whereClause.status = 'IN_PROGRESS' // Only truly active stages
+  } else if (statusFilter === 'overdue') {
+    whereClause.status = { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+    whereClause.dueDate = { lt: new Date() }
+  } else if (statusFilter === 'pending') {
+    whereClause.status = { in: ['NOT_STARTED', 'PENDING_APPROVAL', 'REVISION_REQUESTED'] }
+  } else if (statusFilter === 'completed') {
+    whereClause.status = 'COMPLETED'
   }
 
   // Fetch stages from database
@@ -104,10 +110,13 @@ export default async function Stages({ searchParams }: { searchParams: { status?
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {statusFilter === 'active' ? 'Active Stages' : 'All Stages'}
+              {statusFilter === 'active' ? 'Active Stages' :
+               statusFilter === 'overdue' ? 'Overdue Stages' :
+               statusFilter === 'pending' ? 'Pending Stages' :
+               statusFilter === 'completed' ? 'Completed Stages' : 'All Stages'}
             </h1>
             <p className="text-gray-600 mt-1">
-              {stages.length} {statusFilter === 'active' ? 'active' : ''} stages
+              {stages.length} {statusFilter ? statusFilter : ''} stages
             </p>
             {statusFilter && (
               <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
@@ -211,12 +220,17 @@ export default async function Stages({ searchParams }: { searchParams: { status?
                 <Clock className="w-full h-full" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {statusFilter === 'active' ? 'No active stages' : 'No stages found'}
+                {statusFilter === 'active' ? 'No active stages' :
+                 statusFilter === 'overdue' ? 'No overdue stages' :
+                 statusFilter === 'pending' ? 'No pending stages' :
+                 statusFilter === 'completed' ? 'No completed stages' : 'No stages found'}
               </h3>
               <p className="text-gray-600 mb-6">
-                {statusFilter === 'active' 
-                  ? 'All stages are completed or on hold.'
-                  : 'Stages will appear here as projects are created.'}
+                {statusFilter === 'active' ? 'All stages are completed or on hold.' :
+                 statusFilter === 'overdue' ? 'Great! No stages are past their due date.' :
+                 statusFilter === 'pending' ? 'No stages are waiting to be started or approved.' :
+                 statusFilter === 'completed' ? 'No stages have been completed yet.' :
+                 'Stages will appear here as projects are created.'}
               </p>
               <Button asChild>
                 <Link href="/projects">
