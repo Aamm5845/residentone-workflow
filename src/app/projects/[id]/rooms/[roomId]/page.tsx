@@ -1,5 +1,5 @@
 import React from 'react'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'

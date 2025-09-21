@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { unlink } from 'fs/promises'
 import type { Session } from 'next-auth'

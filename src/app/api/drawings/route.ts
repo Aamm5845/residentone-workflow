@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/auth'
 
 // GET /api/drawings?stageId=<stageId>
 // Returns checklist items, assets grouped by category, and activity logs

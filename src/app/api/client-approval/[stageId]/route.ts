@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/client-approval/[stageId] - Get client approval data for a stage

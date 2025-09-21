@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import {
   getUserSessions,
   deactivateAllUserSessions,

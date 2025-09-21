@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import { v4 as uuidv4 } from 'uuid'
 import { uploadFile, generateFilePath, getContentType, isBlobConfigured, formatFileSize } from '@/lib/blob'
 import { writeFile, mkdir } from 'fs/promises'

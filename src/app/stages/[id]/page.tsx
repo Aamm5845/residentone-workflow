@@ -1,4 +1,4 @@
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
