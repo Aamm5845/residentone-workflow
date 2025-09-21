@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, User, Calendar, Box, Upload, MessageSquare, AlertTriangle, X, Image as ImageIcon } from 'lucide-react'
@@ -22,9 +22,42 @@ export default function ThreeDStage({
   onComplete,
   onUploadFile 
 }: ThreeDStageProps) {
-  const [uploadedAssets, setUploadedAssets] = useState(stage.assets?.filter((a: any) => a.type === 'RENDER') || [])
+  const [uploadedAssets, setUploadedAssets] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch all assets for this stage
+  const fetchStageAssets = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/stages/${stage.id}`)
+      if (response.ok) {
+        const stageData = await response.json()
+        // Get all assets from all design sections that have type RENDER or IMAGE
+        const allAssets: any[] = []
+        stageData.stage?.designSections?.forEach((section: any) => {
+          section.assets?.forEach((asset: any) => {
+            if (asset.type === 'RENDER' || asset.type === 'IMAGE') {
+              allAssets.push(asset)
+            }
+          })
+        })
+        // Sort by newest first
+        allAssets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setUploadedAssets(allAssets)
+      }
+    } catch (error) {
+      console.error('Error fetching stage assets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch assets on component mount
+  useEffect(() => {
+    fetchStageAssets()
+  }, [stage.id])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -56,11 +89,10 @@ export default function ThreeDStage({
         
         if (response.ok) {
           const result = await response.json()
-          // Update the uploaded assets with the real asset data
-          setUploadedAssets(prev => {
-            const filtered = prev.filter(a => a.id !== tempAsset.id)
-            return [...filtered, result.asset]
-          })
+          // Remove the temporary asset and refresh from server
+          setUploadedAssets(prev => prev.filter(a => a.id !== tempAsset.id))
+          // Refresh all assets to get the latest data
+          await fetchStageAssets()
         } else {
           // Remove temp asset on error
           setUploadedAssets(prev => prev.filter(a => a.id !== tempAsset.id))
@@ -106,6 +138,8 @@ export default function ThreeDStage({
       }
 
       console.log('✅ Asset deleted successfully:', assetToRemove.title)
+      // Refresh assets from server to ensure consistency
+      await fetchStageAssets()
     } catch (error) {
       console.error('❌ Failed to delete asset:', error)
       // Restore the asset on error
@@ -202,7 +236,22 @@ export default function ThreeDStage({
         </div>
 
         {/* Uploaded Assets Gallery */}
-        {uploadedAssets.length > 0 && (
+        {loading ? (
+          <div className="mb-8">
+            <h4 className="text-md font-semibold text-gray-900 mb-4">Loading Renderings...</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm animate-pulse">
+                  <div className="aspect-video bg-gray-200"></div>
+                  <div className="p-4">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : uploadedAssets.length > 0 ? (
           <div className="mb-8">
             <h4 className="text-md font-semibold text-gray-900 mb-4">
               Uploaded Renderings ({uploadedAssets.length})
@@ -211,7 +260,7 @@ export default function ThreeDStage({
               {uploadedAssets.map((asset) => (
                 <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm group">
                   <div className="aspect-video bg-gray-100 relative">
-                    {asset.type === 'RENDER' && asset.url && (
+                    {(asset.type === 'RENDER' || asset.type === 'IMAGE') && asset.url && (
                       <img
                         src={asset.url}
                         alt={asset.title}
@@ -241,6 +290,19 @@ export default function ThreeDStage({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mb-8">
+            <h4 className="text-md font-semibold text-gray-900 mb-4">No Renderings Yet</h4>
+            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
+              <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-700 mb-2">No renderings uploaded</h4>
+              <p className="text-sm text-gray-500 mb-4">Upload your 3D renderings and visualizations to get started</p>
+              <Button onClick={handleUploadClick} className="bg-blue-600 hover:bg-blue-700">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload First Rendering
+              </Button>
             </div>
           </div>
         )}
