@@ -90,7 +90,7 @@ export default async function Projects() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Projects</h1>
-            <p className="text-gray-600 mt-1">{projects.length} active projects</p>
+            <p className="text-gray-600 mt-1">{projects?.length || 0} active projects</p>
           </div>
           <div className="flex items-center space-x-3">
             <Button variant="outline" size="sm">
@@ -134,25 +134,25 @@ export default async function Projects() {
                 <option>Progress</option>
               </select>
             </div>
-            <div className="text-sm text-gray-500">{projects.length} projects</div>
+            <div className="text-sm text-gray-500">{projects?.length || 0} projects</div>
           </div>
 
           {/* Project Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {projects.map((project) => {
-              const completedStages = project.rooms.reduce((total: number, room: any) => {
-                return total + room.stages.filter((stage: any) => stage.status === 'COMPLETED').length
-              }, 0)
-              const totalStages = project.rooms.reduce((total: number, room: any) => {
-                return total + room.stages.length
-              }, 0)
+            {projects && projects.length > 0 && projects.map((project) => {
+              const completedStages = project.rooms?.reduce((total: number, room: any) => {
+                return total + (room.stages?.filter((stage: any) => stage.status === 'COMPLETED')?.length || 0)
+              }, 0) || 0
+              const totalStages = project.rooms?.reduce((total: number, room: any) => {
+                return total + (room.stages?.length || 0)
+              }, 0) || 0
               const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0
               
               // Get current phase based on active stages
               const getCurrentPhase = () => {
-                const activeStages = project.rooms.flatMap((room: any) => 
-                  room.stages.filter((stage: any) => stage.status === 'IN_PROGRESS')
-                )
+                const activeStages = project.rooms?.flatMap((room: any) => 
+                  room.stages?.filter((stage: any) => stage.status === 'IN_PROGRESS') || []
+                ) || []
                 if (activeStages.some((stage: any) => stage.type === 'DESIGN')) return { name: '🎨 Design', color: 'bg-purple-100 text-purple-800' }
                 if (activeStages.some((stage: any) => stage.type === 'THREE_D')) return { name: '🎥 3D Rendering', color: 'bg-blue-100 text-blue-800' }
                 if (activeStages.some((stage: any) => stage.type === 'CLIENT_APPROVAL')) return { name: '👥 Client Review', color: 'bg-green-100 text-green-800' }
@@ -219,24 +219,24 @@ export default async function Projects() {
                       
                       {/* Room Tags */}
                       <div className="flex flex-wrap gap-1.5 mb-3">
-                        {project.rooms.slice(0, 3).map((room: any) => (
+                        {project.rooms?.slice(0, 3).map((room: any) => (
                           <span 
                             key={room.id}
                             className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors"
                           >
                             {formatRoomType(room.type)}
                           </span>
-                        ))}
-                        {project.rooms.length > 3 && (
+                        )) || []}
+                        {(project.rooms?.length || 0) > 3 && (
                           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
-                            +{project.rooms.length - 3} more
+                            +{(project.rooms?.length || 0) - 3} more
                           </span>
                         )}
                       </div>
                       
                       {/* Meta Info */}
                       <div className="flex items-center justify-between text-sm text-gray-500 mt-auto">
-                        <span>{project.rooms.length} room{project.rooms.length !== 1 ? 's' : ''}</span>
+                        <span>{project.rooms?.length || 0} room{(project.rooms?.length || 0) !== 1 ? 's' : ''}</span>
                         <span>Updated {formatDate(project.updatedAt)}</span>
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default async function Projects() {
           </div>
 
           {/* Empty State */}
-          {projects.length === 0 && (
+          {(!projects || projects.length === 0) && (
             <div className="col-span-full">
               <div className="text-center py-12">
                 <div className="mx-auto h-24 w-24 text-gray-400 mb-4">

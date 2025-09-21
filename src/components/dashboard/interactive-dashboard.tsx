@@ -190,7 +190,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           <h2 className="text-lg font-semibold text-gray-900">My Tasks</h2>
           <div className="flex items-center space-x-3">
             <span className="text-sm text-gray-500">
-              {tasksData?.tasks.length || 0} active tasks
+              {tasksData?.tasks?.length || 0} active tasks
             </span>
             <Button
               variant="ghost"
@@ -225,7 +225,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
                 </div>
               ))}
             </div>
-          ) : tasksData?.tasks.length === 0 ? (
+          ) : !tasksData?.tasks || tasksData.tasks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No pending tasks assigned to you</p>
@@ -233,7 +233,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             </div>
           ) : (
             <div className="space-y-4">
-              {tasksData?.tasks.map((task) => (
+              {tasksData.tasks.map((task) => (
                 <TaskItem key={task.id} task={task} />
               ))}
             </div>
