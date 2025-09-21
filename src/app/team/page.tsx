@@ -21,10 +21,8 @@ export default async function TeamManagement() {
     redirect('/auth/signin')
   }
 
-  // Only allow OWNER and ADMIN to access team management
-  if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
-    redirect('/dashboard')
-  }
+  // Allow all authenticated users to view team page
+  // Management actions are still restricted in the component
 
   // Fetch team members with fallback
   let teamMembers: any[] = []
@@ -105,9 +103,14 @@ export default async function TeamManagement() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {['OWNER', 'ADMIN'].includes(session.user.role) ? 'Team Management' : 'Team Directory'}
+            </h1>
             <p className="text-gray-600 mt-1">
-              Manage team members, roles, and assignments
+              {['OWNER', 'ADMIN'].includes(session.user.role) 
+                ? 'Manage team members, roles, and assignments'
+                : 'View your team members and their roles'
+              }
             </p>
           </div>
           

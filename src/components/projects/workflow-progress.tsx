@@ -33,7 +33,16 @@ export default function WorkflowProgress({ projectId, stageStats, rooms }: Workf
   const getStagesWithStatus = (stageType: string, status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED') => {
     return rooms.flatMap(room => 
       room.stages
-        .filter((stage: any) => stage.type === stageType && stage.status === status)
+        .filter((stage: any) => {
+          // Handle both new and legacy stage types
+          if (stageType === 'DESIGN_CONCEPT') {
+            return (stage.type === 'DESIGN_CONCEPT' || stage.type === 'DESIGN') && stage.status === status
+          }
+          if (stageType === 'THREE_D') {
+            return (stage.type === 'THREE_D' || stage.type === 'RENDERING') && stage.status === status
+          }
+          return stage.type === stageType && stage.status === status
+        })
         .map((stage: any) => ({
           ...stage,
           roomName: room.name || room.type.replace('_', ' '),
@@ -114,8 +123,10 @@ export default function WorkflowProgress({ projectId, stageStats, rooms }: Workf
   // Helper to get stats key for each stage type
   const getStatsKey = (stageType: string) => {
     switch (stageType) {
-      case 'DESIGN_CONCEPT': return 'designConcept'
-      case 'THREE_D': return 'threeD'
+      case 'DESIGN_CONCEPT':
+      case 'DESIGN': return 'designConcept'
+      case 'THREE_D':
+      case 'RENDERING': return 'threeD'
       case 'CLIENT_APPROVAL': return 'clientApproval'
       case 'DRAWINGS': return 'drawings'
       case 'FFE': return 'ffe'

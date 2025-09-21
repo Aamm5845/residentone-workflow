@@ -216,17 +216,30 @@ export default function RoomManagement({
               {room.stages.filter(stage => 
                 WORKFLOW_STAGES.includes(stage.type as any)
               ).map((stage, index) => {
-                const stageConfig = getStageConfig(stage.type)
+                // Map stage type for backwards compatibility
+                let mappedStageType = stage.type
+                if (stage.type === 'DESIGN') mappedStageType = 'DESIGN_CONCEPT'
+                if (stage.type === 'RENDERING') mappedStageType = 'THREE_D'
+                
+                const stageConfig = getStageConfig(mappedStageType)
                 const status = stage.status as StageStatus
                 const isActive = status === 'IN_PROGRESS'
                 const isCompleted = status === 'COMPLETED'
                 const canStart = status === 'NOT_STARTED' // Allow any phase to start independently
+                
+                console.log('🏠 Room stage debug:', { 
+                  originalType: stage.type, 
+                  mappedType: mappedStageType, 
+                  stageId: stage.id, 
+                  status,
+                  canStart 
+                })
 
                 return (
                   <div 
                     key={stage.id}
                     className={`p-5 rounded-xl transition-all duration-300 hover:shadow-lg group ${
-                      getStageStatusColor(stage.type, status)
+                      getStageStatusColor(mappedStageType, status)
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -246,7 +259,7 @@ export default function RoomManagement({
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <h5 className={`font-semibold text-lg ${
-                              getStageStatusTextColor(stage.type, status)
+                              getStageStatusTextColor(mappedStageType, status)
                             }`}>{stageConfig.name}</h5>
                             <div className={`px-2 py-1 rounded-full text-xs font-bold ${
                               isCompleted ? 'bg-green-100 text-green-800' :

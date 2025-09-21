@@ -17,13 +17,16 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   const [error, setError] = useState<string | null>(null)
 
   const handleStartPhase = async (stageId: string, stageType: string) => {
+    console.log('🔄 handleStartPhase called:', { stageId, stageType })
     setError(null)
     try {
+      console.log('🏁 About to call startStage...')
       await startStage(stageId)
+      console.log('✅ startStage completed successfully')
       // SWR will automatically update the UI without page reload
     } catch (error) {
+      console.error('❌ handleStartPhase error:', error)
       setError(`Failed to start ${stageType} phase. Please try again.`)
-      console.error('Error starting stage:', error)
     }
   }
 
@@ -44,12 +47,35 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
       <div className="flex space-x-4 overflow-x-auto pb-4">
       {WORKFLOW_STAGES.map((stageType) => {
         const stageConfig = getStageConfig(stageType)
-        const phaseStage = room.stages.find((s: any) => s.type === stageType)
+        
+        // Find stage with fallback for legacy stage types
+        let phaseStage = room.stages.find((s: any) => s.type === stageType)
+        if (!phaseStage && stageType === 'DESIGN_CONCEPT') {
+          // Fallback: also look for old 'DESIGN' type
+          phaseStage = room.stages.find((s: any) => s.type === 'DESIGN')
+        }
+        if (!phaseStage && stageType === 'THREE_D') {
+          // Fallback: also look for old 'RENDERING' type
+          phaseStage = room.stages.find((s: any) => s.type === 'RENDERING')
+        }
+        
         const status = phaseStage?.status as StageStatus || 'NOT_STARTED'
         const isCompleted = status === 'COMPLETED'
         const isActive = status === 'IN_PROGRESS'
         const canStart = status === 'NOT_STARTED'
         const isStarting = isLoading === phaseStage?.id
+        
+        // Debug logging
+        if (stageType === 'DESIGN_CONCEPT') {
+          console.log('🔍 DESIGN_CONCEPT stage debug:', { 
+            stageType, 
+            phaseStage, 
+            allStages: room.stages.map((s: any) => ({ id: s.id, type: s.type, status: s.status })), 
+            status, 
+            canStart, 
+            isStarting 
+          })
+        }
         
         return (
           <div key={stageType} className="flex-shrink-0 w-72 group">
@@ -133,7 +159,10 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                       className={`w-full text-white font-semibold ${
                         stageConfig.baseColor
                       } hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 shadow-md`}
-                      onClick={() => handleStartPhase(phaseStage.id, stageType)}
+                      onClick={() => {
+                        console.log('💆 Button clicked!', { phaseStageId: phaseStage.id, stageType, canStart, isStarting })
+                        handleStartPhase(phaseStage.id, stageType)
+                      }}
                       disabled={isStarting}
                     >
                       {isStarting ? (

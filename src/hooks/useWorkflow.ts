@@ -11,26 +11,35 @@ export function useStageActions() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
 
   const startStage = async (stageId: string) => {
+    console.log('🚀 Starting stage:', stageId)
     setIsLoading(stageId)
     try {
+      const requestBody = { action: 'start' }
+      console.log('📤 Request body:', requestBody)
+      
       const response = await fetch(`/api/stages/${stageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' })
+        body: JSON.stringify(requestBody)
       })
-
+      
+      console.log('📥 Response status:', response.status)
+      
       if (response.ok) {
         const updatedStage = await response.json()
+        console.log('✅ Stage started successfully:', updatedStage.id, updatedStage.status)
         
         // Mutate all related SWR caches
         mutate((key) => typeof key === 'string' && key.includes('/api/'), undefined, { revalidate: true })
         
         return updatedStage
       } else {
-        throw new Error('Failed to start stage')
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, errorText)
+        throw new Error(`Failed to start stage: ${response.status} - ${errorText}`)
       }
     } catch (error) {
-      console.error('Error starting stage:', error)
+      console.error('💥 Error starting stage:', error)
       throw error
     } finally {
       setIsLoading(null)

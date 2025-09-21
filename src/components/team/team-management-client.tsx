@@ -471,7 +471,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{position: 'relative', zIndex: 1}}>
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">Team Members</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -479,7 +479,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
         </p>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" style={{overflowY: 'visible'}}>
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -551,7 +551,11 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                     <div className="relative">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
-                        className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100"
+                        className={`p-2 rounded-full transition-colors ${
+                          openDropdown === member.id 
+                            ? 'text-gray-600 bg-gray-100' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        }`}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </button>
@@ -563,7 +567,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                             className="fixed inset-0 z-40" 
                             onClick={() => setOpenDropdown(null)}
                           />
-                          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 animate-in fade-in slide-in-from-top-1 duration-200" style={{minWidth: '224px', transform: 'translateX(-8px)'}}>
                             <div className="py-1">
                               <button
                                 onClick={() => {
