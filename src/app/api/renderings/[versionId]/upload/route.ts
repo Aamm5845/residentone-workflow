@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { uploadToDropbox } from '@/lib/cloud-storage'
+import { uploadFile, generateFilePath, getContentType } from '@/lib/blob'
 import { 
   withCreateAttribution,
   logActivity,
@@ -80,24 +80,25 @@ export async function POST(
       }
 
       try {
-        // Generate Dropbox path: /projects/{projectId}/rooms/{roomId}/renderings/{version}/{filename}
+        // Generate structured path for Vercel Blob storage
         const projectId = renderingVersion.room.project.id
         const roomId = renderingVersion.room.id
         const version = renderingVersion.version.toLowerCase()
         const timestamp = Date.now()
-        const fileExtension = file.name.split('.').pop()
         const filename = `${timestamp}-${file.name}`
-        const dropboxPath = `/projects/${projectId}/rooms/${roomId}/renderings/${version}/${filename}`
+        const blobPath = `projects/${projectId}/rooms/${roomId}/renderings/${version}/${filename}`
 
-        // Upload to Dropbox
-        const uploadResult = await uploadToDropbox(file, dropboxPath)
-        
-        if (!uploadResult.success) {
-          console.error('Dropbox upload failed:', uploadResult.error)
-          return NextResponse.json({ 
-            error: `Failed to upload ${file.name}: ${uploadResult.error}` 
-          }, { status: 500 })
-        }
+        // Upload to Vercel Blob
+        const uploadResult = await uploadFile(file, blobPath, {
+          filename: file.name,
+          contentType: getContentType(file.name),
+          metadata: {
+            originalName: file.name,
+            version: renderingVersion.version,
+            projectId,
+            roomId
+          }
+        })
 
         // Determine asset type
         let assetType = 'OTHER'
@@ -114,11 +115,12 @@ export async function POST(
             filename: file.name,
             url: uploadResult.url,
             type: assetType,
-            size: file.size,
-            mimeType: file.type,
-            provider: 'dropbox',
+            size: uploadResult.size || file.size,
+            mimeType: uploadResult.contentType || file.type,
+            provider: 'vercel-blob',
             metadata: JSON.stringify({
-              dropboxPath,
+              blobPath,
+              pathname: uploadResult.pathname,
               originalName: file.name,
               uploadedToVersion: renderingVersion.version
             }),
