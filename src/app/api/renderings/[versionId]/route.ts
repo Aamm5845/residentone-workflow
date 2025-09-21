@@ -249,12 +249,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Rendering version not found' }, { status: 404 })
     }
 
-    // Check if version is pushed to client
-    if (renderingVersion.status === 'PUSHED_TO_CLIENT' || renderingVersion.clientApprovalVersion) {
-      return NextResponse.json({ 
-        error: 'Cannot delete version after pushing to client approval' 
-      }, { status: 403 })
-    }
+    // Note: We allow deletion of pushed versions, but with appropriate warnings in the UI
+    // The delete confirmation should be more explicit for pushed versions
 
     // Delete the rendering version (will cascade to assets and notes)
     await prisma.renderingVersion.delete({

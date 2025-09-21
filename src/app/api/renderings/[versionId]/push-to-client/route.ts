@@ -101,14 +101,14 @@ export async function POST(
 
       // Create ClientApprovalVersion
       const clientApprovalVersion = await tx.clientApprovalVersion.create({
-        data: withCreateAttribution(session, {
+        data: {
           stageId: clientApprovalStage.id,
           renderingVersionId: versionId,
           version: renderingVersion.version,
           status: 'DRAFT',
           approvedByAaron: false,
           clientDecision: 'PENDING'
-        })
+        }
       })
 
       // Create ClientApprovalAsset entries for each rendering asset
@@ -158,6 +158,16 @@ export async function POST(
           message: `Client Approval version created from ${renderingVersion.version}`
         },
         ipAddress
+      })
+
+      // Add activity log to Client Approval stage
+      await tx.activity.create({
+        data: {
+          stageId: clientApprovalStage.id,
+          type: 'VERSION_RECEIVED',
+          message: `${renderingVersion.version} pushed to Client Approval - 3D rendering version pushed by ${session.user.name} with ${renderingVersion.assets.length} assets`,
+          userId: session.user.id
+        }
       })
 
       return {

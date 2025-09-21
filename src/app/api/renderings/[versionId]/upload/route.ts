@@ -136,7 +136,7 @@ export async function POST(
 
         // Create asset record in database
         const asset = await prisma.asset.create({
-          data: withCreateAttribution(session, {
+          data: {
             title: file.name,
             filename: filename,
             url: fileUrl,
@@ -151,18 +151,37 @@ export async function POST(
               storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
               renderingWorkspace: true
             }),
-            orgId: session.user.orgId,
-            projectId: renderingVersion.room.project.id,
-            roomId: renderingVersion.room.id,
-            stageId: renderingVersion.stageId,
-            renderingVersionId: versionId,
+            project: {
+              connect: {
+                id: renderingVersion.room.project.id
+              }
+            },
+            room: {
+              connect: {
+                id: renderingVersion.room.id
+              }
+            },
+            stage: {
+              connect: {
+                id: renderingVersion.stageId
+              }
+            },
+            renderingVersion: {
+              connect: {
+                id: versionId
+              }
+            },
             uploader: {
               connect: {
                 id: session.user.id
               }
+            },
+            organization: {
+              connect: {
+                id: session.user.orgId
+              }
             }
-          })
-        })
+          }
         })
 
         uploadedAssets.push(asset)

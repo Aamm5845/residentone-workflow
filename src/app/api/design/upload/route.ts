@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     // Create asset record
     const asset = await prisma.asset.create({
-      data: withCreateAttribution(session, {
+      data: {
         title: file.name,
         filename: fileName,
         url: fileUrl,
@@ -106,17 +106,37 @@ export async function POST(request: NextRequest) {
         mimeType: file.type,
         provider: 'local',
         userDescription: userDescription || null,
-        orgId: session.user.orgId,
-        projectId: section.stage.room.project.id,
-        roomId: section.stage.room.id,
-        stageId: section.stage.id,
-        sectionId: section.id,
         uploader: {
           connect: {
             id: session.user.id
           }
+        },
+        organization: {
+          connect: {
+            id: session.user.orgId
+          }
+        },
+        project: {
+          connect: {
+            id: section.stage.room.project.id
+          }
+        },
+        room: {
+          connect: {
+            id: section.stage.room.id
+          }
+        },
+        stage: {
+          connect: {
+            id: section.stage.id
+          }
+        },
+        section: {
+          connect: {
+            id: section.id
+          }
         }
-      })
+      }
     })
 
     // Log the activity

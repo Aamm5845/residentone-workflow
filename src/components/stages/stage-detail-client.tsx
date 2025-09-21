@@ -7,6 +7,7 @@ import ThreeDStage from './three-d-stage'
 import ClientApprovalStage from './client-approval-stage'
 import DrawingsStage from './drawings-stage'
 import FFEStage from './ffe-stage'
+import { getStageName } from '@/constants/workflow'
 
 interface StageDetailClientProps {
   stage: any
@@ -39,8 +40,8 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
               body: JSON.stringify({
                 userId: nextStage.assignedTo,
                 type: 'STAGE_ASSIGNED',
-                title: `New ${nextStage.type.replace('_', ' ')} stage assigned`,
-                message: `${stage.room.name || stage.room.type} is ready for ${nextStage.type.replace('_', ' ').toLowerCase()}`,
+                title: `New ${getStageName(nextStage.type)} assigned`,
+                message: `${stage.room.name || stage.room.type} is ready for ${getStageName(nextStage.type).toLowerCase()}`,
                 relatedId: nextStage.id,
                 relatedType: 'STAGE'
               })
@@ -234,7 +235,7 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
       return (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {stage.type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} Stage
+            {getStageName(stage.type)}
           </h2>
           <p className="text-gray-600">
             Detailed view for this stage type is coming soon.

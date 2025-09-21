@@ -59,6 +59,9 @@ interface RenderingVersion {
     id: string
     version: string
     status: string
+    clientDecision: string | null
+    clientMessage: string | null
+    clientDecidedAt: string | null
   } | null
 }
 
@@ -280,7 +283,7 @@ export default function RenderingWorkspace({
 
       if (response.ok) {
         await fetchRenderingVersions()
-        alert('Successfully pushed to Client Approval!')
+        alert('Successfully pushed to Client Approval! Version is now available in the Client Approval workspace.')
       } else {
         const error = await response.json()
         alert(`Failed to push to client: ${error.error}`)
@@ -288,6 +291,39 @@ export default function RenderingWorkspace({
     } catch (error) {
       console.error('Error pushing to client:', error)
       alert('Failed to push to client')
+    }
+  }
+
+  // Delete version
+  const deleteVersion = async (versionId: string, versionName: string) => {
+    const version = renderingVersions.find(v => v.id === versionId)
+    const isPushedToClient = version?.status === 'PUSHED_TO_CLIENT'
+    
+    let confirmMessage = `Are you sure you want to delete ${versionName}?\n\nThis will permanently delete:\n• The version and all its files\n• All notes and comments\n• Version history\n\nThis action cannot be undone.`
+    
+    if (isPushedToClient) {
+      confirmMessage = `⚠️ WARNING: ${versionName} has been pushed to client approval!\n\nDeleting this version will:\n• Remove it from the client approval process\n• Permanently delete all files and data\n• Potentially disrupt the client review\n\nAre you absolutely sure you want to proceed?\n\nThis action cannot be undone.`
+    }
+    
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/renderings/${versionId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await fetchRenderingVersions()
+        alert('Version deleted successfully')
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete version: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting version:', error)
+      alert('Failed to delete version')
     }
   }
 
@@ -362,13 +398,6 @@ export default function RenderingWorkspace({
             >
               <Activity className="w-4 h-4 mr-2" />
               Activity
-            </Button>
-            <Button 
-              onClick={onComplete}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Complete Stage
             </Button>
           </div>
         </div>
@@ -448,7 +477,13 @@ export default function RenderingWorkspace({
                         <Badge className={statusConfig.color}>
                           {statusConfig.label}
                         </Badge>
-                        {version.clientApprovalVersion && (
+                        {version.clientApprovalVersion?.clientDecision === 'REVISION_REQUESTED' && (
+                          <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Revision Requested
+                          </Badge>
+                        )}
+                        {version.clientApprovalVersion && version.clientApprovalVersion.clientDecision !== 'REVISION_REQUESTED' && (
                           <Badge className="bg-purple-100 text-purple-800 border-purple-200">
                             <Eye className="w-3 h-3 mr-1" />
                             In Client Approval
@@ -462,18 +497,59 @@ export default function RenderingWorkspace({
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    {version.status === 'IN_PROGRESS' && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            updateVersion(version.id, 'complete')
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Mark Complete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteVersion(version.id, version.customName || version.version)
+                          }}
+                          className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
                     {version.status === 'COMPLETED' && !isPushedToClient && (
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          pushToClient(version.id)
-                        }}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        <Send className="w-4 h-4 mr-1" />
-                        Push to Client
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            pushToClient(version.id)
+                          }}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Send className="w-4 h-4 mr-1" />
+                          Push to Client Approval
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteVersion(version.id, version.customName || version.version)
+                          }}
+                          className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -482,19 +558,48 @@ export default function RenderingWorkspace({
               {/* Version Content (when expanded) */}
               {isExpanded && (
                 <div className="p-4">
+                  {/* Revision Details (if revision requested) */}
+                  {version.clientApprovalVersion?.clientDecision === 'REVISION_REQUESTED' && (
+                    <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h5 className="font-semibold text-orange-900 mb-2">Client Revision Request</h5>
+                          {version.clientApprovalVersion.clientMessage ? (
+                            <div className="bg-white rounded-md p-3 border border-orange-200">
+                              <p className="text-gray-900 whitespace-pre-wrap">{version.clientApprovalVersion.clientMessage}</p>
+                            </div>
+                          ) : (
+                            <p className="text-orange-800">Client requested revisions without specific notes.</p>
+                          )}
+                          <p className="text-sm text-orange-700 mt-2">
+                            Requested on {new Date(version.clientApprovalVersion.clientDecidedAt!).toLocaleDateString()} at {new Date(version.clientApprovalVersion.clientDecidedAt!).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Upload Area */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h5 className="font-medium text-gray-900">Files ({version.assets.length})</h5>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => fileInputRefs.current[version.id]?.click()}
-                        disabled={uploading}
-                      >
-                        <Upload className="w-4 h-4 mr-1" />
-                        {uploading ? 'Uploading...' : 'Add Files'}
-                      </Button>
+                      {!isPushedToClient && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fileInputRefs.current[version.id]?.click()}
+                          disabled={uploading}
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          {uploading ? 'Uploading...' : 'Add Files'}
+                        </Button>
+                      )}
+                      {isPushedToClient && (
+                        <div className="text-sm text-gray-500 italic">
+                          Version pushed to client - editing locked
+                        </div>
+                      )}
                     </div>
                     
                     <input
@@ -539,7 +644,7 @@ export default function RenderingWorkspace({
                               
                               {/* Asset Description */}
                               <div className="mt-2">
-                                {editingDescriptions.has(asset.id) ? (
+                                {!isPushedToClient && editingDescriptions.has(asset.id) ? (
                                   <div className="space-y-2">
                                     <Textarea
                                       placeholder="Add a description..."
@@ -565,13 +670,21 @@ export default function RenderingWorkspace({
                                   </div>
                                 ) : (
                                   <div
-                                    className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 min-h-[1.5rem] border border-transparent hover:border-gray-200 rounded px-2 py-1 -mx-2 -my-1"
+                                    className={`text-sm text-gray-600 min-h-[1.5rem] rounded px-2 py-1 -mx-2 -my-1 ${
+                                      !isPushedToClient 
+                                        ? 'cursor-pointer hover:text-gray-800 border border-transparent hover:border-gray-200' 
+                                        : 'cursor-not-allowed opacity-60'
+                                    }`}
                                     onClick={() => {
-                                      setEditingDescriptions(prev => new Set([...prev, asset.id]))
+                                      if (!isPushedToClient) {
+                                        setEditingDescriptions(prev => new Set([...prev, asset.id]))
+                                      }
                                     }}
                                   >
                                     {asset.description || (
-                                      <span className="text-gray-400 italic">Click to add description...</span>
+                                      <span className="text-gray-400 italic">
+                                        {!isPushedToClient ? 'Click to add description...' : 'No description'}
+                                      </span>
                                     )}
                                   </div>
                                 )}
@@ -593,24 +706,32 @@ export default function RenderingWorkspace({
                     <h5 className="font-medium text-gray-900 mb-3">Notes ({version.notes.length})</h5>
                     
                     {/* Add Note */}
-                    <div className="flex space-x-2 mb-4">
-                      <Textarea
-                        placeholder="Add a note..."
-                        value={newNotes[version.id] || ''}
-                        onChange={(e) => setNewNotes(prev => ({ ...prev, [version.id]: e.target.value }))}
-                        className="flex-1"
-                        rows={2}
-                      />
-                      <Button
-                        onClick={() => addNote(version.id)}
-                        disabled={!newNotes[version.id]?.trim()}
-                        size="sm"
-                        className="self-end"
-                      >
-                        <MessageSquare className="w-4 h-4 mr-1" />
-                        Post
-                      </Button>
-                    </div>
+                    {!isPushedToClient ? (
+                      <div className="flex space-x-2 mb-4">
+                        <Textarea
+                          placeholder="Add a note..."
+                          value={newNotes[version.id] || ''}
+                          onChange={(e) => setNewNotes(prev => ({ ...prev, [version.id]: e.target.value }))}
+                          className="flex-1"
+                          rows={2}
+                        />
+                        <Button
+                          onClick={() => addNote(version.id)}
+                          disabled={!newNotes[version.id]?.trim()}
+                          size="sm"
+                          className="self-end"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          Post
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-gray-500 text-center italic">
+                          Version pushed to client approval - notes are locked
+                        </p>
+                      </div>
+                    )}
 
                     {/* Notes Feed */}
                     <div className="space-y-3">
@@ -636,34 +757,38 @@ export default function RenderingWorkspace({
                   {/* Version Actions */}
                   <div className="flex items-center justify-between mt-4 pt-4 border-t">
                     <div className="flex items-center space-x-2">
-                      {version.status === 'IN_PROGRESS' && (
-                        <Button
-                          size="sm"
-                          onClick={() => updateVersion(version.id, 'complete')}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Mark Complete
-                        </Button>
-                      )}
                       {version.status === 'COMPLETED' && !isPushedToClient && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => updateVersion(version.id, 'reopen')}
                         >
-                          Reopen
+                          Reopen for Editing
                         </Button>
                       )}
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {version.completedAt && (
+                      {isPushedToClient && (
+                        <span className="text-sm text-purple-600 font-medium">
+                          <Send className="w-4 h-4 inline mr-1" />
+                          Pushed to Client Approval on {new Date(version.pushedToClientAt!).toLocaleDateString()}
+                        </span>
+                      )}
+                      {version.completedAt && !isPushedToClient && (
                         <span className="text-sm text-gray-500">
                           <Clock className="w-4 h-4 inline mr-1" />
                           Completed {new Date(version.completedAt).toLocaleDateString()}
                         </span>
                       )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteVersion(version.id, version.customName || version.version)}
+                        className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete Version
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -679,8 +804,11 @@ export default function RenderingWorkspace({
             <li>• Create versions (V1, V2, etc.) to organize different iterations</li>
             <li>• Upload multiple images per version with individual descriptions</li>
             <li>• Use the notes section to communicate with your team</li>
-            <li>• Mark versions complete when ready, then push to Client Approval</li>
-            <li>• After pushing to client, you can still add files and notes</li>
+            <li>• Mark Complete individual versions when they&apos;re ready</li>
+            <li>• Push to Client Approval to send completed versions for client review</li>
+            <li>• <strong>Once pushed to client approval, versions become locked</strong> - no further editing allowed</li>
+            <li>• <strong>Delete versions</strong> if needed - this permanently removes the version and all its files</li>
+            <li>• Revision requests will reopen the version for further editing</li>
           </ul>
         </div>
       </div>

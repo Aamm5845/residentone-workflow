@@ -7,6 +7,7 @@ import StageDetailClient from '@/components/stages/stage-detail-client'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { getStageName } from '@/constants/workflow'
 import type { Session } from 'next-auth'
 
 export default async function StageDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -93,7 +94,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {stage.type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} Stage
+              {getStageName(stage.type)}
             </h1>
             <p className="text-gray-600">
               {stage.room.name || stage.room.type.replace('_', ' ')} - {stage.room.project.name}

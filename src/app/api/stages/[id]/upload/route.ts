@@ -150,7 +150,6 @@ export async function POST(
         mimeType: file.type,
         provider: provider as any,
         metadata: metadata,
-        orgId: orgId,
         projectId: stage.room.project.id,
         roomId: stage.room.id,
         stageId: stage.id,
@@ -158,6 +157,11 @@ export async function POST(
         uploader: {
           connect: {
             id: (session.user as any)?.id || 'unknown'
+          }
+        },
+        organization: {
+          connect: {
+            id: orgId
           }
         }
       }

@@ -80,7 +80,14 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, email: true }
         },
         clientApprovalVersion: {
-          select: { id: true, version: true, status: true }
+          select: { 
+            id: true, 
+            version: true, 
+            status: true,
+            clientDecision: true,
+            clientMessage: true,
+            clientDecidedAt: true
+          }
         }
       },
       orderBy: { createdAt: 'desc' }

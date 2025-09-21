@@ -135,8 +135,19 @@ export function getStageStatusTextColor(stageType: string, status: StageStatus) 
   return config.textColors[status] || config.textColors.NOT_STARTED
 }
 
+// Map database stage types to workflow stage types
+const STAGE_TYPE_MAP = {
+  'DESIGN': 'DESIGN_CONCEPT',
+  'THREE_D': 'RENDERING',
+  'CLIENT_APPROVAL': 'CLIENT_APPROVAL', 
+  'DRAWINGS': 'DRAWINGS',
+  'FFE': 'FFE'
+} as const
+
 export function getStageName(stageType: string) {
-  return getStageConfig(stageType).name
+  // Map database stage type to workflow stage type if needed
+  const mappedType = STAGE_TYPE_MAP[stageType as keyof typeof STAGE_TYPE_MAP] || stageType
+  return getStageConfig(mappedType).name
 }
 
 // Total number of workflow stages (used for progress calculations)

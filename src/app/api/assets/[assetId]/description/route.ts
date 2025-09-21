@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { 
-  withUpdateAttribution,
   logActivity,
   ActivityActions,
   EntityTypes,
@@ -62,9 +61,9 @@ export async function PATCH(
     // Update the asset description
     const updatedAsset = await prisma.asset.update({
       where: { id: assetId },
-      data: withUpdateAttribution(session, {
+      data: {
         description: description?.trim() || null
-      })
+      }
     })
 
     // Log activity if it's part of a rendering version

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { 
-  withCreateAttribution,
   logActivity,
   ActivityActions,
   EntityTypes,
@@ -106,11 +105,11 @@ export async function POST(
 
     // Create the note
     const note = await prisma.renderingNote.create({
-      data: withCreateAttribution(session, {
+      data: {
         versionId: versionId,
         content: content.trim(),
         authorId: session.user.id
-      }),
+      },
       include: {
         author: {
           select: { id: true, name: true, email: true }

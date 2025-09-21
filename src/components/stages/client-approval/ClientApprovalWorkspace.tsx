@@ -92,6 +92,10 @@ export default function ClientApprovalWorkspace({
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [availableRenderingVersions, setAvailableRenderingVersions] = useState<any[]>([])
+  const [pushingToClient, setPushingToClient] = useState(false)
+  const [showRevisionNotes, setShowRevisionNotes] = useState(false)
+  const [revisionNotes, setRevisionNotes] = useState('')
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -114,7 +118,12 @@ export default function ClientApprovalWorkspace({
         const response = await fetch(`/api/client-approval/${stage.id}`)
         if (response.ok) {
           const data = await response.json()
-          if (!data.currentVersion) {
+          if (!data.currentVersion && data.availableRenderingVersions) {
+            // No client approval version yet, but rendering versions are available
+            setAvailableRenderingVersions(data.availableRenderingVersions)
+            setCurrentVersion(null)
+            return
+          } else if (!data.currentVersion) {
             setFetchError('No approval version found. Upload 3D renderings first.')
             return
           }
@@ -197,11 +206,45 @@ export default function ClientApprovalWorkspace({
     fetchClientApprovalData()
   }, [stage.id])
 
+  const handlePushToClient = async (renderingVersionId: string) => {
+    setPushingToClient(true)
+    try {
+      const response = await fetch(`/api/client-approval/${stage.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ renderingVersionId })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentVersion(data.currentVersion)
+        setAvailableRenderingVersions([])
+        // Initialize selected assets
+        setSelectedAssets(data.currentVersion?.assets?.filter((a: any) => a.includeInEmail).map((a: any) => a.id) || [])
+      } else {
+        const error = await response.json()
+        console.error('Failed to push to client:', error)
+        alert(`Failed to push to client: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error pushing to client:', error)
+      alert('Failed to push to client. Please try again.')
+    } finally {
+      setPushingToClient(false)
+    }
+  }
+
   const handleAaronApproval = async () => {
     setLoading(true)
     try {
       const response = await fetch(`/api/client-approval/${stage.id}/aaron-approve`, { 
-        method: 'POST' 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ approved: true, notes: null })
       })
       
       if (response.ok) {
@@ -245,6 +288,38 @@ export default function ClientApprovalWorkspace({
     } catch (error) {
       console.error('Error sending to client:', error)
       alert('Failed to send email. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMarkAsSent = async () => {
+    if (!confirm('Mark as already sent to client? This will skip the automated email sending step.')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/client-approval/${stage.id}/mark-as-sent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ selectedAssetIds: selectedAssets })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentVersion(data.version)
+        alert('Marked as sent to client successfully!')
+      } else {
+        const error = await response.json()
+        console.error('Failed to mark as sent:', error)
+        alert(`Failed to mark as sent: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error marking as sent:', error)
+      alert('Failed to mark as sent. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -298,29 +373,46 @@ export default function ClientApprovalWorkspace({
   }
 
   const handleClientDecision = async (decision: 'APPROVED' | 'REVISION_REQUESTED') => {
+    // For revision requests, show notes input first
+    if (decision === 'REVISION_REQUESTED' && !showRevisionNotes) {
+      setShowRevisionNotes(true)
+      return
+    }
+
     setLoading(true)
     try {
-      // API call to record client decision
-      // await fetch(`/api/client-approval/${stage.id}/client-decision`, {
-      //   method: 'POST',
-      //   body: JSON.stringify({ decision, notes: followUpNotes })
-      // })
-      
-      if (currentVersion) {
-        setCurrentVersion({
-          ...currentVersion,
-          clientDecision: decision,
-          clientDecidedAt: new Date().toISOString(),
-          status: decision === 'APPROVED' ? 'CLIENT_APPROVED' : 'REVISION_REQUESTED'
+      const response = await fetch(`/api/client-approval/${stage.id}/client-decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          decision, 
+          notes: decision === 'REVISION_REQUESTED' ? revisionNotes : null
         })
-      }
-
-      if (decision === 'APPROVED') {
-        // Complete the stage and move to next phase
-        onComplete()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentVersion(data.version)
+        
+        if (decision === 'APPROVED') {
+          alert('Client decision recorded: Approved!')
+          // Complete the stage and move to next phase
+          onComplete()
+        } else {
+          alert('Client decision recorded: Revision requested')
+          setShowRevisionNotes(false)
+          setRevisionNotes('')
+        }
+      } else {
+        const error = await response.json()
+        console.error('Failed to record client decision:', error)
+        alert(`Failed to record decision: ${error.error}`)
       }
     } catch (error) {
       console.error('Error recording client decision:', error)
+      alert('Failed to record client decision. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -357,15 +449,129 @@ export default function ClientApprovalWorkspace({
     )
   }
 
-  if (!currentVersion) {
+  if (!currentVersion && availableRenderingVersions.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
             <Camera className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Approval Data</h3>
-          <p className="text-gray-600">Upload 3D renderings first to enable client approval workflow.</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Renderings Available</h3>
+          <p className="text-gray-600 mb-4">Upload and complete 3D renderings in the Rendering workspace first, then push them here for client review.</p>
+          <Button
+            onClick={() => window.history.back()}
+            variant="outline"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+          >
+            Go to Rendering Workspace
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentVersion && availableRenderingVersions.length > 0) {
+    return (
+      <div className="bg-white min-h-screen">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Client Approval Workspace</h2>
+                <p className="text-sm text-gray-600">Ready to push renderings to client approval</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Badge className="bg-amber-100 text-amber-800">
+                Ready to Push
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="max-w-4xl mx-auto">
+            {/* Available Rendering Versions */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Available Rendering Versions</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Select a completed rendering version to push to client approval
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {availableRenderingVersions.map((version) => (
+                    <div key={version.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Camera className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className="text-lg font-medium text-gray-900">
+                                {version.customName || version.version}
+                              </h4>
+                              <Badge className="bg-green-100 text-green-800">
+                                Completed
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">
+                              Created by {version.createdBy.name} • {new Date(version.createdAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {version.assetCount} rendering{version.assetCount !== 1 ? 's' : ''}
+                            </p>
+                            
+                            {/* Asset Thumbnails */}
+                            {version.assets.length > 0 && (
+                              <div className="flex space-x-2 mt-3">
+                                {version.assets.map((asset: any) => (
+                                  <div key={asset.id} className="w-16 h-12 bg-gray-100 rounded overflow-hidden">
+                                    <img
+                                      src={asset.url}
+                                      alt={asset.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                                {version.assetCount > 4 && (
+                                  <div className="w-16 h-12 bg-gray-200 rounded flex items-center justify-center">
+                                    <span className="text-xs text-gray-600">+{version.assetCount - 4}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => handlePushToClient(version.id)}
+                          disabled={pushingToClient}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {pushingToClient ? 'Pushing...' : 'Push to Client Approval'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+              <h4 className="font-semibold text-blue-900 mb-2">📋 Next Steps</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Select a completed rendering version above</li>
+                <li>• Push it to Client Approval to create the approval workflow</li>
+                <li>• Once pushed, you can manage approvals and send to clients</li>
+                <li>• You can still go back to Rendering workspace to upload more files</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -708,15 +914,61 @@ export default function ClientApprovalWorkspace({
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-4">Actions</h4>
               <div className="space-y-3">
-                {/* Send to Client */}
-                <Button
-                  onClick={handleSendToClient}
-                  disabled={loading || !currentVersion.approvedByAaron || currentVersion.sentToClientAt !== null}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  {loading && !currentVersion.sentToClientAt ? 'Sending...' : 'Send to Client'}
-                </Button>
+                {/* Send to Client Section */}
+                {currentVersion.approvedByAaron && (
+                  <>
+                    {!currentVersion.sentToClientAt ? (
+                      <>
+                        {/* Send to Client */}
+                        <Button
+                          onClick={handleSendToClient}
+                          disabled={loading}
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {loading ? 'Sending...' : 'Send to Client'}
+                        </Button>
+                        
+                        {/* Divider */}
+                        <div className="flex items-center">
+                          <div className="flex-1 border-t border-gray-300"></div>
+                          <span className="px-3 text-xs text-gray-500 bg-white">OR</span>
+                          <div className="flex-1 border-t border-gray-300"></div>
+                        </div>
+                        
+                        {/* Already Sent */}
+                        <Button
+                          onClick={handleMarkAsSent}
+                          disabled={loading}
+                          variant="outline"
+                          className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 disabled:bg-gray-100"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          {loading ? 'Marking...' : 'Already Sent Manually'}
+                        </Button>
+                      </>
+                    ) : (
+                      /* Show status when already sent */
+                      <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-900">
+                            Sent to Client
+                          </span>
+                        </div>
+                        <p className="text-xs text-green-700 mt-1">
+                          {new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {/* Mark Follow-Up Done */}
                 <Button
@@ -730,25 +982,69 @@ export default function ClientApprovalWorkspace({
                 </Button>
 
                 {/* Client Decision Buttons */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => handleClientDecision('APPROVED')}
-                    disabled={loading || !currentVersion.followUpCompletedAt || currentVersion.clientDecision === 'APPROVED'}
-                    className="bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-300 text-sm"
-                  >
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Client Approved
-                  </Button>
-                  <Button
-                    onClick={() => handleClientDecision('REVISION_REQUESTED')}
-                    disabled={loading || !currentVersion.followUpCompletedAt || currentVersion.clientDecision === 'REVISION_REQUESTED'}
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50 disabled:bg-gray-100 text-sm"
-                  >
-                    <XCircle className="w-3 h-3 mr-1" />
-                    Revision Requested
-                  </Button>
-                </div>
+                {!showRevisionNotes ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => handleClientDecision('APPROVED')}
+                      disabled={loading || !currentVersion.followUpCompletedAt || currentVersion.clientDecision === 'APPROVED'}
+                      className="bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-300 text-sm"
+                    >
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Client Approved
+                    </Button>
+                    <Button
+                      onClick={() => handleClientDecision('REVISION_REQUESTED')}
+                      disabled={loading || !currentVersion.followUpCompletedAt || currentVersion.clientDecision === 'REVISION_REQUESTED'}
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 disabled:bg-gray-100 text-sm"
+                    >
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Revision Requested
+                    </Button>
+                  </div>
+                ) : (
+                  /* Revision Notes Input */
+                  <div className="space-y-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <XCircle className="w-4 h-4 text-amber-600" />
+                        <h5 className="text-sm font-semibold text-amber-900">Revision Notes</h5>
+                      </div>
+                      <p className="text-xs text-amber-700 mb-3">
+                        Add notes explaining what revisions are needed:
+                      </p>
+                      <Textarea
+                        value={revisionNotes}
+                        onChange={(e) => setRevisionNotes(e.target.value)}
+                        placeholder="Client wants darker wood finish on table, different lighting fixtures in dining area..."
+                        className="min-h-[80px] text-sm"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => handleClientDecision('REVISION_REQUESTED')}
+                        disabled={loading || !revisionNotes.trim()}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:bg-gray-300 text-sm"
+                      >
+                        <XCircle className="w-3 h-3 mr-1" />
+                        {loading ? 'Saving...' : 'Submit Revision Request'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowRevisionNotes(false)
+                          setRevisionNotes('')
+                        }}
+                        disabled={loading}
+                        variant="outline"
+                        className="text-sm"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

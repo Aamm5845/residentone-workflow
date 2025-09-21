@@ -119,7 +119,6 @@ export async function POST(
             size: file.size,
             mimeType: file.type,
             provider: 'vercel-blob',
-            orgId: session.user.orgId!,
             projectId: stage.room.projectId,
             roomId: stage.roomId,
             stageId: stageId,
@@ -127,6 +126,11 @@ export async function POST(
             uploader: {
               connect: {
                 id: session.user.id
+              }
+            },
+            organization: {
+              connect: {
+                id: session.user.orgId!
               }
             }
           },
