@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { uploadFile, generateFilePath, getContentType } from '@/lib/blob'
+// Using database storage to match existing system
 import { 
   withCreateAttribution,
   logActivity,
@@ -80,25 +80,17 @@ export async function POST(
       }
 
       try {
-        // Generate structured path for Vercel Blob storage
-        const projectId = renderingVersion.room.project.id
-        const roomId = renderingVersion.room.id
-        const version = renderingVersion.version.toLowerCase()
+        // Generate unique filename
         const timestamp = Date.now()
-        const filename = `${timestamp}-${file.name}`
-        const blobPath = `projects/${projectId}/rooms/${roomId}/renderings/${version}/${filename}`
+        const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+        
+        console.log(`Processing rendering upload: ${filename} (${(file.size / 1024).toFixed(2)}KB)`)
 
-        // Upload to Vercel Blob
-        const uploadResult = await uploadFile(file, blobPath, {
-          filename: file.name,
-          contentType: getContentType(file.name),
-          metadata: {
-            originalName: file.name,
-            version: renderingVersion.version,
-            projectId,
-            roomId
-          }
-        })
+        // Store file data directly in database as base64 (matches existing system)
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        const fileData = buffer.toString('base64')
+        const fileUrl = `data:${file.type};base64,${fileData}`
 
         // Determine asset type
         let assetType = 'OTHER'
@@ -108,21 +100,22 @@ export async function POST(
           assetType = 'PDF'
         }
 
-        // Create asset record
+        // Create asset record in database
         const asset = await prisma.asset.create({
           data: withCreateAttribution(session, {
             title: file.name,
-            filename: file.name,
-            url: uploadResult.url,
+            filename: filename,
+            url: fileUrl,
             type: assetType,
-            size: uploadResult.size || file.size,
-            mimeType: uploadResult.contentType || file.type,
-            provider: 'vercel-blob',
+            size: file.size,
+            mimeType: file.type,
+            provider: 'database',
             metadata: JSON.stringify({
-              blobPath,
-              pathname: uploadResult.pathname,
               originalName: file.name,
-              uploadedToVersion: renderingVersion.version
+              uploadDate: new Date().toISOString(),
+              uploadedToVersion: renderingVersion.version,
+              storageMethod: 'postgres_base64',
+              renderingWorkspace: true
             }),
             orgId: session.user.orgId,
             projectId: renderingVersion.room.project.id,
@@ -133,6 +126,8 @@ export async function POST(
         })
 
         uploadedAssets.push(asset)
+
+        console.log(`✅ File uploaded successfully to database: ${asset.id} (${assetType})`)
 
         // Log activity for each file
         await logActivity({
