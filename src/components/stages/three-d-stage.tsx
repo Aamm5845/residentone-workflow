@@ -83,6 +83,37 @@ export default function ThreeDStage({
     fileInputRef.current?.click()
   }
 
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!window.confirm('Are you sure you want to delete this asset? This action cannot be undone.')) {
+      return
+    }
+
+    // Find the asset to remove
+    const assetToRemove = uploadedAssets.find(a => a.id === assetId)
+    if (!assetToRemove) return
+
+    // Optimistically remove from UI
+    const previousAssets = [...uploadedAssets]
+    setUploadedAssets(prev => prev.filter(a => a.id !== assetId))
+
+    try {
+      const response = await fetch(`/api/assets/${assetId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete asset')
+      }
+
+      console.log('✅ Asset deleted successfully:', assetToRemove.title)
+    } catch (error) {
+      console.error('❌ Failed to delete asset:', error)
+      // Restore the asset on error
+      setUploadedAssets(previousAssets)
+      alert('Failed to delete asset. Please try again.')
+    }
+  }
+
   // Ensure this component only renders for THREE_D stages
   if (stage.type !== 'THREE_D') {
     return (
@@ -178,7 +209,7 @@ export default function ThreeDStage({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {uploadedAssets.map((asset) => (
-                <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm group">
                   <div className="aspect-video bg-gray-100 relative">
                     {asset.type === 'RENDER' && asset.url && (
                       <img
@@ -191,6 +222,17 @@ export default function ThreeDStage({
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                         <div className="text-white text-sm">Uploading...</div>
                       </div>
+                    )}
+                    {/* Delete Button - Only show when not uploading */}
+                    {!asset.uploading && (
+                      <button
+                        onClick={() => handleDeleteAsset(asset.id)}
+                        className="absolute top-2 right-2 bg-white/70 hover:bg-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        aria-label={`Delete ${asset.title}`}
+                        title="Delete asset"
+                      >
+                        <X className="w-4 h-4 text-red-600" />
+                      </button>
                     )}
                   </div>
                   <div className="p-4">

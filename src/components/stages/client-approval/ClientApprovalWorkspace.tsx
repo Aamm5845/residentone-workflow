@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -91,6 +92,19 @@ export default function ClientApprovalWorkspace({
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+
+  // Fetcher function for SWR
+  const fetcher = (url: string) => fetch(url).then(res => res.json())
+
+  // Fetch activity logs using SWR
+  const { 
+    data: activityData, 
+    error: activityError, 
+    isLoading: activityLoading 
+  } = useSWR(`/api/stages/${stage.id}/activity`, fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds
+    revalidateOnFocus: true
+  })
 
   // Fetch client approval data from API
   useEffect(() => {
@@ -518,22 +532,85 @@ export default function ClientApprovalWorkspace({
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Activity Log</h3>
             </div>
-            <div className="p-6 space-y-4">
-              {currentVersion.activityLogs?.map((log) => (
-                <div key={log.id} className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">{log.message}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(log.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  </div>
+            <div className="p-6">
+              {/* Loading State */}
+              {activityLoading && (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center space-x-3 animate-pulse">
+                      <div className="w-2 h-2 bg-gray-300 rounded-full flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Error State */}
+              {activityError && !activityLoading && (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-1">Failed to load activity</h4>
+                  <p className="text-xs text-gray-500">Please refresh the page to try again</p>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!activityLoading && !activityError && (!activityData?.activities || activityData.activities.length === 0) && (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-1">No activity yet</h4>
+                  <p className="text-xs text-gray-500">Activity will appear here as actions are taken</p>
+                </div>
+              )}
+
+              {/* Activity List */}
+              {!activityLoading && !activityError && activityData?.activities && activityData.activities.length > 0 && (
+                <div className="space-y-4 max-h-64 overflow-y-auto">
+                  {activityData.activities.map((log: any) => (
+                    <div key={log.id} className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {log.user ? (
+                          <User className="w-4 h-4 text-gray-600" />
+                        ) : (
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          {log.user && (
+                            <span className="text-xs font-medium text-gray-900">{log.user.name}</span>
+                          )}
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            log.type === 'CLIENT_DECISION' ? 'bg-green-100 text-green-800' :
+                            log.type === 'EMAIL_SENT' ? 'bg-blue-100 text-blue-800' :
+                            log.type === 'AARON_APPROVED' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {log.type.replace('_', ' ').toLowerCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-900 mb-1">{log.message}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(log.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
