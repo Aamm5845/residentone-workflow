@@ -136,6 +136,7 @@ export async function GET(
       project: sanitizedProject,
       tokenInfo: {
         name: clientAccessToken.name,
+        specsUrl: clientAccessToken.specsUrl,
         createdAt: clientAccessToken.createdAt,
         expiresAt: clientAccessToken.expiresAt,
         lastAccessed: clientAccessToken.lastAccessedAt

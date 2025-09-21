@@ -25,6 +25,7 @@ interface ClientAccessToken {
   id: string
   token: string
   name?: string
+  specsUrl?: string
   active: boolean
   expiresAt?: string
   createdAt: string
@@ -58,6 +59,7 @@ export default function ClientAccessManagement({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTokenName, setNewTokenName] = useState('')
   const [newTokenExpiry, setNewTokenExpiry] = useState('')
+  const [newTokenSpecsUrl, setNewTokenSpecsUrl] = useState('')
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
   useEffect(() => {
@@ -90,7 +92,8 @@ export default function ClientAccessManagement({
         body: JSON.stringify({
           projectId,
           name: newTokenName || `${clientName} - ${projectName}`,
-          expiresAt: newTokenExpiry || null
+          expiresAt: newTokenExpiry || null,
+          specsUrl: newTokenSpecsUrl || null
         })
       })
 
@@ -100,6 +103,7 @@ export default function ClientAccessManagement({
         setShowCreateForm(false)
         setNewTokenName('')
         setNewTokenExpiry('')
+        setNewTokenSpecsUrl('')
         
         // Auto-copy the new token URL
         const tokenUrl = data.url
@@ -230,6 +234,20 @@ export default function ClientAccessManagement({
             </div>
             
             <div>
+              <Label htmlFor="tokenSpecsUrl">House Specifications URL (Optional)</Label>
+              <Input
+                id="tokenSpecsUrl"
+                type="url"
+                placeholder="https://example.com/house-specs"
+                value={newTokenSpecsUrl}
+                onChange={(e) => setNewTokenSpecsUrl(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Link to 3rd party site showing all house specifications
+              </p>
+            </div>
+            
+            <div>
               <Label htmlFor="tokenExpiry">Expiration Date (Optional)</Label>
               <Input
                 id="tokenExpiry"
@@ -257,6 +275,7 @@ export default function ClientAccessManagement({
                   setShowCreateForm(false)
                   setNewTokenName('')
                   setNewTokenExpiry('')
+                  setNewTokenSpecsUrl('')
                 }}
               >
                 Cancel

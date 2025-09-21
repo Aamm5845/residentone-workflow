@@ -746,6 +746,7 @@ model ClientAccessToken {
   projectId      String
   token          String            @unique @default(cuid())
   name           String?
+  specsUrl       String?           // URL to 3rd party house specifications
   active         Boolean           @default(true)
   expiresAt      DateTime?
   createdById    String

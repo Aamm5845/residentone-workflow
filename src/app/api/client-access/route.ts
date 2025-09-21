@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { projectId, name, expiresAt } = body
+    const { projectId, name, expiresAt, specsUrl } = body
 
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         projectId,
         token,
         name: name || `${project.client.name} - ${project.name}`,
+        specsUrl: specsUrl || null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         createdById: session.user.id
       },

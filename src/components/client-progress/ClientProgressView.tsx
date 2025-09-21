@@ -16,6 +16,8 @@ import {
   Mail,
   Phone,
   Globe,
+  FileText,
+  ExternalLink,
   DoorOpen,
   Navigation,
   Gamepad2,
@@ -266,20 +268,20 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
         <div className="bg-white border-b border-gray-100">
           <div className="max-w-6xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-white rounded-xl shadow-sm p-3 flex items-center justify-center border border-gray-100">
+              <div className="flex items-center space-x-6">
+                <div className="w-28 h-28 bg-white rounded-2xl shadow-lg p-4 flex items-center justify-center border border-gray-200">
                   <Image 
                     src="/meisner-logo.svg" 
                     alt="Meisner Interiors Logo" 
-                    width={48} 
-                    height={48}
-                    className="w-12 h-12"
+                    width={80} 
+                    height={80}
+                    className="w-20 h-20"
                     priority
                   />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Meisner Interiors</h2>
-                  <p className="text-base text-gray-600">Project Progress Portal</p>
+                  <h2 className="text-4xl font-bold text-gray-900">Meisner Interiors</h2>
+                  <p className="text-xl text-gray-600 mt-1">Project Progress Portal</p>
                 </div>
               </div>
               <div className="flex items-center space-x-6 text-sm text-gray-600">
@@ -319,9 +321,12 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
           
           {/* Progress Bar */}
           <div className="mb-6">
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-3 shadow-inner">
               <div 
-                className="bg-gray-800 h-2 rounded-full transition-all duration-1000 ease-out"
+                className={`h-3 rounded-full transition-all duration-1000 ease-out ${
+                  overallProgress === 100 ? 'bg-gradient-to-r from-green-500 to-green-600' : 
+                  'bg-gradient-to-r from-blue-600 to-indigo-700'
+                }`}
                 style={{ width: `${overallProgress}%` }}
               />
             </div>
@@ -362,6 +367,26 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Specifications Section */}
+            {tokenInfo?.specsUrl && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <h4 className="font-semibold text-gray-900">House Specifications</h4>
+                </div>
+                <p className="text-sm text-gray-700 mb-4">
+                  View detailed specifications and features of your house including floor plans, materials, and finishes.
+                </p>
+                <Button
+                  onClick={() => window.open(tokenInfo.specsUrl, '_blank')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View House Specifications
+                </Button>
+              </div>
+            )}
+            
             {/* Project Info */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h4 className="font-semibold text-gray-900 mb-4">Project Information</h4>
@@ -447,17 +472,17 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
       <footer className="bg-white border-t border-gray-200 mt-8">
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg shadow-sm p-2 border border-gray-100">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-white rounded-xl shadow-sm p-3 border border-gray-100">
                 <Image 
                   src="/meisner-logo.svg" 
                   alt="Meisner Interiors" 
-                  width={28} 
-                  height={28}
-                  className="w-full h-full"
+                  width={40} 
+                  height={40}
+                  className="w-10 h-10"
                 />
               </div>
-              <span className="text-sm text-gray-600">© {new Date().getFullYear()} Meisner Interiors</span>
+              <span className="text-base text-gray-700 font-medium">© {new Date().getFullYear()} Meisner Interiors</span>
             </div>
             <div className="text-sm text-gray-500">
               Professional Interior Design Services
@@ -536,25 +561,31 @@ function RoomCard({ room, downloadingAsset, handleDownload, formatRoomName, getP
       {/* Room Header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className={`w-12 h-12 ${roomConfig.color} rounded-lg flex items-center justify-center shadow-sm`}>
-              <RoomIcon className="w-6 h-6 text-white" />
+          <div className="flex items-center space-x-4">
+            <div className={`w-16 h-16 ${roomConfig.color} rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+              <RoomIcon className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 text-lg">{formatRoomName(room)}</h4>
+              <h4 className="font-semibold text-gray-900 text-xl">{formatRoomName(room)}</h4>
               <p className="text-sm text-gray-600">{room.progress}% Complete</p>
+              <div className="flex items-center space-x-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${room.progress === 100 ? 'bg-green-500' : room.progress > 0 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className={`text-xs font-medium ${room.progress === 100 ? 'text-green-600' : room.progress > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
+                  {room.progress === 100 ? 'Complete' : room.progress > 0 ? 'In Progress' : 'Not Started'}
+                </span>
+              </div>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{room.progress}%</div>
-            <div className="text-xs text-gray-500">Progress</div>
+            <div className="text-3xl font-bold text-gray-900">{room.progress}%</div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Progress</div>
           </div>
         </div>
         
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-4 shadow-inner">
           <div 
-            className="bg-gray-600 h-2 rounded-full transition-all duration-500"
+            className={`h-3 rounded-full transition-all duration-1000 ease-out ${room.progress === 100 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}
             style={{ width: `${room.progress}%` }}
           />
         </div>

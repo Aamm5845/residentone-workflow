@@ -140,7 +140,8 @@ export function useStage(stageId: string) {
 }
 
 // Hook for real-time notifications (can be extended with WebSockets)
-export function useNotifications(userId: string) {
+// Note: This is deprecated in favor of the more comprehensive useNotifications hook
+export function useSimpleNotifications(userId: string) {
   const { data, error, isLoading } = useSWR(
     userId ? `/api/notifications?userId=${userId}` : null,
     fetcher,
