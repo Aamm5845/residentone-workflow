@@ -33,6 +33,7 @@ interface ActionBarProps {
   isCompleting: boolean
   onRefresh: () => void
   status: string
+  onAddImage?: () => void
 }
 
 export function ActionBar({
@@ -41,15 +42,19 @@ export function ActionBar({
   onMarkComplete,
   isCompleting,
   onRefresh,
-  status
+  status,
+  onAddImage
 }: ActionBarProps) {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
 
   // Quick actions for adding content
   const handleAddImage = async () => {
-    // This would open a file picker or upload modal
-    toast.info('Image upload feature coming soon')
+    if (onAddImage) {
+      onAddImage()
+    } else {
+      toast.info('Image upload feature coming soon')
+    }
     setShowAddMenu(false)
   }
 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import fs from 'fs'
+import path from 'path'
+import { writeFile } from 'fs/promises'
 import { 
   withCreateAttribution,
   logActivity,
@@ -82,10 +85,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Section not found' }, { status: 404 })
     }
 
-    // For now, we'll store files locally/in memory. In production, this would use cloud storage
-    // For the proof of concept, we'll create a mock URL
-    const fileName = `${Date.now()}-${file.name}`
-    const fileUrl = `/uploads/design/${fileName}` // Mock URL for now
+    // Store files in the public/uploads/design directory
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const fileUrl = `/uploads/design/${fileName}`
+    
+    // Ensure upload directory exists
+    const uploadDir = path.join(process.cwd(), 'public/uploads/design')
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true })
+    }
+    
+    // Save the file
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const filePath = path.join(uploadDir, fileName)
+    await writeFile(filePath, buffer)
 
     // Determine asset type
     let assetType: 'IMAGE' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
@@ -347,6 +360,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
+    // Attempt to delete the actual file from storage
+    try {
+      if (asset.provider === 'local' && asset.filename) {
+        const filePath = path.join(process.cwd(), 'public/uploads/design', asset.filename)
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath)
+        }
+      }
+    } catch (fileDeleteError) {
+      console.error('Error deleting file from storage:', fileDeleteError)
+      // Continue with database deletion even if file deletion fails
+    }
+    
     // Delete the asset (this will cascade to related records)
     await prisma.asset.delete({
       where: { id: assetId }

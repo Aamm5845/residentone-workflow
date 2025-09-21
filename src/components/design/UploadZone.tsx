@@ -21,6 +21,9 @@ interface UploadZoneProps {
   disabled?: boolean
   maxFiles?: number
   className?: string
+  stageId?: string
+  sectionType?: string
+  onResolveSectionId?: (sectionType: string) => Promise<string>
 }
 
 interface FileUpload {
@@ -38,7 +41,10 @@ export function UploadZone({
   onUploadError, 
   disabled = false,
   maxFiles = 10,
-  className = ''
+  className = '',
+  stageId,
+  sectionType,
+  onResolveSectionId
 }: UploadZoneProps) {
   const [uploads, setUploads] = useState<FileUpload[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -145,9 +151,19 @@ export function UploadZone({
     ))
 
     try {
+      // Resolve section ID if needed
+      let actualSectionId = sectionId
+      if (!actualSectionId && sectionType && onResolveSectionId) {
+        actualSectionId = await onResolveSectionId(sectionType)
+      }
+      
+      if (!actualSectionId) {
+        throw new Error('No section ID available for upload')
+      }
+      
       const formData = new FormData()
       formData.append('file', upload.file)
-      formData.append('sectionId', sectionId)
+      formData.append('sectionId', actualSectionId)
       if (upload.description) {
         formData.append('description', upload.description)
       }

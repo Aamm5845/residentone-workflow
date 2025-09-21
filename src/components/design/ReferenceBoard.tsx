@@ -23,6 +23,7 @@ import {
   Copy
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { UploadZone } from './UploadZone'
 
 // Types
 interface Asset {
@@ -57,6 +58,7 @@ interface ReferenceBoardProps {
   sections: DesignSection[]
   onUpdate: () => void
   stageId: string
+  onAddImage?: () => void
 }
 
 // Section type configuration
@@ -91,12 +93,13 @@ const SECTION_CONFIG = {
   }
 }
 
-export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardProps) {
+export function ReferenceBoard({ sections, onUpdate, stageId, onAddImage }: ReferenceBoardProps) {
   const [selectedSection, setSelectedSection] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'masonry'>('masonry')
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [uploadSection, setUploadSection] = useState<string>('GENERAL')
 
   // Flatten all assets from all sections
   const allAssets = sections.reduce<Asset[]>((acc, section) => {
@@ -174,6 +177,48 @@ export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardPr
   const handleCopyLink = (asset: Asset) => {
     navigator.clipboard.writeText(asset.url)
     toast.success('Link copied to clipboard')
+  }
+  
+  // Handle upload completion
+  const handleUploadComplete = (asset: any) => {
+    onUpdate() // Refresh the reference board
+    toast.success('Reference uploaded successfully!')
+  }
+  
+  const handleUploadError = (error: string) => {
+    toast.error(error)
+  }
+  
+  // Get or create design section
+  const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
+    // First try to find existing section
+    const existingSection = sections.find(s => s.type === sectionType)
+    if (existingSection?.id) {
+      return existingSection.id
+    }
+    
+    // If no section exists, create one via API
+    try {
+      const response = await fetch('/api/design/sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          stageId,
+          type: sectionType
+        })
+      })
+      
+      const result = await response.json()
+      if (result.success) {
+        return result.section.id
+      } else {
+        throw new Error(result.error || 'Failed to create section')
+      }
+    } catch (error) {
+      console.error('Error creating section:', error)
+      // Fallback to a default section ID format (this would need to be handled properly)
+      return `${stageId}-${sectionType}`
+    }
   }
 
   // Asset Card Component
@@ -416,7 +461,7 @@ export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardPr
 
           {/* Add Reference Button */}
           <Button
-            onClick={() => setShowUploadModal(true)}
+            onClick={() => onAddImage ? onAddImage() : setShowUploadModal(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -446,7 +491,7 @@ export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardPr
             {searchTerm ? 'Try adjusting your search or filters.' : 'Start building your reference board by adding images and links.'}
           </p>
           <Button
-            onClick={() => setShowUploadModal(true)}
+            onClick={() => onAddImage ? onAddImage() : setShowUploadModal(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -505,12 +550,12 @@ export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardPr
         </div>
       )}
 
-      {/* Upload Modal Placeholder */}
+      {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Add Reference</h2>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Add Reference</h2>
               <Button
                 variant="outline"
                 size="sm"
@@ -519,9 +564,44 @@ export function ReferenceBoard({ sections, onUpdate, stageId }: ReferenceBoardPr
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="text-center py-8">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600">Upload modal coming soon</p>
+            
+            {/* Section Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Design Section
+              </label>
+              <select
+                value={uploadSection}
+                onChange={(e) => setUploadSection(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                {Object.entries(SECTION_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.icon} {config.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Upload Zone */}
+            <UploadZone
+              sectionId={""} // Will be resolved dynamically
+              stageId={stageId}
+              sectionType={uploadSection}
+              onResolveSectionId={getOrCreateSectionId}
+              onUploadComplete={handleUploadComplete}
+              onUploadError={handleUploadError}
+              maxFiles={5}
+              className="mb-4"
+            />
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadModal(false)}
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </div>

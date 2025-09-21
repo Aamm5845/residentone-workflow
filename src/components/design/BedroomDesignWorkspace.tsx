@@ -25,7 +25,9 @@ import {
   CheckSquare,
   Layout,
   Home,
-  Bookmark
+  Bookmark,
+  X,
+  Upload
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
@@ -140,6 +142,7 @@ export default function BedroomDesignWorkspace({
   const [currentSection, setCurrentSection] = useState<string>('overview')
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -393,6 +396,7 @@ export default function BedroomDesignWorkspace({
             sections={stage.designSections || []}
             onUpdate={refreshWorkspace}
             stageId={stageId}
+            onAddImage={() => setShowUploadModal(true)}
           />
         </div>
 
@@ -416,6 +420,7 @@ export default function BedroomDesignWorkspace({
         isCompleting={isCompleting}
         onRefresh={refreshWorkspace}
         status={stage.status}
+        onAddImage={() => setShowUploadModal(true)}
       />
 
       {/* Activity Timeline */}
@@ -435,6 +440,40 @@ export default function BedroomDesignWorkspace({
           <div className="text-center py-8">
             <Activity className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-gray-600">Activity timeline coming soon</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Add Reference</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUploadModal(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {/* Upload content will go here - for now, show placeholder */}
+            <div className="text-center py-8">
+              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-600 mb-4">Upload functionality ready!</p>
+              <p className="text-sm text-gray-500">This modal will contain the UploadZone component.</p>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
