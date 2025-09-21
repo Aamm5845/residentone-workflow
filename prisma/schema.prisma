@@ -69,6 +69,7 @@ model Organization {
   assets       Asset[]
   clients      Client[]
   activityLogs ActivityLog[]
+  tags         Tag[]
 }
 
 enum UserRole {
@@ -132,6 +133,14 @@ model User {
   updatedRenderingVersions  RenderingVersion[] @relation("RenderingVersionUpdatedBy")
   completedRenderingVersions RenderingVersion[] @relation("RenderingVersionCompletedBy")
   renderingNotes            RenderingNote[]
+  
+  // Design Concept Workspace relations
+  assetTags        AssetTag[]     @relation("UserAssetTags")
+  commentTags      CommentTag[]   @relation("UserCommentTags")
+  assetPins        AssetPin[]     @relation("UserAssetPins")
+  commentPins      CommentPin[]   @relation("UserCommentPins")
+  createdChecklists ChecklistItem[] @relation("ChecklistCreatedBy")
+  completedChecklists ChecklistItem[] @relation("ChecklistCompletedBy")
 }
 
 model Client {
@@ -324,16 +333,19 @@ model Stage {
   
   // 3D Rendering Workspace extensions
   renderingVersions      RenderingVersion[]
+  
+  // Drawings Workspace extensions
+  drawingChecklist       DrawingChecklistItem[]
 
   @@unique([roomId, type])
 }
 
 // Design stage structure
 enum DesignSectionType {
-  WALLS
-  FURNITURE  
-  LIGHTING
   GENERAL
+  WALL_COVERING
+  CEILING
+  FLOOR
 }
 
 model DesignSection {
@@ -348,14 +360,118 @@ model DesignSection {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  stage       Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  createdBy   User?     @relation("CreatedByUserSection", fields: [createdById], references: [id])
-  updatedBy   User?     @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
-  completedBy User?     @relation("CompletedByUserSection", fields: [completedById], references: [id])
-  assets      Asset[]
-  comments    Comment[]
+  stage         Stage           @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  createdBy     User?           @relation("CreatedByUserSection", fields: [createdById], references: [id])
+  updatedBy     User?           @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
+  completedBy   User?           @relation("CompletedByUserSection", fields: [completedById], references: [id])
+  assets        Asset[]
+  comments      Comment[]
+  checklistItems ChecklistItem[]
 
   @@unique([stageId, type])
+}
+
+// Design Concept Workspace Extensions
+enum TagType {
+  MUST_HAVE
+  OPTIONAL
+  EXPLORE
+  CUSTOM
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String
+  type        TagType  @default(CUSTOM)
+  color       String?  // Hex color code for tag display
+  description String?
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assetTags    AssetTag[]
+  commentTags  CommentTag[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model AssetTag {
+  id      String @id @default(cuid())
+  assetId String
+  tagId   String
+  userId  String // Who tagged it
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user  User  @relation("UserAssetTags", fields: [userId], references: [id])
+
+  @@unique([assetId, tagId])
+  @@index([assetId])
+  @@index([tagId])
+}
+
+model CommentTag {
+  id        String @id @default(cuid())
+  commentId String
+  tagId     String
+  userId    String // Who tagged it
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserCommentTags", fields: [userId], references: [id])
+
+  @@unique([commentId, tagId])
+  @@index([commentId])
+  @@index([tagId])
+}
+
+model AssetPin {
+  id      String   @id @default(cuid())
+  assetId String   @unique
+  userId  String   // Who pinned it
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation("UserAssetPins", fields: [userId], references: [id])
+
+  @@index([assetId])
+}
+
+model CommentPin {
+  id        String   @id @default(cuid())
+  commentId String   @unique
+  userId    String   // Who pinned it
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserCommentPins", fields: [userId], references: [id])
+
+  @@index([commentId])
+}
+
+model ChecklistItem {
+  id           String   @id @default(cuid())
+  sectionId    String
+  title        String
+  description  String?
+  completed    Boolean  @default(false)
+  order        Int      @default(0)
+  createdById  String
+  completedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  completedAt  DateTime?
+
+  section     DesignSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdBy   User          @relation("ChecklistCreatedBy", fields: [createdById], references: [id])
+  completedBy User?         @relation("ChecklistCompletedBy", fields: [completedById], references: [id])
+
+  @@index([sectionId])
+  @@index([order])
 }
 
 // FFE Management
@@ -548,7 +664,11 @@ model Comment {
   ffeItem   FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
   approval  Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
   
-  assets    Asset[]
+  assets      Asset[]
+  
+  // Design Concept Workspace relations
+  commentTags CommentTag[]
+  commentPin  CommentPin?
 }
 
 // Asset Management (Files, Images, Links)
@@ -573,6 +693,7 @@ model Asset {
   provider          String?   // "dropbox", "s3", "local", "external"
   metadata          String?   // JSON metadata
   description       String?   // Per-image description for renderings
+  userDescription   String?   // User-provided description for design concept uploads
   uploadedBy        String
   orgId             String
   projectId         String?
@@ -580,10 +701,11 @@ model Asset {
   stageId           String?
   sectionId         String?
   ffeItemId         String?
-  approvalId        String?
-  commentId         String?
-  renderingVersionId String?   // Link to rendering version
-  createdAt         DateTime  @default(now())
+  approvalId            String?
+  commentId             String?
+  renderingVersionId    String?   // Link to rendering version
+  drawingChecklistItemId String?  // Link to drawings checklist item
+  createdAt             DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   uploader         User                @relation(fields: [uploadedBy], references: [id])
@@ -594,11 +716,16 @@ model Asset {
   section          DesignSection?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   ffeItem          FFEItem?            @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
   approval         Approval?           @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  comment          Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  renderingVersion RenderingVersion?   @relation(fields: [renderingVersionId], references: [id], onDelete: Cascade)
+  comment               Comment?             @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  renderingVersion      RenderingVersion?    @relation(fields: [renderingVersionId], references: [id], onDelete: Cascade)
+  drawingChecklistItem  DrawingChecklistItem? @relation(fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
   
   // Client Approval relations
   clientApprovalAssets ClientApprovalAsset[]
+  
+  // Design Concept Workspace relations
+  assetTags AssetTag[]
+  assetPin  AssetPin?
 }
 
 // Notification System
@@ -777,6 +904,35 @@ model RenderingNote {
   
   @@index([versionId])
   @@index([createdAt])
+}
+
+// Drawings Workspace Models
+enum DrawingChecklistType {
+  LIGHTING
+  ELEVATION
+  MILLWORK
+  FLOORPLAN
+  CUSTOM
+}
+
+model DrawingChecklistItem {
+  id          String              @id @default(cuid())
+  stageId     String
+  type        DrawingChecklistType
+  name        String              // Display name (e.g., "Lighting Plans")
+  description String?             // Optional description
+  completed   Boolean             @default(false)
+  order       Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  completedAt DateTime?
+  
+  stage       Stage               @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  assets      Asset[]             // Files linked to this checklist item
+  
+  @@unique([stageId, type]) // One item per type per stage
+  @@index([stageId])
+  @@index([order])
 }
 
 // Activity Log for comprehensive tracking

@@ -165,14 +165,36 @@ export const ActivityActions = {
   SECTION_UPDATED: 'section_updated',
   SECTION_COMPLETED: 'section_completed',
 
-  // File actions
-  FILE_UPLOADED: 'file_uploaded',
-  FILE_DELETED: 'file_deleted',
+  // Asset actions
+  ASSET_UPLOADED: 'asset_uploaded',
+  ASSET_DELETED: 'asset_deleted',
+  ASSET_TAGGED: 'asset_tagged',
+  ASSET_UNTAGGED: 'asset_untagged',
+  ASSET_PINNED: 'asset_pinned',
+  ASSET_UNPINNED: 'asset_unpinned',
 
   // Comment actions
   COMMENT_CREATED: 'comment_created',
   COMMENT_UPDATED: 'comment_updated',
   COMMENT_DELETED: 'comment_deleted',
+  COMMENT_TAGGED: 'comment_tagged',
+  COMMENT_UNTAGGED: 'comment_untagged',
+  COMMENT_PINNED: 'comment_pinned',
+  COMMENT_UNPINNED: 'comment_unpinned',
+
+  // Tag actions
+  TAG_CREATED: 'tag_created',
+  TAG_DELETED: 'tag_deleted',
+
+  // Checklist actions
+  CHECKLIST_ITEM_CREATED: 'checklist_item_created',
+  CHECKLIST_ITEM_UPDATED: 'checklist_item_updated',
+  CHECKLIST_ITEM_COMPLETED: 'checklist_item_completed',
+  CHECKLIST_ITEM_REOPENED: 'checklist_item_reopened',
+  CHECKLIST_ITEM_DELETED: 'checklist_item_deleted',
+
+  // Notification actions
+  NOTIFICATION_CREATED: 'notification_created',
 
   // Team management actions
   USER_CREATED: 'user_created',
@@ -207,6 +229,9 @@ export const EntityTypes = {
   USER: 'User',
   FFE_ITEM: 'FFEItem',
   SESSION: 'Session',
+  TAG: 'Tag',
+  CHECKLIST_ITEM: 'ChecklistItem',
+  NOTIFICATION: 'Notification',
 } as const
 
 /**

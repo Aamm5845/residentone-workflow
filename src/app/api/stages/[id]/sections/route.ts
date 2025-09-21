@@ -30,6 +30,12 @@ export async function PATCH(
     const data = await request.json()
     const { sectionType, content, isComplete, action } = data
 
+    // Validate section type
+    const validSectionTypes = ['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR']
+    if (!validSectionTypes.includes(sectionType)) {
+      return NextResponse.json({ error: 'Invalid section type' }, { status: 400 })
+    }
+
     // Find the stage and verify access
     const stage = await prisma.stage.findFirst({
       where: {
