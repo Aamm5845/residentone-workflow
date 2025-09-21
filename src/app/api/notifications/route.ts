@@ -70,11 +70,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate the user exists and is in the same org
+    // Validate the user exists
     const targetUser = await prisma.user.findFirst({
       where: {
-        id: userId,
-        orgId: session.user.orgId
+        id: userId
       }
     })
 

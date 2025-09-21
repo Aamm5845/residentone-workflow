@@ -14,12 +14,7 @@ export async function GET() {
     const userTasks = await prisma.stage.findMany({
       where: {
         assignedTo: session.user.id,
-        status: 'IN_PROGRESS', // Only show tasks that are actively in progress
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        status: 'IN_PROGRESS' // Only show tasks that are actively in progress
       },
       include: {
         room: {

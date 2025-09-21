@@ -21,16 +21,13 @@ export async function GET() {
   try {
     const session = await getSession()
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Get the most recent completed stage
     const lastCompletedStage = await prisma.stage.findFirst({
       where: {
-        room: {
-          project: { orgId: session.user.orgId }
-        },
         status: 'COMPLETED',
         completedAt: { not: null },
         completedById: { not: null }

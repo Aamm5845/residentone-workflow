@@ -6,11 +6,11 @@ export async function GET() {
   try {
     const session = await getSession()
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all stats in parallel
+    // Get all stats in parallel (no org filtering)
     const [
       activeProjects,
       activeRooms,
@@ -22,14 +22,12 @@ export async function GET() {
     ] = await Promise.all([
       prisma.project.count({
         where: {
-          orgId: session.user.orgId,
           status: { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
         }
       }),
       // Count rooms that have at least one IN_PROGRESS stage (truly active)
       prisma.room.count({
         where: { 
-          project: { orgId: session.user.orgId },
           stages: {
             some: {
               status: 'IN_PROGRESS'
@@ -40,18 +38,12 @@ export async function GET() {
       // Count ClientApprovalVersions that are pending client approval
       prisma.clientApprovalVersion.count({
         where: {
-          stage: {
-            room: {
-              project: { orgId: session.user.orgId }
-            }
-          },
           status: 'SENT_TO_CLIENT',
           clientDecision: 'PENDING'
         }
       }),
       prisma.project.count({
         where: {
-          orgId: session.user.orgId,
           status: 'COMPLETED',
           updatedAt: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -60,16 +52,12 @@ export async function GET() {
       }),
       prisma.project.aggregate({
         where: {
-          orgId: session.user.orgId,
           status: 'COMPLETED'
         },
         _sum: { budget: true }
       }),
       prisma.stage.count({
         where: {
-          room: {
-            project: { orgId: session.user.orgId }
-          },
           status: 'IN_PROGRESS'
         }
       }),
@@ -77,20 +65,12 @@ export async function GET() {
       Promise.all([
         prisma.stage.count({
           where: {
-            room: {
-              project: { orgId: session.user.orgId }
-            },
             status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] },
             dueDate: { lt: new Date() }
           }
         }),
         prisma.clientApprovalVersion.count({
           where: {
-            stage: {
-              room: {
-                project: { orgId: session.user.orgId }
-              }
-            },
             status: 'SENT_TO_CLIENT',
             clientDecision: 'PENDING',
             sentToClientAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // More than 7 days ago
