@@ -100,6 +100,12 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 <Bell className="h-5 w-5" />
               </Button>
               
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/preferences">
+                  <Settings className="h-5 w-5" />
+                </Link>
+              </Button>
+              
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4" />

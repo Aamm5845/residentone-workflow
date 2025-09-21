@@ -256,10 +256,6 @@ export default async function ProjectDetail({ params }: Props) {
                     Project Settings
                   </Link>
                 </Button>
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Room
-                </Button>
               </div>
             </div>
             

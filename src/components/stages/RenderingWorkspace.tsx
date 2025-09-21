@@ -288,9 +288,9 @@ export default function RenderingWorkspace({
         
         // Check if Client Approval stage was opened
         if (result.clientApprovalStageOpened) {
-          alert('Successfully pushed to Client Approval! The Client Approval phase has been automatically opened and is ready for processing.')
+          alert('🎉 Successfully pushed to Client Approval!\n\n✅ The Client Approval phase has been automatically opened and is ready for processing.\n\n👉 You can now navigate to the Client Approval workspace to manage approvals and send to clients.')
         } else {
-          alert('Successfully pushed to Client Approval! Version is now available in the Client Approval workspace.')
+          alert('✅ Successfully pushed to Client Approval!\n\nVersion is now available in the Client Approval workspace. The Client Approval phase was already active.')
         }
       } else {
         const error = await response.json()

@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
         clients: await prisma.client.findMany(),
         contractors: await prisma.contractor.findMany(),
         projects: await prisma.project.findMany(),
-        floors: await prisma.floor.findMany(),
         rooms: await prisma.room.findMany(),
         stages: await prisma.stage.findMany(),
         designSections: await prisma.designSection.findMany(),
