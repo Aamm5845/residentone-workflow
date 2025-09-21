@@ -303,10 +303,6 @@ export default async function ProjectDetail({ params }: Props) {
               <h2 className="text-2xl font-semibold text-gray-900">Rooms</h2>
               <p className="text-gray-600 mt-1">Manage and track progress for all project rooms</p>
             </div>
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Room
-            </Button>
           </div>
           
           {/* Room Cards Grid */}

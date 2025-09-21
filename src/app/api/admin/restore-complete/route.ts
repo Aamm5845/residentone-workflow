@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
       await tx.fFEItem.deleteMany({})
       await tx.stage.deleteMany({})
       await tx.room.deleteMany({})
-      await tx.floor.deleteMany({})
       await tx.project.deleteMany({})
       await tx.contractor.deleteMany({})
       await tx.client.deleteMany({})
@@ -111,10 +110,6 @@ export async function POST(request: NextRequest) {
         console.log(`✅ Restored ${data.projects.length} projects`)
       }
 
-      if (data.floors?.length > 0) {
-        await tx.floor.createMany({ data: data.floors })
-        console.log(`✅ Restored ${data.floors.length} floors`)
-      }
 
       if (data.rooms?.length > 0) {
         await tx.room.createMany({ data: data.rooms })

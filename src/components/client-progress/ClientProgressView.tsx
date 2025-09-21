@@ -15,10 +15,7 @@ import {
   Star,
   Mail,
   Phone,
-  Globe,
-  ChevronDown,
-  ChevronRight,
-  Building
+  Globe
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -39,14 +36,6 @@ interface ProjectData {
   }
   createdAt: string
   updatedAt: string
-  floors: Floor[]
-  rooms: Room[]
-}
-
-interface Floor {
-  id: string
-  name: string
-  order: number
   rooms: Room[]
 }
 
@@ -90,7 +79,6 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [downloadingAsset, setDownloadingAsset] = useState<string | null>(null)
-  const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchProjectData()
@@ -164,36 +152,21 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
     return room.name || room.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
   }
 
-  const toggleFloor = (floorId: string) => {
-    const newExpanded = new Set(expandedFloors)
-    if (newExpanded.has(floorId)) {
-      newExpanded.delete(floorId)
-    } else {
-      newExpanded.add(floorId)
-    }
-    setExpandedFloors(newExpanded)
-  }
 
   const calculateOverallProgress = () => {
-    const allRooms = [
-      ...projectData?.rooms || [],
-      ...(projectData?.floors?.flatMap(floor => floor.rooms) || [])
-    ]
+    const allRooms = projectData?.rooms || []
     if (!allRooms.length) return 0
     const totalProgress = allRooms.reduce((sum, room) => sum + room.progress, 0)
     return Math.round(totalProgress / allRooms.length)
   }
 
   const getTotalRenderingCount = () => {
-    const allRooms = [
-      ...projectData?.rooms || [],
-      ...(projectData?.floors?.flatMap(floor => floor.rooms) || [])
-    ]
+    const allRooms = projectData?.rooms || []
     return allRooms.reduce((sum, room) => sum + room.approvedRenderings.length, 0)
   }
 
   const getTotalRoomCount = () => {
-    return (projectData?.rooms?.length || 0) + (projectData?.floors?.reduce((sum, floor) => sum + floor.rooms.length, 0) || 0)
+    return projectData?.rooms?.length || 0
   }
 
   if (loading) {
@@ -311,54 +284,25 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Floors Section */}
-            {projectData.floors && projectData.floors.length > 0 && (
+            {/* Project Rooms */}
+            {projectData.rooms && projectData.rooms.length > 0 && (
               <>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Project Floors</h3>
-                {projectData.floors.map((floor) => (
-                  <div key={floor.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    {/* Floor Header */}
-                    <button 
-                      onClick={() => toggleFloor(floor.id)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Building className="w-5 h-5 text-gray-600" />
-                        <div className="text-left">
-                          <h4 className="font-semibold text-gray-900">{floor.name}</h4>
-                          <p className="text-sm text-gray-600">{floor.rooms.length} room{floor.rooms.length !== 1 ? 's' : ''}</p>
-                        </div>
-                      </div>
-                      {expandedFloors.has(floor.id) ? (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
-                    
-                    {/* Floor Rooms */}
-                    {expandedFloors.has(floor.id) && (
-                      <div className="border-t border-gray-100">
-                        {floor.rooms.map((room) => (
-                          <RoomCard key={room.id} room={room} downloadingAsset={downloadingAsset} handleDownload={handleDownload} formatRoomName={formatRoomName} getPhaseIcon={getPhaseIcon} getPhaseStatusColor={getPhaseStatusColor} />
-                        ))}
-                      </div>
-                    )}
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Project Rooms</h3>
+                {projectData.rooms.map((room) => (
+                  <div key={room.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <RoomCard room={room} downloadingAsset={downloadingAsset} handleDownload={handleDownload} formatRoomName={formatRoomName} getPhaseIcon={getPhaseIcon} getPhaseStatusColor={getPhaseStatusColor} />
                   </div>
                 ))}
               </>
             )}
             
-            {/* Standalone Rooms (not assigned to floors) */}
-            {projectData.rooms && projectData.rooms.length > 0 && (
-              <>
-                {projectData.floors && projectData.floors.length > 0 && (
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4 mt-8">Other Rooms</h3>
-                )}
-                {projectData.rooms.map((room) => (
-                  <RoomCard key={room.id} room={room} downloadingAsset={downloadingAsset} handleDownload={handleDownload} formatRoomName={formatRoomName} getPhaseIcon={getPhaseIcon} getPhaseStatusColor={getPhaseStatusColor} />
-                ))}
-              </>
+            {/* No rooms message */}
+            {(!projectData.rooms || projectData.rooms.length === 0) && (
+              <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                <Home className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms available</h3>
+                <p className="text-gray-600">This project doesn't have any rooms configured yet.</p>
+              </div>
             )}
           </div>
 

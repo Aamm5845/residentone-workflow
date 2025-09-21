@@ -39,25 +39,17 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Validate floor if provided
+    // Note: Floor functionality temporarily disabled as Floor model doesn't exist in schema
+    // TODO: Add Floor model to Prisma schema if floor organization is needed
     if (floorId) {
-      const floor = await prisma.floor.findFirst({
-        where: {
-          id: floorId,
-          projectId: project.id
-        }
-      })
-      
-      if (!floor) {
-        return NextResponse.json({ error: 'Floor not found' }, { status: 404 })
-      }
+      // Skip floor validation for now since Floor model doesn't exist
+      console.warn('Floor assignment skipped - Floor model not implemented in schema')
     }
 
-    // Create new room
+    // Create new room (floorId set to null since Floor model doesn't exist)
     const room = await prisma.room.create({
       data: {
         projectId: project.id,
-        floorId: floorId || undefined,
         type: type as RoomType,
         name: customName || name,
         status: 'NOT_STARTED'
@@ -120,10 +112,10 @@ export async function POST(
     if (designStage) {
       await prisma.designSection.createMany({
         data: [
-          { stageId: designStage.id, type: 'WALLS' },
-          { stageId: designStage.id, type: 'FURNITURE' },
-          { stageId: designStage.id, type: 'LIGHTING' },
-          { stageId: designStage.id, type: 'GENERAL' }
+          { stageId: designStage.id, type: 'GENERAL' },
+          { stageId: designStage.id, type: 'WALL_COVERING' },
+          { stageId: designStage.id, type: 'CEILING' },
+          { stageId: designStage.id, type: 'FLOOR' }
         ]
       })
     }

@@ -103,10 +103,6 @@ export async function POST(request: NextRequest) {
         console.log(`✅ Restored ${data.projects.length} projects`)
       }
 
-      if (data.floors?.length > 0) {
-        await tx.floor.createMany({ data: data.floors })
-        console.log(`✅ Restored ${data.floors.length} floors`)
-      }
 
       if (data.rooms?.length > 0) {
         await tx.room.createMany({ data: data.rooms })

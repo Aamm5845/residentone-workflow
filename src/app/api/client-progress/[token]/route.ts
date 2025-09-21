@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { token } = await params
-    const headersList = headers()
+    const headersList = await headers()
     const userAgent = headersList.get('user-agent') || 'Unknown'
     const forwarded = headersList.get('x-forwarded-for')
     const ipAddress = forwarded ? forwarded.split(',')[0] : headersList.get('x-real-ip') || 'Unknown'
@@ -28,64 +28,6 @@ export async function GET(
         project: {
           include: {
             client: true,
-            floors: {
-              include: {
-                rooms: {
-                  include: {
-                    stages: {
-                      include: {
-                        // Only include completed renderings that have been approved by clients
-                        renderingVersions: {
-                          where: {
-                            status: 'PUSHED_TO_CLIENT',
-                            clientApprovalVersion: {
-                              clientDecision: 'APPROVED'
-                            }
-                          },
-                          include: {
-                            assets: {
-                              where: {
-                                type: {
-                                  in: ['RENDER', 'IMAGE']
-                                }
-                              },
-                              select: {
-                                id: true,
-                                title: true,
-                                url: true,
-                                type: true,
-                                description: true,
-                                createdAt: true
-                              }
-                            },
-                            clientApprovalVersion: {
-                              select: {
-                                version: true,
-                                clientDecision: true,
-                                clientDecidedAt: true,
-                                aaronApprovedAt: true
-                              }
-                            }
-                          },
-                          orderBy: {
-                            createdAt: 'desc'
-                          }
-                        }
-                      },
-                      orderBy: {
-                        createdAt: 'asc'
-                      }
-                    }
-                  },
-                  orderBy: {
-                    createdAt: 'asc'
-                  }
-                }
-              },
-              orderBy: {
-                order: 'asc'
-              }
-            },
             rooms: {
               include: {
                 stages: {
@@ -169,8 +111,7 @@ export async function GET(
         action: 'VIEW_PROJECT',
         metadata: {
           timestamp: new Date().toISOString(),
-          floors: clientAccessToken.project.floors.length,
-          rooms: clientAccessToken.project.rooms.length + clientAccessToken.project.floors.reduce((acc, floor) => acc + floor.rooms.length, 0)
+          rooms: clientAccessToken.project.rooms.length
         }
       }
     })
@@ -187,12 +128,6 @@ export async function GET(
       },
       createdAt: clientAccessToken.project.createdAt,
       updatedAt: clientAccessToken.project.updatedAt,
-      floors: clientAccessToken.project.floors.map(floor => ({
-        id: floor.id,
-        name: floor.name,
-        order: floor.order,
-        rooms: floor.rooms.map(room => processRoomData(room))
-      })),
       rooms: clientAccessToken.project.rooms.map(room => processRoomData(room))
     }
 
