@@ -110,10 +110,15 @@ export async function POST(
 
     // Send the actual email
     try {
+      const client = currentVersion.stage.room.project.client
+      if (!client?.email || !client?.name) {
+        return NextResponse.json({ error: 'Client email or name not found' }, { status: 400 })
+      }
+
       await sendClientApprovalEmail({
         versionId: currentVersion.id,
-        clientEmail: currentVersion.stage.room.project.client?.email!,
-        clientName: currentVersion.stage.room.project.client?.name!,
+        clientEmail: client.email,
+        clientName: client.name,
         projectName: currentVersion.stage.room.project.name,
         assets: emailAssets
       })

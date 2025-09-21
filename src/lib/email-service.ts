@@ -19,7 +19,7 @@ if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
 }
 
 // Fallback SMTP transporter for development or when Mailgun is not configured
-const createTransporter = () => nodemailer.createTransporter({
+const createTransporter = () => nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'localhost', // Use 'localhost' for MailHog
   port: parseInt(process.env.EMAIL_PORT || '1025'), // MailHog port
   secure: false, // true for 465, false for other ports
@@ -143,7 +143,7 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       trackingPixelUrl,
       roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type,
       designPhase: 'Client Approval',
-      projectAddress: versionDetails?.stage?.room?.project?.address
+      projectAddress: versionDetails?.stage?.room?.project?.address || undefined
     });
 
     // Update email log with subject and HTML

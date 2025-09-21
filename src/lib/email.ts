@@ -43,7 +43,7 @@ const createTransporter = () => {
     return null
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.port === 465,
