@@ -26,16 +26,27 @@ export async function GET() {
           status: { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
         }
       }),
+      // Count rooms that have at least one active stage (IN_PROGRESS or NEEDS_ATTENTION)
       prisma.room.count({
         where: { 
           project: { orgId: session.user.orgId },
-          status: 'IN_PROGRESS'
+          stages: {
+            some: {
+              status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+            }
+          }
         }
       }),
-      prisma.approval.count({
+      // Count ClientApprovalVersions that are pending client approval
+      prisma.clientApprovalVersion.count({
         where: {
-          project: { orgId: session.user.orgId },
-          status: 'PENDING'
+          stage: {
+            room: {
+              project: { orgId: session.user.orgId }
+            }
+          },
+          status: 'SENT_TO_CLIENT',
+          clientDecision: 'PENDING'
         }
       }),
       prisma.project.count({
@@ -62,15 +73,30 @@ export async function GET() {
           status: 'IN_PROGRESS'
         }
       }),
-      prisma.stage.count({
-        where: {
-          room: {
-            project: { orgId: session.user.orgId }
-          },
-          status: 'NEEDS_ATTENTION',
-          dueDate: { lt: new Date() }
-        }
-      })
+      // Count stages and client approvals that are overdue
+      Promise.all([
+        prisma.stage.count({
+          where: {
+            room: {
+              project: { orgId: session.user.orgId }
+            },
+            status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] },
+            dueDate: { lt: new Date() }
+          }
+        }),
+        prisma.clientApprovalVersion.count({
+          where: {
+            stage: {
+              room: {
+                project: { orgId: session.user.orgId }
+              }
+            },
+            status: 'SENT_TO_CLIENT',
+            clientDecision: 'PENDING',
+            sentToClientAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // More than 7 days ago
+          }
+        })
+      ]).then(([overdueStages, overdueApprovals]) => overdueStages + overdueApprovals)
     ])
 
     return NextResponse.json({
