@@ -103,14 +103,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found or created' }, { status: 400 })
     }
 
-    // Create project
+    // Create project (temporarily removing address field due to schema sync issue)
+    console.log('🏠 Creating project without address field (schema sync issue)')
     const project = await prisma.project.create({
       data: {
         name,
         description: description || null,
         type: type as ProjectType,
         clientId: client.id,
-        address: projectAddress || null,
+        // address: projectAddress || null, // Temporarily disabled - schema sync issue
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         coverImages: coverImages || [],
@@ -119,6 +120,8 @@ export async function POST(request: NextRequest) {
         status: 'IN_PROGRESS'
       }
     })
+    
+    console.log('✅ Project created successfully:', { projectId: project.id, name: project.name })
 
     // Create project contractors relationships
     console.log('👷 Processing contractors:', { contractorsCount: contractors?.length || 0 })
