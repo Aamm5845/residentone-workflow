@@ -23,7 +23,7 @@ interface AuthSession extends Session {
 export default async function ProjectSettings({ params }: Props) {
   const session = await getSession() as AuthSession | null
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -39,8 +39,7 @@ export default async function ProjectSettings({ params }: Props) {
     [project, clients] = await Promise.all([
       prisma.project.findFirst({
         where: { 
-          id: id,
-          orgId: session.user.orgId
+          id: id
         },
         include: {
           client: true,
@@ -58,7 +57,6 @@ export default async function ProjectSettings({ params }: Props) {
         }
       }),
       prisma.client.findMany({
-        where: { orgId: session.user.orgId },
         orderBy: { name: 'asc' }
       })
     ])

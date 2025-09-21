@@ -17,7 +17,7 @@ interface Props {
 export default async function RoomWorkspace({ params }: Props) {
   const session = await getSession()
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -33,8 +33,7 @@ export default async function RoomWorkspace({ params }: Props) {
     const [projectData, teamData] = await Promise.all([
       prisma.project.findFirst({
         where: { 
-          id: id,
-          orgId: session.user.orgId
+          id: id
         },
         include: {
           client: true,
@@ -52,9 +51,6 @@ export default async function RoomWorkspace({ params }: Props) {
         }
       }),
       prisma.user.findMany({
-        where: {
-          orgId: session.user.orgId
-        },
         select: {
           id: true,
           name: true,

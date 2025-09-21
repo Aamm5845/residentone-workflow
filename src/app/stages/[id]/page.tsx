@@ -19,7 +19,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
   } | null
   const resolvedParams = await params
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     return redirect('/auth/signin')
   }
 
@@ -29,12 +29,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
   try {
     stage = await prisma.stage.findFirst({
       where: { 
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: resolvedParams.id
       },
       include: {
         assignedUser: {

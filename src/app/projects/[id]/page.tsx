@@ -17,7 +17,7 @@ interface Props {
 export default async function ProjectDetail({ params }: Props) {
   const session = await getSession()
   
-  if (!session?.user?.orgId) {
+  if (!session?.user) {
     redirect('/auth/signin')
   }
 
@@ -30,8 +30,7 @@ export default async function ProjectDetail({ params }: Props) {
   try {
     project = await prisma.project.findFirst({
       where: { 
-        id: id,
-        orgId: session.user.orgId
+        id: id
       },
       include: {
         client: true,
