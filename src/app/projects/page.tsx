@@ -77,7 +77,7 @@ export default async function Projects({ searchParams }: { searchParams: { statu
           status: true,
           dueDate: true,
           budget: true,
-          coverImageUrl: true,
+          coverImages: true,
           createdAt: true,
           updatedAt: true,
           client: true,
@@ -199,9 +199,9 @@ export default async function Projects({ searchParams }: { searchParams: { statu
                   <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200 h-full flex flex-col">
                     {/* Project Thumbnail */}
                     <div className="aspect-[16/9] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                      {project.coverImageUrl ? (
+                      {project.coverImages && Array.isArray(project.coverImages) && project.coverImages.length > 0 ? (
                         <Image
-                          src={project.coverImageUrl}
+                          src={project.coverImages[0]}
                           alt={project.name}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
