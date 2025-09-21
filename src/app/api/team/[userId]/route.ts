@@ -50,7 +50,7 @@ export async function GET(
   try {
     const session = await getSession() as AuthSession | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -63,8 +63,7 @@ export async function GET(
 
     const user = await prisma.user.findFirst({
       where: { 
-        id: params.userId,
-        orgId: session.user.orgId
+        id: params.userId
       },
       select: {
         id: true,
@@ -107,7 +106,7 @@ export async function PUT(
   try {
     const session = await getSession() as AuthSession | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -124,11 +123,10 @@ export async function PUT(
     const validatedData = updateUserSchema.parse(body)
     console.log('Validated data:', validatedData)
 
-    // Check if user exists and belongs to same organization
+    // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: { 
-        id: params.userId,
-        orgId: session.user.orgId
+        id: params.userId
       }
     })
 
@@ -203,13 +201,17 @@ export async function PUT(
     // Handle role change auto-assignment
     if (validatedData.role && validatedData.role !== existingUser.role) {
       try {
-        const reassignmentResult = await reassignPhasesOnRoleChange(
-          params.userId,
-          existingUser.role,
-          validatedData.role,
-          session.user.orgId
-        )
-        console.log(`Role change auto-assignment: removed ${reassignmentResult.removedCount}, added ${reassignmentResult.addedCount} phase assignments`)
+        // Get shared organization
+        const sharedOrg = await prisma.organization.findFirst()
+        if (sharedOrg) {
+          const reassignmentResult = await reassignPhasesOnRoleChange(
+            params.userId,
+            existingUser.role,
+            validatedData.role,
+            sharedOrg.id
+          )
+          console.log(`Role change auto-assignment: removed ${reassignmentResult.removedCount}, added ${reassignmentResult.addedCount} phase assignments`)
+        }
       } catch (assignmentError) {
         console.error('Failed to auto-reassign phases on role change:', assignmentError)
         // Don't fail the user update if assignment fails
@@ -238,7 +240,7 @@ export async function DELETE(
   try {
     const session = await getSession() as AuthSession | null
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -249,11 +251,10 @@ export async function DELETE(
       }, { status: 403 })
     }
 
-    // Check if user exists and belongs to same organization
+    // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: { 
-        id: params.userId,
-        orgId: session.user.orgId
+        id: params.userId
       }
     })
 

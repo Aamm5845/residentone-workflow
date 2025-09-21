@@ -19,20 +19,17 @@ export async function POST(
     } | null
     const resolvedParams = await params
     
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
-    const { orgId } = session.user
 
     const data = await request.json()
     const { type, name, customName, floorId } = data
 
-    // Verify project belongs to user's organization
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: resolvedParams.id,
-        orgId
+        id: resolvedParams.id
       }
     })
 
@@ -97,8 +94,12 @@ export async function POST(
 
     // Auto-assign stages to team members based on their roles
     try {
-      const assignmentResult = await autoAssignPhasesToTeam(room.id, orgId)
-      console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for new room ${room.id}`)
+      // Get shared organization
+      const sharedOrg = await prisma.organization.findFirst()
+      if (sharedOrg) {
+        const assignmentResult = await autoAssignPhasesToTeam(room.id, sharedOrg.id)
+        console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for new room ${room.id}`)
+      }
     } catch (assignmentError) {
       console.error('Failed to auto-assign phases to team:', assignmentError)
       // Don't fail room creation if assignment fails
