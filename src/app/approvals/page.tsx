@@ -150,105 +150,106 @@ export default async function Approvals({ searchParams }: { searchParams: { stat
               {approvalsWithTimeInfo.map((approval) => (
                 <Link key={approval.id} href={`/stages/${approval.stage.id}`}>
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {approval.stage.room.name || approval.stage.room.type.replace('_', ' ')}
-                            </h3>
-                            <span className="text-sm text-gray-500">•</span>
-                            <span className="text-sm font-medium text-gray-700">
-                              {formatStageType(approval.stage.type)}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {approval.stage.room.name || approval.stage.room.type.replace('_', ' ')}
+                              </h3>
+                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm font-medium text-gray-700">
+                                {formatStageType(approval.stage.type)}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
+                              <span>{approval.stage.room.project.name}</span>
+                              <span>•</span>
+                              <span>{approval.stage.room.project.client.name}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Status Badge */}
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(approval.urgencyLevel)}`}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              {getUrgencyText(approval.daysSent)}
                             </span>
-                          </div>
-                          <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
-                            <span>{approval.stage.room.project.name}</span>
-                            <span>•</span>
-                            <span>{approval.stage.room.project.client.name}</span>
-                          </div>
-                        </div>
-                        
-                        {/* Status Badge */}
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(approval.urgencyLevel)}`}>
-                            <Clock className="w-3 h-3 mr-1" />
-                            {getUrgencyText(approval.daysSent)}
-                          </span>
-                          {approval.isOverdue && (
-                            <AlertCircle className="w-5 h-5 text-red-500" />
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Assets Preview */}
-                      {approval.assets && approval.assets.length > 0 && (
-                        <div className="mb-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <Eye className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">
-                              {approval.assets.length} asset{approval.assets.length !== 1 ? 's' : ''} sent for approval
-                            </span>
-                          </div>
-                          <div className="flex space-x-2 overflow-x-auto pb-2">
-                            {approval.assets.slice(0, 4).map((asset: any) => (
-                              <div key={asset.id} className="flex-shrink-0">
-                                {asset.type === 'IMAGE' && asset.url ? (
-                                  <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                                    <Image
-                                      src={asset.url}
-                                      alt={asset.name}
-                                      fill
-                                      className="object-cover"
-                                      sizes="80px"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center">
-                                    <span className="text-xs text-gray-500 text-center p-1">
-                                      {asset.name.split('.').pop()?.toUpperCase()}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                            {approval.assets.length > 4 && (
-                              <div className="w-20 h-20 rounded-lg bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                                <span className="text-xs text-gray-500">
-                                  +{approval.assets.length - 4}
-                                </span>
-                              </div>
+                            {approval.isOverdue && (
+                              <AlertCircle className="w-5 h-5 text-red-500" />
                             )}
                           </div>
                         </div>
-                      )}
 
-                      {/* Metadata */}
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-1">
-                            <Send className="w-4 h-4" />
-                            <span>Sent by {approval.sentByUser?.name}</span>
+                        {/* Assets Preview */}
+                        {approval.assets && approval.assets.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center space-x-2 mb-3">
+                              <Eye className="w-4 h-4 text-gray-500" />
+                              <span className="text-sm font-medium text-gray-700">
+                                {approval.assets.length} asset{approval.assets.length !== 1 ? 's' : ''} sent for approval
+                              </span>
+                            </div>
+                            <div className="flex space-x-2 overflow-x-auto pb-2">
+                              {approval.assets.slice(0, 4).map((asset: any) => (
+                                <div key={asset.id} className="flex-shrink-0">
+                                  {asset.type === 'IMAGE' && asset.url ? (
+                                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                                      <Image
+                                        src={asset.url}
+                                        alt={asset.name}
+                                        fill
+                                        className="object-cover"
+                                        sizes="80px"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center">
+                                      <span className="text-xs text-gray-500 text-center p-1">
+                                        {asset.name.split('.').pop()?.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {approval.assets.length > 4 && (
+                                <div className="w-20 h-20 rounded-lg bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                  <span className="text-xs text-gray-500">
+                                    +{approval.assets.length - 4}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <span>•</span>
-                          <span>Version {approval.version}</span>
-                          {approval.sentToClientAt && (
-                            <>
-                              <span>•</span>
-                              <span>{formatDate(approval.sentToClientAt)}</span>
-                            </>
-                          )}
+                        )}
+
+                        {/* Metadata */}
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-1">
+                              <Send className="w-4 h-4" />
+                              <span>Sent by {approval.sentByUser?.name}</span>
+                            </div>
+                            <span>•</span>
+                            <span>Version {approval.version}</span>
+                            {approval.sentToClientAt && (
+                              <>
+                                <span>•</span>
+                                <span>{formatDate(approval.sentToClientAt)}</span>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Action Button */}
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/stages/${approval.stage.id}`}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </Link>
+                          </Button>
                         </div>
-                        
-                        {/* Action Button */}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/stages/${approval.stage.id}`}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Link>
-                        </Button>
                       </div>
                     </div>
                   </div>
