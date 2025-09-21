@@ -549,16 +549,15 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                 {canManageTeam && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
                     <div className="relative">
-                      <button
+                      <Button
                         onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
-                        className={`p-2 rounded-full transition-colors ${
-                          openDropdown === member.id 
-                            ? 'text-gray-600 bg-gray-100' 
-                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                        }`}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs"
                       >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
                       
                       {openDropdown === member.id && (
                         <>
