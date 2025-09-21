@@ -151,7 +151,8 @@ export default async function Stages({ searchParams }: { searchParams: { status?
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {stages.map((stage) => (
-                      <tr key={stage.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => window.location.href = `/stages/${stage.id}`}>
+                      <Link key={stage.id} href={`/stages/${stage.id}`} className="contents">
+                        <tr className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             {getStatusIcon(stage.status)}
@@ -194,7 +195,8 @@ export default async function Stages({ searchParams }: { searchParams: { status?
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(stage.updatedAt)}
                         </td>
-                      </tr>
+                        </tr>
+                      </Link>
                     ))}
                   </tbody>
                 </table>

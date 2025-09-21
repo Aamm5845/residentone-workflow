@@ -177,7 +177,8 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {roomsWithStats.map((room) => (
-                      <tr key={room.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => window.location.href = `/projects/${room.project.id}/rooms/${room.id}`}>
+                      <Link key={room.id} href={`/projects/${room.project.id}/rooms/${room.id}`} className="contents">
+                        <tr className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
@@ -240,7 +241,8 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </td>
-                      </tr>
+                        </tr>
+                      </Link>
                     ))}
                   </tbody>
                 </table>

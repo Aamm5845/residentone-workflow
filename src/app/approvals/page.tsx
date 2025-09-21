@@ -148,7 +148,8 @@ export default async function Approvals({ searchParams }: { searchParams: { stat
           {approvalsWithTimeInfo.length > 0 ? (
             <div className="space-y-4">
               {approvalsWithTimeInfo.map((approval) => (
-                <div key={approval.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => window.location.href = `/stages/${approval.stage.id}`}>
+                <Link key={approval.id} href={`/stages/${approval.stage.id}`}>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       {/* Header */}
@@ -242,17 +243,16 @@ export default async function Approvals({ searchParams }: { searchParams: { stat
                         </div>
                         
                         {/* Action Button */}
-                        <Button variant="outline" size="sm" onClick={(e) => {
-                          e.stopPropagation()
-                          window.location.href = `/stages/${approval.stage.id}`
-                        }}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Details
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/stages/${approval.stage.id}`}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </Link>
                         </Button>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (

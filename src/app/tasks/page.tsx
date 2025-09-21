@@ -167,11 +167,11 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
     return `${overdueBy} days ${type === 'approval' ? 'overdue' : 'overdue'}`
   }
 
-  const handleTaskClick = (task: any) => {
+  const getTaskHref = (task: any) => {
     if (task.type === 'stage') {
-      window.location.href = `/stages/${task.id}`
+      return `/stages/${task.id}`
     } else {
-      window.location.href = `/stages/${task.stageId}`
+      return `/stages/${task.stageId}`
     }
   }
 
@@ -245,7 +245,8 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
           {overdueTasks.length > 0 ? (
             <div className="space-y-4">
               {overdueTasks.map((task) => (
-                <div key={`${task.type}-${task.id}`} className="bg-white rounded-lg shadow-sm border-l-4 border-l-red-500 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleTaskClick(task)}>
+                <Link key={`${task.type}-${task.id}`} href={getTaskHref(task)}>
+                  <div className="bg-white rounded-lg shadow-sm border-l-4 border-l-red-500 p-6 hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
                       {/* Icon */}
@@ -313,7 +314,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                       </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
