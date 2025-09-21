@@ -16,10 +16,19 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 Upload API called')
+    
     const session = await getSession()
     const ipAddress = getIPAddress(request)
     
+    console.log('👤 Session check:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id,
+      orgId: session?.user?.orgId
+    })
+    
     if (!isValidAuthSession(session)) {
+      console.error('❌ Unauthorized - invalid session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -27,6 +36,14 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const sectionId = formData.get('sectionId') as string
     const userDescription = formData.get('description') as string | null
+    
+    console.log('📁 Form data:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      sectionId,
+      hasDescription: !!userDescription
+    })
 
     if (!file || !sectionId) {
       return NextResponse.json({ 
@@ -82,8 +99,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!section) {
+      console.error('❌ Section not found:', { sectionId, userId: session.user.id, orgId: session.user.orgId })
       return NextResponse.json({ error: 'Section not found' }, { status: 404 })
     }
+    
+    console.log('✅ Section found:', { sectionId: section.id, type: section.type, stageId: section.stageId })
 
     // Store files in the public/uploads/design directory
     const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
@@ -192,7 +212,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error uploading file:', error)
+    console.error('❌ Upload API Error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json({ 
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

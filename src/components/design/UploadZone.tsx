@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
 import { 
@@ -48,6 +48,12 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [uploads, setUploads] = useState<FileUpload[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Fix hydration mismatch by only rendering after client-side mount
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // File validation
   const validateFile = (file: File): string | null => {
@@ -252,6 +258,22 @@ export function UploadZone({
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />
     }
+  }
+
+  // Don't render until mounted (prevents hydration mismatch)
+  if (!isMounted) {
+    return (
+      <div className={className}>
+        <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+          <div className="flex flex-col items-center space-y-3">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-100">
+              <Upload className="w-6 h-6 text-gray-600" />
+            </div>
+            <p className="text-gray-900 font-medium">Loading upload interface...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
