@@ -160,6 +160,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           icon={FolderOpen}
           color="bg-blue-500"
           isLoading={isLoading}
+          href="/projects?status=active"
         />
         <StatCard
           label="Active Rooms"
@@ -167,6 +168,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           icon={Users}
           color="bg-green-500"
           isLoading={isLoading}
+          href="/rooms?status=active"
         />
         <StatCard
           label="Pending Approvals"
@@ -174,6 +176,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           icon={Clock}
           color="bg-orange-500"
           isLoading={isLoading}
+          href="/approvals?status=pending"
         />
         <StatCard
           label="Completed This Month"
@@ -181,6 +184,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           icon={CheckCircle}
           color="bg-purple-500"
           isLoading={isLoading}
+          href="/projects?status=completed&timeframe=month"
         />
       </div>
 
@@ -251,7 +255,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             error={lastPhaseError}
           />
           
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all duration-200 hover:shadow-md hover:border-gray-300 cursor-pointer transform hover:scale-[1.02]" onClick={() => window.location.href = '/stages?status=active'}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Stages</p>
@@ -261,7 +265,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all duration-200 hover:shadow-md hover:border-gray-300 cursor-pointer transform hover:scale-[1.02]" onClick={() => window.location.href = '/tasks?status=overdue'}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue Items</p>
@@ -412,27 +416,47 @@ function StatCard({
   value, 
   icon: Icon, 
   color, 
-  isLoading 
+  isLoading,
+  href,
+  onClick
 }: {
   label: string
   value: string
   icon: any
   color: string
   isLoading: boolean
+  href?: string
+  onClick?: () => void
 }) {
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center">
-        <div className={`${color} p-3 rounded-lg mr-4`}>
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <p className={`text-2xl font-bold text-gray-900 ${isLoading ? 'animate-pulse' : ''}`}>
-            {value}
-          </p>
-          <p className="text-sm text-gray-600">{label}</p>
-        </div>
+  const CardContent = () => (
+    <div className="flex items-center">
+      <div className={`${color} p-3 rounded-lg mr-4`}>
+        <Icon className="h-6 w-6 text-white" />
       </div>
+      <div>
+        <p className={`text-2xl font-bold text-gray-900 ${isLoading ? 'animate-pulse' : ''}`}>
+          {value}
+        </p>
+        <p className="text-sm text-gray-600">{label}</p>
+      </div>
+    </div>
+  )
+
+  const cardClasses = `bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all duration-200 ${
+    (href || onClick) ? 'hover:shadow-md hover:border-gray-300 cursor-pointer transform hover:scale-[1.02]' : ''
+  }`
+
+  if (href) {
+    return (
+      <Link href={href} className={cardClasses}>
+        <CardContent />
+      </Link>
+    )
+  }
+
+  return (
+    <div className={cardClasses} onClick={onClick}>
+      <CardContent />
     </div>
   )
 }

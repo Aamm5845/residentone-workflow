@@ -9,7 +9,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Session } from 'next-auth'
 
-export default async function Projects() {
+export default async function Projects({ searchParams }: { searchParams: { status?: string, timeframe?: string } }) {
   const session = await getSession() as Session & {
     user: {
       id: string
@@ -21,12 +21,31 @@ export default async function Projects() {
     redirect('/auth/signin')
   }
 
+  // Handle filtering based on query parameters
+  const statusFilter = searchParams.status
+  const timeframeFilter = searchParams.timeframe
+
+  // Build where clause based on filters
+  const whereClause: any = { orgId: session.user.orgId }
+  
+  if (statusFilter === 'active') {
+    whereClause.status = { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
+  } else if (statusFilter === 'completed') {
+    whereClause.status = 'COMPLETED'
+    
+    if (timeframeFilter === 'month') {
+      const now = new Date()
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      whereClause.updatedAt = { gte: firstDayOfMonth }
+    }
+  }
+
   // Fetch projects from database with fallback handling
   let projects: any[] = []
   
   try {
     projects = await prisma.project.findMany({
-      where: { orgId: session.user.orgId },
+      where: whereClause,
       include: {
         client: true,
         rooms: {
@@ -49,7 +68,7 @@ export default async function Projects() {
     // Fallback to basic query without new columns if migration hasn't run yet
     try {
       projects = await prisma.project.findMany({
-        where: { orgId: session.user.orgId },
+        where: whereClause,
         select: {
           id: true,
           name: true,
@@ -89,8 +108,20 @@ export default async function Projects() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Projects</h1>
-            <p className="text-gray-600 mt-1">{projects?.length || 0} active projects</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {statusFilter === 'active' ? 'Active Projects' : 
+               statusFilter === 'completed' && timeframeFilter === 'month' ? 'Completed This Month' :
+               statusFilter === 'completed' ? 'Completed Projects' : 'My Projects'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {projects?.length || 0} {statusFilter === 'active' ? 'active' : statusFilter === 'completed' ? 'completed' : ''} projects
+              {statusFilter === 'completed' && timeframeFilter === 'month' ? ' this month' : ''}
+            </p>
+            {(statusFilter || timeframeFilter) && (
+              <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
+                ← Back to Dashboard
+              </Link>
+            )}
           </div>
           <div className="flex items-center space-x-3">
             <Button variant="outline" size="sm">

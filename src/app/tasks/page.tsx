@@ -1,0 +1,348 @@
+import { getSession } from '@/auth'
+import { redirect } from 'next/navigation'
+import DashboardLayout from '@/components/layout/dashboard-layout'
+import { prisma } from '@/lib/prisma'
+import { Filter, AlertCircle, Clock, Calendar, Users, Send } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { formatDate } from '@/lib/utils'
+import Link from 'next/link'
+import type { Session } from 'next-auth'
+
+export default async function Tasks({ searchParams }: { searchParams: { status?: string } }) {
+  const session = await getSession() as Session & {
+    user: {
+      id: string
+      orgId: string
+    }
+  } | null
+  
+  if (!session?.user?.orgId) {
+    redirect('/auth/signin')
+  }
+
+  // Handle filtering based on query parameters
+  const statusFilter = searchParams.status
+
+  let overdueTasks: any[] = []
+  
+  try {
+    if (statusFilter === 'overdue') {
+      // Get overdue stages
+      const overdueStages = await prisma.stage.findMany({
+        where: {
+          room: {
+            project: { orgId: session.user.orgId }
+          },
+          status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] },
+          dueDate: { lt: new Date() }
+        },
+        include: {
+          room: {
+            include: {
+              project: {
+                include: {
+                  client: true
+                }
+              }
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { dueDate: 'asc' }
+      })
+
+      // Get overdue client approvals (sent more than 7 days ago)
+      const overdueApprovals = await prisma.clientApprovalVersion.findMany({
+        where: {
+          stage: {
+            room: {
+              project: { orgId: session.user.orgId }
+            }
+          },
+          status: 'SENT_TO_CLIENT',
+          clientDecision: 'PENDING',
+          sentToClientAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+        },
+        include: {
+          stage: {
+            include: {
+              room: {
+                include: {
+                  project: {
+                    include: {
+                      client: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          sentByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { sentToClientAt: 'asc' }
+      })
+
+      // Combine and transform the data
+      const transformedStages = overdueStages.map(stage => ({
+        id: stage.id,
+        type: 'stage' as const,
+        title: `${stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} - ${stage.room.name || stage.room.type.replace('_', ' ')}`,
+        projectName: stage.room.project.name,
+        clientName: stage.room.project.client.name,
+        dueDate: stage.dueDate,
+        status: stage.status,
+        assignedUser: stage.assignedUser,
+        roomId: stage.room.id,
+        projectId: stage.room.project.id,
+        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        urgencyLevel: stage.status === 'NEEDS_ATTENTION' ? 'high' : 'medium'
+      }))
+
+      const transformedApprovals = overdueApprovals.map(approval => ({
+        id: approval.id,
+        type: 'approval' as const,
+        title: `Client Approval - ${approval.stage.room.name || approval.stage.room.type.replace('_', ' ')}`,
+        projectName: approval.stage.room.project.name,
+        clientName: approval.stage.room.project.client.name,
+        dueDate: approval.sentToClientAt,
+        status: 'PENDING_CLIENT_RESPONSE',
+        assignedUser: approval.sentByUser,
+        roomId: approval.stage.room.id,
+        projectId: approval.stage.room.project.id,
+        stageId: approval.stage.id,
+        overdueBy: approval.sentToClientAt ? Math.floor((new Date().getTime() - new Date(approval.sentToClientAt).getTime()) / (1000 * 60 * 60 * 24)) - 7 : 0,
+        urgencyLevel: approval.sentToClientAt && (new Date().getTime() - new Date(approval.sentToClientAt).getTime()) > (14 * 24 * 60 * 60 * 1000) ? 'high' : 'medium',
+        version: approval.version
+      }))
+
+      // Combine and sort by overdue time (most overdue first)
+      overdueTasks = [...transformedStages, ...transformedApprovals].sort((a, b) => b.overdueBy - a.overdueBy)
+    }
+  } catch (error) {
+    console.error('Error fetching overdue tasks:', error)
+    overdueTasks = []
+  }
+
+  const getUrgencyColor = (urgencyLevel: string) => {
+    switch (urgencyLevel) {
+      case 'high':
+        return 'bg-red-100 text-red-800 border-red-200'
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  const getStatusIcon = (type: string, status: string) => {
+    if (type === 'approval') {
+      return <Send className="w-5 h-5 text-orange-500" />
+    }
+    
+    switch (status) {
+      case 'NEEDS_ATTENTION':
+        return <AlertCircle className="w-5 h-5 text-red-500" />
+      case 'IN_PROGRESS':
+        return <Clock className="w-5 h-5 text-blue-500" />
+      default:
+        return <Clock className="w-5 h-5 text-gray-400" />
+    }
+  }
+
+  const getOverdueText = (overdueBy: number, type: string) => {
+    if (overdueBy <= 0) return 'Due today'
+    if (overdueBy === 1) return `${overdueBy} day ${type === 'approval' ? 'overdue' : 'overdue'}`
+    return `${overdueBy} days ${type === 'approval' ? 'overdue' : 'overdue'}`
+  }
+
+  const handleTaskClick = (task: any) => {
+    if (task.type === 'stage') {
+      window.location.href = `/stages/${task.id}`
+    } else {
+      window.location.href = `/stages/${task.stageId}`
+    }
+  }
+
+  return (
+    <DashboardLayout session={session}>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {statusFilter === 'overdue' ? 'Overdue Tasks' : 'All Tasks'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {overdueTasks.length} {statusFilter === 'overdue' ? 'overdue' : ''} tasks requiring attention
+            </p>
+            {statusFilter && (
+              <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
+                ← Back to Dashboard
+              </Link>
+            )}
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm">
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        {statusFilter === 'overdue' && overdueTasks.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-8 h-8 text-red-500 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">High Priority</p>
+                  <p className="text-2xl font-bold text-red-900">
+                    {overdueTasks.filter(task => task.urgencyLevel === 'high').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Clock className="w-8 h-8 text-yellow-500 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Medium Priority</p>
+                  <p className="text-2xl font-bold text-yellow-900">
+                    {overdueTasks.filter(task => task.urgencyLevel === 'medium').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Send className="w-8 h-8 text-blue-500 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Client Approvals</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {overdueTasks.filter(task => task.type === 'approval').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tasks List */}
+        <div className="space-y-6">
+          {overdueTasks.length > 0 ? (
+            <div className="space-y-4">
+              {overdueTasks.map((task) => (
+                <div key={`${task.type}-${task.id}`} className="bg-white rounded-lg shadow-sm border-l-4 border-l-red-500 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleTaskClick(task)}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4 flex-1">
+                      {/* Icon */}
+                      <div className="flex-shrink-0 mt-1">
+                        {getStatusIcon(task.type, task.status)}
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                              {task.title}
+                            </h3>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                              <span>{task.projectName}</span>
+                              <span>•</span>
+                              <span>{task.clientName}</span>
+                              {task.type === 'approval' && (
+                                <>
+                                  <span>•</span>
+                                  <span>Version {task.version}</span>
+                                </>
+                              )}
+                            </div>
+                            
+                            {/* Assigned User */}
+                            {task.assignedUser && (
+                              <div className="flex items-center space-x-2 text-sm text-gray-500 mb-3">
+                                <Users className="w-4 h-4" />
+                                <span>
+                                  {task.type === 'approval' ? 'Sent by' : 'Assigned to'} {task.assignedUser.name}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Due Date Info */}
+                            <div className="flex items-center space-x-2 text-sm">
+                              <Calendar className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600">
+                                {task.type === 'approval' ? 'Sent' : 'Due'}: {formatDate(task.dueDate)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Status Badge */}
+                    <div className="flex flex-col items-end space-y-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(task.urgencyLevel)}`}>
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {getOverdueText(task.overdueBy, task.type)}
+                      </span>
+                      
+                      {/* Task Type Badge */}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        task.type === 'approval' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : task.status === 'NEEDS_ATTENTION'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {task.type === 'approval' ? 'Client Approval' : task.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Empty State */
+            <div className="text-center py-12">
+              <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+                {statusFilter === 'overdue' ? (
+                  <AlertCircle className="w-full h-full" />
+                ) : (
+                  <Clock className="w-full h-full" />
+                )}
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {statusFilter === 'overdue' ? 'No overdue tasks! 🎉' : 'No tasks found'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {statusFilter === 'overdue' 
+                  ? 'All tasks are on track and client approvals are up to date.'
+                  : 'Tasks will appear here as they become available.'}
+              </p>
+              <Button asChild>
+                <Link href="/projects">
+                  View Projects
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  )
+}
