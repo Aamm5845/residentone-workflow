@@ -44,8 +44,8 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
             }
           },
           status: {
-            in: ['NOT_STARTED', 'PENDING'] // Only assign to non-started stages
-          },
+            in: ['NOT_STARTED'] // Only assign to non-started stages
+          }
           assignedTo: null // Only unassigned stages
         },
         include: {
@@ -191,7 +191,7 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
             }
           },
           status: {
-            in: ['NOT_STARTED', 'PENDING'] // Only unassign from non-started stages
+            in: ['NOT_STARTED'] // Only unassign from non-started stages
           }
         },
         data: {
@@ -217,7 +217,7 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
             }
           },
           status: {
-            in: ['NOT_STARTED', 'PENDING']
+            in: ['NOT_STARTED']
           }
         },
         data: {

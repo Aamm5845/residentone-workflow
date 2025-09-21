@@ -471,7 +471,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{position: 'relative', zIndex: 1}}>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{position: 'relative', zIndex: 1, overflow: 'visible'}}>
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">Team Members</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -479,7 +479,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
         </p>
       </div>
 
-      <div className="overflow-x-auto" style={{overflowY: 'visible'}}>
+      <div className="overflow-x-auto" style={{overflowY: 'visible', position: 'relative'}}>
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -502,7 +502,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
               )}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200" style={{position: 'relative'}}>
             {members.map((member) => (
               <tr key={member.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -547,7 +547,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                   </div>
                 </td>
                 {canManageTeam && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
                     <div className="relative">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
@@ -564,10 +564,11 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                         <>
                           {/* Invisible backdrop to close dropdown */}
                           <div 
-                            className="fixed inset-0 z-40" 
+                            className="fixed inset-0" 
+                            style={{zIndex: 9998}}
                             onClick={() => setOpenDropdown(null)}
                           />
-                          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 animate-in fade-in slide-in-from-top-1 duration-200" style={{minWidth: '224px', transform: 'translateX(-8px)'}}>
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 animate-in fade-in slide-in-from-top-1 duration-200" style={{minWidth: '224px', transform: 'translateX(-8px)', zIndex: 9999, position: 'absolute'}}>
                             <div className="py-1">
                               <button
                                 onClick={() => {
