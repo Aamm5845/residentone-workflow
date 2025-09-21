@@ -42,8 +42,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Get orgId with fallback
-    const orgId = (session.user as any)?.orgId || 'default'
+    // Get shared organization
+    const sharedOrg = await prisma.organization.findFirst()
+    if (!sharedOrg) {
+      return NextResponse.json({ error: 'No shared organization found' }, { status: 500 })
+    }
 
     // Parse form data
     const formData = await request.formData()
@@ -70,15 +73,10 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Find the stage and verify access
+    // Find the stage
     const stage = await prisma.stage.findFirst({
       where: {
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: orgId
-          }
-        }
+        id: resolvedParams.id
       },
       include: {
         designSections: true,
@@ -161,7 +159,7 @@ export async function POST(
         },
         organization: {
           connect: {
-            id: orgId
+            id: sharedOrg.id
           }
         }
       }

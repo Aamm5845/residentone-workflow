@@ -27,15 +27,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Find the stage and verify access
+    // Find the stage
     const stage = await prisma.stage.findFirst({
       where: {
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: resolvedParams.id
       },
       include: {
         designSections: {
@@ -153,15 +148,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid section type' }, { status: 400 })
     }
 
-    // Find the stage and verify access
+    // Find the stage
     const stage = await prisma.stage.findFirst({
       where: {
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: resolvedParams.id
       },
       include: {
         designSections: true,

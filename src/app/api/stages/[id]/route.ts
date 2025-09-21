@@ -36,12 +36,7 @@ export async function PATCH(
     // Verify stage access
     const stage = await prisma.stage.findFirst({
       where: {
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: resolvedParams.id
       }
     })
 
@@ -170,12 +165,7 @@ export async function GET(
 
     const stage = await prisma.stage.findFirst({
       where: {
-        id: resolvedParams.id,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: resolvedParams.id
       },
       include: {
         assignedUser: {

@@ -30,16 +30,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Find the Design Concept stage and verify user has access
+    // Find the Design Concept stage
     const stage = await prisma.stage.findFirst({
       where: {
         id: stageId,
-        type: 'DESIGN_CONCEPT',
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        type: 'DESIGN_CONCEPT'
       },
       include: {
         room: {
@@ -234,12 +229,7 @@ export async function GET(request: NextRequest) {
     const stage = await prisma.stage.findFirst({
       where: {
         id: stageId,
-        type: 'DESIGN_CONCEPT',
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        type: 'DESIGN_CONCEPT'
       },
       include: {
         room: {
