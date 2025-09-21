@@ -2,6 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { MentionTextarea } from '@/components/ui/mention-textarea'
+import { processMentions, highlightMentions } from '@/lib/mentionUtils'
+import { useSession } from 'next-auth/react'
 import {
   Send,
   MessageSquare,
@@ -87,6 +90,7 @@ const USER_COLORS = [
 ]
 
 export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }: MessagePanelProps) {
+  const { data: session } = useSession()
   const [newMessage, setNewMessage] = useState('')
   const [selectedSection, setSelectedSection] = useState<string>('all')
   const [isComposing, setIsComposing] = useState(false)
@@ -96,8 +100,8 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
   const [searchTerm, setSearchTerm] = useState('')
   const [showPinnedOnly, setShowPinnedOnly] = useState(false)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([])
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Flatten all comments from all sections and transform data
@@ -162,32 +166,37 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
 
   const threadedComments = buildCommentTree(filteredComments)
 
-  // Auto-resize textarea
-  const adjustTextareaHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-    }
-  }
 
+  // Fetch team members on component mount
   useEffect(() => {
-    adjustTextareaHeight()
-  }, [newMessage])
+    const fetchTeamMembers = async () => {
+      try {
+        const response = await fetch('/api/team/mentions')
+        if (response.ok) {
+          const data = await response.json()
+          setTeamMembers(data.teamMembers)
+        }
+      } catch (error) {
+        console.error('Error fetching team members:', error)
+      }
+    }
+    
+    fetchTeamMembers()
+  }, [])
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [allComments.length])
 
-  // Submit new message
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
+  // Submit new message with @mention processing
+  const handleSubmitMessage = async (text: string, mentions: string[]) => {
+    if (!text.trim() || !session?.user) return
 
     const messageData = {
       sectionType: selectedSection !== 'all' ? selectedSection : 'GENERAL',
-      content: newMessage.trim(),
-      mentions: [] // Extract mentions from content if needed
+      content: text.trim(),
+      mentions: JSON.stringify(mentions)
     }
 
     try {
@@ -198,15 +207,36 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
       })
 
       if (response.ok) {
+        // Process mentions and create notifications
+        if (mentions.length > 0 && session?.user) {
+          const contextTitle = `${selectedSection !== 'all' ? selectedSection.replace('_', ' ') : 'General'} Discussion`
+          await processMentions({
+            text,
+            authorId: session.user.id,
+            authorName: session.user.name || 'Unknown User',
+            orgId: session.user.orgId || '',
+            contextTitle,
+            relatedId: stageId,
+            relatedType: 'STAGE',
+            messagePreview: text.substring(0, 100)
+          })
+          
+          if (mentions.length > 0) {
+            toast.success(`Message sent! ${mentions.length} team member${mentions.length > 1 ? 's' : ''} mentioned.`)
+          }
+        } else {
+          toast.success('Message sent!')
+        }
+        
         setNewMessage('')
         setReplyingTo(null)
         setIsComposing(false)
         onUpdate()
-        toast.success('Message sent')
       } else {
         throw new Error('Failed to send message')
       }
     } catch (error) {
+      console.error('Error sending message:', error)
       toast.error('Failed to send message')
     }
   }
@@ -264,7 +294,6 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
   const startReply = (commentId: string) => {
     setReplyingTo(commentId)
     setIsComposing(true)
-    setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
   const startEdit = (comment: Comment) => {
@@ -310,9 +339,8 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
   }
 
   const parseMessageContent = (content: string) => {
-    // Simple parsing for @mentions, #tags, and links
-    return content
-      .replace(/@(\w+)/g, '<span class="text-blue-600 font-medium bg-blue-50 px-1 rounded">@$1</span>')
+    // Parse @mentions using the utility function and add other formatting
+    return highlightMentions(content)
       .replace(/#(\w+)/g, '<span class="text-purple-600 font-medium bg-purple-50 px-1 rounded">#$1</span>')
       .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>')
   }
@@ -587,62 +615,51 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <textarea
-              ref={textareaRef}
+          <div className="space-y-3">
+            <MentionTextarea
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Write your message... Use @mentions and #tags"
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onChange={setNewMessage}
+              onSubmit={handleSubmitMessage}
+              teamMembers={teamMembers}
+              placeholder="Write your message... Use @name to mention team members and #tags"
               rows={3}
-              onInput={adjustTextareaHeight}
+              submitLabel="Send Message"
+              className="focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
-
-            {/* Toolbar */}
+            
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1">
-                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0">
+                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0" title="Bold">
                   <Bold className="w-4 h-4" />
                 </Button>
-                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0">
+                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0" title="Italic">
                   <Italic className="w-4 h-4" />
                 </Button>
-                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0">
+                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0" title="Add Link">
                   <Link className="w-4 h-4" />
                 </Button>
-                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0">
+                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0" title="Mention Team Member">
                   <AtSign className="w-4 h-4" />
                 </Button>
-                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0">
+                <Button type="button" size="sm" variant="ghost" className="w-8 h-8 p-0" title="Add Tag">
                   <Hash className="w-4 h-4" />
                 </Button>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsComposing(false)
-                    setNewMessage('')
-                    setReplyingTo(null)
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <Send className="w-4 h-4 mr-1" />
-                  Send
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsComposing(false)
+                  setNewMessage('')
+                  setReplyingTo(null)
+                }}
+              >
+                Cancel
+              </Button>
             </div>
-          </form>
+          </div>
         </div>
       )}
     </div>
