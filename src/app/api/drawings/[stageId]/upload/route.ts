@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/auth'
+import { authOptions } from '@/lib/auth'
 import { put } from '@vercel/blob'
 
 // POST /api/drawings/{stageId}/upload
