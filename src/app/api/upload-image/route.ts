@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { uploadImage } from '@/lib/dropbox'
-import { put } from '@vercel/blob'
+import { uploadFile, generateUserFilePath, getContentType, isBlobConfigured } from '@/lib/blob'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { z } from 'zod'
@@ -22,16 +21,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if we should use local storage (Dropbox unavailable or expired)
-    const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
-    const useLocalStorage = !dropboxToken || 
-                           dropboxToken === 'your-dropbox-access-token-here' ||
-                           dropboxToken.length < 10  // Token too short/invalid
+    // Check if we should use Vercel Blob (preferred) or local storage
+    const useBlobStorage = isBlobConfigured()
     
-    if (useLocalStorage) {
-      console.log('⚠️ Using local file storage (Dropbox not available)')
+    if (useBlobStorage) {
+      console.log('☁️ Using Vercel Blob storage')
     } else {
-      console.log('☁️ Attempting Dropbox upload (will fallback to local if failed)')
+      console.log('⚠️ Using local file storage (Vercel Blob not available)')
     }
 
     // Parse form data
@@ -74,47 +70,38 @@ export async function POST(request: NextRequest) {
       let uploadResult
       let storageUsed = 'unknown'
       
-      // Use Vercel Blob Storage for profile and project images
-      if (imageType === 'avatar' || imageType === 'project-cover') {
+      // Try Vercel Blob first if configured
+      if (useBlobStorage) {
         try {
           console.log('☁️ Uploading to Vercel Blob Storage...')
-          const blob = await put(fileName, buffer, {
-            access: 'public',
-            contentType: file.type,
+          
+          // Generate structured path for the image
+          const orgId = session.user.orgId
+          const userId = session.user.id
+          const filePath = generateUserFilePath(orgId, userId, fileName, imageType)
+          
+          // Upload with proper content type
+          const contentType = getContentType(fileName)
+          const blobResult = await uploadFile(buffer, filePath, {
+            contentType,
+            filename: fileName
           })
-          uploadResult = { url: blob.url, path: blob.url }
+          
+          uploadResult = { url: blobResult.url, path: blobResult.pathname }
           storageUsed = 'vercel-blob'
-          console.log('✅ Vercel Blob upload successful:', blob.url)
-        } catch (vercelError) {
+          console.log('✅ Vercel Blob upload successful:', blobResult.url)
+          
+        } catch (blobError) {
           console.log('❌ Vercel Blob upload failed, falling back to local storage')
-          console.error('Vercel Blob error:', vercelError.message)
+          console.error('Vercel Blob error:', blobError)
           uploadResult = await uploadImageLocally(buffer, fileName, imageType)
           storageUsed = 'local-fallback'
         }
-      } else if (useLocalStorage) {
-        // Use local file storage for other image types when Dropbox not available
+      } else {
+        // Use local file storage when Vercel Blob not available
         console.log('📁 Uploading to local storage...')
         uploadResult = await uploadImageLocally(buffer, fileName, imageType)
         storageUsed = 'local'
-      } else {
-        // Try Dropbox for other image types, fallback to local on error
-        try {
-          console.log('☁️ Attempting Dropbox upload...')
-          const { url, path } = await uploadImage(
-            buffer,
-            fileName,
-            session.user.orgId,
-            imageType
-          )
-          uploadResult = { url, path }
-          storageUsed = 'dropbox'
-          console.log('✅ Dropbox upload successful')
-        } catch (dropboxError) {
-          console.log('❌ Dropbox upload failed, falling back to local storage')
-          console.error('Dropbox error:', dropboxError.message)
-          uploadResult = await uploadImageLocally(buffer, fileName, imageType)
-          storageUsed = 'local-fallback'
-        }
       }
 
       return NextResponse.json({

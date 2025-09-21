@@ -22,8 +22,8 @@ All static content and demo data have been removed. Every component is now fully
 
 ### ✅ Functional File Management
 - **Working Upload System**: Full file upload with progress bars and error handling
-- **Dropbox Integration**: Automatic cloud storage with organized folder structure
-- **Local Fallback**: Seamless fallback to local storage if Dropbox is unavailable
+- **Vercel Blob Integration**: Scalable cloud storage with organized folder structure
+- **Local Fallback**: Seamless fallback to local storage if Vercel Blob is unavailable
 - **File Validation**: Size limits, type checking, and security validation
 
 ### ✅ Interactive FFE Management
@@ -136,7 +136,7 @@ npm run db:generate
 - **Projects**: Client projects with rooms and stages
 - **Rooms**: Individual spaces with workflow stages
 - **Stages**: Design → 3D → Client Approval → Drawings + FFE
-- **Assets**: Files, images, links with Dropbox integration
+- **Assets**: Files, images, links with Vercel Blob integration
 - **Comments**: Collaboration with mentions and attachments
 
 ## 🔧 Configuration
@@ -157,10 +157,8 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secure-secret-key-change-in-production-minimum-32-characters"
 SESSION_SECRET="your-session-secret-key-for-additional-security"
 
-# Dropbox Cloud Storage (Recommended)
-DROPBOX_ACCESS_TOKEN="your-dropbox-access-token"
-DROPBOX_APP_KEY="your-dropbox-app-key"
-DROPBOX_APP_SECRET="your-dropbox-app-secret"
+# Vercel Blob Storage (Recommended)
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_your-token-here"
 
 # Email Notifications (Optional)
 SMTP_HOST="smtp.gmail.com"

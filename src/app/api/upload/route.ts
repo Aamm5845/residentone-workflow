@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { v4 as uuidv4 } from 'uuid'
+import { uploadFile, generateFilePath, getContentType, isBlobConfigured, formatFileSize } from '@/lib/blob'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
-import { uploadToDropbox, createFolderStructure } from '@/lib/dropbox'
 
 // File upload configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -68,44 +68,42 @@ export async function POST(request: NextRequest) {
     try {
       let fileUrl: string
       let storageType: 'cloud' | 'local'
-      let assetId: string | null = null
       
       // Convert file to buffer once
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
       
-      // Check if Dropbox is configured and try it first
-      const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
-      if (dropboxToken && dropboxToken !== 'your-dropbox-access-token-here') {
-        console.log('☁️ Using Dropbox cloud storage')
+      // Check if Vercel Blob is configured and try it first
+      if (isBlobConfigured()) {
+        console.log('☁️ Using Vercel Blob cloud storage')
         
         try {
           console.log(`💾 Uploading file: ${fileName} (${formatFileSize(file.size)})`)
           console.log(`📁 Project: ${projectId}, Room: ${roomId}, Section: ${sectionId}`)
           
-          // Create upload context for organized Dropbox folder structure
-          const uploadContext = {
-            orgId: (session.user as any)?.orgId || 'default',
-            projectId: projectId || 'general',
-            projectName: projectId || 'General Files',
-            roomId: roomId || 'general',
-            roomName: roomId || 'General Room',
-            stageType: 'DESIGN',
-            sectionType: sectionId || 'uploads'
-          }
+          // Generate structured file path
+          const orgId = (session.user as any)?.orgId || 'default'
+          const filePath = generateFilePath(
+            orgId,
+            projectId || 'general',
+            roomId || undefined,
+            sectionId || undefined,
+            fileName
+          )
           
-          // Ensure folder structure exists
-          await createFolderStructure(uploadContext)
+          // Upload to Vercel Blob with proper content type
+          const contentType = getContentType(fileName)
+          const uploadResult = await uploadFile(buffer, filePath, {
+            contentType,
+            filename: fileName
+          })
           
-          // Upload to Dropbox with organized folder structure
-          const uploadResult = await uploadToDropbox(buffer, fileName, uploadContext)
-          
-          console.log('✅ Dropbox upload successful:', uploadResult.url)
+          console.log('✅ Vercel Blob upload successful:', uploadResult.url)
           fileUrl = uploadResult.url
           storageType = 'cloud'
           
-        } catch (dropboxError) {
-          console.error('❌ Dropbox upload failed:', dropboxError)
+        } catch (blobError) {
+          console.error('❌ Vercel Blob upload failed:', blobError)
           console.log('🔄 Falling back to local storage')
           
           // Fall back to local storage
@@ -120,7 +118,7 @@ export async function POST(request: NextRequest) {
         }
         
       } else {
-        console.log('💾 Using local file storage (Dropbox not configured)')
+        console.log('💾 Using local file storage (Vercel Blob not configured)')
         
         // Ensure upload directory exists
         await mkdir(UPLOAD_DIR, { recursive: true })
@@ -154,7 +152,7 @@ export async function POST(request: NextRequest) {
         projectId,
         storage: {
           type: storageType,
-          location: storageType === 'cloud' ? 'Dropbox' : 'Local Filesystem'
+          location: storageType === 'cloud' ? 'Vercel Blob' : 'Local Filesystem'
         },
         metadata: {
           sizeFormatted: formatFileSize(file.size),
@@ -164,7 +162,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      console.log(`✅ File uploaded successfully to ${storageType === 'cloud' ? 'Dropbox' : 'local storage'}: ${fileName} (${formatFileSize(file.size)})`)
+      console.log(`✅ File uploaded successfully to ${storageType === 'cloud' ? 'Vercel Blob' : 'local storage'}: ${fileName} (${formatFileSize(file.size)})`)
 
       return NextResponse.json({
         success: true,
@@ -218,13 +216,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to format file sizes
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}

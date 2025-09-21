@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { deleteFromDropbox } from '@/lib/dropbox'
 import { unlink } from 'fs/promises'
 import type { Session } from 'next-auth'
 
@@ -35,18 +34,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Asset not found or unauthorized' }, { status: 404 })
     }
 
-    // Delete file from storage provider
-    if (existingAsset.provider === 'dropbox' && existingAsset.metadata) {
-      try {
-        const metadata = JSON.parse(existingAsset.metadata)
-        if (metadata.dropboxPath) {
-          await deleteFromDropbox(metadata.dropboxPath)
-        }
-      } catch (error) {
-        console.error('Failed to delete from Dropbox:', error)
-        // Continue with database deletion even if Dropbox deletion fails
-      }
-    } else if (existingAsset.provider === 'local' && existingAsset.metadata) {
+    // Delete file from storage provider (files are stored in database as base64, so just delete local files if any)
+    if (existingAsset.provider === 'local' && existingAsset.metadata) {
       try {
         const metadata = JSON.parse(existingAsset.metadata)
         if (metadata.localPath) {

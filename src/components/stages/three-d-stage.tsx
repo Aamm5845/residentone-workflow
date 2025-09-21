@@ -31,24 +31,51 @@ export default function ThreeDStage({
   const fetchStageAssets = async () => {
     try {
       setLoading(true)
+      console.log('🔍 Fetching assets for stage:', stage.id)
+      
       const response = await fetch(`/api/stages/${stage.id}`)
+      console.log('📡 API Response status:', response.status)
+      
       if (response.ok) {
         const stageData = await response.json()
+        console.log('📦 Full stage data:', stageData)
+        
         // Get all assets from all design sections that have type RENDER or IMAGE
         const allAssets: any[] = []
-        stageData.stage?.designSections?.forEach((section: any) => {
-          section.assets?.forEach((asset: any) => {
+        
+        console.log('🗂️ Design sections found:', stageData.stage?.designSections?.length || 0)
+        
+        stageData.stage?.designSections?.forEach((section: any, sectionIndex: number) => {
+          console.log(`📁 Section ${sectionIndex}:`, section.type, 'has', section.assets?.length || 0, 'assets')
+          
+          section.assets?.forEach((asset: any, assetIndex: number) => {
+            console.log(`  📄 Asset ${assetIndex}:`, {
+              id: asset.id,
+              title: asset.title,
+              type: asset.type,
+              url: asset.url ? 'has URL' : 'NO URL'
+            })
+            
             if (asset.type === 'RENDER' || asset.type === 'IMAGE') {
               allAssets.push(asset)
+              console.log('  ✅ Added to gallery')
+            } else {
+              console.log('  ❌ Skipped (wrong type)')
             }
           })
         })
+        
+        console.log('🎨 Total assets for gallery:', allAssets.length)
+        
         // Sort by newest first
         allAssets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         setUploadedAssets(allAssets)
+      } else {
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, errorText)
       }
     } catch (error) {
-      console.error('Error fetching stage assets:', error)
+      console.error('💥 Error fetching stage assets:', error)
     } finally {
       setLoading(false)
     }
@@ -202,43 +229,76 @@ export default function ThreeDStage({
 
       {/* Content */}
       <div className="p-6">
-        {/* Upload Area */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">3D Renderings</h3>
-              <p className="text-sm text-gray-600">Upload high-quality 3D visualizations for client review</p>
-            </div>
-            <Button onClick={handleUploadClick} disabled={uploading} className="bg-blue-600 hover:bg-blue-700">
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? 'Uploading...' : 'Upload Renderings'}
-            </Button>
-          </div>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          
-          {/* Upload dropzone */}
-          <div 
-            onClick={handleUploadClick}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
-          >
-            <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h4 className="text-lg font-medium text-gray-700 mb-2">Drop files here or click to upload</h4>
-            <p className="text-sm text-gray-500">Supports JPG, PNG, PDF files up to 10MB each</p>
-          </div>
-        </div>
-
-        {/* Uploaded Assets Gallery */}
-        {loading ? (
+        {/* Simplified Upload Area - Only show when no assets or when not loading */}
+        {!loading && uploadedAssets.length === 0 && (
           <div className="mb-8">
-            <h4 className="text-md font-semibold text-gray-900 mb-4">Loading Renderings...</h4>
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Your 3D Renderings</h3>
+              <p className="text-sm text-gray-600">Upload high-quality visualizations for client review</p>
+            </div>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            
+            {/* Single Upload Interface */}
+            <div 
+              onClick={handleUploadClick}
+              className="border-2 border-dashed border-blue-300 rounded-lg p-12 text-center hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all duration-200"
+            >
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-blue-600" />
+              </div>
+              <h4 className="text-xl font-medium text-gray-700 mb-2">
+                {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
+              </h4>
+              <p className="text-sm text-gray-500 mb-4">Supports JPG, PNG, PDF files up to 10MB each</p>
+              <Button 
+                disabled={uploading}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={(e) => { e.stopPropagation(); handleUploadClick(); }}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploading ? 'Uploading...' : 'Choose Files'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Show Upload Button Above Gallery When Assets Exist */}
+        {!loading && uploadedAssets.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">3D Renderings</h3>
+              <Button 
+                onClick={handleUploadClick} 
+                disabled={uploading} 
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploading ? 'Uploading...' : 'Add More'}
+              </Button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Loading Renderings...</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm animate-pulse">
@@ -251,11 +311,12 @@ export default function ThreeDStage({
               ))}
             </div>
           </div>
-        ) : uploadedAssets.length > 0 ? (
+        )}
+        
+        {/* Assets Gallery - Only show when have assets */}
+        {!loading && uploadedAssets.length > 0 && (
           <div className="mb-8">
-            <h4 className="text-md font-semibold text-gray-900 mb-4">
-              Uploaded Renderings ({uploadedAssets.length})
-            </h4>
+            <p className="text-sm text-gray-600 mb-4">{uploadedAssets.length} rendering{uploadedAssets.length !== 1 ? 's' : ''} uploaded</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {uploadedAssets.map((asset) => (
                 <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm group">
@@ -265,6 +326,10 @@ export default function ThreeDStage({
                         src={asset.url}
                         alt={asset.title}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error('Image failed to load:', asset.url)
+                          console.log('Asset details:', asset)
+                        }}
                       />
                     )}
                     {asset.uploading && (
@@ -286,23 +351,10 @@ export default function ThreeDStage({
                   </div>
                   <div className="p-4">
                     <h5 className="font-medium text-gray-900 truncate">{asset.title}</h5>
-                    <p className="text-sm text-gray-500 mt-1">3D Rendering</p>
+                    <p className="text-sm text-gray-500 mt-1">3D Rendering • {new Date(asset.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-8">
-            <h4 className="text-md font-semibold text-gray-900 mb-4">No Renderings Yet</h4>
-            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
-              <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-700 mb-2">No renderings uploaded</h4>
-              <p className="text-sm text-gray-500 mb-4">Upload your 3D renderings and visualizations to get started</p>
-              <Button onClick={handleUploadClick} className="bg-blue-600 hover:bg-blue-700">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload First Rendering
-              </Button>
             </div>
           </div>
         )}
