@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import fs from 'fs'
-import path from 'path'
-import { writeFile } from 'fs/promises'
 import { 
   withCreateAttribution,
   logActivity,
