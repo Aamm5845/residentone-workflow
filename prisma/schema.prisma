@@ -126,6 +126,12 @@ model User {
   sentClientApprovalVersions ClientApprovalVersion[] @relation("ClientApprovalSentBy")
   clientApprovalActivities  ClientApprovalActivity[]
   activities                Activity[]
+  
+  // 3D Rendering Workspace relations
+  createdRenderingVersions  RenderingVersion[] @relation("RenderingVersionCreatedBy")
+  updatedRenderingVersions  RenderingVersion[] @relation("RenderingVersionUpdatedBy")
+  completedRenderingVersions RenderingVersion[] @relation("RenderingVersionCompletedBy")
+  renderingNotes            RenderingNote[]
 }
 
 model Client {
@@ -254,15 +260,16 @@ model Room {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy   User?       @relation("CreatedByUserRoom", fields: [createdById], references: [id])
-  updatedBy   User?       @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
-  stages      Stage[]
-  ffeItems    FFEItem[]
-  comments    Comment[]
-  assets      Asset[]
-  approvals   Approval[]
-  tasks       Task[]
+  project           Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy         User?               @relation("CreatedByUserRoom", fields: [createdById], references: [id])
+  updatedBy         User?               @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
+  stages            Stage[]
+  ffeItems          FFEItem[]
+  comments          Comment[]
+  assets            Asset[]
+  approvals         Approval[]
+  tasks             Task[]
+  renderingVersions RenderingVersion[]  // 3D Rendering versions
 }
 
 enum StageType {
@@ -314,6 +321,9 @@ model Stage {
   // Client Approval extensions
   clientApprovalVersions ClientApprovalVersion[]
   activities             Activity[]
+  
+  // 3D Rendering Workspace extensions
+  renderingVersions      RenderingVersion[]
 
   @@unique([roomId, type])
 }
@@ -405,6 +415,7 @@ enum ClientApprovalStageStatus {
 model ClientApprovalVersion {
   id                    String                    @id @default(cuid())
   stageId               String
+  renderingVersionId    String?                   @unique // Link to rendering version
   version               String                    // v1, v2, etc.
   status                ClientApprovalStageStatus @default(DRAFT)
   
@@ -431,6 +442,7 @@ model ClientApprovalVersion {
   updatedAt             DateTime                  @updatedAt
   
   stage                 Stage                     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  renderingVersion      RenderingVersion?         @relation(fields: [renderingVersionId], references: [id])
   aaronApprovedBy       User?                     @relation("ClientApprovalAaronApprovedBy", fields: [aaronApprovedById], references: [id])
   sentBy                User?                     @relation("ClientApprovalSentBy", fields: [sentById], references: [id])
   
@@ -551,36 +563,39 @@ enum AssetType {
 }
 
 model Asset {
-  id          String    @id @default(cuid())
-  title       String
-  filename    String?
-  url         String
-  type        AssetType
-  size        Int?
-  mimeType    String?
-  provider    String?   // "dropbox", "s3", "local", "external"
-  metadata    String?   // JSON metadata
-  uploadedBy  String
-  orgId       String
-  projectId   String?
-  roomId      String?
-  stageId     String?
-  sectionId   String?
-  ffeItemId   String?
-  approvalId  String?
-  commentId   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  title             String
+  filename          String?
+  url               String
+  type              AssetType
+  size              Int?
+  mimeType          String?
+  provider          String?   // "dropbox", "s3", "local", "external"
+  metadata          String?   // JSON metadata
+  description       String?   // Per-image description for renderings
+  uploadedBy        String
+  orgId             String
+  projectId         String?
+  roomId            String?
+  stageId           String?
+  sectionId         String?
+  ffeItemId         String?
+  approvalId        String?
+  commentId         String?
+  renderingVersionId String?   // Link to rendering version
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  uploader    User            @relation(fields: [uploadedBy], references: [id])
-  organization Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  project     Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room        Room?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage       Stage?          @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  section     DesignSection?  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  ffeItem     FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
-  approval    Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  comment     Comment?        @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploader         User                @relation(fields: [uploadedBy], references: [id])
+  organization     Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project          Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room             Room?               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage            Stage?              @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  section          DesignSection?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  ffeItem          FFEItem?            @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  approval         Approval?           @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  comment          Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  renderingVersion RenderingVersion?   @relation(fields: [renderingVersionId], references: [id], onDelete: Cascade)
   
   // Client Approval relations
   clientApprovalAssets ClientApprovalAsset[]
@@ -708,6 +723,60 @@ model Activity {
   
   stage     Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id])
+}
+
+// 3D Rendering Workspace Models
+enum RenderingVersionStatus {
+  IN_PROGRESS
+  COMPLETED
+  PUSHED_TO_CLIENT
+}
+
+model RenderingVersion {
+  id            String                  @id @default(cuid())
+  roomId        String
+  stageId       String
+  version       String                  // V1, V2, etc. (per room)
+  customName    String?                 // Optional custom name override
+  status        RenderingVersionStatus  @default(IN_PROGRESS)
+  pushedToClientAt DateTime?
+  createdById   String
+  updatedById   String?
+  completedById String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  completedAt   DateTime?
+
+  room         Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage        Stage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  createdBy    User  @relation("RenderingVersionCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User? @relation("RenderingVersionUpdatedBy", fields: [updatedById], references: [id])
+  completedBy  User? @relation("RenderingVersionCompletedBy", fields: [completedById], references: [id])
+  
+  assets       Asset[]         // Files for this version
+  notes        RenderingNote[] // Notes feed
+  
+  // Link to client approval when pushed
+  clientApprovalVersion ClientApprovalVersion?
+
+  @@unique([roomId, version]) // Ensure unique version numbers per room
+  @@index([stageId])
+  @@index([createdAt])
+}
+
+model RenderingNote {
+  id        String   @id @default(cuid())
+  versionId String
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  version   RenderingVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  author    User             @relation(fields: [authorId], references: [id])
+  
+  @@index([versionId])
+  @@index([createdAt])
 }
 
 // Activity Log for comprehensive tracking

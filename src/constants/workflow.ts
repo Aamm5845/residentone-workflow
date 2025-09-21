@@ -32,7 +32,7 @@ export const STAGE_CONFIG = {
     description: 'Create stunning design concepts, mood boards, and material selections'
   },
   RENDERING: {
-    name: '3D Rendering',
+    name: '3D Rendering Workspace',
     icon: '🎥', 
     baseColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
     colors: {
@@ -45,7 +45,7 @@ export const STAGE_CONFIG = {
       IN_PROGRESS: 'text-blue-800',
       COMPLETED: 'text-green-800'
     },
-    description: 'Generate photorealistic 3D visualizations and renderings'
+    description: 'Create versioned 3D renderings with team collaboration, notes, and client approval integration'
   },
   CLIENT_APPROVAL: {
     name: 'Client Approval',
