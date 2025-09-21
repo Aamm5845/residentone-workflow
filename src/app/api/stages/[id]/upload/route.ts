@@ -2,34 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
-import { uploadToDropbox, createFolderStructure } from '@/lib/dropbox'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
 
-// Local storage upload function
-async function uploadToLocal(buffer: Buffer, fileName: string, stageId: string) {
-  // Create organized local folder structure
-  const uploadDir = join(process.cwd(), 'public', 'uploads', 'stages', stageId)
-  
-  try {
-    await mkdir(uploadDir, { recursive: true })
-  } catch (error) {
-    // Directory might already exist, ignore error
-  }
-
-  // Write file to disk
-  const filePath = join(uploadDir, fileName)
-  await writeFile(filePath, buffer)
-  
-  return {
-    url: `/uploads/stages/${stageId}/${fileName}`,
-    provider: 'local',
-    metadata: JSON.stringify({
-      localPath: filePath,
-      uploadDate: new Date().toISOString()
-    })
-  }
-}
+/**
+ * FILE STORAGE IMPLEMENTATION NOTES:
+ * 
+ * CURRENT (v1): Database Storage
+ * - Files are stored as base64 encoded strings in Postgres
+ * - Works perfectly in Vercel serverless environment
+ * - No external dependencies or API keys required
+ * - Suitable for moderate file sizes and volume
+ * 
+ * PLANNED (v2): Dropbox Integration
+ * - Will use Dropbox API for file storage
+ * - Better for larger files and higher volume
+ * - Requires Dropbox API setup and credentials
+ * - Will fall back to database storage if Dropbox fails
+ * 
+ * For future developers: The Dropbox integration code has been removed
+ * to avoid confusion. When ready to implement, refer to:
+ * - @/lib/dropbox (needs to be created)
+ * - DROPBOX_ACCESS_TOKEN environment variable
+ * - Dropbox folder structure planning
+ */
 
 export async function POST(
   request: NextRequest,
@@ -120,61 +114,20 @@ export async function POST(
     const fileExtension = file.name.split('.').pop()
     const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
-    // Try Dropbox first, fall back to local storage if it fails
-    let fileUrl: string
-    let provider: string
-    let metadata: string | null = null
+    console.log(`Processing upload: ${fileName} (${(file.size / 1024).toFixed(2)}KB)`)
 
-    // Check if Dropbox is configured
-    const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN
-    if (dropboxToken && dropboxToken !== 'your-dropbox-access-token-here') {
-      try {
-        // Create upload context for organized Dropbox folder structure
-        const uploadContext = {
-          orgId: orgId,
-          projectId: stage.room.project.id,
-          projectName: stage.room.project.name,
-          roomId: stage.room.id,
-          roomName: stage.room.name || stage.room.type,
-          stageType: stage.type,
-          sectionType: sectionId
-        }
-
-        // Ensure folder structure exists in Dropbox
-        await createFolderStructure(uploadContext)
-
-        // Upload file to Dropbox
-        const dropboxResult = await uploadToDropbox(buffer, fileName, uploadContext)
-        fileUrl = dropboxResult.url
-        provider = 'dropbox'
-        metadata = JSON.stringify({
-          dropboxPath: dropboxResult.path,
-          uploadContext: uploadContext
-        })
-        
-        console.log('File uploaded to Dropbox successfully')
-      } catch (dropboxError) {
-        console.error('Dropbox upload failed, details:', {
-          error: dropboxError instanceof Error ? dropboxError.message : String(dropboxError),
-          fileName: fileName,
-          stageId: resolvedParams.id,
-          timestamp: new Date().toISOString()
-        })
-        console.warn('Falling back to local storage')
-        // Fall back to local storage
-        const result = await uploadToLocal(buffer, fileName, resolvedParams.id)
-        fileUrl = result.url
-        provider = result.provider
-        metadata = result.metadata
-      }
-    } else {
-      console.log('Dropbox not configured, using local storage')
-      // Use local storage
-      const result = await uploadToLocal(buffer, fileName, resolvedParams.id)
-      fileUrl = result.url
-      provider = result.provider
-      metadata = result.metadata
-    }
+    // Store file data directly in database as base64
+    // This works in Vercel serverless environment
+    const fileData = buffer.toString('base64')
+    const fileUrl = `data:${file.type};base64,${fileData}`
+    const provider = 'database'
+    const metadata = JSON.stringify({
+      originalName: file.name,
+      uploadDate: new Date().toISOString(),
+      stageId: resolvedParams.id,
+      sectionType: sectionId,
+      storageMethod: 'postgres_base64'
+    })
 
     // Determine asset type - for THREE_D stage, mark as RENDER
     let assetType = 'DOCUMENT'
@@ -205,6 +158,8 @@ export async function POST(
         sectionId: designSection.id
       }
     })
+
+    console.log(`✅ File uploaded successfully to database: ${asset.id} (${assetType})`)
 
     // If this is a THREE_D stage upload, create or update Client Approval version
     if (stage.type === 'THREE_D' && assetType === 'RENDER') {

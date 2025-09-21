@@ -46,7 +46,7 @@ export async function GET() {
     })
 
     // Transform stages into task format
-    const tasks = userTasks.map(stage => {
+    const tasks = (userTasks || []).map(stage => {
       const roomName = stage.room.name || stage.room.type.replace('_', ' ').toLowerCase()
       const isOverdue = stage.dueDate && stage.dueDate < new Date()
       
