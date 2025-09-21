@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found or created' }, { status: 400 })
     }
 
+<<<<<<< HEAD
     // EMERGENCY FIX: Ultra-minimal project creation (Prisma schema/DB out of sync)
     console.log('🆘 EMERGENCY: Using ultra-minimal project creation due to schema mismatch')
     console.log('🔧 Issue: Prisma schema file has fields that don\'t exist in actual database')
@@ -233,6 +234,27 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('✅ Project created successfully:', { id: project.id, name: project.name })
+=======
+    // Create project (temporarily removing address field due to schema sync issue)
+    console.log('🏠 Creating project without address field (schema sync issue)')
+    const project = await prisma.project.create({
+      data: {
+        name,
+        description: description || null,
+        type: type as ProjectType,
+        clientId: client.id,
+        // address: projectAddress || null, // Temporarily disabled - schema sync issue
+        budget: budget || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        coverImages: coverImages || [],
+        orgId: session.user.orgId,
+        createdById: session.user.id,
+        status: 'IN_PROGRESS'
+      }
+    })
+    
+    console.log('✅ Project created successfully:', { projectId: project.id, name: project.name })
+>>>>>>> 85c98c6f3fd80a226dac9dad5987e8bf1d188074
 
     // Create project contractors relationships
     console.log('👷 Processing contractors:', { contractorsCount: contractors?.length || 0 })
