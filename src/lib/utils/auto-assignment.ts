@@ -45,7 +45,7 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
           },
           status: {
             in: ['NOT_STARTED'] // Only assign to non-started stages
-          }
+          },
           assignedTo: null // Only unassigned stages
         },
         include: {

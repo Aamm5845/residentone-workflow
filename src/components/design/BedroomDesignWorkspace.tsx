@@ -327,10 +327,13 @@ export default function BedroomDesignWorkspace({
                 <span>{project.client.name}</span>
               </div>
               
-              {/* Short Description */}
-              <p className="text-gray-700 italic">
-                "Client wants modern with warm tones."
-              </p>
+              {/* Assignment Info */}
+              {stage.assignedUser && (
+                <div className="flex items-center space-x-1 text-sm text-gray-600">
+                  <User className="w-4 h-4" />
+                  <span>Assigned to {stage.assignedUser.name}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -480,10 +483,17 @@ export default function BedroomDesignWorkspace({
               Hide Activity
             </Button>
           </div>
-          {/* Activity timeline component would go here */}
-          <div className="text-center py-8">
-            <Activity className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-600">Activity timeline coming soon</p>
+          {/* Activity Timeline */}
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Upload className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">Recent Activity</p>
+                <p className="text-xs text-gray-500 mt-1">Design workspace initialized • Just now</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

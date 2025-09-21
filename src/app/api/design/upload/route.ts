@@ -102,20 +102,28 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ Section found:', { sectionId: section.id, type: section.type, stageId: section.stageId })
 
-    // Store files in the public/uploads/design directory
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-    const fileUrl = `/uploads/design/${fileName}`
-    
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public/uploads/design')
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
-    
-    // Save the file
+    // For Vercel compatibility: Store files as base64 in database
+    // This works in serverless environments without file system access
     const buffer = Buffer.from(await file.arrayBuffer())
-    const filePath = path.join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    
+    // Store file data directly in database as base64
+    const fileData = buffer.toString('base64')
+    const fileUrl = `data:${file.type};base64,${fileData}`
+    const provider = 'database'
+    const metadata = JSON.stringify({
+      originalName: file.name,
+      uploadDate: new Date().toISOString(),
+      stageId: section.stageId,
+      sectionType: section.type,
+      storageMethod: 'postgres_base64'
+    })
+    
+    console.log('💾 Storing file in database (Vercel-compatible)', { 
+      fileName, 
+      size: file.size, 
+      type: file.type 
+    })
 
     // Determine asset type
     let assetType: 'IMAGE' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
@@ -134,7 +142,8 @@ export async function POST(request: NextRequest) {
         type: assetType,
         size: file.size,
         mimeType: file.type,
-        provider: 'local',
+        provider: provider,
+        metadata: metadata,
         userDescription: userDescription || null,
         uploader: {
           connect: {

@@ -53,7 +53,7 @@ export function ActionBar({
     if (onAddImage) {
       onAddImage()
     } else {
-      toast.info('Image upload feature coming soon')
+toast.info('Use the Add Reference button in the main interface')
     }
     setShowAddMenu(false)
   }
@@ -110,7 +110,7 @@ export function ActionBar({
   }
 
   const handleExportPDF = async () => {
-    toast.info('PDF export feature coming soon')
+window.print() // Browser print dialog for now
   }
 
   const handleShareWorkspace = async () => {
@@ -198,7 +198,11 @@ export function ActionBar({
 
                 <button
                   onClick={() => {
-                    toast.info('File upload feature coming soon')
+                    if (onAddImage) {
+                      onAddImage()
+                    } else {
+                      toast.info('File upload through main upload zone')
+                    }
                     setShowAddMenu(false)
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center space-x-3"
@@ -212,7 +216,7 @@ export function ActionBar({
 
                 <button
                   onClick={() => {
-                    toast.info('Camera feature coming soon')
+                    toast.info('Use camera app and upload the image')
                     setShowAddMenu(false)
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center space-x-3"
@@ -313,7 +317,8 @@ export function ActionBar({
 
                 <button
                   onClick={() => {
-                    toast.info('Presentation mode coming soon')
+                    // Open workspace in new tab for presentation
+                    window.open(window.location.href, '_blank')
                     setShowShareMenu(false)
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center space-x-3"
@@ -329,7 +334,7 @@ export function ActionBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast.info('Section completion feature coming soon')}
+            onClick={() => toast.info('Mark individual sections complete in the workspace above')}
           >
             <CheckCircle2 className="w-4 h-4 mr-1" />
             Mark Section
