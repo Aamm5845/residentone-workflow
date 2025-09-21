@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { 
   Clock, 
   Upload, 
@@ -11,10 +11,16 @@ import {
   FileText,
   User,
   AlertTriangle,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Filter,
+  Edit,
+  Trash2,
+  Activity
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import useSWR from 'swr'
+import { Button } from '@/components/ui/button'
 
 interface ActivityItem {
   id: string
@@ -43,92 +49,134 @@ const fetcher = (url: string) => fetch(url).then(res => {
 
 // Activity type configurations for display
 const ACTIVITY_CONFIGS = {
-  // Assets
-  asset_uploaded: {
+  // Asset activities
+  ASSET_UPLOADED: {
     icon: Upload,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-    label: 'File uploaded'
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    label: 'Asset uploaded'
   },
-  asset_deleted: {
-    icon: FileText,
+  ASSET_DELETED: {
+    icon: Trash2,
     color: 'text-red-600',
     bgColor: 'bg-red-100',
-    label: 'File deleted'
+    label: 'Asset deleted'
   },
-  asset_tagged: {
+  ASSET_TAGGED: {
     icon: Tag,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    label: 'Asset tagged'
+  },
+  ASSET_PINNED: {
+    icon: Pin,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
-    label: 'File tagged'
+    label: 'Asset pinned'
   },
-  asset_pinned: {
+  ASSET_UNPINNED: {
     icon: Pin,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-100',
-    label: 'File pinned'
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-100',
+    label: 'Asset unpinned'
   },
 
-  // Comments
-  comment_created: {
+  // Comment activities
+  COMMENT_CREATED: {
     icon: MessageSquare,
     color: 'text-green-600',
     bgColor: 'bg-green-100',
-    label: 'Note added'
+    label: 'Comment added'
   },
-  comment_updated: {
-    icon: MessageSquare,
+  COMMENT_UPDATED: {
+    icon: Edit,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
-    label: 'Note updated'
+    label: 'Comment updated'
   },
-  comment_deleted: {
-    icon: MessageSquare,
+  COMMENT_DELETED: {
+    icon: Trash2,
     color: 'text-red-600',
     bgColor: 'bg-red-100',
-    label: 'Note deleted'
+    label: 'Comment deleted'
   },
-  comment_pinned: {
-    icon: Pin,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-100',
-    label: 'Note pinned'
-  },
-
-  // Sections
-  section_updated: {
-    icon: FileText,
+  COMMENT_TAGGED: {
+    icon: Tag,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
-    label: 'Section updated'
+    label: 'Comment tagged'
   },
-  section_completed: {
+  COMMENT_PINNED: {
+    icon: Pin,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-100',
+    label: 'Comment pinned'
+  },
+  COMMENT_UNPINNED: {
+    icon: Pin,
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-100',
+    label: 'Comment unpinned'
+  },
+
+  // Tag activities
+  TAG_CREATED: {
+    icon: Tag,
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    label: 'Tag created'
+  },
+  TAG_DELETED: {
+    icon: Trash2,
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    label: 'Tag deleted'
+  },
+
+  // Checklist activities
+  CHECKLIST_ITEM_CREATED: {
     icon: CheckCircle2,
     color: 'text-green-600',
     bgColor: 'bg-green-100',
-    label: 'Section completed'
-  },
-
-  // Checklist
-  checklist_item_created: {
-    icon: CheckCircle2,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
     label: 'Checklist item added'
   },
-  checklist_item_completed: {
+  CHECKLIST_ITEM_COMPLETED: {
     icon: CheckCircle2,
     color: 'text-green-600',
     bgColor: 'bg-green-100',
     label: 'Checklist item completed'
   },
+  CHECKLIST_ITEM_UNCOMPLETED: {
+    icon: CheckCircle2,
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-100',
+    label: 'Checklist item uncompleted'
+  },
+  CHECKLIST_ITEM_UPDATED: {
+    icon: Edit,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    label: 'Checklist item updated'
+  },
+  CHECKLIST_ITEM_DELETED: {
+    icon: Trash2,
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    label: 'Checklist item deleted'
+  },
 
-  // Stage
-  stage_completed: {
+  // Stage activities
+  STAGE_STATUS_CHANGED: {
+    icon: Activity,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    label: 'Stage status changed'
+  },
+  PHASE_COMPLETED: {
     icon: CheckCircle2,
     color: 'text-green-600',
     bgColor: 'bg-green-100',
-    label: 'Stage completed'
+    label: 'Phase completed'
   },
 
   // Default fallback
