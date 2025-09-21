@@ -36,11 +36,19 @@ export async function uploadFile(
       contentDisposition: result.contentDisposition,
       size: result.size,
     }
-  } catch (error) {
-    console.error('Blob upload error:', error)
+  } catch (error: any) {
+    // 👇 Improved logging
+    console.error('Blob upload error:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      response: error?.response ? await error.response.text?.() : null
+    })
+
     throw new Error('Failed to upload file to blob storage')
   }
 }
+
 
 /**
  * Delete a file from Vercel Blob Storage
@@ -167,7 +175,14 @@ export function getContentType(filename: string): string {
  * Check if Vercel Blob is properly configured
  */
 export function isBlobConfigured(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN
+  const hasToken = !!process.env.BLOB_READ_WRITE_TOKEN
+  
+  // In production, blob storage is required
+  if (process.env.NODE_ENV === 'production' && !hasToken) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is required in production environment')
+  }
+  
+  return hasToken
 }
 
 /**

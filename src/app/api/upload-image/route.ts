@@ -27,7 +27,12 @@ export async function POST(request: NextRequest) {
     if (useBlobStorage) {
       console.log('☁️ Using Vercel Blob storage')
     } else {
-      console.log('⚠️ Using local file storage (Vercel Blob not available)')
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ 
+          error: 'File storage not configured properly. Please contact support.' 
+        }, { status: 500 })
+      }
+      console.log('⚠️ Using local file storage (development only)')
     }
 
     // Parse form data

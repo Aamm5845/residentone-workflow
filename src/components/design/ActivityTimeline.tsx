@@ -200,59 +200,61 @@ function formatActivityMessage(activity: ActivityItem): string {
 
   switch (action) {
     // Asset activities
-    case 'asset_uploaded':
-      return `${actor.name} uploaded "${fileName}" to ${sectionName}`
+    case 'ASSET_UPLOADED':
+      return `${actor.name} uploaded \"${fileName}\" to ${sectionName}`
     
-    case 'asset_deleted':
-      return `${actor.name} deleted "${fileName}" from ${sectionName}`
+    case 'ASSET_DELETED':
+      return `${actor.name} deleted \"${fileName}\" from ${sectionName}`
     
-    case 'asset_tagged':
-      return `${actor.name} tagged "${fileName}" with "${tagName}"`
+    case 'ASSET_TAGGED':
+      return `${actor.name} tagged \"${fileName}\" with \"${tagName}\"`
     
-    case 'asset_untagged':
-      return `${actor.name} removed "${tagName}" tag from "${fileName}"`
+    case 'ASSET_PINNED':
+      return `${actor.name} pinned \"${fileName}\" in ${sectionName}`
     
-    case 'asset_pinned':
-      return `${actor.name} pinned "${fileName}" in ${sectionName}`
-    
-    case 'asset_unpinned':
-      return `${actor.name} unpinned "${fileName}" in ${sectionName}`
+    case 'ASSET_UNPINNED':
+      return `${actor.name} unpinned \"${fileName}\" in ${sectionName}`
 
     // Comment activities
-    case 'comment_created':
+    case 'COMMENT_CREATED':
       return `${actor.name} added a note in ${sectionName}`
     
-    case 'comment_updated':
+    case 'COMMENT_UPDATED':
       return `${actor.name} updated a note in ${sectionName}`
     
-    case 'comment_deleted':
+    case 'COMMENT_DELETED':
       return `${actor.name} deleted a note in ${sectionName}`
     
-    case 'comment_pinned':
+    case 'COMMENT_TAGGED':
+      return `${actor.name} tagged a note with \"${tagName}\"`
+    
+    case 'COMMENT_PINNED':
       return `${actor.name} pinned a note in ${sectionName}`
     
-    case 'comment_unpinned':
+    case 'COMMENT_UNPINNED':
       return `${actor.name} unpinned a note in ${sectionName}`
 
-    // Section activities
-    case 'section_updated':
-      return `${actor.name} updated ${sectionName} section content`
-    
-    case 'section_completed':
-      return `${actor.name} marked ${sectionName} section as complete`
-
     // Checklist activities
-    case 'checklist_item_created':
-      return `${actor.name} added "${itemTitle}" to ${sectionName} checklist`
+    case 'CHECKLIST_ITEM_CREATED':
+      return `${actor.name} added \"${itemTitle}\" to ${sectionName} checklist`
     
-    case 'checklist_item_completed':
-      return `${actor.name} completed "${itemTitle}" in ${sectionName}`
+    case 'CHECKLIST_ITEM_COMPLETED':
+      return `${actor.name} completed \"${itemTitle}\" in ${sectionName}`
     
-    case 'checklist_item_deleted':
-      return `${actor.name} removed "${itemTitle}" from ${sectionName}`
+    case 'CHECKLIST_ITEM_UNCOMPLETED':
+      return `${actor.name} marked \"${itemTitle}\" as incomplete`
+    
+    case 'CHECKLIST_ITEM_UPDATED':
+      return `${actor.name} updated a checklist item in ${sectionName}`
+    
+    case 'CHECKLIST_ITEM_DELETED':
+      return `${actor.name} removed \"${itemTitle}\" from ${sectionName}`
 
     // Stage activities
-    case 'stage_completed':
+    case 'STAGE_STATUS_CHANGED':
+      return `${actor.name} changed stage status`
+
+    case 'PHASE_COMPLETED':
       return `${actor.name} completed the Design Concept phase`
 
     default:
@@ -270,9 +272,25 @@ function getSectionDisplayName(sectionType?: string): string {
   }
 }
 
+const FILTER_OPTIONS = [
+  { value: 'all', label: 'All Activity' },
+  { value: 'assets', label: 'Assets' },
+  { value: 'comments', label: 'Comments' },
+  { value: 'tags', label: 'Tags' },
+  { value: 'checklist', label: 'Checklist' },
+  { value: 'stage', label: 'Stage Updates' }
+]
+
 export function ActivityTimeline({ stageId, limit = 50, className = '' }: ActivityTimelineProps) {
-  const { data, error, isLoading } = useSWR<{ activities: ActivityItem[] }>(
-    `/api/stages/${stageId}/activity?limit=${limit}`,
+  const [filter, setFilter] = useState('all')
+
+  const queryParams = new URLSearchParams({
+    limit: limit.toString(),
+    ...(filter !== 'all' && { type: filter })
+  }).toString()
+
+  const { data, error, isLoading, mutate } = useSWR<{ activities: ActivityItem[] }>(
+    `/api/stages/${stageId}/activity?${queryParams}`,
     fetcher,
     {
       refreshInterval: 30000, // Refresh every 30 seconds
@@ -309,10 +327,49 @@ export function ActivityTimeline({ stageId, limit = 50, className = '' }: Activi
 
   if (activities.length === 0) {
     return (
-      <div className={`text-center py-8 ${className}`}>
-        <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-        <p className="text-gray-600">No activity yet</p>
-        <p className="text-sm text-gray-500">Activity will appear here as team members work on this phase.</p>
+      <div className={className}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Filter */}
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {FILTER_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            
+            {/* Refresh */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => mutate()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+
+        <div className="text-center py-12">
+          <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No activity yet</h3>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            {filter === 'all' 
+              ? 'Start uploading assets, adding comments, or managing your checklist to see activity here.'
+              : `No ${filter} activity found. Try changing the filter or start using the workspace.`
+            }
+          </p>
+        </div>
       </div>
     )
   }
@@ -320,8 +377,37 @@ export function ActivityTimeline({ stageId, limit = 50, className = '' }: Activi
   return (
     <div className={className}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-        <span className="text-sm text-gray-500">{activities.length} activities</span>
+        <div className="flex items-center space-x-2">
+          <Activity className="w-5 h-5 text-gray-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {/* Filter */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {FILTER_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          
+          {/* Refresh */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => mutate()}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          
+          <span className="text-sm text-gray-500">{activities.length} activities</span>
+        </div>
       </div>
 
       <div className="space-y-4">

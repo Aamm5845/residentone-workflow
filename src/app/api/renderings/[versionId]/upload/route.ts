@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-// Using database storage to match existing system
+import { uploadFile, generateFilePath, getContentType, isBlobConfigured } from '@/lib/blob'
 import { 
   withCreateAttribution,
   logActivity,
@@ -86,11 +86,45 @@ export async function POST(
         
         console.log(`Processing rendering upload: ${filename} (${(file.size / 1024).toFixed(2)}KB)`)
 
-        // Store file data directly in database as base64 (matches existing system)
-        const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const fileData = buffer.toString('base64')
-        const fileUrl = `data:${file.type};base64,${fileData}`
+        // Check if Vercel Blob is available (preferred) or fallback to database
+        const useBlobStorage = isBlobConfigured()
+        let fileUrl: string
+        let storageProvider: string
+        
+        if (useBlobStorage) {
+          // Upload to Vercel Blob storage
+          const bytes = await file.arrayBuffer()
+          const buffer = Buffer.from(bytes)
+          const filePath = generateFilePath(
+            session.user.orgId,
+            renderingVersion.room.project.id,
+            renderingVersion.room.id,
+            undefined, // no section for rendering files
+            filename
+          )
+          
+          const contentType = getContentType(filename)
+          const blobResult = await uploadFile(buffer, filePath, {
+            contentType,
+            filename: filename
+          })
+          
+          fileUrl = blobResult.url
+          storageProvider = 'vercel-blob'
+          console.log('✅ File uploaded to Vercel Blob:', blobResult.url)
+        } else {
+          // Fallback to database storage (development only)
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error('Blob storage not configured in production')
+          }
+          
+          const bytes = await file.arrayBuffer()
+          const buffer = Buffer.from(bytes)
+          const fileData = buffer.toString('base64')
+          fileUrl = `data:${file.type};base64,${fileData}`
+          storageProvider = 'database'
+          console.log('⚠️ Using database storage (development fallback)')
+        }
 
         // Determine asset type
         let assetType = 'OTHER'
@@ -109,12 +143,12 @@ export async function POST(
             type: assetType,
             size: file.size,
             mimeType: file.type,
-            provider: 'database',
+            provider: storageProvider,
             metadata: JSON.stringify({
               originalName: file.name,
               uploadDate: new Date().toISOString(),
               uploadedToVersion: renderingVersion.version,
-              storageMethod: 'postgres_base64',
+              storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
               renderingWorkspace: true
             }),
             orgId: session.user.orgId,
@@ -132,8 +166,8 @@ export async function POST(
         // Log activity for each file
         await logActivity({
           session,
-          action: ActivityActions.CREATE,
-          entity: 'RENDERING_FILE',
+          action: ActivityActions.ASSET_UPLOADED,
+          entity: EntityTypes.ASSET,
           entityId: asset.id,
           details: {
             fileName: file.name,
