@@ -11,7 +11,11 @@ import Image from 'next/image';
 
 interface RenderAsset {
   id: string;
-  url: string;
+  asset: {
+    id: string;
+    url: string;
+    title?: string;
+  };
   includeInEmail: boolean;
 }
 
@@ -44,7 +48,18 @@ export default function ClientApprovalPage() {
         throw new Error('Invalid or expired approval link');
       }
       const result = await response.json();
-      setData(result.data);
+      
+      // Transform the API response to match expected ClientApprovalData format
+      const transformedData: ClientApprovalData = {
+        versionId: result.version.id,
+        projectName: result.version.stage.room.project.name,
+        clientName: result.clientInfo.name,
+        status: result.version.status,
+        assets: result.version.assets || [],
+        sentAt: result.version.sentToClientAt
+      };
+      
+      setData(transformedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load approval data');
     } finally {
@@ -157,7 +172,7 @@ export default function ClientApprovalPage() {
     );
   }
 
-  const emailedAssets = data.assets.filter(asset => asset.includeInEmail);
+  const emailedAssets = data.assets ? data.assets.filter(asset => asset.includeInEmail) : [];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -187,8 +202,8 @@ export default function ClientApprovalPage() {
                   <div key={asset.id} className="relative group">
                     <div className="aspect-video relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                       <Image
-                        src={asset.url}
-                        alt={`Rendering ${asset.id}`}
+                        src={asset.asset.url}
+                        alt={asset.asset.title || `Rendering ${asset.id}`}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-200"
                       />

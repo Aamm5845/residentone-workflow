@@ -432,15 +432,15 @@ export default function ClientApprovalWorkspace({
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">3D Renderings ({currentVersion.version})</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    {selectedAssets.length} of {currentVersion.assets.length} selected for client email
+                    {selectedAssets.length} of {currentVersion.assets?.length || 0} selected for client email
                   </p>
                 </div>
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedAssets(currentVersion.assets.map(a => a.id))}
-                    disabled={selectedAssets.length === currentVersion.assets.length}
+                    onClick={() => setSelectedAssets(currentVersion.assets?.map(a => a.id) || [])}
+                    disabled={selectedAssets.length === (currentVersion.assets?.length || 0)}
                   >
                     Select All
                   </Button>
@@ -456,9 +456,9 @@ export default function ClientApprovalWorkspace({
               </div>
             </div>
             <div className="p-6">
-              {currentVersion.assets.length > 0 ? (
+              {(currentVersion.assets?.length || 0) > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {currentVersion.assets.map((assetItem) => (
+                  {currentVersion.assets?.map((assetItem) => (
                     <div key={assetItem.id} className="relative group">
                       <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                         <img
@@ -519,7 +519,7 @@ export default function ClientApprovalWorkspace({
               <h3 className="text-lg font-semibold text-gray-900">Activity Log</h3>
             </div>
             <div className="p-6 space-y-4">
-              {currentVersion.activityLogs.map((log) => (
+              {currentVersion.activityLogs?.map((log) => (
                 <div key={log.id} className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-gray-400 rounded-full flex-shrink-0"></div>
                   <div className="flex-1">
@@ -574,7 +574,7 @@ export default function ClientApprovalWorkspace({
                 <span className="text-sm text-gray-600">Uploaded by:</span>
                 <span className="text-sm font-medium">
                   {currentVersion.assets && currentVersion.assets.length > 0 
-                    ? currentVersion.assets[0].asset.uploader?.name || 'Unknown'
+                    ? currentVersion.assets[0]?.asset?.uploader?.name || 'Unknown'
                     : '-'
                   }
                 </span>
