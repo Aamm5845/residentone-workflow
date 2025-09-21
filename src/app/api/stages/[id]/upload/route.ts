@@ -60,6 +60,22 @@ export async function POST(
       return NextResponse.json({ error: 'File and sectionId are required' }, { status: 400 })
     }
 
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB in bytes
+    if (file.size > maxSize) {
+      return NextResponse.json({ 
+        error: 'File too large', 
+        details: `File size must be less than ${maxSize / (1024 * 1024)}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`
+      }, { status: 413 })
+    }
+
+    if (file.size === 0) {
+      return NextResponse.json({ 
+        error: 'Empty file', 
+        details: 'Cannot upload empty file'
+      }, { status: 400 })
+    }
+
     // Find the stage and verify access
     const stage = await prisma.stage.findFirst({
       where: {
@@ -138,7 +154,13 @@ export async function POST(
         
         console.log('File uploaded to Dropbox successfully')
       } catch (dropboxError) {
-        console.warn('Dropbox upload failed, falling back to local storage:', dropboxError)
+        console.error('Dropbox upload failed, details:', {
+          error: dropboxError instanceof Error ? dropboxError.message : String(dropboxError),
+          fileName: fileName,
+          stageId: resolvedParams.id,
+          timestamp: new Date().toISOString()
+        })
+        console.warn('Falling back to local storage')
         // Fall back to local storage
         const result = await uploadToLocal(buffer, fileName, resolvedParams.id)
         fileUrl = result.url
@@ -288,7 +310,15 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Error uploading file:', error)
-    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
+    console.error('Upload error details:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      stageId: resolvedParams?.id,
+      timestamp: new Date().toISOString()
+    })
+    return NextResponse.json({ 
+      error: 'Failed to upload file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

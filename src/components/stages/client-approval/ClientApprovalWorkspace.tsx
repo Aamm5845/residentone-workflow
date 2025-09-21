@@ -89,20 +89,31 @@ export default function ClientApprovalWorkspace({
   const [followUpNotes, setFollowUpNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   // Fetch client approval data from API
   useEffect(() => {
     const fetchClientApprovalData = async () => {
       try {
+        setFetchError(null)
         const response = await fetch(`/api/client-approval/${stage.id}`)
         if (response.ok) {
           const data = await response.json()
+          if (!data.currentVersion) {
+            setFetchError('No approval version found. Upload 3D renderings first.')
+            return
+          }
           setCurrentVersion(data.currentVersion)
           setFollowUpNotes(data.currentVersion?.followUpNotes || '')
           // Initialize selected assets
           setSelectedAssets(data.currentVersion?.assets?.filter((a: any) => a.includeInEmail).map((a: any) => a.id) || [])
+        } else if (response.status === 404) {
+          setFetchError('No approval version found. Upload 3D renderings first.')
         } else {
-          console.error('Failed to fetch client approval data')
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          setFetchError(`Failed to load approval data: ${errorData.error || 'Server error'}`)
+          console.error('Failed to fetch client approval data:', errorData)
           // Fall back to mock data for development
           const mockVersion: ClientApprovalVersion = {
             id: '1',
@@ -163,6 +174,9 @@ export default function ClientApprovalWorkspace({
         }
       } catch (error) {
         console.error('Error fetching client approval data:', error)
+        setFetchError('Network error occurred. Please try again.')
+      } finally {
+        setIsInitialLoading(false)
       }
     }
 
@@ -298,12 +312,46 @@ export default function ClientApprovalWorkspace({
     }
   }
 
-  if (!currentVersion) {
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading client approval workspace...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Client Approval</h3>
+          <p className="text-gray-600 mb-4">{fetchError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentVersion) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <Camera className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Approval Data</h3>
+          <p className="text-gray-600">Upload 3D renderings first to enable client approval workflow.</p>
         </div>
       </div>
     )
