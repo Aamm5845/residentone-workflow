@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 import { generateClientApprovalToken } from './jwt';
-import { generateDeliveryEmailTemplate, generateFollowUpEmailTemplate, generateConfirmationEmailTemplate } from './email-templates';
+import { generateMeisnerDeliveryEmailTemplate, generateFollowUpEmailTemplate, generateConfirmationEmailTemplate } from './email-templates';
 import { prisma } from './prisma';
 
 // Email configuration - Mailgun for production, nodemailer for development
@@ -108,16 +108,42 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       }
     });
 
+    // Get version details for enhanced personalization
+    const versionDetails = await prisma.clientApprovalVersion.findUnique({
+      where: { id: options.versionId },
+      include: {
+        stage: {
+          include: {
+            room: {
+              include: {
+                project: {
+                  include: {
+                    client: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
     // Generate tracking pixel URL
     const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
 
-    // Generate email template
-    const { subject, html } = generateDeliveryEmailTemplate({
+    // Generate trackable approval URL
+    const trackableApprovalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/click/${emailLog.id}?url=${encodeURIComponent(approvalUrl)}`;
+
+    // Generate email template with enhanced data
+    const { subject, html } = generateMeisnerDeliveryEmailTemplate({
       clientName: options.clientName,
       projectName: options.projectName,
-      approvalUrl,
+      approvalUrl: trackableApprovalUrl,
       assets: options.assets,
-      trackingPixelUrl
+      trackingPixelUrl,
+      roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type,
+      designPhase: 'Client Approval',
+      projectAddress: versionDetails?.stage?.room?.project?.address
     });
 
     // Update email log with subject and HTML

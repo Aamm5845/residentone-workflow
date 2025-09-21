@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
 import Link from 'next/link'
 import type { Session } from 'next-auth'
+import RoomsSearch from '@/components/rooms/rooms-search'
 
-export default async function Rooms({ searchParams }: { searchParams: { status?: string } }) {
+export default async function Rooms({ searchParams }: { searchParams: { status?: string, search?: string } }) {
   const session = await getSession() as Session & {
     user: {
       id: string
@@ -22,16 +23,35 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
 
   // Handle filtering based on query parameters
   const statusFilter = searchParams.status
+  const searchQuery = searchParams.search
+  console.log('🔍 Rooms page - statusFilter:', statusFilter, 'searchQuery:', searchQuery)
 
   // Build where clause based on filters
   const whereClause: any = {}
 
+  // Add status filter
   if (statusFilter === 'active') {
     whereClause.stages = {
       some: {
         status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
       }
     }
+    console.log('🔍 Active rooms filter applied')
+  }
+
+  // Add search filter
+  if (searchQuery && searchQuery.trim()) {
+    whereClause.OR = [
+      { name: { contains: searchQuery, mode: 'insensitive' } },
+      { type: { contains: searchQuery, mode: 'insensitive' } },
+      { project: { name: { contains: searchQuery, mode: 'insensitive' } } },
+      { project: { client: { name: { contains: searchQuery, mode: 'insensitive' } } } }
+    ]
+    console.log('🔍 Search filter applied for:', searchQuery)
+  }
+
+  if (!statusFilter && !searchQuery) {
+    console.log('🔍 No filters applied - showing all rooms')
   }
 
   // Fetch rooms from database
@@ -58,6 +78,14 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
       },
       orderBy: { updatedAt: 'desc' }
     })
+    console.log(`📈 Found ${rooms.length} rooms with filter:`, statusFilter)
+    if (statusFilter === 'active') {
+      console.log('📈 Active rooms analysis:')
+      rooms.forEach(room => {
+        const activeStages = room.stages.filter((s: any) => ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(s.status))
+        console.log(`  - ${room.name || room.type}: ${activeStages.length} active stages`)
+      })
+    }
   } catch (error) {
     console.error('Error fetching rooms:', error)
     rooms = []
@@ -120,26 +148,26 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
     <DashboardLayout session={session}>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {statusFilter === 'active' ? 'Active Rooms' : 'All Rooms'}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {roomsWithStats.length} {statusFilter === 'active' ? 'active' : ''} rooms
-            </p>
-            {statusFilter && (
-              <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
-                ← Back to Dashboard
-              </Link>
-            )}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {statusFilter === 'active' ? 'Active Rooms' : searchQuery ? `Search Results` : 'All Rooms'}
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {roomsWithStats.length} {statusFilter === 'active' ? 'active' : searchQuery ? 'matching' : ''} rooms
+                {searchQuery && ` for "${searchQuery}"`}
+              </p>
+              {(statusFilter || searchQuery) && (
+                <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
+                  ← Back to Dashboard
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
-          </div>
+          
+          {/* Search and Filter Component */}
+          <RoomsSearch />
         </div>
 
         {/* Rooms List */}

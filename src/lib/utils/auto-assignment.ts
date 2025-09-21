@@ -34,15 +34,10 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
       const stageType = phaseToStageTypeMap[phase.id]
       if (!stageType) continue
 
-      // Find all unassigned or pending stages of this type in the organization
+      // Find all unassigned or pending stages of this type (no org filtering)
       const stagesToAssign = await prisma.stage.findMany({
         where: {
           type: stageType,
-          room: {
-            project: {
-              orgId: orgId
-            }
-          },
           status: {
             in: ['NOT_STARTED'] // Only assign to non-started stages
           },
@@ -94,15 +89,18 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
  */
 export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
   try {
-    // Get all team members in the organization
+    console.log(`🎯 Starting auto-assignment for room ${roomId} in org ${orgId}`)
+    
+    // Get all team members (no org filtering for shared workspace)
     const teamMembers = await prisma.user.findMany({
-      where: { orgId },
       select: {
         id: true,
         role: true,
         name: true
       }
     })
+
+    console.log(`👥 Found ${teamMembers.length} team members:`, teamMembers.map(m => `${m.name} (${m.role})`).join(', '))
 
     // Get all stages for this room
     const stages = await prisma.stage.findMany({
@@ -114,29 +112,45 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
       }
     })
 
+    console.log(`📋 Found ${stages.length} stages:`, stages.map(s => `${s.type} (${s.assignedTo ? 'assigned' : 'unassigned'})`).join(', '))
+
     let assignedCount = 0
 
-    // Map stage types to phase configurations
-    const stageTypeToPhaseMap: Record<string, string> = {
-      'DESIGN_CONCEPT': 'DESIGN_CONCEPT',
-      'THREE_D': 'RENDERING',
-      'DRAWINGS': 'DRAWINGS',
-      'FFE': 'FFE'
+    // Enhanced stage type to role mapping (covers all stage types)
+    const stageTypeToRoleMap: Record<string, string | null> = {
+      'DESIGN': 'DESIGNER',           // DESIGN stage maps to DESIGNER
+      'DESIGN_CONCEPT': 'DESIGNER',   // DESIGN_CONCEPT stage maps to DESIGNER  
+      'THREE_D': 'RENDERER',          // THREE_D stage maps to RENDERER
+      'CLIENT_APPROVAL': null,        // CLIENT_APPROVAL can be handled by anyone (ADMIN/OWNER)
+      'DRAWINGS': 'DRAFTER',          // DRAWINGS stage maps to DRAFTER
+      'FFE': 'FFE'                    // FFE stage maps to FFE
     }
 
     for (const stage of stages) {
       // Skip if already assigned
-      if (stage.assignedTo) continue
+      if (stage.assignedTo) {
+        console.log(`⏭️  Skipping ${stage.type} - already assigned`)
+        continue
+      }
 
-      const phaseId = stageTypeToPhaseMap[stage.type]
-      if (!phaseId) continue
+      const requiredRole = stageTypeToRoleMap[stage.type]
+      console.log(`🔍 Processing ${stage.type} stage - requires role: ${requiredRole || 'any'}`)
+      
+      let assignee = null
 
-      const phaseConfig = ROOM_PHASES.find(p => p.id === phaseId)
-      if (!phaseConfig?.requiredRole) continue
+      if (requiredRole) {
+        // Find a team member with the specific required role
+        assignee = teamMembers.find(member => member.role === requiredRole)
+      } else {
+        // For CLIENT_APPROVAL or other general tasks, assign to ADMIN or OWNER
+        assignee = teamMembers.find(member => ['ADMIN', 'OWNER'].includes(member.role)) ||
+                  teamMembers.find(member => member.role === 'DESIGNER') // Fallback to DESIGNER
+      }
 
-      // Find a team member with the required role
-      const assignee = teamMembers.find(member => member.role === phaseConfig.requiredRole)
-      if (!assignee) continue
+      if (!assignee) {
+        console.log(`⚠️  No assignee found for ${stage.type} stage (required role: ${requiredRole})`)
+        continue
+      }
 
       // Assign the stage to the team member
       await prisma.stage.update({
@@ -145,9 +159,10 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
       })
 
       assignedCount++
-      console.log(`Auto-assigned ${phaseConfig.label} stage to ${assignee.name} (${assignee.role})`)
+      console.log(`✅ Auto-assigned ${stage.type} stage to ${assignee.name} (${assignee.role})`)
     }
 
+    console.log(`🎯 Auto-assignment complete: ${assignedCount} stages assigned`)
     return { assignedCount }
   } catch (error) {
     console.error('Error in autoAssignPhasesToTeam:', error)
@@ -185,11 +200,6 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
         where: {
           type: stageType,
           assignedTo: userId,
-          room: {
-            project: {
-              orgId: orgId
-            }
-          },
           status: {
             in: ['NOT_STARTED'] // Only unassign from non-started stages
           }
@@ -211,11 +221,6 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
         where: {
           type: stageType,
           assignedTo: null,
-          room: {
-            project: {
-              orgId: orgId
-            }
-          },
           status: {
             in: ['NOT_STARTED']
           }
@@ -231,6 +236,102 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
     return { removedCount, addedCount }
   } catch (error) {
     console.error('Error in reassignPhasesOnRoleChange:', error)
+    throw error
+  }
+}
+
+/**
+ * Auto-assign all existing unassigned stages across all projects
+ * This function ensures no stage remains unassigned
+ */
+export async function autoAssignAllUnassignedStages() {
+  try {
+    console.log('🔄 Starting system-wide auto-assignment of unassigned stages...')
+    
+    // Get all team members
+    const teamMembers = await prisma.user.findMany({
+      select: {
+        id: true,
+        role: true,
+        name: true
+      }
+    })
+
+    console.log(`👥 Found ${teamMembers.length} team members`)
+
+    // Get all unassigned stages
+    const unassignedStages = await prisma.stage.findMany({
+      where: {
+        assignedTo: null
+      },
+      select: {
+        id: true,
+        type: true,
+        room: {
+          select: {
+            id: true,
+            name: true,
+            project: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    console.log(`📋 Found ${unassignedStages.length} unassigned stages`)
+
+    if (unassignedStages.length === 0) {
+      console.log('✅ All stages are already assigned!')
+      return { assignedCount: 0 }
+    }
+
+    let assignedCount = 0
+
+    // Stage type to role mapping
+    const stageTypeToRoleMap: Record<string, string | null> = {
+      'DESIGN': 'DESIGNER',
+      'DESIGN_CONCEPT': 'DESIGNER',
+      'THREE_D': 'RENDERER',
+      'CLIENT_APPROVAL': null, // Can be handled by ADMIN/OWNER
+      'DRAWINGS': 'DRAFTER',
+      'FFE': 'FFE'
+    }
+
+    for (const stage of unassignedStages) {
+      const requiredRole = stageTypeToRoleMap[stage.type]
+      let assignee = null
+
+      if (requiredRole) {
+        // Find a team member with the specific required role
+        assignee = teamMembers.find(member => member.role === requiredRole)
+      } else {
+        // For CLIENT_APPROVAL, assign to ADMIN or OWNER
+        assignee = teamMembers.find(member => ['ADMIN', 'OWNER'].includes(member.role)) ||
+                  teamMembers.find(member => member.role === 'DESIGNER') // Fallback
+      }
+
+      if (!assignee) {
+        console.log(`⚠️  No assignee found for ${stage.type} in ${stage.room.project.name}/${stage.room.name || stage.room.id}`)
+        continue
+      }
+
+      // Assign the stage
+      await prisma.stage.update({
+        where: { id: stage.id },
+        data: { assignedTo: assignee.id }
+      })
+
+      assignedCount++
+      console.log(`✅ Assigned ${stage.type} in ${stage.room.project.name}/${stage.room.name || stage.room.id} to ${assignee.name} (${assignee.role})`)
+    }
+
+    console.log(`🎯 System-wide auto-assignment complete: ${assignedCount} stages assigned`)
+    return { assignedCount }
+  } catch (error) {
+    console.error('Error in autoAssignAllUnassignedStages:', error)
     throw error
   }
 }

@@ -20,8 +20,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch all team members (no org filtering)
+    // Fetch all team members (exclude removed members with null orgId)
     const teamMembers = await prisma.user.findMany({
+      where: {
+        orgId: {
+          not: null
+        }
+      },
       select: {
         id: true,
         name: true,

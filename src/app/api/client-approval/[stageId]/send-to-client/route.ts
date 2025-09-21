@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { sendClientApprovalEmail } from '@/lib/email-service'
 
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
 export async function POST(
@@ -98,6 +99,29 @@ export async function POST(
       })
     }
 
+    // Get email assets for the email service
+    const emailAssets = currentVersion.assets
+      .filter(asset => selectedAssetIds?.includes(asset.id) || false)
+      .map(assetItem => ({
+        id: assetItem.id,
+        url: assetItem.asset.url,
+        includeInEmail: true
+      }))
+
+    // Send the actual email
+    try {
+      await sendClientApprovalEmail({
+        versionId: currentVersion.id,
+        clientEmail: currentVersion.stage.room.project.client?.email!,
+        clientName: currentVersion.stage.room.project.client?.name!,
+        projectName: currentVersion.stage.room.project.name,
+        assets: emailAssets
+      })
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError)
+      return NextResponse.json({ error: 'Failed to send email to client' }, { status: 500 })
+    }
+
     // Update the version to mark as sent
     const updatedVersion = await prisma.clientApprovalVersion.update({
       where: {
@@ -126,11 +150,6 @@ export async function POST(
         }
       }
     })
-
-    // TODO: Here you would integrate with your email service
-    // For now, we'll just simulate the email being sent
-    console.log(`📧 Would send email to: ${currentVersion.stage.room.project.client?.email}`)
-    console.log(`📎 With ${selectedAssetIds?.length || 0} assets attached`)
 
     // Create activity log
     await prisma.activity.create({

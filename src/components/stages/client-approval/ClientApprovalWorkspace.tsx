@@ -20,7 +20,9 @@ import {
   Phone,
   Send,
   Camera,
-  ChevronDown
+  ChevronDown,
+  Monitor,
+  TestTube
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
@@ -96,6 +98,12 @@ export default function ClientApprovalWorkspace({
   const [pushingToClient, setPushingToClient] = useState(false)
   const [showRevisionNotes, setShowRevisionNotes] = useState(false)
   const [revisionNotes, setRevisionNotes] = useState('')
+  const [showEmailPreview, setShowEmailPreview] = useState(false)
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
+  const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -109,6 +117,24 @@ export default function ClientApprovalWorkspace({
     refreshInterval: 30000, // Refresh every 30 seconds
     revalidateOnFocus: true
   })
+
+  // Fetch email analytics
+  const fetchEmailAnalytics = async (versionId: string) => {
+    setLoadingAnalytics(true)
+    try {
+      const response = await fetch(`/api/email/analytics/${versionId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setEmailAnalytics(data)
+      } else {
+        console.error('Failed to fetch email analytics')
+      }
+    } catch (error) {
+      console.error('Error fetching email analytics:', error)
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
 
   // Fetch client approval data from API
   useEffect(() => {
@@ -131,6 +157,11 @@ export default function ClientApprovalWorkspace({
           setFollowUpNotes(data.currentVersion?.followUpNotes || '')
           // Initialize selected assets
           setSelectedAssets(data.currentVersion?.assets?.filter((a: any) => a.includeInEmail).map((a: any) => a.id) || [])
+          
+          // Fetch email analytics if version was sent
+          if (data.currentVersion?.sentToClientAt) {
+            fetchEmailAnalytics(data.currentVersion.id)
+          }
         } else if (response.status === 404) {
           setFetchError('No approval version found. Upload 3D renderings first.')
         } else {
@@ -279,6 +310,12 @@ export default function ClientApprovalWorkspace({
       if (response.ok) {
         const data = await response.json()
         setCurrentVersion(data.version)
+        
+        // Fetch email analytics after sending
+        if (data.version?.id) {
+          fetchEmailAnalytics(data.version.id)
+        }
+        
         alert('Email sent to client successfully!')
       } else {
         const error = await response.json()
@@ -369,6 +406,40 @@ export default function ClientApprovalWorkspace({
       alert('Failed to mark follow-up. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail.trim()) {
+      alert('Please enter a test email address')
+      return
+    }
+
+    setSendingTestEmail(true)
+    try {
+      const response = await fetch(`/api/email/test/${currentVersion?.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ testEmail: testEmail.trim() })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Test email sent successfully to ${testEmail}`)
+        setTestEmail('')
+        setShowTestEmailDialog(false)
+      } else {
+        const error = await response.json()
+        console.error('Failed to send test email:', error)
+        alert(`Failed to send test email: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      alert('Failed to send test email. Please try again.')
+    } finally {
+      setSendingTestEmail(false)
     }
   }
 
@@ -899,6 +970,61 @@ export default function ClientApprovalWorkspace({
               </div>
             </div>
 
+            {/* Email Analytics */}
+            {currentVersion?.sentToClientAt && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Email Analytics</h4>
+                {loadingAnalytics ? (
+                  <div className="animate-pulse space-y-2">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                  </div>
+                ) : emailAnalytics ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-blue-50 p-2 rounded">
+                        <div className="text-blue-600 font-medium">{emailAnalytics.analytics.totalSent}</div>
+                        <div className="text-blue-500 text-xs">Emails Sent</div>
+                      </div>
+                      <div className="bg-green-50 p-2 rounded">
+                        <div className="text-green-600 font-medium">{emailAnalytics.analytics.totalOpened}</div>
+                        <div className="text-green-500 text-xs">Times Opened</div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-purple-50 p-2 rounded">
+                        <div className="text-purple-600 font-medium">{emailAnalytics.analytics.openRate}%</div>
+                        <div className="text-purple-500 text-xs">Open Rate</div>
+                      </div>
+                      <div className="bg-orange-50 p-2 rounded">
+                        <div className="text-orange-600 font-medium">{emailAnalytics.analytics.totalClicks}</div>
+                        <div className="text-orange-500 text-xs">Link Clicks</div>
+                      </div>
+                    </div>
+                    
+                    {emailAnalytics.analytics.firstOpenAt && (
+                      <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
+                        <div>First opened: {new Date(emailAnalytics.analytics.firstOpenAt).toLocaleDateString('en-US', { 
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                        })}</div>
+                        {emailAnalytics.analytics.lastOpenAt && emailAnalytics.analytics.lastOpenAt !== emailAnalytics.analytics.firstOpenAt && (
+                          <div>Last opened: {new Date(emailAnalytics.analytics.lastOpenAt).toLocaleDateString('en-US', { 
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                          })}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    No analytics data available
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Follow-up Notes */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-3">Notes from Follow-Up</h4>
@@ -914,6 +1040,27 @@ export default function ClientApprovalWorkspace({
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-4">Actions</h4>
               <div className="space-y-3">
+                {/* Email Preview & Test Section */}
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => setShowEmailPreview(!showEmailPreview)}
+                    variant="outline"
+                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Monitor className="w-4 h-4 mr-2" />
+                    {showEmailPreview ? 'Hide Email Preview' : 'Preview Email'}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => setShowTestEmailDialog(true)}
+                    variant="outline"
+                    className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                  >
+                    <TestTube className="w-4 h-4 mr-2" />
+                    Send Test Email
+                  </Button>
+                </div>
+
                 {/* Send to Client Section */}
                 {currentVersion.approvedByAaron && (
                   <>
@@ -1051,5 +1198,99 @@ export default function ClientApprovalWorkspace({
         </div>
       </div>
     </div>
+
+    {/* Email Preview Modal */}
+    {showEmailPreview && currentVersion && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Email Preview</h3>
+            <Button
+              onClick={() => setShowEmailPreview(false)}
+              variant="outline"
+              size="sm"
+            >
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="p-4">
+            <div className="bg-gray-50 p-3 rounded-lg mb-4">
+              <p className="text-sm text-gray-600">
+                <strong>To:</strong> {project.client?.email}<br/>
+                <strong>Subject:</strong> ✨ {room.name || room.type} Design Ready for Approval - {project.name}
+              </p>
+            </div>
+            <iframe
+              src={`/api/email/preview/${currentVersion.id}?format=html`}
+              className="w-full h-96 border border-gray-200 rounded-lg"
+              title="Email Preview"
+            />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Test Email Dialog */}
+    {showTestEmailDialog && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-md w-full">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Send Test Email</h3>
+            <Button
+              onClick={() => {
+                setShowTestEmailDialog(false)
+                setTestEmail('')
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="p-4">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Test Email Address
+                </label>
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="your.email@example.com"
+                  disabled={sendingTestEmail}
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  <strong>Note:</strong> This will send a test version of the client approval email to the specified address. The email will be marked as "TEST" and won't affect the actual client approval process.
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <Button
+                  onClick={handleSendTestEmail}
+                  disabled={!testEmail.trim() || sendingTestEmail}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white disabled:bg-gray-300"
+                >
+                  <TestTube className="w-4 h-4 mr-2" />
+                  {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowTestEmailDialog(false)
+                    setTestEmail('')
+                  }}
+                  variant="outline"
+                  disabled={sendingTestEmail}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }
