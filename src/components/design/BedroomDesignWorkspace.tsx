@@ -37,6 +37,7 @@ import { toast } from 'sonner'
 import { ReferenceBoard } from './ReferenceBoard'
 import { MessagePanel } from './MessagePanel'
 import { ActionBar } from './ActionBar'
+import { UploadZone } from './UploadZone'
 
 // Types
 interface DesignSection {
@@ -143,6 +144,7 @@ export default function BedroomDesignWorkspace({
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadSection, setUploadSection] = useState<string>('GENERAL')
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -210,6 +212,48 @@ export default function BedroomDesignWorkspace({
       toast.error('Failed to finalize design concept')
     } finally {
       setIsCompleting(false)
+    }
+  }
+  
+  // Handle upload completion
+  const handleUploadComplete = (asset: any) => {
+    refreshWorkspace() // Refresh the workspace
+    toast.success('Reference uploaded successfully!')
+  }
+  
+  const handleUploadError = (error: string) => {
+    toast.error(error)
+  }
+  
+  // Get or create design section
+  const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
+    // First try to find existing section
+    const existingSection = stage.designSections?.find(s => s.type === sectionType)
+    if (existingSection?.id) {
+      return existingSection.id
+    }
+    
+    // If no section exists, create one via API
+    try {
+      const response = await fetch('/api/design/sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          stageId,
+          type: sectionType
+        })
+      })
+      
+      const result = await response.json()
+      if (result.success) {
+        return result.section.id
+      } else {
+        throw new Error(result.error || 'Failed to create section')
+      }
+    } catch (error) {
+      console.error('Error creating section:', error)
+      // Fallback to a default section ID format (this would need to be handled properly)
+      return `${stageId}-${sectionType}`
     }
   }
 
@@ -459,12 +503,34 @@ export default function BedroomDesignWorkspace({
               </Button>
             </div>
             
-            {/* Upload content will go here - for now, show placeholder */}
-            <div className="text-center py-8">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600 mb-4">Upload functionality ready!</p>
-              <p className="text-sm text-gray-500">This modal will contain the UploadZone component.</p>
+            {/* Section Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Design Section
+              </label>
+              <select
+                value={uploadSection}
+                onChange={(e) => setUploadSection(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="GENERAL">✨ General</option>
+                <option value="WALL_COVERING">🎨 Wall Covering</option>
+                <option value="CEILING">⬆️ Ceiling</option>
+                <option value="FLOOR">⬇️ Floor</option>
+              </select>
             </div>
+            
+            {/* Upload Zone */}
+            <UploadZone
+              sectionId={""} // Will be resolved dynamically
+              stageId={stageId}
+              sectionType={uploadSection}
+              onResolveSectionId={getOrCreateSectionId}
+              onUploadComplete={handleUploadComplete}
+              onUploadError={handleUploadError}
+              maxFiles={5}
+              className="mb-4"
+            />
             
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
               <Button
