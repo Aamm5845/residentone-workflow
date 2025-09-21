@@ -14,6 +14,110 @@ import {
   type AuthSession
 } from '@/lib/attribution'
 
+// GET method to fetch stage sections data
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const resolvedParams = await params
+    
+    if (!isValidAuthSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Find the stage and verify access
+    const stage = await prisma.stage.findFirst({
+      where: {
+        id: resolvedParams.id,
+        room: {
+          project: {
+            orgId: session.user.orgId
+          }
+        }
+      },
+      include: {
+        designSections: {
+          include: {
+            assets: {
+              orderBy: { createdAt: 'desc' }
+            },
+            comments: {
+              include: {
+                author: {
+                  select: { id: true, name: true, role: true }
+                }
+              },
+              orderBy: { createdAt: 'desc' }
+            },
+            checklistItems: {
+              orderBy: { order: 'asc' }
+            }
+          }
+        },
+        assignedUser: {
+          select: { id: true, name: true }
+        },
+        room: {
+          include: {
+            project: {
+              include: {
+                client: {
+                  select: { name: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!stage) {
+      return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
+    }
+
+    // Calculate completion statistics
+    const totalSections = 4 // GENERAL, WALL_COVERING, CEILING, FLOOR
+    const completedSections = stage.designSections?.filter(section => section.completed).length || 0
+    const percentage = totalSections > 0 ? Math.round((completedSections / totalSections) * 100) : 0
+
+    // Format the response data
+    const responseData = {
+      stage: {
+        id: stage.id,
+        type: stage.type,
+        status: stage.status,
+        assignedUser: stage.assignedUser,
+        dueDate: stage.dueDate,
+        startedAt: stage.startedAt,
+        completedAt: stage.completedAt,
+        designSections: stage.designSections || []
+      },
+      room: {
+        id: stage.room.id,
+        type: stage.room.type,
+        name: stage.room.name
+      },
+      project: {
+        id: stage.room.project.id,
+        name: stage.room.project.name,
+        client: stage.room.project.client
+      },
+      completion: {
+        percentage,
+        completedSections,
+        totalSections
+      }
+    }
+
+    return NextResponse.json(responseData)
+  } catch (error) {
+    console.error('Error fetching stage sections:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

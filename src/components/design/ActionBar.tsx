@@ -10,7 +10,7 @@ import {
   Link,
   Image as ImageIcon,
   Upload,
-  Refresh,
+  RefreshCw,
   Activity,
   Settings,
   Share,
@@ -237,7 +237,7 @@ export function ActionBar({
             size="sm"
             onClick={onRefresh}
           >
-            <Refresh className="w-4 h-4 mr-1" />
+            <RefreshCw className="w-4 h-4 mr-1" />
             Refresh
           </Button>
         </div>
