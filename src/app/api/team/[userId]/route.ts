@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { reassignPhasesOnRoleChange } from '@/lib/utils/auto-assignment'
 import { z } from 'zod'
 import { UserRole } from '@prisma/client'
 import type { Session } from 'next-auth'
@@ -198,6 +199,22 @@ export async function PUT(
         }
       }
     })
+
+    // Handle role change auto-assignment
+    if (validatedData.role && validatedData.role !== existingUser.role) {
+      try {
+        const reassignmentResult = await reassignPhasesOnRoleChange(
+          params.userId,
+          existingUser.role,
+          validatedData.role,
+          session.user.orgId
+        )
+        console.log(`Role change auto-assignment: removed ${reassignmentResult.removedCount}, added ${reassignmentResult.addedCount} phase assignments`)
+      } catch (assignmentError) {
+        console.error('Failed to auto-reassign phases on role change:', assignmentError)
+        // Don't fail the user update if assignment fails
+      }
+    }
 
     return NextResponse.json(updatedUser)
   } catch (error) {

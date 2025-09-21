@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { RoomType, ProjectType, StageType, StageStatus } from '@prisma/client'
+import { autoAssignPhasesToTeam } from '@/lib/utils/auto-assignment'
 import type { Session } from 'next-auth'
+import { ProjectType, RoomType, StageType, StageStatus } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -252,16 +253,6 @@ export async function POST(request: NextRequest) {
       console.log('ℹ️ No contractors to process')
     }
 
-    // Get team members for stage assignments
-    const teamMembers = await prisma.user.findMany({
-      where: { orgId: session.user.orgId }
-    })
-
-    const designer = teamMembers.find(u => u.role === 'DESIGNER')
-    const renderer = teamMembers.find(u => u.role === 'RENDERER') 
-    const drafter = teamMembers.find(u => u.role === 'DRAFTER')
-    const ffe = teamMembers.find(u => u.role === 'FFE')
-
     // Create rooms and stages
     for (const roomData of selectedRooms) {
       // Handle both old format (string) and new format (object)
@@ -277,25 +268,25 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create all 6 workflow stages for each room
+      // Create all workflow stages for each room (without assignments)
       const stages = [
         {
           roomId: room.id,
           type: 'DESIGN' as StageType,
           status: 'NOT_STARTED' as StageStatus,
-          assignedTo: designer?.id || null
+          assignedTo: null // Will be assigned by auto-assignment
         },
         {
           roomId: room.id,
           type: 'DESIGN_CONCEPT' as StageType,
           status: 'NOT_STARTED' as StageStatus,
-          assignedTo: designer?.id || null
+          assignedTo: null
         },
         {
           roomId: room.id,
           type: 'THREE_D' as StageType,
           status: 'NOT_STARTED' as StageStatus, 
-          assignedTo: renderer?.id || null
+          assignedTo: null
         },
         {
           roomId: room.id,
@@ -307,19 +298,28 @@ export async function POST(request: NextRequest) {
           roomId: room.id,
           type: 'DRAWINGS' as StageType,
           status: 'NOT_STARTED' as StageStatus,
-          assignedTo: drafter?.id || null
+          assignedTo: null
         },
         {
           roomId: room.id,
           type: 'FFE' as StageType,
           status: 'NOT_STARTED' as StageStatus,
-          assignedTo: ffe?.id || null
+          assignedTo: null
         }
       ]
 
       await prisma.stage.createMany({
         data: stages
       })
+
+      // Auto-assign stages to team members based on their roles
+      try {
+        const assignmentResult = await autoAssignPhasesToTeam(room.id, session.user.orgId)
+        console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for room ${room.id}`)
+      } catch (assignmentError) {
+        console.error('Failed to auto-assign phases to team:', assignmentError)
+        // Don't fail room creation if assignment fails
+      }
 
       // TODO: Create design sections for the design stage (temporarily disabled due to schema sync issues)
       // const designStage = await projectPrisma.stage.findFirst({

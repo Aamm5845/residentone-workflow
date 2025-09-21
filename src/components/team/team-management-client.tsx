@@ -557,60 +557,67 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       </button>
                       
                       {openDropdown === member.id && (
-                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                          <div className="py-1">
-                            <button
-                              onClick={() => {
-                                setEditingMember(member)
-                                setOpenDropdown(null)
-                              }}
-                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Member
-                            </button>
-                            
-                            {/* Password Management Options */}
-                            {canManageTeam && member.id !== currentUser.id && (
-                              <>
-                                <div className="border-t border-gray-100 my-1"></div>
-                                <button
-                                  onClick={() => handleResetPassword(member.id, member.name)}
-                                  className="flex items-center px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 w-full text-left"
-                                >
-                                  <Key className="h-4 w-4 mr-2" />
-                                  Reset Password
-                                </button>
-                                
-                                {isOwner && (
+                        <>
+                          {/* Invisible backdrop to close dropdown */}
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setOpenDropdown(null)}
+                          />
+                          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                            <div className="py-1">
+                              <button
+                                onClick={() => {
+                                  setEditingMember(member)
+                                  setOpenDropdown(null)
+                                }}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Member
+                              </button>
+                              
+                              {/* Password Management Options */}
+                              {canManageTeam && member.id !== currentUser.id && (
+                                <>
+                                  <div className="border-t border-gray-100 my-1"></div>
                                   <button
-                                    onClick={() => {
-                                      setSetPasswordMember(member)
-                                      setOpenDropdown(null)
-                                    }}
-                                    className="flex items-center px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 w-full text-left"
+                                    onClick={() => handleResetPassword(member.id, member.name)}
+                                    className="flex items-center px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 w-full text-left"
                                   >
-                                    <Shield className="h-4 w-4 mr-2" />
-                                    Set Password
+                                    <Key className="h-4 w-4 mr-2" />
+                                    Reset Password
                                   </button>
-                                )}
-                              </>
-                            )}
-                            
-                            {currentUser.role === 'OWNER' && member.id !== currentUser.id && (
-                              <>
-                                <div className="border-t border-gray-100 my-1"></div>
-                                <button
-                                  onClick={() => handleRemoveMember(member.id, member.name)}
-                                  className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
-                                >
-                                  <UserMinus className="h-4 w-4 mr-2" />
-                                  Remove Member
-                                </button>
-                              </>
-                            )}
+                                  
+                                  {isOwner && (
+                                    <button
+                                      onClick={() => {
+                                        setSetPasswordMember(member)
+                                        setOpenDropdown(null)
+                                      }}
+                                      className="flex items-center px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 w-full text-left"
+                                    >
+                                      <Shield className="h-4 w-4 mr-2" />
+                                      Set Password
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                              
+                              {currentUser.role === 'OWNER' && member.id !== currentUser.id && (
+                                <>
+                                  <div className="border-t border-gray-100 my-1"></div>
+                                  <button
+                                    onClick={() => handleRemoveMember(member.id, member.name)}
+                                    className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
+                                  >
+                                    <UserMinus className="h-4 w-4 mr-2" />
+                                    Remove Member
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        </>
                       )}
                     </div>
                   </td>
@@ -648,13 +655,6 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
         />
       )}
 
-      {/* Click outside handler */}
-      {openDropdown && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpenDropdown(null)}
-        />
-      )}
     </div>
   )
 }

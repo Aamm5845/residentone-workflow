@@ -9,7 +9,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Session } from 'next-auth'
 
-export default async function Projects({ searchParams }: { searchParams: { status?: string, timeframe?: string } }) {
+export default async function Projects({ searchParams }: { searchParams: Promise<{ status?: string, timeframe?: string }> }) {
   const session = await getSession() as Session & {
     user: {
       id: string
@@ -22,8 +22,9 @@ export default async function Projects({ searchParams }: { searchParams: { statu
   }
 
   // Handle filtering based on query parameters
-  const statusFilter = searchParams.status
-  const timeframeFilter = searchParams.timeframe
+  const resolvedSearchParams = await searchParams
+  const statusFilter = resolvedSearchParams.status
+  const timeframeFilter = resolvedSearchParams.timeframe
 
   // Build where clause based on filters
   const whereClause: any = { orgId: session.user.orgId }

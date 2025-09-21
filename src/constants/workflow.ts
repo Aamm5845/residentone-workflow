@@ -3,7 +3,7 @@
 
 export const WORKFLOW_STAGES = [
   'DESIGN_CONCEPT',
-  'RENDERING', 
+  'THREE_D', 
   'CLIENT_APPROVAL',
   'DRAWINGS',
   'FFE'
@@ -31,7 +31,7 @@ export const STAGE_CONFIG = {
     },
     description: 'Create stunning design concepts, mood boards, and material selections'
   },
-  RENDERING: {
+  THREE_D: {
     name: '3D Rendering Workspace',
     icon: '🎥', 
     baseColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
@@ -138,7 +138,7 @@ export function getStageStatusTextColor(stageType: string, status: StageStatus) 
 // Map database stage types to workflow stage types
 const STAGE_TYPE_MAP = {
   'DESIGN': 'DESIGN_CONCEPT',
-  'THREE_D': 'RENDERING',
+  'THREE_D': 'THREE_D',
   'CLIENT_APPROVAL': 'CLIENT_APPROVAL', 
   'DRAWINGS': 'DRAWINGS',
   'FFE': 'FFE'

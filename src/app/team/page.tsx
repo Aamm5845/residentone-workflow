@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
 import TeamManagementClient from '@/components/team/team-management-client'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
 import type { Session } from 'next-auth'
 
 export default async function TeamManagement() {
@@ -107,6 +110,18 @@ export default async function TeamManagement() {
               Manage team members, roles, and assignments
             </p>
           </div>
+          
+          {/* Only show add button for OWNER and ADMIN */}
+          {['OWNER', 'ADMIN'].includes(session.user.role) && (
+            <div className="flex items-center space-x-3">
+              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Link href="/team/invite">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Invite Team Member
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         <TeamManagementClient 

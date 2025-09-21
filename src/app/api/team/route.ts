@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { autoAssignUserToPhases } from '@/lib/utils/auto-assignment'
 import type { Session } from 'next-auth'
 
 interface AuthSession extends Session {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    const { name, email, role } = await request.json()
+    const { name, email, role, image } = await request.json()
 
     // Validation
     if (!name || !email || !role) {
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         role,
         orgId: session.user.orgId,
+        image: image || null,
         // No password - user will be invited to set one
       },
       select: {
@@ -143,6 +145,15 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Auto-assign the new user to existing phases based on their role
+    try {
+      const assignmentResult = await autoAssignUserToPhases(newUser.id, role, session.user.orgId)
+      console.log(`Auto-assigned ${assignmentResult.assignedCount} phases to new user: ${assignmentResult.phases.join(', ')}`)
+    } catch (assignmentError) {
+      console.error('Failed to auto-assign phases to new user:', assignmentError)
+      // Don't fail the user creation if assignment fails
+    }
 
     // TODO: Send invitation email to the new user
     // await sendInvitationEmail(newUser.email, newUser.name, session.user.organization.name)
