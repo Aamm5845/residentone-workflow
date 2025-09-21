@@ -13,7 +13,7 @@ export async function GET() {
     // Get all stats in parallel
     const [
       activeProjects,
-      totalClients,
+      activeRooms,
       pendingApprovals,
       completedThisMonth,
       totalRevenue,
@@ -26,8 +26,11 @@ export async function GET() {
           status: { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
         }
       }),
-      prisma.client.count({
-        where: { orgId: session.user.orgId }
+      prisma.room.count({
+        where: { 
+          project: { orgId: session.user.orgId },
+          status: 'IN_PROGRESS'
+        }
       }),
       prisma.approval.count({
         where: {
@@ -72,7 +75,7 @@ export async function GET() {
 
     return NextResponse.json({
       activeProjects,
-      totalClients,
+      activeRooms,
       pendingApprovals,
       completedThisMonth,
       totalRevenue: totalRevenue._sum.budget || 0,

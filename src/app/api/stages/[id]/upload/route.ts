@@ -154,9 +154,11 @@ export async function POST(
       metadata = result.metadata
     }
 
-    // Determine asset type
+    // Determine asset type - for THREE_D stage, mark as RENDER
     let assetType = 'DOCUMENT'
-    if (file.type.startsWith('image/')) {
+    if (stage.type === 'THREE_D') {
+      assetType = 'RENDER'
+    } else if (file.type.startsWith('image/')) {
       assetType = 'IMAGE'
     } else if (file.type === 'application/pdf') {
       assetType = 'PDF'
@@ -181,6 +183,60 @@ export async function POST(
         sectionId: designSection.id
       }
     })
+
+    // If this is a THREE_D stage upload, create or update Client Approval version
+    if (stage.type === 'THREE_D' && assetType === 'RENDER') {
+      // Find CLIENT_APPROVAL stage for this room
+      const clientApprovalStage = await prisma.stage.findFirst({
+        where: {
+          roomId: stage.roomId,
+          type: 'CLIENT_APPROVAL'
+        }
+      })
+
+      if (clientApprovalStage) {
+        // Check if v1 already exists
+        let clientApprovalVersion = await prisma.clientApprovalVersion.findFirst({
+          where: {
+            stageId: clientApprovalStage.id,
+            version: 'v1'
+          }
+        })
+
+        // Create v1 if it doesn't exist
+        if (!clientApprovalVersion) {
+          clientApprovalVersion = await prisma.clientApprovalVersion.create({
+            data: {
+              stageId: clientApprovalStage.id,
+              version: 'v1',
+              status: 'DRAFT',
+              approvedByAaron: false,
+              clientDecision: 'PENDING'
+            }
+          })
+
+          // Create activity log
+          await prisma.clientApprovalActivity.create({
+            data: {
+              versionId: clientApprovalVersion.id,
+              type: 'version_created',
+              message: 'Version v1 created from 3D rendering uploads',
+              userId: (session.user as any)?.id || null
+            }
+          })
+        }
+
+        // Link the asset to the client approval version
+        await prisma.clientApprovalAsset.create({
+          data: {
+            versionId: clientApprovalVersion.id,
+            assetId: asset.id,
+            includeInEmail: true, // Default to include new uploads
+            displayOrder: 0
+          }
+        })
+      }
+    }
 
     // Get updated stage with all data
     const updatedStage = await prisma.stage.findUnique({

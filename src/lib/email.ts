@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer'
+import * as mg from 'mailgun.js'
+import formData from 'form-data'
 
 interface EmailConfig {
   host: string
@@ -14,7 +16,21 @@ interface SendEmailOptions {
   text?: string
 }
 
-// Create reusable transporter object
+// Initialize Mailgun client
+const getMailgunClient = () => {
+  if (!process.env.MAILGUN_API_KEY || !process.env.MAILGUN_DOMAIN) {
+    return null
+  }
+
+  const mailgun = new mg.default(formData)
+  return mailgun.client({
+    username: 'api',
+    key: process.env.MAILGUN_API_KEY,
+    url: process.env.MAILGUN_URL || 'https://api.mailgun.net'
+  })
+}
+
+// Create reusable transporter object (fallback)
 const createTransporter = () => {
   const config: EmailConfig = {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -24,14 +40,13 @@ const createTransporter = () => {
   }
 
   if (!config.user || !config.password) {
-    console.warn('⚠️ Email configuration incomplete. Password reset emails will not be sent.')
     return null
   }
 
   return nodemailer.createTransporter({
     host: config.host,
     port: config.port,
-    secure: config.port === 465, // true for 465, false for other ports
+    secure: config.port === 465,
     auth: {
       user: config.user,
       pass: config.password,
@@ -40,26 +55,50 @@ const createTransporter = () => {
 }
 
 export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => {
+  // Try Mailgun first (production preferred)
+  const mgClient = getMailgunClient()
+  if (mgClient && process.env.MAILGUN_DOMAIN) {
+    try {
+      const fromAddress = process.env.MAILGUN_FROM || `noreply@${process.env.MAILGUN_DOMAIN}`
+      
+      const mailgunOptions = {
+        from: `"${process.env.COMPANY_NAME || 'ResidentOne'}" <${fromAddress}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text || options.html.replace(/<[^>]*>/g, '')
+      }
+
+      console.log('📧 Sending email via Mailgun...')
+      const result = await mgClient.messages.create(process.env.MAILGUN_DOMAIN, mailgunOptions)
+      console.log('✅ Email sent via Mailgun:', result.id)
+      return true
+    } catch (error) {
+      console.error('❌ Mailgun failed, trying SMTP fallback:', error)
+    }
+  }
+
+  // Fallback to SMTP (development or if Mailgun fails)
   const transporter = createTransporter()
-  
   if (!transporter) {
-    console.log('📧 Email not configured, skipping email send')
+    console.warn('⚠️ No email configuration available (neither Mailgun nor SMTP)')
     return false
   }
 
   try {
+    console.log('📧 Sending email via SMTP...')
     const info = await transporter.sendMail({
-      from: `"${process.env.COMPANY_NAME || 'StudioFlow'}" <${process.env.SMTP_USER}>`,
+      from: `"${process.env.COMPANY_NAME || 'ResidentOne'}" <${process.env.SMTP_USER}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
     })
 
-    console.log('✅ Email sent successfully:', info.messageId)
+    console.log('✅ Email sent via SMTP:', info.messageId)
     return true
   } catch (error) {
-    console.error('❌ Failed to send email:', error)
+    console.error('❌ Failed to send email via SMTP:', error)
     return false
   }
 }

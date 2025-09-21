@@ -120,6 +120,12 @@ model User {
   completedSections DesignSection[] @relation("CompletedByUserSection")
   createdFFEItems   FFEItem[] @relation("CreatedByUserFFE")
   updatedFFEItems   FFEItem[] @relation("UpdatedByUserFFE")
+  
+  // Client Approval relations
+  aaronApprovalVersions     ClientApprovalVersion[] @relation("ClientApprovalAaronApprovedBy")
+  sentClientApprovalVersions ClientApprovalVersion[] @relation("ClientApprovalSentBy")
+  clientApprovalActivities  ClientApprovalActivity[]
+  activities                Activity[]
 }
 
 model Client {
@@ -304,6 +310,10 @@ model Stage {
   comments       Comment[]
   assets         Asset[]
   tasks          Task[]
+  
+  // Client Approval extensions
+  clientApprovalVersions ClientApprovalVersion[]
+  activities             Activity[]
 
   @@unique([roomId, type])
 }
@@ -378,6 +388,104 @@ enum ApprovalStatus {
   APPROVED
   REVISION_REQUESTED
   EXPIRED
+}
+
+enum ClientApprovalStageStatus {
+  DRAFT
+  PENDING_AARON_APPROVAL
+  READY_FOR_CLIENT
+  SENT_TO_CLIENT
+  CLIENT_REVIEWING
+  FOLLOW_UP_REQUIRED
+  CLIENT_APPROVED
+  REVISION_REQUESTED
+}
+
+// Client Approval Stage Extensions
+model ClientApprovalVersion {
+  id                    String                    @id @default(cuid())
+  stageId               String
+  version               String                    // v1, v2, etc.
+  status                ClientApprovalStageStatus @default(DRAFT)
+  
+  // Aaron's Internal Approval
+  approvedByAaron       Boolean                   @default(false)
+  aaronApprovedAt       DateTime?
+  aaronApprovedById     String?
+  
+  // Client Communication
+  sentToClientAt        DateTime?
+  sentById              String?
+  emailOpenedAt         DateTime?
+  followUpCompletedAt   DateTime?
+  followUpNotes         String?
+  
+  // Client Decision
+  clientDecision        ApprovalStatus?           @default(PENDING)
+  clientDecidedAt       DateTime?
+  clientMessage         String?
+  notes                 String?                   // General notes
+  followUpSentAt        DateTime?                 // When follow-up email was sent
+  
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  
+  stage                 Stage                     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  aaronApprovedBy       User?                     @relation("ClientApprovalAaronApprovedBy", fields: [aaronApprovedById], references: [id])
+  sentBy                User?                     @relation("ClientApprovalSentBy", fields: [sentById], references: [id])
+  
+  assets                ClientApprovalAsset[]
+  emailLogs             ClientApprovalEmailLog[]
+  activityLogs          ClientApprovalActivity[]
+  
+  // New relations
+  newEmailLogs          EmailLog[]
+  clientApprovals       ClientApproval[]
+}
+
+// Assets for Client Approval (renderings)
+model ClientApprovalAsset {
+  id              String                  @id @default(cuid())
+  versionId       String
+  assetId         String                  // Reference to main Asset table
+  includeInEmail  Boolean                 @default(true)
+  displayOrder    Int                     @default(0)
+  createdAt       DateTime                @default(now())
+  
+  version         ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  asset           Asset                   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  @@unique([versionId, assetId])
+}
+
+// Email tracking for client approval
+model ClientApprovalEmailLog {
+  id              String                  @id @default(cuid())
+  versionId       String
+  to              String
+  subject         String
+  htmlContent     String                  // Store email HTML for reference
+  sentAt          DateTime                @default(now())
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  followUpSentAt  DateTime?
+  trackingPixelId String                  @unique
+  
+  version         ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+// Activity log for client approval workflow
+model ClientApprovalActivity {
+  id          String                  @id @default(cuid())
+  versionId   String
+  type        String                  // upload, aaron_approved, sent_to_client, client_opened, etc.
+  message     String
+  userId      String?
+  metadata    String?                 // JSON for additional data
+  createdAt   DateTime                @default(now())
+  
+  version     ClientApprovalVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user        User?                   @relation(fields: [userId], references: [id])
 }
 
 model Approval {
@@ -473,6 +581,9 @@ model Asset {
   ffeItem     FFEItem?        @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
   approval    Approval?       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
   comment     Comment?        @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  // Client Approval relations
+  clientApprovalAssets ClientApprovalAsset[]
 }
 
 // Notification System
@@ -557,6 +668,46 @@ model UserSession {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceId])
+}
+
+// New Email System for Client Approval
+model EmailLog {
+  id        String    @id @default(cuid())
+  versionId String
+  to        String
+  subject   String
+  html      String    // Email HTML content
+  sentAt    DateTime  @default(now())
+  openedAt  DateTime? // When tracking pixel was loaded
+  type      String    // DELIVERY, FOLLOW_UP, CONFIRMATION
+  metadata  Json?     // Additional tracking data (IP, user agent, etc.)
+  
+  version   ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+// Client Approval Decision Records
+model ClientApproval {
+  id         String   @id @default(cuid())
+  versionId  String
+  approvedBy String   // Email of person who approved
+  approvedAt DateTime @default(now())
+  decision   String   // APPROVED or REVISION_REQUESTED
+  comments   String?  // Optional comments from client
+  
+  version    ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+// Activity Log for Client Approval Workflow
+model Activity {
+  id        String    @id @default(cuid())
+  stageId   String
+  type      String    // EMAIL_SENT, CLIENT_DECISION, AARON_APPROVED, etc.
+  message   String
+  userId    String?   // Null for client actions
+  timestamp DateTime  @default(now())
+  
+  stage     Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
 }
 
 // Activity Log for comprehensive tracking

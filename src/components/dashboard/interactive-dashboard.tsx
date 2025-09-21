@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, RefreshCw } from 'lucide-react'
+import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, RefreshCw, ChevronDown, ChevronUp, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
 
 interface DashboardStats {
   activeProjects: number
-  totalClients: number
+  activeRooms: number
   pendingApprovals: number
   completedThisMonth: number
   totalRevenue: number
@@ -29,6 +29,21 @@ interface Task {
   stageType: string
   roomType: string
   roomId: string
+}
+
+interface LastCompletedPhase {
+  id: string
+  stageType: string
+  roomType: string
+  roomName?: string
+  clientName: string
+  projectName: string
+  completedAt: string
+  completedBy: {
+    id: string
+    name: string
+    role: string
+  }
 }
 
 interface DashboardData {
@@ -58,6 +73,7 @@ const formatDueDate = (dueDate: string | null): string => {
 
 export default function InteractiveDashboard({ user }: { user: any }) {
   const [refreshing, setRefreshing] = useState(false)
+  const [tasksCollapsed, setTasksCollapsed] = useState(true)
   
   // Fetch dashboard stats
   const { data: statsData, error: statsError, mutate: mutateStats } = useSWR<DashboardStats>('/api/dashboard/stats', fetcher, {
@@ -70,11 +86,17 @@ export default function InteractiveDashboard({ user }: { user: any }) {
     refreshInterval: 15000, // Refresh every 15 seconds
     revalidateOnFocus: true
   })
+  
+  // Fetch last completed phase
+  const { data: lastPhaseData, error: lastPhaseError, mutate: mutateLastPhase } = useSWR<{data: LastCompletedPhase | null}>('/api/dashboard/last-completed-phase', fetcher, {
+    refreshInterval: 60000, // Refresh every minute
+    revalidateOnFocus: true
+  })
 
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      await Promise.all([mutateStats(), mutateTasks()])
+      await Promise.all([mutateStats(), mutateTasks(), mutateLastPhase()])
       toast.success('Dashboard updated!')
     } catch (error) {
       toast.error('Failed to refresh data')
@@ -115,7 +137,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             {isLoading ? (
               <span className="animate-pulse">Loading dashboard...</span>
             ) : (
-              `You have ${statsData?.activeProjects || 0} active projects and ${statsData?.pendingApprovals || 0} pending approvals`
+              `You have ${statsData?.activeProjects || 0} active projects and ${statsData?.activeRooms || 0} active rooms`
             )}
           </p>
         </div>
@@ -140,8 +162,8 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           isLoading={isLoading}
         />
         <StatCard
-          label="Total Clients"
-          value={isLoading ? '...' : statsData?.totalClients?.toString() || '0'}
+          label="Active Rooms"
+          value={isLoading ? '...' : statsData?.activeRooms?.toString() || '0'}
           icon={Users}
           color="bg-green-500"
           isLoading={isLoading}
@@ -166,11 +188,28 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">My Tasks</h2>
-          <span className="text-sm text-gray-500">
-            {tasksData?.tasks.length || 0} active tasks
-          </span>
+          <div className="flex items-center space-x-3">
+            <span className="text-sm text-gray-500">
+              {tasksData?.tasks.length || 0} active tasks
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTasksCollapsed(!tasksCollapsed)}
+              className="p-1 h-8 w-8"
+            >
+              {tasksCollapsed ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronUp className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
-        <div className="p-6">
+        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          tasksCollapsed ? 'max-h-0' : 'max-h-[1000px]'
+        }`}>
+          <div className="p-6">
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
@@ -199,23 +238,18 @@ export default function InteractiveDashboard({ user }: { user: any }) {
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
 
       {/* Additional Stats */}
       {!isLoading && statsData && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${(statsData.totalRevenue / 1000).toFixed(0)}k
-                </p>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
+          <LastCompletedPhaseCard 
+            data={lastPhaseData?.data} 
+            isLoading={!lastPhaseData && !lastPhaseError}
+            error={lastPhaseError}
+          />
           
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -285,6 +319,88 @@ function TaskItem({ task }: { task: Task }) {
         <span className={`px-2 py-1 text-xs font-medium rounded-full border ${priorityColors[task.priority]}`}>
           {task.priority}
         </span>
+      </div>
+    </div>
+  )
+}
+
+// Last Completed Phase Card Component
+function LastCompletedPhaseCard({ 
+  data, 
+  isLoading, 
+  error 
+}: {
+  data: LastCompletedPhase | null | undefined
+  isLoading: boolean
+  error: any
+}) {
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Last Completed Phase</p>
+            <p className="text-sm text-red-500 mt-1">Error loading data</p>
+          </div>
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-600">Last Completed Phase</p>
+            <div className="animate-pulse mt-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+          <Award className="w-8 h-8 text-gray-300" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Last Completed Phase</p>
+            <p className="text-sm text-gray-500 mt-1">No recent completions</p>
+          </div>
+          <Award className="w-8 h-8 text-gray-400" />
+        </div>
+      </div>
+    )
+  }
+
+  const formatRoleName = (role: string) => {
+    return role.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" aria-live="polite">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-600 mb-2">Last Completed Phase</p>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {data.clientName} {data.roomName || data.roomType}
+            </p>
+            <p className="text-sm text-gray-600">
+              {data.stageType} Complete by {formatRoleName(data.completedBy.role)}
+            </p>
+            <p className="text-xs text-gray-500">
+              {data.completedBy.name}
+            </p>
+          </div>
+        </div>
+        <Award className="w-8 h-8 text-purple-500 flex-shrink-0 ml-3" />
       </div>
     </div>
   )
