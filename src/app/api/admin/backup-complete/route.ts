@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/backup-complete - Create complete backup with files and users
