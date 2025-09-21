@@ -166,8 +166,8 @@ model Project {
   clientId      String
   dueDate       DateTime?
   budget        Float?
-  coverImageUrl String?       // Project cover image URL from Vercel Blob
-  blobFolder    String?       // Custom blob folder path for project
+  coverImageUrl String?       // Project cover image URL from Dropbox
+  dropboxFolder String?       // Custom Dropbox folder path for project
   orgId         String
   createdById   String
   updatedById   String?
@@ -558,7 +558,7 @@ model Asset {
   type        AssetType
   size        Int?
   mimeType    String?
-  provider    String?   // "vercel-blob", "s3", "local", "external"
+  provider    String?   // "dropbox", "s3", "local", "external"
   metadata    String?   // JSON metadata
   uploadedBy  String
   orgId       String
