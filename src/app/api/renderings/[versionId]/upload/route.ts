@@ -127,7 +127,7 @@ export async function POST(
         }
 
         // Determine asset type
-        let assetType = 'OTHER'
+        let assetType: 'IMAGE' | 'PDF' | 'RENDER' | 'DRAWING' | 'OTHER' = 'OTHER'
         if (file.type.startsWith('image/')) {
           assetType = 'RENDER'
         } else if (file.type === 'application/pdf') {
@@ -155,7 +155,8 @@ export async function POST(
             projectId: renderingVersion.room.project.id,
             roomId: renderingVersion.room.id,
             stageId: renderingVersion.stageId,
-            renderingVersionId: versionId
+            renderingVersionId: versionId,
+            uploadedBy: session.user.id   // ✅ FIX: required relation
           })
         })
 
@@ -192,7 +193,7 @@ export async function POST(
     return NextResponse.json({ 
       success: true, 
       uploadedAssets,
-      message: `Successfully uploaded ${uploadedAssets.length} file(s)`
+      message: `Successfully uploaded ${uploadedAssets.length} file(s)` 
     }, { status: 201 })
 
   } catch (error) {
