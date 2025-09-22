@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,12 +18,7 @@ export async function GET(
     // Get the stage info first
     const stage = await prisma.stage.findFirst({
       where: {
-        id: stageId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: stageId
       },
       include: {
         room: {
@@ -45,14 +40,7 @@ export async function GET(
     // Get the current version with all related data
     const currentVersion = await prisma.clientApprovalVersion.findFirst({
       where: {
-        stageId,
-        stage: {
-          room: {
-            project: {
-              orgId: session.user.orgId
-            }
-          }
-        }
+        stageId
       },
       include: {
         stage: {
@@ -118,12 +106,7 @@ export async function GET(
         where: {
           roomId: stage.roomId,
           status: 'COMPLETED',
-          clientApprovalVersion: null, // Not yet pushed to client
-          room: {
-            project: {
-              orgId: session.user.orgId
-            }
-          }
+          clientApprovalVersion: null // Not yet pushed to client
         },
         include: {
           assets: {
@@ -193,7 +176,7 @@ export async function POST(
 ) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -208,12 +191,7 @@ export async function POST(
     // Verify rendering version access and implement push logic
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: renderingVersionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: renderingVersionId
       },
       include: {
         assets: {
