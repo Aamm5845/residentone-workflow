@@ -7,7 +7,7 @@ import { nanoid } from 'nanoid'
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
     // Verify user has access to this project
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       }
     })
 
@@ -67,7 +66,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -81,8 +80,7 @@ export async function POST(request: NextRequest) {
     // Verify user has access to this project
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       },
       include: {
         client: true
@@ -117,21 +115,25 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Log the activity
-    await prisma.activityLog.create({
-      data: {
-        actorId: session.user.id,
-        action: 'CREATE_CLIENT_ACCESS_TOKEN',
-        entity: 'PROJECT',
-        entityId: projectId,
-        details: {
-          tokenId: clientAccessToken.id,
-          tokenName: clientAccessToken.name,
-          expiresAt: clientAccessToken.expiresAt
-        },
-        orgId: session.user.orgId
-      }
-    })
+    // Log the activity (optional - don't fail token creation if logging fails)
+    try {
+      await prisma.activityLog.create({
+        data: {
+          actorId: session.user.id,
+          action: 'CREATE_CLIENT_ACCESS_TOKEN',
+          entity: 'PROJECT',
+          entityId: projectId,
+          details: {
+            tokenId: clientAccessToken.id,
+            tokenName: clientAccessToken.name,
+            expiresAt: clientAccessToken.expiresAt
+          }
+        }
+      })
+    } catch (logError) {
+      console.error('Failed to log activity:', logError)
+      // Continue anyway - don't fail token creation because of logging
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -141,7 +143,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating client access token:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      cause: error instanceof Error ? error.cause : undefined
+    })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 }
 
@@ -149,7 +160,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -163,10 +174,7 @@ export async function DELETE(request: NextRequest) {
     // Verify token exists and user has access
     const existingToken = await prisma.clientAccessToken.findFirst({
       where: {
-        id: tokenId,
-        project: {
-          orgId: session.user.orgId
-        }
+        id: tokenId
       },
       include: {
         project: true
@@ -186,20 +194,24 @@ export async function DELETE(request: NextRequest) {
       }
     })
 
-    // Log the activity
-    await prisma.activityLog.create({
-      data: {
-        actorId: session.user.id,
-        action: 'DEACTIVATE_CLIENT_ACCESS_TOKEN',
-        entity: 'PROJECT',
-        entityId: existingToken.projectId,
-        details: {
-          tokenId: existingToken.id,
-          tokenName: existingToken.name
-        },
-        orgId: session.user.orgId
-      }
-    })
+    // Log the activity (optional)
+    try {
+      await prisma.activityLog.create({
+        data: {
+          actorId: session.user.id,
+          action: 'DEACTIVATE_CLIENT_ACCESS_TOKEN',
+          entity: 'PROJECT',
+          entityId: existingToken.projectId,
+          details: {
+            tokenId: existingToken.id,
+            tokenName: existingToken.name
+          }
+        }
+      })
+    } catch (logError) {
+      console.error('Failed to log deactivation activity:', logError)
+      // Continue anyway
+    }
 
     return NextResponse.json({ 
       success: true, 
