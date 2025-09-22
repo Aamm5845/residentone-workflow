@@ -7,7 +7,9 @@ import { generateMeisnerDeliveryEmailTemplate, generateFollowUpEmailTemplate, ge
 import { prisma } from './prisma';
 
 // Email configuration - Resend (preferred), Mailgun, then nodemailer fallbacks
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const resend = (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'YOUR_RESEND_API_KEY_HERE') 
+  ? new Resend(process.env.RESEND_API_KEY) 
+  : null;
 
 const mailgun = new Mailgun(formData);
 let mg: any = null;
@@ -51,8 +53,15 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     from: fromAddress,
     hasResendKey: !!process.env.RESEND_API_KEY,
     hasMailgunKey: !!process.env.MAILGUN_API_KEY,
-    resendConfigured: !!resend
+    resendConfigured: !!resend,
+    emailHostConfigured: !!process.env.EMAIL_HOST
   });
+  
+  // Check if any email service is configured
+  if (!resend && !mg && !process.env.EMAIL_HOST) {
+    console.error('⚠️ No email service configured! Please set up Resend, Mailgun, or SMTP.');
+    throw new Error('No email service configured. Please set up Resend API key, Mailgun, or SMTP settings.');
+  }
   
   // Validate required fields before sending
   if (!options.to || options.to.trim() === '') {
@@ -101,6 +110,60 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
         tags: cleanTags
       });
       
+      // Detailed field validation logging
+      console.log('🔍 Detailed field analysis:', {
+        from: {
+          value: emailData.from,
+          type: typeof emailData.from,
+          length: emailData.from?.length,
+          isEmpty: emailData.from === '',
+          isNull: emailData.from === null,
+          isUndefined: emailData.from === undefined,
+          hasSpaces: emailData.from?.includes(' '),
+          emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailData.from || '')
+        },
+        to: {
+          value: emailData.to,
+          type: typeof emailData.to,
+          length: emailData.to?.length,
+          isEmpty: emailData.to === '',
+          isNull: emailData.to === null,
+          isUndefined: emailData.to === undefined,
+          isArray: Array.isArray(emailData.to),
+          emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailData.to || '')
+        },
+        subject: {
+          value: emailData.subject,
+          type: typeof emailData.subject,
+          length: emailData.subject?.length,
+          isEmpty: emailData.subject === '',
+          isNull: emailData.subject === null,
+          isUndefined: emailData.subject === undefined,
+          hasNewlines: emailData.subject?.includes('\n'),
+          hasCarriageReturns: emailData.subject?.includes('\r')
+        },
+        html: {
+          type: typeof emailData.html,
+          length: emailData.html?.length,
+          isEmpty: emailData.html === '',
+          isNull: emailData.html === null,
+          isUndefined: emailData.html === undefined,
+          startsWithHtml: emailData.html?.toLowerCase().startsWith('<html'),
+          containsBody: emailData.html?.toLowerCase().includes('<body')
+        },
+        tags: {
+          value: cleanTags,
+          type: typeof cleanTags,
+          length: cleanTags.length,
+          isArray: Array.isArray(cleanTags),
+          hasEmptyStrings: cleanTags.some(tag => tag === ''),
+          hasNullUndefined: cleanTags.some(tag => tag === null || tag === undefined)
+        }
+      });
+      
+      // Log the exact JSON that will be sent to Resend
+      console.log('📤 Exact JSON payload to Resend:', JSON.stringify(emailData, null, 2));
+      
       const result = await resend.emails.send(emailData);
       console.log('✅ Email sent via Resend:', result.data?.id);
       return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
@@ -116,12 +179,42 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
         });
       }
       
+      // Try to extract more details from the Resend error
+      try {
+        if (error && typeof error === 'object') {
+          console.error('🔍 Full Resend error object:', {
+            errorType: typeof error,
+            errorConstructor: error.constructor.name,
+            errorKeys: Object.keys(error),
+            errorValues: error,
+            stringified: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+          });
+          
+          // Check if it's a fetch response error
+          if ('response' in error && error.response) {
+            console.error('📡 Resend API response error:', error.response);
+          }
+          
+          // Check for status code
+          if ('statusCode' in error) {
+            console.error('📊 Resend status code:', error.statusCode);
+          }
+          
+          // Check for validation errors
+          if ('errors' in error && error.errors) {
+            console.error('❗ Resend validation errors:', error.errors);
+          }
+        }
+      } catch (logError) {
+        console.error('⚠️ Failed to log detailed error info:', logError);
+      }
+      
       // Log the payload that caused the error for debugging
       console.error('Failed Resend payload:', {
-        from: emailData.from,
-        to: emailData.to,
-        subject: emailData.subject?.substring(0, 50) + '...',
-        htmlLength: emailData.html?.length,
+        from: emailData?.from,
+        to: emailData?.to,
+        subject: emailData?.subject?.substring(0, 50) + '...',
+        htmlLength: emailData?.html?.length,
         tags: cleanTags
       });
       
