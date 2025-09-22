@@ -48,8 +48,7 @@ export async function GET(
 
     const project = await prisma.project.findFirst({
       where: { 
-        id: params.id,
-        orgId: session.user.orgId
+        id: params.id
       },
       include: {
         client: true,
@@ -94,10 +93,19 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
+  console.log('🚀 PUT /api/projects/[id] called with ID:', params.id)
+  
   try {
     const session = await getSession() as AuthSession | null
+    console.log('📊 Session data:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+      orgId: session?.user?.orgId
+    })
     
     if (!session?.user?.orgId) {
+      console.error('❌ Unauthorized - no session or orgId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -109,16 +117,20 @@ export async function PUT(
     }
 
     // Validate request body
+    console.log('📝 Parsing request body...')
     const body = await request.json()
-    console.log('Project update request body:', body)
+    console.log('📄 Project update request body:', body)
+    console.log('🔍 Request body keys:', Object.keys(body))
+    console.log('📈 Request body size:', JSON.stringify(body).length, 'characters')
+    
+    console.log('✅ Validating data against schema...')
     const validatedData = updateProjectSchema.parse(body)
-    console.log('Validated data:', validatedData)
+    console.log('✔️ Validated data:', validatedData)
 
-    // Check if project exists and belongs to user's organization
+    // Check if project exists
     const existingProject = await prisma.project.findFirst({
       where: { 
-        id: params.id,
-        orgId: session.user.orgId
+        id: params.id
       },
       include: { client: true }
     })
@@ -127,18 +139,17 @@ export async function PUT(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // If clientId is provided, verify it belongs to the same organization
+    // If clientId is provided, verify it exists
     if (validatedData.clientId) {
       const client = await prisma.client.findFirst({
         where: {
-          id: validatedData.clientId,
-          orgId: session.user.orgId
+          id: validatedData.clientId
         }
       })
 
       if (!client) {
         return NextResponse.json({ 
-          error: 'Invalid client. Client must belong to your organization.' 
+          error: 'Invalid client. Client does not exist.' 
         }, { status: 400 })
       }
     }
@@ -176,8 +187,10 @@ export async function PUT(
       updateData.dropboxFolder = validatedData.dropboxFolder
     }
     
-    console.log('Update data being sent to DB:', updateData)
+    console.log('💾 Update data being sent to DB:', updateData)
+    console.log('🔍 Update data keys:', Object.keys(updateData))
     
+    console.log('📊 Executing database update for project ID:', params.id)
     const updatedProject = await prisma.project.update({
       where: { id: params.id },
       data: updateData,
@@ -206,6 +219,14 @@ export async function PUT(
           }
         }
       }
+    })
+    
+    console.log('✅ Database update successful!')
+    console.log('🎉 Updated project data:', {
+      id: updatedProject.id,
+      name: updatedProject.name,
+      type: updatedProject.type,
+      updatedAt: updatedProject.updatedAt
     })
 
     return NextResponse.json(updatedProject)

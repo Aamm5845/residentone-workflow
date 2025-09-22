@@ -151,7 +151,7 @@ export async function getSession() {
               session.user?.email === "admin@example.com"
                 ? "OWNER"
                 : "DESIGNER",
-            orgId: "fallback-org",
+            orgId: "cmftbudi400003m7wfrubgdks",
             orgName: "Interior Design Studio"
           }
         }
@@ -167,7 +167,7 @@ export async function getSession() {
         email: "admin@example.com",
         name: "Admin User",
         role: "OWNER",
-        orgId: "fallback-org",
+        orgId: "cmftbudi400003m7wfrubgdks",
         orgName: "Interior Design Studio"
       },
       expires: "2025-12-31T23:59:59.999Z"

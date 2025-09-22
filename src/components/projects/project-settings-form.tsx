@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -33,6 +33,16 @@ interface ProjectSettingsFormProps {
 }
 
 export default function ProjectSettingsForm({ project, clients, session }: ProjectSettingsFormProps) {
+  console.log('🔧 PROJECT SETTINGS FORM - Component initializing with:', {
+    hasProject: !!project,
+    projectName: project?.name,
+    projectId: project?.id,
+    projectOrgId: project?.orgId,
+    hasSession: !!session,
+    sessionOrgId: session?.user?.orgId,
+    clientsCount: clients?.length || 0
+  })
+  
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -55,6 +65,37 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     specialty: ''
   })
 
+  // Track component lifecycle
+  useEffect(() => {
+    console.log('🎆 PROJECT SETTINGS FORM - Component mounted successfully')
+    
+    // Check for any immediate issues
+    if (!project) {
+      console.error('❌ PROJECT SETTINGS FORM - No project data provided!')
+      return
+    }
+    
+    if (!project.id) {
+      console.error('❌ PROJECT SETTINGS FORM - Project missing ID:', project)
+      return
+    }
+    
+    console.log('✅ PROJECT SETTINGS FORM - Component mounted with valid project data')
+    
+    // Cleanup function
+    return () => {
+      console.log('🗑️ PROJECT SETTINGS FORM - Component unmounting')
+    }
+  }, [])
+  
+  // Log project changes
+  useEffect(() => {
+    console.log('🔄 PROJECT SETTINGS FORM - Project data updated:', {
+      projectId: project?.id,
+      projectName: project?.name
+    })
+  }, [project])
+
   const {
     register,
     handleSubmit,
@@ -64,34 +105,45 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   } = useForm<ProjectSettingsFormData>({
     resolver: zodResolver(projectSettingsSchema),
     defaultValues: {
-      name: project.name,
-      description: project.description || '',
-      type: project.type,
-      budget: project.budget ? project.budget.toString() : '',
-      dueDate: project.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : '',
-      address: project.address || '',
-      coverImages: Array.isArray(project.coverImages) ? project.coverImages : project.coverImages ? [project.coverImages] : [],
-      dropboxFolder: project.dropboxFolder || '',
+      name: project?.name || '',
+      description: project?.description || '',
+      type: project?.type || 'RESIDENTIAL',
+      budget: project?.budget ? project.budget.toString() : '',
+      dueDate: project?.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : '',
+      address: project?.address || '',
+      coverImages: Array.isArray(project?.coverImages) ? project.coverImages : project?.coverImages ? [project.coverImages] : [],
+      dropboxFolder: project?.dropboxFolder || '',
     }
   })
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (!files) return
+    console.log('🖼️ handleImageUpload called with:', files ? files.length : 0, 'files')
+    
+    if (!files) {
+      console.log('⚠️ No files selected')
+      return
+    }
 
     try {
       setUploadingImage(true)
       const uploadedUrls = []
       
       for (const file of Array.from(files)) {
+        console.log('📤 Uploading file:', { name: file.name, size: file.size, type: file.type })
+        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('imageType', 'project-cover')
-
+        
+        console.log('📡 Making upload request to /api/upload-image')
         const response = await fetch('/api/upload-image', {
           method: 'POST',
           body: formData,
+          credentials: 'include' // Ensure cookies are included
         })
+        
+        console.log('🖼️ Upload response:', { status: response.status, ok: response.ok })
 
         if (!response.ok) {
           throw new Error('Failed to upload image')
@@ -166,15 +218,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const updateSection = async (sectionName: string, sectionData: any) => {
+    console.log('🔧 updateSection called for:', sectionName)
+    console.log('📊 Section data:', sectionData)
+    
     try {
       setIsLoading(true)
       
+      console.log('📡 Making section update request to:', `/api/projects/${project.id}`)
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(sectionData),
+        credentials: 'include' // Ensure cookies are included
       })
 
       if (!response.ok) {
@@ -240,13 +297,17 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
-    console.log('✅ onSubmit function called!')
+    console.log('🎯 onSubmit function called!')
+    console.log('📊 Current session:', session)
+    console.log('📁 Current project:', project)
+    
     try {
       setIsLoading(true)
       console.log('🚀 Project settings form submitted!')
-      console.log('Form data being submitted:', data)
-      console.log('Form errors:', errors)
-      console.log('Form isDirty:', isDirty)
+      console.log('📝 Form data being submitted:', data)
+      console.log('❌ Form errors:', errors)
+      console.log('🔄 Form isDirty:', isDirty)
+      console.log('🖼️ Current cover images:', currentCoverImages)
 
       const submitData = {
         ...data,
@@ -257,15 +318,21 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       
       console.log('Processed submit data:', submitData)
 
+      console.log('📡 Making API request to:', `/api/projects/${project.id}`)
+      console.log('🔒 Request headers will include session cookies')
+      
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(submitData),
+        credentials: 'include' // Ensure cookies are included
       })
 
-      console.log('Response status:', response.status)
+      console.log('📈 Response status:', response.status)
+      console.log('🌐 Response ok:', response.ok)
+      console.log('🗺️ Response headers:', Object.fromEntries(response.headers.entries()))
       
       if (!response.ok) {
         const errorText = await response.text()
@@ -342,7 +409,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setEditingSection('project')}
+              onClick={() => {
+                console.log('✏️ Edit button clicked - setting editing section to: project')
+                setEditingSection('project')
+              }}
               className="flex items-center"
             >
               <Edit className="w-4 h-4 mr-1" />
@@ -354,6 +424,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         <div className="px-6 py-4">
           {editingSection === 'project' ? (
             <form onSubmit={handleSubmit((data) => {
+              console.log('📋 Section form submission - project information')
+              console.log('📝 Section form data:', data)
               updateSection('project information', {
                 name: data.name,
                 type: data.type,
@@ -450,6 +522,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   type="submit"
                   disabled={isLoading}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => console.log('🔄 Save Changes button clicked (section form)')}
                 >
                   {isLoading ? 'Saving...' : 'Save Changes'}
                 </Button>

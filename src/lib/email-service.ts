@@ -53,17 +53,43 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     resendConfigured: !!resend
   });
   
+  // Validate required fields before sending
+  if (!options.to || options.to.trim() === '') {
+    throw new Error('Recipient email address is required');
+  }
+  if (!options.subject || options.subject.trim() === '') {
+    throw new Error('Email subject is required');
+  }
+  if (!options.html || options.html.trim() === '') {
+    throw new Error('Email content is required');
+  }
+  if (!fromAddress || fromAddress.trim() === '') {
+    throw new Error('From address is required');
+  }
+  
   // Try Resend first if configured (best deliverability and developer experience)
   if (resend) {
     try {
       console.log('🚀 Sending email via Resend...');
-      const result = await resend.emails.send({
+      
+      // Additional Resend-specific validation
+      const emailData = {
         from: fromAddress,
         to: options.to,
         subject: options.subject,
         html: options.html,
-        tags: options.tags || []
+        tags: options.tags?.filter(tag => tag && tag.trim() !== '') || []
+      };
+      
+      console.log('📝 Resend email payload:', {
+        from: emailData.from,
+        to: emailData.to,
+        subject: emailData.subject,
+        htmlLength: emailData.html.length,
+        tagsCount: emailData.tags.length
       });
+      
+      const result = await resend.emails.send(emailData);
       console.log('✅ Email sent via Resend:', result.data?.id);
       return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
     } catch (error) {
@@ -159,14 +185,25 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     // Generate tracking pixel URL
     const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
 
-    // Generate email template with enhanced data (no approval URL needed)
-    const { subject, html } = generateMeisnerDeliveryEmailTemplate({
+    // Generate a placeholder approval URL for template compatibility
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const placeholderApprovalUrl = `${baseUrl}/client-progress/placeholder`;
+    
+    console.log('📧 Generating email template with data:', {
       clientName: options.clientName,
       projectName: options.projectName,
-      approvalUrl: '', // Not used in new template
-      assets: options.assets,
-      trackingPixelUrl,
       roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type,
+      assetCount: options.assets.length
+    });
+
+    // Generate email template with enhanced data
+    const { subject, html } = generateMeisnerDeliveryEmailTemplate({
+      clientName: options.clientName || 'Valued Client',
+      projectName: options.projectName || 'Your Project',
+      approvalUrl: placeholderApprovalUrl, // Placeholder URL for template compatibility
+      assets: options.assets || [],
+      trackingPixelUrl,
+      roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type || 'Room',
       designPhase: 'Design Showcase',
       projectAddress: versionDetails?.stage?.room?.project?.address || undefined
     });

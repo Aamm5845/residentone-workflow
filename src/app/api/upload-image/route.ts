@@ -14,10 +14,19 @@ const MAX_FILE_SIZE = 4 * 1024 * 1024 // 4MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
 export async function POST(request: NextRequest) {
+  console.log('🖼️ POST /api/upload-image called')
+  
   try {
     // Check authentication
     const session = await getSession()
+    console.log('📊 Upload session check:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      orgId: session?.user?.orgId
+    })
+    
     if (!session?.user?.orgId) {
+      console.error('❌ Upload unauthorized - no session or orgId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -36,14 +45,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse form data
+    console.log('📋 Parsing form data...')
     const formData = await request.formData()
     const file = formData.get('file') as File
     const imageTypeParam = formData.get('imageType') as string || 'general'
+    
+    console.log('📤 File upload details:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      imageType: imageTypeParam
+    })
 
     // Validate parameters
     const { imageType } = uploadSchema.parse({
       imageType: imageTypeParam,
     })
+    console.log('✅ Image type validated:', imageType)
 
     // Validate file
     if (!file) {

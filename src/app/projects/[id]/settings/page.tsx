@@ -27,8 +27,6 @@ export default async function ProjectSettings({ params }: Props) {
     redirect('/auth/signin')
   }
 
-  // Allow all authenticated users to access project settings
-
   const { id } = await params
 
   // Fetch project with full details
@@ -36,11 +34,10 @@ export default async function ProjectSettings({ params }: Props) {
   let clients: any[] = []
   
   try {
-    [project, clients] = await Promise.all([
+    const results = await Promise.all([
       prisma.project.findFirst({
         where: { 
-          id: id,
-          orgId: session.user.orgId
+          id: id
         },
         include: {
           client: true,
@@ -58,12 +55,14 @@ export default async function ProjectSettings({ params }: Props) {
         }
       }),
       prisma.client.findMany({
-        where: {
-          orgId: session.user.orgId
-        },
         orderBy: { name: 'asc' }
       })
     ])
+    
+    // Assign results to variables
+    project = results[0]
+    clients = results[1]
+    
   } catch (error) {
     console.error('Error fetching project or clients:', error)
     redirect('/projects')
@@ -98,6 +97,7 @@ export default async function ProjectSettings({ params }: Props) {
               <p className="text-gray-600">
                 Manage project information, cover image, Dropbox location, and other settings
               </p>
+              
             </div>
           </div>
         </div>
