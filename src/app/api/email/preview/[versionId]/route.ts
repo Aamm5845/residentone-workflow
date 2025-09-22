@@ -11,23 +11,16 @@ export async function GET(
 ) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { versionId } = await params
 
-    // Get version details with all necessary relationships
+    // Get version details with all necessary relationships - simplified to match client approval API
     const version = await prisma.clientApprovalVersion.findFirst({
       where: {
-        id: versionId,
-        stage: {
-          room: {
-            project: {
-              orgId: session.user.orgId
-            }
-          }
-        }
+        id: versionId
       },
       include: {
         stage: {

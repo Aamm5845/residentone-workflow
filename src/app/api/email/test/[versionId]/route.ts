@@ -10,7 +10,7 @@ export async function POST(
 ) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -28,17 +28,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    // Get version details with all necessary relationships
+    // Get version details with all necessary relationships - simplified to match client approval API
     const version = await prisma.clientApprovalVersion.findFirst({
       where: {
-        id: versionId,
-        stage: {
-          room: {
-            project: {
-              orgId: session.user.orgId
-            }
-          }
-        }
+        id: versionId
       },
       include: {
         stage: {

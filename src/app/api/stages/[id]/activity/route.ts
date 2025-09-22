@@ -31,8 +31,8 @@ export async function GET(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    // Get activity logs from both Activity and ActivityLog tables
-    // First get from Activity table (client approval specific)
+    // Get activity logs from multiple sources
+    // 1. Activity table (general stage activities)
     const activities = await prisma.activity.findMany({
       where: { stageId },
       include: {
@@ -47,12 +47,11 @@ export async function GET(
       orderBy: { timestamp: 'desc' }
     })
 
-    // Get from ActivityLog table (general activity tracking)
+    // 2. ActivityLog table (general activity tracking)
     const activityLogs = await prisma.activityLog.findMany({
       where: {
         entity: 'STAGE',
-        entityId: stageId,
-        orgId: session.user.orgId
+        entityId: stageId
       },
       include: {
         actor: {
@@ -66,7 +65,26 @@ export async function GET(
       orderBy: { createdAt: 'desc' }
     })
 
-    // Combine and format activities
+    // 3. ClientApprovalActivity table (client approval specific activities)
+    const clientApprovalActivities = await prisma.clientApprovalActivity.findMany({
+      where: {
+        version: {
+          stageId: stageId
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Combine and format activities from all sources
     const allActivities = [
       // Format Activity records
       ...activities.map(activity => ({
@@ -85,6 +103,15 @@ export async function GET(
         user: log.actor,
         createdAt: log.createdAt.toISOString(),
         source: 'activity_log'
+      })),
+      // Format ClientApprovalActivity records
+      ...clientApprovalActivities.map(activity => ({
+        id: activity.id,
+        type: activity.type,
+        message: activity.message,
+        user: activity.user,
+        createdAt: activity.createdAt.toISOString(),
+        source: 'client_approval_activity'
       }))
     ]
 
