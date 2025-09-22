@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { handleWorkflowTransition, type WorkflowEvent } from '@/lib/phase-transitions'
+import { getIPAddress } from '@/lib/attribution'
 
 // POST /api/client-approval/[stageId]/client-decision - Record client's approval decision
 export async function POST(
@@ -166,6 +168,41 @@ export async function POST(
         comments: notes || null
       }
     })
+
+    // Trigger workflow transitions
+    try {
+      const ipAddress = getIPAddress(request)
+      
+      if (decision === 'REVISION_REQUESTED') {
+        const workflowEvent: WorkflowEvent = {
+          type: 'CLIENT_REVISION_REQUESTED',
+          roomId: currentVersion.stage.roomId,
+          stageType: 'CLIENT_APPROVAL',
+          stageId: currentVersion.stageId,
+          details: {
+            versionId: currentVersion.id,
+            clientMessage: notes
+          }
+        }
+        
+        await handleWorkflowTransition(workflowEvent, session, ipAddress)
+      } else if (decision === 'APPROVED') {
+        const workflowEvent: WorkflowEvent = {
+          type: 'CLIENT_APPROVED',
+          roomId: currentVersion.stage.roomId,
+          stageType: 'CLIENT_APPROVAL',
+          stageId: currentVersion.stageId,
+          details: {
+            versionId: currentVersion.id
+          }
+        }
+        
+        await handleWorkflowTransition(workflowEvent, session, ipAddress)
+      }
+    } catch (workflowError) {
+      console.warn('Workflow transition failed:', workflowError)
+      // Don't fail the request if workflow transition fails
+    }
 
     return NextResponse.json({ 
       success: true,

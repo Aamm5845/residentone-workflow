@@ -62,6 +62,11 @@ export async function triggerPhaseTransitions(
       'DRAWINGS_COMPLETED': {
         targetStageType: 'FFE',
         reason: 'Drawings phase completed'
+      },
+      // When client requests revision, reopen 3D rendering stage
+      'CLIENT_APPROVAL_REVISION_REQUESTED': {
+        targetStageType: 'THREE_D',
+        reason: 'Client requested revisions - reopening 3D rendering for updates'
       }
     }
 
@@ -88,27 +93,47 @@ export async function triggerPhaseTransitions(
       return result
     }
 
-    // Only trigger transition if target stage is NOT_STARTED
-    if (targetStage.status !== 'NOT_STARTED') {
-      // Stage is already started or completed, no need to transition
-      return result
+    // Handle different transition scenarios
+    let fromStatus = targetStage.status
+    let toStatus = 'IN_PROGRESS'
+    let updateData: any = {
+      status: 'IN_PROGRESS'
+    }
+
+    // For revision requests, reopen completed stages
+    if (transitionKey === 'CLIENT_APPROVAL_REVISION_REQUESTED') {
+      if (targetStage.status === 'COMPLETED') {
+        // Reopen completed stage for revisions
+        updateData = {
+          status: 'IN_PROGRESS',
+          completedAt: null,
+          completedById: null
+        }
+      } else if (targetStage.status === 'IN_PROGRESS') {
+        // Already in progress, no need to transition
+        return result
+      }
+    } else {
+      // For other transitions, only trigger if target stage is NOT_STARTED
+      if (targetStage.status !== 'NOT_STARTED') {
+        // Stage is already started or completed, no need to transition
+        return result
+      }
+      updateData.startedAt = new Date()
     }
 
     // Execute the transition
     const updatedStage = await prisma.stage.update({
       where: { id: targetStage.id },
-      data: withUpdateAttribution(session, {
-        status: 'IN_PROGRESS',
-        startedAt: new Date()
-      })
+      data: withUpdateAttribution(session, updateData)
     })
 
     // Record the transition
     result.transitionsTriggered.push({
       stageId: targetStage.id,
       stageType: rule.targetStageType,
-      fromStatus: 'NOT_STARTED',
-      toStatus: 'IN_PROGRESS',
+      fromStatus,
+      toStatus,
       reason: rule.reason
     })
 
@@ -176,6 +201,15 @@ export async function handleWorkflowTransition(
         ipAddress
       )
     
+    case 'CLIENT_REVISION_REQUESTED':
+      return await triggerPhaseTransitions(
+        event.roomId,
+        'CLIENT_APPROVAL',
+        'REVISION_REQUESTED',
+        session,
+        ipAddress
+      )
+    
     default:
       return {
         success: true,
@@ -186,7 +220,7 @@ export async function handleWorkflowTransition(
 }
 
 export interface WorkflowEvent {
-  type: 'RENDERING_PUSHED_TO_CLIENT' | 'STAGE_COMPLETED' | 'CLIENT_APPROVED'
+  type: 'RENDERING_PUSHED_TO_CLIENT' | 'STAGE_COMPLETED' | 'CLIENT_APPROVED' | 'CLIENT_REVISION_REQUESTED'
   roomId: string
   stageType: string
   stageId?: string

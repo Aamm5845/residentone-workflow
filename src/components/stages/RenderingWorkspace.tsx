@@ -708,44 +708,93 @@ export default function RenderingWorkspace({
                                 {!isPushedToClient && editingDescriptions.has(asset.id) ? (
                                   <div className="space-y-2">
                                     <Textarea
+                                      id={`desc-${asset.id}`}
                                       placeholder="Add a description..."
                                       defaultValue={asset.description || ''}
                                       className="text-sm"
                                       rows={2}
-                                      onBlur={(e) => {
-                                        updateAssetDescription(asset.id, e.target.value)
-                                        setEditingDescriptions(prev => {
-                                          const newSet = new Set(prev)
-                                          newSet.delete(asset.id)
-                                          return newSet
-                                        })
-                                      }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter' && e.ctrlKey) {
-                                          e.currentTarget.blur()
+                                          const textarea = e.currentTarget
+                                          updateAssetDescription(asset.id, textarea.value)
+                                          setEditingDescriptions(prev => {
+                                            const newSet = new Set(prev)
+                                            newSet.delete(asset.id)
+                                            return newSet
+                                          })
                                         }
                                       }}
                                       autoFocus
                                     />
-                                    <p className="text-xs text-gray-500">Press Ctrl+Enter to save</p>
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs text-gray-500">Press Ctrl+Enter to save</p>
+                                      <div className="flex space-x-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setEditingDescriptions(prev => {
+                                              const newSet = new Set(prev)
+                                              newSet.delete(asset.id)
+                                              return newSet
+                                            })
+                                          }}
+                                        >
+                                          <X className="w-3 h-3 mr-1" />
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            const textarea = document.getElementById(`desc-${asset.id}`) as HTMLTextAreaElement
+                                            if (textarea) {
+                                              updateAssetDescription(asset.id, textarea.value)
+                                              setEditingDescriptions(prev => {
+                                                const newSet = new Set(prev)
+                                                newSet.delete(asset.id)
+                                                return newSet
+                                              })
+                                            }
+                                          }}
+                                        >
+                                          <Save className="w-3 h-3 mr-1" />
+                                          Save
+                                        </Button>
+                                      </div>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div
-                                    className={`text-sm text-gray-600 min-h-[1.5rem] rounded px-2 py-1 -mx-2 -my-1 ${
-                                      !isPushedToClient 
-                                        ? 'cursor-pointer hover:text-gray-800 border border-transparent hover:border-gray-200' 
-                                        : 'cursor-not-allowed opacity-60'
-                                    }`}
-                                    onClick={() => {
-                                      if (!isPushedToClient) {
-                                        setEditingDescriptions(prev => new Set([...prev, asset.id]))
-                                      }
-                                    }}
-                                  >
-                                    {asset.description || (
-                                      <span className="text-gray-400 italic">
-                                        {!isPushedToClient ? 'Click to add description...' : 'No description'}
-                                      </span>
+                                  <div className="group relative">
+                                    <div
+                                      className={`text-sm text-gray-600 min-h-[1.5rem] rounded px-2 py-1 -mx-2 -my-1 ${
+                                        !isPushedToClient 
+                                          ? 'cursor-pointer hover:text-gray-800 border border-transparent hover:border-gray-200' 
+                                          : 'cursor-not-allowed opacity-60'
+                                      }`}
+                                      onClick={() => {
+                                        if (!isPushedToClient) {
+                                          setEditingDescriptions(prev => new Set([...prev, asset.id]))
+                                        }
+                                      }}
+                                    >
+                                      {asset.description || (
+                                        <span className="text-gray-400 italic">
+                                          {!isPushedToClient ? 'Click to add description...' : 'No description'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {!isPushedToClient && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setEditingDescriptions(prev => new Set([...prev, asset.id]))
+                                        }}
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </Button>
                                     )}
                                   </div>
                                 )}
@@ -815,6 +864,206 @@ export default function RenderingWorkspace({
                     </div>
                   </div>
 
+                  {/* Version Activity Timeline */}
+                  <div className="border-t pt-4 mt-4">
+                    <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <Activity className="w-4 h-4 mr-2" />
+                      Version Activity
+                    </h5>
+                    <div className="space-y-3">
+                      {/* Version Created */}
+                      <div className="flex items-start space-x-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900">
+                            <span className="font-medium">{version.createdBy.name}</span> created {version.version}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(version.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Version Completed */}
+                      {version.completedAt && (
+                        <div className="flex items-start space-x-3">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900">
+                              <span className="font-medium">{version.completedBy?.name || 'System'}</span> marked as complete
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(version.completedAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Pushed to Client */}
+                      {version.pushedToClientAt && (
+                        <div className="flex items-start space-x-3">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900">
+                              Pushed to <span className="font-medium text-purple-600">Client Approval</span>
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(version.pushedToClientAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Client Approval Activities */}
+                      {version.clientApprovalVersion && (
+                        <>
+                          {/* Aaron's Approval */}
+                          {version.clientApprovalVersion.aaronApprovedAt && (
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium text-indigo-600">Aaron approved</span> for client review
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(version.clientApprovalVersion.aaronApprovedAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Sent to Client */}
+                          {version.clientApprovalVersion.sentToClientAt && (
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-cyan-500 rounded-full mt-2 flex-shrink-0"></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium text-cyan-600">Email sent to client</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(version.clientApprovalVersion.sentToClientAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Email Opened */}
+                          {version.clientApprovalVersion.emailOpenedAt && (
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium text-yellow-600">Client opened email</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(version.clientApprovalVersion.emailOpenedAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Follow-up Completed */}
+                          {version.clientApprovalVersion.followUpCompletedAt && (
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium text-teal-600">Client follow-up completed</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(version.clientApprovalVersion.followUpCompletedAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                                {version.clientApprovalVersion.followUpNotes && (
+                                  <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                                    {version.clientApprovalVersion.followUpNotes}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Client Decision */}
+                          {version.clientApprovalVersion.clientDecidedAt && (
+                            <div className="flex items-start space-x-3">
+                              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                version.clientApprovalVersion.clientDecision === 'APPROVED' 
+                                  ? 'bg-green-500' 
+                                  : 'bg-red-500'
+                              }`}></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className={`font-medium ${
+                                    version.clientApprovalVersion.clientDecision === 'APPROVED'
+                                      ? 'text-green-600'
+                                      : 'text-red-600'
+                                  }`}>
+                                    Client {version.clientApprovalVersion.clientDecision === 'APPROVED' ? 'approved' : 'requested revisions'}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(version.clientApprovalVersion.clientDecidedAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                                {version.clientApprovalVersion.clientMessage && (
+                                  <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                                    "{version.clientApprovalVersion.clientMessage}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
                   {/* Version Actions */}
                   <div className="flex items-center justify-between mt-4 pt-4 border-t">
                     <div className="flex items-center space-x-2">
@@ -827,17 +1076,16 @@ export default function RenderingWorkspace({
                           Reopen for Editing
                         </Button>
                       )}
-                      {isPushedToClient && (
-                        <span className="text-sm text-purple-600 font-medium">
-                          <Send className="w-4 h-4 inline mr-1" />
-                          Pushed to Client Approval on {new Date(version.pushedToClientAt!).toLocaleDateString()}
-                        </span>
-                      )}
-                      {version.completedAt && !isPushedToClient && (
-                        <span className="text-sm text-gray-500">
-                          <Clock className="w-4 h-4 inline mr-1" />
-                          Completed {new Date(version.completedAt).toLocaleDateString()}
-                        </span>
+                      {version.clientApprovalVersion?.clientDecision === 'REVISION_REQUESTED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateVersion(version.id, 'reopen')}
+                          className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-1" />
+                          Address Revision Request
+                        </Button>
                       )}
                     </div>
                     <div className="flex items-center space-x-2">

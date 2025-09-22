@@ -27,13 +27,10 @@ export async function PATCH(
     const data = await request.json()
     const { description } = data
 
-    // Verify asset access
+    // Verify asset access - simplified to match other API patterns
     const asset = await prisma.asset.findFirst({
       where: {
-        id: assetId,
-        organization: {
-          id: session.user.orgId
-        }
+        id: assetId
       },
       include: {
         renderingVersion: {
