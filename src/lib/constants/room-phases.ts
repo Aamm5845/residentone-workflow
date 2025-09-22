@@ -102,6 +102,39 @@ export function getPhaseColor(phaseId: PhaseId, status: PhaseStatus = 'PENDING')
 // All phases are available to all team members
 // Assignments are used for notification and task tracking only
 
+/**
+ * Maps database StageStatus to UI PhaseStatus
+ */
+export function mapStageStatusToPhaseStatus(stageStatus: string): PhaseStatus {
+  switch (stageStatus) {
+    case 'NOT_STARTED':
+      return 'PENDING'
+    case 'IN_PROGRESS':
+      return 'IN_PROGRESS'
+    case 'COMPLETED':
+      return 'COMPLETE'
+    case 'ON_HOLD':
+    case 'NEEDS_ATTENTION':
+    default:
+      return 'PENDING'
+  }
+}
+
+/**
+ * Maps UI PhaseStatus to database StageStatus actions
+ */
+export function mapPhaseStatusToStageAction(phaseStatus: PhaseStatus): string {
+  switch (phaseStatus) {
+    case 'IN_PROGRESS':
+      return 'start'
+    case 'COMPLETE':
+      return 'complete'
+    case 'PENDING':
+    default:
+      return 'reopen'
+  }
+}
+
 // Tailwind color classes for dynamic styling
 export const COLOR_CLASSES = {
   purple: {
