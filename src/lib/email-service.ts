@@ -44,10 +44,19 @@ const transporter = createTransporter();
 async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
   const fromAddress = options.from || process.env.EMAIL_FROM || 'ResidentOne <noreply@residentone.com>';
   
+  console.log('📧 Attempting to send email:', {
+    to: options.to,
+    subject: options.subject,
+    from: fromAddress,
+    hasResendKey: !!process.env.RESEND_API_KEY,
+    hasMailgunKey: !!process.env.MAILGUN_API_KEY,
+    resendConfigured: !!resend
+  });
+  
   // Try Resend first if configured (best deliverability and developer experience)
   if (resend) {
     try {
-      console.log('Sending email via Resend...');
+      console.log('🚀 Sending email via Resend...');
       const result = await resend.emails.send({
         from: fromAddress,
         to: options.to,
@@ -55,11 +64,20 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
         html: options.html,
         tags: options.tags || []
       });
-      console.log('Email sent via Resend:', result.data?.id);
+      console.log('✅ Email sent via Resend:', result.data?.id);
       return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
     } catch (error) {
-      console.error('Resend send failed, falling back to Mailgun:', error);
+      console.error('❌ Resend send failed, falling back to Mailgun:', error);
+      // Log the specific error for debugging
+      if (error instanceof Error) {
+        console.error('Resend error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
     }
+  } else {
+    console.log('⚠️ Resend not configured, skipping to Mailgun');
   }
   
   // Try Mailgun as fallback if configured
@@ -171,8 +189,20 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     return emailLog.id;
 
   } catch (error) {
-    console.error('Failed to send client approval email:', error);
-    throw new Error('Failed to send email');
+    console.error('🚨 Failed to send client approval email:', error);
+    
+    // Provide more specific error information
+    let errorMessage = 'Failed to send email';
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      errorMessage = error.message;
+    }
+    
+    throw new Error(`Email sending failed: ${errorMessage}`);
   }
 }
 
