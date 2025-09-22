@@ -69,7 +69,8 @@ export async function POST(
       data: {
         followUpCompletedAt: new Date(),
         followUpNotes: notes || null,
-        status: 'FOLLOW_UP_REQUIRED' // This will show that follow-up is completed and awaiting client decision
+        // Preserve existing status - don't change it when completing follow-up
+        // The status should remain as 'SENT_TO_CLIENT' or whatever it currently is
       },
       include: {
         assets: {

@@ -16,10 +16,11 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
   roomName?: string;
   designPhase?: string;
   projectAddress?: string;
+  emailLogId?: string; // For tracking downloads
 }): { subject: string; html: string } {
   const emailedAssets = data.assets.filter(asset => asset.includeInEmail);
   
-  const subject = `✨ ${data.roomName || 'Your Space'} Design Ready for Approval - ${data.projectName}`;
+  const subject = `✨ Good News! Your ${data.roomName || 'Design'} Is Ready - ${data.projectName}`;
   
   const html = `
 <!DOCTYPE html>
@@ -35,27 +36,28 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
             box-sizing: border-box;
         }
         body {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            line-height: 1.7;
-            color: #2d2926;
-            background: linear-gradient(135deg, #f5f3f0 0%, #e8e4df 100%);
-            padding: 20px 0;
+            font-family: 'Helvetica Neue', 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 0;
+            margin: 0;
         }
         .email-container {
-            max-width: 700px;
+            max-width: 680px;
             margin: 0 auto;
             background: #ffffff;
             border-radius: 0;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         }
         
-        /* Header with Meisner Branding */
+        /* Modern Header */
         .header {
-            background: linear-gradient(135deg, #2d2926 0%, #1a1815 100%);
-            color: #f5f3f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
             text-align: center;
-            padding: 50px 40px;
+            padding: 60px 40px;
             position: relative;
             overflow: hidden;
         }
@@ -66,46 +68,52 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
             left: 0;
             right: 0;
             bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
-            opacity: 0.5;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%), linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            opacity: 0.3;
         }
         .logo-container {
             position: relative;
             z-index: 2;
         }
         .meisner-logo {
-            font-size: 36px;
-            font-weight: 300;
-            letter-spacing: 8px;
+            font-size: 32px;
+            font-weight: 400;
+            letter-spacing: 4px;
             text-transform: uppercase;
             margin-bottom: 8px;
-            color: #d4af37;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .logo-subtitle {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 300;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            color: #a5a098;
-            margin-bottom: 30px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 40px;
         }
         .header-divider {
-            width: 80px;
-            height: 1px;
-            background: #d4af37;
-            margin: 0 auto 25px;
+            width: 60px;
+            height: 2px;
+            background: rgba(255,255,255,0.8);
+            margin: 0 auto 30px;
+            border-radius: 1px;
         }
         .header-title {
-            font-size: 28px;
-            font-weight: 400;
-            color: #f5f3f0;
+            font-size: 32px;
+            font-weight: 300;
+            color: #ffffff;
             margin-bottom: 15px;
-            line-height: 1.3;
+            line-height: 1.2;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .header-subtitle {
-            font-size: 16px;
-            color: #c5b8a8;
+            font-size: 18px;
+            color: rgba(255,255,255,0.9);
             font-weight: 300;
+            letter-spacing: 0.5px;
         }
         
         /* Content Area */
@@ -114,9 +122,17 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
         }
         .greeting {
             font-size: 18px;
-            color: #2d2926;
-            margin-bottom: 30px;
-            line-height: 1.6;
+            color: #34495e;
+            margin-bottom: 40px;
+            line-height: 1.7;
+            text-align: left;
+        }
+        .greeting p {
+            margin-bottom: 20px;
+        }
+        .greeting strong {
+            color: #2c3e50;
+            font-weight: 600;
         }
         .project-info {
             background: #faf9f7;
@@ -156,220 +172,208 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
             font-weight: 400;
         }
         
-        /* Renderings Gallery */
+        /* Renderings Showcase */
         .renderings-section {
-            margin: 45px 0;
+            margin: 50px 0;
+            background: #f8f9fa;
+            padding: 40px 0;
+            border-radius: 8px;
         }
         .section-title {
-            font-size: 24px;
-            color: #2d2926;
+            font-size: 28px;
+            color: #2c3e50;
             text-align: center;
-            margin-bottom: 15px;
-            font-weight: 400;
+            margin-bottom: 12px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
         }
         .section-subtitle {
             text-align: center;
-            color: #6b645c;
+            color: #7f8c8d;
             font-size: 16px;
-            margin-bottom: 40px;
-            font-style: italic;
+            margin-bottom: 50px;
+            font-weight: 300;
+            line-height: 1.4;
         }
         .renderings-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
             margin: 40px 0;
+            padding: 0 40px;
         }
         .rendering-card {
             background: #ffffff;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border: 1px solid #f0ede8;
+            border: 1px solid rgba(0,0,0,0.04);
         }
         .rendering-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
         }
         .rendering-image {
             width: 100%;
-            height: 250px;
+            height: 240px;
             object-fit: cover;
             display: block;
-            border-bottom: 1px solid #f0ede8;
         }
         .rendering-caption {
-            padding: 20px;
+            padding: 24px;
             text-align: center;
-            background: #fefefe;
+            background: #ffffff;
         }
         .rendering-caption h4 {
-            color: #2d2926;
+            color: #2c3e50;
             font-size: 16px;
             font-weight: 500;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
         }
         .rendering-caption p {
-            color: #6b645c;
+            color: #95a5a6;
             font-size: 14px;
+            font-weight: 400;
+            margin: 0;
+        }
+        /* Hero Image Layout (when single image) */
+        .hero-layout {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .hero-image {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+        .hero-caption {
+            margin-top: 24px;
+            font-size: 18px;
+            color: #7f8c8d;
             font-style: italic;
+            font-weight: 300;
         }
         
-        /* Call-to-Action Section */
-        .cta-section {
-            background: #faf9f7;
-            padding: 45px 30px;
+        /* Download Section */
+        .download-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 50px 40px;
             text-align: center;
-            border-radius: 12px;
-            margin: 45px 0;
-            border: 1px solid #f0ede8;
+            border-radius: 16px;
+            margin: 50px 0;
+            color: #ffffff;
         }
-        .cta-title {
-            font-size: 22px;
-            color: #2d2926;
-            margin-bottom: 20px;
-            font-weight: 400;
+        .download-title {
+            font-size: 26px;
+            color: #ffffff;
+            margin-bottom: 16px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
         }
-        .cta-description {
-            color: #6b645c;
+        .download-description {
+            color: rgba(255,255,255,0.9);
             font-size: 16px;
             margin-bottom: 35px;
             line-height: 1.6;
+            font-weight: 300;
         }
-        .cta-buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .cta-button-primary {
+        .download-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
-            color: #ffffff !important;
+            background: rgba(255,255,255,0.95);
+            color: #667eea !important;
             text-decoration: none;
-            padding: 18px 35px;
-            border-radius: 6px;
+            padding: 16px 32px;
+            border-radius: 50px;
             font-weight: 600;
             font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             border: none;
+            gap: 10px;
         }
-        .cta-button-primary:hover {
-            background: linear-gradient(135deg, #b8941f 0%, #9d7e1b 100%);
-            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
-            transform: translateY(-2px);
-        }
-        .cta-button-secondary {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        .download-button:hover {
             background: #ffffff;
-            color: #2d2926 !important;
-            text-decoration: none;
-            padding: 18px 35px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-            border: 2px solid #d4af37;
-        }
-        .cta-button-secondary:hover {
-            background: #d4af37;
-            color: #ffffff !important;
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.2);
             transform: translateY(-2px);
         }
-        
-        /* Next Steps Section */
-        .next-steps {
-            background: linear-gradient(135deg, #2d2926 0%, #1a1815 100%);
-            color: #f5f3f0;
-            padding: 45px 40px;
-            border-radius: 12px;
-            margin: 45px 0;
-        }
-        .next-steps h3 {
-            color: #d4af37;
-            font-size: 20px;
-            margin-bottom: 25px;
-            text-align: center;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-            margin-top: 30px;
-        }
-        .step-item {
-            text-align: center;
-            padding: 20px;
-        }
-        .step-icon {
-            width: 60px;
-            height: 60px;
-            background: #d4af37;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 24px;
-        }
-        .step-title {
-            color: #f5f3f0;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .step-description {
-            color: #c5b8a8;
-            font-size: 14px;
-            line-height: 1.5;
+        .download-icon {
+            font-size: 18px;
         }
         
-        /* Footer */
-        .footer {
-            background: #faf9f7;
+        /* Closing Message */
+        .closing-section {
+            background: #f8f9fa;
             padding: 40px;
             text-align: center;
-            border-top: 1px solid #f0ede8;
+            border-radius: 12px;
+            margin: 40px 0;
+        }
+        .closing-title {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 16px;
+            font-weight: 300;
+        }
+        .closing-message {
+            color: #7f8c8d;
+            font-size: 16px;
+            line-height: 1.6;
+            font-weight: 300;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        /* Modern Footer */
+        .footer {
+            background: #34495e;
+            padding: 50px 40px;
+            text-align: center;
+            color: #ffffff;
         }
         .footer-logo {
-            font-size: 18px;
-            color: #2d2926;
-            font-weight: 600;
-            margin-bottom: 20px;
+            font-size: 24px;
+            color: #ffffff;
+            font-weight: 300;
+            margin-bottom: 16px;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
+        }
+        .footer-tagline {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-bottom: 30px;
+            font-weight: 300;
+            letter-spacing: 1px;
         }
         .footer-contact {
-            color: #6b645c;
-            font-size: 14px;
-            margin-bottom: 15px;
+            color: rgba(255,255,255,0.9);
+            font-size: 15px;
+            margin-bottom: 20px;
+            line-height: 1.6;
         }
         .footer-contact a {
-            color: #d4af37;
+            color: #ffffff;
             text-decoration: none;
+            font-weight: 500;
+        }
+        .footer-contact a:hover {
+            opacity: 0.8;
         }
         .footer-disclaimer {
-            color: #a5a098;
+            color: rgba(255,255,255,0.5);
             font-size: 12px;
             line-height: 1.4;
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 1px solid #e8e4df;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         
         /* Mobile Responsive */
@@ -411,8 +415,8 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
                 <div class="meisner-logo">MEISNER</div>
                 <div class="logo-subtitle">I N T E R I O R S</div>
                 <div class="header-divider"></div>
-                <h1 class="header-title">Good News!</h1>
-                <p class="header-subtitle">${data.roomName || 'Your Design'} Is Ready</p>
+                <h1 class="header-title">✨ Good News!</h1>
+                <p class="header-subtitle">Your ${data.roomName || 'Design'} Is Ready</p>
             </div>
         </div>
 
@@ -420,96 +424,67 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
         <div class="content">
             <div class="greeting">
                 <p>Dear ${data.clientName},</p>
-                <p>We are delighted to present the completed design renderings for your <strong>${data.roomName || 'space'}</strong>. Our team has meticulously crafted every detail to transform your vision into a stunning reality.</p>
-            </div>
-
-            <!-- Project Information -->
-            <div class="project-info">
-                <h3>Project Details</h3>
-                <div class="project-detail">
-                    <span class="project-detail-label">Project</span>
-                    <span class="project-detail-value">${data.projectName}</span>
-                </div>
-                <div class="project-detail">
-                    <span class="project-detail-label">Room</span>
-                    <span class="project-detail-value">${data.roomName || 'Interior Space'}</span>
-                </div>
-                ${data.designPhase ? `
-                <div class="project-detail">
-                    <span class="project-detail-label">Phase</span>
-                    <span class="project-detail-value">${data.designPhase}</span>
-                </div>
-                ` : ''}
-                ${data.projectAddress ? `
-                <div class="project-detail">
-                    <span class="project-detail-label">Location</span>
-                    <span class="project-detail-value">${data.projectAddress}</span>
-                </div>
-                ` : ''}
+                <p>We're excited to share the completed renderings for your <strong>${data.roomName || 'space'}</strong>. Every detail has been carefully crafted to bring your vision to life.</p>
             </div>
 
             <!-- Renderings Section -->
             <div class="renderings-section">
-                <h2 class="section-title">Design Renderings</h2>
-                <p class="section-subtitle">Carefully curated visualizations of your future space</p>
+                <h2 class="section-title">${data.roomName || 'Design'} Renderings</h2>
+                <p class="section-subtitle">Professional visualizations of your beautiful new space</p>
                 
-                <div class="renderings-grid">
-                    ${emailedAssets.map((asset, index) => `
-                        <div class="rendering-card">
-                            <img src="${asset.url}" alt="${data.roomName} Design Rendering ${index + 1}" class="rendering-image" />
-                            <div class="rendering-caption">
-                                <h4>View ${index + 1}</h4>
-                                <p>Interior Design Rendering</p>
+                ${emailedAssets.length === 1 ? `
+                    <!-- Single Hero Image Layout -->
+                    <div class="hero-layout">
+                        <img src="${emailedAssets[0].url}" alt="${data.roomName} Design Rendering" class="hero-image" />
+                        <p class="hero-caption">${data.roomName || 'Interior Design'} Rendering</p>
+                    </div>
+                ` : `
+                    <!-- Multiple Images Grid -->
+                    <div class="renderings-grid">
+                        ${emailedAssets.slice(0, 4).map((asset, index) => `
+                            <div class="rendering-card">
+                                <img src="${asset.url}" alt="${data.roomName} Design Rendering ${index + 1}" class="rendering-image" />
+                                <div class="rendering-caption">
+                                    <h4>View ${index + 1}</h4>
+                                    <p>Design Perspective</p>
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
-                </div>
+                        `).join('')}
+                    </div>
+                    ${emailedAssets.length > 4 ? `<p style="text-align: center; color: #7f8c8d; margin-top: 20px; font-style: italic;">+ ${emailedAssets.length - 4} more rendering${emailedAssets.length > 5 ? 's' : ''} available for download</p>` : ''}
+                `}
             </div>
 
-            <!-- Call to Action -->
-            <div class="cta-section">
-                <h2 class="cta-title">Your Approval is Needed</h2>
-                <p class="cta-description">
-                    Please review the renderings above and let us know if you approve of the design direction, or if you'd like us to make any adjustments.
+            <!-- Download Section -->
+            <div class="download-section">
+                <h2 class="download-title">View & Download All Renderings</h2>
+                <p class="download-description">
+                    Click below to view all renderings and download high-resolution versions.
                 </p>
-                <div class="cta-buttons">
-                    <a href="${data.approvalUrl}" class="cta-button-primary">✓ Approve Design</a>
-                    <a href="${data.approvalUrl}" class="cta-button-secondary">📝 Request Changes</a>
-                </div>
+                <a href="${data.approvalUrl}" class="download-button">
+                    <span class="download-icon">👁</span>
+                    View All Renderings
+                </a>
             </div>
 
-            <!-- Next Steps -->
-            <div class="next-steps">
-                <h3>What Happens Next?</h3>
-                <div class="steps-grid">
-                    <div class="step-item">
-                        <div class="step-icon">✓</div>
-                        <div class="step-title">You Approve</div>
-                        <div class="step-description">Review the renderings and approve the design direction</div>
-                    </div>
-                    <div class="step-item">
-                        <div class="step-icon">🎨</div>
-                        <div class="step-title">We Finalize</div>
-                        <div class="step-description">We'll complete the design specifications and material selections</div>
-                    </div>
-                    <div class="step-item">
-                        <div class="step-icon">🏠</div>
-                        <div class="step-title">Implementation</div>
-                        <div class="step-description">Move forward with bringing your beautiful space to life</div>
-                    </div>
-                </div>
+            <!-- Closing Message -->
+            <div class="closing-section">
+                <h3 class="closing-title">We look forward to finalizing this space together.</h3>
+                <p class="closing-message">
+                    Thank you for trusting us with your vision. We're here to answer any questions you may have about the design.
+                </p>
             </div>
         </div>
 
         <!-- Footer -->
         <div class="footer">
             <div class="footer-logo">Meisner Interiors</div>
+            <div class="footer-tagline">Transforming spaces, enriching lives</div>
             <p class="footer-contact">
-                Questions? Contact us at <a href="mailto:hello@meisnerinteriors.com">hello@meisnerinteriors.com</a>
-                <br>or call us at <a href="tel:+1-555-DESIGN">(555) DESIGN-1</a>
+                📧 <a href="mailto:projects@meisnerinteriors.com">projects@meisnerinteriors.com</a><br>
+                📞 <a href="tel:+15147976957">514-797-6957</a>
             </p>
             <div class="footer-disclaimer">
-                <p>This approval link will expire in 14 days. Please review and respond at your earliest convenience.</p>
                 <p>© 2025 Meisner Interiors. All rights reserved.</p>
             </div>
             ${data.trackingPixelUrl ? `<img src="${data.trackingPixelUrl}" width="1" height="1" style="display:none;" />` : ''}

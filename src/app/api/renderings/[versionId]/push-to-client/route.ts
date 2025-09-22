@@ -181,6 +181,28 @@ export async function POST(
       }
     })
 
+    // Auto-complete the 3D rendering stage when pushing to client
+    try {
+      const renderingStage = await prisma.stage.findUnique({
+        where: { id: renderingVersion.stageId }
+      })
+
+      if (renderingStage && renderingStage.status !== 'COMPLETED') {
+        await prisma.stage.update({
+          where: { id: renderingVersion.stageId },
+          data: withUpdateAttribution(session, {
+            status: 'COMPLETED',
+            completedAt: new Date()
+          })
+        })
+
+        console.log(`Auto-completed 3D rendering stage ${renderingVersion.stageId} when pushing version to client`)
+      }
+    } catch (stageCompletionError) {
+      console.error('Error auto-completing 3D rendering stage:', stageCompletionError)
+      // Don't fail the main operation if stage completion fails
+    }
+
     // Handle automatic phase transition after successful push to client
     try {
       const workflowEvent: WorkflowEvent = {

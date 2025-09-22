@@ -108,7 +108,6 @@ export default function RenderingWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
-  const [completingPhase, setCompletingPhase] = useState(false)
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -288,10 +287,12 @@ export default function RenderingWorkspace({
         // Show success message with phase transition info
         let message = '🎉 Successfully pushed to Client Approval!'
         
+        message += '\n\n✅ The 3D Rendering stage has been automatically marked as completed.'
+        
         if (result.phaseTransitions && result.phaseTransitions.length > 0) {
-          message += '\n\n✅ The Client Approval phase has been automatically started and is ready for processing.'
+          message += '\n✅ The Client Approval phase has been automatically started and is ready for processing.'
         } else {
-          message += '\n\n✅ Version is now available in the Client Approval workspace.'
+          message += '\n✅ Version is now available in the Client Approval workspace.'
         }
         
         message += '\n\n👉 The page will refresh to show the updated phase status.'
@@ -345,37 +346,6 @@ export default function RenderingWorkspace({
     }
   }
 
-  // Complete the entire 3D Rendering phase
-  const handleCompletePhase = async () => {
-    if (!window.confirm('Mark the entire 3D Rendering phase as complete? This will move the project to the next stage.')) {
-      return
-    }
-
-    setCompletingPhase(true)
-    try {
-      const response = await fetch(`/api/stages/${stage.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: 'complete' })
-      })
-
-      if (response.ok) {
-        alert('3D Rendering phase completed successfully! The project has moved to the next stage.')
-        // Call the parent complete handler to refresh the project view
-        onComplete()
-      } else {
-        const error = await response.json()
-        alert(`Failed to complete phase: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error completing phase:', error)
-      alert('Failed to complete phase')
-    } finally {
-      setCompletingPhase(false)
-    }
-  }
 
   // Toggle version expansion
   const toggleVersion = (versionId: string) => {
@@ -459,15 +429,6 @@ export default function RenderingWorkspace({
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Rendering Versions</h3>
           <div className="flex items-center space-x-3">
-            {stage.status === 'IN_PROGRESS' && renderingVersions.some(v => v.status === 'COMPLETED') && (
-              <Button
-                onClick={handleCompletePhase}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Mark Phase Complete
-              </Button>
-            )}
             <Button
               onClick={createNewVersion}
               disabled={creatingVersion}

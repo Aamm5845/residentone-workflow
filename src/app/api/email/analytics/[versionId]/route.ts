@@ -84,9 +84,21 @@ export async function GET(
       const metadata = log.metadata as any
       return sum + (metadata?.clickCount || 0)
     }, 0)
+    
+    const downloadedEmails = emailLogs.filter(log => {
+      const metadata = log.metadata as any
+      return metadata?.downloadCount > 0
+    })
+    const totalDownloaded = downloadedEmails.length
+    
+    const totalDownloads = emailLogs.reduce((sum, log) => {
+      const metadata = log.metadata as any
+      return sum + (metadata?.downloadCount || 0)
+    }, 0)
 
     const openRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0
     const clickRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0
+    const downloadRate = totalOpened > 0 ? (totalDownloaded / totalOpened) * 100 : 0
 
     const firstOpenAt = openedEmails.length > 0 
       ? openedEmails.reduce((earliest, log) => 
@@ -106,11 +118,14 @@ export async function GET(
       totalSent,
       totalOpened,
       totalClicked,
+      totalDownloaded,
       openRate: Math.round(openRate * 100) / 100,
       clickRate: Math.round(clickRate * 100) / 100,
+      downloadRate: Math.round(downloadRate * 100) / 100,
       firstOpenAt,
       lastOpenAt,
-      totalClicks
+      totalClicks,
+      totalDownloads
     }
 
     const emails = emailLogs.map(log => {
@@ -124,7 +139,10 @@ export async function GET(
         openedAt: log.openedAt,
         clickCount: metadata?.clickCount || 0,
         clicks: metadata?.clicks || [],
-        lastClickAt: metadata?.lastClickAt || null
+        lastClickAt: metadata?.lastClickAt || null,
+        downloadCount: metadata?.downloadCount || 0,
+        downloads: metadata?.downloads || [],
+        lastDownloadAt: metadata?.lastDownloadAt || null
       }
     })
 

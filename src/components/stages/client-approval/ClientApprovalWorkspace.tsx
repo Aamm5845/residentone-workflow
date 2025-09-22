@@ -1038,6 +1038,20 @@ export default function ClientApprovalWorkspace({
                       </div>
                     </div>
                     
+                    {/* Download Analytics */}
+                    {(emailAnalytics.analytics.totalDownloads > 0 || emailAnalytics.analytics.totalDownloaded > 0) && (
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="bg-emerald-50 p-2 rounded">
+                          <div className="text-emerald-600 font-medium">{emailAnalytics.analytics.totalDownloads || 0}</div>
+                          <div className="text-emerald-500 text-xs">Downloads</div>
+                        </div>
+                        <div className="bg-cyan-50 p-2 rounded">
+                          <div className="text-cyan-600 font-medium">{emailAnalytics.analytics.downloadRate || 0}%</div>
+                          <div className="text-cyan-500 text-xs">Download Rate</div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {emailAnalytics.analytics.firstOpenAt && (
                       <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
                         <div>First opened: {new Date(emailAnalytics.analytics.firstOpenAt).toLocaleDateString('en-US', { 

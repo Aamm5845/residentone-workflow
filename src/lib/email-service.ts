@@ -1,11 +1,14 @@
 import nodemailer from 'nodemailer';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
+import { Resend } from 'resend';
 import { generateClientApprovalToken } from './jwt';
 import { generateMeisnerDeliveryEmailTemplate, generateFollowUpEmailTemplate, generateConfirmationEmailTemplate } from './email-templates';
 import { prisma } from './prisma';
 
-// Email configuration - Mailgun for production, nodemailer for development
+// Email configuration - Resend (preferred), Mailgun, then nodemailer fallbacks
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
 const mailgun = new Mailgun(formData);
 let mg: any = null;
 
@@ -37,11 +40,29 @@ const createTransporter = () => nodemailer.createTransport({
 
 const transporter = createTransporter();
 
-// Email sending function that tries Mailgun first, then falls back to SMTP
-async function sendEmail(options: { to: string; subject: string; html: string; from?: string }) {
+// Email sending function that tries Resend first, then Mailgun, then SMTP
+async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
   const fromAddress = options.from || process.env.EMAIL_FROM || 'ResidentOne <noreply@residentone.com>';
   
-  // Try Mailgun first if configured
+  // Try Resend first if configured (best deliverability and developer experience)
+  if (resend) {
+    try {
+      console.log('Sending email via Resend...');
+      const result = await resend.emails.send({
+        from: fromAddress,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        tags: options.tags || []
+      });
+      console.log('Email sent via Resend:', result.data?.id);
+      return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
+    } catch (error) {
+      console.error('Resend send failed, falling back to Mailgun:', error);
+    }
+  }
+  
+  // Try Mailgun as fallback if configured
   if (mg && process.env.MAILGUN_DOMAIN) {
     try {
       console.log('Sending email via Mailgun...');
@@ -85,17 +106,6 @@ interface SendClientApprovalEmailOptions {
 
 export async function sendClientApprovalEmail(options: SendClientApprovalEmailOptions): Promise<string> {
   try {
-    // Generate JWT token for client approval
-    const token = generateClientApprovalToken({
-      versionId: options.versionId,
-      clientEmail: options.clientEmail,
-      clientName: options.clientName,
-      projectId: options.versionId // Using versionId as projectId for now
-    });
-
-    // Generate approval URL
-    const approvalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/approve/${token}`;
-
     // Create email log record first to get the ID for tracking pixel
     const emailLog = await prisma.emailLog.create({
       data: {
@@ -131,18 +141,15 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     // Generate tracking pixel URL
     const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
 
-    // Generate trackable approval URL
-    const trackableApprovalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/click/${emailLog.id}?url=${encodeURIComponent(approvalUrl)}`;
-
-    // Generate email template with enhanced data
+    // Generate email template with enhanced data (no approval URL needed)
     const { subject, html } = generateMeisnerDeliveryEmailTemplate({
       clientName: options.clientName,
       projectName: options.projectName,
-      approvalUrl: trackableApprovalUrl,
+      approvalUrl: '', // Not used in new template
       assets: options.assets,
       trackingPixelUrl,
       roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type,
-      designPhase: 'Client Approval',
+      designPhase: 'Design Showcase',
       projectAddress: versionDetails?.stage?.room?.project?.address || undefined
     });
 
@@ -152,11 +159,12 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       data: { subject, html }
     });
 
-    // Send email
+    // Send email with tags for better organization
     const emailResult = await sendEmail({
       to: options.clientEmail,
       subject,
-      html
+      html,
+      tags: ['client-approval', 'delivery', options.projectName.toLowerCase().replace(/\s+/g, '-')]
     });
     console.log('Email sent:', emailResult.messageId, 'via', emailResult.provider);
 
