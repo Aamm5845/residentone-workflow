@@ -112,10 +112,13 @@ export default function ClientApprovalWorkspace({
   const { 
     data: activityData, 
     error: activityError, 
-    isLoading: activityLoading 
+    isLoading: activityLoading,
+    mutate: mutateActivity
   } = useSWR(`/api/stages/${stage.id}/activity`, fetcher, {
     refreshInterval: 30000, // Refresh every 30 seconds
-    revalidateOnFocus: true
+    revalidateOnFocus: true,
+    errorRetryCount: 3,
+    dedupingInterval: 2000
   })
 
   // Fetch email analytics
@@ -281,6 +284,8 @@ export default function ClientApprovalWorkspace({
       if (response.ok) {
         const data = await response.json()
         setCurrentVersion(data.version)
+        // Refresh activity log
+        mutateActivity()
       } else {
         console.error('Failed to approve rendering')
         alert('Failed to approve rendering. Please try again.')
@@ -316,6 +321,9 @@ export default function ClientApprovalWorkspace({
           fetchEmailAnalytics(data.version.id)
         }
         
+        // Refresh activity log
+        mutateActivity()
+        
         alert('Email sent to client successfully!')
       } else {
         const error = await response.json()
@@ -348,6 +356,8 @@ export default function ClientApprovalWorkspace({
       if (response.ok) {
         const data = await response.json()
         setCurrentVersion(data.version)
+        // Refresh activity log
+        mutateActivity()
         alert('Marked as sent to client successfully!')
       } else {
         const error = await response.json()
@@ -394,6 +404,9 @@ export default function ClientApprovalWorkspace({
         } catch (notificationError) {
           console.warn('Failed to create notification:', notificationError)
         }
+        
+        // Refresh activity log
+        mutateActivity()
         
         alert('Follow-up marked as completed!')
       } else {
@@ -466,6 +479,9 @@ export default function ClientApprovalWorkspace({
       if (response.ok) {
         const data = await response.json()
         setCurrentVersion(data.version)
+        
+        // Refresh activity log
+        mutateActivity()
         
         if (decision === 'APPROVED') {
           alert('Client decision recorded: Approved!')
@@ -833,7 +849,15 @@ export default function ClientApprovalWorkspace({
                     <AlertCircle className="w-6 h-6 text-red-600" />
                   </div>
                   <h4 className="text-sm font-medium text-gray-900 mb-1">Failed to load activity</h4>
-                  <p className="text-xs text-gray-500">Please refresh the page to try again</p>
+                  <p className="text-xs text-gray-500 mb-3">Unable to fetch activity logs</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => mutateActivity()}
+                    className="text-xs"
+                  >
+                    Try Again
+                  </Button>
                 </div>
               )}
 
@@ -866,12 +890,15 @@ export default function ClientApprovalWorkspace({
                             <span className="text-xs font-medium text-gray-900">{log.user.name}</span>
                           )}
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            log.type === 'CLIENT_DECISION' ? 'bg-green-100 text-green-800' :
-                            log.type === 'EMAIL_SENT' ? 'bg-blue-100 text-blue-800' :
-                            log.type === 'AARON_APPROVED' ? 'bg-purple-100 text-purple-800' :
+                            log.type === 'CLIENT_DECISION' || log.type === 'CLIENT_APPROVED' ? 'bg-green-100 text-green-800' :
+                            log.type === 'EMAIL_SENT' || log.type === 'SENT_TO_CLIENT' ? 'bg-blue-100 text-blue-800' :
+                            log.type === 'AARON_APPROVED' || log.type === 'APPROVED' ? 'bg-purple-100 text-purple-800' :
+                            log.type === 'MARKED_AS_SENT' ? 'bg-orange-100 text-orange-800' :
+                            log.type === 'FOLLOW_UP_COMPLETED' ? 'bg-cyan-100 text-cyan-800' :
+                            log.type === 'REVISION_REQUESTED' ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {log.type.replace('_', ' ').toLowerCase()}
+                            {log.type.replace(/_/g, ' ').toLowerCase()}
                           </span>
                         </div>
                         <p className="text-sm text-gray-900 mb-1">{log.message}</p>
@@ -1041,26 +1068,38 @@ export default function ClientApprovalWorkspace({
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-4">Actions</h4>
               <div className="space-y-3">
-                {/* Email Preview & Test Section */}
-                <div className="space-y-2">
-                  <Button
-                    onClick={() => setShowEmailPreview(!showEmailPreview)}
-                    variant="outline"
-                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-                  >
-                    <Monitor className="w-4 h-4 mr-2" />
-                    {showEmailPreview ? 'Hide Email Preview' : 'Preview Email'}
-                  </Button>
-                  
-                  <Button
-                    onClick={() => setShowTestEmailDialog(true)}
-                    variant="outline"
-                    className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
-                  >
-                    <TestTube className="w-4 h-4 mr-2" />
-                    Send Test Email
-                  </Button>
-                </div>
+                {/* Email Preview & Test Section - Only available after Aaron's approval */}
+                {currentVersion.approvedByAaron ? (
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => setShowEmailPreview(!showEmailPreview)}
+                      variant="outline"
+                      className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      <Monitor className="w-4 h-4 mr-2" />
+                      {showEmailPreview ? 'Hide Email Preview' : 'Preview Email'}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowTestEmailDialog(true)}
+                      variant="outline"
+                      className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                    >
+                      <TestTube className="w-4 h-4 mr-2" />
+                      Send Test Email
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-900">Waiting for Aaron's Approval</span>
+                    </div>
+                    <p className="text-xs text-amber-700">
+                      Email preview and testing will be available after Aaron approves this version.
+                    </p>
+                  </div>
+                )}
 
                 {/* Send to Client Section */}
                 {currentVersion.approvedByAaron && (
@@ -1084,27 +1123,49 @@ export default function ClientApprovalWorkspace({
                           <div className="flex-1 border-t border-gray-300"></div>
                         </div>
                         
-                        {/* Already Sent */}
+                        {/* Already Sent Outside System */}
                         <Button
                           onClick={handleMarkAsSent}
                           disabled={loading}
                           variant="outline"
-                          className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 disabled:bg-gray-100"
+                          className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 disabled:bg-gray-100"
                         >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          {loading ? 'Marking...' : 'Already Sent Manually'}
+                          <Mail className="w-4 h-4 mr-2" />
+                          {loading ? 'Marking as Sent...' : 'Mark as Already Sent'}
                         </Button>
+                        <p className="text-xs text-gray-500 text-center mt-1">
+                          Use this if you sent the email outside this system
+                        </p>
                       </>
                     ) : (
-                      /* Show status when already sent */
-                      <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg">
+                      /* Show status when already sent - differentiate between system vs manual */
+                      <div className={`w-full p-3 rounded-lg border ${
+                        currentVersion.followUpNotes === 'Email sent manually outside of system'
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-green-50 border-green-200'
+                      }`}>
                         <div className="flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-900">
-                            Sent to Client
-                          </span>
+                          {currentVersion.followUpNotes === 'Email sent manually outside of system' ? (
+                            <>
+                              <Mail className="w-4 h-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-900">
+                                Marked as Already Sent
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-900">
+                                Sent via System
+                              </span>
+                            </>
+                          )}
                         </div>
-                        <p className="text-xs text-green-700 mt-1">
+                        <p className={`text-xs mt-1 ${
+                          currentVersion.followUpNotes === 'Email sent manually outside of system'
+                            ? 'text-blue-700'
+                            : 'text-green-700'
+                        }`}>
                           {new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { 
                             month: 'short', 
                             day: 'numeric', 
@@ -1112,6 +1173,9 @@ export default function ClientApprovalWorkspace({
                             hour: '2-digit',
                             minute: '2-digit'
                           })}
+                          {currentVersion.followUpNotes === 'Email sent manually outside of system' && (
+                            <span className="block text-xs mt-1">Sent externally, not tracked by system</span>
+                          )}
                         </p>
                       </div>
                     )}

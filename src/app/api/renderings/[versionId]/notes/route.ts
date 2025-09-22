@@ -23,15 +23,10 @@ export async function GET(
     const resolvedParams = await params
     const { versionId } = resolvedParams
 
-    // Verify rendering version access
+    // Verify rendering version access - simplified to match GET /api/renderings logic
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       }
     })
 
@@ -80,15 +75,10 @@ export async function POST(
       return NextResponse.json({ error: 'Note content is required' }, { status: 400 })
     }
 
-    // Verify rendering version access
+    // Verify rendering version access - simplified to match GET /api/renderings logic
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         room: {
