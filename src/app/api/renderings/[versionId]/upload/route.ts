@@ -146,6 +146,7 @@ export async function POST(
               storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
               renderingWorkspace: true
             }),
+            orgId: 'shared-org', // Required field - use consistent org identifier
             projectId: renderingVersion.room.project.id,
             roomId: renderingVersion.room.id,
             stageId: renderingVersion.stageId,

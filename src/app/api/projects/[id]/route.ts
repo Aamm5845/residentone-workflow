@@ -333,47 +333,55 @@ export async function DELETE(
         if (stageIds.length > 0) {
           console.log(`🗑️ Processing ${stageIds.length} stages for deletion`)
           
-          // Delete rendering workspace data first (newer models)
-          const renderingVersions = await tx.renderingVersion.findMany({
-            where: { stageId: { in: stageIds } },
-            select: { id: true }
-          })
-          
-          const renderingVersionIds = renderingVersions.map(rv => rv.id)
-          
-          if (renderingVersionIds.length > 0) {
-            console.log(`🗑️ Deleting ${renderingVersionIds.length} rendering versions`)
-            
-            // Delete rendering notes
-            const deletedRenderingNotes = await tx.renderingNote.deleteMany({
-              where: { renderingVersionId: { in: renderingVersionIds } }
+          // Delete rendering workspace data first (newer models) - with error handling
+          try {
+            const renderingVersions = await tx.renderingVersion.findMany({
+              where: { stageId: { in: stageIds } },
+              select: { id: true }
             })
-            console.log(`🗑️ Deleted ${deletedRenderingNotes.count} rendering notes`)
             
-            // Delete rendering version assets
-            const deletedRenderingAssets = await tx.asset.deleteMany({
-              where: { renderingVersionId: { in: renderingVersionIds } }
-            })
-            console.log(`🗑️ Deleted ${deletedRenderingAssets.count} rendering assets`)
+            const renderingVersionIds = renderingVersions.map(rv => rv.id)
             
-            // Delete client approval versions linked to rendering versions
-            const deletedClientApprovalVersions = await tx.clientApprovalVersion.deleteMany({
-              where: { renderingVersionId: { in: renderingVersionIds } }
-            })
-            console.log(`🗑️ Deleted ${deletedClientApprovalVersions.count} client approval versions`)
-            
-            // Delete the rendering versions themselves
-            const deletedRenderingVersions = await tx.renderingVersion.deleteMany({
-              where: { id: { in: renderingVersionIds } }
-            })
-            console.log(`🗑️ Deleted ${deletedRenderingVersions.count} rendering versions`)
+            if (renderingVersionIds.length > 0) {
+              console.log(`🗑️ Deleting ${renderingVersionIds.length} rendering versions`)
+              
+              // Delete rendering notes
+              const deletedRenderingNotes = await tx.renderingNote.deleteMany({
+                where: { renderingVersionId: { in: renderingVersionIds } }
+              })
+              console.log(`🗑️ Deleted ${deletedRenderingNotes.count} rendering notes`)
+              
+              // Delete rendering version assets
+              const deletedRenderingAssets = await tx.asset.deleteMany({
+                where: { renderingVersionId: { in: renderingVersionIds } }
+              })
+              console.log(`🗑️ Deleted ${deletedRenderingAssets.count} rendering assets`)
+              
+              // Delete client approval versions linked to rendering versions
+              const deletedClientApprovalVersions = await tx.clientApprovalVersion.deleteMany({
+                where: { renderingVersionId: { in: renderingVersionIds } }
+              })
+              console.log(`🗑️ Deleted ${deletedClientApprovalVersions.count} client approval versions`)
+              
+              // Delete the rendering versions themselves
+              const deletedRenderingVersions = await tx.renderingVersion.deleteMany({
+                where: { id: { in: renderingVersionIds } }
+              })
+              console.log(`🗑️ Deleted ${deletedRenderingVersions.count} rendering versions`)
+            }
+          } catch (renderingError) {
+            console.warn('⚠️ Could not delete rendering workspace data (may not exist):', renderingError)
           }
           
-          // Delete drawings workspace data
-          const deletedDrawingChecklistItems = await tx.drawingChecklistItem.deleteMany({
-            where: { stageId: { in: stageIds } }
-          })
-          console.log(`🗑️ Deleted ${deletedDrawingChecklistItems.count} drawing checklist items`)
+          // Delete drawings workspace data - with error handling
+          try {
+            const deletedDrawingChecklistItems = await tx.drawingChecklistItem.deleteMany({
+              where: { stageId: { in: stageIds } }
+            })
+            console.log(`🗑️ Deleted ${deletedDrawingChecklistItems.count} drawing checklist items`)
+          } catch (drawingError) {
+            console.warn('⚠️ Could not delete drawing checklist items (may not exist):', drawingError)
+          }
           
           // Delete stage-related data
           const deletedStageAssets = await tx.asset.deleteMany({
@@ -415,22 +423,30 @@ export async function DELETE(
           })
           console.log(`🗑️ Deleted ${deletedDesignSections.count} design sections`)
           
-          // Delete client approval stages
-          const deletedClientApprovalStages = await tx.clientApprovalStage.deleteMany({
-            where: { stageId: { in: stageIds } }
-          })
-          console.log(`🗑️ Deleted ${deletedClientApprovalStages.count} client approval stages`)
+          // Delete client approval stages - with error handling
+          try {
+            const deletedClientApprovalStages = await tx.clientApprovalStage.deleteMany({
+              where: { stageId: { in: stageIds } }
+            })
+            console.log(`🗑️ Deleted ${deletedClientApprovalStages.count} client approval stages`)
+          } catch (approvalError) {
+            console.warn('⚠️ Could not delete client approval stages (may not exist):', approvalError)
+          }
           
-          // Delete activity logs for these stages
-          const deletedActivityLogs = await tx.activityLog.deleteMany({
-            where: {
-              OR: [
-                { entityId: { in: stageIds } },
-                { details: { path: ['stageId'], in: stageIds } }
-              ]
-            }
-          })
-          console.log(`🗑️ Deleted ${deletedActivityLogs.count} activity logs`)
+          // Delete activity logs for these stages - with error handling
+          try {
+            const deletedActivityLogs = await tx.activityLog.deleteMany({
+              where: {
+                OR: [
+                  { entityId: { in: stageIds } },
+                  { details: { path: ['stageId'], in: stageIds } }
+                ]
+              }
+            })
+            console.log(`🗑️ Deleted ${deletedActivityLogs.count} activity logs`)
+          } catch (activityError) {
+            console.warn('⚠️ Could not delete activity logs (may not exist):', activityError)
+          }
           
           // Delete stages
           const deletedStages = await tx.stage.deleteMany({
@@ -446,16 +462,20 @@ export async function DELETE(
         console.log(`🗑️ Deleted ${deletedRooms.count} rooms`)
       }
       
-      // Delete any remaining activity logs for this project
-      const deletedProjectActivityLogs = await tx.activityLog.deleteMany({
-        where: {
-          OR: [
-            { entityId: params.id },
-            { details: { path: ['projectId'], equals: params.id } }
-          ]
-        }
-      })
-      console.log(`🗑️ Deleted ${deletedProjectActivityLogs.count} project activity logs`)
+      // Delete any remaining activity logs for this project - with error handling
+      try {
+        const deletedProjectActivityLogs = await tx.activityLog.deleteMany({
+          where: {
+            OR: [
+              { entityId: params.id },
+              { details: { path: ['projectId'], equals: params.id } }
+            ]
+          }
+        })
+        console.log(`🗑️ Deleted ${deletedProjectActivityLogs.count} project activity logs`)
+      } catch (projectActivityError) {
+        console.warn('⚠️ Could not delete project activity logs (may not exist):', projectActivityError)
+      }
       
       // Finally delete the project
       const deletedProject = await tx.project.delete({
