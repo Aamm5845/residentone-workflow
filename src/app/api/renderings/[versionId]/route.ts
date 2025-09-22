@@ -27,12 +27,7 @@ export async function GET(
 
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         assets: {
@@ -99,12 +94,7 @@ export async function PATCH(
     // Verify rendering version access
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         room: {
@@ -228,12 +218,7 @@ export async function DELETE(
     // Verify rendering version access and get details
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         room: {
