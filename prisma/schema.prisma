@@ -628,16 +628,21 @@ model UserSession {
 }
 
 model EmailLog {
-  id        String                @id @default(cuid())
-  versionId String
-  to        String
-  subject   String
-  html      String
-  sentAt    DateTime              @default(now())
-  openedAt  DateTime?
-  type      String
-  metadata  Json?
-  version   ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  id             String                @id @default(cuid())
+  versionId      String
+  to             String
+  subject        String
+  html           String
+  sentAt         DateTime              @default(now())
+  openedAt       DateTime?
+  type           String
+  metadata       Json?
+  deliveryStatus String?               @default("PENDING") // PENDING, SENT, DELIVERED, FAILED, BOUNCED
+  deliveryError  String?
+  providerId     String?               // Message ID from email provider
+  provider       String?               // resend, mailgun, smtp
+  deliveredAt    DateTime?             // When provider confirmed delivery
+  version        ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 }
 
 model ClientApproval {

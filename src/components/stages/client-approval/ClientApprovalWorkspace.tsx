@@ -22,7 +22,8 @@ import {
   Camera,
   ChevronDown,
   Monitor,
-  TestTube
+  TestTube,
+  RefreshCw
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
@@ -339,6 +340,51 @@ export default function ClientApprovalWorkspace({
     } catch (error) {
       console.error('Error sending to client:', error)
       alert('Failed to send email. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendToClient = async () => {
+    const clientEmail = project.client?.email
+    if (!confirm(`Resend email to ${clientEmail}? This will send another copy of the approval email with the currently selected assets.`)) {
+      return
+    }
+    
+    setLoading(true)
+    try {
+      // Use the selected assets from state
+      const selectedAssetIds = selectedAssets
+      
+      const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ selectedAssetIds })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentVersion(data.version)
+        
+        // Fetch email analytics after resending
+        if (data.version?.id) {
+          fetchEmailAnalytics(data.version.id)
+        }
+        
+        // Refresh activity log
+        mutateActivity()
+        
+        alert('Email resent to client successfully!')
+      } else {
+        const error = await response.json()
+        console.error('Failed to resend email:', error)
+        alert(`Failed to resend email: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error resending to client:', error)
+      alert('Failed to resend email. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -1158,45 +1204,60 @@ export default function ClientApprovalWorkspace({
                         </p>
                       </>
                     ) : (
-                      /* Show status when already sent - differentiate between system vs manual */
-                      <div className={`w-full p-3 rounded-lg border ${
-                        currentVersion.followUpNotes === 'Email sent manually outside of system'
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-green-50 border-green-200'
-                      }`}>
-                        <div className="flex items-center space-x-2">
-                          {currentVersion.followUpNotes === 'Email sent manually outside of system' ? (
-                            <>
-                              <Mail className="w-4 h-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-900">
-                                Marked as Already Sent
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-900">
-                                Sent via System
-                              </span>
-                            </>
-                          )}
-                        </div>
-                        <p className={`text-xs mt-1 ${
+                      /* Show status when already sent with resend option */
+                      <div className="space-y-3">
+                        <div className={`w-full p-3 rounded-lg border ${
                           currentVersion.followUpNotes === 'Email sent manually outside of system'
-                            ? 'text-blue-700'
-                            : 'text-green-700'
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'bg-green-50 border-green-200'
                         }`}>
-                          {new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                          {currentVersion.followUpNotes === 'Email sent manually outside of system' && (
-                            <span className="block text-xs mt-1">Sent externally, not tracked by system</span>
-                          )}
-                        </p>
+                          <div className="flex items-center space-x-2">
+                            {currentVersion.followUpNotes === 'Email sent manually outside of system' ? (
+                              <>
+                                <Mail className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-900">
+                                  Marked as Already Sent
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-900">
+                                  Sent via System
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <p className={`text-xs mt-1 ${
+                            currentVersion.followUpNotes === 'Email sent manually outside of system'
+                              ? 'text-blue-700'
+                              : 'text-green-700'
+                          }`}>
+                            {new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                            {currentVersion.followUpNotes === 'Email sent manually outside of system' && (
+                              <span className="block text-xs mt-1">Sent externally, not tracked by system</span>
+                            )}
+                          </p>
+                        </div>
+                        
+                        {/* Resend to Client Button - Only show for system-sent emails */}
+                        {currentVersion.followUpNotes !== 'Email sent manually outside of system' && (
+                          <Button
+                            onClick={handleResendToClient}
+                            disabled={loading}
+                            variant="outline"
+                            className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 disabled:bg-gray-100"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            {loading ? 'Resending...' : 'Resend to Client'}
+                          </Button>
+                        )}
                       </div>
                     )}
                   </>

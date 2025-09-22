@@ -42,7 +42,8 @@ const transporter = createTransporter();
 
 // Email sending function that tries Resend first, then Mailgun, then SMTP
 async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
-  const fromAddress = options.from || process.env.EMAIL_FROM || 'ResidentOne <noreply@residentone.com>';
+  // Use a more reliable default from address
+  const fromAddress = options.from || process.env.EMAIL_FROM || 'onboarding@resend.dev';
   
   console.log('📧 Attempting to send email:', {
     to: options.to,
@@ -72,21 +73,32 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     try {
       console.log('🚀 Sending email via Resend...');
       
-      // Additional Resend-specific validation
-      const emailData = {
+      // Additional Resend-specific validation and cleanup
+      const cleanTags = options.tags
+        ?.filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
+        ?.map(tag => tag.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-'))
+        ?.slice(0, 10) || []; // Resend has a limit on tags
+      
+      // Build email data object without empty/invalid fields
+      const emailData: any = {
         from: fromAddress,
         to: options.to,
         subject: options.subject,
-        html: options.html,
-        tags: options.tags?.filter(tag => tag && tag.trim() !== '') || []
+        html: options.html
       };
+      
+      // Only add tags if we have valid ones (Resend doesn't like empty arrays)
+      if (cleanTags.length > 0) {
+        emailData.tags = cleanTags;
+      }
       
       console.log('📝 Resend email payload:', {
         from: emailData.from,
         to: emailData.to,
         subject: emailData.subject,
         htmlLength: emailData.html.length,
-        tagsCount: emailData.tags.length
+        tagsCount: cleanTags.length,
+        tags: cleanTags
       });
       
       const result = await resend.emails.send(emailData);
@@ -94,12 +106,28 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
       return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
     } catch (error) {
       console.error('❌ Resend send failed, falling back to Mailgun:', error);
-      // Log the specific error for debugging
+      
+      // Log detailed error information for debugging
       if (error instanceof Error) {
         console.error('Resend error details:', {
+          name: error.name,
           message: error.message,
           stack: error.stack
         });
+      }
+      
+      // Log the payload that caused the error for debugging
+      console.error('Failed Resend payload:', {
+        from: emailData.from,
+        to: emailData.to,
+        subject: emailData.subject?.substring(0, 50) + '...',
+        htmlLength: emailData.html?.length,
+        tags: cleanTags
+      });
+      
+      // If this is a validation error, don't retry with other providers
+      if (error instanceof Error && (error.message.includes('validation') || error.message.includes('Invalid'))) {
+        throw new Error(`Email validation failed: ${error.message}`);
       }
     }
   } else {
@@ -215,13 +243,56 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     });
 
     // Send email with tags for better organization
-    const emailResult = await sendEmail({
-      to: options.clientEmail,
-      subject,
-      html,
-      tags: ['client-approval', 'delivery', options.projectName.toLowerCase().replace(/\s+/g, '-')]
+    let emailResult;
+    let deliveryStatus = 'PENDING';
+    let deliveryError = null;
+    
+    try {
+      emailResult = await sendEmail({
+        to: options.clientEmail,
+        subject,
+        html,
+        tags: ['client-approval', 'delivery', options.projectName.toLowerCase().replace(/\s+/g, '-')]
+      });
+      
+      console.log('Email sent:', emailResult.messageId, 'via', emailResult.provider);
+      deliveryStatus = 'SENT';
+      
+    } catch (emailError) {
+      console.error('Email delivery failed:', emailError);
+      deliveryStatus = 'FAILED';
+      deliveryError = emailError instanceof Error ? emailError.message : 'Unknown error';
+      
+      // Update email log with failure status
+      await prisma.emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          deliveryStatus: 'FAILED',
+          deliveryError,
+          metadata: {
+            error: deliveryError,
+            failedAt: new Date().toISOString()
+          }
+        }
+      });
+      
+      throw emailError; // Re-throw to maintain existing error handling
+    }
+    
+    // Update email log with success status and provider info
+    await prisma.emailLog.update({
+      where: { id: emailLog.id },
+      data: {
+        deliveryStatus,
+        providerId: emailResult.messageId,
+        provider: emailResult.provider,
+        metadata: {
+          messageId: emailResult.messageId,
+          provider: emailResult.provider,
+          sentAt: new Date().toISOString()
+        }
+      }
     });
-    console.log('Email sent:', emailResult.messageId, 'via', emailResult.provider);
 
     return emailLog.id;
 

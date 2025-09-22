@@ -71,6 +71,10 @@ export async function GET(
 
     // Calculate analytics
     const totalSent = emailLogs.length
+    const deliveredEmails = emailLogs.filter(log => log.deliveryStatus === 'SENT' || log.deliveryStatus === 'DELIVERED')
+    const failedEmails = emailLogs.filter(log => log.deliveryStatus === 'FAILED' || log.deliveryStatus === 'BOUNCED')
+    const totalDelivered = deliveredEmails.length
+    const totalFailed = failedEmails.length
     const openedEmails = emailLogs.filter(log => log.openedAt !== null)
     const totalOpened = openedEmails.length
     
@@ -96,7 +100,9 @@ export async function GET(
       return sum + (metadata?.downloadCount || 0)
     }, 0)
 
-    const openRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0
+    const deliveryRate = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0
+    const failureRate = totalSent > 0 ? (totalFailed / totalSent) * 100 : 0
+    const openRate = totalDelivered > 0 ? (totalOpened / totalDelivered) * 100 : 0
     const clickRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0
     const downloadRate = totalOpened > 0 ? (totalDownloaded / totalOpened) * 100 : 0
 
@@ -116,9 +122,13 @@ export async function GET(
 
     const analytics = {
       totalSent,
+      totalDelivered,
+      totalFailed,
       totalOpened,
       totalClicked,
       totalDownloaded,
+      deliveryRate: Math.round(deliveryRate * 100) / 100,
+      failureRate: Math.round(failureRate * 100) / 100,
       openRate: Math.round(openRate * 100) / 100,
       clickRate: Math.round(clickRate * 100) / 100,
       downloadRate: Math.round(downloadRate * 100) / 100,
@@ -137,6 +147,11 @@ export async function GET(
         type: log.type,
         sentAt: log.sentAt,
         openedAt: log.openedAt,
+        deliveryStatus: log.deliveryStatus || 'PENDING',
+        deliveryError: log.deliveryError,
+        providerId: log.providerId,
+        provider: log.provider,
+        deliveredAt: log.deliveredAt,
         clickCount: metadata?.clickCount || 0,
         clicks: metadata?.clicks || [],
         lastClickAt: metadata?.lastClickAt || null,
