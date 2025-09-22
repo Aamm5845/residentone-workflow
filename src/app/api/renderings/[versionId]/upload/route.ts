@@ -146,31 +146,11 @@ export async function POST(
               storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
               renderingWorkspace: true
             }),
-            project: {
-              connect: {
-                id: renderingVersion.room.project.id
-              }
-            },
-            room: {
-              connect: {
-                id: renderingVersion.room.id
-              }
-            },
-            stage: {
-              connect: {
-                id: renderingVersion.stageId
-              }
-            },
-            renderingVersion: {
-              connect: {
-                id: versionId
-              }
-            },
-            uploader: {
-              connect: {
-                id: session.user.id
-              }
-            }
+            projectId: renderingVersion.room.project.id,
+            roomId: renderingVersion.room.id,
+            stageId: renderingVersion.stageId,
+            renderingVersionId: versionId,
+            uploadedBy: session.user.id
           }
         })
 
@@ -197,9 +177,16 @@ export async function POST(
         })
 
       } catch (error) {
-        console.error(`Error uploading file ${file.name}:`, error)
+        console.error(`❌ Error uploading file ${file.name}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          versionId: versionId
+        })
         return NextResponse.json({ 
-          error: `Failed to process ${file.name}` 
+          error: `Failed to process ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}` 
         }, { status: 500 })
       }
     }
@@ -211,7 +198,13 @@ export async function POST(
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error uploading files to rendering version:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('❌ Fatal error uploading files to rendering version:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      versionId
+    })
+    return NextResponse.json({ 
+      error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    }, { status: 500 })
   }
 }
