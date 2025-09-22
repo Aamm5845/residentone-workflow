@@ -29,6 +29,11 @@ export default async function TeamManagement() {
   
   try {
     teamMembers = await prisma.user.findMany({
+      where: {
+        orgId: {
+          not: null
+        }
+      },
       include: {
         organization: true,
         assignedStages: {

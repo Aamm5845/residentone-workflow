@@ -105,9 +105,19 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               </Button>
               
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4" />
-                </div>
+                {session?.user?.image ? (
+                  <img 
+                    src={session.user.image} 
+                    alt={session?.user?.name || 'Profile'}
+                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-semibold">
+                      {session?.user?.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                )}
                 <div className="hidden md:block">
                   <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
                   <p className="text-xs text-gray-500">{session?.user?.role}</p>

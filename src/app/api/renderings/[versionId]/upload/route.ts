@@ -30,12 +30,7 @@ export async function POST(
     // Verify rendering version access
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         room: {
@@ -96,7 +91,7 @@ export async function POST(
           const bytes = await file.arrayBuffer()
           const buffer = Buffer.from(bytes)
           const filePath = generateFilePath(
-            session.user.orgId,
+            'shared-org', // Use a default org identifier
             renderingVersion.room.project.id,
             renderingVersion.room.id,
             undefined, // no section for rendering files
@@ -174,11 +169,6 @@ export async function POST(
             uploader: {
               connect: {
                 id: session.user.id
-              }
-            },
-            organization: {
-              connect: {
-                id: session.user.orgId
               }
             }
           }

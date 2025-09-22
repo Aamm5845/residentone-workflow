@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             email: user.email,
             name: user.name,
+            image: user.image,
             role: user.role,
             orgId: user.orgId,
             orgName: user.organization.name,
@@ -131,7 +132,8 @@ export async function getSession() {
               id: user.id,
               role: user.role,
               orgId: user.orgId,
-              orgName: user.organization.name
+              orgName: user.organization.name,
+              image: user.image
             }
           }
         }

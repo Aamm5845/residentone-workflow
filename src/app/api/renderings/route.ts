@@ -36,27 +36,11 @@ export async function GET(request: NextRequest) {
       where.roomId = roomId
     }
 
-    // Verify access through room/project ownership
-    const accessQuery = roomId ? {
-      room: {
-        project: {
-          orgId: session.user.orgId
-        }
-      }
-    } : {
-      stage: {
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
-      }
-    }
+    // All users can access rendering versions (no orgId filtering)
 
     const renderingVersions = await prisma.renderingVersion.findMany({
       where: {
-        ...where,
-        ...accessQuery
+        ...where
       },
       include: {
         assets: {
@@ -122,12 +106,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: stageId,
         roomId: roomId,
-        type: 'THREE_D',
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        type: 'THREE_D'
       },
       include: {
         room: {
