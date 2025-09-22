@@ -105,6 +105,7 @@ export default function ClientApprovalWorkspace({
   const [sendingTestEmail, setSendingTestEmail] = useState(false)
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  const [showEmailDetails, setShowEmailDetails] = useState(false)
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -1073,6 +1074,26 @@ export default function ClientApprovalWorkspace({
                       </div>
                     </div>
                     
+                    {/* Delivery Status */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-emerald-50 p-2 rounded">
+                        <div className="text-emerald-600 font-medium">{emailAnalytics.analytics.totalDelivered || 0}</div>
+                        <div className="text-emerald-500 text-xs">Successfully Delivered</div>
+                      </div>
+                      {emailAnalytics.analytics.totalFailed > 0 && (
+                        <div className="bg-red-50 p-2 rounded">
+                          <div className="text-red-600 font-medium">{emailAnalytics.analytics.totalFailed}</div>
+                          <div className="text-red-500 text-xs">Failed Deliveries</div>
+                        </div>
+                      )}
+                      {emailAnalytics.analytics.totalFailed === 0 && (
+                        <div className="bg-teal-50 p-2 rounded">
+                          <div className="text-teal-600 font-medium">{emailAnalytics.analytics.deliveryRate}%</div>
+                          <div className="text-teal-500 text-xs">Delivery Rate</div>
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="bg-purple-50 p-2 rounded">
                         <div className="text-purple-600 font-medium">{emailAnalytics.analytics.openRate}%</div>
@@ -1107,6 +1128,72 @@ export default function ClientApprovalWorkspace({
                           <div>Last opened: {new Date(emailAnalytics.analytics.lastOpenAt).toLocaleDateString('en-US', { 
                             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
                           })}</div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* View Individual Email Details */}
+                    {emailAnalytics.emails && emailAnalytics.emails.length > 0 && (
+                      <div className="pt-3 border-t border-gray-100">
+                        <Button
+                          onClick={() => setShowEmailDetails(!showEmailDetails)}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        >
+                          {showEmailDetails ? 'Hide' : 'View'} Individual Email Status
+                        </Button>
+                        
+                        {showEmailDetails && (
+                          <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                            {emailAnalytics.emails.map((email, index) => (
+                              <div key={email.id} className="bg-gray-50 rounded p-2 text-xs">
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className="font-medium text-gray-900">
+                                    Email #{index + 1} to {email.to}
+                                  </div>
+                                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                    email.deliveryStatus === 'SENT' || email.deliveryStatus === 'DELIVERED'
+                                      ? 'bg-green-100 text-green-700'
+                                      : email.deliveryStatus === 'FAILED' || email.deliveryStatus === 'BOUNCED'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {email.deliveryStatus || 'PENDING'}
+                                  </div>
+                                </div>
+                                <div className="text-gray-600">
+                                  Sent: {new Date(email.sentAt).toLocaleDateString('en-US', { 
+                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                  })}
+                                </div>
+                                {email.deliveredAt && (
+                                  <div className="text-gray-600">
+                                    Delivered: {new Date(email.deliveredAt).toLocaleDateString('en-US', { 
+                                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                  </div>
+                                )}
+                                {email.openedAt && (
+                                  <div className="text-gray-600">
+                                    Opened: {new Date(email.openedAt).toLocaleDateString('en-US', { 
+                                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                  </div>
+                                )}
+                                {email.deliveryError && (
+                                  <div className="text-red-600 mt-1">
+                                    Error: {email.deliveryError}
+                                  </div>
+                                )}
+                                {email.provider && (
+                                  <div className="text-gray-500">
+                                    Provider: {email.provider}{email.providerId ? ` (${email.providerId})` : ''}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )}
