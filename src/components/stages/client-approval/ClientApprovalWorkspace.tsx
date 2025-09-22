@@ -114,7 +114,13 @@ export default function ClientApprovalWorkspace({
     error: activityError, 
     isLoading: activityLoading,
     mutate: mutateActivity
-  } = useSWR(`/api/stages/${stage.id}/activity`, fetcher, {
+  } = useSWR(`/api/stages/${stage.id}/activity`, async (url) => {
+    console.log('Fetching activity logs from:', url);
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log('Activity logs API response:', data);
+    return data;
+  }, {
     refreshInterval: 30000, // Refresh every 30 seconds
     revalidateOnFocus: true,
     errorRetryCount: 3,
