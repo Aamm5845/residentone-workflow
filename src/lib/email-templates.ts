@@ -435,7 +435,7 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
                 ${emailedAssets.length === 1 ? `
                     <!-- Single Hero Image Layout -->
                     <div class="hero-layout">
-                        <img src="${emailedAssets[0].url}" alt="${data.roomName} Design Rendering" class="hero-image" />
+                        <img src="${emailedAssets[0].url}" alt="${data.roomName || 'Design'} Rendering" class="hero-image" />
                         <p class="hero-caption">${data.roomName || 'Interior Design'} Rendering</p>
                     </div>
                 ` : `
@@ -443,7 +443,7 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
                     <div class="renderings-grid">
                         ${emailedAssets.slice(0, 4).map((asset, index) => `
                             <div class="rendering-card">
-                                <img src="${asset.url}" alt="${data.roomName} Design Rendering ${index + 1}" class="rendering-image" />
+                                <img src="${asset.url}" alt="${data.roomName || 'Design'} Rendering ${index + 1}" class="rendering-image" />
                                 <div class="rendering-caption">
                                     <h4>View ${index + 1}</h4>
                                     <p>Design Perspective</p>

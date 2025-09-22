@@ -1,69 +1,29 @@
-import nodemailer from 'nodemailer';
-import Mailgun from 'mailgun.js';
-import formData from 'form-data';
 import { Resend } from 'resend';
 import { generateClientApprovalToken } from './jwt';
 import { generateMeisnerDeliveryEmailTemplate, generateFollowUpEmailTemplate, generateConfirmationEmailTemplate } from './email-templates';
 import { prisma } from './prisma';
 
-// Email configuration - Resend (preferred), Mailgun, then nodemailer fallbacks
-const resend = (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'YOUR_RESEND_API_KEY_HERE') 
-  ? new Resend(process.env.RESEND_API_KEY) 
-  : null;
-
-const mailgun = new Mailgun(formData);
-let mg: any = null;
-
-// Initialize Mailgun if API key is available
-if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
-  mg = mailgun.client({
-    username: 'api',
-    key: process.env.MAILGUN_API_KEY,
-    url: process.env.MAILGUN_URL || 'https://api.mailgun.net' // Use EU endpoint if needed
-  });
+// Initialize Resend
+if (!process.env.RESEND_API_KEY) {
+  throw new Error('RESEND_API_KEY is required');
 }
 
-// Fallback SMTP transporter for development or when Mailgun is not configured
-const createTransporter = () => nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'localhost', // Use 'localhost' for MailHog
-  port: parseInt(process.env.EMAIL_PORT || '1025'), // MailHog port
-  secure: false, // true for 465, false for other ports
-  auth: process.env.EMAIL_HOST === 'localhost' ? false : {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-  },
-  // For development with MailHog, disable auth
-  ...(process.env.EMAIL_HOST === 'localhost' && {
-    ignoreTLS: true,
-    secure: false,
-    requireTLS: false
-  })
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const transporter = createTransporter();
-
-// Email sending function that tries Resend first, then Mailgun, then SMTP
+// Email sending function using Resend only
 async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
-  // Use a more reliable default from address
-  const fromAddress = options.from || process.env.EMAIL_FROM || 'onboarding@resend.dev';
+  const fromAddress = options.from || process.env.EMAIL_FROM;
   
-  console.log('📧 Attempting to send email:', {
+  console.log('📧 Attempting to send email via Resend:', {
     to: options.to,
     subject: options.subject,
-    from: fromAddress,
-    hasResendKey: !!process.env.RESEND_API_KEY,
-    hasMailgunKey: !!process.env.MAILGUN_API_KEY,
-    resendConfigured: !!resend,
-    emailHostConfigured: !!process.env.EMAIL_HOST
+    from: fromAddress
   });
   
-  // Check if any email service is configured
-  if (!resend && !mg && !process.env.EMAIL_HOST) {
-    console.error('⚠️ No email service configured! Please set up Resend, Mailgun, or SMTP.');
-    throw new Error('No email service configured. Please set up Resend API key, Mailgun, or SMTP settings.');
+  // Validate required fields
+  if (!fromAddress || fromAddress.trim() === '') {
+    throw new Error('FROM address is required. Please set EMAIL_FROM environment variable.');
   }
-  
-  // Validate required fields before sending
   if (!options.to || options.to.trim() === '') {
     throw new Error('Recipient email address is required');
   }
@@ -73,191 +33,103 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
   if (!options.html || options.html.trim() === '') {
     throw new Error('Email content is required');
   }
-  if (!fromAddress || fromAddress.trim() === '') {
-    throw new Error('From address is required');
-  }
   
-  // Try Resend first if configured (best deliverability and developer experience)
-  if (resend) {
-    try {
-      console.log('🚀 Sending email via Resend...');
-      
-      // Additional Resend-specific validation and cleanup
-      const cleanTags = options.tags
-        ?.filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
-        ?.map(tag => tag.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-'))
-        ?.slice(0, 10) || []; // Resend has a limit on tags
-      
-      // Build email data object without empty/invalid fields
-      const emailData: any = {
-        from: fromAddress,
-        to: options.to,
-        subject: options.subject,
-        html: options.html
-      };
-      
-      // Only add tags if we have valid ones (Resend doesn't like empty arrays)
-      if (cleanTags.length > 0) {
-        emailData.tags = cleanTags;
-      }
-      
-      console.log('📝 Resend email payload:', {
-        from: emailData.from,
-        to: emailData.to,
-        subject: emailData.subject,
-        htmlLength: emailData.html.length,
-        tagsCount: cleanTags.length,
-        tags: cleanTags
-      });
-      
-      // Detailed field validation logging
-      console.log('🔍 Detailed field analysis:', {
-        from: {
-          value: emailData.from,
-          type: typeof emailData.from,
-          length: emailData.from?.length,
-          isEmpty: emailData.from === '',
-          isNull: emailData.from === null,
-          isUndefined: emailData.from === undefined,
-          hasSpaces: emailData.from?.includes(' '),
-          emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailData.from || '')
-        },
-        to: {
-          value: emailData.to,
-          type: typeof emailData.to,
-          length: emailData.to?.length,
-          isEmpty: emailData.to === '',
-          isNull: emailData.to === null,
-          isUndefined: emailData.to === undefined,
-          isArray: Array.isArray(emailData.to),
-          emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailData.to || '')
-        },
-        subject: {
-          value: emailData.subject,
-          type: typeof emailData.subject,
-          length: emailData.subject?.length,
-          isEmpty: emailData.subject === '',
-          isNull: emailData.subject === null,
-          isUndefined: emailData.subject === undefined,
-          hasNewlines: emailData.subject?.includes('\n'),
-          hasCarriageReturns: emailData.subject?.includes('\r')
-        },
-        html: {
-          type: typeof emailData.html,
-          length: emailData.html?.length,
-          isEmpty: emailData.html === '',
-          isNull: emailData.html === null,
-          isUndefined: emailData.html === undefined,
-          startsWithHtml: emailData.html?.toLowerCase().startsWith('<html'),
-          containsBody: emailData.html?.toLowerCase().includes('<body')
-        },
-        tags: {
-          value: cleanTags,
-          type: typeof cleanTags,
-          length: cleanTags.length,
-          isArray: Array.isArray(cleanTags),
-          hasEmptyStrings: cleanTags.some(tag => tag === ''),
-          hasNullUndefined: cleanTags.some(tag => tag === null || tag === undefined)
-        }
-      });
-      
-      // Log the exact JSON that will be sent to Resend
-      console.log('📤 Exact JSON payload to Resend:', JSON.stringify(emailData, null, 2));
-      
-      const result = await resend.emails.send(emailData);
-      console.log('✅ Email sent via Resend:', result.data?.id);
-      return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
-    } catch (error) {
-      console.error('❌ Resend send failed, falling back to Mailgun:', error);
-      
-      // Log detailed error information for debugging
-      if (error instanceof Error) {
-        console.error('Resend error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      
-      // Try to extract more details from the Resend error
-      try {
-        if (error && typeof error === 'object') {
-          console.error('🔍 Full Resend error object:', {
-            errorType: typeof error,
-            errorConstructor: error.constructor.name,
-            errorKeys: Object.keys(error),
-            errorValues: error,
-            stringified: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
-          });
-          
-          // Check if it's a fetch response error
-          if ('response' in error && error.response) {
-            console.error('📡 Resend API response error:', error.response);
-          }
-          
-          // Check for status code
-          if ('statusCode' in error) {
-            console.error('📊 Resend status code:', error.statusCode);
-          }
-          
-          // Check for validation errors
-          if ('errors' in error && error.errors) {
-            console.error('❗ Resend validation errors:', error.errors);
-          }
-        }
-      } catch (logError) {
-        console.error('⚠️ Failed to log detailed error info:', logError);
-      }
-      
-      // Log the payload that caused the error for debugging
-      console.error('Failed Resend payload:', {
-        from: emailData?.from,
-        to: emailData?.to,
-        subject: emailData?.subject?.substring(0, 50) + '...',
-        htmlLength: emailData?.html?.length,
-        tags: cleanTags
-      });
-      
-      // If this is a validation error, don't retry with other providers
-      if (error instanceof Error && (error.message.includes('validation') || error.message.includes('Invalid'))) {
-        throw new Error(`Email validation failed: ${error.message}`);
-      }
-    }
-  } else {
-    console.log('⚠️ Resend not configured, skipping to Mailgun');
-  }
-  
-  // Try Mailgun as fallback if configured
-  if (mg && process.env.MAILGUN_DOMAIN) {
-    try {
-      console.log('Sending email via Mailgun...');
-      const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
-        from: fromAddress,
-        to: options.to,
-        subject: options.subject,
-        html: options.html
-      });
-      console.log('Email sent via Mailgun:', result.id);
-      return { messageId: result.id, provider: 'mailgun' };
-    } catch (error) {
-      console.error('Mailgun send failed, falling back to SMTP:', error);
-    }
-  }
-  
-  // Fallback to SMTP
   try {
-    console.log('Sending email via SMTP...');
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: options.to,
-      subject: options.subject,
-      html: options.html
+    // Clean and validate tags
+    const cleanTags = options.tags
+      ?.filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
+      ?.map(tag => tag.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-'))
+      ?.slice(0, 10) || [];
+    
+    // Enhanced debugging: Log raw input data
+    console.log('🔍 RAW EMAIL INPUT DATA:', {
+      from: {
+        value: fromAddress,
+        type: typeof fromAddress,
+        length: fromAddress?.length,
+        isNull: fromAddress === null,
+        isUndefined: fromAddress === undefined,
+        isEmpty: fromAddress === ''
+      },
+      to: {
+        value: options.to,
+        type: typeof options.to,
+        length: options.to?.length,
+        isNull: options.to === null,
+        isUndefined: options.to === undefined,
+        isEmpty: options.to === ''
+      },
+      subject: {
+        value: options.subject,
+        type: typeof options.subject,
+        length: options.subject?.length,
+        isNull: options.subject === null,
+        isUndefined: options.subject === undefined,
+        isEmpty: options.subject === '',
+        preview: options.subject?.substring(0, 50)
+      },
+      html: {
+        type: typeof options.html,
+        length: options.html?.length,
+        isNull: options.html === null,
+        isUndefined: options.html === undefined,
+        isEmpty: options.html === '',
+        preview: options.html?.substring(0, 100)
+      },
+      rawTags: {
+        value: options.tags,
+        type: typeof options.tags,
+        isArray: Array.isArray(options.tags),
+        length: options.tags?.length
+      }
     });
-    console.log('Email sent via SMTP:', info.messageId);
-    return { messageId: info.messageId, provider: 'smtp' };
+    
+    // Build email data
+    const emailData: any = {
+      from: fromAddress.trim(),
+      to: options.to.trim(),
+      subject: options.subject.trim(),
+      html: options.html
+    };
+    
+    // Only add tags if we have valid ones
+    if (cleanTags.length > 0) {
+      emailData.tags = cleanTags;
+    }
+    
+    // Enhanced debugging: Log processed email data
+    console.log('📤 PROCESSED EMAIL DATA FOR RESEND:', {
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject.substring(0, 50) + (emailData.subject.length > 50 ? '...' : ''),
+      htmlLength: emailData.html.length,
+      tags: cleanTags,
+      hasUndefinedFields: Object.entries(emailData).some(([key, value]) => value === undefined),
+      hasNullFields: Object.entries(emailData).some(([key, value]) => value === null),
+      hasEmptyStringFields: Object.entries(emailData).some(([key, value]) => value === '')
+    });
+    
+    // Log exact JSON payload
+    console.log('📋 EXACT JSON PAYLOAD:', JSON.stringify(emailData, null, 2));
+    
+    const result = await resend.emails.send(emailData);
+    console.log('✅ Email sent successfully:', result.data?.id);
+    
+    return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
+    
   } catch (error) {
-    console.error('SMTP send also failed:', error);
-    throw new Error('Failed to send email via both Mailgun and SMTP');
+    console.error('❌ Resend send failed:', error);
+    
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message
+      });
+    }
+    
+    // Re-throw the error with more context
+    throw new Error(`Failed to send email via Resend: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -271,6 +143,31 @@ interface SendClientApprovalEmailOptions {
 
 export async function sendClientApprovalEmail(options: SendClientApprovalEmailOptions): Promise<string> {
   try {
+    // Validate required options
+    if (!options.versionId || options.versionId.trim() === '') {
+      throw new Error('versionId is required');
+    }
+    if (!options.clientEmail || options.clientEmail.trim() === '') {
+      throw new Error('clientEmail is required');
+    }
+    if (!options.clientName || options.clientName.trim() === '') {
+      throw new Error('clientName is required');
+    }
+    if (!options.projectName || options.projectName.trim() === '') {
+      throw new Error('projectName is required');
+    }
+    if (!Array.isArray(options.assets)) {
+      throw new Error('assets must be an array');
+    }
+    
+    console.log('✅ Client approval email options validated:', {
+      versionId: options.versionId,
+      clientEmail: options.clientEmail,
+      clientName: options.clientName,
+      projectName: options.projectName,
+      assetsCount: options.assets.length
+    });
+    
     // Create email log record first to get the ID for tracking pixel
     const emailLog = await prisma.emailLog.create({
       data: {
@@ -318,16 +215,29 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     });
 
     // Generate email template with enhanced data
-    const { subject, html } = generateMeisnerDeliveryEmailTemplate({
+    const templateData = {
       clientName: options.clientName || 'Valued Client',
       projectName: options.projectName || 'Your Project',
       approvalUrl: placeholderApprovalUrl, // Placeholder URL for template compatibility
       assets: options.assets || [],
       trackingPixelUrl,
       roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type || 'Room',
-      designPhase: 'Design Showcase',
-      projectAddress: versionDetails?.stage?.room?.project?.address || undefined
+      designPhase: 'Design Showcase'
+    };
+    
+    // Only add projectAddress if it exists (avoid undefined)
+    const projectAddress = versionDetails?.stage?.room?.project?.address;
+    if (projectAddress) {
+      templateData.projectAddress = projectAddress;
+    }
+    
+    console.log('📝 Template data being passed:', {
+      ...templateData,
+      assetsCount: templateData.assets.length,
+      hasProjectAddress: !!projectAddress
     });
+    
+    const { subject, html } = generateMeisnerDeliveryEmailTemplate(templateData);
 
     // Update email log with subject and HTML
     await prisma.emailLog.update({
@@ -341,11 +251,24 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     let deliveryError = null;
     
     try {
+      // Create safe tags (avoid undefined or problematic values)
+      const safeTags = ['client-approval', 'delivery'];
+      if (options.projectName && typeof options.projectName === 'string') {
+        const projectTag = options.projectName
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-_]/g, '-')
+          .substring(0, 50); // Limit length
+        if (projectTag) {
+          safeTags.push(projectTag);
+        }
+      }
+      
       emailResult = await sendEmail({
         to: options.clientEmail,
         subject,
         html,
-        tags: ['client-approval', 'delivery', options.projectName.toLowerCase().replace(/\s+/g, '-')]
+        tags: safeTags
       });
       
       console.log('Email sent:', emailResult.messageId, 'via', emailResult.provider);
