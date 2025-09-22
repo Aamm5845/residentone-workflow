@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { getSession } from '@/auth';
 import JSZip from 'jszip';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const searchParams = request.nextUrl.searchParams;
     const assetIds = searchParams.get('assets')?.split(',') || [];
     

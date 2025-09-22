@@ -39,7 +39,8 @@ export default async function ProjectSettings({ params }: Props) {
     [project, clients] = await Promise.all([
       prisma.project.findFirst({
         where: { 
-          id: id
+          id: id,
+          orgId: session.user.orgId
         },
         include: {
           client: true,
@@ -57,6 +58,9 @@ export default async function ProjectSettings({ params }: Props) {
         }
       }),
       prisma.client.findMany({
+        where: {
+          orgId: session.user.orgId
+        },
         orderBy: { name: 'asc' }
       })
     ])
