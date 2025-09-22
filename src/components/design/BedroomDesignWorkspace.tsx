@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   CheckCircle2, 
@@ -27,7 +27,12 @@ import {
   Home,
   Bookmark,
   X,
-  Upload
+  Upload,
+  Send,
+  Edit2,
+  Save,
+  Trash2,
+  Image as ImageIcon
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
@@ -141,11 +146,17 @@ export default function BedroomDesignWorkspace({
   className = ''
 }: BedroomDesignWorkspaceProps) {
   // State management
-  const [currentSection, setCurrentSection] = useState<string>('overview')
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['GENERAL']))
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [uploadSection, setUploadSection] = useState<string>('GENERAL')
+  const [uploadingSection, setUploadingSection] = useState<string | null>(null)
+  const [editingSection, setEditingSection] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState<Record<string, string>>({})
+  const [newComments, setNewComments] = useState<Record<string, string>>({})
+  const [postingComment, setPostingComment] = useState<string | null>(null)
+  
+  // File input refs for each section
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -226,6 +237,17 @@ export default function BedroomDesignWorkspace({
     toast.error(error)
   }
   
+  // Section management functions
+  const toggleSection = (sectionType: string) => {
+    const newExpanded = new Set(expandedSections)
+    if (newExpanded.has(sectionType)) {
+      newExpanded.delete(sectionType)
+    } else {
+      newExpanded.add(sectionType)
+    }
+    setExpandedSections(newExpanded)
+  }
+
   // Get or create design section
   const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
     // First try to find existing section
@@ -247,14 +269,122 @@ export default function BedroomDesignWorkspace({
       
       const result = await response.json()
       if (result.success) {
+        refreshWorkspace() // Refresh data to show new section
         return result.section.id
       } else {
         throw new Error(result.error || 'Failed to create section')
       }
     } catch (error) {
       console.error('Error creating section:', error)
-      // Fallback to a default section ID format (this would need to be handled properly)
-      return `${stageId}-${sectionType}`
+      toast.error('Failed to create section')
+      throw error
+    }
+  }
+
+  // File upload handler
+  const handleFileUpload = async (sectionType: string, files: FileList) => {
+    if (!files.length) return
+
+    setUploadingSection(sectionType)
+    try {
+      const sectionId = await getOrCreateSectionId(sectionType)
+      
+      // Upload each file
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('sectionId', sectionId)
+        
+        const response = await fetch('/api/design/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Upload failed')
+        }
+        
+        return await response.json()
+      })
+      
+      await Promise.all(uploadPromises)
+      toast.success(`${files.length} file(s) uploaded successfully`)
+      refreshWorkspace() // Refresh to show uploaded files
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setUploadingSection(null)
+    }
+  }
+
+  // Comment posting handler
+  const handlePostComment = async (sectionType: string) => {
+    const comment = newComments[sectionType]?.trim()
+    if (!comment) return
+
+    setPostingComment(sectionType)
+    try {
+      const sectionId = await getOrCreateSectionId(sectionType)
+      
+      const response = await fetch('/api/design/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId,
+          content: comment
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to post comment')
+      }
+      
+      // Clear comment input and refresh
+      setNewComments(prev => ({ ...prev, [sectionType]: '' }))
+      refreshWorkspace()
+      toast.success('Comment posted successfully')
+    } catch (error) {
+      console.error('Comment error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to post comment')
+    } finally {
+      setPostingComment(null)
+    }
+  }
+
+  // Content editing handlers
+  const startEditingContent = (sectionType: string, currentContent: string = '') => {
+    setEditingSection(sectionType)
+    setEditingContent(prev => ({ ...prev, [sectionType]: currentContent }))
+  }
+
+  const saveContent = async (sectionType: string) => {
+    const content = editingContent[sectionType]?.trim()
+    if (!content) return
+
+    try {
+      const response = await fetch(`/api/stages/${stageId}/sections`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionType,
+          content
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save content')
+      }
+      
+      setEditingSection(null)
+      refreshWorkspace()
+      toast.success('Content saved successfully')
+    } catch (error) {
+      console.error('Save error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save content')
     }
   }
 
@@ -428,76 +558,258 @@ export default function BedroomDesignWorkspace({
                 Complete each section to finalize your design concept
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowUploadModal(true)}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Reference
-            </Button>
           </div>
 
-          {/* Design Sections Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Design Sections */}
+          <div className="space-y-6">
             {['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR'].map((sectionType) => {
               const sectionDef = {
-                'GENERAL': { name: 'General', icon: '✨', description: 'Overall design concept and mood' },
-                'WALL_COVERING': { name: 'Wall Covering', icon: '🎨', description: 'Wall treatments and finishes' },
-                'CEILING': { name: 'Ceiling', icon: '⬆️', description: 'Ceiling design and treatments' },
-                'FLOOR': { name: 'Floor', icon: '⬇️', description: 'Flooring materials and patterns' }
+                'GENERAL': { name: 'General Design', icon: '✨', color: 'from-purple-500 to-pink-500', description: 'Overall design concept, mood, and styling direction' },
+                'WALL_COVERING': { name: 'Wall Covering', icon: '🎨', color: 'from-blue-500 to-cyan-500', description: 'Wall treatments, paint colors, wallpaper, and finishes' },
+                'CEILING': { name: 'Ceiling Design', icon: '⬆️', color: 'from-amber-500 to-orange-500', description: 'Ceiling treatments, lighting integration, and details' },
+                'FLOOR': { name: 'Floor Design', icon: '⬇️', color: 'from-emerald-500 to-teal-500', description: 'Flooring materials, patterns, transitions, and area rugs' }
               }[sectionType]
               
               const section = stage.designSections?.find(s => s.type === sectionType)
               const isCompleted = section?.completed || false
+              const isExpanded = expandedSections.has(sectionType)
+              const isUploading = uploadingSection === sectionType
+              const isEditing = editingSection === sectionType
+              const isPostingComment = postingComment === sectionType
               
               return (
-                <div key={sectionType} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="text-2xl">{sectionDef.icon}</div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{sectionDef.name}</h3>
-                        <p className="text-sm text-gray-600">{sectionDef.description}</p>
-                      </div>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      isCompleted 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {isCompleted ? 'Complete' : 'In Progress'}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="text-sm text-gray-700">
-                      {section?.content ? (
-                        <p>{section.content}</p>
-                      ) : (
-                        <p className="italic text-gray-500">No content added yet</p>
-                      )}
-                    </div>
-                    
-                    {section?.assets && section.assets.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-2">
-                          {section.assets.length} reference{section.assets.length !== 1 ? 's' : ''}
-                        </p>
-                        <div className="flex space-x-2">
-                          {section.assets.slice(0, 3).map((asset) => (
-                            <div key={asset.id} className="w-12 h-12 bg-gray-200 rounded border">
-                              <img 
-                                src={asset.url} 
-                                alt={asset.title}
-                                className="w-full h-full object-cover rounded"
-                              />
+                <div key={sectionType} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                  {/* Section Header */}
+                  <div 
+                    className="p-6 cursor-pointer select-none" 
+                    onClick={() => toggleSection(sectionType)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 bg-gradient-to-br ${sectionDef.color} rounded-xl flex items-center justify-center shadow-sm`}>
+                          <span className="text-2xl">{sectionDef.icon}</span>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
+                          <p className="text-sm text-gray-600">{sectionDef.description}</p>
+                          <div className="flex items-center space-x-3 mt-1">
+                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              isCompleted 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {isCompleted ? '✅ Complete' : '🔄 In Progress'}
                             </div>
-                          ))}
+                            {section?.assets && (
+                              <span className="text-xs text-gray-500">
+                                {section.assets.length} image{section.assets.length !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {section?.comments && (
+                              <span className="text-xs text-gray-500">
+                                {section.comments.length} comment{section.comments.length !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    )}
+                      
+                      <div className="flex items-center space-x-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-gray-500" />
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Section Content (when expanded) */}
+                  {isExpanded && (
+                    <div className="px-6 pb-6 border-t border-gray-100">
+                      <div className="pt-6 space-y-6">
+                        {/* Content Section */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Design Notes</h4>
+                            {!isEditing && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => startEditingContent(sectionType, section?.content || '')}
+                              >
+                                <Edit2 className="w-4 h-4 mr-1" />
+                                {section?.content ? 'Edit' : 'Add Notes'}
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <textarea
+                                value={editingContent[sectionType] || ''}
+                                onChange={(e) => setEditingContent(prev => ({ ...prev, [sectionType]: e.target.value }))}
+                                placeholder={`Describe your ${sectionDef.name.toLowerCase()} concepts, materials, colors, and ideas...`}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                rows={4}
+                              />
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingSection(null)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => saveContent(sectionType)}
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                >
+                                  <Save className="w-4 h-4 mr-1" />
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              {section?.content ? (
+                                <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
+                              ) : (
+                                <p className="italic text-gray-500">No design notes added yet. Click 'Add Notes' to get started.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Image Gallery */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Reference Images</h4>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="file"
+                                ref={(el) => { fileInputRefs.current[sectionType] = el }}
+                                multiple
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    handleFileUpload(sectionType, e.target.files)
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRefs.current[sectionType]?.click()}
+                                disabled={isUploading}
+                              >
+                                <Upload className="w-4 h-4 mr-1" />
+                                {isUploading ? 'Uploading...' : 'Upload Images'}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {section?.assets && section.assets.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {section.assets.map((asset) => (
+                                <div key={asset.id} className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square">
+                                  <img 
+                                    src={asset.url} 
+                                    alt={asset.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+                                      <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
+                                        <Eye className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
+                                    <p className="text-white text-xs font-medium truncate">{asset.title}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                              <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500 mb-2">No reference images yet</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRefs.current[sectionType]?.click()}
+                                disabled={isUploading}
+                              >
+                                <Upload className="w-4 h-4 mr-1" />
+                                Upload First Image
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Comments Section */}
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-3">Comments & Discussion</h4>
+                          
+                          {/* Existing Comments */}
+                          {section?.comments && section.comments.length > 0 && (
+                            <div className="space-y-3 mb-4">
+                              {section.comments.map((comment) => (
+                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                  <div className="flex items-start space-x-3">
+                                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <span className="text-sm font-medium text-purple-600">
+                                        {comment.author.name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2 mb-1">
+                                        <span className="font-medium text-gray-900 text-sm">{comment.author.name}</span>
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(comment.createdAt).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <p className="text-gray-700 text-sm whitespace-pre-wrap">{comment.content}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* New Comment Input */}
+                          <div className="flex space-x-3">
+                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-gray-500" />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <textarea
+                                value={newComments[sectionType] || ''}
+                                onChange={(e) => setNewComments(prev => ({ ...prev, [sectionType]: e.target.value }))}
+                                placeholder={`Add a comment about ${sectionDef.name.toLowerCase()}...`}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                rows={2}
+                              />
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handlePostComment(sectionType)}
+                                  disabled={!newComments[sectionType]?.trim() || isPostingComment}
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                >
+                                  <Send className="w-4 h-4 mr-1" />
+                                  {isPostingComment ? 'Posting...' : 'Post Comment'}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -562,78 +874,6 @@ export default function BedroomDesignWorkspace({
         </div>
       )}
       
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Add Reference</h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowUploadModal(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            {/* Section Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Design Section
-              </label>
-              <select
-                value={uploadSection}
-                onChange={(e) => setUploadSection(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="GENERAL">✨ General</option>
-                <option value="WALL_COVERING">🎨 Wall Covering</option>
-                <option value="CEILING">⬆️ Ceiling</option>
-                <option value="FLOOR">⬇️ Floor</option>
-              </select>
-            </div>
-            
-            {/* Upload Zone - Simplified */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center mb-4">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600 mb-2">Upload reference images for {uploadSection.replace('_', ' ')}</p>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                id="file-upload"
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (files) {
-                    toast.success(`Selected ${files.length} file(s) for upload`)
-                    // TODO: Implement actual upload logic
-                    setShowUploadModal(false)
-                  }
-                }}
-              />
-              <Button 
-                onClick={() => document.getElementById('file-upload')?.click()}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Choose Files
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">Supports JPG, PNG, PDF files</p>
-            </div>
-            
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button
-                variant="outline"
-                onClick={() => setShowUploadModal(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

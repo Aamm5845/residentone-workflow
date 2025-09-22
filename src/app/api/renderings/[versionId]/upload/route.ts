@@ -91,7 +91,7 @@ export async function POST(
           const bytes = await file.arrayBuffer()
           const buffer = Buffer.from(bytes)
           const filePath = generateFilePath(
-            'shared-org', // Use a default org identifier
+            renderingVersion.room.project.orgId, // Use the actual organization ID
             renderingVersion.room.project.id,
             renderingVersion.room.id,
             undefined, // no section for rendering files
@@ -146,7 +146,7 @@ export async function POST(
               storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
               renderingWorkspace: true
             }),
-            orgId: 'shared-org', // Required field - use consistent org identifier
+            orgId: renderingVersion.room.project.orgId, // Use the actual organization ID from the project
             projectId: renderingVersion.room.project.id,
             roomId: renderingVersion.room.id,
             stageId: renderingVersion.stageId,
