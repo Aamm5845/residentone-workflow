@@ -250,32 +250,54 @@ export default function BedroomDesignWorkspace({
 
   // Get or create design section
   const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
+    console.log('🔍 getOrCreateSectionId called with:', { sectionType, stageId })
+    
     // First try to find existing section
     const existingSection = stage.designSections?.find(s => s.type === sectionType)
+    console.log('🔍 Checking existing sections:', {
+      availableSections: stage.designSections?.map(s => ({ id: s.id, type: s.type })),
+      searchingFor: sectionType,
+      existingSection: existingSection ? { id: existingSection.id, type: existingSection.type } : null
+    })
+    
     if (existingSection?.id) {
+      console.log('✅ Found existing section:', existingSection.id)
       return existingSection.id
     }
     
     // If no section exists, create one via API
     try {
+      console.log('🆕 Creating new section via API:', { stageId, type: sectionType })
+      
       const response = await fetch('/api/design/sections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           stageId,
           type: sectionType
-        })
+        }),
+        credentials: 'include' // Ensure cookies are included
+      })
+      
+      console.log('📡 Section creation response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       })
       
       const result = await response.json()
+      console.log('📊 Section creation result:', result)
+      
       if (result.success) {
+        console.log('✅ Section created successfully:', result.section.id)
         refreshWorkspace() // Refresh data to show new section
         return result.section.id
       } else {
+        console.error('❌ Section creation failed:', result)
         throw new Error(result.error || 'Failed to create section')
       }
     } catch (error) {
-      console.error('Error creating section:', error)
+      console.error('❌ Error creating section:', error)
       toast.error('Failed to create section')
       throw error
     }
@@ -283,38 +305,82 @@ export default function BedroomDesignWorkspace({
 
   // File upload handler
   const handleFileUpload = async (sectionType: string, files: FileList) => {
-    if (!files.length) return
+    console.log('📤 handleFileUpload called with:', { 
+      sectionType, 
+      fileCount: files.length,
+      files: Array.from(files).map(f => ({ name: f.name, size: f.size, type: f.type })),
+      stageId 
+    })
+    
+    if (!files.length) {
+      console.log('⚠️ No files to upload')
+      return
+    }
 
     setUploadingSection(sectionType)
     try {
+      console.log('🎯 Getting/creating section ID...')
       const sectionId = await getOrCreateSectionId(sectionType)
+      console.log('✅ Got section ID:', sectionId)
       
       // Upload each file
-      const uploadPromises = Array.from(files).map(async (file) => {
+      const uploadPromises = Array.from(files).map(async (file, index) => {
+        console.log(`📤 Uploading file ${index + 1}/${files.length}:`, {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          sectionId
+        })
+        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('sectionId', sectionId)
         
+        console.log('📡 Making upload request to /api/design/upload...')
+        
+        // Log all cookies and headers for debugging
+        console.log('🍪 Current cookies:', document.cookie)
+        console.log('🌐 Current location:', window.location.href)
+        
         const response = await fetch('/api/design/upload', {
           method: 'POST',
-          body: formData
+          body: formData,
+          credentials: 'include' // Ensure cookies are included
+        })
+        
+        console.log('📈 Upload response:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
         })
         
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Upload failed')
+          const errorData = await response.json()
+          console.error('❌ Upload failed with error data:', errorData)
+          throw new Error(errorData.error || `Upload failed: ${response.status} ${response.statusText}`)
         }
         
-        return await response.json()
+        const result = await response.json()
+        console.log('✅ Upload successful:', result)
+        return result
       })
       
-      await Promise.all(uploadPromises)
+      console.log('⏳ Waiting for all uploads to complete...')
+      const results = await Promise.all(uploadPromises)
+      console.log('🎉 All uploads completed:', results)
+      
       toast.success(`${files.length} file(s) uploaded successfully`)
+      
+      console.log('🔄 Refreshing workspace...')
       refreshWorkspace() // Refresh to show uploaded files
+      
     } catch (error) {
-      console.error('Upload error:', error)
+      console.error('❌ Upload error:', error)
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       toast.error(error instanceof Error ? error.message : 'Upload failed')
     } finally {
+      console.log('🏁 Upload process finished, clearing uploading state')
       setUploadingSection(null)
     }
   }
@@ -322,34 +388,68 @@ export default function BedroomDesignWorkspace({
   // Comment posting handler
   const handlePostComment = async (sectionType: string) => {
     const comment = newComments[sectionType]?.trim()
-    if (!comment) return
+    console.log('💬 handlePostComment called with:', { 
+      sectionType, 
+      comment: comment ? `"${comment}" (length: ${comment.length})` : 'EMPTY/NULL',
+      stageId 
+    })
+    
+    if (!comment) {
+      console.log('⚠️ No comment content, aborting')
+      return
+    }
 
     setPostingComment(sectionType)
     try {
+      console.log('🎯 Getting/creating section ID for comment...')
       const sectionId = await getOrCreateSectionId(sectionType)
+      console.log('✅ Got section ID for comment:', sectionId)
+      
+      const requestBody = {
+        sectionId,
+        content: comment
+      }
+      console.log('📡 Making comment request to /api/design/comments with body:', requestBody)
+      
+      // Log all cookies and headers for debugging
+      console.log('🍪 Current cookies:', document.cookie)
+      console.log('🌐 Current location:', window.location.href)
       
       const response = await fetch('/api/design/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sectionId,
-          content: comment
-        })
+        body: JSON.stringify(requestBody),
+        credentials: 'include' // Ensure cookies are included
+      })
+      
+      console.log('📈 Comment response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       })
       
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to post comment')
+        const errorData = await response.json()
+        console.error('❌ Comment failed with error data:', errorData)
+        throw new Error(errorData.error || `Comment failed: ${response.status} ${response.statusText}`)
       }
       
+      const result = await response.json()
+      console.log('✅ Comment posted successfully:', result)
+      
       // Clear comment input and refresh
+      console.log('🧹 Clearing comment input and refreshing workspace...')
       setNewComments(prev => ({ ...prev, [sectionType]: '' }))
       refreshWorkspace()
       toast.success('Comment posted successfully')
+      
     } catch (error) {
-      console.error('Comment error:', error)
+      console.error('❌ Comment error:', error)
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       toast.error(error instanceof Error ? error.message : 'Failed to post comment')
     } finally {
+      console.log('🏁 Comment process finished, clearing posting state')
       setPostingComment(null)
     }
   }
@@ -434,6 +534,26 @@ export default function BedroomDesignWorkspace({
 
   const { stage, room, project } = workspaceData
   const StatusIcon = STATUS_CONFIG[stage.status as keyof typeof STATUS_CONFIG]?.icon || Clock
+  
+  // Debug workspace data and session
+  console.log('🔍 Rendering BedroomDesignWorkspace with data:', {
+    stageId,
+    stage: {
+      id: stage.id,
+      status: stage.status,
+      type: stage.type,
+      designSections: stage.designSections?.map(s => ({ id: s.id, type: s.type })) || []
+    },
+    room: {
+      id: room.id,
+      name: room.name,
+      type: room.type
+    },
+    project: {
+      id: project.id,
+      name: project.name
+    }
+  })
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>

@@ -34,12 +34,7 @@ export async function POST(
     // Verify rendering version access
     const renderingVersion = await prisma.renderingVersion.findFirst({
       where: {
-        id: versionId,
-        room: {
-          project: {
-            orgId: session.user.orgId
-          }
-        }
+        id: versionId
       },
       include: {
         assets: {
