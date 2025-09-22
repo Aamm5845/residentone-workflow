@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     const session = await getSession()
-    if (!session?.user?.orgId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -25,14 +25,7 @@ export async function POST(
     // Get the current version
     const currentVersion = await prisma.clientApprovalVersion.findFirst({
       where: {
-        stageId,
-        stage: {
-          room: {
-            project: {
-              orgId: session.user.orgId
-            }
-          }
-        }
+        stageId
       },
       include: {
         stage: {
