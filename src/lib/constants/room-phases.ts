@@ -8,8 +8,7 @@ export const ROOM_PHASES = [
     shortLabel: 'Concept',
     icon: '🎨',
     color: 'purple',
-    description: 'Create mood boards, material selections, and design concepts',
-    requiredRole: 'DESIGNER'
+    description: 'Create mood boards, material selections, and design concepts'
   },
   {
     id: 'RENDERING',
@@ -17,8 +16,7 @@ export const ROOM_PHASES = [
     shortLabel: '3D',
     icon: '🎥',
     color: 'orange', 
-    description: 'Generate photorealistic 3D visualizations',
-    requiredRole: 'RENDERER'
+    description: 'Generate photorealistic 3D visualizations'
   },
   {
     id: 'CLIENT_APPROVAL',
@@ -26,8 +24,7 @@ export const ROOM_PHASES = [
     shortLabel: 'Approval',
     icon: '👥',
     color: 'blue',
-    description: 'Client review and approval process',
-    requiredRole: null // Any team member can handle client approvals
+    description: 'Client review and approval process'
   },
   {
     id: 'DRAWINGS',
@@ -35,8 +32,7 @@ export const ROOM_PHASES = [
     shortLabel: 'Drawings',
     icon: '📐',
     color: 'indigo',
-    description: 'Technical drawings and construction documentation',
-    requiredRole: 'DRAFTER'
+    description: 'Technical drawings and construction documentation'
   },
   {
     id: 'FFE',
@@ -44,8 +40,7 @@ export const ROOM_PHASES = [
     shortLabel: 'FFE',
     icon: '🛌️',
     color: 'pink',
-    description: 'Furniture, fixtures, and equipment sourcing',
-    requiredRole: 'FFE'
+    description: 'Furniture, fixtures, and equipment sourcing'
   }
 ] as const
 
@@ -104,11 +99,8 @@ export function getPhaseColor(phaseId: PhaseId, status: PhaseStatus = 'PENDING')
   return status === 'COMPLETE' ? 'green' : phase.color
 }
 
-export function getPhasesByRole(userRole: string) {
-  return ROOM_PHASES.filter(phase => 
-    !phase.requiredRole || phase.requiredRole === userRole
-  )
-}
+// All phases are available to all team members
+// Assignments are used for notification and task tracking only
 
 // Tailwind color classes for dynamic styling
 export const COLOR_CLASSES = {

@@ -1,41 +1,178 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { 
+  withCreateAttribution,
+  logActivity,
+  ActivityActions,
+  EntityTypes,
+  getIPAddress,
+  isValidAuthSession
+} from '@/lib/attribution'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
+    const ipAddress = getIPAddress(request)
     
-    if (!session?.user) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // In fallback mode, simulate message posting with mock data
-    console.log('Database unavailable, using mock message posting')
-    
     const data = await request.json()
     const { message, sectionId, roomId } = data
+
+    console.log('📝 Creating message:', { hasMessage: !!message, sectionId, roomId })
 
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // Generate mock message data
-    const mockMessage = {
-      id: `msg-${Date.now()}`,
-      message: message.trim(),
-      createdAt: new Date().toISOString(),
-      author: {
-        id: session.user.id || 'mock-user',
-        name: session.user.name || 'Unknown User',
-        role: 'OWNER'
+    // Try to find the section to validate access
+    let section = null
+    if (sectionId) {
+      section = await prisma.designSection.findFirst({
+        where: {
+          id: sectionId,
+          stage: {
+            room: {
+              project: {
+                orgId: session.user.orgId
+              }
+            }
+          }
+        },
+        include: {
+          stage: {
+            include: {
+              room: {
+                include: {
+                  project: true
+                }
+              }
+            }
+          }
+        }
+      })
+    }
+
+    // If no section but we have roomId, try to find or create a default section
+    if (!section && roomId) {
+      const stage = await prisma.stage.findFirst({
+        where: {
+          type: 'DESIGN_CONCEPT',
+          roomId: roomId,
+          room: {
+            project: {
+              orgId: session.user.orgId
+            }
+          }
+        },
+        include: {
+          room: {
+            include: {
+              project: true
+            }
+          }
+        }
+      })
+
+      if (stage) {
+        // Try to find or create a GENERAL section
+        section = await prisma.designSection.findFirst({
+          where: {
+            stageId: stage.id,
+            type: 'GENERAL'
+          },
+          include: {
+            stage: {
+              include: {
+                room: {
+                  include: {
+                    project: true
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        if (!section) {
+          section = await prisma.designSection.create({
+            data: {
+              type: 'GENERAL',
+              stageId: stage.id,
+              content: 'General design discussion'
+            },
+            include: {
+              stage: {
+                include: {
+                  room: {
+                    include: {
+                      project: true
+                    }
+                  }
+                }
+              }
+            }
+          })
+        }
+      }
+    }
+
+    if (!section) {
+      return NextResponse.json({ 
+        error: 'Section not found or access denied' 
+      }, { status: 404 })
+    }
+
+    // Create the comment in the database
+    const comment = await prisma.comment.create({
+      data: withCreateAttribution(session, {
+        content: message.trim(),
+        projectId: section.stage.room.project.id,
+        roomId: section.stage.room.id,
+        stageId: section.stage.id,
+        sectionId: section.id
+      }),
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, role: true }
+        }
+      }
+    })
+
+    // Log the activity
+    await logActivity({
+      session,
+      action: ActivityActions.COMMENT_CREATED,
+      entity: EntityTypes.COMMENT,
+      entityId: comment.id,
+      details: {
+        sectionType: section.type,
+        stageName: `${section.stage.type} - ${section.stage.room.name || section.stage.room.type}`,
+        projectName: section.stage.room.project.name
       },
-      sectionId,
-      roomId
+      ipAddress
+    })
+
+    // Format response as expected by design-board.tsx
+    const responseMessage = {
+      id: comment.id,
+      message: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      author: {
+        id: comment.author.id,
+        name: comment.author.name,
+        role: comment.author.role
+      },
+      sectionId: comment.sectionId,
+      roomId: comment.roomId
     }
 
     return NextResponse.json({
       success: true,
-      message: mockMessage
+      message: responseMessage
     })
 
   } catch (error) {
@@ -48,7 +185,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
     
-    if (!session?.user) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -56,39 +193,58 @@ export async function GET(request: NextRequest) {
     const sectionId = searchParams.get('sectionId')
     const roomId = searchParams.get('roomId')
 
-    console.log('Database unavailable, using mock messages')
+    console.log('📥 Fetching messages for:', { sectionId, roomId })
 
-    // Return mock messages
-    const mockMessages = [
-      {
-        id: 'msg-1',
-        message: 'Looking great so far! I think the color palette works well.',
-        createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    let whereClause: any = {
+      orgId: session.user.orgId
+    }
+
+    if (sectionId) {
+      whereClause.sectionId = sectionId
+    } else if (roomId) {
+      whereClause.roomId = roomId
+    } else {
+      return NextResponse.json({ 
+        error: 'Missing required parameter: sectionId or roomId' 
+      }, { status: 400 })
+    }
+
+    // Get comments/messages from database
+    const comments = await prisma.comment.findMany({
+      where: whereClause,
+      include: {
         author: {
-          id: 'mock-user-1',
-          name: 'Sarah Designer',
-          role: 'DESIGNER'
-        },
-        sectionId,
-        roomId
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
       },
-      {
-        id: 'msg-2', 
-        message: 'Client approved the material selections. Moving forward with this direction.',
-        createdAt: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-        author: {
-          id: 'mock-user-2',
-          name: 'Project Manager',
-          role: 'OWNER'
-        },
-        sectionId,
-        roomId
-      }
-    ]
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 50 // Limit to most recent 50 messages
+    })
+
+    // Format as expected by design-board.tsx
+    const messages = comments.map(comment => ({
+      id: comment.id,
+      message: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      author: {
+        id: comment.author.id,
+        name: comment.author.name,
+        role: comment.author.role
+      },
+      sectionId: comment.sectionId,
+      roomId: comment.roomId
+    }))
 
     return NextResponse.json({
       success: true,
-      messages: mockMessages
+      messages: messages
     })
 
   } catch (error) {
