@@ -338,12 +338,38 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
     return USER_COLORS[userId.charCodeAt(0) % USER_COLORS.length]
   }
 
-  const parseMessageContent = async (content: string) => {
-    // Parse @mentions using validated highlighting and add other formatting
-    const highlightedMentions = await highlightValidMentions(content, session?.user?.orgId || '')
-    return highlightedMentions
-      .replace(/#(\w+)/g, '<span class="text-purple-600 font-medium bg-purple-50 px-1 rounded">#$1</span>')
-      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>')
+  // Component to handle async message content parsing
+  const CommentContent = ({ content, orgId }: { content: string; orgId: string }) => {
+    const [parsedContent, setParsedContent] = useState(content)
+    
+    useEffect(() => {
+      const parseContent = async () => {
+        try {
+          const highlightedMentions = await highlightValidMentions(content, orgId)
+          const formatted = highlightedMentions
+            .replace(/#(\w+)/g, '<span class="text-purple-600 font-medium bg-purple-50 px-1 rounded">#$1</span>')
+            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>')
+          setParsedContent(formatted)
+        } catch (error) {
+          console.error('Error parsing message content:', error)
+          // Fallback to basic highlighting if the advanced one fails
+          const basicFormatted = content
+            .replace(/@(\w+(?:\s+\w+)*)/g, '<span class="bg-blue-100 text-blue-800 px-1 rounded font-medium">@$1</span>')
+            .replace(/#(\w+)/g, '<span class="text-purple-600 font-medium bg-purple-50 px-1 rounded">#$1</span>')
+            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>')
+          setParsedContent(basicFormatted)
+        }
+      }
+      
+      parseContent()
+    }, [content, orgId])
+    
+    return (
+      <div 
+        className="prose prose-sm max-w-none text-gray-900 mb-3"
+        dangerouslySetInnerHTML={{ __html: parsedContent }}
+      />
+    )
   }
 
   // Comment Component
@@ -451,9 +477,9 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
               </div>
             </div>
           ) : (
-            <div 
-              className="prose prose-sm max-w-none text-gray-900 mb-3"
-              dangerouslySetInnerHTML={{ __html: parseMessageContent(comment.content) }}
+            <CommentContent 
+              content={comment.content} 
+              orgId={session?.user?.orgId || ''}
             />
           )}
 
