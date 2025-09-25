@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { extractMentions, extractValidMentions } from '@/lib/mentionUtils'
+import { extractMentions } from '@/lib/mentionUtils'
 import { useSession } from 'next-auth/react'
 
 interface TeamMember {
@@ -159,8 +159,8 @@ export function MentionTextarea({
   const handleSubmit = async () => {
     if (!onSubmit || !value.trim()) return
     
-    // Use validated mentions that only include actual team members
-    const mentions = await extractValidMentions(value, session?.user?.orgId || '')
+    // Extract mention names from text (client-side only)
+    const mentions = extractMentions(value)
     onSubmit(value, mentions)
   }
 

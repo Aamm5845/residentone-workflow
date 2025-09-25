@@ -181,11 +181,11 @@ export async function POST(
         // Create notifications for mentioned users
         const notificationData = validUsers.map(user => ({
           userId: user.id,
-          type: 'CHAT_MESSAGE' as const,
+          type: 'MENTION' as const,
           title: `${session.user.name} mentioned you`,
           message: `You were mentioned in ${stage.type} - ${stage.room.name}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
-          relatedId: chatMessage.id,
-          relatedType: 'CHAT_MESSAGE'
+          relatedId: resolvedParams.stageId,
+          relatedType: 'STAGE'
         }))
 
         await prisma.notification.createMany({

@@ -79,9 +79,7 @@ export async function POST(request: NextRequest) {
     if (mentions.length > 0) {
       const mentionedUsers = await prisma.user.findMany({
         where: {
-          name: {
-            in: mentions.map((m: string) => m.replace('@', ''))
-          },
+          id: { in: mentions },
           orgId: session.user.orgId
         }
       })
@@ -93,9 +91,9 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             type: 'MENTION' as any,
             title: `${session.user.name} mentioned you`,
-            message: `You were mentioned in a comment on ${section.stage.room.name || section.stage.room.type}`,
-            relatedId: comment.id,
-            relatedType: 'COMMENT'
+            message: `You were mentioned in a comment on ${section.stage.room.name || section.stage.room.type} - Design Concept`,
+            relatedId: section.stage.id,
+            relatedType: 'STAGE'
           }))
         })
       }

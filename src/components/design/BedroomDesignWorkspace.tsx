@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   CheckCircle2, 
@@ -38,6 +38,8 @@ import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
 import { toast } from 'sonner'
 import PhaseSettingsMenu from '../stages/PhaseSettingsMenu'
+import { PhaseChat } from '../chat/PhaseChat'
+import { MentionTextarea } from '../ui/mention-textarea'
 
 // Components will be implemented inline for now to fix layout issues
 // TODO: Import proper components when they're available:
@@ -155,6 +157,7 @@ export default function BedroomDesignWorkspace({
   const [editingContent, setEditingContent] = useState<Record<string, string>>({})
   const [newComments, setNewComments] = useState<Record<string, string>>({})
   const [postingComment, setPostingComment] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<Array<{id: string, name: string, email: string, role: string}>>([])
   
   // File input refs for each section
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -170,6 +173,22 @@ export default function BedroomDesignWorkspace({
       errorRetryInterval: 5000
     }
   )
+  
+  // Load team members for mentions
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const response = await fetch('/api/chat/team-members')
+        if (response.ok) {
+          const data = await response.json()
+          setTeamMembers(data.teamMembers || [])
+        }
+      } catch (error) {
+        console.error('Error loading team members:', error)
+      }
+    }
+    loadTeamMembers()
+  }, [])
 
   // Completion status check
   const { data: completionStatus } = useSWR(
@@ -386,12 +405,13 @@ export default function BedroomDesignWorkspace({
     }
   }
 
-  // Comment posting handler
-  const handlePostComment = async (sectionType: string) => {
+  // Comment posting handler with mentions support
+  const handlePostComment = async (sectionType: string, mentions: string[] = []) => {
     const comment = newComments[sectionType]?.trim()
     console.log('💬 handlePostComment called with:', { 
       sectionType, 
       comment: comment ? `"${comment}" (length: ${comment.length})` : 'EMPTY/NULL',
+      mentions,
       stageId 
     })
     
@@ -406,9 +426,39 @@ export default function BedroomDesignWorkspace({
       const sectionId = await getOrCreateSectionId(sectionType)
       console.log('✅ Got section ID for comment:', sectionId)
       
+      // Map mention names to user IDs using the same matching logic as the mention validation
+      const mentionIds = []
+      for (const mention of mentions) {
+        const matchingMember = teamMembers.find(member => {
+          const memberNameLower = member.name.toLowerCase()
+          const mentionLower = mention.toLowerCase()
+          
+          // Exact match
+          if (memberNameLower === mentionLower) {
+            return true
+          }
+          
+          // Partial match - check if the mention is contained in the member name
+          if (memberNameLower.includes(mentionLower) || memberNameLower.startsWith(mentionLower)) {
+            return true
+          }
+          
+          // Also check first name only
+          const memberFirstName = memberNameLower.split(/\s|\(|\)/)[0]
+          const mentionFirstName = mentionLower.split(/\s|\(|\)/)[0]
+          
+          return memberFirstName === mentionFirstName
+        })
+        
+        if (matchingMember && !mentionIds.includes(matchingMember.id)) {
+          mentionIds.push(matchingMember.id)
+        }
+      }
+      
       const requestBody = {
         sectionId,
-        content: comment
+        content: comment,
+        mentions: mentionIds
       }
       console.log('📡 Making comment request to /api/design/comments with body:', requestBody)
       
@@ -684,18 +734,20 @@ export default function BedroomDesignWorkspace({
         </div>
       </div>
 
-      {/* Main Content Layout - Simplified */}
-      <div className="p-6">
-        {/* 2. Design Sections */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Design Sections</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Complete each section to finalize your design concept
-              </p>
+      {/* Main Content Layout - With Sidebar */}
+      <div className="flex">
+        {/* Main Workspace */}
+        <div className="flex-1 p-6">
+          {/* 2. Design Sections */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Design Sections</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Complete each section to finalize your design concept
+                </p>
+              </div>
             </div>
-          </div>
 
           {/* Design Sections */}
           <div className="space-y-6">
@@ -922,25 +974,18 @@ export default function BedroomDesignWorkspace({
                             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
                               <User className="w-4 h-4 text-gray-500" />
                             </div>
-                            <div className="flex-1 space-y-2">
-                              <textarea
+                            <div className="flex-1">
+                              <MentionTextarea
                                 value={newComments[sectionType] || ''}
-                                onChange={(e) => setNewComments(prev => ({ ...prev, [sectionType]: e.target.value }))}
-                                placeholder={`Add a comment about ${sectionDef.name.toLowerCase()}...`}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                onChange={(value) => setNewComments(prev => ({ ...prev, [sectionType]: value }))}
+                                onSubmit={(text, mentions) => handlePostComment(sectionType, mentions)}
+                                teamMembers={teamMembers}
+                                placeholder={`Add a comment about ${sectionDef.name.toLowerCase()}... Use @name to mention team members`}
                                 rows={2}
+                                disabled={isPostingComment}
+                                submitLabel={isPostingComment ? 'Posting...' : 'Post Comment'}
+                                className="focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                               />
-                              <div className="flex justify-end">
-                                <Button
-                                  size="sm"
-                                  onClick={() => handlePostComment(sectionType)}
-                                  disabled={!newComments[sectionType]?.trim() || isPostingComment}
-                                  className="bg-purple-600 hover:bg-purple-700"
-                                >
-                                  <Send className="w-4 h-4 mr-1" />
-                                  {isPostingComment ? 'Posting...' : 'Post Comment'}
-                                </Button>
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -951,65 +996,77 @@ export default function BedroomDesignWorkspace({
               )
             })}
           </div>
+          
+          {/* 3. Completion Section */}
+          {canMarkComplete && (
+            <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-green-800">Ready to Complete</h3>
+                  <p className="text-sm text-green-600">All sections are ready. Mark this phase as complete.</p>
+                </div>
+                <Button
+                  onClick={handleMarkComplete}
+                  disabled={isCompleting}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isCompleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Completing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Mark Complete
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Activity Timeline */}
+          {showActivityLog && (
+            <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowActivityLog(false)}
+                >
+                  Hide Activity
+                </Button>
+              </div>
+              {/* Activity Timeline */}
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Upload className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Recent Activity</p>
+                    <p className="text-xs text-gray-500 mt-1">Design workspace initialized • Just now</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        </div>
+        
+        {/* Chat Sidebar */}
+        <div className="w-96 border-l border-gray-200 bg-gray-50">
+          {workspaceData && (
+            <PhaseChat
+              stageId={workspaceData.stage.id}
+              stageName={`Design Concept - ${workspaceData.room.name || workspaceData.room.type}`}
+              className="h-full"
+            />
+          )}
         </div>
       </div>
-
-      {/* 4. Completion Section */}
-      {canMarkComplete && (
-        <div className="px-6 py-4 bg-green-50 border-t border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-green-800">Ready to Complete</h3>
-              <p className="text-sm text-green-600">All sections are ready. Mark this phase as complete.</p>
-            </div>
-            <Button
-              onClick={handleMarkComplete}
-              disabled={isCompleting}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isCompleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Completing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Mark Complete
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Activity Timeline */}
-      {showActivityLog && (
-        <div className="border-t border-gray-100 p-6 bg-gray-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowActivityLog(false)}
-            >
-              Hide Activity
-            </Button>
-          </div>
-          {/* Activity Timeline */}
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Upload className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Recent Activity</p>
-                <p className="text-xs text-gray-500 mt-1">Design workspace initialized • Just now</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
     </div>
   )
