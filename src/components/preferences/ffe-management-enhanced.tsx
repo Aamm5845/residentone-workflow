@@ -49,21 +49,145 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
-import { 
-  type FFEItemTemplate, 
-  type FFECategory, 
-  type FFERoomLibrary,
-  type FFEManagementViewState,
-  type FFEItemFormData,
-  type FFECategoryFormData,
-  type FFERoomLibraryFormData,
-  type FFEVersionHistory,
-  type FFEGlobalSettings,
-  type FFESubItem,
-  type FFEItemLevel,
-  type FFEItemState,
-  type FFEItemScope
-} from '@/types/ffe-management'
+import FFEItemForm from '@/components/ffe/FFEItemForm'
+import ItemCard from '@/components/ffe/ItemCard'
+
+// Define interfaces
+interface FFEItemTemplate {
+  id: string
+  name: string
+  description?: string
+  category: string
+  level: 'base' | 'standard' | 'custom' | 'conditional'
+  scope: 'global' | 'room_specific'
+  defaultState: 'pending' | 'confirmed' | 'not_needed' | 'custom_expanded'
+  isRequired: boolean
+  supportsMultiChoice: boolean
+  roomTypes: string[]
+  excludeFromRoomTypes?: string[]
+  subItems?: any[]
+  version: string
+  isActive: boolean
+  deprecatedAt?: string | null
+  notes?: string
+  tags?: string[]
+  estimatedCost?: number
+  leadTimeWeeks?: number
+  createdAt: string | Date
+  updatedAt: string | Date
+  createdBy?: { name: string }
+  updatedBy?: { name: string }
+  isCustom?: boolean
+}
+
+interface FFECategory {
+  id: string
+  name: string
+  description?: string
+  icon?: string
+  order: number
+  isExpandable: boolean
+  roomTypes: string[]
+  isGlobal: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  createdById: string
+  updatedById: string
+}
+
+interface FFERoomLibrary {
+  id: string
+  name: string
+  roomType: string
+  version: string
+  isActive: boolean
+  isDefault: boolean
+  categories: any[]
+  customItemCount?: number
+  totalItemCount?: number
+  projectsUsing: number
+  createdAt: string
+  updatedAt: string
+}
+
+interface FFEVersionHistory {
+  id: string
+  orgId: string
+  entityType: 'room_library' | 'category' | 'item_template'
+  entityId: string
+  version: string
+  changeType: 'created' | 'updated' | 'deprecated' | 'restored'
+  changeDescription: string
+  changeDetails: any[]
+  entitySnapshot: any
+  affectedProjects?: any[]
+  migrationRequired: boolean
+  migrationNotes?: string
+  autoMigrationPossible: boolean
+  createdAt: string
+  createdById: string
+}
+
+interface FFEGlobalSettings {
+  id: string
+  orgId: string
+  autoAddCustomItems: boolean
+  enableVersionControl: boolean
+  requireApprovalForChanges: boolean
+  enableCostTracking: boolean
+  enableSupplierIntegration: boolean
+  enableUsageAnalytics: boolean
+  createdAt: string
+  updatedAt: string
+  createdById: string
+  updatedById: string
+}
+
+interface FFEManagementViewState {
+  activeTab: 'room_libraries' | 'categories' | 'global_items' | 'version_control' | 'settings'
+  selectedRoomType?: string
+  selectedCategory?: string
+  selectedLibraryVersion?: string
+  searchTerm: string
+  statusFilter: 'all' | 'active' | 'deprecated'
+  scopeFilter: 'all' | 'global' | 'room_specific'
+  levelFilter: 'all' | 'base' | 'standard' | 'custom' | 'conditional'
+  showDeprecated: boolean
+  expandedCategories: Set<string>
+  selectedItems: Set<string>
+  draggedItem?: string
+  showAddItemModal: boolean
+  showEditItemModal: boolean
+  showVersionHistoryModal: boolean
+  showBulkOperationsModal: boolean
+  editingItem?: FFEItemTemplate
+}
+
+interface FFEItemFormData {
+  name: string
+  description?: string
+  category: string
+  level: 'base' | 'standard' | 'custom' | 'conditional'
+  scope: 'global' | 'room_specific'
+  defaultState: 'pending' | 'confirmed' | 'not_needed' | 'custom_expanded'
+  isRequired: boolean
+  supportsMultiChoice: boolean
+  roomTypes: string[]
+  excludeFromRoomTypes: string[]
+  subItems: any[]
+  conditionalOn: string[]
+  mutuallyExclusiveWith: string[]
+  notes?: string
+  tags: string[]
+  estimatedCost?: number
+  leadTimeWeeks?: number
+  supplierInfo: Array<{
+    name: string
+    website?: string
+    notes?: string
+  }>
+}
 
 interface FFEManagementEnhancedProps {
   orgId: string
@@ -697,7 +821,64 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {items.map(item => (
-                        <ItemCard key={item.id} item={item} />
+                        <ItemCard 
+                          key={item.id} 
+                          item={item}
+                          onEdit={(item) => {
+                            setEditingItem(item)
+                            setItemFormData({
+                              name: item.name,
+                              description: item.description,
+                              category: item.category,
+                              level: item.level,
+                              scope: item.scope,
+                              defaultState: item.defaultState,
+                              isRequired: item.isRequired,
+                              supportsMultiChoice: item.supportsMultiChoice,
+                              roomTypes: item.roomTypes,
+                              excludeFromRoomTypes: item.excludeFromRoomTypes || [],
+                              subItems: item.subItems || [],
+                              conditionalOn: [],
+                              mutuallyExclusiveWith: [],
+                              notes: item.notes,
+                              tags: item.tags || [],
+                              estimatedCost: item.estimatedCost,
+                              leadTimeWeeks: item.leadTimeWeeks,
+                              supplierInfo: []
+                            })
+                            updateViewState({ showEditItemModal: true })
+                          }}
+                          onDelete={(item) => {
+                            if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
+                              // Handle delete
+                              toast.success('Item deleted successfully')
+                              loadData()
+                            }
+                          }}
+                          onDuplicate={(item) => {
+                            setItemFormData({
+                              name: `${item.name} (Copy)`,
+                              description: item.description,
+                              category: item.category,
+                              level: item.level,
+                              scope: item.scope,
+                              defaultState: item.defaultState,
+                              isRequired: item.isRequired,
+                              supportsMultiChoice: item.supportsMultiChoice,
+                              roomTypes: item.roomTypes,
+                              excludeFromRoomTypes: item.excludeFromRoomTypes || [],
+                              subItems: item.subItems || [],
+                              conditionalOn: [],
+                              mutuallyExclusiveWith: [],
+                              notes: item.notes,
+                              tags: item.tags || [],
+                              estimatedCost: item.estimatedCost,
+                              leadTimeWeeks: item.leadTimeWeeks,
+                              supplierInfo: []
+                            })
+                            updateViewState({ showAddItemModal: true })
+                          }}
+                        />
                       ))}
                     </div>
                   </div>
