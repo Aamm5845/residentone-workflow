@@ -225,10 +225,36 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
            ['OWNER', 'ADMIN'].includes(session.user.role as string)
   }
 
-  const highlightMentions = async (text: string) => {
-    // Use the more precise mention highlighting from mentionUtils
-    const { highlightValidMentions } = await import('@/lib/mentionUtils')
-    return await highlightValidMentions(text, session?.user?.orgId || '')
+  // Remove the async highlightMentions function since we'll handle it differently
+
+  // Component to handle async mention highlighting
+  const MessageContent = ({ content, orgId }: { content: string; orgId: string }) => {
+    const [highlightedContent, setHighlightedContent] = useState(content)
+    
+    useEffect(() => {
+      const highlightContent = async () => {
+        try {
+          const { highlightValidMentions } = await import('@/lib/mentionUtils')
+          const highlighted = await highlightValidMentions(content, orgId)
+          setHighlightedContent(highlighted)
+        } catch (error) {
+          console.error('Error highlighting mentions:', error)
+          // Fallback to basic highlighting if the advanced one fails
+          const basicHighlighted = content.replace(/@(\w+(?:\s+\w+)*)/g, '<span class="bg-blue-100 text-blue-800 px-1 rounded font-medium">@$1</span>')
+          setHighlightedContent(basicHighlighted)
+        }
+      }
+      
+      highlightContent()
+    }, [content, orgId])
+    
+    return (
+      <div 
+        dangerouslySetInnerHTML={{
+          __html: highlightedContent
+        }}
+      />
+    )
   }
 
   if (loading) {
@@ -328,10 +354,9 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                     </div>
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed">
-                      <div 
-                        dangerouslySetInnerHTML={{
-                          __html: highlightMentions(message.content)
-                        }}
+                      <MessageContent 
+                        content={message.content} 
+                        orgId={session?.user?.orgId || ''}
                       />
                     </div>
                   )}
