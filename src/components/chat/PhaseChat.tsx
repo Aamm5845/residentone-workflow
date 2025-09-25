@@ -113,12 +113,34 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
 
     setSending(true)
     try {
-      // Map mention names to user IDs
-      const mentionIds = teamMembers
-        .filter(member => mentions.some(mention => 
-          member.name.toLowerCase().includes(mention.toLowerCase())
-        ))
-        .map(member => member.id)
+      // Map mention names to user IDs using the same matching logic as the mention validation
+      const mentionIds = []
+      for (const mention of mentions) {
+        const matchingMember = teamMembers.find(member => {
+          const memberNameLower = member.name.toLowerCase()
+          const mentionLower = mention.toLowerCase()
+          
+          // Exact match
+          if (memberNameLower === mentionLower) {
+            return true
+          }
+          
+          // Partial match - check if the mention is contained in the member name
+          if (memberNameLower.includes(mentionLower) || memberNameLower.startsWith(mentionLower)) {
+            return true
+          }
+          
+          // Also check first name only
+          const memberFirstName = memberNameLower.split(/\s|\(|\)/)[0]
+          const mentionFirstName = mentionLower.split(/\s|\(|\)/)[0]
+          
+          return memberFirstName === mentionFirstName
+        })
+        
+        if (matchingMember && !mentionIds.includes(matchingMember.id)) {
+          mentionIds.push(matchingMember.id)
+        }
+      }
 
       const response = await fetch(`/api/chat/${stageId}`, {
         method: 'POST',
@@ -204,19 +226,6 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   const cancelEditing = () => {
     setEditingMessageId(null)
     setEditingContent('')
-  }
-
-  const getRoleColor = (role: string) => {
-    const colors = {
-      OWNER: 'bg-purple-100 text-purple-800',
-      ADMIN: 'bg-blue-100 text-blue-800',
-      DESIGNER: 'bg-pink-100 text-pink-800',
-      RENDERER: 'bg-indigo-100 text-indigo-800',
-      DRAFTER: 'bg-orange-100 text-orange-800',
-      FFE: 'bg-emerald-100 text-emerald-800',
-      VIEWER: 'bg-gray-100 text-gray-800'
-    }
-    return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
 
   const canModifyMessage = (message: ChatMessage) => {
@@ -310,12 +319,6 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                     <span className="font-medium text-sm text-gray-900">
                       {message.author.name}
                     </span>
-                    <Badge 
-                      variant="secondary" 
-                      className={cn("text-xs", getRoleColor(message.author.role))}
-                    >
-                      {message.author.role.replace('_', ' ')}
-                    </Badge>
                     <span className="text-xs text-gray-500">
                       {format(new Date(message.createdAt), 'MMM d, h:mm a')}
                     </span>

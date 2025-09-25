@@ -164,18 +164,6 @@ export function MentionTextarea({
     onSubmit(value, mentions)
   }
 
-  const getRoleColor = (role: string) => {
-    const colors = {
-      OWNER: 'text-purple-600',
-      ADMIN: 'text-blue-600',
-      DESIGNER: 'text-pink-600',
-      RENDERER: 'text-indigo-600',
-      DRAFTER: 'text-orange-600',
-      FFE: 'text-emerald-600',
-      VIEWER: 'text-gray-600'
-    }
-    return colors[role as keyof typeof colors] || 'text-gray-600'
-  }
 
   return (
     <div className="relative">
@@ -213,9 +201,6 @@ export function MentionTextarea({
                   <div className="font-medium text-gray-900">{member.name}</div>
                   <div className="text-sm text-gray-500">{member.email}</div>
                 </div>
-                <span className={cn("text-xs font-medium", getRoleColor(member.role))}>
-                  {member.role.replace('_', ' ')}
-                </span>
               </div>
             </button>
           ))}

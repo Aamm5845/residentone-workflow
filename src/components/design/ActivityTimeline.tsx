@@ -473,9 +473,6 @@ export function ActivityTimeline({ stageId, limit = 50, className = '' }: Activi
                   <span className="text-xs text-gray-600">
                     {activity.actor.name}
                   </span>
-                  <span className="text-xs text-gray-400">
-                    {activity.actor.role}
-                  </span>
                 </div>
               </div>
             </div>

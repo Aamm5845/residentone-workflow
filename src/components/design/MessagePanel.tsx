@@ -411,7 +411,7 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
                 <div>
                   <p className="text-sm font-medium text-gray-900">{comment.author.name}</p>
                   <p className="text-xs text-gray-500">
-                    {comment.author.role} • {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                     {comment.updatedAt !== comment.createdAt && ' (edited)'}
                   </p>
                 </div>
