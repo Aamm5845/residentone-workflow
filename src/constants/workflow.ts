@@ -34,7 +34,7 @@ export const STAGE_CONFIG = {
     description: 'Create stunning design concepts, mood boards, and material selections'
   },
   THREE_D: {
-    name: '3D Rendering Workspace',
+    name: '3D Rendering',
     icon: '🎥', 
     baseColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
     colors: {

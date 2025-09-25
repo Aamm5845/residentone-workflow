@@ -132,6 +132,11 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
           })
         }
         
+        // Hide phases marked as Not Applicable from the workflow display
+        if (isNotApplicable) {
+          return null
+        }
+        
         return (
           <div key={stageType} className="flex-shrink-0 w-72 group">
             <div className={`rounded-xl border-2 transition-all duration-300 transform group-hover:scale-105 ${

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
+import PhaseSettingsMenu from './PhaseSettingsMenu'
 
 export default function FFEStage({ 
   stage, 
@@ -26,8 +27,14 @@ export default function FFEStage({
       </div>
     )
   }
+  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
+  
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg">
+    <div className={`border border-gray-200 rounded-xl shadow-lg ${
+      isNotApplicable 
+        ? 'bg-gray-100 border-gray-300 opacity-75' 
+        : 'bg-white'
+    }`}>
       {/* Stage Header */}
       <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
         <div className="flex items-center justify-between">
@@ -41,13 +48,25 @@ export default function FFEStage({
               <p className="text-sm text-emerald-600 mt-1">Furniture, Fixtures & Equipment Specification</p>
             </div>
           </div>
-          <Button 
-            onClick={onComplete} 
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Mark Complete
-          </Button>
+          <div className="flex items-center space-x-3">
+            {/* Settings Menu */}
+            <PhaseSettingsMenu
+              stageId={stage.id}
+              stageName="FFE Sourcing"
+              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              onReset={() => window.location.reload()}
+              onMarkNotApplicable={() => window.location.reload()}
+              onMarkApplicable={() => window.location.reload()}
+            />
+            
+            <Button 
+              onClick={onComplete} 
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              Mark Complete
+            </Button>
+          </div>
         </div>
       </div>
       

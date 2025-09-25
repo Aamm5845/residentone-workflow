@@ -23,6 +23,8 @@ import { toast } from 'sonner'
 import { SectionCard } from './SectionCard'
 import { ActivityTimeline } from './ActivityTimeline'
 import { PhaseChat } from '../chat/PhaseChat'
+import { PhaseSettingsMenu } from '../stages/PhaseSettingsMenu'
+import PhaseSettingsMenu from '../stages/PhaseSettingsMenu'
 
 // Types
 interface DesignSection {
@@ -157,7 +159,7 @@ export default function DesignConceptWorkspace({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
-  const [activeTab, setActiveTab] = useState<'sections' | 'chat' | 'activity'>('sections')
+  const [activeTab, setActiveTab] = useState<'sections' | 'activity'>('sections')
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -298,8 +300,14 @@ export default function DesignConceptWorkspace({
 
   const { stage, room, project } = workspaceData
 
+  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
+  
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
+    <div className={`rounded-lg shadow-sm border ${
+      isNotApplicable 
+        ? 'bg-gray-100 border-gray-300 opacity-75' 
+        : 'bg-white border-gray-200'
+    } ${className}`}>
       {/* Header */}
       <div className="px-6 py-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -368,7 +376,16 @@ export default function DesignConceptWorkspace({
               <div className="text-3xl font-bold text-gray-900">{overallProgress}%</div>
               <div className="text-sm text-gray-500">Complete</div>
             </div>
-
+            
+            {/* Settings Menu */}
+            <PhaseSettingsMenu
+              stageId={stageId}
+              stageName="Design Concept"
+              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              onReset={() => refreshWorkspace()}
+              onMarkNotApplicable={() => refreshWorkspace()}
+              onMarkApplicable={() => refreshWorkspace()}
+            />
           </div>
         </div>
 
@@ -394,16 +411,6 @@ export default function DesignConceptWorkspace({
           >
             <Palette className="w-4 h-4 inline mr-2" />
             Design Sections
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-              activeTab === 'chat'
-                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            💬 Team Chat
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -496,46 +503,49 @@ export default function DesignConceptWorkspace({
         )}
       </div>
 
-      {/* Tab Content */}
-      <div className="p-6">
-        {/* Design Sections Tab */}
-        {activeTab === 'sections' && (
-          <div className="space-y-6">
-            {SECTION_DEFINITIONS.map((sectionDef) => {
-              const section = stage.designSections?.find(s => s.type === sectionDef.id)
-              const isExpanded = expandedSections.has(sectionDef.id)
+      {/* Main Content with Sidebar Layout */}
+      <div className="flex">
+        {/* Main Workspace */}
+        <div className="flex-1 p-6">
+          {/* Design Sections Tab */}
+          {activeTab === 'sections' && (
+            <div className="space-y-6">
+              {SECTION_DEFINITIONS.map((sectionDef) => {
+                const section = stage.designSections?.find(s => s.type === sectionDef.id)
+                const isExpanded = expandedSections.has(sectionDef.id)
 
-              return (
-                <SectionCard
-                  key={sectionDef.id}
-                  sectionDef={sectionDef}
-                  section={section}
-                  stageId={stageId}
-                  isExpanded={isExpanded}
-                  onToggleExpand={() => toggleSection(sectionDef.id)}
-                  onDataChange={refreshWorkspace}
-                  isStageCompleted={stage.status === 'COMPLETED'}
-                />
-              )
-            })}
-          </div>
-        )}
+                return (
+                  <SectionCard
+                    key={sectionDef.id}
+                    sectionDef={sectionDef}
+                    section={section}
+                    stageId={stageId}
+                    isExpanded={isExpanded}
+                    onToggleExpand={() => toggleSection(sectionDef.id)}
+                    onDataChange={refreshWorkspace}
+                    isStageCompleted={stage.status === 'COMPLETED'}
+                  />
+                )
+              })}
+            </div>
+          )}
 
-        {/* Team Chat Tab */}
-        {activeTab === 'chat' && (
+          {/* Activity Timeline Tab */}
+          {activeTab === 'activity' && (
+            <div className="bg-gray-50 rounded-lg p-6">
+              <ActivityTimeline stageId={stageId} />
+            </div>
+          )}
+        </div>
+
+        {/* Chat Sidebar */}
+        <div className="w-96 border-l border-gray-200 bg-gray-50">
           <PhaseChat
             stageId={stageId}
-            stageName={`${stage.type} - ${room.name || room.type}`}
-            className="h-[600px]"
+            stageName={`Design - ${room.name || room.type}`}
+            className="h-full"
           />
-        )}
-
-        {/* Activity Timeline Tab */}
-        {activeTab === 'activity' && (
-          <div className="bg-gray-50 rounded-lg p-6">
-            <ActivityTimeline stageId={stageId} />
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Bottom Completion Button (Fixed) */}

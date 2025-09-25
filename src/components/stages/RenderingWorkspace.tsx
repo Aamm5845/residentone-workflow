@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { PhaseChat } from '../chat/PhaseChat'
+import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { 
   CheckCircle, 
   User, 
@@ -109,8 +110,6 @@ export default function RenderingWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
-  const [activeTab, setActiveTab] = useState<'rendering' | 'chat'>('rendering')
-  
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Fetch rendering versions
@@ -363,7 +362,7 @@ export default function RenderingWorkspace({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // Ensure this component only renders for THREE_D stages
+  // Ensure this component only renders for 3D stages
   if (stage.type !== 'THREE_D') {
     return (
       <div className="bg-white border border-red-200 rounded-lg p-6 text-center">
@@ -377,8 +376,14 @@ export default function RenderingWorkspace({
     )
   }
 
+  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
+  
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
+    <div className={`border border-gray-200 rounded-lg ${
+      isNotApplicable 
+        ? 'bg-gray-100 border-gray-300 opacity-75' 
+        : 'bg-white'
+    }`}>
       {/* Header */}
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -413,39 +418,25 @@ export default function RenderingWorkspace({
               <Activity className="w-4 h-4 mr-2" />
               Activity
             </Button>
+            
+            {/* Settings Menu */}
+            <PhaseSettingsMenu
+              stageId={stage.id}
+              stageName="3D Rendering"
+              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              onReset={() => fetchRenderingVersions()}
+              onMarkNotApplicable={() => fetchRenderingVersions()}
+              onMarkApplicable={() => fetchRenderingVersions()}
+            />
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex space-x-1 border-b border-gray-200 px-6">
-        <button
-          onClick={() => setActiveTab('rendering')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'rendering'
-              ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          <Box className="w-4 h-4 inline mr-2" />
-          3D Renderings
-        </button>
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'chat'
-              ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          💬 Team Chat
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      <div className="p-6">
-        {/* Rendering Tab */}
-        {activeTab === 'rendering' && (
+      {/* Main Content with Sidebar Layout */}
+      <div className="flex">
+        {/* Main Workspace */}
+        <div className="flex-1 p-6">
+          {/* 3D Renderings Content */}
           <div>
         {/* Create New Version Button */}
         <div className="flex items-center justify-between mb-6">
@@ -1103,17 +1094,16 @@ export default function RenderingWorkspace({
             <li>• Revision requests will reopen the version for further editing</li>
           </ul>
         </div>
-          </div>
-        )}
+        </div>
 
-        {/* Chat Tab */}
-        {activeTab === 'chat' && (
+        {/* Chat Sidebar */}
+        <div className="w-96 border-l border-gray-200 bg-gray-50">
           <PhaseChat
             stageId={stage.id}
-            stageName={`${stage.type} - ${room.name || room.type}`}
-            className="h-[600px]"
+            stageName={`3D - ${room.name || room.type}`}
+            className="h-full"
           />
-        )}
+        </div>
       </div>
     </div>
   )

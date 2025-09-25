@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { PhaseChat } from '../../chat/PhaseChat'
+import { PhaseSettingsMenu } from '../PhaseSettingsMenu'
+import Link from 'next/link'
 import Link from 'next/link'
 
 interface ClientApprovalWorkspaceProps {
@@ -107,7 +109,6 @@ export default function ClientApprovalWorkspace({
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
-  const [activeTab, setActiveTab] = useState<'approval' | 'chat'>('approval')
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -721,9 +722,15 @@ export default function ClientApprovalWorkspace({
 
   const statusConfig = getStatusConfig(currentVersion.status)
 
+  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
+  
   return (
     <>
-    <div className="bg-white min-h-screen">
+    <div className={`min-h-screen ${
+      isNotApplicable 
+        ? 'bg-gray-100 opacity-75' 
+        : 'bg-white'
+    }`}>
       {/* Status Badge */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -737,40 +744,25 @@ export default function ClientApprovalWorkspace({
             <Badge className={statusConfig.color}>
               {statusConfig.label}
             </Badge>
-            <Button variant="ghost" size="sm">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
+            
+            {/* Settings Menu */}
+            <PhaseSettingsMenu
+              stageId={stage.id}
+              stageName="Client Approval"
+              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              onReset={() => window.location.reload()}
+              onMarkNotApplicable={() => window.location.reload()}
+              onMarkApplicable={() => window.location.reload()}
+            />
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex space-x-1 border-b border-gray-200 px-6">
-        <button
-          onClick={() => setActiveTab('approval')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'approval'
-              ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          <CheckCircle className="w-4 h-4 inline mr-2" />
-          Client Approval
-        </button>
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'chat'
-              ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          💬 Team Chat
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'approval' && (
+      {/* Main Content with Sidebar Layout */}
+      <div className="flex">
+        {/* Main Workspace */}
+        <div className="flex-1">
+          {/* Client Approval Content */}
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Main Content - Left Side */}
         <div className="flex-1 p-6 space-y-6">
@@ -1459,14 +1451,17 @@ export default function ClientApprovalWorkspace({
           </div>
         </div>
       </div>
-      )}
-
-      {/* Chat Tab */}
-      {activeTab === 'chat' && (
-        <div className="p-6">
-          <PhaseChat stageId={stage.id} />
         </div>
-      )}
+
+        {/* Chat Sidebar */}
+        <div className="w-96 border-l border-gray-200 bg-gray-50">
+          <PhaseChat
+            stageId={stage.id}
+            stageName={`Client Approval - ${room.name || room.type}`}
+            className="h-full"
+          />
+        </div>
+      </div>
 
     </div>
 
