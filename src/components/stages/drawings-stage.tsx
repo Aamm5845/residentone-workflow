@@ -8,7 +8,6 @@ import FilePreviewModal from '@/components/ui/file-preview-modal'
 import { useDrawingsWorkspace } from '@/hooks/useDrawingsWorkspace'
 import { DrawingAsset, DrawingChecklistItem } from '@/types/drawings'
 import { PhaseChat } from '../chat/PhaseChat'
-import PhaseSettingsMenu from './PhaseSettingsMenu'
 import {
   CheckCircle,
   PencilRuler,
@@ -76,7 +75,6 @@ export default function DrawingsWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [showActivity, setShowActivity] = useState(false)
   const [draggedOver, setDraggedOver] = useState<string | null>(null)
-  
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   
   const {
@@ -243,17 +241,6 @@ export default function DrawingsWorkspace({
             >
               <Activity className="w-4 h-4" />
             </Button>
-            
-            {/* Settings Menu */}
-            <PhaseSettingsMenu
-              stageId={stage.id}
-              stageName="Technical Drawings"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
-              onReset={() => window.location.reload()}
-              onMarkNotApplicable={() => window.location.reload()}
-              onMarkApplicable={() => window.location.reload()}
-            />
-            
             <Button 
               onClick={completeStage}
               disabled={!canComplete() || completing}

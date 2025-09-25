@@ -23,8 +23,6 @@ import { toast } from 'sonner'
 import { SectionCard } from './SectionCard'
 import { ActivityTimeline } from './ActivityTimeline'
 import { PhaseChat } from '../chat/PhaseChat'
-import { PhaseSettingsMenu } from '../stages/PhaseSettingsMenu'
-import PhaseSettingsMenu from '../stages/PhaseSettingsMenu'
 
 // Types
 interface DesignSection {
@@ -376,16 +374,6 @@ export default function DesignConceptWorkspace({
               <div className="text-3xl font-bold text-gray-900">{overallProgress}%</div>
               <div className="text-sm text-gray-500">Complete</div>
             </div>
-            
-            {/* Settings Menu */}
-            <PhaseSettingsMenu
-              stageId={stageId}
-              stageName="Design Concept"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
-              onReset={() => refreshWorkspace()}
-              onMarkNotApplicable={() => refreshWorkspace()}
-              onMarkApplicable={() => refreshWorkspace()}
-            />
           </div>
         </div>
 

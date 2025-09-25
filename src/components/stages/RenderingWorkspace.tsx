@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { PhaseChat } from '../chat/PhaseChat'
-import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { 
   CheckCircle, 
   User, 
@@ -418,16 +417,6 @@ export default function RenderingWorkspace({
               <Activity className="w-4 h-4 mr-2" />
               Activity
             </Button>
-            
-            {/* Settings Menu */}
-            <PhaseSettingsMenu
-              stageId={stage.id}
-              stageName="3D Rendering"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
-              onReset={() => fetchRenderingVersions()}
-              onMarkNotApplicable={() => fetchRenderingVersions()}
-              onMarkApplicable={() => fetchRenderingVersions()}
-            />
           </div>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
-import PhaseSettingsMenu from './PhaseSettingsMenu'
 
 export default function FFEStage({ 
   stage, 
@@ -12,8 +11,6 @@ export default function FFEStage({
   project, 
   onComplete 
 }: any) {
-  const [activeTab, setActiveTab] = useState<'ffe' | 'chat'>('ffe')
-  
   // Ensure this component only renders for FFE stages
   if (stage.type !== 'FFE') {
     return (
@@ -48,57 +45,22 @@ export default function FFEStage({
               <p className="text-sm text-emerald-600 mt-1">Furniture, Fixtures & Equipment Specification</p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            {/* Settings Menu */}
-            <PhaseSettingsMenu
-              stageId={stage.id}
-              stageName="FFE Sourcing"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
-              onReset={() => window.location.reload()}
-              onMarkNotApplicable={() => window.location.reload()}
-              onMarkApplicable={() => window.location.reload()}
-            />
-            
-            <Button 
-              onClick={onComplete} 
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
-            >
-              <CheckCircle className="w-5 h-5 mr-2" />
-              Mark Complete
-            </Button>
-          </div>
+          <Button 
+            onClick={onComplete} 
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
+          >
+            <CheckCircle className="w-5 h-5 mr-2" />
+            Mark Complete
+          </Button>
         </div>
       </div>
       
-      {/* Navigation Tabs */}
-      <div className="flex space-x-1 border-b border-gray-200 px-6">
-        <button
-          onClick={() => setActiveTab('ffe')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'ffe'
-              ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          <Package className="w-4 h-4 inline mr-2" />
-          FFE Sourcing
-        </button>
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'chat'
-              ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          💬 Team Chat
-        </button>
-      </div>
       
-      {/* Tab Content */}
-      {activeTab === 'ffe' && (
-        /* Content */
-      <div className="p-8">
+      {/* Main Content with Sidebar Layout */}
+      <div className="flex">
+        {/* Main Workspace */}
+        <div className="flex-1 p-8">
+          {/* FFE Content */}
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-16 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
@@ -142,15 +104,17 @@ export default function FFEStage({
             </Button>
           </div>
         </div>
-      </div>
-      )}
-      
-      {/* Chat Tab */}
-      {activeTab === 'chat' && (
-        <div className="p-6">
-          <PhaseChat stageId={stage.id} />
         </div>
-      )}
+
+        {/* Chat Sidebar */}
+        <div className="w-96 border-l border-gray-200 bg-gray-50">
+          <PhaseChat
+            stageId={stage.id}
+            stageName={`FFE - ${room.name || room.type}`}
+            className="h-full"
+          />
+        </div>
+      </div>
     </div>
   )
 }

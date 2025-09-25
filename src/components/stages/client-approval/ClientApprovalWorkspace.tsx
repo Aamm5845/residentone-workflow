@@ -23,11 +23,12 @@ import {
   ChevronDown,
   Monitor,
   TestTube,
-  RefreshCw
+  RefreshCw,
+  RotateCcw,
+  Minus
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { PhaseChat } from '../../chat/PhaseChat'
-import { PhaseSettingsMenu } from '../PhaseSettingsMenu'
 import Link from 'next/link'
 import Link from 'next/link'
 
@@ -109,7 +110,8 @@ export default function ClientApprovalWorkspace({
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
-
+  const [activeTab, setActiveTab] = useState<'approval' | 'chat'>('approval')
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false)
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
 
@@ -746,14 +748,110 @@ export default function ClientApprovalWorkspace({
             </Badge>
             
             {/* Settings Menu */}
-            <PhaseSettingsMenu
-              stageId={stage.id}
-              stageName="Client Approval"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
-              onReset={() => window.location.reload()}
-              onMarkNotApplicable={() => window.location.reload()}
-              onMarkApplicable={() => window.location.reload()}
-            />
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+              
+              {showSettingsMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowSettingsMenu(false)}
+                  />
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                    <div className="p-2">
+                      <div className="px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100 mb-2">
+                        Client Approval Settings
+                      </div>
+                      
+                      {stage.status !== 'NOT_APPLICABLE' && (
+                        <button
+                          onClick={async () => {
+                            if (confirm('Reset Client Approval phase? This will permanently delete all data and progress.')) {
+                              try {
+                                const response = await fetch(`/api/stages/${stage.id}/reset`, { method: 'POST' })
+                                if (response.ok) {
+                                  window.location.reload()
+                                } else {
+                                  alert('Failed to reset phase')
+                                }
+                              } catch (error) {
+                                alert('Failed to reset phase')
+                              }
+                            }
+                            setShowSettingsMenu(false)
+                          }}
+                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-3" />
+                          Reset Phase
+                        </button>
+                      )}
+                      
+                      {stage.status !== 'NOT_APPLICABLE' ? (
+                        <button
+                          onClick={async () => {
+                            if (confirm('Mark Client Approval phase as not applicable? This will hide it from the workflow.')) {
+                              try {
+                                const response = await fetch(`/api/stages/${stage.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'mark_not_applicable' })
+                                })
+                                if (response.ok) {
+                                  window.location.reload()
+                                } else {
+                                  alert('Failed to mark as not applicable')
+                                }
+                              } catch (error) {
+                                alert('Failed to mark as not applicable')
+                              }
+                            }
+                            setShowSettingsMenu(false)
+                          }}
+                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        >
+                          <Minus className="w-4 h-4 mr-3" />
+                          Mark as Not Applicable
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/stages/${stage.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'mark_applicable' })
+                              })
+                              if (response.ok) {
+                                window.location.reload()
+                              } else {
+                                alert('Failed to mark as applicable')
+                              }
+                            } catch (error) {
+                              alert('Failed to mark as applicable')
+                            }
+                            setShowSettingsMenu(false)
+                          }}
+                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-3" />
+                          Mark as Applicable
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
