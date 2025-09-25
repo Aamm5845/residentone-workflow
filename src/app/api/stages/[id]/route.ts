@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { completeFFEStage, resetFFEStage } from '@/lib/stage/ffe-stage-manager'
 import type { Session } from 'next-auth'
 import { 
   withUpdateAttribution, 
@@ -56,10 +57,32 @@ export async function PATCH(
       })
       activityAction = ActivityActions.STAGE_STARTED
     } else if (action === 'complete') {
-      updateData = withCompletionAttribution(session, {
-        status: 'COMPLETED'
-      })
-      activityAction = ActivityActions.STAGE_COMPLETED
+      // Handle FFE stages with special validation
+      if (stage.type === 'FFE') {
+        const ffeResult = await completeFFEStage(resolvedParams.id, session.user.id, data.forceComplete || false)
+        
+        if (!ffeResult.success) {
+          return NextResponse.json({ 
+            error: 'FFE stage completion failed',
+            details: ffeResult.errors,
+            warnings: ffeResult.warnings,
+            validation: ffeResult.validation
+          }, { status: 400 })
+        }
+        
+        // FFE stage was completed successfully, return the result
+        return NextResponse.json({
+          ...ffeResult.stage,
+          ffeValidation: ffeResult.validation,
+          warnings: ffeResult.warnings
+        })
+      } else {
+        // Handle non-FFE stages normally
+        updateData = withCompletionAttribution(session, {
+          status: 'COMPLETED'
+        })
+        activityAction = ActivityActions.STAGE_COMPLETED
+      }
     } else if (action === 'pause') {
       updateData = withUpdateAttribution(session, {
         status: 'ON_HOLD'
@@ -92,6 +115,29 @@ export async function PATCH(
         status: 'NOT_STARTED'
       })
       activityAction = 'STAGE_MARKED_APPLICABLE'
+    } else if (action === 'reset') {
+      // Handle FFE stage reset with special logic
+      if (stage.type === 'FFE') {
+        const resetResult = await resetFFEStage(resolvedParams.id, session.user.id, data.clearItems || false)
+        
+        if (!resetResult.success) {
+          return NextResponse.json({
+            error: 'FFE stage reset failed',
+            details: resetResult.errors
+          }, { status: 400 })
+        }
+        
+        return NextResponse.json(resetResult.stage)
+      } else {
+        // Handle non-FFE stage reset normally
+        updateData = withUpdateAttribution(session, {
+          status: 'NOT_STARTED',
+          completedAt: null,
+          startedAt: null,
+          completedById: null
+        })
+        activityAction = 'STAGE_RESET'
+      }
     }
     
     if (dueDate) {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Settings } from 'lucide-react'
+import { Settings, Play } from 'lucide-react'
 import PhaseCard from './phase-card'
 import PhaseAssignmentModal, { BulkPhaseAssignmentModal } from './phase-assignment-modal'
 import { 
@@ -152,6 +152,35 @@ export default function RoomPhaseBoard({
     }
   }
 
+  const handleStartAllPhases = async () => {
+    const pendingPhases = phases.filter(p => p.status === 'PENDING' && p.stageId)
+    if (pendingPhases.length === 0) return
+    
+    setLoading('start-all')
+    try {
+      // Start the first pending phase (phases will auto-sequence)
+      const firstPhase = pendingPhases[0]
+      const response = await fetch(`/api/stages/${firstPhase.stageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to start phases')
+      }
+      
+      // Force a hard refresh to ensure all phase statuses are updated
+      window.location.reload()
+    } catch (error) {
+      console.error('Error starting phases:', error)
+      alert(`Failed to start phases: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setLoading(null)
+    }
+  }
+
   const handleBulkAssign = async (assignments: Record<PhaseId, string | null>) => {
     setLoading('bulk')
     try {
@@ -195,15 +224,38 @@ export default function RoomPhaseBoard({
           </p>
         </div>
         
-        {canManageAssignments && (
-          <Button 
-            variant="outline" 
-            onClick={() => setShowBulkAssignmentModal(true)}
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Room Settings
-          </Button>
-        )}
+        <div className="flex items-center space-x-3">
+          {/* Start All Phases Button */}
+          {phases.some(p => p.status === 'PENDING') && (
+            <Button 
+              onClick={() => handleStartAllPhases()}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              disabled={loading !== null}
+            >
+              {loading === 'start-all' ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Phases
+                </>
+              )}
+            </Button>
+          )}
+          
+          {canManageAssignments && (
+            <Button 
+              variant="outline" 
+              onClick={() => setShowBulkAssignmentModal(true)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Room Settings
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Phase Cards Grid */}

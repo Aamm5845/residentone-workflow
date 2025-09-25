@@ -63,9 +63,12 @@ model Organization {
   clients      Client[]
   contractors  Contractor[]
   projects     Project[]
-  tags         Tag[]
-  users        User[]
-  issues       Issue[]
+  tags                Tag[]
+  users               User[]
+  issues              Issue[]
+  ffeLearningItems    FFELearningItem[]
+  ffeGlobalSettings   FFEGlobalSettings?
+  ffeItemLibrary      FFEItemLibrary[]
 }
 
 model User {
@@ -103,6 +106,8 @@ model User {
   updatedSections            DesignSection[]          @relation("UpdatedByUserSection")
   createdFFEItems            FFEItem[]                @relation("CreatedByUserFFE")
   updatedFFEItems            FFEItem[]                @relation("UpdatedByUserFFE")
+  createdFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusCreatedBy")
+  updatedFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusUpdatedBy")
   notifications              Notification[]
   createdProjects            Project[]                @relation("CreatedByUser")
   updatedProjects            Project[]                @relation("UpdatedByUser")
@@ -124,6 +129,11 @@ model User {
   issueComments              IssueComment[]           @relation("IssueCommentAuthor")
   chatMessages               ChatMessage[]
   chatMentions               ChatMention[]
+  createdFFELearningItems    FFELearningItem[]        @relation("FFELearningItemCreatedBy")
+  createdFFESettings         FFEGlobalSettings[]      @relation("FFESettingsCreatedBy")
+  updatedFFESettings         FFEGlobalSettings[]      @relation("FFESettingsUpdatedBy")
+  createdFFELibraryItems     FFEItemLibrary[]         @relation("FFELibraryCreatedBy")
+  updatedFFELibraryItems     FFEItemLibrary[]         @relation("FFELibraryUpdatedBy")
   organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions               UserSession[]
 }
@@ -212,6 +222,7 @@ model Project {
   rooms              Room[]
   tasks              Task[]
   issues             Issue[]
+  ffeTemplateSources FFELearningItem[]    @relation("FFELearningFromProject")
 }
 
 model Room {
@@ -230,6 +241,7 @@ model Room {
   assets            Asset[]
   comments          Comment[]
   ffeItems          FFEItem[]
+  ffeItemStatuses   FFEItemStatus[]
   renderingVersions RenderingVersion[]
   createdBy         User?              @relation("CreatedByUserRoom", fields: [createdById], references: [id])
   project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -237,6 +249,7 @@ model Room {
   stages            Stage[]
   tasks             Task[]
   issues            Issue[]
+  ffeTemplateSources FFELearningItem[]    @relation("FFELearningFromRoom")
 }
 
 model Stage {
@@ -414,6 +427,31 @@ model FFEItem {
   createdBy    User?     @relation("CreatedByUserFFE", fields: [createdById], references: [id])
   room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy    User?     @relation("UpdatedByUserFFE", fields: [updatedById], references: [id])
+}
+
+model FFEItemStatus {
+  id                String    @id @default(cuid())
+  roomId            String
+  itemId            String
+  status            FFEStatus @default(NOT_STARTED)
+  notes             String?
+  supplierLink      String?
+  actualPrice       Float?
+  estimatedDelivery DateTime?
+  subItemsCompleted String[]
+  confirmedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdById       String
+  updatedById       String
+  createdBy         User      @relation("FFEItemStatusCreatedBy", fields: [createdById], references: [id])
+  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  updatedBy         User      @relation("FFEItemStatusUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([roomId, itemId])
+  @@index([roomId])
+  @@index([itemId])
+  @@index([status])
 }
 
 model ClientApprovalVersion {
@@ -993,6 +1031,7 @@ enum FFEStatus {
   ORDERED
   DELIVERED
   COMPLETED
+  NOT_NEEDED
 }
 
 enum ApprovalStatus {
@@ -1073,4 +1112,118 @@ enum IssueStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+model FFELearningItem {
+  id                     String   @id @default(cuid())
+  orgId                  String
+  name                   String
+  category               String
+  subcategory            String?
+  description            String?
+  roomTypes              String[]
+  priority               String   @default("medium")
+  isRequired             Boolean  @default(false)
+  isStandard             Boolean  @default(true)
+  subItems               Json?
+  conditionalOn          String[]
+  estimatedPrice         Decimal? @db.Decimal(10, 2)
+  leadTimeWeeks          Int?
+  supplierData           Json?
+  tags                   String[]
+  usageCount             Int      @default(0)
+  successCount           Int      @default(0)
+  successRate            Decimal  @default(0.0000) @db.Decimal(5, 4)
+  averagePrice           Decimal? @db.Decimal(10, 2)
+  averageLeadTime        Decimal? @db.Decimal(5, 2)
+  isGlobalTemplate       Boolean  @default(false)
+  isCustom               Boolean  @default(false)
+  originalItemId         String?
+  createdById            String?
+  createdFromProjectId   String?
+  createdFromRoomId      String?
+  lastUsedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  organization           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy              User?        @relation("FFELearningItemCreatedBy", fields: [createdById], references: [id])
+  createdFromProject     Project?     @relation("FFELearningFromProject", fields: [createdFromProjectId], references: [id])
+  createdFromRoom        Room?        @relation("FFELearningFromRoom", fields: [createdFromRoomId], references: [id])
+
+  @@index([orgId])
+  @@index([originalItemId])
+  @@index([roomTypes], type: Gin)
+  @@index([category])
+  @@index([usageCount])
+  @@index([successRate])
+}
+
+model FFEGlobalSettings {
+  id                                String   @id @default(cuid())
+  orgId                             String   @unique
+  defaultBudgetMultipliers          Json
+  defaultLeadTimeWeeks              Json
+  requireSupplierLinks              Boolean  @default(true)
+  requirePriceConfirmation          Boolean  @default(true)
+  allowCustomItems                  Boolean  @default(true)
+  autoCreateTemplatesFromProjects   Boolean  @default(true)
+  defaultPriorities                 Json
+  budgetThresholds                  Json
+  approvalWorkflows                 Json
+  notifications                     Json
+  customFields                      Json     @default("[]")
+  integrations                      Json     @default("{}")
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
+  createdBy                         String
+  updatedBy                         String
+
+  // Relations
+  organization                      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdByUser                     User         @relation("FFESettingsCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser                     User         @relation("FFESettingsUpdatedBy", fields: [updatedBy], references: [id])
+}
+
+model FFEItemLibrary {
+  id                String   @id @default(cuid())
+  orgId             String
+  name              String
+  description       String?
+  category          String
+  subcategory       String?
+  tags              String[]
+  isPublic          Boolean  @default(true)
+  isTemplate        Boolean  @default(false)
+  basePrice         Decimal? @db.Decimal(10, 2)
+  priceRange        Json?
+  estimatedLeadTime Int?
+  leadTimeRange     Json?
+  suppliers         Json     @default("[]")
+  specifications    Json?
+  images            String[]
+  documents         String[]
+  roomTypes         String[]
+  priority          String   @default("medium")
+  isRequired        Boolean  @default(false)
+  conditionalOn     String[]
+  alternatives      String[]
+  usageStats        Json     @default("{\"timesUsed\": 0, \"successRate\": 0}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+
+  // Relations
+  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("FFELibraryCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("FFELibraryUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@index([orgId])
+  @@index([category])
+  @@index([roomTypes], type: Gin)
+  @@index([tags], type: Gin)
+  @@index([isPublic])
+  @@index([isTemplate])
 }

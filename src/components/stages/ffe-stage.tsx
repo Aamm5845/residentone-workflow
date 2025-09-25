@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Settings, AlertTriangle, Plus, Package } from 'lucide-react'
+import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
+import RoomFFEChecklist from '../ffe/RoomFFEChecklist'
+import { getRoomFFEConfig } from '@/lib/constants/room-ffe-config'
 
 export default function FFEStage({ 
   stage, 
@@ -12,6 +14,9 @@ export default function FFEStage({
   project, 
   onComplete 
 }: any) {
+  const [ffeProgress, setFFEProgress] = useState(0)
+  const [isFFEComplete, setIsFFEComplete] = useState(false)
+  
   // Ensure this component only renders for FFE stages
   if (stage.type !== 'FFE') {
     return (
@@ -25,35 +30,38 @@ export default function FFEStage({
       </div>
     )
   }
-  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
   
-  return (
-    <div className={`border border-gray-200 rounded-xl shadow-lg ${
-      isNotApplicable 
-        ? 'bg-gray-100 border-gray-300 opacity-75' 
-        : 'bg-white'
-    }`}>
-      {/* Stage Header */}
-      <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Package className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">FFE Sourcing & Procurement</h2>
-              <p className="text-gray-600 mt-1">{room.name || room.type} • {project.name}</p>
-              <p className="text-sm text-emerald-600 mt-1">Furniture, Fixtures & Equipment Specification</p>
-            </div>
+  const isNotApplicable = stage.status === 'NOT_APPLICABLE'
+  const roomConfig = getRoomFFEConfig(room.type)
+  
+  const handleFFEProgress = (progress: number, isComplete: boolean) => {
+    setFFEProgress(progress)
+    setIsFFEComplete(isComplete)
+  }
+  
+  const handleComplete = async () => {
+    if (!isFFEComplete) {
+      const confirm = window.confirm(
+        'FFE phase is not fully complete according to room requirements. Are you sure you want to mark it as complete?'
+      )
+      if (!confirm) return
+    }
+    
+    await onComplete()
+  }
+  
+  if (isNotApplicable) {
+    return (
+      <div className="border border-gray-300 rounded-xl shadow-lg bg-gray-100 opacity-75">
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 bg-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package className="w-8 h-8 text-white" />
           </div>
-          <div className="flex items-center space-x-2">
-            <Button 
-              onClick={onComplete} 
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
-            >
-              <CheckCircle className="w-5 h-5 mr-2" />
-              Mark Complete
-            </Button>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">FFE Phase Not Applicable</h3>
+          <p className="text-gray-600 mb-4">
+            This phase has been marked as not applicable for this {room.name || room.type}.
+          </p>
+          <div className="flex justify-center">
             <PhaseSettingsMenu 
               stageId={stage.id}
               stageName="FFE Sourcing"
@@ -65,56 +73,120 @@ export default function FFEStage({
           </div>
         </div>
       </div>
-      
+    )
+  }
+  
+  return (
+    <div className="border border-gray-200 rounded-xl shadow-lg bg-white">
+      {/* Stage Header */}
+      <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Package className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {roomConfig?.displayName || room.type} FFE Phase
+              </h2>
+              <p className="text-gray-600 mt-1">{room.name || room.type} • {project.name}</p>
+              <p className="text-sm text-emerald-600 mt-1">
+                Furniture, Fixtures & Equipment Specification • {ffeProgress}% Complete
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {isFFEComplete && (
+              <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1 rounded-full mr-2">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Ready to Complete</span>
+              </div>
+            )}
+            <Button 
+              onClick={handleComplete}
+              className={`font-semibold shadow-md hover:shadow-lg px-6 py-3 ${
+                isFFEComplete 
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              {isFFEComplete ? 'Complete Phase' : 'Force Complete'}
+            </Button>
+            <PhaseSettingsMenu 
+              stageId={stage.id}
+              stageName="FFE Sourcing"
+              isNotApplicable={isNotApplicable}
+              onReset={() => window.location.reload()}
+              onMarkNotApplicable={() => window.location.reload()}
+              onMarkApplicable={() => window.location.reload()}
+            />
+          </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className={`h-3 rounded-full transition-all duration-1000 ${
+                isFFEComplete 
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+              }`}
+              style={{ width: `${ffeProgress}%` }}
+            />
+          </div>
+        </div>
+      </div>
       
       {/* Main Content with Sidebar Layout */}
       <div className="flex">
         {/* Main Workspace */}
-        <div className="flex-1 p-8">
-          {/* FFE Content */}
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-16 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-              <Package className="w-10 h-10 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Premium FFE Sourcing Workspace</h3>
-            <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-              Professional furniture, fixtures & equipment sourcing and specification management. 
-              Designed for precision and luxury in every detail.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8">
-              <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Package className="w-6 h-6 text-emerald-600" />
+        <div className="flex-1 p-6">
+          {roomConfig ? (
+            <RoomFFEChecklist
+              roomId={room.id}
+              roomType={room.type}
+              roomName={room.name || room.type}
+              onProgress={handleFFEProgress}
+            />
+          ) : (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                      Custom Room Type
+                    </h3>
+                    <p className="text-yellow-800 mb-4">
+                      This room type ({room.type}) doesn't have a predefined FFE template. 
+                      You can still manage FFE items using the general item management system.
+                    </p>
+                    <Button className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Custom FFE Items
+                    </Button>
+                  </div>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Item Sourcing</h4>
-                <p className="text-sm text-gray-600">Premium furniture and fixture sourcing with detailed specifications</p>
               </div>
               
-              <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-6 h-6 text-teal-600" />
+              <div className="text-center py-16 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
+                  <Package className="w-10 h-10 text-white" />
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Quality Control</h4>
-                <p className="text-sm text-gray-600">Rigorous quality standards and approval processes</p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Settings className="w-6 h-6 text-emerald-600" />
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Procurement</h4>
-                <p className="text-sm text-gray-600">Streamlined ordering and delivery coordination</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Custom FFE Management</h3>
+                <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
+                  Manage furniture, fixtures & equipment for this custom room type.
+                </p>
+                
+                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Start Custom FFE Planning
+                </Button>
               </div>
             </div>
-            
-            <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl">
-              <Plus className="w-5 h-5 mr-2" />
-              Start FFE Sourcing
-            </Button>
-          </div>
-        </div>
+          )}
         </div>
 
         {/* Chat Sidebar */}

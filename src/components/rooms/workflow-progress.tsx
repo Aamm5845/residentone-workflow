@@ -132,47 +132,54 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
           })
         }
         
-        // Hide phases marked as Not Applicable from the workflow display
-        if (isNotApplicable) {
-          return null
-        }
-        
         return (
-          <div key={stageType} className="flex-shrink-0 w-72 group">
+          <div key={stageType} className={`flex-shrink-0 w-72 group ${
+            isNotApplicable ? 'opacity-60' : ''
+          }`}>
             <div className={`rounded-xl border-2 transition-all duration-300 transform group-hover:scale-105 ${
-              getStageStatusColor(stageType, status)
+              isNotApplicable 
+                ? 'border-gray-300 bg-gray-50' 
+                : getStageStatusColor(stageType, status)
             }`}>
               <div className="px-5 py-4 border-b border-current/10 bg-gradient-to-r from-transparent to-black/5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      stageConfig.baseColor
-                    } shadow-md`}>
-                      <span className="text-lg text-white">{stageConfig.icon}</span>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-md ${
+                      isNotApplicable 
+                        ? 'bg-gray-400' 
+                        : stageConfig.baseColor
+                    }`}>
+                      <span className="text-lg text-white">
+                        {isNotApplicable ? '➖' : stageConfig.icon}
+                      </span>
                     </div>
                     <div>
                       <h4 className={`font-semibold text-base ${
-                        getStageStatusTextColor(stageType, status)
+                        isNotApplicable 
+                          ? 'text-gray-500' 
+                          : getStageStatusTextColor(stageType, status)
                       }`}>
                         {stageConfig.name}
                       </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">{stageConfig.description}</p>
+                      <p className={`text-xs mt-0.5 ${
+                        isNotApplicable ? 'text-gray-400' : 'text-gray-500'
+                      }`}>{stageConfig.description}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end space-y-1">
                     <div className={`w-4 h-4 rounded-full ${
                       isCompleted ? 'bg-green-500 ring-2 ring-green-200' :
                       isActive ? 'bg-blue-500 animate-pulse ring-2 ring-blue-200' :
-                      isNotApplicable ? 'bg-slate-400 ring-2 ring-slate-200' :
+                      isNotApplicable ? 'bg-gray-400 ring-2 ring-gray-200' :
                       'bg-gray-300'
                     }`} />
                     <span className="text-xs font-medium ${
                       isCompleted ? 'text-green-600' :
                       isActive ? 'text-blue-600' :
-                      isNotApplicable ? 'text-slate-600' :
+                      isNotApplicable ? 'text-gray-500' :
                       'text-gray-400'
                     }">
-                      {isCompleted ? 'Done' : isActive ? 'Active' : isNotApplicable ? 'N/A' : 'Pending'}
+                      {isCompleted ? 'Done' : isActive ? 'Active' : 'Pending'}
                     </span>
                   </div>
                 </div>
@@ -214,12 +221,12 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                   )}
                   {isNotApplicable && (
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                        <Minus className="w-5 h-5 text-slate-600" />
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Minus className="w-5 h-5 text-gray-500" />
                       </div>
                       <div>
-                        <span className="font-semibold text-slate-700 text-sm">Not Applicable</span>
-                        <p className="text-xs text-slate-600">This phase is not needed for this room</p>
+                        <span className="font-semibold text-gray-600 text-sm">Not Applicable</span>
+                        <p className="text-xs text-gray-500">This phase is not needed for this room</p>
                       </div>
                     </div>
                   )}
