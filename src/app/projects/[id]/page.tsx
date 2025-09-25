@@ -475,6 +475,15 @@ export default async function ProjectDetail({ params }: Props) {
                               matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
                             }
                             
+                            // Hide phase completely if it's marked as NOT_APPLICABLE, but keep the grid position
+                            if (matchingStage?.status === 'NOT_APPLICABLE') {
+                              return (
+                                <div key={phaseId} className="text-center">
+                                  {/* Empty space to maintain grid layout */}
+                                </div>
+                              )
+                            }
+                            
                             // Get the correct icon for each phase
                             const phaseIcons: Record<string, string> = {
                               'DESIGN_CONCEPT': '🎨',
@@ -492,7 +501,6 @@ export default async function ProjectDetail({ params }: Props) {
                                     className={`w-3 h-3 rounded-full transition-all duration-300 ${
                                       matchingStage?.status === 'COMPLETED' ? 'bg-green-500' :
                                       matchingStage?.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                                      matchingStage?.status === 'NOT_APPLICABLE' ? 'bg-slate-400' :
                                       'bg-gray-300'
                                     }`}
                                   />

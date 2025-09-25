@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
-export interface LastCompletedPhaseDto {
+export interface RecentCompletionDto {
   id: string
   stageType: string
   roomType: string
@@ -26,8 +26,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get the most recent completed stage
-    const lastCompletedStage = await prisma.stage.findFirst({
+    // Get the last 10 completed stages
+    const recentCompletions = await prisma.stage.findMany({
       where: {
         status: 'COMPLETED',
         completedAt: { not: null },
@@ -59,35 +59,36 @@ export async function GET() {
       },
       orderBy: {
         completedAt: 'desc'
-      }
+      },
+      take: 10
     })
 
-    if (!lastCompletedStage || !lastCompletedStage.completedBy) {
-      return NextResponse.json({ data: null })
-    }
+    const response: RecentCompletionDto[] = recentCompletions
+      .filter(stage => stage.completedBy)
+      .map(stage => {
+        const roomName = stage.room.name || 
+          stage.room.type.replace('_', ' ').toLowerCase()
 
-    const roomName = lastCompletedStage.room.name || 
-      lastCompletedStage.room.type.replace('_', ' ').toLowerCase()
-
-    const response: LastCompletedPhaseDto = {
-      id: lastCompletedStage.id,
-      stageType: lastCompletedStage.type.replace('_', ' ').toLowerCase(),
-      roomType: lastCompletedStage.room.type.replace('_', ' ').toLowerCase(),
-      roomName,
-      clientName: lastCompletedStage.room.project.client.name,
-      projectName: lastCompletedStage.room.project.name,
-      completedAt: lastCompletedStage.completedAt!.toISOString(),
-      completedBy: {
-        id: lastCompletedStage.completedBy.id,
-        name: lastCompletedStage.completedBy.name || 'Unknown',
-        role: lastCompletedStage.completedBy.role,
-        image: lastCompletedStage.completedBy.image || undefined
-      }
-    }
+        return {
+          id: stage.id,
+          stageType: stage.type.replace('_', ' ').toLowerCase(),
+          roomType: stage.room.type.replace('_', ' ').toLowerCase(),
+          roomName,
+          clientName: stage.room.project.client.name,
+          projectName: stage.room.project.name,
+          completedAt: stage.completedAt!.toISOString(),
+          completedBy: {
+            id: stage.completedBy!.id,
+            name: stage.completedBy!.name || 'Unknown',
+            role: stage.completedBy!.role,
+            image: stage.completedBy!.image || undefined
+          }
+        }
+      })
 
     return NextResponse.json({ data: response })
   } catch (error) {
-    console.error('Last completed phase error:', error)
+    console.error('Recent completions error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

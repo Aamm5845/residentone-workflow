@@ -35,11 +35,11 @@ export async function GET() {
           }
         }
       }),
-      // Count ClientApprovalVersions that are pending client approval
+      // Count ClientApprovalVersions that are pending Aaron's approval
       prisma.clientApprovalVersion.count({
         where: {
-          status: 'SENT_TO_CLIENT',
-          clientDecision: 'PENDING'
+          approvedByAaron: false,
+          status: { in: ['DRAFT', 'PENDING_AARON_APPROVAL'] }
         }
       }),
       prisma.project.count({

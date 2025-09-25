@@ -151,7 +151,6 @@ export default function FFEStage({
             onItemUpdate={() => {}} // Reload room data if needed
           />
         </div>
-        </div>
 
         {/* Chat Sidebar */}
         <div className="w-96 border-l border-gray-200 bg-gray-50">

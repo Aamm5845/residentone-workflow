@@ -278,7 +278,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         </div>
 
         {/* Stats Overview */}
-        {statusFilter === 'overdue' && overdueTasks.length > 0 && (
+        {statusFilter === 'overdue' && userTasks.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
@@ -286,7 +286,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                 <div>
                   <p className="text-sm font-medium text-red-800">High Priority</p>
                   <p className="text-2xl font-bold text-red-900">
-                    {overdueTasks.filter(task => task.urgencyLevel === 'high').length}
+                    {userTasks.filter(task => task.urgencyLevel === 'high').length}
                   </p>
                 </div>
               </div>
@@ -297,7 +297,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                 <div>
                   <p className="text-sm font-medium text-yellow-800">Medium Priority</p>
                   <p className="text-2xl font-bold text-yellow-900">
-                    {overdueTasks.filter(task => task.urgencyLevel === 'medium').length}
+                    {userTasks.filter(task => task.urgencyLevel === 'medium').length}
                   </p>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                 <div>
                   <p className="text-sm font-medium text-blue-800">Client Approvals</p>
                   <p className="text-2xl font-bold text-blue-900">
-                    {overdueTasks.filter(task => task.type === 'approval').length}
+                    {userTasks.filter(task => task.type === 'approval').length}
                   </p>
                 </div>
               </div>
@@ -360,12 +360,39 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                             )}
                             
                             {/* Due Date Info */}
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
-                                {task.type === 'approval' ? 'Sent' : 'Due'}: {formatDate(task.dueDate)}
-                              </span>
-                            </div>
+                            {task.dueDate && (
+                              <div className={`flex items-center space-x-2 text-sm px-3 py-2 rounded-lg ${
+                                task.urgencyLevel === 'high' ? 'bg-red-50 border border-red-200' :
+                                task.overdueBy > 0 ? 'bg-red-50 border border-red-200' :
+                                task.overdueBy === 0 ? 'bg-yellow-50 border border-yellow-200' :
+                                'bg-gray-50 border border-gray-200'
+                              }`}>
+                                <Calendar className={`w-4 h-4 ${
+                                  task.urgencyLevel === 'high' ? 'text-red-500' :
+                                  task.overdueBy > 0 ? 'text-red-500' :
+                                  task.overdueBy === 0 ? 'text-yellow-500' :
+                                  'text-gray-500'
+                                }`} />
+                                <span className={`font-medium ${
+                                  task.urgencyLevel === 'high' ? 'text-red-700' :
+                                  task.overdueBy > 0 ? 'text-red-700' :
+                                  task.overdueBy === 0 ? 'text-yellow-700' :
+                                  'text-gray-700'
+                                }`}>
+                                  {task.type === 'approval' ? 'Sent' : 'Due'}: {formatDate(task.dueDate)}
+                                  {task.overdueBy > 0 && (
+                                    <span className="ml-2 font-bold text-red-600">
+                                      ({getOverdueText(task.overdueBy, task.type)})
+                                    </span>
+                                  )}
+                                  {task.overdueBy === 0 && (
+                                    <span className="ml-2 font-bold text-yellow-600">
+                                      (Due Today!)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

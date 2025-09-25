@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = await params
+    const { stageId } = params
     const body = await request.json()
     const { selectedAssetIds } = body
 

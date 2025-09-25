@@ -107,6 +107,9 @@ export default async function RoomWorkspace({ params }: Props) {
         id: phaseConfig.id,
         status: matchingStage?.status === 'COMPLETED' ? 'COMPLETE' as const :
                 matchingStage?.status === 'IN_PROGRESS' ? 'IN_PROGRESS' as const :
+                matchingStage?.status === 'NOT_APPLICABLE' ? 'NOT_APPLICABLE' as const :
+                matchingStage?.status === 'NOT_STARTED' ? 'PENDING' as const :
+                matchingStage?.status === 'PENDING' ? 'PENDING' as const :
                 'PENDING' as const,
         assignedUser: matchingStage?.assignedUser || null,
         completedAt: matchingStage?.completedAt || null,

@@ -103,16 +103,17 @@ export async function PATCH(
     } else if (action === 'mark_not_applicable') {
       updateData = withUpdateAttribution(session, {
         status: 'NOT_APPLICABLE',
-        assignedTo: null, // Clear assignment when marking as not applicable
+        // Preserve assignedTo when marking as not applicable
         startedAt: null,
         completedAt: null,
         completedById: null
       })
       activityAction = 'STAGE_MARKED_NOT_APPLICABLE'
     } else if (action === 'mark_applicable') {
-      // Action to reverse not applicable status
+      // Action to reverse not applicable status - preserve assignedTo
       updateData = withUpdateAttribution(session, {
         status: 'NOT_STARTED'
+        // Keep assignedTo as is - don't clear it
       })
       activityAction = 'STAGE_MARKED_APPLICABLE'
     } else if (action === 'reset') {

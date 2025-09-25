@@ -29,6 +29,7 @@ interface Phase {
   assignedUser?: TeamMember | null
   completedAt?: Date | null
   startedAt?: Date | null
+  dueDate?: Date | null
   stageId?: string | null
 }
 
@@ -213,6 +214,35 @@ export default function RoomPhaseBoard({
     }
   }
 
+  const handleDueDateChange = async (phaseId: PhaseId, dueDate: Date | null) => {
+    const phase = phases.find(p => p.id === phaseId)
+    if (!phase?.stageId) return
+    
+    setLoading(phaseId)
+    try {
+      const response = await fetch(`/api/stages/${phase.stageId}/due-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          dueDate: dueDate ? dueDate.toISOString() : null 
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update due date')
+      }
+      
+      // Refresh to show updated due date
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating due date:', error)
+      alert(`Failed to update due date: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -270,6 +300,7 @@ export default function RoomPhaseBoard({
               onStart={() => handleStartPhase(phase)}
               onAssign={() => canManageAssignments && setSelectedPhaseForAssignment(phase.id)}
               onStatusChange={(status) => handleStatusChange(phase.id, status)}
+              onDueDateChange={(dueDate) => handleDueDateChange(phase.id, dueDate)}
               disabled={isDisabled}
               showSettings={canManageAssignments}
               onSettings={() => console.log('Phase settings for', phase.id)}
