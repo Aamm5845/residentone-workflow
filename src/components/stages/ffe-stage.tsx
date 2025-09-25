@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
+import PhaseSettingsMenu from './PhaseSettingsMenu'
 
 export default function FFEStage({ 
   stage, 
@@ -45,13 +46,23 @@ export default function FFEStage({
               <p className="text-sm text-emerald-600 mt-1">Furniture, Fixtures & Equipment Specification</p>
             </div>
           </div>
-          <Button 
-            onClick={onComplete} 
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Mark Complete
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button 
+              onClick={onComplete} 
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md hover:shadow-lg px-6 py-3"
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              Mark Complete
+            </Button>
+            <PhaseSettingsMenu 
+              stageId={stage.id}
+              stageName="FFE Sourcing"
+              isNotApplicable={isNotApplicable}
+              onReset={() => window.location.reload()}
+              onMarkNotApplicable={() => window.location.reload()}
+              onMarkApplicable={() => window.location.reload()}
+            />
+          </div>
         </div>
       </div>
       

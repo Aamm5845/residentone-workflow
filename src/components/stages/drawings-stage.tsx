@@ -8,6 +8,7 @@ import FilePreviewModal from '@/components/ui/file-preview-modal'
 import { useDrawingsWorkspace } from '@/hooks/useDrawingsWorkspace'
 import { DrawingAsset, DrawingChecklistItem } from '@/types/drawings'
 import { PhaseChat } from '../chat/PhaseChat'
+import PhaseSettingsMenu from './PhaseSettingsMenu'
 import {
   CheckCircle,
   PencilRuler,
@@ -251,6 +252,14 @@ export default function DrawingsWorkspace({
               <span className="hidden sm:inline">{completing ? 'Completing...' : 'Complete Workspace'}</span>
               <span className="sm:hidden">{completing ? 'Completing...' : 'Complete'}</span>
             </Button>
+            <PhaseSettingsMenu 
+              stageId={stage.id}
+              stageName="Drawings"
+              isNotApplicable={isNotApplicable}
+              onReset={() => window.location.reload()}
+              onMarkNotApplicable={() => window.location.reload()}
+              onMarkApplicable={() => window.location.reload()}
+            />
           </div>
         </div>
       </div>

@@ -37,6 +37,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
 import { toast } from 'sonner'
+import PhaseSettingsMenu from '../stages/PhaseSettingsMenu'
 
 // Components will be implemented inline for now to fix layout issues
 // TODO: Import proper components when they're available:
@@ -609,6 +610,15 @@ export default function BedroomDesignWorkspace({
                 <option value="FINALIZED">Finalized</option>
               </select>
             </div>
+            
+            <PhaseSettingsMenu 
+              stageId={stage.id}
+              stageName="Design Concept"
+              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              onReset={() => refreshWorkspace()}
+              onMarkNotApplicable={() => refreshWorkspace()}
+              onMarkApplicable={() => refreshWorkspace()}
+            />
           </div>
         </div>
 

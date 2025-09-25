@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { PhaseChat } from '../chat/PhaseChat'
+import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { 
   CheckCircle, 
   User, 
@@ -417,6 +418,14 @@ export default function RenderingWorkspace({
               <Activity className="w-4 h-4 mr-2" />
               Activity
             </Button>
+            <PhaseSettingsMenu 
+              stageId={stage.id}
+              stageName="3D Rendering"
+              isNotApplicable={isNotApplicable}
+              onReset={fetchRenderingVersions}
+              onMarkNotApplicable={fetchRenderingVersions}
+              onMarkApplicable={fetchRenderingVersions}
+            />
           </div>
         </div>
       </div>
@@ -1076,13 +1085,14 @@ export default function RenderingWorkspace({
             <li>• Create versions (V1, V2, etc.) to organize different iterations</li>
             <li>• Upload multiple images per version with individual descriptions</li>
             <li>• Use the notes section to communicate with your team</li>
-            <li>• Mark Complete individual versions when they&apos;re ready</li>
+            <li>• Mark Complete individual versions when they're ready</li>
             <li>• Push to Client Approval to send completed versions for client review</li>
             <li>• <strong>Once pushed to client approval, versions become locked</strong> - no further editing allowed</li>
             <li>• <strong>Delete versions</strong> if needed - this permanently removes the version and all its files</li>
             <li>• Revision requests will reopen the version for further editing</li>
           </ul>
         </div>
+          </div>
         </div>
 
         {/* Chat Sidebar */}
