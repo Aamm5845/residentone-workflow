@@ -99,9 +99,9 @@ export default function RoomManagement({
     let totalProgress = 0
     let progressCount = 0
     
-    // Count all 5 main workflow stages
+    // Count all 5 main workflow stages, excluding NOT_APPLICABLE ones
     const relevantStages = room.stages.filter(stage => 
-      WORKFLOW_STAGES.includes(stage.type as any)
+      WORKFLOW_STAGES.includes(stage.type as any) && stage.status !== 'NOT_APPLICABLE'
     )
     
     relevantStages.forEach(stage => {

@@ -62,14 +62,14 @@ export default async function ProjectDetail({ params }: Props) {
     redirect('/projects')
   }
 
-  // Calculate overall project progress
-  const totalStages = project.rooms.reduce((total: number, room: any) => {
-    return total + room.stages.length
+  // Calculate overall project progress (excluding NOT_APPLICABLE phases)
+  const totalApplicableStages = project.rooms.reduce((total: number, room: any) => {
+    return total + room.stages.filter((stage: any) => stage.status !== 'NOT_APPLICABLE').length
   }, 0)
   const completedStages = project.rooms.reduce((total: number, room: any) => {
     return total + room.stages.filter((stage: any) => stage.status === 'COMPLETED').length
   }, 0)
-  const overallProgress = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0
+  const overallProgress = totalApplicableStages > 0 ? Math.round((completedStages / totalApplicableStages) * 100) : 0
 
   const getPhaseIcon = (phaseType: string) => {
     return getStageIcon(phaseType)
@@ -544,12 +544,15 @@ export default async function ProjectDetail({ params }: Props) {
                             }
                           })
                           
+                          // Only show applicable phases in the summary
+                          const applicablePhases = completed + active + pending
+                          
                           return (
                             <>
-                              <span>{completed} completed</span>
-                              <span>{active} active</span>
-                              <span>{pending} pending</span>
-                              <span>{notApplicable} n/a</span>
+                              {completed > 0 && <span>{completed} completed</span>}
+                              {active > 0 && <span>{active} active</span>}
+                              {pending > 0 && <span>{pending} pending</span>}
+                              {applicablePhases === 0 && <span>No applicable phases</span>}
                             </>
                           )
                         })()}

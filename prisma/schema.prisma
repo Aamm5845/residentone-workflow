@@ -66,9 +66,7 @@ model Organization {
   tags                Tag[]
   users               User[]
   issues              Issue[]
-  ffeLearningItems    FFELearningItem[]
-  ffeGlobalSettings   FFEGlobalSettings?
-  ffeItemLibrary      FFEItemLibrary[]
+  ffeLibraryItems     FFELibraryItem[]
 }
 
 model User {
@@ -81,6 +79,9 @@ model User {
   role                       UserRole                 @default(DESIGNER)
   orgId                      String?
   mustChangePassword         Boolean                  @default(false)
+  approvalStatus             UserApprovalStatus       @default(PENDING)
+  approvedAt                 DateTime?
+  approvedBy                 String?
   createdAt                  DateTime                 @default(now())
   updatedAt                  DateTime                 @updatedAt
   accounts                   Account[]
@@ -129,11 +130,9 @@ model User {
   issueComments              IssueComment[]           @relation("IssueCommentAuthor")
   chatMessages               ChatMessage[]
   chatMentions               ChatMention[]
-  createdFFELearningItems    FFELearningItem[]        @relation("FFELearningItemCreatedBy")
-  createdFFESettings         FFEGlobalSettings[]      @relation("FFESettingsCreatedBy")
-  updatedFFESettings         FFEGlobalSettings[]      @relation("FFESettingsUpdatedBy")
-  createdFFELibraryItems     FFEItemLibrary[]         @relation("FFELibraryCreatedBy")
-  updatedFFELibraryItems     FFEItemLibrary[]         @relation("FFELibraryUpdatedBy")
+  createdFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryCreatedBy")
+  updatedFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryUpdatedBy")
+  ffeAuditLogs               FFEAuditLog[]            @relation("FFEAuditLogUser")
   organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions               UserSession[]
 }
@@ -222,7 +221,7 @@ model Project {
   rooms              Room[]
   tasks              Task[]
   issues             Issue[]
-  ffeTemplateSources FFELearningItem[]    @relation("FFELearningFromProject")
+  ffeLibraryItemsCreated FFELibraryItem[]    @relation("FFELibraryFromProject")
 }
 
 model Room {
@@ -249,7 +248,7 @@ model Room {
   stages            Stage[]
   tasks             Task[]
   issues            Issue[]
-  ffeTemplateSources FFELearningItem[]    @relation("FFELearningFromRoom")
+  ffeAuditLogs       FFEAuditLog[]
 }
 
 model Stage {
@@ -430,28 +429,26 @@ model FFEItem {
 }
 
 model FFEItemStatus {
-  id                String    @id @default(cuid())
-  roomId            String
-  itemId            String
-  status            FFEStatus @default(NOT_STARTED)
-  notes             String?
-  supplierLink      String?
-  actualPrice       Float?
-  estimatedDelivery DateTime?
-  subItemsCompleted String[]
-  confirmedAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  createdById       String
-  updatedById       String
-  createdBy         User      @relation("FFEItemStatusCreatedBy", fields: [createdById], references: [id])
-  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  updatedBy         User      @relation("FFEItemStatusUpdatedBy", fields: [updatedById], references: [id])
+  id               String    @id @default(cuid())
+  roomId           String
+  itemId           String
+  state            String    @default("pending") // pending, confirmed, not_needed
+  isCustomExpanded Boolean   @default(false)     // True if custom item is expanded
+  subItemStates    Json?     @default("{}")
+  notes            String?
+  confirmedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdById      String
+  updatedById      String
+  createdBy        User      @relation("FFEItemStatusCreatedBy", fields: [createdById], references: [id])
+  room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  updatedBy        User      @relation("FFEItemStatusUpdatedBy", fields: [updatedById], references: [id])
 
   @@unique([roomId, itemId])
   @@index([roomId])
   @@index([itemId])
-  @@index([status])
+  @@index([state])
 }
 
 model ClientApprovalVersion {
@@ -927,6 +924,12 @@ enum UserRole {
   VIEWER
 }
 
+enum UserApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ContractorType {
   CONTRACTOR
   SUBCONTRACTOR
@@ -1114,116 +1117,55 @@ enum IssueStatus {
   CLOSED
 }
 
-model FFELearningItem {
-  id                     String   @id @default(cuid())
-  orgId                  String
-  name                   String
-  category               String
-  subcategory            String?
-  description            String?
-  roomTypes              String[]
-  priority               String   @default("medium")
-  isRequired             Boolean  @default(false)
-  isStandard             Boolean  @default(true)
-  subItems               Json?
-  conditionalOn          String[]
-  estimatedPrice         Decimal? @db.Decimal(10, 2)
-  leadTimeWeeks          Int?
-  supplierData           Json?
-  tags                   String[]
-  usageCount             Int      @default(0)
-  successCount           Int      @default(0)
-  successRate            Decimal  @default(0.0000) @db.Decimal(5, 4)
-  averagePrice           Decimal? @db.Decimal(10, 2)
-  averageLeadTime        Decimal? @db.Decimal(5, 2)
-  isGlobalTemplate       Boolean  @default(false)
-  isCustom               Boolean  @default(false)
-  originalItemId         String?
-  createdById            String?
-  createdFromProjectId   String?
-  createdFromRoomId      String?
-  lastUsedAt             DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+// Simple global FFE item library for organizations
+model FFELibraryItem {
+  id          String   @id @default(cuid())
+  orgId       String
+  itemId      String   // Matches itemId from room config
+  name        String
+  category    String
+  roomTypes   String[]
+  isRequired  Boolean  @default(false)
+  isStandard  Boolean  @default(true)
+  subItems    Json?    // Sub-items configuration
+  notes       String?
+  addedFromProjectId String? // Track where it was first added
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  updatedById String
 
   // Relations
-  organization           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdBy              User?        @relation("FFELearningItemCreatedBy", fields: [createdById], references: [id])
-  createdFromProject     Project?     @relation("FFELearningFromProject", fields: [createdFromProjectId], references: [id])
-  createdFromRoom        Room?        @relation("FFELearningFromRoom", fields: [createdFromRoomId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("FFELibraryCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("FFELibraryUpdatedBy", fields: [updatedById], references: [id])
+  addedFromProject Project? @relation("FFELibraryFromProject", fields: [addedFromProjectId], references: [id])
 
-  @@index([orgId])
-  @@index([originalItemId])
-  @@index([roomTypes], type: Gin)
-  @@index([category])
-  @@index([usageCount])
-  @@index([successRate])
-}
-
-model FFEGlobalSettings {
-  id                                String   @id @default(cuid())
-  orgId                             String   @unique
-  defaultBudgetMultipliers          Json
-  defaultLeadTimeWeeks              Json
-  requireSupplierLinks              Boolean  @default(true)
-  requirePriceConfirmation          Boolean  @default(true)
-  allowCustomItems                  Boolean  @default(true)
-  autoCreateTemplatesFromProjects   Boolean  @default(true)
-  defaultPriorities                 Json
-  budgetThresholds                  Json
-  approvalWorkflows                 Json
-  notifications                     Json
-  customFields                      Json     @default("[]")
-  integrations                      Json     @default("{}")
-  createdAt                         DateTime @default(now())
-  updatedAt                         DateTime @updatedAt
-  createdBy                         String
-  updatedBy                         String
-
-  // Relations
-  organization                      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdByUser                     User         @relation("FFESettingsCreatedBy", fields: [createdBy], references: [id])
-  updatedByUser                     User         @relation("FFESettingsUpdatedBy", fields: [updatedBy], references: [id])
-}
-
-model FFEItemLibrary {
-  id                String   @id @default(cuid())
-  orgId             String
-  name              String
-  description       String?
-  category          String
-  subcategory       String?
-  tags              String[]
-  isPublic          Boolean  @default(true)
-  isTemplate        Boolean  @default(false)
-  basePrice         Decimal? @db.Decimal(10, 2)
-  priceRange        Json?
-  estimatedLeadTime Int?
-  leadTimeRange     Json?
-  suppliers         Json     @default("[]")
-  specifications    Json?
-  images            String[]
-  documents         String[]
-  roomTypes         String[]
-  priority          String   @default("medium")
-  isRequired        Boolean  @default(false)
-  conditionalOn     String[]
-  alternatives      String[]
-  usageStats        Json     @default("{\"timesUsed\": 0, \"successRate\": 0}")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  createdBy         String
-  updatedBy         String
-
-  // Relations
-  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdByUser     User         @relation("FFELibraryCreatedBy", fields: [createdBy], references: [id])
-  updatedByUser     User         @relation("FFELibraryUpdatedBy", fields: [updatedBy], references: [id])
-
+  @@unique([orgId, itemId])
   @@index([orgId])
   @@index([category])
   @@index([roomTypes], type: Gin)
-  @@index([tags], type: Gin)
-  @@index([isPublic])
-  @@index([isTemplate])
 }
+
+// Simple FFE audit trail for tracking all actions
+model FFEAuditLog {
+  id       String   @id @default(cuid())
+  roomId   String
+  itemId   String
+  action   String   // "confirmed", "not_needed", "expanded", "collapsed", "added", "notes_updated"
+  oldValue String?
+  newValue String?
+  notes    String?
+  userId   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation("FFEAuditLogUser", fields: [userId], references: [id])
+
+  @@index([roomId])
+  @@index([itemId])
+  @@index([userId])
+  @@index([createdAt])
+}
+

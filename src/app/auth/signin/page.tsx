@@ -35,6 +35,27 @@ function SignInForm() {
     console.log('🔐 Form data:', { email, password })
     
     try {
+      // First check if user exists and their approval status
+      const checkResponse = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      const checkData = await checkResponse.json()
+      
+      if (checkData.exists && checkData.approvalStatus === 'PENDING') {
+        setError('Your account is pending admin approval. Please wait for approval before signing in.')
+        setIsLoading(false)
+        return
+      }
+      
+      if (checkData.exists && checkData.approvalStatus === 'REJECTED') {
+        setError('Your account has been rejected by an administrator. Please contact support.')
+        setIsLoading(false)
+        return
+      }
+      
       // Use NextAuth to authenticate against the database
       const result = await signIn('credentials', {
         email: email,

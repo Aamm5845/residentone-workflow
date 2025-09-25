@@ -19,12 +19,14 @@ import {
   Briefcase,
   Home,
   FileText,
-  Bug
+  Bug,
+  Package
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import IssueList from '@/components/issues/issue-list'
+import FFELibraryManagement from '@/components/dashboard/ffe-library-management'
 
 interface PreferencesClientProps {
   user: {
@@ -323,6 +325,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const tabs = [
     { id: 'backup', name: 'Backup & Recovery', icon: Database },
     { id: 'database', name: 'Database Statistics', icon: RefreshCw },
+    { id: 'ffe', name: 'FFE Library', icon: Package },
     { id: 'issues', name: 'Issues', icon: Bug },
     { id: 'account', name: 'Account Settings', icon: User },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -726,6 +729,13 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* FFE Library Tab */}
+          {activeTab === 'ffe' && (
+            <div className="space-y-6">
+              <FFELibraryManagement orgId={user.orgId} user={user} />
             </div>
           )}
 

@@ -44,6 +44,12 @@ export const authOptions: NextAuthOptions = {
             return null
           }
           
+          // Check if user is approved
+          if (user.approvalStatus !== 'APPROVED') {
+            console.log('❌ User not approved:', credentials.email, 'Status:', user.approvalStatus)
+            return null
+          }
+          
           console.log('✅ User found, checking password...')
           const isPasswordValid = await bcrypt.compare(
             credentials.password as string,

@@ -31,13 +31,20 @@ export async function findUsersByNames(names: string[], orgId: string): Promise<
   try {
     const users = await prisma.user.findMany({
       where: {
-        orgId,
-        OR: names.map(name => ({
-          name: {
-            contains: name,
-            mode: 'insensitive'
+        AND: [
+          { orgId },
+          { name: { not: { startsWith: '[DELETED]' } } },
+          { email: { not: { startsWith: 'deleted_' } } },
+          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } },
+          {
+            OR: names.map(name => ({
+              name: {
+                contains: name,
+                mode: 'insensitive'
+              }
+            }))
           }
-        }))
+        ]
       },
       select: {
         id: true,
@@ -134,10 +141,13 @@ export async function getTeamMembersForMentions(orgId: string): Promise<Array<{ 
   try {
     const users = await prisma.user.findMany({
       where: {
-        orgId,
-        name: {
-          not: null
-        }
+        AND: [
+          { orgId },
+          { name: { not: null } },
+          { name: { not: { startsWith: '[DELETED]' } } },
+          { email: { not: { startsWith: 'deleted_' } } },
+          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+        ]
       },
       select: {
         id: true,

@@ -1,429 +1,355 @@
-import { getRoomFFEConfig, calculateFFECompletionStatus, FFEItemTemplate } from '@/lib/constants/room-ffe-config'
+import { prisma } from '@/lib/prisma'
+import { getDefaultFFEConfig, type FFEItemState, type FFEItemTemplate } from '@/lib/constants/room-ffe-config'
 
-export interface FFEValidationResult {
+export interface FFECompletionResult {
   isComplete: boolean
-  isReadyForCompletion: boolean
   completionPercentage: number
-  requiredItems: {
-    total: number
-    completed: number
-    missing: FFEItemTemplate[]
-  }
-  optionalItems: {
-    total: number
-    completed: number
-  }
-  highPriorityItems: {
-    total: number
-    completed: number
-    missing: FFEItemTemplate[]
-  }
-  issues: FFEValidationIssue[]
-  recommendations: string[]
-  estimatedBudget: {
-    total: number
-    committed: number
-    remaining: number
-  }
-  timeline: {
-    longestLeadTime: number
-    averageLeadTime: number
-    readyForOrderCount: number
-  }
-}
-
-export interface FFEValidationIssue {
-  type: 'ERROR' | 'WARNING' | 'INFO'
-  itemId?: string
-  itemName?: string
-  message: string
-  severity: 'HIGH' | 'MEDIUM' | 'LOW'
-  canIgnore: boolean
-  resolution?: string
-}
-
-export interface FFEItemStatusSummary {
-  itemId: string
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'NOT_NEEDED'
-  hasNotes: boolean
-  hasSupplierLink: boolean
-  hasPrice: boolean
-  actualPrice?: number
-  subItemsCompleted: string[]
-}
-
-/**
- * Validates FFE completion for a room and provides detailed analysis
- */
-export function validateFFECompletion(
-  roomType: string,
-  itemStatuses: Record<string, FFEItemStatusSummary>
-): FFEValidationResult {
-  const config = getRoomFFEConfig(roomType)
-  
-  if (!config) {
-    return {
-      isComplete: false,
-      isReadyForCompletion: false,
-      completionPercentage: 0,
-      requiredItems: { total: 0, completed: 0, missing: [] },
-      optionalItems: { total: 0, completed: 0 },
-      highPriorityItems: { total: 0, completed: 0, missing: [] },
-      issues: [{
-        type: 'ERROR',
-        message: `No FFE configuration found for room type: ${roomType}`,
-        severity: 'HIGH',
-        canIgnore: false,
-        resolution: 'Contact system administrator to add room type configuration'
-      }],
-      recommendations: [],
-      estimatedBudget: { total: 0, committed: 0, remaining: 0 },
-      timeline: { longestLeadTime: 0, averageLeadTime: 0, readyForOrderCount: 0 }
-    }
-  }
-
-  const issues: FFEValidationIssue[] = []
-  const recommendations: string[] = []
-  
-  // Categorize items
-  const requiredItems = config.items.filter(item => item.isRequired)
-  const optionalItems = config.items.filter(item => !item.isRequired)
-  const highPriorityItems = config.items.filter(item => item.priority === 'high')
-  
-  // Count completions
-  const completedRequired = requiredItems.filter(item => 
-    itemStatuses[item.id]?.status === 'COMPLETED'
-  )
-  const completedOptional = optionalItems.filter(item => 
-    itemStatuses[item.id]?.status === 'COMPLETED'
-  )
-  const completedHighPriority = highPriorityItems.filter(item => 
-    itemStatuses[item.id]?.status === 'COMPLETED'
-  )
-  
-  // Find missing items
-  const missingRequired = requiredItems.filter(item => 
-    !itemStatuses[item.id] || itemStatuses[item.id].status !== 'COMPLETED'
-  )
-  const missingHighPriority = highPriorityItems.filter(item => 
-    !itemStatuses[item.id] || itemStatuses[item.id].status !== 'COMPLETED'
-  )
-  
-  // Calculate completion percentage
-  const totalItems = config.items.length
-  const completedItems = config.items.filter(item => 
-    itemStatuses[item.id]?.status === 'COMPLETED'
-  ).length
-  const completionPercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
-  
-  // Budget analysis
-  let estimatedTotal = 0
-  let committedAmount = 0
-  
-  config.items.forEach(item => {
-    if (item.estimatedPrice) {
-      estimatedTotal += item.estimatedPrice
-    }
-    const status = itemStatuses[item.id]
-    if (status?.actualPrice) {
-      committedAmount += status.actualPrice
-    } else if (status?.status === 'COMPLETED' && item.estimatedPrice) {
-      committedAmount += item.estimatedPrice
-    }
-  })
-  
-  // Timeline analysis
-  const completedItemsWithLeadTime = config.items.filter(item => {
-    const status = itemStatuses[item.id]
-    return status?.status === 'COMPLETED' && item.leadTimeWeeks
-  })
-  
-  const leadTimes = completedItemsWithLeadTime.map(item => item.leadTimeWeeks!).filter(Boolean)
-  const longestLeadTime = leadTimes.length > 0 ? Math.max(...leadTimes) : 0
-  const averageLeadTime = leadTimes.length > 0 ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length : 0
-  
-  const readyForOrderCount = config.items.filter(item => {
-    const status = itemStatuses[item.id]
-    return status?.status === 'COMPLETED' && status.hasSupplierLink && status.hasPrice
-  }).length
-  
-  // Validation logic
-  const completionStatus = calculateFFECompletionStatus(roomType, Object.keys(itemStatuses))
-  
-  // Check for critical issues
-  missingRequired.forEach(item => {
-    issues.push({
-      type: 'ERROR',
-      itemId: item.id,
-      itemName: item.name,
-      message: `Required item "${item.name}" is not completed`,
-      severity: 'HIGH',
-      canIgnore: false,
-      resolution: 'Complete this required item before finalizing FFE phase'
-    })
-  })
-  
-  // Check for dependencies
-  config.items.forEach(item => {
-    if (item.conditionalOn && item.conditionalOn.length > 0) {
-      const status = itemStatuses[item.id]
-      if (status?.status === 'COMPLETED') {
-        const missingDependencies = item.conditionalOn.filter(depId => 
-          !itemStatuses[depId] || itemStatuses[depId].status !== 'COMPLETED'
-        )
-        
-        if (missingDependencies.length > 0) {
-          const depNames = missingDependencies.map(depId => 
-            config.items.find(i => i.id === depId)?.name || depId
-          ).join(', ')
-          
-          issues.push({
-            type: 'WARNING',
-            itemId: item.id,
-            itemName: item.name,
-            message: `Item "${item.name}" is completed but depends on: ${depNames}`,
-            severity: 'MEDIUM',
-            canIgnore: true,
-            resolution: 'Complete the dependent items or verify if they are not needed'
-          })
-        }
-      }
-    }
-  })
-  
-  // Check for incomplete sub-items
-  config.items.forEach(item => {
-    if (item.subItems && item.subItems.length > 0) {
-      const status = itemStatuses[item.id]
-      if (status?.status === 'COMPLETED') {
-        const requiredSubItems = item.subItems.filter(sub => sub.isRequired)
-        const completedSubItems = status.subItemsCompleted || []
-        const missingSubItems = requiredSubItems.filter(sub => 
-          !completedSubItems.includes(sub.id)
-        )
-        
-        if (missingSubItems.length > 0) {
-          issues.push({
-            type: 'WARNING',
-            itemId: item.id,
-            itemName: item.name,
-            message: `Item "${item.name}" is marked complete but missing sub-items: ${missingSubItems.map(s => s.name).join(', ')}`,
-            severity: 'MEDIUM',
-            canIgnore: true,
-            resolution: 'Review and complete all required specifications'
-          })
-        }
-      }
-    }
-  })
-  
-  // Check for missing prices on completed items
-  config.items.forEach(item => {
-    const status = itemStatuses[item.id]
-    if (status?.status === 'COMPLETED' && !status.hasPrice && item.estimatedPrice) {
-      issues.push({
-        type: 'INFO',
-        itemId: item.id,
-        itemName: item.name,
-        message: `Completed item "${item.name}" is missing actual price information`,
-        severity: 'LOW',
-        canIgnore: true,
-        resolution: 'Add actual price for better budget tracking'
-      })
-    }
-  })
-  
-  // Generate recommendations
-  if (missingHighPriority.length > 0) {
-    recommendations.push(`Focus on ${missingHighPriority.length} high-priority items: ${missingHighPriority.slice(0, 3).map(i => i.name).join(', ')}`)
-  }
-  
-  if (readyForOrderCount < completedItems) {
-    recommendations.push(`${completedItems - readyForOrderCount} completed items are missing supplier links or pricing`)
-  }
-  
-  if (longestLeadTime > 12) {
-    recommendations.push(`Some items have lead times over 12 weeks - consider ordering early`)
-  }
-  
-  if (committedAmount > estimatedTotal * 1.1) {
-    recommendations.push(`Actual costs are ${Math.round(((committedAmount - estimatedTotal) / estimatedTotal) * 100)}% over budget`)
-  }
-  
-  // Determine completion status
-  const criticalIssues = issues.filter(i => i.type === 'ERROR' && !i.canIgnore)
-  const isComplete = completionStatus.isComplete && criticalIssues.length === 0
-  const isReadyForCompletion = completionStatus.progress >= 80 && missingRequired.length === 0
-  
-  return {
-    isComplete,
-    isReadyForCompletion,
-    completionPercentage,
-    requiredItems: {
-      total: requiredItems.length,
-      completed: completedRequired.length,
-      missing: missingRequired
-    },
-    optionalItems: {
-      total: optionalItems.length,
-      completed: completedOptional.length
-    },
-    highPriorityItems: {
-      total: highPriorityItems.length,
-      completed: completedHighPriority.length,
-      missing: missingHighPriority
-    },
-    issues,
-    recommendations,
-    estimatedBudget: {
-      total: estimatedTotal,
-      committed: committedAmount,
-      remaining: estimatedTotal - committedAmount
-    },
-    timeline: {
-      longestLeadTime,
-      averageLeadTime: Math.round(averageLeadTime),
-      readyForOrderCount
-    }
-  }
-}
-
-/**
- * Generates a completion report summary
- */
-export function generateFFECompletionReport(validation: FFEValidationResult): string {
-  const lines: string[] = []
-  
-  lines.push(`FFE Phase Completion: ${validation.completionPercentage}%`)
-  lines.push(`Required Items: ${validation.requiredItems.completed}/${validation.requiredItems.total}`)
-  
-  if (validation.issues.length > 0) {
-    const criticalCount = validation.issues.filter(i => i.severity === 'HIGH').length
-    const warningCount = validation.issues.filter(i => i.severity === 'MEDIUM').length
-    lines.push(`Issues: ${criticalCount} critical, ${warningCount} warnings`)
-  }
-  
-  if (validation.estimatedBudget.total > 0) {
-    const budgetUsed = Math.round((validation.estimatedBudget.committed / validation.estimatedBudget.total) * 100)
-    lines.push(`Budget: ${budgetUsed}% committed ($${validation.estimatedBudget.committed.toLocaleString()})`)
-  }
-  
-  if (validation.timeline.longestLeadTime > 0) {
-    lines.push(`Timeline: Up to ${validation.timeline.longestLeadTime} weeks lead time`)
-  }
-  
-  return lines.join('\n')
-}
-
-/**
- * Checks if FFE phase can be force-completed with warnings
- */
-export function canForceComplete(validation: FFEValidationResult): {
-  canForce: boolean
-  warnings: string[]
-  blockers: string[]
-} {
-  const blockers: string[] = []
-  const warnings: string[] = []
-  
-  // Critical blockers that prevent force completion
-  validation.issues.forEach(issue => {
-    if (issue.type === 'ERROR' && !issue.canIgnore) {
-      blockers.push(issue.message)
-    } else if (issue.severity === 'HIGH') {
-      warnings.push(issue.message)
-    }
-  })
-  
-  // Additional warnings for force completion
-  if (validation.requiredItems.missing.length > 0) {
-    warnings.push(`${validation.requiredItems.missing.length} required items are incomplete`)
-  }
-  
-  if (validation.completionPercentage < 50) {
-    warnings.push(`Only ${validation.completionPercentage}% of items are completed`)
-  }
-  
-  return {
-    canForce: blockers.length === 0,
-    warnings,
-    blockers
-  }
-}
-
-/**
- * Validates individual FFE items for detailed feedback
- */
-export function validateFFEItem(
-  item: FFEItemTemplate,
-  status?: FFEItemStatusSummary
-): {
-  isValid: boolean
+  totalItems: number
+  confirmedItems: number
+  notNeededItems: number
+  pendingItems: number
+  missingRequired: FFEItemTemplate[]
+  customItemsExpanded: number
+  canForceComplete: boolean
   issues: string[]
+}
+
+export interface FFECompletionReport {
+  roomId: string
+  roomType: string
+  completionResult: FFECompletionResult
+  categoryBreakdown: {
+    categoryName: string
+    totalItems: number
+    confirmedItems: number
+    notNeededItems: number
+    pendingItems: number
+    completionPercentage: number
+  }[]
+  auditTrail: {
+    action: string
+    itemName: string
+    user: string
+    timestamp: Date
+  }[]
   recommendations: string[]
-  completionScore: number
-} {
-  const issues: string[] = []
-  const recommendations: string[] = []
-  let completionScore = 0
-  
-  if (!status || status.status === 'NOT_STARTED') {
-    issues.push('Item has not been started')
-    return { isValid: false, issues, recommendations, completionScore: 0 }
-  }
-  
-  if (status.status === 'NOT_NEEDED') {
-    if (item.isRequired) {
-      issues.push('Required item is marked as not needed')
-      return { isValid: false, issues, recommendations, completionScore: 0 }
+}
+
+/**
+ * Validates FFE completion for a room based on QA checklist approach
+ */
+export async function validateFFECompletion(roomId: string): Promise<FFECompletionResult> {
+  try {
+    // Get room info
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        ffeItemStatuses: {
+          include: {
+            createdBy: { select: { name: true } },
+            updatedBy: { select: { name: true } }
+          }
+        },
+        project: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    })
+
+    if (!room) {
+      throw new Error('Room not found')
     }
-    return { isValid: true, issues, recommendations, completionScore: 100 }
-  }
-  
-  if (status.status === 'COMPLETED') {
-    completionScore = 70 // Base score for completion
-    
-    // Check sub-items if applicable
-    if (item.subItems && item.subItems.length > 0) {
-      const requiredSubItems = item.subItems.filter(sub => sub.isRequired)
-      const completedSubItems = status.subItemsCompleted || []
-      const missingSubItems = requiredSubItems.filter(sub => 
-        !completedSubItems.includes(sub.id)
-      )
-      
-      if (missingSubItems.length > 0) {
-        issues.push(`Missing required specifications: ${missingSubItems.map(s => s.name).join(', ')}`)
-        completionScore -= 20
-      } else {
-        completionScore += 10
+
+    // Get default FFE configuration for this room type
+    const defaultConfig = getDefaultFFEConfig(room.type)
+    if (!defaultConfig) {
+      return {
+        isComplete: true,
+        completionPercentage: 100,
+        totalItems: 0,
+        confirmedItems: 0,
+        notNeededItems: 0,
+        pendingItems: 0,
+        missingRequired: [],
+        customItemsExpanded: 0,
+        canForceComplete: true,
+        issues: ['No FFE configuration found for this room type']
       }
     }
-    
-    // Check for additional information
-    if (status.hasNotes) completionScore += 5
-    if (status.hasSupplierLink) completionScore += 10
-    if (status.hasPrice) completionScore += 5
-    
-    // Recommendations for improvement
-    if (!status.hasSupplierLink) {
-      recommendations.push('Add supplier link for easier ordering')
+
+    // Get all items from configuration
+    const allConfigItems: FFEItemTemplate[] = []
+    defaultConfig.categories.forEach(category => {
+      allConfigItems.push(...category.items)
+    })
+
+    // Get organization's custom items for this room type
+    const customItems = await prisma.fFELibraryItem.findMany({
+      where: {
+        orgId: room.project.organization.id,
+        roomTypes: { has: room.type }
+      }
+    })
+
+    // Combine default and custom items
+    const allItems = [...allConfigItems, ...customItems.map(item => ({
+      id: item.itemId,
+      name: item.name,
+      category: item.category,
+      isRequired: item.isRequired,
+      isStandard: item.isStandard,
+      subItems: item.subItems as any,
+      conditionalOn: []
+    }))]
+
+    // Get current status of all items
+    const itemStatusMap = new Map()
+    room.ffeItemStatuses.forEach(status => {
+      itemStatusMap.set(status.itemId, status)
+    })
+
+    // Calculate completion metrics
+    let totalItems = 0
+    let confirmedItems = 0
+    let notNeededItems = 0
+    let pendingItems = 0
+    let customItemsExpanded = 0
+    const missingRequired: FFEItemTemplate[] = []
+    const issues: string[] = []
+
+    // Check each item
+    for (const item of allItems) {
+      // Check conditional logic
+      if (item.conditionalOn && item.conditionalOn.length > 0) {
+        const shouldShow = item.conditionalOn.some(conditionItemId => {
+          const conditionStatus = itemStatusMap.get(conditionItemId)
+          return conditionStatus && conditionStatus.state === 'confirmed'
+        })
+        
+        if (!shouldShow) {
+          continue // Skip this item as conditions aren't met
+        }
+      }
+
+      totalItems++
+      const status = itemStatusMap.get(item.id)
+      
+      if (!status) {
+        // Item hasn't been addressed yet
+        pendingItems++
+        if (item.isRequired) {
+          missingRequired.push(item)
+        }
+      } else {
+        switch (status.state) {
+          case 'confirmed':
+            confirmedItems++
+            if (!item.isStandard && status.isCustomExpanded) {
+              customItemsExpanded++
+              // Check if all required sub-items are confirmed
+              const subItemStates = status.subItemStates as Record<string, string> || {}
+              const requiredSubItems = item.subItems?.filter(sub => sub.required) || []
+              const unconfirmedSubItems = requiredSubItems.filter(sub => 
+                !subItemStates[sub.id] || subItemStates[sub.id] !== 'confirmed'
+              )
+              
+              if (unconfirmedSubItems.length > 0) {
+                issues.push(`${item.name}: Missing required sub-items: ${unconfirmedSubItems.map(s => s.name).join(', ')}`)
+              }
+            }
+            break
+          case 'not_needed':
+            notNeededItems++
+            break
+          case 'pending':
+          default:
+            pendingItems++
+            if (item.isRequired) {
+              missingRequired.push(item)
+            }
+            break
+        }
+      }
     }
-    if (!status.hasPrice) {
-      recommendations.push('Add actual price for budget tracking')
+
+    // Calculate completion percentage
+    const completionPercentage = totalItems > 0 
+      ? Math.round(((confirmedItems + notNeededItems) / totalItems) * 100)
+      : 100
+
+    // Determine if complete
+    const isComplete = pendingItems === 0 && missingRequired.length === 0 && issues.length === 0
+
+    // Determine if force completion is allowed
+    const canForceComplete = missingRequired.filter(item => item.isRequired).length === 0
+
+    return {
+      isComplete,
+      completionPercentage,
+      totalItems,
+      confirmedItems,
+      notNeededItems,
+      pendingItems,
+      missingRequired,
+      customItemsExpanded,
+      canForceComplete,
+      issues
     }
-    if (!status.hasNotes && (item.subItems?.length || 0) > 0) {
-      recommendations.push('Add notes with specific details and requirements')
-    }
-  } else {
-    // In progress
-    completionScore = 30
-    recommendations.push('Complete item selection and specification')
+
+  } catch (error) {
+    console.error('Error validating FFE completion:', error)
+    throw new Error('Failed to validate FFE completion')
   }
-  
-  return {
-    isValid: issues.length === 0,
-    issues,
-    recommendations,
-    completionScore: Math.min(completionScore, 100)
+}
+
+/**
+ * Generates detailed FFE completion report
+ */
+export async function generateFFECompletionReport(roomId: string): Promise<FFECompletionReport> {
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId }
+    })
+
+    if (!room) {
+      throw new Error('Room not found')
+    }
+
+    const completionResult = await validateFFECompletion(roomId)
+    
+    // Get default configuration for category breakdown
+    const defaultConfig = getDefaultFFEConfig(room.type)
+    const categoryBreakdown = defaultConfig?.categories.map(category => {
+      const categoryItems = category.items
+      // This would need to be calculated based on actual item statuses
+      return {
+        categoryName: category.name,
+        totalItems: categoryItems.length,
+        confirmedItems: 0, // Would calculate from actual data
+        notNeededItems: 0, // Would calculate from actual data
+        pendingItems: categoryItems.length, // Would calculate from actual data
+        completionPercentage: 0 // Would calculate from actual data
+      }
+    }) || []
+
+    // Get recent audit trail
+    const auditTrail = await prisma.fFEAuditLog.findMany({
+      where: { roomId },
+      include: {
+        user: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+
+    // Generate recommendations
+    const recommendations: string[] = []
+    if (completionResult.pendingItems > 0) {
+      recommendations.push(`${completionResult.pendingItems} items still need attention`)
+    }
+    if (completionResult.missingRequired.length > 0) {
+      recommendations.push(`${completionResult.missingRequired.length} required items must be addressed`)
+    }
+    if (completionResult.customItemsExpanded > 0) {
+      recommendations.push(`${completionResult.customItemsExpanded} custom items have been expanded - verify all sub-items`)
+    }
+
+    return {
+      roomId,
+      roomType: room.type,
+      completionResult,
+      categoryBreakdown,
+      auditTrail: auditTrail.map(log => ({
+        action: log.action,
+        itemName: log.itemId,
+        user: log.user.name || 'Unknown',
+        timestamp: log.createdAt
+      })),
+      recommendations
+    }
+
+  } catch (error) {
+    console.error('Error generating FFE completion report:', error)
+    throw new Error('Failed to generate FFE completion report')
+  }
+}
+
+/**
+ * Checks if FFE stage can be force completed
+ */
+export async function canForceCompleteFFE(roomId: string): Promise<boolean> {
+  const result = await validateFFECompletion(roomId)
+  return result.canForceComplete
+}
+
+// Alias for backwards compatibility
+export const canForceComplete = canForceCompleteFFE
+
+/**
+ * Updates FFE item state and logs the action
+ */
+export async function updateFFEItemState(
+  roomId: string,
+  itemId: string,
+  newState: FFEItemState,
+  userId: string,
+  notes?: string,
+  subItemStates?: Record<string, string>,
+  isCustomExpanded?: boolean
+): Promise<void> {
+  try {
+    // Get or create the item status
+    const existingStatus = await prisma.fFEItemStatus.findUnique({
+      where: {
+        roomId_itemId: { roomId, itemId }
+      }
+    })
+
+    const oldState = existingStatus?.state || 'pending'
+    
+    // Update or create the status
+    await prisma.fFEItemStatus.upsert({
+      where: {
+        roomId_itemId: { roomId, itemId }
+      },
+      create: {
+        roomId,
+        itemId,
+        state: newState,
+        isCustomExpanded: isCustomExpanded || false,
+        subItemStates: subItemStates || {},
+        notes,
+        confirmedAt: newState === 'confirmed' ? new Date() : null,
+        createdById: userId,
+        updatedById: userId
+      },
+      update: {
+        state: newState,
+        isCustomExpanded: isCustomExpanded !== undefined ? isCustomExpanded : undefined,
+        subItemStates: subItemStates || undefined,
+        notes: notes !== undefined ? notes : undefined,
+        confirmedAt: newState === 'confirmed' ? new Date() : null,
+        updatedById: userId
+      }
+    })
+
+    // Log the action
+    await prisma.fFEAuditLog.create({
+      data: {
+        roomId,
+        itemId,
+        action: `state_changed_to_${newState}`,
+        oldValue: oldState,
+        newValue: newState,
+        notes,
+        userId
+      }
+    })
+
+  } catch (error) {
+    console.error('Error updating FFE item state:', error)
+    throw new Error('Failed to update FFE item state')
   }
 }

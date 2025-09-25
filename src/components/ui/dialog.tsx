@@ -134,6 +134,34 @@ interface DialogFooterProps {
   children: React.ReactNode
 }
 
+interface DialogTriggerProps {
+  className?: string
+  children: React.ReactNode
+  asChild?: boolean
+}
+
+export function DialogTrigger({ className, children, asChild }: DialogTriggerProps) {
+  const context = useContext(DialogContext)
+  
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, {
+      onClick: (e: React.MouseEvent) => {
+        children.props.onClick?.(e)
+        context?.onOpenChange(true)
+      }
+    })
+  }
+  
+  return (
+    <button
+      className={className}
+      onClick={() => context?.onOpenChange(true)}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function DialogFooter({ className, children }: DialogFooterProps) {
   return (
     <div className={cn("px-6 py-4 border-t border-gray-200 flex justify-end space-x-3", className)}>

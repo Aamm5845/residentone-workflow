@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -125,16 +125,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
     role: session.user.role
   } : null)
   
-  // Don't render if no user is available (after hooks are initialized)
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <p className="text-gray-500">Please sign in to view issues</p>
-      </div>
-    )
-  }
-
-  const fetchIssues = async () => {
+  const fetchIssues = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -150,11 +141,21 @@ export default function IssueList({ currentUser }: IssueListProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter])
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   useEffect(() => {
     fetchIssues()
-  }, [statusFilter])
+  }, [statusFilter, fetchIssues])
+  
+  // Don't render if no user is available (after all hooks are initialized)
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <p className="text-gray-500">Please sign in to view issues</p>
+      </div>
+    )
+  }
 
   const filteredIssues = issues.filter(issue => {
     const matchesSearch = !searchTerm || 

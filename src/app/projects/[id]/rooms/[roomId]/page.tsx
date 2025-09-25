@@ -51,6 +51,13 @@ export default async function RoomWorkspace({ params }: Props) {
         }
       }),
       prisma.user.findMany({
+        where: {
+          AND: [
+            { name: { not: { startsWith: '[DELETED]' } } },
+            { email: { not: { startsWith: 'deleted_' } } },
+            { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+          ]
+        },
         select: {
           id: true,
           name: true,

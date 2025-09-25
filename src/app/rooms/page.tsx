@@ -91,13 +91,15 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
     rooms = []
   }
 
-  // Calculate room statistics
+  // Calculate room statistics (excluding NOT_APPLICABLE phases)
   const roomsWithStats = rooms.map(room => {
     const activeStages = room.stages.filter((stage: any) => 
       ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(stage.status)
     )
     const completedStages = room.stages.filter((stage: any) => stage.status === 'COMPLETED')
-    const totalStages = room.stages.length
+    // Exclude NOT_APPLICABLE phases from total count
+    const applicableStages = room.stages.filter((stage: any) => stage.status !== 'NOT_APPLICABLE')
+    const totalStages = applicableStages.length
     const progressPercent = totalStages > 0 ? Math.round((completedStages.length / totalStages) * 100) : 0
     
     // Get current phase

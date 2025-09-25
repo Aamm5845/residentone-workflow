@@ -20,12 +20,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch all team members (exclude removed members with null orgId)
+    // Fetch all team members (exclude deleted users and include only current team)
     const teamMembers = await prisma.user.findMany({
       where: {
-        orgId: {
-          not: null
-        }
+        AND: [
+          { orgId: { not: null } },
+          { name: { not: { startsWith: '[DELETED]' } } },
+          { email: { not: { startsWith: 'deleted_' } } },
+          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+        ]
       },
       select: {
         id: true,

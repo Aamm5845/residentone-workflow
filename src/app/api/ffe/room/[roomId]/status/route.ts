@@ -1,195 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/auth'
+import { validateFFECompletion, generateFFECompletionReport } from '@/lib/ffe/completion-validator'
+import { getFFEItemsForRoom } from '@/lib/ffe/library-manager'
+import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
 import { prisma } from '@/lib/prisma'
-import { getRoomFFEConfig } from '@/lib/constants/room-ffe-config'
-import type { Session } from 'next-auth'
+import { getSession } from '@/auth'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ roomId: string }> }
-) {
+// Get FFE status and checklist for a room
+export async function GET(request: NextRequest, { params }: { params: { roomId: string } }) {
   try {
-    const session = await getSession() as Session & {
-      user: {
-        id: string
-        orgId: string
-        role: string
-      }
-    } | null
-    const resolvedParams = await params
-
+    const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { roomId } = resolvedParams
+    const roomId = params.roomId
 
     // Get room information
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      select: { 
-        id: true, 
-        type: true, 
-        name: true,
-        projectId: true,
+      include: {
         project: {
-          select: { orgId: true }
+          include: {
+            organization: true
+          }
+        },
+        ffeItemStatuses: {
+          include: {
+            createdBy: { select: { name: true } },
+            updatedBy: { select: { name: true } }
+          }
         }
       }
     })
 
-    if (!room || room.project.orgId !== session.user.orgId) {
+    if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    // Get FFE configuration for this room type
-    const ffeConfig = getRoomFFEConfig(room.type)
-    if (!ffeConfig) {
-      return NextResponse.json({ 
-        itemStatuses: {},
-        roomConfig: null,
-        message: 'No FFE configuration found for this room type'
-      })
-    }
+    // Get FFE items for this room type (default + custom)
+    const ffeItems = await getFFEItemsForRoom(room.project.organization.id, room.type)
+    const defaultConfig = getDefaultFFEConfig(room.type)
 
-    // Get existing FFE item statuses from database
-    const existingStatuses = await prisma.fFEItemStatus.findMany({
-      where: { roomId },
-      include: {
-        updatedBy: {
-          select: { name: true }
-        },
-        createdBy: {
-          select: { name: true }
-        }
-      }
-    })
-
-    // Convert to lookup object
-    const itemStatuses: Record<string, any> = {}
-    existingStatuses.forEach(status => {
-      itemStatuses[status.itemId] = {
-        id: status.itemId,
-        status: status.status,
-        confirmedAt: status.confirmedAt,
-        confirmedBy: status.updatedBy?.name,
+    // Build status map
+    const statusMap: Record<string, any> = {}
+    room.ffeItemStatuses.forEach(status => {
+      statusMap[status.itemId] = {
+        state: status.state,
+        isCustomExpanded: status.isCustomExpanded,
+        subItemStates: status.subItemStates as Record<string, string>,
         notes: status.notes,
-        supplierLink: status.supplierLink,
-        actualPrice: status.actualPrice,
-        estimatedDelivery: status.estimatedDelivery,
-        subItemsCompleted: status.subItemsCompleted || []
+        confirmedAt: status.confirmedAt,
+        createdBy: status.createdBy.name,
+        updatedBy: status.updatedBy?.name
       }
     })
+
+    // Get completion validation
+    const completionResult = await validateFFECompletion(roomId)
 
     return NextResponse.json({
-      itemStatuses,
-      roomConfig: ffeConfig,
-      message: 'FFE status loaded successfully'
+      room: {
+        id: room.id,
+        type: room.type,
+        name: room.name
+      },
+      categories: defaultConfig?.categories || [],
+      customItems: ffeItems.customItems,
+      itemStatuses: statusMap,
+      completion: completionResult
     })
 
   } catch (error) {
-    console.error('Error fetching FFE status:', error)
+    console.error('Error getting FFE status:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// Create or update multiple FFE item statuses
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ roomId: string }> }
-) {
+// Update FFE completion status for the room
+export async function PUT(request: NextRequest, { params }: { params: { roomId: string } }) {
   try {
-    const session = await getSession() as Session & {
-      user: {
-        id: string
-        orgId: string
-        role: string
-      }
-    } | null
-    const resolvedParams = await params
-
+    const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { roomId } = resolvedParams
-    const updates = await request.json()
+    const roomId = params.roomId
+    const body = await request.json()
+    const { action } = body
 
-    // Verify room ownership
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
-      select: { 
-        projectId: true,
-        project: { select: { orgId: true } }
+    if (action === 'complete_stage') {
+      // Complete the FFE stage
+      const completionResult = await validateFFECompletion(roomId)
+      
+      if (!completionResult.isComplete && !completionResult.canForceComplete) {
+        return NextResponse.json({
+          error: 'Cannot complete FFE stage',
+          issues: completionResult.issues,
+          missingRequired: completionResult.missingRequired.map(item => item.name)
+        }, { status: 400 })
       }
-    })
 
-    if (!room || room.project.orgId !== session.user.orgId) {
-      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
-    }
-
-    const results = []
-
-    for (const [itemId, itemUpdates] of Object.entries(updates as Record<string, any>)) {
-      const result = await prisma.fFEItemStatus.upsert({
-        where: {
-          roomId_itemId: {
-            roomId,
-            itemId
-          }
-        },
-        create: {
-          roomId,
-          itemId,
-          status: itemUpdates.status || 'NOT_STARTED',
-          notes: itemUpdates.notes,
-          supplierLink: itemUpdates.supplierLink,
-          actualPrice: itemUpdates.actualPrice,
-          estimatedDelivery: itemUpdates.estimatedDelivery,
-          subItemsCompleted: itemUpdates.subItemsCompleted || [],
-          confirmedAt: itemUpdates.status === 'COMPLETED' ? new Date() : null,
-          createdById: session.user.id,
-          updatedById: session.user.id
-        },
-        update: {
-          status: itemUpdates.status,
-          notes: itemUpdates.notes,
-          supplierLink: itemUpdates.supplierLink,
-          actualPrice: itemUpdates.actualPrice,
-          estimatedDelivery: itemUpdates.estimatedDelivery,
-          subItemsCompleted: itemUpdates.subItemsCompleted,
-          confirmedAt: itemUpdates.status === 'COMPLETED' ? new Date() : undefined,
-          updatedById: session.user.id,
-          updatedAt: new Date()
+      // Update room FFE progress to completed
+      await prisma.room.update({
+        where: { id: roomId },
+        data: {
+          progressFFE: 100
         }
       })
-      
-      results.push(result)
+
+      return NextResponse.json({ success: true, completed: true })
     }
 
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        type: 'FFE_ITEMS_UPDATED',
-        description: `Updated ${results.length} FFE item statuses`,
-        metadata: { 
-          roomId, 
-          itemCount: results.length,
-          updatedItems: Object.keys(updates)
-        },
-        userId: session.user.id,
-        projectId: room.projectId
-      }
-    })
+    if (action === 'generate_report') {
+      const report = await generateFFECompletionReport(roomId)
+      return NextResponse.json({ report })
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      updatedCount: results.length,
-      message: 'FFE item statuses updated successfully'
-    })
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
   } catch (error) {
-    console.error('Error updating FFE statuses:', error)
+    console.error('Error updating FFE status:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

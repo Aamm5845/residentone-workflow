@@ -63,11 +63,13 @@ export async function POST(request: NextRequest) {
       where: {
         orgId: {
           not: null
-        }
+        },
+        approvalStatus: 'APPROVED'
       }
     })
     
     const userRole = existingUserCount === 0 ? 'OWNER' : 'VIEWER'
+    const approvalStatus = existingUserCount === 0 ? 'APPROVED' : 'PENDING'
 
     // Create user
     const user = await prisma.user.create({
@@ -76,7 +78,9 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         password: hashedPassword,
         role: userRole,
-        orgId: organization.id
+        orgId: organization.id,
+        approvalStatus: approvalStatus,
+        approvedAt: existingUserCount === 0 ? new Date() : null
       },
       include: {
         organization: true
@@ -89,13 +93,19 @@ export async function POST(request: NextRequest) {
     })
 
     // Return success (without password)
+    const successMessage = user.approvalStatus === 'PENDING' 
+      ? 'Account created successfully! Your account is pending admin approval. You will receive an email once approved.'
+      : 'Account created successfully!'
+
     return NextResponse.json({
-      message: 'Account created successfully!',
+      message: successMessage,
+      requiresApproval: user.approvalStatus === 'PENDING',
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        approvalStatus: user.approvalStatus,
         organization: user.organization
       }
     }, { status: 201 })

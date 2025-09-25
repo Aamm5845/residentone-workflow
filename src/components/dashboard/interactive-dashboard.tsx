@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, RefreshCw, ChevronDown, ChevronUp, Award } from 'lucide-react'
+import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, RefreshCw, ChevronDown, ChevronUp, Award, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
@@ -74,6 +74,7 @@ const formatDueDate = (dueDate: string | null): string => {
 export default function InteractiveDashboard({ user }: { user: any }) {
   const [refreshing, setRefreshing] = useState(false)
   const [tasksCollapsed, setTasksCollapsed] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
   
   // Fetch dashboard stats
   const { data: statsData, error: statsError, mutate: mutateStats } = useSWR<DashboardStats>('/api/dashboard/stats', fetcher, {
@@ -164,6 +165,14 @@ export default function InteractiveDashboard({ user }: { user: any }) {
               🔔 Test Notification
             </Button>
           )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            {showSettings ? 'Hide Settings' : 'Settings'}
+          </Button>
           <Button 
             variant="outline" 
             size="sm" 
@@ -296,6 +305,19 @@ export default function InteractiveDashboard({ user }: { user: any }) {
                 <p className="text-2xl font-bold text-gray-900">{statsData.overdueTasks}</p>
               </div>
               <AlertCircle className={`w-8 h-8 ${statsData.overdueTasks > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Section */}
+      {showSettings && (
+        <div className="space-y-6">
+          <div className="border-t pt-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Organization Settings</h2>
+            <div className="bg-gray-50 rounded-lg p-6 text-center">
+              <p className="text-gray-600 mb-2">Organization-level settings and management</p>
+              <p className="text-sm text-gray-500">Visit <strong>Preferences → FFE Library</strong> to manage your FFE items</p>
             </div>
           </div>
         </div>

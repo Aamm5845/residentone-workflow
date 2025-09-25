@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
-import RoomFFEChecklist from '../ffe/RoomFFEChecklist'
-import { getRoomFFEConfig } from '@/lib/constants/room-ffe-config'
+import FFEQAChecklist from '../ffe/FFEQAChecklist'
+import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
 
 export default function FFEStage({ 
   stage, 
@@ -32,7 +32,7 @@ export default function FFEStage({
   }
   
   const isNotApplicable = stage.status === 'NOT_APPLICABLE'
-  const roomConfig = getRoomFFEConfig(room.type)
+  const roomConfig = getDefaultFFEConfig(room.type)
   
   const handleFFEProgress = (progress: number, isComplete: boolean) => {
     setFFEProgress(progress)
@@ -143,50 +143,14 @@ export default function FFEStage({
       <div className="flex">
         {/* Main Workspace */}
         <div className="flex-1 p-6">
-          {roomConfig ? (
-            <RoomFFEChecklist
-              roomId={room.id}
-              roomType={room.type}
-              roomName={room.name || room.type}
-              onProgress={handleFFEProgress}
-            />
-          ) : (
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
-                <div className="flex items-start space-x-3">
-                  <Info className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                      Custom Room Type
-                    </h3>
-                    <p className="text-yellow-800 mb-4">
-                      This room type ({room.type}) doesn't have a predefined FFE template. 
-                      You can still manage FFE items using the general item management system.
-                    </p>
-                    <Button className="bg-yellow-600 hover:bg-yellow-700 text-white">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Custom FFE Items
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-center py-16 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <Package className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Custom FFE Management</h3>
-                <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-                  Manage furniture, fixtures & equipment for this custom room type.
-                </p>
-                
-                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Start Custom FFE Planning
-                </Button>
-              </div>
-            </div>
-          )}
+          <FFEQAChecklist
+            roomId={room.id}
+            roomType={room.type}
+            roomName={room.name}
+            onProgressUpdate={handleFFEProgress}
+            onItemUpdate={() => {}} // Reload room data if needed
+          />
+        </div>
         </div>
 
         {/* Chat Sidebar */}
