@@ -21,13 +21,16 @@ export function extractMentions(text: string): string[] {
     const startIndex = text.indexOf(match)
     const afterMatch = text.substring(startIndex + match.length)
     
-    // Check if there's a space followed by another word (potential last name)
-    // Only include if followed by punctuation, space, or end - not another word
-    const nextWordMatch = afterMatch.match(/^\s+([a-zA-Z]+)(?=[\s.,!?;:]|$)/)
+    // Check if there's a space followed by a capitalized word (potential last name)
+    // Only capture if it looks like a proper name (starts with capital letter)
+    const nextWordMatch = afterMatch.match(/^\s+([A-Z][a-zA-Z]*)(?=[\s.,!?;:]|$)/)
     
     let mentionedName = match.substring(1) // Remove @
-    if (nextWordMatch) {
-      mentionedName += ' ' + nextWordMatch[1]
+    if (nextWordMatch && nextWordMatch[1]) {
+      // Additional check: make sure this looks like a name, not a common word
+      const nextWord = nextWordMatch[1]
+      // Include the next word if it's capitalized (proper noun pattern)
+      mentionedName += ' ' + nextWord
     }
     
     if (mentionedName && !mentions.includes(mentionedName)) {
@@ -202,7 +205,9 @@ export function highlightMentions(text: string): string {
   
   // Highlight each extracted mention
   for (const mention of mentions) {
-    const mentionPattern = new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\s.,!?;:]|$)`, 'gi')
+    // Escape special regex characters and create word boundary pattern
+    const escapedMention = mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const mentionPattern = new RegExp(`@${escapedMention}(?=\s|[.,!?;:]|$)`, 'gi')
     highlightedText = highlightedText.replace(mentionPattern, '<span class="mention">@' + mention + '</span>')
   }
   
@@ -224,7 +229,9 @@ export async function highlightValidMentions(text: string, orgId: string): Promi
   
   // Highlight each valid mention
   for (const mention of validMentions) {
-    const mentionPattern = new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\s.,!?;:]|$)`, 'gi')
+    // Escape special regex characters and create word boundary pattern
+    const escapedMention = mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const mentionPattern = new RegExp(`@${escapedMention}(?=\s|[.,!?;:]|$)`, 'gi')
     highlightedText = highlightedText.replace(mentionPattern, '<span class="mention">@' + mention + '</span>')
   }
   
