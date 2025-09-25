@@ -2,19 +2,34 @@ import { prisma } from '@/lib/prisma'
 import { notifyMention } from './notificationUtils'
 
 // Regular expression to match @mentions (more precise matching)
-// Matches @word or @word word, but stops at punctuation or non-name characters
-const MENTION_REGEX = /@([a-zA-Z]+(?:\s+[a-zA-Z]+)*?)(?=[\s.,!?;:]|$)/g
+// Matches @word or @word word (max 2 words), stops at punctuation or after second word
+const MENTION_REGEX = /@([a-zA-Z]+(?:\s+[a-zA-Z]+)?)(?=[.,!?;:\s]|$)/g
 
 /**
  * Extract @mentions from text
  * Returns array of mentioned names (without the @ symbol)
+ * Uses a two-pass approach: first find all @word patterns, then extend with following word if reasonable
  */
 export function extractMentions(text: string): string[] {
   const mentions: string[] = []
-  const matches = text.matchAll(MENTION_REGEX)
   
-  for (const match of matches) {
-    const mentionedName = match[1].trim()
+  // Find all @word patterns
+  const simpleMatches = text.match(/@[a-zA-Z]+/g)
+  if (!simpleMatches) return []
+  
+  for (const match of simpleMatches) {
+    const startIndex = text.indexOf(match)
+    const afterMatch = text.substring(startIndex + match.length)
+    
+    // Check if there's a space followed by another word (potential last name)
+    // Only include if followed by punctuation, space, or end - not another word
+    const nextWordMatch = afterMatch.match(/^\s+([a-zA-Z]+)(?=[\s.,!?;:]|$)/)
+    
+    let mentionedName = match.substring(1) // Remove @
+    if (nextWordMatch) {
+      mentionedName += ' ' + nextWordMatch[1]
+    }
+    
     if (mentionedName && !mentions.includes(mentionedName)) {
       mentions.push(mentionedName)
     }
@@ -181,7 +196,17 @@ export async function processMentions({
  * Highlight @mentions in text for display (wrap them in spans with CSS classes)
  */
 export function highlightMentions(text: string): string {
-  return text.replace(MENTION_REGEX, '<span class="mention">@$1</span>')
+  const mentions = extractMentions(text)
+  
+  let highlightedText = text
+  
+  // Highlight each extracted mention
+  for (const mention of mentions) {
+    const mentionPattern = new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\s.,!?;:]|$)`, 'gi')
+    highlightedText = highlightedText.replace(mentionPattern, '<span class="mention">@' + mention + '</span>')
+  }
+  
+  return highlightedText
 }
 
 /**
