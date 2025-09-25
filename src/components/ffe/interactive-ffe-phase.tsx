@@ -111,6 +111,10 @@ export default function InteractiveFFEPhase({ roomId }: InteractiveFFEPhaseProps
   const handleSubmitItem = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Debug logging
+    console.log('Form submitted with data:', formData)
+    console.log('Room ID:', roomId)
+    
     try {
       const payload = {
         roomId,
@@ -186,7 +190,10 @@ export default function InteractiveFFEPhase({ roomId }: InteractiveFFEPhaseProps
           <p className="text-gray-600 mt-1">Manage and track all interior elements for this room</p>
         </div>
         <Button 
-          onClick={() => setShowAddForm(true)}
+          onClick={() => {
+            console.log('Add Item button clicked')
+            setShowAddForm(true)
+          }}
           className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
