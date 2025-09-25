@@ -27,8 +27,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
-import { IssueNotification } from '@/components/issues/IssueNotification'
-import { IssueModal } from '@/components/issues/IssueModal'
+import { IssueNotification } from '@/components/issues/issue-notification'
+import { IssueModal } from '@/components/issues/issue-modal'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
