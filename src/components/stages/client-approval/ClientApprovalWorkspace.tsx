@@ -1458,7 +1458,8 @@ export default function ClientApprovalWorkspace({
             </div>
           </div>
         </div>
-    </div>
+      </div>
+      )}
 
       {/* Chat Tab */}
       {activeTab === 'chat' && (
