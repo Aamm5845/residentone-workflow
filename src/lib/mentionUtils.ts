@@ -41,9 +41,28 @@ export async function extractValidMentions(text: string, orgId: string): Promise
   
   for (const mention of potentialMentions) {
     // Check if this mention matches any team member name (case-insensitive)
-    const matchingMember = teamMembers.find(member => 
-      member.name.toLowerCase() === mention.toLowerCase()
-    )
+    // Support both exact matches and partial matches (e.g., "Aaron" matches "Aaron (Designer)")
+    const matchingMember = teamMembers.find(member => {
+      const memberNameLower = member.name.toLowerCase()
+      const mentionLower = mention.toLowerCase()
+      
+      // Exact match
+      if (memberNameLower === mentionLower) {
+        return true
+      }
+      
+      // Partial match - check if the mention is contained in the member name
+      // or if the member name starts with the mention
+      if (memberNameLower.includes(mentionLower) || memberNameLower.startsWith(mentionLower)) {
+        return true
+      }
+      
+      // Also check first name only (extract first word from both)
+      const memberFirstName = memberNameLower.split(/\s|\(|\)/)[0]
+      const mentionFirstName = mentionLower.split(/\s|\(|\)/)[0]
+      
+      return memberFirstName === mentionFirstName
+    })
     
     if (matchingMember && !validMentions.includes(matchingMember.name)) {
       validMentions.push(matchingMember.name)
