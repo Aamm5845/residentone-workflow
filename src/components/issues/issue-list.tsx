@@ -108,21 +108,7 @@ const STATUS_ICONS = {
 export default function IssueList({ currentUser }: IssueListProps) {
   const { data: session } = useSession()
   
-  // Use passed currentUser or extract from session
-  const user = currentUser || (session?.user ? {
-    id: session.user.id,
-    name: session.user.name || 'Unknown User',
-    role: session.user.role
-  } : null)
-  
-  // Don't render if no user is available
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <p className="text-gray-500">Please sign in to view issues</p>
-      </div>
-    )
-  }
+  // Initialize all hooks first (before any conditional logic)
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -131,6 +117,22 @@ export default function IssueList({ currentUser }: IssueListProps) {
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null)
+  
+  // Use passed currentUser or extract from session
+  const user = currentUser || (session?.user ? {
+    id: session.user.id,
+    name: session.user.name || 'Unknown User',
+    role: session.user.role
+  } : null)
+  
+  // Don't render if no user is available (after hooks are initialized)
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <p className="text-gray-500">Please sign in to view issues</p>
+      </div>
+    )
+  }
 
   const fetchIssues = async () => {
     try {
