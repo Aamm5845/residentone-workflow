@@ -41,16 +41,16 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
 
   const workNavigation = {
     DESIGNER: [
-      { name: 'Design Tasks', href: '/design', icon: Palette, color: 'text-pink-600', badge: '3' },
+      { name: 'Design Tasks', href: '/design', icon: Palette, color: 'text-pink-600' },
     ],
     RENDERER: [
-      { name: '3D Queue', href: '/rendering', icon: Box, color: 'text-indigo-600', badge: '2' },
+      { name: '3D Queue', href: '/rendering', icon: Box, color: 'text-indigo-600' },
     ],
     DRAFTER: [
-      { name: 'Drawings', href: '/drawings', icon: FileText, color: 'text-orange-600', badge: '1' },
+      { name: 'Drawings', href: '/drawings', icon: FileText, color: 'text-orange-600' },
     ],
     FFE: [
-      { name: 'Sourcing', href: '/ffe', icon: CheckSquare, color: 'text-emerald-600', badge: '5' },
+      { name: 'Sourcing', href: '/ffe', icon: CheckSquare, color: 'text-emerald-600' },
     ],
   }
 

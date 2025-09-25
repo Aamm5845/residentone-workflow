@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { MentionTextarea } from '@/components/ui/mention-textarea'
-import { processMentions, highlightMentions } from '@/lib/mentionUtils'
+import { processMentions, highlightMentions, highlightValidMentions } from '@/lib/mentionUtils'
 import { useSession } from 'next-auth/react'
 import {
   Send,
@@ -338,9 +338,10 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
     return USER_COLORS[userId.charCodeAt(0) % USER_COLORS.length]
   }
 
-  const parseMessageContent = (content: string) => {
-    // Parse @mentions using the utility function and add other formatting
-    return highlightMentions(content)
+  const parseMessageContent = async (content: string) => {
+    // Parse @mentions using validated highlighting and add other formatting
+    const highlightedMentions = await highlightValidMentions(content, session?.user?.orgId || '')
+    return highlightedMentions
       .replace(/#(\w+)/g, '<span class="text-purple-600 font-medium bg-purple-50 px-1 rounded">#$1</span>')
       .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>')
   }

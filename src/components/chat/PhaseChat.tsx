@@ -225,8 +225,10 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
            ['OWNER', 'ADMIN'].includes(session.user.role as string)
   }
 
-  const highlightMentions = (text: string) => {
-    return text.replace(/@(\w+(?:\s+\w+)*)/g, '<span class="bg-blue-100 text-blue-800 px-1 rounded font-medium">@$1</span>')
+  const highlightMentions = async (text: string) => {
+    // Use the more precise mention highlighting from mentionUtils
+    const { highlightValidMentions } = await import('@/lib/mentionUtils')
+    return await highlightValidMentions(text, session?.user?.orgId || '')
   }
 
   if (loading) {

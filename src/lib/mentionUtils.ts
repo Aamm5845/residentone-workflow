@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { notifyMention } from './notificationUtils'
 
-// Regular expression to match @mentions (supports names with spaces)
-const MENTION_REGEX = /@([a-zA-Z]+(?:\s+[a-zA-Z]+)*)/g
+// Regular expression to match @mentions (more precise matching)
+// Matches @word or @word word, but stops at punctuation or non-name characters
+const MENTION_REGEX = /@([a-zA-Z]+(?:\s+[a-zA-Z]+)*?)(?=[\s.,!?;:]|$)/g
 
 /**
  * Extract @mentions from text
@@ -20,6 +21,36 @@ export function extractMentions(text: string): string[] {
   }
   
   return mentions
+}
+
+/**
+ * Extract @mentions from text with team member validation
+ * Only returns mentions that match actual team member names
+ */
+export async function extractValidMentions(text: string, orgId: string): Promise<string[]> {
+  // Get all potential mentions from the text
+  const potentialMentions = extractMentions(text)
+  
+  if (potentialMentions.length === 0) {
+    return []
+  }
+  
+  // Get all team members
+  const teamMembers = await getTeamMembersForMentions(orgId)
+  const validMentions: string[] = []
+  
+  for (const mention of potentialMentions) {
+    // Check if this mention matches any team member name (case-insensitive)
+    const matchingMember = teamMembers.find(member => 
+      member.name.toLowerCase() === mention.toLowerCase()
+    )
+    
+    if (matchingMember && !validMentions.includes(matchingMember.name)) {
+      validMentions.push(matchingMember.name)
+    }
+  }
+  
+  return validMentions
 }
 
 /**
@@ -83,14 +114,14 @@ export async function processMentions({
   messagePreview?: string
 }): Promise<{ mentionedUsers: Array<{ id: string; name: string }>, notificationCount: number }> {
   
-  // Extract mentions from the text
-  const mentionedNames = extractMentions(text)
+  // Extract valid mentions from the text (only actual team member names)
+  const mentionedNames = await extractValidMentions(text, orgId)
   
   if (mentionedNames.length === 0) {
     return { mentionedUsers: [], notificationCount: 0 }
   }
   
-  // Find users by mentioned names
+  // Find users by mentioned names (exact matches)
   const mentionedUsers = await findUsersByNames(mentionedNames, orgId)
   
   // Filter out the author (don't notify yourself)
@@ -132,6 +163,28 @@ export async function processMentions({
  */
 export function highlightMentions(text: string): string {
   return text.replace(MENTION_REGEX, '<span class="mention">@$1</span>')
+}
+
+/**
+ * Highlight only valid @mentions in text for display
+ * Only highlights mentions that match actual team member names
+ */
+export async function highlightValidMentions(text: string, orgId: string): Promise<string> {
+  const validMentions = await extractValidMentions(text, orgId)
+  
+  if (validMentions.length === 0) {
+    return text
+  }
+  
+  let highlightedText = text
+  
+  // Highlight each valid mention
+  for (const mention of validMentions) {
+    const mentionPattern = new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\s.,!?;:]|$)`, 'gi')
+    highlightedText = highlightedText.replace(mentionPattern, '<span class="mention">@' + mention + '</span>')
+  }
+  
+  return highlightedText
 }
 
 /**
