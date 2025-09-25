@@ -91,12 +91,20 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
   try {
     console.log(`🎯 Starting auto-assignment for room ${roomId} in org ${orgId}`)
     
-    // Get all team members (no org filtering for shared workspace)
+    // Get all team members (exclude deleted users and filter for current team)
     const teamMembers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { name: { not: { startsWith: '[DELETED]' } } },
+          { email: { not: { startsWith: 'deleted_' } } },
+          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+        ]
+      },
       select: {
         id: true,
         role: true,
-        name: true
+        name: true,
+        email: true
       }
     })
 
@@ -248,12 +256,20 @@ export async function autoAssignAllUnassignedStages() {
   try {
     console.log('🔄 Starting system-wide auto-assignment of unassigned stages...')
     
-    // Get all team members
+    // Get all team members (exclude deleted users and filter for current team)
     const teamMembers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { name: { not: { startsWith: '[DELETED]' } } },
+          { email: { not: { startsWith: 'deleted_' } } },
+          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+        ]
+      },
       select: {
         id: true,
         role: true,
-        name: true
+        name: true,
+        email: true
       }
     })
 
