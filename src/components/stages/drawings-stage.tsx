@@ -565,12 +565,11 @@ export default function DrawingsWorkspace({
             <li>• Supported formats: PDF, JPG, PNG, WebP, DWG (max 10MB each)</li>
           </ul>
         </div>
-          </div>
         )}
         
         {/* Chat Tab */}
         {activeTab === 'chat' && (
-          <div>
+          <div className="p-6">
             <PhaseChat stageId={stage.id} />
           </div>
         )}
