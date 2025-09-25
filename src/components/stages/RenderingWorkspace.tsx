@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { PhaseChat } from '../chat/PhaseChat'
 import { 
   CheckCircle, 
   User, 
@@ -108,6 +109,7 @@ export default function RenderingWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [activeTab, setActiveTab] = useState<'rendering' | 'chat'>('rendering')
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -415,8 +417,36 @@ export default function RenderingWorkspace({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Navigation Tabs */}
+      <div className="flex space-x-1 border-b border-gray-200 px-6">
+        <button
+          onClick={() => setActiveTab('rendering')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'rendering'
+              ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Box className="w-4 h-4 inline mr-2" />
+          3D Renderings
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'chat'
+              ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          💬 Team Chat
+        </button>
+      </div>
+
+      {/* Tab Content */}
       <div className="p-6">
+        {/* Rendering Tab */}
+        {activeTab === 'rendering' && (
+          <div>
         {/* Create New Version Button */}
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Rendering Versions</h3>
@@ -1073,6 +1103,17 @@ export default function RenderingWorkspace({
             <li>• Revision requests will reopen the version for further editing</li>
           </ul>
         </div>
+          </div>
+        )}
+
+        {/* Chat Tab */}
+        {activeTab === 'chat' && (
+          <PhaseChat
+            stageId={stage.id}
+            stageName={`${stage.type} - ${room.name || room.type}`}
+            className="h-[600px]"
+          />
+        )}
       </div>
     </div>
   )

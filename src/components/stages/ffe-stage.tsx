@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package } from 'lucide-react'
+import { PhaseChat } from '../chat/PhaseChat'
 
 export default function FFEStage({ 
   stage, 
@@ -9,6 +11,8 @@ export default function FFEStage({
   project, 
   onComplete 
 }: any) {
+  const [activeTab, setActiveTab] = useState<'ffe' | 'chat'>('ffe')
+  
   // Ensure this component only renders for FFE stages
   if (stage.type !== 'FFE') {
     return (
@@ -47,6 +51,33 @@ export default function FFEStage({
         </div>
       </div>
       
+      {/* Navigation Tabs */}
+      <div className="flex space-x-1 border-b border-gray-200 px-6">
+        <button
+          onClick={() => setActiveTab('ffe')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'ffe'
+              ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Package className="w-4 h-4 inline mr-2" />
+          FFE Sourcing
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'chat'
+              ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          💬 Team Chat
+        </button>
+      </div>
+      
+      {/* Tab Content */}
+      {activeTab === 'ffe' && (
       {/* Content */}
       <div className="p-8">
         <div className="max-w-4xl mx-auto">
@@ -93,6 +124,14 @@ export default function FFEStage({
           </div>
         </div>
       </div>
+      )}
+      
+      {/* Chat Tab */}
+      {activeTab === 'chat' && (
+        <div className="p-6">
+          <PhaseChat stageId={stage.id} />
+        </div>
+      )}
     </div>
   )
 }

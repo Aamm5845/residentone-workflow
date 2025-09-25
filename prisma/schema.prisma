@@ -122,6 +122,8 @@ model User {
   assignedIssues             Issue[]                  @relation("IssueAssignee")
   resolvedIssues             Issue[]                  @relation("IssueResolver")
   issueComments              IssueComment[]           @relation("IssueCommentAuthor")
+  chatMessages               ChatMessage[]
+  chatMentions               ChatMention[]
   organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions               UserSession[]
 }
@@ -265,6 +267,7 @@ model Stage {
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   tasks                  Task[]
   issues                 Issue[]
+  chatMessages           ChatMessage[]
 
   @@unique([roomId, type])
 }
@@ -531,6 +534,36 @@ model Comment {
   commentPin  CommentPin?
   commentTags CommentTag[]
   commentLikes CommentLike[]
+}
+
+model ChatMessage {
+  id          String        @id @default(cuid())
+  content     String
+  authorId    String
+  stageId     String
+  editedAt    DateTime?
+  isEdited    Boolean       @default(false)
+  deletedAt   DateTime?
+  isDeleted   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  author      User          @relation(fields: [authorId], references: [id])
+  stage       Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  mentions    ChatMention[]
+  
+  @@index([stageId, createdAt])
+  @@index([authorId])
+}
+
+model ChatMention {
+  id            String      @id @default(cuid())
+  messageId     String
+  mentionedId   String
+  createdAt     DateTime    @default(now())
+  message       ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mentionedUser User        @relation(fields: [mentionedId], references: [id])
+  
+  @@unique([messageId, mentionedId])
 }
 
 model Asset {
@@ -994,6 +1027,7 @@ enum NotificationType {
   STAGE_ASSIGNED
   STAGE_COMPLETED
   MENTION
+  CHAT_MESSAGE
   DUE_DATE_REMINDER
   PROJECT_UPDATE
 }

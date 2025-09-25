@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import FilePreviewModal from '@/components/ui/file-preview-modal'
 import { useDrawingsWorkspace } from '@/hooks/useDrawingsWorkspace'
 import { DrawingAsset, DrawingChecklistItem } from '@/types/drawings'
+import { PhaseChat } from '../chat/PhaseChat'
 import {
   CheckCircle,
   PencilRuler,
@@ -74,6 +75,7 @@ export default function DrawingsWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [showActivity, setShowActivity] = useState(false)
   const [draggedOver, setDraggedOver] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'drawings' | 'chat'>('drawings')
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   
@@ -264,8 +266,36 @@ export default function DrawingsWorkspace({
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Navigation Tabs */}
+      <div className="flex space-x-1 border-b border-gray-200 px-6">
+        <button
+          onClick={() => setActiveTab('drawings')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'drawings'
+              ? 'bg-orange-50 text-orange-700 border-b-2 border-orange-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <PencilRuler className="w-4 h-4 inline mr-2" />
+          Technical Drawings
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'chat'
+              ? 'bg-orange-50 text-orange-700 border-b-2 border-orange-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          💬 Team Chat
+        </button>
+      </div>
+
+      {/* Tab Content */}
       <div className="p-4 sm:p-6">
+        {/* Drawings Tab */}
+        {activeTab === 'drawings' && (
+          <div>
         {/* Checklist Items */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

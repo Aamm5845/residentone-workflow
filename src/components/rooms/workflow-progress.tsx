@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { Play, CheckCircle } from 'lucide-react'
+import { Play, CheckCircle, Minus } from 'lucide-react'
 import { WORKFLOW_STAGES, getStageConfig, getStageStatusColor, getStageStatusTextColor, type StageStatus } from '@/constants/workflow'
 import { useStageActions } from '@/hooks/useWorkflow'
 
@@ -27,6 +27,60 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
     } catch (error) {
       console.error('❌ handleStartPhase error:', error)
       setError(`Failed to start ${stageType} phase. Please try again.`)
+    }
+  }
+
+  const handleMarkNotApplicable = async (stageId: string, stageType: string) => {
+    console.log('🚫 handleMarkNotApplicable called:', { stageId, stageType })
+    setError(null)
+    try {
+      const response = await fetch(`/api/stages/${stageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'mark_not_applicable'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to mark as not applicable')
+      }
+
+      console.log('✅ Marked as not applicable successfully')
+      // SWR will automatically update the UI
+      window.location.reload() // Force reload to see changes immediately
+    } catch (error) {
+      console.error('❌ handleMarkNotApplicable error:', error)
+      setError(`Failed to mark ${stageType} as not applicable. Please try again.`)
+    }
+  }
+
+  const handleMarkApplicable = async (stageId: string, stageType: string) => {
+    console.log('✅ handleMarkApplicable called:', { stageId, stageType })
+    setError(null)
+    try {
+      const response = await fetch(`/api/stages/${stageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'mark_applicable'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to mark as applicable')
+      }
+
+      console.log('✅ Marked as applicable successfully')
+      // SWR will automatically update the UI
+      window.location.reload() // Force reload to see changes immediately
+    } catch (error) {
+      console.error('❌ handleMarkApplicable error:', error)
+      setError(`Failed to mark ${stageType} as applicable. Please try again.`)
     }
   }
 
@@ -63,6 +117,7 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
         const isCompleted = status === 'COMPLETED'
         const isActive = status === 'IN_PROGRESS'
         const canStart = status === 'NOT_STARTED'
+        const isNotApplicable = status === 'NOT_APPLICABLE'
         const isStarting = isLoading === phaseStage?.id
         
         // Debug logging
@@ -103,14 +158,16 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                     <div className={`w-4 h-4 rounded-full ${
                       isCompleted ? 'bg-green-500 ring-2 ring-green-200' :
                       isActive ? 'bg-blue-500 animate-pulse ring-2 ring-blue-200' :
+                      isNotApplicable ? 'bg-slate-400 ring-2 ring-slate-200' :
                       'bg-gray-300'
                     }`} />
                     <span className="text-xs font-medium ${
                       isCompleted ? 'text-green-600' :
                       isActive ? 'text-blue-600' :
+                      isNotApplicable ? 'text-slate-600' :
                       'text-gray-400'
                     }">
-                      {isCompleted ? 'Done' : isActive ? 'Active' : 'Pending'}
+                      {isCompleted ? 'Done' : isActive ? 'Active' : isNotApplicable ? 'N/A' : 'Pending'}
                     </span>
                   </div>
                 </div>
@@ -150,33 +207,55 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                       </div>
                     </div>
                   )}
+                  {isNotApplicable && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                        <Minus className="w-5 h-5 text-slate-600" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-700 text-sm">Not Applicable</span>
+                        <p className="text-xs text-slate-600">This phase is not needed for this room</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mt-auto pt-2">
                   {canStart && phaseStage && (
-                    <Button 
-                      size="sm" 
-                      className={`w-full text-white font-semibold ${
-                        stageConfig.baseColor
-                      } hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 shadow-md`}
-                      onClick={() => {
-                        console.log('💆 Button clicked!', { phaseStageId: phaseStage.id, stageType, canStart, isStarting })
-                        handleStartPhase(phaseStage.id, stageType)
-                      }}
-                      disabled={isStarting}
-                    >
-                      {isStarting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                          Starting...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4 mr-2" />
-                          Start {stageConfig.name}
-                        </>
-                      )}
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        size="sm" 
+                        className={`w-full text-white font-semibold ${
+                          stageConfig.baseColor
+                        } hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 shadow-md`}
+                        onClick={() => {
+                          console.log('💆 Button clicked!', { phaseStageId: phaseStage.id, stageType, canStart, isStarting })
+                          handleStartPhase(phaseStage.id, stageType)
+                        }}
+                        disabled={isStarting}
+                      >
+                        {isStarting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Start {stageConfig.name}
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full text-slate-600 border-slate-300 hover:bg-slate-50 text-xs"
+                        onClick={() => handleMarkNotApplicable(phaseStage.id, stageType)}
+                      >
+                        <Minus className="w-3 h-3 mr-2" />
+                        Not Applicable
+                      </Button>
+                    </div>
                   )}
                   {isActive && phaseStage && (
                     <Button 
@@ -187,6 +266,17 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                     >
                       <Play className="w-4 h-4 mr-2" />
                       Open Workspace
+                    </Button>
+                  )}
+                  {isNotApplicable && phaseStage && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="w-full text-slate-600 border-slate-300 hover:bg-slate-50"
+                      onClick={() => handleMarkApplicable(phaseStage.id, stageType)}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Mark Applicable
                     </Button>
                   )}
                   {isCompleted && (

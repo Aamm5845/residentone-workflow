@@ -12,7 +12,7 @@ export const WORKFLOW_STAGES = [
 export type WorkflowStageType = typeof WORKFLOW_STAGES[number]
 
 // Stage status types
-export type StageStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
+export type StageStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'NOT_APPLICABLE'
 
 export const STAGE_CONFIG = {
   DESIGN_CONCEPT: {
@@ -22,12 +22,14 @@ export const STAGE_CONFIG = {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
       IN_PROGRESS: 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg ring-2 ring-purple-200',
-      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200'
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
       IN_PROGRESS: 'text-purple-800',
-      COMPLETED: 'text-green-800'
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Create stunning design concepts, mood boards, and material selections'
   },
@@ -38,12 +40,14 @@ export const STAGE_CONFIG = {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
       IN_PROGRESS: 'border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg ring-2 ring-blue-200',
-      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200'
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
       IN_PROGRESS: 'text-blue-800',
-      COMPLETED: 'text-green-800'
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Create versioned 3D renderings with team collaboration, notes, and client approval integration'
   },
@@ -54,12 +58,14 @@ export const STAGE_CONFIG = {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
       IN_PROGRESS: 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 shadow-lg ring-2 ring-yellow-200',
-      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200'
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
       IN_PROGRESS: 'text-yellow-800',
-      COMPLETED: 'text-green-800'
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Client review and approval process with presentation materials'
   },
@@ -70,12 +76,14 @@ export const STAGE_CONFIG = {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
       IN_PROGRESS: 'border-orange-400 bg-gradient-to-br from-orange-50 to-red-50 shadow-lg ring-2 ring-orange-200',
-      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200'
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
       IN_PROGRESS: 'text-orange-800',
-      COMPLETED: 'text-green-800'
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Create detailed technical drawings and construction specifications'
   },
@@ -86,12 +94,14 @@ export const STAGE_CONFIG = {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
       IN_PROGRESS: 'border-emerald-400 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-lg ring-2 ring-emerald-200',
-      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200'
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
       IN_PROGRESS: 'text-emerald-800',
-      COMPLETED: 'text-green-800'
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Premium furniture, fixtures, and equipment sourcing with detailed specifications'
   }
@@ -106,12 +116,14 @@ export function getStageConfig(stageType: string) {
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white',
       IN_PROGRESS: 'border-gray-400 bg-gray-50',
-      COMPLETED: 'border-green-400 bg-green-50'
+      COMPLETED: 'border-green-400 bg-green-50',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-500',
       IN_PROGRESS: 'text-gray-700',
-      COMPLETED: 'text-green-700'
+      COMPLETED: 'text-green-700',
+      NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Unknown stage type'
   }

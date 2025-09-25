@@ -13,7 +13,8 @@ import {
   Building,
   Palette,
   Activity,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
@@ -21,6 +22,7 @@ import { toast } from 'sonner'
 
 import { SectionCard } from './SectionCard'
 import { ActivityTimeline } from './ActivityTimeline'
+import { PhaseChat } from '../chat/PhaseChat'
 
 // Types
 interface DesignSection {
@@ -155,6 +157,7 @@ export default function DesignConceptWorkspace({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [activeTab, setActiveTab] = useState<'sections' | 'chat' | 'activity'>('sections')
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -366,7 +369,58 @@ export default function DesignConceptWorkspace({
               <div className="text-sm text-gray-500">Complete</div>
             </div>
 
-            <div className="flex items-center space-x-2">
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${overallProgress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="mt-6 flex space-x-1 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('sections')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              activeTab === 'sections'
+                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Palette className="w-4 h-4 inline mr-2" />
+            Design Sections
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              activeTab === 'chat'
+                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            💬 Team Chat
+          </button>
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              activeTab === 'activity'
+                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Activity className="w-4 h-4 inline mr-2" />
+            Activity Log
+          </button>
+          
+          {/* Action buttons moved to tab bar */}
+          <div className="flex-1" />
+          {activeTab === 'sections' && (
+            <div className="flex items-center space-x-2 px-4 py-2">
               <Button
                 onClick={expandedSections.size === 0 ? expandAllSections : collapseAllSections}
                 variant="outline"
@@ -384,27 +438,8 @@ export default function DesignConceptWorkspace({
                   </>
                 )}
               </Button>
-
-              <Button
-                onClick={() => setShowActivityLog(!showActivityLog)}
-                variant="outline"
-                size="sm"
-              >
-                <Activity className="w-4 h-4 mr-1" />
-                Activity
-              </Button>
             </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${overallProgress}%` }}
-            />
-          </div>
+          )}
         </div>
 
         {/* Completion Status Alert */}
@@ -461,33 +496,47 @@ export default function DesignConceptWorkspace({
         )}
       </div>
 
-      {/* Section Cards */}
-      <div className="p-6 space-y-6">
-        {SECTION_DEFINITIONS.map((sectionDef) => {
-          const section = stage.designSections?.find(s => s.type === sectionDef.id)
-          const isExpanded = expandedSections.has(sectionDef.id)
+      {/* Tab Content */}
+      <div className="p-6">
+        {/* Design Sections Tab */}
+        {activeTab === 'sections' && (
+          <div className="space-y-6">
+            {SECTION_DEFINITIONS.map((sectionDef) => {
+              const section = stage.designSections?.find(s => s.type === sectionDef.id)
+              const isExpanded = expandedSections.has(sectionDef.id)
 
-          return (
-            <SectionCard
-              key={sectionDef.id}
-              sectionDef={sectionDef}
-              section={section}
-              stageId={stageId}
-              isExpanded={isExpanded}
-              onToggleExpand={() => toggleSection(sectionDef.id)}
-              onDataChange={refreshWorkspace}
-              isStageCompleted={stage.status === 'COMPLETED'}
-            />
-          )
-        })}
+              return (
+                <SectionCard
+                  key={sectionDef.id}
+                  sectionDef={sectionDef}
+                  section={section}
+                  stageId={stageId}
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => toggleSection(sectionDef.id)}
+                  onDataChange={refreshWorkspace}
+                  isStageCompleted={stage.status === 'COMPLETED'}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Team Chat Tab */}
+        {activeTab === 'chat' && (
+          <PhaseChat
+            stageId={stageId}
+            stageName={`${stage.type} - ${room.name || room.type}`}
+            className="h-[600px]"
+          />
+        )}
+
+        {/* Activity Timeline Tab */}
+        {activeTab === 'activity' && (
+          <div className="bg-gray-50 rounded-lg p-6">
+            <ActivityTimeline stageId={stageId} />
+          </div>
+        )}
       </div>
-
-      {/* Activity Timeline */}
-      {showActivityLog && (
-        <div className="border-t border-gray-100 p-6 bg-gray-50">
-          <ActivityTimeline stageId={stageId} />
-        </div>
-      )}
 
       {/* Bottom Completion Button (Fixed) */}
       {canMarkComplete && stage.status !== 'COMPLETED' && (

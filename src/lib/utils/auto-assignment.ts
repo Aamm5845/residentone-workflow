@@ -126,12 +126,12 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
 
     // Enhanced stage type to role mapping (covers all stage types)
     const stageTypeToRoleMap: Record<string, string | null> = {
-      'DESIGN': 'DESIGNER',           // DESIGN stage maps to DESIGNER
-      'DESIGN_CONCEPT': 'DESIGNER',   // DESIGN_CONCEPT stage maps to DESIGNER  
-      'THREE_D': 'RENDERER',          // THREE_D stage maps to RENDERER
-      'CLIENT_APPROVAL': null,        // CLIENT_APPROVAL can be handled by anyone (ADMIN/OWNER)
-      'DRAWINGS': 'DRAFTER',          // DRAWINGS stage maps to DRAFTER
-      'FFE': 'FFE'                    // FFE stage maps to FFE
+      'DESIGN': 'OWNER',              // DESIGN stage maps to OWNER (Aaron)
+      'DESIGN_CONCEPT': 'OWNER',      // DESIGN_CONCEPT stage maps to OWNER (Aaron)  
+      'THREE_D': 'RENDERER',          // THREE_D stage maps to RENDERER (Vitor)
+      'CLIENT_APPROVAL': 'FFE',       // CLIENT_APPROVAL maps to FFE (Shaya)
+      'DRAWINGS': 'DRAFTER',          // DRAWINGS stage maps to DRAFTER (Sami)
+      'FFE': 'FFE'                    // FFE stage maps to FFE (Shaya)
     }
 
     for (const stage of stages) {
@@ -149,10 +149,6 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
       if (requiredRole) {
         // Find a team member with the specific required role
         assignee = teamMembers.find(member => member.role === requiredRole)
-      } else {
-        // For CLIENT_APPROVAL or other general tasks, assign to ADMIN or OWNER
-        assignee = teamMembers.find(member => ['ADMIN', 'OWNER'].includes(member.role)) ||
-                  teamMembers.find(member => member.role === 'DESIGNER') // Fallback to DESIGNER
       }
 
       if (!assignee) {
@@ -308,12 +304,12 @@ export async function autoAssignAllUnassignedStages() {
 
     // Stage type to role mapping
     const stageTypeToRoleMap: Record<string, string | null> = {
-      'DESIGN': 'DESIGNER',
-      'DESIGN_CONCEPT': 'DESIGNER',
-      'THREE_D': 'RENDERER',
-      'CLIENT_APPROVAL': null, // Can be handled by ADMIN/OWNER
-      'DRAWINGS': 'DRAFTER',
-      'FFE': 'FFE'
+      'DESIGN': 'OWNER',              // DESIGN stage maps to OWNER (Aaron)
+      'DESIGN_CONCEPT': 'OWNER',      // DESIGN_CONCEPT stage maps to OWNER (Aaron)
+      'THREE_D': 'RENDERER',          // THREE_D stage maps to RENDERER (Vitor)
+      'CLIENT_APPROVAL': 'FFE',       // CLIENT_APPROVAL maps to FFE (Shaya)
+      'DRAWINGS': 'DRAFTER',          // DRAWINGS stage maps to DRAFTER (Sami)
+      'FFE': 'FFE'                    // FFE stage maps to FFE (Shaya)
     }
 
     for (const stage of unassignedStages) {
@@ -323,10 +319,6 @@ export async function autoAssignAllUnassignedStages() {
       if (requiredRole) {
         // Find a team member with the specific required role
         assignee = teamMembers.find(member => member.role === requiredRole)
-      } else {
-        // For CLIENT_APPROVAL, assign to ADMIN or OWNER
-        assignee = teamMembers.find(member => ['ADMIN', 'OWNER'].includes(member.role)) ||
-                  teamMembers.find(member => member.role === 'DESIGNER') // Fallback
       }
 
       if (!assignee) {

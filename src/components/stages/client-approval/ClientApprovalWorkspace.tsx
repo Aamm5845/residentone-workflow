@@ -26,6 +26,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
+import { PhaseChat } from '../../chat/PhaseChat'
 import Link from 'next/link'
 
 interface ClientApprovalWorkspaceProps {
@@ -106,6 +107,7 @@ export default function ClientApprovalWorkspace({
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
+  const [activeTab, setActiveTab] = useState<'approval' | 'chat'>('approval')
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -742,6 +744,33 @@ export default function ClientApprovalWorkspace({
         </div>
       </div>
 
+      {/* Navigation Tabs */}
+      <div className="flex space-x-1 border-b border-gray-200 px-6">
+        <button
+          onClick={() => setActiveTab('approval')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'approval'
+              ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4 inline mr-2" />
+          Client Approval
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'chat'
+              ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          💬 Team Chat
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'approval' && (
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Main Content - Left Side */}
         <div className="flex-1 p-6 space-y-6">
@@ -1430,6 +1459,15 @@ export default function ClientApprovalWorkspace({
           </div>
         </div>
       </div>
+      )}
+
+      {/* Chat Tab */}
+      {activeTab === 'chat' && (
+        <div className="p-6">
+          <PhaseChat stageId={stage.id} />
+        </div>
+      )}
+
     </div>
 
     {/* Email Preview Modal */}
