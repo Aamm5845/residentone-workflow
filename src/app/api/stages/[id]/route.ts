@@ -221,7 +221,10 @@ export async function GET(
     const session = await getSession()
     const resolvedParams = await params
     
+    console.log(`Fetching stage with ID: ${resolvedParams.id}`)
+    
     if (!isValidAuthSession(session)) {
+      console.log('Unauthorized access attempt')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -268,12 +271,30 @@ export async function GET(
     })
 
     if (!stage) {
+      console.log(`Stage not found: ${resolvedParams.id}`)
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    return NextResponse.json(stage)
+    // Add defensive programming - ensure arrays are always arrays
+    const safeStage = {
+      ...stage,
+      designSections: stage.designSections || [],
+      room: stage.room ? {
+        ...stage.room,
+        stages: stage.room.stages || [],
+        ffeItems: stage.room.ffeItems || [],
+        project: stage.room.project || { name: 'Unknown Project', id: '' }
+      } : null
+    }
+
+    console.log(`Successfully fetched stage: ${stage.id}, type: ${stage.type}, status: ${stage.status}`)
+    return NextResponse.json(safeStage)
   } catch (error) {
     console.error('Error fetching stage:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Stack trace:', error.stack)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error.message 
+    }, { status: 500 })
   }
 }

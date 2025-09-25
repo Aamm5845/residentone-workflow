@@ -458,7 +458,27 @@ function LastCompletedPhaseCard({
   }
 
   const formatPhaseName = (stageType: string) => {
-    return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    // Handle cases where stageType is already formatted from API
+    if (!stageType.includes('_')) {
+      return stageType // Already formatted
+    }
+    
+    switch (stageType) {
+      case 'DESIGN_CONCEPT':
+      case 'DESIGN':
+        return 'Design Concept'
+      case 'THREE_D':
+      case 'RENDERING':
+        return '3D Rendering'
+      case 'CLIENT_APPROVAL':
+        return 'Client Approval'
+      case 'DRAWINGS':
+        return 'Drawings'
+      case 'FFE':
+        return 'FFE'
+      default:
+        return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -543,7 +563,27 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
   )
 
   const formatPhaseName = (stageType: string) => {
-    return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    // Handle cases where stageType is already formatted from API
+    if (!stageType.includes('_')) {
+      return stageType // Already formatted
+    }
+    
+    switch (stageType) {
+      case 'DESIGN_CONCEPT':
+      case 'DESIGN':
+        return 'Design Concept'
+      case 'THREE_D':
+      case 'RENDERING':
+        return '3D Rendering'
+      case 'CLIENT_APPROVAL':
+        return 'Client Approval'
+      case 'DRAWINGS':
+        return 'Drawings'
+      case 'FFE':
+        return 'FFE'
+      default:
+        return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    }
   }
 
   const formatDate = (dateString: string) => {

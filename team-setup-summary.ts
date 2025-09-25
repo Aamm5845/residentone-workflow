@@ -147,7 +147,7 @@ async function generateTeamSetupSummary() {
 
     // 6. Login Information
     console.log('\n🔑 LOGIN INFORMATION:')
-    console.log('   Temporary Password: Meisner6700')
+    console.log('   Temporary Password: [REDACTED - Check environment variables]')
     console.log('   All users must change password on first login')
     console.log()
     console.log('   Login URLs:')

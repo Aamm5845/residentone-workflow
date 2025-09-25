@@ -112,3 +112,23 @@ backups/
 *.dump
 backup-log.txt
 export-data.sql
+
+# Sensitive configuration and secret files
+*.env.*.local
+.env.backup
+config/secrets.json
+test-*.js
+test-*.ts
+*-secrets.*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Development and testing files with potential secrets
+debug-*
+test-auth-*
+test-nextauth-*
+update-all-passwords.ts
+verify-passwords.ts
+approve-all-users.ts

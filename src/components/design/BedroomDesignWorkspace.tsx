@@ -254,9 +254,9 @@ export default function BedroomDesignWorkspace({
     console.log('🔍 getOrCreateSectionId called with:', { sectionType, stageId })
     
     // First try to find existing section
-    const existingSection = stage.designSections?.find(s => s.type === sectionType)
+    const existingSection = safeStage.designSections.find(s => s.type === sectionType)
     console.log('🔍 Checking existing sections:', {
-      availableSections: stage.designSections?.map(s => ({ id: s.id, type: s.type })),
+      availableSections: safeStage.designSections.map(s => ({ id: s.id, type: s.type })),
       searchingFor: sectionType,
       existingSection: existingSection ? { id: existingSection.id, type: existingSection.type } : null
     })
@@ -536,23 +536,30 @@ export default function BedroomDesignWorkspace({
   const { stage, room, project } = workspaceData
   const StatusIcon = STATUS_CONFIG[stage.status as keyof typeof STATUS_CONFIG]?.icon || Clock
   
+  // Add defensive programming - ensure arrays are always arrays
+  const safeStage = {
+    ...stage,
+    designSections: Array.isArray(stage.designSections) ? stage.designSections : [],
+    assignedUser: stage.assignedUser || null
+  }
+  
   // Debug workspace data and session
   console.log('🔍 Rendering BedroomDesignWorkspace with data:', {
     stageId,
     stage: {
-      id: stage.id,
-      status: stage.status,
-      type: stage.type,
-      designSections: stage.designSections?.map(s => ({ id: s.id, type: s.type })) || []
+      id: safeStage.id,
+      status: safeStage.status,
+      type: safeStage.type,
+      designSections: safeStage.designSections.map(s => ({ id: s.id, type: s.type }))
     },
     room: {
-      id: room.id,
-      name: room.name,
-      type: room.type
+      id: room?.id,
+      name: room?.name,
+      type: room?.type
     },
     project: {
-      id: project.id,
-      name: project.name
+      id: project?.id,
+      name: project?.name
     }
   })
 
@@ -580,10 +587,10 @@ export default function BedroomDesignWorkspace({
               </div>
               
               {/* Assignment Info */}
-              {stage.assignedUser && (
+              {safeStage.assignedUser && (
                 <div className="flex items-center space-x-1 text-sm text-gray-600">
                   <User className="w-4 h-4" />
-                  <span>Assigned to {stage.assignedUser.name}</span>
+                  <span>Assigned to {safeStage.assignedUser.name}</span>
                 </div>
               )}
             </div>
@@ -599,10 +606,10 @@ export default function BedroomDesignWorkspace({
             {/* Status Dropdown */}
             <div className="relative">
               <select
-                value={stage.status}
+                value={safeStage.status}
                 onChange={(e) => updateStatus(e.target.value)}
                 className={`px-4 py-2 rounded-lg border text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                  STATUS_CONFIG[stage.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'
+                  STATUS_CONFIG[safeStage.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'
                 }`}
               >
                 <option value="DRAFT">Draft</option>
@@ -612,9 +619,9 @@ export default function BedroomDesignWorkspace({
             </div>
             
             <PhaseSettingsMenu 
-              stageId={stage.id}
+              stageId={safeStage.id}
               stageName="Design Concept"
-              isNotApplicable={stage.status === 'NOT_APPLICABLE'}
+              isNotApplicable={safeStage.status === 'NOT_APPLICABLE'}
               onReset={() => refreshWorkspace()}
               onMarkNotApplicable={() => refreshWorkspace()}
               onMarkApplicable={() => refreshWorkspace()}
@@ -658,7 +665,7 @@ export default function BedroomDesignWorkspace({
               <div>
                 <p className="text-xs text-gray-600">Messages</p>
                 <p className="font-bold text-gray-900">
-                  {stage.designSections?.reduce((total, section) => total + (section.comments?.length || 0), 0) || 0}
+                  {safeStage.designSections.reduce((total, section) => total + ((section.comments && Array.isArray(section.comments)) ? section.comments.length : 0), 0)}
                 </p>
               </div>
             </div>
@@ -669,7 +676,7 @@ export default function BedroomDesignWorkspace({
               <div>
                 <p className="text-xs text-gray-600">References</p>
                 <p className="font-bold text-gray-900">
-                  {stage.designSections?.reduce((total, section) => total + (section.assets?.length || 0), 0) || 0}
+                  {safeStage.designSections.reduce((total, section) => total + ((section.assets && Array.isArray(section.assets)) ? section.assets.length : 0), 0)}
                 </p>
               </div>
             </div>
@@ -700,7 +707,7 @@ export default function BedroomDesignWorkspace({
                 'FLOOR': { name: 'Floor Design', icon: '⬇️', color: 'from-emerald-500 to-teal-500', description: 'Flooring materials, patterns, transitions, and area rugs' }
               }[sectionType]
               
-              const section = stage.designSections?.find(s => s.type === sectionType)
+              const section = safeStage.designSections.find(s => s.type === sectionType)
               const isCompleted = section?.completed || false
               const isExpanded = expandedSections.has(sectionType)
               const isUploading = uploadingSection === sectionType
@@ -730,12 +737,12 @@ export default function BedroomDesignWorkspace({
                             }`}>
                               {isCompleted ? '✅ Complete' : '🔄 In Progress'}
                             </div>
-                            {section?.assets && (
+                            {section?.assets && Array.isArray(section.assets) && (
                               <span className="text-xs text-gray-500">
                                 {section.assets.length} image{section.assets.length !== 1 ? 's' : ''}
                               </span>
                             )}
-                            {section?.comments && (
+                            {section?.comments && Array.isArray(section.comments) && (
                               <span className="text-xs text-gray-500">
                                 {section.comments.length} comment{section.comments.length !== 1 ? 's' : ''}
                               </span>
@@ -841,7 +848,7 @@ export default function BedroomDesignWorkspace({
                             </div>
                           </div>
                           
-                          {section?.assets && section.assets.length > 0 ? (
+                          {section?.assets && Array.isArray(section.assets) && section.assets.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                               {section.assets.map((asset) => (
                                 <div key={asset.id} className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square">
@@ -885,7 +892,7 @@ export default function BedroomDesignWorkspace({
                           <h4 className="font-medium text-gray-900 mb-3">Comments & Discussion</h4>
                           
                           {/* Existing Comments */}
-                          {section?.comments && section.comments.length > 0 && (
+                          {section?.comments && Array.isArray(section.comments) && section.comments.length > 0 && (
                             <div className="space-y-3 mb-4">
                               {section.comments.map((comment) => (
                                 <div key={comment.id} className="bg-gray-50 rounded-lg p-3">

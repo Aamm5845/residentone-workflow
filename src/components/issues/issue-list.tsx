@@ -21,7 +21,9 @@ import {
   Search,
   Filter,
   Plus,
-  Eye,
+  MoreVertical,
+  Edit3,
+  Trash2,
   Clock,
   CheckCircle,
   AlertTriangle
@@ -117,6 +119,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   
   // Use passed currentUser or extract from session
   const user = currentUser || (session?.user ? {
@@ -147,6 +150,18 @@ export default function IssueList({ currentUser }: IssueListProps) {
   useEffect(() => {
     fetchIssues()
   }, [statusFilter, fetchIssues])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null)
+    }
+
+    if (openDropdown) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [openDropdown])
   
   // Don't render if no user is available (after all hooks are initialized)
   if (!user) {
@@ -173,9 +188,57 @@ export default function IssueList({ currentUser }: IssueListProps) {
     setShowModal(true)
   }
 
-  const handleViewIssue = (issue: Issue) => {
+  const handleEditIssue = (issue: Issue) => {
     setEditingIssue(issue)
     setShowModal(true)
+    setOpenDropdown(null)
+  }
+
+  const handleDeleteIssue = async (issue: Issue) => {
+    if (!confirm(`Are you sure you want to delete "${issue.title}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/issues/${issue.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        fetchIssues() // Refresh the list
+        setOpenDropdown(null)
+      } else {
+        throw new Error('Failed to delete issue')
+      }
+    } catch (error) {
+      console.error('Error deleting issue:', error)
+      alert('Failed to delete issue. Please try again.')
+    }
+  }
+
+  const handleResolveIssue = async (issue: Issue) => {
+    try {
+      const response = await fetch(`/api/issues/${issue.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...issue,
+          status: 'RESOLVED'
+        }),
+      })
+
+      if (response.ok) {
+        fetchIssues() // Refresh the list
+        setOpenDropdown(null)
+      } else {
+        throw new Error('Failed to resolve issue')
+      }
+    } catch (error) {
+      console.error('Error resolving issue:', error)
+      alert('Failed to resolve issue. Please try again.')
+    }
   }
 
   const handleModalClose = () => {
@@ -294,8 +357,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
             return (
               <div
                 key={issue.id}
-                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-                onClick={() => handleViewIssue(issue)}
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -369,9 +431,84 @@ export default function IssueList({ currentUser }: IssueListProps) {
                     </div>
                   </div>
                   
-                  <Button variant="ghost" size="sm" className="ml-4">
-                    <Eye className="w-4 h-4" />
-                  </Button>
+                  <div className="relative ml-4">
+                    {/* Only show 3-dot menu if user has any permissions */}
+                    {(issue.reporter.id === user.id || ['ADMIN', 'OWNER'].includes(user.role)) && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenDropdown(openDropdown === issue.id ? null : issue.id)
+                        }}
+                        className="hover:bg-gray-100"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    )}
+                    
+                    {openDropdown === issue.id && (() => {
+                      // Check permissions
+                      const canUpdate = 
+                        issue.reporter.id === user.id ||
+                        ['ADMIN', 'OWNER'].includes(user.role)
+                      
+                      const canDelete = 
+                        issue.reporter.id === user.id ||
+                        ['ADMIN', 'OWNER'].includes(user.role)
+                      
+                      return (
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                          <div className="py-1">
+                            {canUpdate && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditIssue(issue)
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <Edit3 className="w-4 h-4 mr-3" />
+                                Edit
+                              </button>
+                            )}
+                            
+                            {canUpdate && issue.status !== 'RESOLVED' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleResolveIssue(issue)
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-3" />
+                                Mark Resolved
+                              </button>
+                            )}
+                            
+                            {canDelete && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteIssue(issue)
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-3" />
+                                Delete
+                              </button>
+                            )}
+                            
+                            {!canUpdate && !canDelete && (
+                              <div className="px-4 py-2 text-sm text-gray-500 italic">
+                                No actions available
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
               </div>
             )

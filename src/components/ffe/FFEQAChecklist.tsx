@@ -47,6 +47,15 @@ export default function FFEQAChecklist({
     let totalItems = 0
     let completedItems = 0
 
+    // Add defensive programming - ensure categories is an array
+    if (!Array.isArray(categories)) {
+      return {
+        total: 0,
+        completed: 0,
+        percentage: 0
+      }
+    }
+
     categories.forEach(category => {
       category.items.forEach(item => {
         // Check if item should be shown based on conditional logic
@@ -398,11 +407,11 @@ export default function FFEQAChecklist({
       </Card>
 
       {/* Categories */}
-      {categories
+      {Array.isArray(categories) && categories
         .sort((a, b) => a.order - b.order)
         .map(renderCategory)}
         
-      {categories.length === 0 && (
+      {(!Array.isArray(categories) || categories.length === 0) && (
         <Card>
           <CardContent className="p-8 text-center text-gray-500">
             <p>No FFE configuration found for this room type.</p>

@@ -69,9 +69,29 @@ export async function GET() {
         const roomName = stage.room.name || 
           stage.room.type.replace('_', ' ').toLowerCase()
 
+        // Format stage type properly
+        const formatStageType = (type: string) => {
+          switch (type) {
+            case 'DESIGN_CONCEPT':
+            case 'DESIGN':
+              return 'Design Concept'
+            case 'THREE_D':
+            case 'RENDERING':
+              return '3D Rendering'
+            case 'CLIENT_APPROVAL':
+              return 'Client Approval'
+            case 'DRAWINGS':
+              return 'Drawings'
+            case 'FFE':
+              return 'FFE'
+            default:
+              return type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+          }
+        }
+
         return {
           id: stage.id,
-          stageType: stage.type.replace('_', ' ').toLowerCase(),
+          stageType: formatStageType(stage.type),
           roomType: stage.room.type.replace('_', ' ').toLowerCase(),
           roomName,
           clientName: stage.room.project.client.name,
