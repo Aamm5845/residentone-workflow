@@ -110,8 +110,9 @@ export default async function RoomWorkspace({ params }: Props) {
   }
 
   const phases = getPhaseData()
+  const applicablePhases = phases.filter(p => p.status !== 'NOT_APPLICABLE')
   const completedPhases = phases.filter(p => p.status === 'COMPLETE').length
-  const roomProgress = Math.round((completedPhases / phases.length) * 100)
+  const roomProgress = applicablePhases.length > 0 ? Math.round((completedPhases / applicablePhases.length) * 100) : 0
 
   return (
     <DashboardLayout session={session}>

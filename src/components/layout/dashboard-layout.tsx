@@ -21,11 +21,14 @@ import {
   FileText,
   CheckSquare,
   Plus,
-  Search
+  Search,
+  AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { IssueNotification } from '@/components/issues/IssueNotification'
+import { IssueModal } from '@/components/issues/IssueModal'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -34,11 +37,13 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, session }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [issueModalOpen, setIssueModalOpen] = useState(false)
   const pathname = usePathname()
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'My Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
+    { name: 'Issues', href: '/issues', icon: AlertCircle, color: 'text-red-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
   ]
 
@@ -96,6 +101,17 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 </Link>
               </Button>
               
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIssueModalOpen(true)}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Report Issue
+              </Button>
+              
+              <IssueNotification />
               <NotificationBell />
               
               <Button variant="ghost" size="icon" asChild>
@@ -250,6 +266,12 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
             </div>
           </main>
         </div>
+        
+        {/* Issue Modal */}
+        <IssueModal 
+          isOpen={issueModalOpen} 
+          onClose={() => setIssueModalOpen(false)} 
+        />
       </div>
     </Providers>
   )

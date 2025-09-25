@@ -49,7 +49,8 @@ export type PhaseId = typeof ROOM_PHASES[number]['id']
 export const PHASE_STATUS = [
   'PENDING',
   'IN_PROGRESS', 
-  'COMPLETE'
+  'COMPLETE',
+  'NOT_APPLICABLE'
 ] as const
 
 export type PhaseStatus = typeof PHASE_STATUS[number]
@@ -79,6 +80,14 @@ export const STATUS_CONFIG = {
     textClass: 'text-green-700', 
     ringClass: 'ring-green-300',
     icon: '✅'
+  },
+  NOT_APPLICABLE: {
+    label: 'Not Applicable',
+    color: 'slate',
+    bgClass: 'bg-slate-100',
+    textClass: 'text-slate-700',
+    ringClass: 'ring-slate-300',
+    icon: '➖'
   }
 } as const
 
@@ -113,6 +122,8 @@ export function mapStageStatusToPhaseStatus(stageStatus: string): PhaseStatus {
       return 'IN_PROGRESS'
     case 'COMPLETED':
       return 'COMPLETE'
+    case 'NOT_APPLICABLE':
+      return 'NOT_APPLICABLE'
     case 'ON_HOLD':
     case 'NEEDS_ATTENTION':
     default:
@@ -129,6 +140,8 @@ export function mapPhaseStatusToStageAction(phaseStatus: PhaseStatus): string {
       return 'start'
     case 'COMPLETE':
       return 'complete'
+    case 'NOT_APPLICABLE':
+      return 'mark_not_applicable'
     case 'PENDING':
     default:
       return 'reopen'
@@ -185,6 +198,13 @@ export const COLOR_CLASSES = {
     border: 'border-gray-200',
     hover: 'hover:bg-gray-100',
     ring: 'ring-gray-200'
+  },
+  slate: {
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    hover: 'hover:bg-slate-100',
+    ring: 'ring-slate-200'
   }
 } as const
 

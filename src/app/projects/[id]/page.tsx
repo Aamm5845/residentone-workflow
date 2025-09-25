@@ -92,8 +92,26 @@ export default async function ProjectDetail({ params }: Props) {
     
     // Count only COMPLETED phases for progress (matching room phase board logic)
     let completedPhases = 0
+    let totalApplicablePhases = 0
     
     phaseIds.forEach(phaseId => {
+      let matchingStage = null
+      
+      if (phaseId === 'DESIGN_CONCEPT') {
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        matchingStage = designConceptStage || designStage
+      } else {
+        matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+      }
+      
+      // Skip phases marked as not applicable
+      if (matchingStage?.status === 'NOT_APPLICABLE') {
+        return
+      }
+      
+      totalApplicablePhases++
+      
       if (phaseId === 'DESIGN_CONCEPT') {
         // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed
         const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
@@ -103,15 +121,13 @@ export default async function ProjectDetail({ params }: Props) {
           completedPhases++
         }
       } else {
-        const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
-        
         if (matchingStage?.status === 'COMPLETED') {
           completedPhases++
         }
       }
     })
     
-    return Math.round((completedPhases / phaseIds.length) * 100)
+    return totalApplicablePhases > 0 ? Math.round((completedPhases / totalApplicablePhases) * 100) : 0
   }
 
   const getRoomIcon = (roomType: string) => {
@@ -327,9 +343,27 @@ export default async function ProjectDetail({ params }: Props) {
               const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
               
               let completedCount = 0
+              let totalApplicablePhases = 0
               let hasInProgress = false
               
               phaseIds.forEach(phaseId => {
+                let matchingStage = null
+                
+                if (phaseId === 'DESIGN_CONCEPT') {
+                  const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+                  const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+                  matchingStage = designConceptStage || designStage
+                } else {
+                  matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+                }
+                
+                // Skip phases marked as not applicable
+                if (matchingStage?.status === 'NOT_APPLICABLE') {
+                  return
+                }
+                
+                totalApplicablePhases++
+                
                 if (phaseId === 'DESIGN_CONCEPT') {
                   const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
                   const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
@@ -340,8 +374,6 @@ export default async function ProjectDetail({ params }: Props) {
                     hasInProgress = true
                   }
                 } else {
-                  const matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
-                  
                   if (matchingStage?.status === 'COMPLETED') {
                     completedCount++
                   } else if (matchingStage?.status === 'IN_PROGRESS') {
@@ -350,7 +382,7 @@ export default async function ProjectDetail({ params }: Props) {
                 }
               })
               
-              const isCompleted = completedCount === 5
+              const isCompleted = totalApplicablePhases > 0 && completedCount === totalApplicablePhases
               const isInProgress = hasInProgress || completedCount > 0
               
               // Determine room card styling
@@ -460,6 +492,7 @@ export default async function ProjectDetail({ params }: Props) {
                                     className={`w-3 h-3 rounded-full transition-all duration-300 ${
                                       matchingStage?.status === 'COMPLETED' ? 'bg-green-500' :
                                       matchingStage?.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                      matchingStage?.status === 'NOT_APPLICABLE' ? 'bg-slate-400' :
                                       'bg-gray-300'
                                     }`}
                                   />
@@ -478,6 +511,7 @@ export default async function ProjectDetail({ params }: Props) {
                           let completed = 0
                           let active = 0
                           let pending = 0
+                          let notApplicable = 0
                           
                           phaseIds.forEach(phaseId => {
                             let matchingStage = null
@@ -499,7 +533,9 @@ export default async function ProjectDetail({ params }: Props) {
                               matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
                             }
                             
-                            if (matchingStage?.status === 'COMPLETED') {
+                            if (matchingStage?.status === 'NOT_APPLICABLE') {
+                              notApplicable++
+                            } else if (matchingStage?.status === 'COMPLETED') {
                               completed++
                             } else if (matchingStage?.status === 'IN_PROGRESS') {
                               active++
@@ -513,6 +549,7 @@ export default async function ProjectDetail({ params }: Props) {
                               <span>{completed} completed</span>
                               <span>{active} active</span>
                               <span>{pending} pending</span>
+                              <span>{notApplicable} n/a</span>
                             </>
                           )
                         })()}

@@ -95,8 +95,10 @@ export default function RoomPhaseBoard({
     
     setLoading(phaseId)
     try {
-      const action = newStatus === 'COMPLETE' ? 'complete' : 
-                    newStatus === 'IN_PROGRESS' ? 'start' : 'reopen'
+    const action = newStatus === 'COMPLETE' ? 'complete' : 
+                  newStatus === 'IN_PROGRESS' ? 'start' : 
+                  newStatus === 'NOT_APPLICABLE' ? 'mark_not_applicable' :
+                  newStatus === 'PENDING' ? 'mark_applicable' : 'reopen'
       
       const response = await fetch(`/api/stages/${phase.stageId}`, {
         method: 'PATCH',

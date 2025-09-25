@@ -159,11 +159,11 @@ export default function RenderingWorkspace({
         setExpandedVersions(new Set([newVersion.id]))
       } else {
         const error = await response.json()
-        alert(`Failed to create version: ${error.error}`)
+        console.error(`Failed to create version: ${error.error}`)
       }
     } catch (error) {
       console.error('Error creating version:', error)
-      alert('Failed to create version')
+      console.error('Failed to create version')
     } finally {
       setCreatingVersion(false)
     }
@@ -187,11 +187,11 @@ export default function RenderingWorkspace({
         await fetchRenderingVersions() // Refresh to get updated assets
       } else {
         const error = await response.json()
-        alert(`Upload failed: ${error.error}`)
+        console.error(`Upload failed: ${error.error}`)
       }
     } catch (error) {
       console.error('Error uploading files:', error)
-      alert('Upload failed')
+      console.error('Upload failed')
     } finally {
       setUploading(false)
     }
@@ -212,11 +212,11 @@ export default function RenderingWorkspace({
         await fetchRenderingVersions()
       } else {
         const error = await response.json()
-        alert(`Failed to update version: ${error.error}`)
+        console.error(`Failed to update version: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating version:', error)
-      alert('Failed to update version')
+      console.error('Failed to update version')
     }
   }
 
@@ -239,11 +239,11 @@ export default function RenderingWorkspace({
         await fetchRenderingVersions()
       } else {
         const error = await response.json()
-        alert(`Failed to add note: ${error.error}`)
+        console.error(`Failed to add note: ${error.error}`)
       }
     } catch (error) {
       console.error('Error adding note:', error)
-      alert('Failed to add note')
+      console.error('Failed to add note')
     }
   }
 
@@ -262,11 +262,11 @@ export default function RenderingWorkspace({
         await fetchRenderingVersions()
       } else {
         const error = await response.json()
-        alert(`Failed to update description: ${error.error}`)
+        console.error(`Failed to update description: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating description:', error)
-      alert('Failed to update description')
+      console.error('Failed to update description')
     }
   }
 
@@ -284,20 +284,12 @@ export default function RenderingWorkspace({
       if (response.ok) {
         const result = await response.json()
         
-        // Show success message with phase transition info
-        let message = '🎉 Successfully pushed to Client Approval!'
-        
-        message += '\n\n✅ The 3D Rendering stage has been automatically marked as completed.'
+        // Log success for internal tracking
+        console.log('Successfully pushed to Client Approval:', result)
         
         if (result.phaseTransitions && result.phaseTransitions.length > 0) {
-          message += '\n✅ The Client Approval phase has been automatically started and is ready for processing.'
-        } else {
-          message += '\n✅ Version is now available in the Client Approval workspace.'
+          console.log('Client Approval phase automatically started')
         }
-        
-        message += '\n\n👉 The page will refresh to show the updated phase status.'
-        
-        alert(message)
         
         // Force page refresh to ensure phase status is updated throughout the UI
         // This is especially important because the push-to-client triggers automatic
@@ -305,11 +297,11 @@ export default function RenderingWorkspace({
         window.location.reload()
       } else {
         const error = await response.json()
-        alert(`Failed to push to client: ${error.error}`)
+        console.error(`Failed to push to client: ${error.error}`)
       }
     } catch (error) {
       console.error('Error pushing to client:', error)
-      alert('Failed to push to client')
+      console.error('Failed to push to client')
     }
   }
 
@@ -318,10 +310,10 @@ export default function RenderingWorkspace({
     const version = renderingVersions.find(v => v.id === versionId)
     const isPushedToClient = version?.status === 'PUSHED_TO_CLIENT'
     
-    let confirmMessage = `Are you sure you want to delete ${versionName}?\n\nThis will permanently delete:\n• The version and all its files\n• All notes and comments\n• Version history\n\nThis action cannot be undone.`
+    let confirmMessage = `Delete ${versionName}? This cannot be undone.`
     
     if (isPushedToClient) {
-      confirmMessage = `⚠️ WARNING: ${versionName} has been pushed to client approval!\n\nDeleting this version will:\n• Remove it from the client approval process\n• Permanently delete all files and data\n• Potentially disrupt the client review\n\nAre you absolutely sure you want to proceed?\n\nThis action cannot be undone.`
+      confirmMessage = `WARNING: Delete ${versionName}? It has been pushed to client approval and this will remove it from the client review process.`
     }
     
     if (!window.confirm(confirmMessage)) {
@@ -335,14 +327,14 @@ export default function RenderingWorkspace({
 
       if (response.ok) {
         await fetchRenderingVersions()
-        alert('Version deleted successfully')
+        console.log('Version deleted successfully')
       } else {
         const error = await response.json()
-        alert(`Failed to delete version: ${error.error}`)
+        console.error(`Failed to delete version: ${error.error}`)
       }
     } catch (error) {
       console.error('Error deleting version:', error)
-      alert('Failed to delete version')
+      console.error('Failed to delete version')
     }
   }
 

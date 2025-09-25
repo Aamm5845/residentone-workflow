@@ -65,6 +65,7 @@ model Organization {
   projects     Project[]
   tags         Tag[]
   users        User[]
+  issues       Issue[]
 }
 
 model User {
@@ -117,6 +118,10 @@ model User {
   createdStages              Stage[]                  @relation("CreatedByUserStage")
   updatedStages              Stage[]                  @relation("UpdatedByUserStage")
   assignedTasks              Task[]
+  reportedIssues             Issue[]                  @relation("IssueReporter")
+  assignedIssues             Issue[]                  @relation("IssueAssignee")
+  resolvedIssues             Issue[]                  @relation("IssueResolver")
+  issueComments              IssueComment[]           @relation("IssueCommentAuthor")
   organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions               UserSession[]
 }
@@ -204,6 +209,7 @@ model Project {
   projectContractors ProjectContractor[]
   rooms              Room[]
   tasks              Task[]
+  issues             Issue[]
 }
 
 model Room {
@@ -228,6 +234,7 @@ model Room {
   updatedBy         User?              @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
   stages            Stage[]
   tasks             Task[]
+  issues            Issue[]
 }
 
 model Stage {
@@ -257,6 +264,7 @@ model Stage {
   room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   tasks                  Task[]
+  issues                 Issue[]
 
   @@unique([roomId, type])
 }
@@ -785,6 +793,59 @@ model ClientAccessLog {
   @@index([action])
 }
 
+model Issue {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  type        IssueType     @default(GENERAL)
+  priority    IssuePriority @default(MEDIUM)
+  status      IssueStatus   @default(OPEN)
+  reportedBy  String
+  assignedTo  String?
+  resolvedBy  String?
+  orgId       String?
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  metadata    Json?
+  
+  reporter    User          @relation("IssueReporter", fields: [reportedBy], references: [id])
+  assignee    User?         @relation("IssueAssignee", fields: [assignedTo], references: [id])
+  resolver    User?         @relation("IssueResolver", fields: [resolvedBy], references: [id])
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project     Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage       Stage?        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  comments    IssueComment[]
+  
+  @@index([reportedBy])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([createdAt])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([roomId])
+}
+
+model IssueComment {
+  id        String   @id @default(cuid())
+  issueId   String
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author    User     @relation("IssueCommentAuthor", fields: [authorId], references: [id])
+  
+  @@index([issueId])
+  @@index([createdAt])
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -873,6 +934,7 @@ enum StageStatus {
   NEEDS_ATTENTION
   PENDING_APPROVAL
   REVISION_REQUESTED
+  NOT_APPLICABLE
 }
 
 enum DesignSectionType {
@@ -956,4 +1018,25 @@ enum DrawingChecklistType {
   MILLWORK
   FLOORPLAN
   CUSTOM
+}
+
+enum IssueType {
+  BUG
+  FEATURE_REQUEST
+  UPDATE_REQUEST
+  GENERAL
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }

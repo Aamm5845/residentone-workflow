@@ -60,9 +60,11 @@ export default function PhaseCard({
   const canStart = phase.status === 'PENDING'
   const isActive = phase.status === 'IN_PROGRESS'
   const isComplete = phase.status === 'COMPLETE'
+  const isNotApplicable = phase.status === 'NOT_APPLICABLE'
 
   const getStatusBorderClass = () => {
     if (isComplete) return "border-green-400 bg-gradient-to-br from-green-50 to-green-100"
+    if (isNotApplicable) return "border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100 opacity-75"
     if (isActive) {
       const activeBorders: Record<string, string> = {
         purple: 'border-purple-400 bg-gradient-to-br from-purple-50 to-purple-100',
@@ -96,7 +98,8 @@ export default function PhaseCard({
           <div className="flex items-center space-x-3">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center shadow-sm",
-              isComplete ? "bg-green-500" : {
+              isComplete ? "bg-green-500" :
+              isNotApplicable ? "bg-slate-400" : {
                 'purple': 'bg-purple-500',
                 'orange': 'bg-orange-500',
                 'blue': 'bg-blue-500',
@@ -106,14 +109,16 @@ export default function PhaseCard({
               "transition-all duration-200"
             )}>
               <span className="text-lg text-white">
-                {isComplete ? '✅' : phaseConfig.icon}
+                {isComplete ? '✅' : isNotApplicable ? '➖' : phaseConfig.icon}
               </span>
             </div>
             
             <div>
               <h3 className={cn(
                 "text-base font-semibold",
-                isComplete ? "text-green-700" : "text-gray-800"
+                isComplete ? "text-green-700" :
+                isNotApplicable ? "text-slate-600" :
+                "text-gray-800"
               )}>
                 {phaseConfig.label}
               </h3>
@@ -140,12 +145,14 @@ export default function PhaseCard({
           <div className={cn(
             "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border",
             isComplete ? "bg-green-100 text-green-800 border-green-200" :
+            isNotApplicable ? "bg-slate-100 text-slate-700 border-slate-200" :
             isActive ? "bg-blue-100 text-blue-800 border-blue-200" :
             "bg-gray-100 text-gray-700 border-gray-200"
           )}>
             <div className={cn(
               "w-1.5 h-1.5 rounded-full mr-2",
               isComplete ? "bg-green-500" :
+              isNotApplicable ? "bg-slate-500" :
               isActive ? "bg-blue-500 animate-pulse" :
               "bg-gray-400"
             )} />
@@ -201,22 +208,33 @@ export default function PhaseCard({
         {/* Action Area */}
         <div>
           {canStart && (
-            <Button 
-              onClick={onStart}
-              className={cn(
-                "w-full font-medium text-white shadow-sm hover:shadow-md transition-all duration-200",
-                {
-                  'purple': 'bg-purple-500 hover:bg-purple-600',
-                  'orange': 'bg-orange-500 hover:bg-orange-600',
-                  'blue': 'bg-blue-500 hover:bg-blue-600',
-                  'indigo': 'bg-indigo-500 hover:bg-indigo-600',
-                  'pink': 'bg-pink-500 hover:bg-pink-600'
-                }[phaseConfig.color] || 'bg-gray-500 hover:bg-gray-600'
-              )}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Start Phase
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={onStart}
+                className={cn(
+                  "w-full font-medium text-white shadow-sm hover:shadow-md transition-all duration-200",
+                  {
+                    'purple': 'bg-purple-500 hover:bg-purple-600',
+                    'orange': 'bg-orange-500 hover:bg-orange-600',
+                    'blue': 'bg-blue-500 hover:bg-blue-600',
+                    'indigo': 'bg-indigo-500 hover:bg-indigo-600',
+                    'pink': 'bg-pink-500 hover:bg-pink-600'
+                  }[phaseConfig.color] || 'bg-gray-500 hover:bg-gray-600'
+                )}
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Phase
+              </Button>
+              <Button 
+                onClick={() => onStatusChange('NOT_APPLICABLE')}
+                variant="outline"
+                className="w-full font-medium text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                size="sm"
+              >
+                <span className="mr-2">➖</span>
+                Not Applicable
+              </Button>
+            </div>
           )}
           
           {isActive && (
@@ -250,13 +268,43 @@ export default function PhaseCard({
                   {new Date(phase.completedAt).toLocaleDateString()}
                 </p>
               )}
+              <div className="space-y-1">
+                <Button 
+                  onClick={() => onStatusChange('IN_PROGRESS')}
+                  variant="ghost" 
+                  size="sm"
+                  className="text-xs text-gray-500 hover:text-gray-700 w-full"
+                >
+                  Reopen
+                </Button>
+                <Button 
+                  onClick={() => onStatusChange('NOT_APPLICABLE')}
+                  variant="ghost" 
+                  size="sm"
+                  className="text-xs text-slate-500 hover:text-slate-700 w-full"
+                >
+                  Mark Not Applicable
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {isNotApplicable && (
+            <div className="text-center py-2">
+              <div className="flex items-center justify-center space-x-2 text-slate-600 mb-2">
+                <span className="text-sm">➖</span>
+                <span className="font-medium text-sm">Not Applicable</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-3 px-2">
+                This phase is not needed for this room
+              </p>
               <Button 
-                onClick={() => onStatusChange('IN_PROGRESS')}
+                onClick={() => onStatusChange('PENDING')}
                 variant="ghost" 
                 size="sm"
-                className="text-xs text-gray-500 hover:text-gray-700"
+                className="text-xs text-slate-500 hover:text-slate-700"
               >
-                Reopen
+                Mark Applicable
               </Button>
             </div>
           )}
@@ -281,7 +329,7 @@ export function StatusDropdown({
   const [isOpen, setIsOpen] = useState(false)
   const currentConfig = getStatusConfig(currentStatus)
   
-  const statusOptions: PhaseStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETE']
+  const statusOptions: PhaseStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETE', 'NOT_APPLICABLE']
   
   return (
     <div className="relative">

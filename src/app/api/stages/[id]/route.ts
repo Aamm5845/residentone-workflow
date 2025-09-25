@@ -77,6 +77,21 @@ export async function PATCH(
         assignedTo
       })
       activityAction = ActivityActions.STAGE_ASSIGNED
+    } else if (action === 'mark_not_applicable') {
+      updateData = withUpdateAttribution(session, {
+        status: 'NOT_APPLICABLE',
+        assignedTo: null, // Clear assignment when marking as not applicable
+        startedAt: null,
+        completedAt: null,
+        completedById: null
+      })
+      activityAction = 'STAGE_MARKED_NOT_APPLICABLE'
+    } else if (action === 'mark_applicable') {
+      // Action to reverse not applicable status
+      updateData = withUpdateAttribution(session, {
+        status: 'NOT_STARTED'
+      })
+      activityAction = 'STAGE_MARKED_APPLICABLE'
     }
     
     if (dueDate) {
