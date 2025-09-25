@@ -78,7 +78,7 @@ export default function FFEStage({
       
       {/* Tab Content */}
       {activeTab === 'ffe' && (
-      {/* Content */}
+        /* Content */
       <div className="p-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-16 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
