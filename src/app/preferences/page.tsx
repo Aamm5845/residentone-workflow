@@ -1,5 +1,6 @@
 import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import PreferencesClient from '@/components/preferences/preferences-client'
 import type { Session } from 'next-auth'
@@ -30,7 +31,9 @@ export default async function PreferencesPage() {
           </div>
         </div>
 
-        <PreferencesClient user={session.user} />
+        <Suspense fallback={<div className="animate-pulse bg-gray-100 rounded-lg h-96"></div>}>
+          <PreferencesClient user={session.user} />
+        </Suspense>
       </div>
     </DashboardLayout>
   )

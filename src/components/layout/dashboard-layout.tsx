@@ -43,7 +43,6 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'My Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
-    { name: 'Issues', href: '/issues', icon: AlertCircle, color: 'text-red-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
   ]
 

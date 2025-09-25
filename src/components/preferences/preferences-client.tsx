@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
   Database, 
   Download, 
@@ -17,11 +18,13 @@ import {
   RefreshCw,
   Briefcase,
   Home,
-  FileText
+  FileText,
+  Bug
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import IssueList from '@/components/issues/issue-list'
 
 interface PreferencesClientProps {
   user: {
@@ -53,7 +56,10 @@ interface DatabaseStats {
 }
 
 export default function PreferencesClient({ user }: PreferencesClientProps) {
-  const [activeTab, setActiveTab] = useState('backup')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(() => {
+    return searchParams.get('tab') || 'backup'
+  })
   const [backupInfo, setBackupInfo] = useState<BackupInfo>({})
   const [databaseStats, setDatabaseStats] = useState<DatabaseStats>({})
   const [loading, setLoading] = useState(false)
@@ -317,6 +323,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const tabs = [
     { id: 'backup', name: 'Backup & Recovery', icon: Database },
     { id: 'database', name: 'Database Statistics', icon: RefreshCw },
+    { id: 'issues', name: 'Issues', icon: Bug },
     { id: 'account', name: 'Account Settings', icon: User },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'security', name: 'Security', icon: Lock },
@@ -717,6 +724,26 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                       </div>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Issues Tab */}
+          {activeTab === 'issues' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Bug className="w-5 h-5 mr-2" />
+                    Issues Management
+                  </CardTitle>
+                  <CardDescription>
+                    Track and manage issues reported by team members
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <IssueList />
                 </CardContent>
               </Card>
             </div>

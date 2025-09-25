@@ -47,7 +47,7 @@ export function IssueNotification() {
   const hasHighPriority = counts.highPriorityCount > 0
 
   return (
-    <Link href="/issues" className="relative">
+    <Link href="/preferences?tab=issues" className="relative">
       <Badge 
         variant="outline"
         className={cn(
