@@ -31,17 +31,46 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
       where: { 
         id: resolvedParams.id
       },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        assignedTo: true,
+        dueDate: true,
+        startedAt: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
         assignedUser: {
-          select: { name: true }
+          select: { 
+            id: true,
+            name: true 
+          }
         },
         designSections: {
-          include: {
-            assets: true,
+          select: {
+            id: true,
+            type: true,
+            content: true,
+            completed: true,
+            createdAt: true,
+            updatedAt: true,
+            // Only count assets instead of fetching full data
+            _count: {
+              select: {
+                assets: true
+              }
+            },
             comments: {
-              include: {
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
                 author: {
-                  select: { name: true }
+                  select: { 
+                    id: true,
+                    name: true 
+                  }
                 }
               },
               orderBy: { createdAt: 'desc' }
@@ -49,21 +78,46 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
           }
         },
         room: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            status: true,
             project: {
-              include: {
-                client: true
+              select: {
+                id: true,
+                name: true,
+                client: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
               }
             },
             stages: {
-              include: {
+              select: {
+                id: true,
+                type: true,
+                status: true,
+                assignedTo: true,
+                dueDate: true,
                 assignedUser: {
-                  select: { name: true }
+                  select: { 
+                    id: true,
+                    name: true 
+                  }
                 }
               },
               orderBy: { createdAt: 'asc' }
             },
-            ffeItems: true
+            // Only count FFE items instead of fetching full data
+            _count: {
+              select: {
+                ffeItems: true
+              }
+            }
           }
         }
       }

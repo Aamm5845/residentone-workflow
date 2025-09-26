@@ -35,17 +35,46 @@ export default async function RoomWorkspace({ params }: Props) {
         where: { 
           id: id
         },
-        include: {
-          client: true,
+        select: {
+          id: true,
+          name: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
           rooms: {
-            include: {
+            select: {
+              id: true,
+              type: true,
+              name: true,
+              status: true,
               stages: {
-                include: {
-                  assignedUser: true
+                select: {
+                  id: true,
+                  type: true,
+                  status: true,
+                  assignedTo: true,
+                  completedAt: true,
+                  startedAt: true,
+                  assignedUser: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
                 }
               },
-              assets: true,
-              ffeItems: true
+              // Only count assets and FFE items instead of fetching full data
+              _count: {
+                select: {
+                  assets: true,
+                  ffeItems: true
+                }
+              }
             }
           }
         }

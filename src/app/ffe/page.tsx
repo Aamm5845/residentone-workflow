@@ -105,14 +105,14 @@ export default async function FFEPage({ searchParams }: { searchParams: { status
       assignedUser: stage.assignedUser,
       roomId: stage.room.id,
       projectId: stage.room.project.id,
-      overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+      overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : null,
       urgencyLevel: stage.dueDate && stage.dueDate < new Date() && stage.status !== 'COMPLETED' ? 'high' : 'medium'
     }))
 
     // Filter based on search params
     if (searchParams.status) {
       if (searchParams.status === 'overdue') {
-        ffeTasks = ffeTasks.filter(task => task.overdueBy > 0 && task.status !== 'COMPLETED')
+        ffeTasks = ffeTasks.filter(task => task.overdueBy !== null && task.overdueBy > 0 && task.status !== 'COMPLETED')
       } else {
         ffeTasks = ffeTasks.filter(task => task.status === searchParams.status.toUpperCase())
       }
@@ -320,22 +320,22 @@ export default async function FFEPage({ searchParams }: { searchParams: { status
                                 {/* Due Date Info */}
                                 {task.dueDate && (
                                   <div className={`flex items-center space-x-2 text-sm px-3 py-2 rounded-lg ${
-                                    task.overdueBy > 0 ? 'bg-red-50 border border-red-200' :
+                                    task.overdueBy !== null && task.overdueBy > 0 ? 'bg-red-50 border border-red-200' :
                                     task.overdueBy === 0 ? 'bg-yellow-50 border border-yellow-200' :
                                     'bg-gray-50 border border-gray-200'
                                   }`}>
                                     <Calendar className={`w-4 h-4 ${
-                                      task.overdueBy > 0 ? 'text-red-500' :
+                                      task.overdueBy !== null && task.overdueBy > 0 ? 'text-red-500' :
                                       task.overdueBy === 0 ? 'text-yellow-500' :
                                       'text-gray-500'
                                     }`} />
                                     <span className={`font-medium ${
-                                      task.overdueBy > 0 ? 'text-red-700' :
+                                      task.overdueBy !== null && task.overdueBy > 0 ? 'text-red-700' :
                                       task.overdueBy === 0 ? 'text-yellow-700' :
                                       'text-gray-700'
                                     }`}>
                                       Due: {formatDate(task.dueDate)}
-                                      {task.overdueBy > 0 && (
+                                      {task.overdueBy !== null && task.overdueBy > 0 && (
                                         <span className="ml-2 font-bold text-red-600">
                                           ({task.overdueBy} day{task.overdueBy > 1 ? 's' : ''} overdue)
                                         </span>
@@ -359,7 +359,7 @@ export default async function FFEPage({ searchParams }: { searchParams: { status
                             {task.status.replace('_', ' ')}
                           </Badge>
                           
-                          {task.overdueBy > 0 && (
+                          {task.overdueBy !== null && task.overdueBy > 0 && (
                             <Badge variant="destructive" className="text-xs">
                               <AlertCircle className="w-3 h-3 mr-1" />
                               Overdue

@@ -110,7 +110,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         assignedUser: stage.assignedUser,
         roomId: stage.room.id,
         projectId: stage.room.project.id,
-        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : null,
         urgencyLevel: stage.status === 'NEEDS_ATTENTION' ? 'high' : 'medium'
       }))
 
@@ -126,13 +126,18 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         roomId: approval.stage.room.id,
         projectId: approval.stage.room.project.id,
         stageId: approval.stage.id,
-        overdueBy: approval.sentToClientAt ? Math.floor((new Date().getTime() - new Date(approval.sentToClientAt).getTime()) / (1000 * 60 * 60 * 24)) - 7 : 0,
+        overdueBy: approval.sentToClientAt ? Math.floor((new Date().getTime() - new Date(approval.sentToClientAt).getTime()) / (1000 * 60 * 60 * 24)) - 7 : null,
         urgencyLevel: approval.sentToClientAt && (new Date().getTime() - new Date(approval.sentToClientAt).getTime()) > (14 * 24 * 60 * 60 * 1000) ? 'high' : 'medium',
         version: approval.version
       }))
 
-      // Combine and sort by overdue time (most overdue first)
-      userTasks = [...transformedStages, ...transformedApprovals].sort((a, b) => b.overdueBy - a.overdueBy)
+      // Combine and sort by overdue time (most overdue first), handling null values
+      userTasks = [...transformedStages, ...transformedApprovals].sort((a, b) => {
+        if (a.overdueBy === null && b.overdueBy === null) return 0
+        if (a.overdueBy === null) return 1 // null values go to end
+        if (b.overdueBy === null) return -1 // null values go to end
+        return b.overdueBy - a.overdueBy
+      })
     } else {
       // Get all user's assigned IN_PROGRESS tasks
       const userStages = await prisma.stage.findMany({
@@ -185,7 +190,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         assignedUser: stage.assignedUser,
         roomId: stage.room.id,
         projectId: stage.room.project.id,
-        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        overdueBy: stage.dueDate ? Math.floor((new Date().getTime() - new Date(stage.dueDate).getTime()) / (1000 * 60 * 60 * 24)) : null,
         urgencyLevel: stage.dueDate && stage.dueDate < new Date() ? 'high' : 'medium',
         stageType: stage.type
       }))
@@ -221,7 +226,8 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
     }
   }
 
-  const getOverdueText = (overdueBy: number, type: string) => {
+  const getOverdueText = (overdueBy: number | null, type: string) => {
+    if (overdueBy === null) return 'No due date'
     if (overdueBy <= 0) return 'Due today'
     if (overdueBy === 1) return `${overdueBy} day ${type === 'approval' ? 'overdue' : 'overdue'}`
     return `${overdueBy} days ${type === 'approval' ? 'overdue' : 'overdue'}`
@@ -363,24 +369,24 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
                             {task.dueDate && (
                               <div className={`flex items-center space-x-2 text-sm px-3 py-2 rounded-lg ${
                                 task.urgencyLevel === 'high' ? 'bg-red-50 border border-red-200' :
-                                task.overdueBy > 0 ? 'bg-red-50 border border-red-200' :
+                                task.overdueBy !== null && task.overdueBy > 0 ? 'bg-red-50 border border-red-200' :
                                 task.overdueBy === 0 ? 'bg-yellow-50 border border-yellow-200' :
                                 'bg-gray-50 border border-gray-200'
                               }`}>
                                 <Calendar className={`w-4 h-4 ${
                                   task.urgencyLevel === 'high' ? 'text-red-500' :
-                                  task.overdueBy > 0 ? 'text-red-500' :
+                                  task.overdueBy !== null && task.overdueBy > 0 ? 'text-red-500' :
                                   task.overdueBy === 0 ? 'text-yellow-500' :
                                   'text-gray-500'
                                 }`} />
                                 <span className={`font-medium ${
                                   task.urgencyLevel === 'high' ? 'text-red-700' :
-                                  task.overdueBy > 0 ? 'text-red-700' :
+                                  task.overdueBy !== null && task.overdueBy > 0 ? 'text-red-700' :
                                   task.overdueBy === 0 ? 'text-yellow-700' :
                                   'text-gray-700'
                                 }`}>
                                   {task.type === 'approval' ? 'Sent' : 'Due'}: {formatDate(task.dueDate)}
-                                  {task.overdueBy > 0 && (
+                                  {task.overdueBy !== null && task.overdueBy > 0 && (
                                     <span className="ml-2 font-bold text-red-600">
                                       ({getOverdueText(task.overdueBy, task.type)})
                                     </span>

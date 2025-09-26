@@ -32,13 +32,44 @@ export default async function ProjectDetail({ params }: Props) {
       where: { 
         id: id
       },
-      include: {
-        client: true,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        status: true,
+        dueDate: true,
+        budget: true,
+        createdAt: true,
+        updatedAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         rooms: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            status: true,
+            createdAt: true,
             stages: {
-              include: {
-                assignedUser: true,
+              select: {
+                id: true,
+                type: true,
+                status: true,
+                assignedTo: true,
+                dueDate: true,
+                assignedUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                },
                 designSections: {
                   select: {
                     id: true,
@@ -47,8 +78,13 @@ export default async function ProjectDetail({ params }: Props) {
                 }
               }
             },
-            assets: true,
-            ffeItems: true
+            // Only count assets instead of fetching full data
+            _count: {
+              select: {
+                assets: true,
+                ffeItems: true
+              }
+            }
           }
         }
       }

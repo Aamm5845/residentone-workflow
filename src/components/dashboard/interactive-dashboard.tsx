@@ -96,9 +96,18 @@ const fetcher = (url: string) => fetch(url).then(res => res.json())
 // Helper function to format due dates
 const formatDueDate = (dueDate: string | null): string => {
   if (!dueDate) return 'No due date'
+  
+  // Additional check for invalid dates
   const date = new Date(dueDate)
+  if (isNaN(date.getTime())) return 'No due date'
+  
   const today = new Date()
-  const diffTime = date.getTime() - today.getTime()
+  today.setHours(0, 0, 0, 0) // Reset time to start of day for accurate comparison
+  
+  const dueDateOnly = new Date(date)
+  dueDateOnly.setHours(0, 0, 0, 0) // Reset time to start of day
+  
+  const diffTime = dueDateOnly.getTime() - today.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
   if (diffDays < 0) return 'Overdue'
@@ -329,7 +338,8 @@ export default function InteractiveDashboard({ user }: { user: any }) {
 
 // Task Item Component
 function TaskItem({ task }: { task: Task }) {
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date()
+  // Only calculate overdue/due soon if there's actually a due date
+  const isOverdue = task.dueDate ? new Date(task.dueDate) < new Date() : false
   const isDueSoon = task.dueDate && !isOverdue && 
     (new Date(task.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
   
@@ -388,7 +398,7 @@ function TaskItem({ task }: { task: Task }) {
           <p className={`text-sm mt-1 ${
             isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-gray-500'
           }`}>
-            {task.project} • {task.client} • {formatDueDate(task.dueDate)}
+            {task.project} • {task.client}{task.dueDate ? ` • ${formatDueDate(task.dueDate)}` : ''}
           </p>
         </div>
       </div>

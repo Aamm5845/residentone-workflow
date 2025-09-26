@@ -17,6 +17,7 @@ import {
   handleWorkflowTransition,
   type WorkflowEvent
 } from '@/lib/phase-transitions'
+import { phaseNotificationService } from '@/lib/notifications/phase-notification-service'
 
 export async function PATCH(
   request: NextRequest,
@@ -180,7 +181,7 @@ export async function PATCH(
       ipAddress
     })
     
-    // Handle automatic phase transitions when stages are completed
+    // Handle automatic phase transitions and notifications when stages are completed
     if (action === 'complete' && updatedStage.room) {
       try {
         const workflowEvent: WorkflowEvent = {
@@ -202,6 +203,28 @@ export async function PATCH(
       } catch (transitionError) {
         console.error('Error handling phase transitions:', transitionError)
         // Don't fail the main operation if transitions fail
+      }
+      
+      // Send notifications for phase completion
+      try {
+        const notificationResult = await phaseNotificationService.handlePhaseCompletion(
+          resolvedParams.id,
+          session.user.id,
+          session
+        )
+        
+        if (notificationResult.success) {
+          console.log(`Phase completion notifications sent:`, {
+            notifications: notificationResult.notificationsSent,
+            emails: notificationResult.emailsSent,
+            details: notificationResult.details
+          })
+        } else {
+          console.error('Phase notification errors:', notificationResult.errors)
+        }
+      } catch (notificationError) {
+        console.error('Error sending phase completion notifications:', notificationError)
+        // Don't fail the main operation if notifications fail
       }
     }
     
