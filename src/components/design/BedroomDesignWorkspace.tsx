@@ -40,6 +40,8 @@ import { toast } from 'sonner'
 import PhaseSettingsMenu from '../stages/PhaseSettingsMenu'
 import { PhaseChat } from '../chat/PhaseChat'
 import { MentionTextarea } from '../ui/mention-textarea'
+import EnhancedFilePreviewModal from '../ui/enhanced-file-preview-modal'
+import DesignNotificationIndicator from './DesignNotificationIndicator'
 
 // Components will be implemented inline for now to fix layout issues
 // TODO: Import proper components when they're available:
@@ -158,6 +160,7 @@ export default function BedroomDesignWorkspace({
   const [newComments, setNewComments] = useState<Record<string, string>>({})
   const [postingComment, setPostingComment] = useState<string | null>(null)
   const [teamMembers, setTeamMembers] = useState<Array<{id: string, name: string, email: string, role: string}>>([])
+  const [previewFile, setPreviewFile] = useState<any>(null)
   
   // File input refs for each section
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -268,9 +271,62 @@ export default function BedroomDesignWorkspace({
     setExpandedSections(newExpanded)
   }
 
+  // Section completion toggle
+  const toggleSectionCompletion = async (sectionType: string) => {
+    const section = safeStage.designSections.find(s => s.type === sectionType)
+    if (!section) {
+      // If section doesn't exist, create it first
+      try {
+        const sectionId = await getOrCreateSectionId(sectionType)
+        // Now toggle completion on the new section
+        await toggleExistingSectionCompletion(sectionId, true)
+      } catch (error) {
+        console.error('Error creating and completing section:', error)
+        toast.error('Failed to create and complete section')
+      }
+      return
+    }
+    
+    await toggleExistingSectionCompletion(section.id, !section.completed)
+  }
+
+  const toggleExistingSectionCompletion = async (sectionId: string, completed: boolean) => {
+    try {
+      const response = await fetch(`/api/design/sections/${sectionId}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update section completion')
+      }
+      
+      const result = await response.json()
+      console.log('Section completion updated:', result)
+      
+      // Refresh workspace to show updated status
+      refreshWorkspace()
+      
+      toast.success(completed 
+        ? 'Section marked as complete' 
+        : 'Section marked as incomplete'
+      )
+      
+    } catch (error) {
+      console.error('Error updating section completion:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update section')
+    }
+  }
+
   // Get or create design section
   const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
     console.log('🔍 getOrCreateSectionId called with:', { sectionType, stageId })
+    
+    if (!stageId) {
+      throw new Error('No stage ID available')
+    }
     
     // First try to find existing section
     const existingSection = safeStage.designSections.find(s => s.type === sectionType)
@@ -282,6 +338,11 @@ export default function BedroomDesignWorkspace({
     
     if (existingSection?.id) {
       console.log('✅ Found existing section:', existingSection.id)
+      // Validate the section ID format
+      if (typeof existingSection.id !== 'string' || existingSection.id.length < 10) {
+        console.error('❌ Invalid section ID format:', existingSection.id)
+        throw new Error('Invalid section ID format')
+      }
       return existingSection.id
     }
     
@@ -289,36 +350,67 @@ export default function BedroomDesignWorkspace({
     try {
       console.log('🆕 Creating new section via API:', { stageId, type: sectionType })
       
+      const requestBody = { 
+        stageId,
+        type: sectionType
+      }
+      
+      console.log('📡 Making request with body:', requestBody)
+      
       const response = await fetch('/api/design/sections', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          stageId,
-          type: sectionType
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
         credentials: 'include' // Ensure cookies are included
       })
       
       console.log('📡 Section creation response:', {
         status: response.status,
         statusText: response.statusText,
-        ok: response.ok
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       })
+      
+      if (!response.ok) {
+        let errorText = ''
+        try {
+          errorText = await response.text()
+          console.error('❌ Section creation error response:', errorText)
+        } catch (e) {
+          console.error('❌ Could not read error response')
+        }
+        throw new Error(`Section creation failed: ${response.status} ${response.statusText}. ${errorText}`)
+      }
       
       const result = await response.json()
       console.log('📊 Section creation result:', result)
       
-      if (result.success) {
+      if (result.success && result.section?.id) {
         console.log('✅ Section created successfully:', result.section.id)
+        // Validate the new section ID format
+        if (typeof result.section.id !== 'string' || result.section.id.length < 10) {
+          console.error('❌ Invalid new section ID format:', result.section.id)
+          throw new Error('Invalid new section ID format')
+        }
+        
         refreshWorkspace() // Refresh data to show new section
         return result.section.id
       } else {
         console.error('❌ Section creation failed:', result)
-        throw new Error(result.error || 'Failed to create section')
+        throw new Error(result.error || result.message || 'Failed to create section - invalid response format')
       }
     } catch (error) {
       console.error('❌ Error creating section:', error)
-      toast.error('Failed to create section')
+      console.error('Error details:', error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : 'Unknown error type')
+      
+      toast.error(`Failed to create section: ${error instanceof Error ? error.message : 'Unknown error'}`)
       throw error
     }
   }
@@ -481,9 +573,23 @@ export default function BedroomDesignWorkspace({
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        console.error('❌ Comment request failed with status:', response.status, response.statusText)
+        console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()))
+        
+        let errorData = {}
+        try {
+          const responseText = await response.text()
+          console.error('❌ Raw response text:', responseText)
+          if (responseText) {
+            errorData = JSON.parse(responseText)
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse error response:', parseError)
+        }
+        
         console.error('❌ Comment failed with error data:', errorData)
-        throw new Error(errorData.error || `Comment failed: ${response.status} ${response.statusText}`)
+        const errorMessage = (errorData as any).error || (errorData as any).message || `Comment failed: ${response.status} ${response.statusText}`
+        throw new Error(errorMessage)
       }
       
       const result = await response.json()
@@ -668,6 +774,9 @@ export default function BedroomDesignWorkspace({
               </select>
             </div>
             
+            {/* Design Notifications */}
+            <DesignNotificationIndicator stageId={safeStage.id} />
+            
             <PhaseSettingsMenu 
               stageId={safeStage.id}
               stageName="Design Concept"
@@ -781,29 +890,64 @@ export default function BedroomDesignWorkspace({
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
                           <p className="text-sm text-gray-600">{sectionDef.description}</p>
-                          <div className="flex items-center space-x-3 mt-1">
+                          <div className="flex items-center space-x-3 mt-2">
                             <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               isCompleted 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-600'
+                                ? 'bg-green-100 text-green-800 border border-green-200' 
+                                : 'bg-yellow-50 text-yellow-800 border border-yellow-200'
                             }`}>
                               {isCompleted ? '✅ Complete' : '🔄 In Progress'}
                             </div>
-                            {section?.assets && Array.isArray(section.assets) && (
-                              <span className="text-xs text-gray-500">
-                                {section.assets.length} image{section.assets.length !== 1 ? 's' : ''}
-                              </span>
+                            
+                            {/* Content indicators with enhanced visibility */}
+                            {section?.content && section.content.trim() && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                📝 Has Notes
+                              </div>
                             )}
-                            {section?.comments && Array.isArray(section.comments) && (
-                              <span className="text-xs text-gray-500">
-                                {section.comments.length} comment{section.comments.length !== 1 ? 's' : ''}
-                              </span>
+                            
+                            {section?.assets && Array.isArray(section.assets) && section.assets.length > 0 && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                🖼️ {section.assets.length} image{section.assets.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                            
+                            {section?.comments && Array.isArray(section.comments) && section.comments.length > 0 && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                                💬 {section.comments.length} comment{section.comments.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                            
+                            {/* New content indicator (last updated within 24 hours) */}
+                            {section?.updatedAt && new Date(section.updatedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 animate-pulse">
+                                🆕 Updated recently
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-2">
+                        {/* Section completion toggle */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation() // Prevent section toggle
+                            toggleSectionCompletion(sectionType)
+                          }}
+                          className={`p-2 rounded-lg border transition-colors ${
+                            isCompleted 
+                              ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' 
+                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                          }`}
+                          title={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+                        >
+                          <CheckSquare className="w-4 h-4" />
+                        </Button>
+                        
+                        {/* Expand/collapse toggle */}
                         {isExpanded ? (
                           <ChevronDown className="w-5 h-5 text-gray-500" />
                         ) : (
@@ -903,7 +1047,26 @@ export default function BedroomDesignWorkspace({
                           {section?.assets && Array.isArray(section.assets) && section.assets.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                               {section.assets.map((asset) => (
-                                <div key={asset.id} className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square">
+                                <div 
+                                  key={asset.id} 
+                                  className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square cursor-pointer"
+                                  onClick={() => setPreviewFile({
+                                    id: asset.id,
+                                    name: asset.title,
+                                    originalName: asset.title,
+                                    type: asset.type === 'IMAGE' ? 'image' : asset.type === 'PDF' ? 'pdf' : 'document',
+                                    url: asset.url,
+                                    size: 0,
+                                    uploadedAt: asset.createdAt,
+                                    uploadedBy: { name: 'User' },
+                                    metadata: {
+                                      sizeFormatted: '0 KB',
+                                      extension: asset.url.split('.').pop() || '',
+                                      isImage: asset.type === 'IMAGE',
+                                      isPDF: asset.type === 'PDF'
+                                    }
+                                  })}
+                                >
                                   <img 
                                     src={asset.url} 
                                     alt={asset.title}
@@ -1067,6 +1230,15 @@ export default function BedroomDesignWorkspace({
           )}
         </div>
       </div>
+      
+      {/* Enhanced File Preview Modal */}
+      {previewFile && (
+        <EnhancedFilePreviewModal
+          file={previewFile}
+          isOpen={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
       
     </div>
   )

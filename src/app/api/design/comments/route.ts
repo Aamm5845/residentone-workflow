@@ -13,22 +13,41 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📝 Starting design comment creation...')
+    
     const session = await getSession()
     const ipAddress = getIPAddress(request)
     
+    console.log('🔑 Session validation:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      userOrgId: session?.user?.orgId
+    })
+    
     if (!isValidAuthSession(session)) {
+      console.error('❌ Unauthorized access attempt')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const data = await request.json()
     const { sectionId, content, mentions = [] } = data
+    
+    console.log('📝 Request data:', {
+      sectionId,
+      hasContent: !!content,
+      contentLength: content?.length,
+      mentionCount: mentions?.length || 0
+    })
 
     if (!sectionId || !content?.trim()) {
+      console.error('❌ Missing required fields:', { sectionId: !!sectionId, content: !!content?.trim() })
       return NextResponse.json({ 
         error: 'Missing required fields: sectionId and content' 
       }, { status: 400 })
     }
 
+    console.log('🔍 Looking up section:', sectionId)
+    
     // Verify section exists and user has access
     const section = await prisma.designSection.findFirst({
       where: {
@@ -53,26 +72,50 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+    
+    console.log('🔍 Section lookup result:', {
+      found: !!section,
+      sectionId: section?.id,
+      sectionType: section?.type,
+      stageId: section?.stageId
+    })
 
     if (!section) {
-      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+      console.error('❌ Section not found or access denied for:', sectionId)
+      return NextResponse.json({ error: 'Section not found or access denied' }, { status: 404 })
     }
 
+    console.log('📝 Creating comment with data:', {
+      content: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+      projectId: section.stage.room.project.id,
+      roomId: section.stage.room.id,
+      stageId: section.stage.id,
+      sectionId: section.id,
+      mentionCount: mentions.length
+    })
+    
     // Create comment
     const comment = await prisma.comment.create({
-      data: withCreateAttribution(session, {
+      data: {
         content: content.trim(),
+        authorId: session.user.id,
         projectId: section.stage.room.project.id,
         roomId: section.stage.room.id,
         stageId: section.stage.id,
         sectionId: section.id,
         mentions: mentions.length > 0 ? JSON.stringify(mentions) : null
-      }),
+      },
       include: {
         author: {
           select: { id: true, name: true, email: true, role: true }
         }
       }
+    })
+    
+    console.log('✅ Comment created successfully:', {
+      commentId: comment.id,
+      authorId: comment.authorId,
+      sectionId: comment.sectionId
     })
 
     // If there are mentions, create notifications

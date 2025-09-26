@@ -53,20 +53,21 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id           String        @id @default(cuid())
-  name         String
-  slug         String        @unique
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  activityLogs ActivityLog[]
-  assets       Asset[]
-  clients      Client[]
-  contractors  Contractor[]
-  projects     Project[]
-  tags                Tag[]
-  users               User[]
-  issues              Issue[]
-  ffeLibraryItems     FFELibraryItem[]
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  activityLogs       ActivityLog[]
+  assets             Asset[]
+  clients            Client[]
+  contractors        Contractor[]
+  ffeGeneralSettings FFEGeneralSettings?
+  ffeLibraryItems    FFELibraryItem[]
+  issues             Issue[]
+  projects           Project[]
+  tags               Tag[]
+  users              User[]
 }
 
 model User {
@@ -92,6 +93,8 @@ model User {
   uploadedAssets             Asset[]
   assetPins                  AssetPin[]               @relation("UserAssetPins")
   assetTags                  AssetTag[]               @relation("UserAssetTags")
+  chatMentions               ChatMention[]
+  chatMessages               ChatMessage[]
   completedChecklists        ChecklistItem[]          @relation("ChecklistCompletedBy")
   createdChecklists          ChecklistItem[]          @relation("ChecklistCreatedBy")
   createdClientAccessTokens  ClientAccessToken[]      @relation("ClientAccessTokenCreatedBy")
@@ -99,16 +102,25 @@ model User {
   aaronApprovalVersions      ClientApprovalVersion[]  @relation("ClientApprovalAaronApprovedBy")
   sentClientApprovalVersions ClientApprovalVersion[]  @relation("ClientApprovalSentBy")
   comments                   Comment[]
+  commentLikes               CommentLike[]            @relation("UserCommentLikes")
   commentPins                CommentPin[]             @relation("UserCommentPins")
   commentTags                CommentTag[]             @relation("UserCommentTags")
-  commentLikes               CommentLike[]            @relation("UserCommentLikes")
   completedSections          DesignSection[]          @relation("CompletedByUserSection")
   createdSections            DesignSection[]          @relation("CreatedByUserSection")
   updatedSections            DesignSection[]          @relation("UpdatedByUserSection")
+  ffeAuditLogs               FFEAuditLog[]            @relation("FFEAuditLogUser")
+  createdFFEGeneralSettings  FFEGeneralSettings[]     @relation("FFEGeneralSettingsCreatedBy")
+  updatedFFEGeneralSettings  FFEGeneralSettings[]     @relation("FFEGeneralSettingsUpdatedBy")
   createdFFEItems            FFEItem[]                @relation("CreatedByUserFFE")
   updatedFFEItems            FFEItem[]                @relation("UpdatedByUserFFE")
   createdFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusCreatedBy")
   updatedFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusUpdatedBy")
+  createdFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryCreatedBy")
+  updatedFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryUpdatedBy")
+  assignedIssues             Issue[]                  @relation("IssueAssignee")
+  reportedIssues             Issue[]                  @relation("IssueReporter")
+  resolvedIssues             Issue[]                  @relation("IssueResolver")
+  issueComments              IssueComment[]           @relation("IssueCommentAuthor")
   notifications              Notification[]
   createdProjects            Project[]                @relation("CreatedByUser")
   updatedProjects            Project[]                @relation("UpdatedByUser")
@@ -124,15 +136,6 @@ model User {
   createdStages              Stage[]                  @relation("CreatedByUserStage")
   updatedStages              Stage[]                  @relation("UpdatedByUserStage")
   assignedTasks              Task[]
-  reportedIssues             Issue[]                  @relation("IssueReporter")
-  assignedIssues             Issue[]                  @relation("IssueAssignee")
-  resolvedIssues             Issue[]                  @relation("IssueResolver")
-  issueComments              IssueComment[]           @relation("IssueCommentAuthor")
-  chatMessages               ChatMessage[]
-  chatMentions               ChatMention[]
-  createdFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryCreatedBy")
-  updatedFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryUpdatedBy")
-  ffeAuditLogs               FFEAuditLog[]            @relation("FFEAuditLogUser")
   organization               Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions               UserSession[]
 }
@@ -193,35 +196,35 @@ model ProjectContractor {
 }
 
 model Project {
-  id                 String              @id @default(cuid())
-  name               String
-  description        String?
-  type               ProjectType         @default(RESIDENTIAL)
-  status             ProjectStatus       @default(DRAFT)
-  clientId           String
-  dueDate            DateTime?
-  budget             Float?
-  dropboxFolder      String?
-  orgId              String
-  createdById        String
-  updatedById        String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  coverImages        Json?
-  address            String?
-  approvals          Approval[]
-  assets             Asset[]
-  clientAccessTokens ClientAccessToken[]
-  comments           Comment[]
-  client             Client              @relation(fields: [clientId], references: [id])
-  createdBy          User                @relation("CreatedByUser", fields: [createdById], references: [id])
-  organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  updatedBy          User?               @relation("UpdatedByUser", fields: [updatedById], references: [id])
-  projectContractors ProjectContractor[]
-  rooms              Room[]
-  tasks              Task[]
-  issues             Issue[]
+  id                     String              @id @default(cuid())
+  name                   String
+  description            String?
+  type                   ProjectType         @default(RESIDENTIAL)
+  status                 ProjectStatus       @default(DRAFT)
+  clientId               String
+  dueDate                DateTime?
+  budget                 Float?
+  dropboxFolder          String?
+  orgId                  String
+  createdById            String
+  updatedById            String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  coverImages            Json?
+  address                String?
+  approvals              Approval[]
+  assets                 Asset[]
+  clientAccessTokens     ClientAccessToken[]
+  comments               Comment[]
   ffeLibraryItemsCreated FFELibraryItem[]    @relation("FFELibraryFromProject")
+  issues                 Issue[]
+  client                 Client              @relation(fields: [clientId], references: [id])
+  createdBy              User                @relation("CreatedByUser", fields: [createdById], references: [id])
+  organization           Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  updatedBy              User?               @relation("UpdatedByUser", fields: [updatedById], references: [id])
+  projectContractors     ProjectContractor[]
+  rooms                  Room[]
+  tasks                  Task[]
 }
 
 model Room {
@@ -239,16 +242,16 @@ model Room {
   approvals         Approval[]
   assets            Asset[]
   comments          Comment[]
+  ffeAuditLogs      FFEAuditLog[]
   ffeItems          FFEItem[]
   ffeItemStatuses   FFEItemStatus[]
+  issues            Issue[]
   renderingVersions RenderingVersion[]
   createdBy         User?              @relation("CreatedByUserRoom", fields: [createdById], references: [id])
   project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   updatedBy         User?              @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
   stages            Stage[]
   tasks             Task[]
-  issues            Issue[]
-  ffeAuditLogs       FFEAuditLog[]
 }
 
 model Stage {
@@ -267,10 +270,12 @@ model Stage {
   updatedAt              DateTime                @updatedAt
   activities             Activity[]
   assets                 Asset[]
+  chatMessages           ChatMessage[]
   clientApprovalVersions ClientApprovalVersion[]
   comments               Comment[]
   designSections         DesignSection[]
   drawingChecklist       DrawingChecklistItem[]
+  issues                 Issue[]
   renderingVersions      RenderingVersion[]
   assignedUser           User?                   @relation("AssignedToUser", fields: [assignedTo], references: [id])
   completedBy            User?                   @relation("CompletedByUserStage", fields: [completedById], references: [id])
@@ -278,8 +283,6 @@ model Stage {
   room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   tasks                  Task[]
-  issues                 Issue[]
-  chatMessages           ChatMessage[]
 
   @@unique([roomId, type])
 }
@@ -432,9 +435,12 @@ model FFEItemStatus {
   id               String    @id @default(cuid())
   roomId           String
   itemId           String
-  state            String    @default("pending") // pending, confirmed, not_needed
-  isCustomExpanded Boolean   @default(false)     // True if custom item is expanded
+  state            String    @default("pending")
+  selectionType    String?
+  isCustomExpanded Boolean   @default(false)
   subItemStates    Json?     @default("{}")
+  customOptions    Json?
+  standardProduct  Json?
   notes            String?
   confirmedAt      DateTime?
   createdAt        DateTime  @default(now())
@@ -449,6 +455,7 @@ model FFEItemStatus {
   @@index([roomId])
   @@index([itemId])
   @@index([state])
+  @@index([selectionType])
 }
 
 model ClientApprovalVersion {
@@ -546,46 +553,46 @@ model Approval {
 }
 
 model Comment {
-  id          String         @id @default(cuid())
-  content     String
-  authorId    String
-  projectId   String?
-  roomId      String?
-  stageId     String?
-  sectionId   String?
-  ffeItemId   String?
-  approvalId  String?
-  mentions    String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  assets      Asset[]
-  approval    Approval?      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  author      User           @relation(fields: [authorId], references: [id])
-  ffeItem     FFEItem?       @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
-  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room        Room?          @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  section     DesignSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  stage       Stage?         @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  commentPin  CommentPin?
-  commentTags CommentTag[]
+  id           String         @id @default(cuid())
+  content      String
+  authorId     String
+  projectId    String?
+  roomId       String?
+  stageId      String?
+  sectionId    String?
+  ffeItemId    String?
+  approvalId   String?
+  mentions     String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  assets       Asset[]
+  approval     Approval?      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  author       User           @relation(fields: [authorId], references: [id])
+  ffeItem      FFEItem?       @relation(fields: [ffeItemId], references: [id], onDelete: Cascade)
+  project      Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room         Room?          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  section      DesignSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stage        Stage?         @relation(fields: [stageId], references: [id], onDelete: Cascade)
   commentLikes CommentLike[]
+  commentPin   CommentPin?
+  commentTags  CommentTag[]
 }
 
 model ChatMessage {
-  id          String        @id @default(cuid())
-  content     String
-  authorId    String
-  stageId     String
-  editedAt    DateTime?
-  isEdited    Boolean       @default(false)
-  deletedAt   DateTime?
-  isDeleted   Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  author      User          @relation(fields: [authorId], references: [id])
-  stage       Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  mentions    ChatMention[]
-  
+  id        String        @id @default(cuid())
+  content   String
+  authorId  String
+  stageId   String
+  editedAt  DateTime?
+  isEdited  Boolean       @default(false)
+  deletedAt DateTime?
+  isDeleted Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  mentions  ChatMention[]
+  author    User          @relation(fields: [authorId], references: [id])
+  stage     Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
   @@index([stageId, createdAt])
   @@index([authorId])
 }
@@ -595,9 +602,9 @@ model ChatMention {
   messageId     String
   mentionedId   String
   createdAt     DateTime    @default(now())
-  message       ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   mentionedUser User        @relation(fields: [mentionedId], references: [id])
-  
+  message       ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
   @@unique([messageId, mentionedId])
 }
 
@@ -713,11 +720,11 @@ model EmailLog {
   openedAt       DateTime?
   type           String
   metadata       Json?
-  deliveryStatus String?               @default("PENDING") // PENDING, SENT, DELIVERED, FAILED, BOUNCED
+  deliveryStatus String?               @default("PENDING")
   deliveryError  String?
-  providerId     String?               // Message ID from email provider
-  provider       String?               // resend, mailgun, smtp
-  deliveredAt    DateTime?             // When provider confirmed delivery
+  providerId     String?
+  provider       String?
+  deliveredAt    DateTime?
   version        ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 }
 
@@ -827,7 +834,7 @@ model ClientAccessToken {
   projectId      String
   token          String            @unique @default(cuid())
   name           String?
-  specsUrl       String?           // URL to 3rd party house specifications
+  specsUrl       String?
   active         Boolean           @default(true)
   expiresAt      DateTime?
   createdById    String
@@ -862,34 +869,33 @@ model ClientAccessLog {
 }
 
 model Issue {
-  id          String        @id @default(cuid())
-  title       String
-  description String
-  type        IssueType     @default(GENERAL)
-  priority    IssuePriority @default(MEDIUM)
-  status      IssueStatus   @default(OPEN)
-  reportedBy  String
-  assignedTo  String?
-  resolvedBy  String?
-  orgId       String?
-  projectId   String?
-  roomId      String?
-  stageId     String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  resolvedAt  DateTime?
-  closedAt    DateTime?
-  metadata    Json?
-  
-  reporter    User          @relation("IssueReporter", fields: [reportedBy], references: [id])
-  assignee    User?         @relation("IssueAssignee", fields: [assignedTo], references: [id])
-  resolver    User?         @relation("IssueResolver", fields: [resolvedBy], references: [id])
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  project     Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  room        Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stage       Stage?        @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  comments    IssueComment[]
-  
+  id           String         @id @default(cuid())
+  title        String
+  description  String
+  type         IssueType      @default(GENERAL)
+  priority     IssuePriority  @default(MEDIUM)
+  status       IssueStatus    @default(OPEN)
+  reportedBy   String
+  assignedTo   String?
+  resolvedBy   String?
+  orgId        String?
+  projectId    String?
+  roomId       String?
+  stageId      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+  metadata     Json?
+  assignee     User?          @relation("IssueAssignee", fields: [assignedTo], references: [id])
+  organization Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project      Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter     User           @relation("IssueReporter", fields: [reportedBy], references: [id])
+  resolver     User?          @relation("IssueResolver", fields: [resolvedBy], references: [id])
+  room         Room?          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stage        Stage?         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  comments     IssueComment[]
+
   @@index([reportedBy])
   @@index([assignedTo])
   @@index([status])
@@ -906,11 +912,82 @@ model IssueComment {
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
   author    User     @relation("IssueCommentAuthor", fields: [authorId], references: [id])
-  
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
   @@index([issueId])
+  @@index([createdAt])
+}
+
+model FFELibraryItem {
+  id                 String       @id @default(cuid())
+  orgId              String
+  itemId             String
+  name               String
+  category           String
+  roomTypes          String[]
+  isRequired         Boolean      @default(false)
+  itemType           String       @default("base")
+  hasStandardOption  Boolean      @default(false)
+  hasCustomOption    Boolean      @default(false)
+  standardConfig     Json?
+  customConfig       Json?
+  dependsOn          String[]
+  showWhen           Json?
+  isStandard         Boolean      @default(true)
+  subItems           Json?
+  notes              String?
+  addedFromProjectId String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  createdById        String
+  updatedById        String
+  addedFromProject   Project?     @relation("FFELibraryFromProject", fields: [addedFromProjectId], references: [id])
+  createdBy          User         @relation("FFELibraryCreatedBy", fields: [createdById], references: [id])
+  organization       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  updatedBy          User         @relation("FFELibraryUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([orgId, itemId])
+  @@index([orgId])
+  @@index([category])
+  @@index([roomTypes], type: Gin)
+  @@index([itemType])
+}
+
+model FFEGeneralSettings {
+  id           String       @id @default(cuid())
+  orgId        String       @unique
+  roomType     String
+  settings     Json
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdById  String
+  updatedById  String
+  createdBy    User         @relation("FFEGeneralSettingsCreatedBy", fields: [createdById], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  updatedBy    User         @relation("FFEGeneralSettingsUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([orgId, roomType])
+  @@index([orgId])
+  @@index([roomType])
+}
+
+model FFEAuditLog {
+  id        String   @id @default(cuid())
+  roomId    String
+  itemId    String
+  action    String
+  oldValue  String?
+  newValue  String?
+  notes     String?
+  userId    String
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation("FFEAuditLogUser", fields: [userId], references: [id])
+
+  @@index([roomId])
+  @@index([itemId])
+  @@index([userId])
   @@index([createdAt])
 }
 
@@ -1116,56 +1193,3 @@ enum IssueStatus {
   RESOLVED
   CLOSED
 }
-
-// Simple global FFE item library for organizations
-model FFELibraryItem {
-  id          String   @id @default(cuid())
-  orgId       String
-  itemId      String   // Matches itemId from room config
-  name        String
-  category    String
-  roomTypes   String[]
-  isRequired  Boolean  @default(false)
-  isStandard  Boolean  @default(true)
-  subItems    Json?    // Sub-items configuration
-  notes       String?
-  addedFromProjectId String? // Track where it was first added
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdById String
-  updatedById String
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdBy    User         @relation("FFELibraryCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("FFELibraryUpdatedBy", fields: [updatedById], references: [id])
-  addedFromProject Project? @relation("FFELibraryFromProject", fields: [addedFromProjectId], references: [id])
-
-  @@unique([orgId, itemId])
-  @@index([orgId])
-  @@index([category])
-  @@index([roomTypes], type: Gin)
-}
-
-// Simple FFE audit trail for tracking all actions
-model FFEAuditLog {
-  id       String   @id @default(cuid())
-  roomId   String
-  itemId   String
-  action   String   // "confirmed", "not_needed", "expanded", "collapsed", "added", "notes_updated"
-  oldValue String?
-  newValue String?
-  notes    String?
-  userId   String
-  createdAt DateTime @default(now())
-
-  // Relations
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User @relation("FFEAuditLogUser", fields: [userId], references: [id])
-
-  @@index([roomId])
-  @@index([itemId])
-  @@index([userId])
-  @@index([createdAt])
-}
-
