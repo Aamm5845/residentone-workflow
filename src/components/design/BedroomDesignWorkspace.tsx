@@ -163,6 +163,12 @@ export default function BedroomDesignWorkspace({
   const [previewFile, setPreviewFile] = useState<any>(null)
   const [editingImageNote, setEditingImageNote] = useState<string | null>(null)
   const [imageNotes, setImageNotes] = useState<Record<string, string>>({})
+  const [isClient, setIsClient] = useState(false)
+  
+  // Handle client-side rendering to avoid hydration issues
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
   
   // File input refs for each section
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -943,8 +949,8 @@ export default function BedroomDesignWorkspace({
                               </div>
                             )}
                             
-                            {/* New content indicator (last updated within 24 hours) */}
-                            {section?.updatedAt && new Date(section.updatedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
+                            {/* New content indicator (last updated within 24 hours) - client-side only */}
+                            {isClient && section?.updatedAt && new Date(section.updatedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
                               <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 animate-pulse">
                                 🆕 Updated recently
                               </div>
@@ -1215,7 +1221,7 @@ export default function BedroomDesignWorkspace({
                                       <div className="flex items-center space-x-2 mb-1">
                                         <span className="font-medium text-gray-900 text-sm">{comment.author.name}</span>
                                         <span className="text-xs text-gray-500">
-                                          {new Date(comment.createdAt).toLocaleDateString()}
+                                          {isClient ? new Date(comment.createdAt).toLocaleDateString() : 'Loading date...'}
                                         </span>
                                       </div>
                                       <p className="text-gray-700 text-sm whitespace-pre-wrap">{comment.content}</p>
