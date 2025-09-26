@@ -31,22 +31,48 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
 
   // Add status filter
   if (statusFilter === 'active') {
-    whereClause.stages = {
-      some: {
-        status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+    whereClause.AND = [
+      // Must have at least one IN_PROGRESS or NEEDS_ATTENTION stage
+      {
+        stages: {
+          some: {
+            status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+          }
+        }
+      },
+      // Must not have ALL applicable stages completed (meaning not fully done)
+      {
+        NOT: {
+          stages: {
+            every: {
+              OR: [
+                { status: 'COMPLETED' },
+                { status: 'NOT_APPLICABLE' }
+              ]
+            }
+          }
+        }
       }
-    }
-    console.log('🔍 Active rooms filter applied')
+    ]
+    console.log('🔍 Active rooms filter applied - excluding fully completed rooms')
   }
 
   // Add search filter
   if (searchQuery && searchQuery.trim()) {
-    whereClause.OR = [
+    const searchConditions = [
       { name: { contains: searchQuery, mode: 'insensitive' } },
       { type: { contains: searchQuery, mode: 'insensitive' } },
       { project: { name: { contains: searchQuery, mode: 'insensitive' } } },
       { project: { client: { name: { contains: searchQuery, mode: 'insensitive' } } } }
     ]
+    
+    // If active filter is already applied, combine with search
+    if (statusFilter === 'active') {
+      // Add search conditions to existing AND clause
+      whereClause.AND.push({ OR: searchConditions })
+    } else {
+      whereClause.OR = searchConditions
+    }
     console.log('🔍 Search filter applied for:', searchQuery)
   }
 

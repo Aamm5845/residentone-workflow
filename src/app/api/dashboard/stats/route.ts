@@ -25,14 +25,32 @@ export async function GET() {
           status: { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
         }
       }),
-      // Count rooms that have at least one IN_PROGRESS stage (truly active)
+      // Count rooms that have IN_PROGRESS stages AND not all applicable stages are completed
       prisma.room.count({
-        where: { 
-          stages: {
-            some: {
-              status: 'IN_PROGRESS'
+        where: {
+          AND: [
+            // Must have at least one IN_PROGRESS or NEEDS_ATTENTION stage
+            {
+              stages: {
+                some: {
+                  status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] }
+                }
+              }
+            },
+            // Must not have ALL applicable stages completed (meaning not fully done)
+            {
+              NOT: {
+                stages: {
+                  every: {
+                    OR: [
+                      { status: 'COMPLETED' },
+                      { status: 'NOT_APPLICABLE' }
+                    ]
+                  }
+                }
+              }
             }
-          }
+          ]
         }
       }),
       // Count ClientApprovalVersions that are pending Aaron's approval
