@@ -210,7 +210,22 @@ export default function RoomPhaseBoard({
       router.refresh()
     } catch (error) {
       console.error('Error updating due date:', error)
-      alert(`Failed to update due date: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      
+      let errorMessage = 'Unknown error'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
+      // Show more detailed error information
+      alert(`Failed to update due date: ${errorMessage}\n\nPlease check the console for more details.`)
+      
+      // Log additional debug info
+      console.error('Debug info:', {
+        phaseId,
+        stageId: phase?.stageId,
+        dueDate,
+        isoDate: dueDate?.toISOString()
+      })
     } finally {
       setLoading(null)
     }

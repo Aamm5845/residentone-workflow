@@ -115,6 +115,8 @@ model User {
   updatedFFEItems            FFEItem[]                @relation("UpdatedByUserFFE")
   createdFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusCreatedBy")
   updatedFFEItemStatuses     FFEItemStatus[]          @relation("FFEItemStatusUpdatedBy")
+  createdFFEBathroomStates   FFEBathroomState[]       @relation("FFEBathroomStateCreatedBy")
+  updatedFFEBathroomStates   FFEBathroomState[]       @relation("FFEBathroomStateUpdatedBy")
   createdFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryCreatedBy")
   updatedFFELibraryItems     FFELibraryItem[]         @relation("FFELibraryUpdatedBy")
   assignedIssues             Issue[]                  @relation("IssueAssignee")
@@ -243,6 +245,7 @@ model Room {
   assets            Asset[]
   comments          Comment[]
   ffeAuditLogs      FFEAuditLog[]
+  ffeBathroomState  FFEBathroomState?
   ffeItems          FFEItem[]
   ffeItemStatuses   FFEItemStatus[]
   issues            Issue[]
@@ -989,6 +992,24 @@ model FFEAuditLog {
   @@index([itemId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model FFEBathroomState {
+  id                    String   @id @default(cuid())
+  roomId                String   @unique
+  categorySelections    String   @default("[]")
+  itemStatuses          String   @default("[]")
+  completionPercentage  Float    @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdById           String
+  updatedById           String
+  room                  Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy             User     @relation("FFEBathroomStateCreatedBy", fields: [createdById], references: [id])
+  updatedBy             User     @relation("FFEBathroomStateUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([roomId])
+  @@index([completionPercentage])
 }
 
 enum UserRole {

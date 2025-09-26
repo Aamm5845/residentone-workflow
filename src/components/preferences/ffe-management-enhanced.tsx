@@ -145,23 +145,7 @@ interface FFEGlobalSettings {
 }
 
 interface FFEManagementViewState {
-  activeTab: 'room_libraries' | 'categories' | 'global_items' | 'version_control' | 'settings'
-  selectedRoomType?: string
-  selectedCategory?: string
-  selectedLibraryVersion?: string
-  searchTerm: string
-  statusFilter: 'all' | 'active' | 'deprecated'
-  scopeFilter: 'all' | 'global' | 'room_specific'
-  levelFilter: 'all' | 'base' | 'standard' | 'custom' | 'conditional'
-  showDeprecated: boolean
-  expandedCategories: Set<string>
-  selectedItems: Set<string>
-  draggedItem?: string
-  showAddItemModal: boolean
-  showEditItemModal: boolean
-  showVersionHistoryModal: boolean
-  showBulkOperationsModal: boolean
-  editingItem?: FFEItemTemplate
+  activeTab: 'room_presets' | 'library_items' | 'settings'
 }
 
 interface FFEItemFormData {
@@ -210,23 +194,46 @@ const CATEGORY_ICONS = {
 }
 
 const ROOM_TYPE_OPTIONS = [
-  { value: 'living-room', label: 'Living Room' },
-  { value: 'master-bedroom', label: 'Master Bedroom' },
-  { value: 'bedroom', label: 'Bedroom' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'bathroom', label: 'Bathroom' },
-  { value: 'dining-room', label: 'Dining Room' },
-  { value: 'office', label: 'Office' },
-  { value: 'guest-room', label: 'Guest Room' },
-  { value: 'family-room', label: 'Family Room' },
-  { value: 'foyer', label: 'Foyer' },
-  { value: 'hallway', label: 'Hallway' },
-  { value: 'laundry', label: 'Laundry Room' },
-  { value: 'pantry', label: 'Pantry' },
-  { value: 'mudroom', label: 'Mudroom' },
-  { value: 'closet', label: 'Closet' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'other', label: 'Other' }
+  // Entry & Circulation
+  { value: 'ENTRANCE', label: 'Entrance' },
+  { value: 'FOYER', label: 'Foyer' },
+  { value: 'STAIRCASE', label: 'Staircase' },
+  
+  // Living Spaces
+  { value: 'LIVING_ROOM', label: 'Living Room' },
+  { value: 'DINING_ROOM', label: 'Dining Room' },
+  { value: 'KITCHEN', label: 'Kitchen' },
+  { value: 'STUDY_ROOM', label: 'Study Room' },
+  { value: 'OFFICE', label: 'Office' },
+  { value: 'PLAYROOM', label: 'Playroom' },
+  
+  // Bedrooms
+  { value: 'MASTER_BEDROOM', label: 'Master Bedroom' },
+  { value: 'BEDROOM', label: 'Bedroom' },
+  { value: 'GIRLS_ROOM', label: 'Girls Room' },
+  { value: 'BOYS_ROOM', label: 'Boys Room' },
+  
+  // Bathrooms
+  { value: 'POWDER_ROOM', label: 'Powder Room' },
+  { value: 'MASTER_BATHROOM', label: 'Master Bathroom' },
+  { value: 'FAMILY_BATHROOM', label: 'Family Bathroom' },
+  { value: 'GIRLS_BATHROOM', label: 'Girls Bathroom' },
+  { value: 'BOYS_BATHROOM', label: 'Boys Bathroom' },
+  { value: 'GUEST_BATHROOM', label: 'Guest Bathroom' },
+  { value: 'BATHROOM', label: 'Bathroom' },
+  
+  // Utility
+  { value: 'LAUNDRY_ROOM', label: 'Laundry Room' },
+  
+  // Legacy/Other
+  { value: 'FAMILY_ROOM', label: 'Family Room' },
+  { value: 'HALLWAY', label: 'Hallway' },
+  { value: 'PANTRY', label: 'Pantry' },
+  { value: 'MUDROOM', label: 'Mudroom' },
+  { value: 'CLOSET', label: 'Closet' },
+  { value: 'OUTDOOR', label: 'Outdoor' },
+  { value: 'SUKKAH', label: 'Sukkah' },
+  { value: 'OTHER', label: 'Other' }
 ]
 
 const ITEM_LEVELS = [
@@ -246,239 +253,13 @@ const ITEM_STATES = [
 export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnhancedProps) {
   // Main State
   const [viewState, setViewState] = useState<FFEManagementViewState>({
-    activeTab: 'room_libraries',
-    searchTerm: '',
-    statusFilter: 'all',
-    scopeFilter: 'all',
-    levelFilter: 'all',
-    showDeprecated: false,
-    expandedCategories: new Set(),
-    selectedItems: new Set(),
-    showAddItemModal: false,
-    showEditItemModal: false,
-    showVersionHistoryModal: false,
-    showBulkOperationsModal: false
+    activeTab: 'room_presets'
   })
-
-  // Data State
-  const [roomLibraries, setRoomLibraries] = useState<FFERoomLibrary[]>([])
-  const [categories, setCategories] = useState<FFECategory[]>([])
-  const [itemTemplates, setItemTemplates] = useState<FFEItemTemplate[]>([])
-  const [versionHistory, setVersionHistory] = useState<FFEVersionHistory[]>([])
-  const [globalSettings, setGlobalSettings] = useState<FFEGlobalSettings | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  // Form State
-  const [itemFormData, setItemFormData] = useState<FFEItemFormData>({
-    name: '',
-    category: 'furniture',
-    level: 'base',
-    scope: 'room_specific',
-    defaultState: 'pending',
-    isRequired: false,
-    supportsMultiChoice: false,
-    roomTypes: [],
-    excludeFromRoomTypes: [],
-    subItems: [],
-    conditionalOn: [],
-    mutuallyExclusiveWith: [],
-    tags: [],
-    supplierInfo: []
-  })
-
-  const [categoryFormData, setCategoryFormData] = useState<FFECategoryFormData>({
-    name: '',
-    roomTypes: [],
-    isGlobal: false,
-    isExpandable: true
-  })
-
-  const [roomLibraryFormData, setRoomLibraryFormData] = useState<FFERoomLibraryFormData>({
-    name: '',
-    roomType: '',
-    categories: []
-  })
-
-  // Load initial data
-  useEffect(() => {
-    loadData()
-  }, [orgId])
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      
-      const [
-        roomLibsRes,
-        categoriesRes,
-        itemsRes,
-        settingsRes,
-        historyRes
-      ] = await Promise.all([
-        fetch(`/api/ffe/room-libraries?orgId=${orgId}`),
-        fetch(`/api/ffe/categories?orgId=${orgId}`),
-        fetch(`/api/ffe/items?orgId=${orgId}`),
-        fetch(`/api/ffe/settings?orgId=${orgId}`),
-        fetch(`/api/ffe/version-history?orgId=${orgId}`)
-      ])
-
-      if (roomLibsRes.ok) {
-        const data = await roomLibsRes.json()
-        setRoomLibraries(data.libraries || [])
-      }
-
-      if (categoriesRes.ok) {
-        const data = await categoriesRes.json()
-        setCategories(data.categories || [])
-      }
-
-      if (itemsRes.ok) {
-        const data = await itemsRes.json()
-        setItemTemplates(data.items || [])
-      }
-
-      if (settingsRes.ok) {
-        const data = await settingsRes.json()
-        setGlobalSettings(data.settings)
-      }
-
-      if (historyRes.ok) {
-        const data = await historyRes.json()
-        setVersionHistory(data.history || [])
-      }
-
-    } catch (error) {
-      console.error('Error loading FFE management data:', error)
-      toast.error('Failed to load FFE management data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Filtered and organized data
-  const filteredItems = useMemo(() => {
-    return itemTemplates.filter(item => {
-      if (viewState.searchTerm && !item.name.toLowerCase().includes(viewState.searchTerm.toLowerCase())) {
-        return false
-      }
-      if (viewState.statusFilter !== 'all') {
-        if (viewState.statusFilter === 'active' && !item.isActive) return false
-        if (viewState.statusFilter === 'deprecated' && item.isActive) return false
-      }
-      if (viewState.scopeFilter !== 'all' && item.scope !== viewState.scopeFilter) {
-        return false
-      }
-      if (viewState.levelFilter !== 'all' && item.level !== viewState.levelFilter) {
-        return false
-      }
-      if (!viewState.showDeprecated && item.deprecatedAt) {
-        return false
-      }
-      if (viewState.selectedCategory && item.category !== viewState.selectedCategory) {
-        return false
-      }
-      return true
-    })
-  }, [itemTemplates, viewState])
-
-  const categorizedItems = useMemo(() => {
-    const grouped = new Map<string, FFEItemTemplate[]>()
-    filteredItems.forEach(item => {
-      if (!grouped.has(item.category)) {
-        grouped.set(item.category, [])
-      }
-      grouped.get(item.category)!.push(item)
-    })
-    return grouped
-  }, [filteredItems])
+  
+  const [loading, setLoading] = useState(false)
 
   const updateViewState = (updates: Partial<FFEManagementViewState>) => {
     setViewState(prev => ({ ...prev, ...updates }))
-  }
-
-  const toggleCategoryExpansion = (categoryId: string) => {
-    const newExpanded = new Set(viewState.expandedCategories)
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId)
-    } else {
-      newExpanded.add(categoryId)
-    }
-    updateViewState({ expandedCategories: newExpanded })
-  }
-
-  const handleCreateItem = async () => {
-    try {
-      const response = await fetch('/api/ffe/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orgId,
-          userId: user.id,
-          ...itemFormData
-        })
-      })
-
-      if (response.ok) {
-        toast.success('FFE item created successfully')
-        updateViewState({ showAddItemModal: false })
-        resetItemForm()
-        await loadData()
-      } else {
-        const error = await response.json()
-        toast.error(error.message || 'Failed to create item')
-      }
-    } catch (error) {
-      toast.error('Failed to create item')
-    }
-  }
-
-  const resetItemForm = () => {
-    setItemFormData({
-      name: '',
-      category: 'furniture',
-      level: 'base',
-      scope: 'room_specific',
-      defaultState: 'pending',
-      isRequired: false,
-      supportsMultiChoice: false,
-      roomTypes: [],
-      excludeFromRoomTypes: [],
-      subItems: [],
-      conditionalOn: [],
-      mutuallyExclusiveWith: [],
-      tags: [],
-      supplierInfo: []
-    })
-  }
-
-  const addSubItem = () => {
-    const newSubItem: FFESubItem = {
-      id: `sub-${Date.now()}`,
-      name: '',
-      defaultState: 'pending',
-      isRequired: false,
-      order: itemFormData.subItems.length
-    }
-    setItemFormData(prev => ({
-      ...prev,
-      subItems: [...prev.subItems, newSubItem]
-    }))
-  }
-
-  const updateSubItem = (index: number, updates: Partial<FFESubItem>) => {
-    setItemFormData(prev => ({
-      ...prev,
-      subItems: prev.subItems.map((item, i) => 
-        i === index ? { ...item, ...updates } : item
-      )
-    }))
-  }
-
-  const removeSubItem = (index: number) => {
-    setItemFormData(prev => ({
-      ...prev,
-      subItems: prev.subItems.filter((_, i) => i !== index)
-    }))
   }
 
   if (loading) {
@@ -498,9 +279,9 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-bold">Enhanced FFE Management</CardTitle>
+            <CardTitle className="text-2xl font-bold">FFE Management</CardTitle>
             <p className="text-gray-600 mt-1">
-              Comprehensive room library, category, and item template management
+              Manage room presets and FFE library items
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -518,22 +299,14 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
 
       <CardContent>
         <Tabs value={viewState.activeTab} onValueChange={(value) => updateViewState({ activeTab: value as any })}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="room_libraries" className="flex items-center">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="room_presets" className="flex items-center">
               <Home className="h-4 w-4 mr-2" />
-              Room Libraries
+              Room Presets
             </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center">
-              <Tag className="h-4 w-4 mr-2" />
-              Categories
-            </TabsTrigger>
-            <TabsTrigger value="global_items" className="flex items-center">
+            <TabsTrigger value="library_items" className="flex items-center">
               <Globe className="h-4 w-4 mr-2" />
-              Global Items
-            </TabsTrigger>
-            <TabsTrigger value="version_control" className="flex items-center">
-              <History className="h-4 w-4 mr-2" />
-              Version Control
+              Library Items
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center">
               <Settings className="h-4 w-4 mr-2" />
@@ -541,29 +314,34 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
             </TabsTrigger>
           </TabsList>
 
-          {/* Room Libraries Tab */}
-          <TabsContent value="room_libraries" className="space-y-6">
+          {/* Room Presets Tab */}
+          <TabsContent value="room_presets" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Room Libraries</h3>
+                <h3 className="text-lg font-semibold">Room Presets</h3>
                 <p className="text-sm text-gray-600">
-                  Master templates for each room type with customizable categories and items
+                  Preset templates for each bathroom type with all FFE categories
                 </p>
               </div>
-              <Button onClick={() => updateViewState({ showAddItemModal: true })}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Room Library
-              </Button>
             </div>
 
-            {/* Room Library Grid */}
+            {/* Bathroom Presets Focus */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ROOM_TYPE_OPTIONS.map(roomType => {
-                const library = roomLibraries.find(lib => lib.roomType === roomType.value && lib.isActive)
-                const itemCount = itemTemplates.filter(item => 
-                  item.roomTypes.includes(roomType.value) || 
-                  (item.scope === 'global' && !item.excludeFromRoomTypes?.includes(roomType.value))
-                ).length
+              {ROOM_TYPE_OPTIONS.filter(room => 
+                room.value.includes('BATHROOM') || room.value === 'POWDER_ROOM'
+              ).map(roomType => {
+                // Calculate items from bathroom template
+                const bathroomCategories = [
+                  'Flooring', 'Wall', 'Ceiling', 'Doors and Handles', 'Moulding',
+                  'Lighting', 'Electric', 'Plumbing', 'Accessories'
+                ]
+                const totalItems = bathroomCategories.reduce((count, category) => {
+                  const categoryItems = {
+                    'Flooring': 4, 'Wall': 3, 'Ceiling': 2, 'Doors and Handles': 2,
+                    'Moulding': 2, 'Lighting': 3, 'Electric': 1, 'Plumbing': 5, 'Accessories': 4
+                  }
+                  return count + (categoryItems[category as keyof typeof categoryItems] || 0)
+                }, 0)
 
                 return (
                   <Card key={roomType.value} className="hover:shadow-md transition-shadow">
@@ -572,533 +350,235 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
                         <div>
                           <h4 className="font-medium">{roomType.label}</h4>
                           <p className="text-sm text-gray-600">
-                            {library ? `Version ${library.version}` : 'No template'}
+                            Comprehensive FFE Template
                           </p>
                         </div>
-                        <div className="flex space-x-1">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          Ready
+                        </Badge>
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Items</span>
-                          <Badge variant="secondary">{itemCount}</Badge>
+                          <span className="text-gray-600">Total Items</span>
+                          <Badge variant="secondary">{totalItems}</Badge>
                         </div>
-                        
-                        {library && (
-                          <>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Projects Using</span>
-                              <Badge variant="outline">{library.projectsUsing}</Badge>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Last Updated</span>
-                              <span className="text-gray-500">
-                                {new Date(library.updatedAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </>
-                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Categories</span>
+                          <Badge variant="outline">{bathroomCategories.length}</Badge>
+                        </div>
                       </div>
 
-                      {!library && (
-                        <div className="mt-4 pt-4 border-t">
-                          <Button size="sm" className="w-full" variant="outline">
-                            <Plus className="h-3 w-3 mr-2" />
-                            Create Template
-                          </Button>
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <p>✓ Special toilet logic (freestanding/wall-mount)</p>
+                          <p>✓ Multiple selection support</p>
+                          <p>✓ All bathroom essentials included</p>
                         </div>
-                      )}
+                      </div>
                     </CardContent>
                   </Card>
                 )
               })}
             </div>
-          </TabsContent>
 
-          {/* Categories Tab */}
-          <TabsContent value="categories" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">FFE Categories</h3>
-                <p className="text-sm text-gray-600">
-                  Organize FFE items into categories with room-specific configurations
-                </p>
-              </div>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Category
-              </Button>
-            </div>
-
-            {/* Categories List */}
-            <div className="space-y-4">
-              {categories.map(category => {
-                const categoryItems = itemTemplates.filter(item => item.category === category.id)
-                const isExpanded = viewState.expandedCategories.has(category.id)
-                const CategoryIcon = CATEGORY_ICONS[category.id as keyof typeof CATEGORY_ICONS] || Building2
-
-                return (
-                  <Card key={category.id} className="overflow-hidden">
-                    <CardContent className="p-0">
-                      {/* Category Header */}
-                      <div 
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
-                        onClick={() => toggleCategoryExpansion(category.id)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-6 w-6 p-0"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <CategoryIcon className="h-5 w-5 text-gray-600" />
-                          <div>
-                            <h4 className="font-medium">{category.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              {categoryItems.length} items • {category.roomTypes.length} room types
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {category.isGlobal && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Globe className="h-3 w-3 mr-1" />
-                              Global
-                            </Badge>
-                          )}
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Category Items (Expanded) */}
-                      {isExpanded && (
-                        <div className="border-t bg-gray-50/50">
-                          {categoryItems.length === 0 ? (
-                            <div className="p-6 text-center text-gray-500">
-                              <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                              <p>No items in this category</p>
-                              <Button size="sm" variant="outline" className="mt-2">
-                                <Plus className="h-3 w-3 mr-2" />
-                                Add Item
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {categoryItems.map(item => (
-                                  <ItemCard key={item.id} item={item} />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </TabsContent>
-
-          {/* Global Items Tab */}
-          <TabsContent value="global_items" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Global FFE Items</h3>
-                <p className="text-sm text-gray-600">
-                  Items that apply to all room types unless specifically excluded
-                </p>
-              </div>
-              <Dialog open={viewState.showAddItemModal} onOpenChange={(open) => updateViewState({ showAddItemModal: open })}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Global Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add Global FFE Item</DialogTitle>
-                  </DialogHeader>
-                  <FFEItemForm 
-                    formData={itemFormData}
-                    setFormData={setItemFormData}
-                    onSave={handleCreateItem}
-                    onCancel={() => {
-                      updateViewState({ showAddItemModal: false })
-                      resetItemForm()
-                    }}
-                    availableItems={itemTemplates}
-                    categories={categories}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search items..."
-                    value={viewState.searchTerm}
-                    onChange={(e) => updateViewState({ searchTerm: e.target.value })}
-                    className="pl-9"
-                  />
+            {/* Quick Stats */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+              <h4 className="font-medium text-blue-800 mb-2">Bathroom Template Features</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">9</div>
+                  <div className="text-blue-700">Categories</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">26</div>
+                  <div className="text-blue-700">Total Items</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">7</div>
+                  <div className="text-blue-700">Room Types</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">1</div>
+                  <div className="text-blue-700">Special Logic</div>
                 </div>
               </div>
-              
-              <Select value={viewState.statusFilter} onValueChange={(value: any) => updateViewState({ statusFilter: value })}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Status Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Items</SelectItem>
-                  <SelectItem value="active">Active Only</SelectItem>
-                  <SelectItem value="deprecated">Deprecated Only</SelectItem>
-                </SelectContent>
-              </Select>
+            </div>
+          </TabsContent>
 
-              <Select value={viewState.levelFilter} onValueChange={(value: any) => updateViewState({ levelFilter: value })}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Item Level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  {ITEM_LEVELS.map(level => (
-                    <SelectItem key={level.value} value={level.value}>
-                      {level.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="show-deprecated"
-                  checked={viewState.showDeprecated}
-                  onCheckedChange={(checked) => updateViewState({ showDeprecated: Boolean(checked) })}
-                />
-                <label htmlFor="show-deprecated" className="text-sm font-medium">
-                  Show deprecated items
-                </label>
+          {/* Library Items Tab */}
+          <TabsContent value="library_items" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Library Items</h3>
+                <p className="text-sm text-gray-600">
+                  View all items available in the bathroom preset library
+                </p>
               </div>
             </div>
 
-            {/* Items Grid */}
-            <div className="space-y-6">
-              {Array.from(categorizedItems.entries()).map(([categoryId, items]) => {
-                const category = categories.find(c => c.id === categoryId)
-                const CategoryIcon = CATEGORY_ICONS[categoryId as keyof typeof CATEGORY_ICONS] || Building2
-                
+            {/* Bathroom Categories */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { id: 'flooring', name: 'Flooring', items: ['Tiles', 'Hardwood', 'Vinyl', 'Carpet'], icon: Building2, color: 'bg-blue-50 border-blue-200' },
+                { id: 'wall', name: 'Wall', items: ['Tiles', 'Paint', 'Panelling'], icon: Palette, color: 'bg-green-50 border-green-200' },
+                { id: 'ceiling', name: 'Ceiling', items: ['Paint', 'Tiles'], icon: Building2, color: 'bg-purple-50 border-purple-200' },
+                { id: 'doors', name: 'Doors & Handles', items: ['Doors', 'Handles'], icon: Wrench, color: 'bg-orange-50 border-orange-200' },
+                { id: 'moulding', name: 'Moulding', items: ['Baseboard', 'Crown Moulding'], icon: Building2, color: 'bg-yellow-50 border-yellow-200' },
+                { id: 'lighting', name: 'Lighting', items: ['Spots', 'Fixture', 'LED'], icon: Lightbulb, color: 'bg-amber-50 border-amber-200' },
+                { id: 'electric', name: 'Electric', items: ['Fan'], icon: Wrench, color: 'bg-red-50 border-red-200' },
+                { id: 'plumbing', name: 'Plumbing', items: ['Bathtub', 'Shower Kit', 'Faucet', 'Drain', 'Toilet'], icon: Wrench, color: 'bg-cyan-50 border-cyan-200' },
+                { id: 'accessories', name: 'Accessories', items: ['Towel Bar', 'Tissue Holder', 'Hook', 'Towel Warmer'], icon: Settings, color: 'bg-pink-50 border-pink-200' }
+              ].map(category => {
+                const CategoryIcon = category.icon
                 return (
-                  <div key={categoryId}>
-                    <div className="flex items-center space-x-2 mb-4">
-                      <CategoryIcon className="h-5 w-5 text-gray-600" />
-                      <h4 className="text-lg font-medium">{category?.name || categoryId}</h4>
-                      <Badge variant="outline">{items.length}</Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map(item => (
-                        <ItemCard 
-                          key={item.id} 
-                          item={item}
-                          onEdit={(item) => {
-                            setEditingItem(item)
-                            setItemFormData({
-                              name: item.name,
-                              description: item.description,
-                              category: item.category,
-                              level: item.level,
-                              scope: item.scope,
-                              defaultState: item.defaultState,
-                              isRequired: item.isRequired,
-                              supportsMultiChoice: item.supportsMultiChoice,
-                              roomTypes: item.roomTypes,
-                              excludeFromRoomTypes: item.excludeFromRoomTypes || [],
-                              subItems: item.subItems || [],
-                              conditionalOn: [],
-                              mutuallyExclusiveWith: [],
-                              notes: item.notes,
-                              tags: item.tags || [],
-                              estimatedCost: item.estimatedCost,
-                              leadTimeWeeks: item.leadTimeWeeks,
-                              supplierInfo: []
-                            })
-                            updateViewState({ showEditItemModal: true })
-                          }}
-                          onDelete={(item) => {
-                            if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
-                              // Handle delete
-                              toast.success('Item deleted successfully')
-                              loadData()
-                            }
-                          }}
-                          onDuplicate={(item) => {
-                            setItemFormData({
-                              name: `${item.name} (Copy)`,
-                              description: item.description,
-                              category: item.category,
-                              level: item.level,
-                              scope: item.scope,
-                              defaultState: item.defaultState,
-                              isRequired: item.isRequired,
-                              supportsMultiChoice: item.supportsMultiChoice,
-                              roomTypes: item.roomTypes,
-                              excludeFromRoomTypes: item.excludeFromRoomTypes || [],
-                              subItems: item.subItems || [],
-                              conditionalOn: [],
-                              mutuallyExclusiveWith: [],
-                              notes: item.notes,
-                              tags: item.tags || [],
-                              estimatedCost: item.estimatedCost,
-                              leadTimeWeeks: item.leadTimeWeeks,
-                              supplierInfo: []
-                            })
-                            updateViewState({ showAddItemModal: true })
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <Card key={category.id} className={`${category.color}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <CategoryIcon className="h-5 w-5 text-gray-600" />
+                        <div>
+                          <h4 className="font-medium">{category.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {category.items.length} items
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        {category.items.map(item => (
+                          <div key={item} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-700">{item}</span>
+                            {item === 'Toilet' && (
+                              <Badge variant="outline" className="text-xs">
+                                Special Logic
+                              </Badge>
+                            )}
+                            {['Tiles', 'Spots', 'Fixture', 'LED', 'Faucet', 'Drain', 'Towel Bar', 'Hook'].includes(item) && (
+                              <Badge variant="secondary" className="text-xs">
+                                Multiple
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )
               })}
             </div>
 
-            {filteredItems.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">No items found</p>
-                <p className="text-sm mt-1">
-                  Try adjusting your search or filters, or add your first global item
-                </p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Version Control Tab */}
-          <TabsContent value="version_control" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Version Control</h3>
-                <p className="text-sm text-gray-600">
-                  Track changes to room libraries and manage version history
-                </p>
-              </div>
-              <Button variant="outline">
-                <Archive className="h-4 w-4 mr-2" />
-                Create Snapshot
-              </Button>
-            </div>
-
-            {/* Version History */}
-            <div className="space-y-4">
-              {versionHistory.map(version => (
-                <Card key={version.id}>
+            {/* Special Features */}
+            <div className="mt-6">
+              <h4 className="font-medium mb-3">Special Features</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border-2 border-blue-200 bg-blue-50">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={
-                            version.changeType === 'created' ? 'default' :
-                            version.changeType === 'updated' ? 'secondary' :
-                            version.changeType === 'deprecated' ? 'destructive' : 'outline'
-                          }>
-                            {version.changeType}
-                          </Badge>
-                          <span className="font-medium">{version.changeDescription}</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          Version {version.version} • {new Date(version.createdAt).toLocaleDateString()}
+                    <div className="flex items-start space-x-3">
+                      <Settings className="h-5 w-5 text-blue-600 mt-1" />
+                      <div>
+                        <h5 className="font-medium text-blue-800">Toilet Logic</h5>
+                        <p className="text-sm text-blue-700">
+                          Freestanding: 1 simple task<br/>
+                          Wall-mount: 4 component tasks (Carrier, Bowl, Seat, Flush Plate)
                         </p>
-                        {version.affectedProjects && version.affectedProjects.length > 0 && (
-                          <p className="text-sm text-orange-600">
-                            Affects {version.affectedProjects.length} active projects
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-3 w-3 mr-2" />
-                          View
-                        </Button>
-                        {version.changeType !== 'deprecated' && (
-                          <Button size="sm" variant="outline">
-                            <RotateCcw className="h-3 w-3 mr-2" />
-                            Restore
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                
+                <Card className="border-2 border-green-200 bg-green-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-start space-x-3">
+                      <Plus className="h-5 w-5 text-green-600 mt-1" />
+                      <div>
+                        <h5 className="font-medium text-green-800">Multiple Selection</h5>
+                        <p className="text-sm text-green-700">
+                          Many categories support multiple items (e.g., 2 types of tiles, multiple fixtures)
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold">FFE Management Settings</h3>
-              <p className="text-sm text-gray-600">
-                Configure global settings for FFE management behavior
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">FFE Settings</h3>
+                <p className="text-sm text-gray-600">
+                  Configure how FFE presets work in your projects
+                </p>
+              </div>
             </div>
 
-            {globalSettings && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Default Behaviors</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Auto-add custom items to library</label>
-                      <Checkbox checked={globalSettings.autoAddCustomItems} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Enable version control</label>
-                      <Checkbox checked={globalSettings.enableVersionControl} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Require approval for changes</label>
-                      <Checkbox checked={globalSettings.requireApprovalForChanges} />
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Settings Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Workspace Behavior</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Show all preset items by default</label>
+                    <Checkbox checked={true} disabled />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Allow multiple selections per category</label>
+                    <Checkbox checked={true} disabled />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Enable toilet special logic</label>
+                    <Checkbox checked={true} disabled />
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Advanced Features</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Enable cost tracking</label>
-                      <Checkbox checked={globalSettings.enableCostTracking} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Template Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Template Version:</span>
+                      <span className="font-medium">1.0</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Enable supplier integration</label>
-                      <Checkbox checked={globalSettings.enableSupplierIntegration} />
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Last Updated:</span>
+                      <span className="font-medium">Today</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Enable usage analytics</label>
-                      <Checkbox checked={globalSettings.enableUsageAnalytics} />
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Supported Room Types:</span>
+                      <span className="font-medium">7</span>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Categories:</span>
+                      <span className="font-medium">9</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-amber-800">Implementation Note</h4>
+                  <p className="text-sm text-amber-700 mt-1">
+                    The bathroom FFE template is designed to work across all bathroom types (Master, Powder Room, Girls, Boys, etc.).
+                    Team members will see all preset categories when working in the FFE workspace and can select what's needed for each specific bathroom.
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
+
+            </div>
           </TabsContent>
         </Tabs>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Item Card Component
-function ItemCard({ item }: { item: FFEItemTemplate }) {
-  const stateConfig = ITEM_STATES.find(s => s.value === item.defaultState)
-  const levelConfig = ITEM_LEVELS.find(l => l.value === item.level)
-  
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium truncate">{item.name}</h4>
-            <p className="text-sm text-gray-600 truncate">{levelConfig?.label}</p>
-          </div>
-          <div className="flex space-x-1">
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-              <Edit2 className="h-3 w-3" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1">
-            <Badge variant={stateConfig ? "secondary" : "outline"} className="text-xs">
-              {stateConfig?.label || item.defaultState}
-            </Badge>
-            
-            {item.scope === 'global' && (
-              <Badge variant="outline" className="text-xs">
-                <Globe className="h-2 w-2 mr-1" />
-                Global
-              </Badge>
-            )}
-            
-            {item.isRequired && (
-              <Badge variant="destructive" className="text-xs">
-                Required
-              </Badge>
-            )}
-            
-            {item.supportsMultiChoice && (
-              <Badge variant="secondary" className="text-xs">
-                Multi-Choice
-              </Badge>
-            )}
-            
-            {item.subItems && item.subItems.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {item.subItems.length} sub-items
-              </Badge>
-            )}
-          </div>
-
-          <div className="text-xs text-gray-600">
-            <p>
-              {item.scope === 'global' 
-                ? `All rooms${item.excludeFromRoomTypes?.length ? ` (excluding ${item.excludeFromRoomTypes.length})` : ''}`
-                : `${item.roomTypes.length} room types`
-              }
-            </p>
-            {item.estimatedCost && (
-              <p className="flex items-center mt-1">
-                <DollarSign className="h-3 w-3 mr-1" />
-                ${item.estimatedCost}
-              </p>
-            )}
-            {item.leadTimeWeeks && (
-              <p className="flex items-center">
-                <Clock className="h-3 w-3 mr-1" />
-                {item.leadTimeWeeks} weeks
-              </p>
-            )}
-          </div>
-
-          {!item.isActive && (
-            <div className="flex items-center text-xs text-red-600">
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Deprecated
-            </div>
-          )}
-        </div>
       </CardContent>
     </Card>
   )

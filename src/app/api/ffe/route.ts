@@ -28,6 +28,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Room ID is required' }, { status: 400 })
     }
 
+    // Get room info to know the room type
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        project: {
+          orgId: session.user.orgId
+        }
+      }
+    })
+
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+
+    // Get room-specific FFE items (created directly in this room)
     const ffeItems = await prisma.fFEItem.findMany({
       where: {
         roomId,
@@ -51,8 +66,51 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    // Get organization library items that apply to this room type
+    const libraryItems = await prisma.fFELibraryItem.findMany({
+      where: {
+        orgId: session.user.orgId,
+        roomTypes: {
+          has: room.type
+        }
+      },
+      include: {
+        createdBy: {
+          select: { name: true }
+        },
+        updatedBy: {
+          select: { name: true }
+        }
+      },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    })
+
+    // Convert library items to FFE item format and combine with room items
+    const libraryItemsAsFFE = libraryItems.map(libItem => ({
+      id: `lib-${libItem.id}`,
+      name: libItem.name,
+      category: libItem.category,
+      status: 'NOT_STARTED', // Default status for library items
+      price: null,
+      supplierLink: null,
+      notes: libItem.notes,
+      leadTime: null,
+      isFromLibrary: true,
+      libraryItemId: libItem.itemId,
+      createdBy: libItem.createdBy,
+      updatedBy: libItem.updatedBy,
+      createdAt: libItem.createdAt,
+      updatedAt: libItem.updatedAt
+    }))
+
+    // Combine all items
+    const allItems = [...ffeItems, ...libraryItemsAsFFE]
+
     // Group by category
-    const categories = ffeItems.reduce((acc: any, item) => {
+    const categories = allItems.reduce((acc: any, item) => {
       const category = item.category || 'Uncategorized'
       if (!acc[category]) {
         acc[category] = []
@@ -63,17 +121,17 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary stats
     const stats = {
-      totalItems: ffeItems.length,
-      totalBudget: ffeItems.reduce((sum, item) => sum + (item.price || 0), 0),
-      approvedItems: ffeItems.filter(item => item.status === 'APPROVED').length,
-      completedItems: ffeItems.filter(item => item.status === 'COMPLETED').length,
-      suppliers: [...new Set(ffeItems.filter(item => item.supplierLink).map(item => item.supplierLink))].length
+      totalItems: allItems.length,
+      totalBudget: allItems.reduce((sum, item) => sum + (item.price || 0), 0),
+      approvedItems: allItems.filter(item => item.status === 'APPROVED').length,
+      completedItems: allItems.filter(item => item.status === 'COMPLETED').length,
+      suppliers: [...new Set(allItems.filter(item => item.supplierLink).map(item => item.supplierLink))].length
     }
 
     return NextResponse.json({
       success: true,
       categories,
-      items: ffeItems,
+      items: allItems,
       stats
     })
 

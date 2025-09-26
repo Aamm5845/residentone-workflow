@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
-import FFEQAChecklist from '../ffe/FFEQAChecklist'
+import EnhancedFFERoomView from '../ffe/EnhancedFFERoomView'
+import BathroomFFEWorkspace from '../ffe/BathroomFFEWorkspace'
 import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
+import { isApplicableRoomType } from '@/lib/ffe/bathroom-template-clean'
 
 export default function FFEStage({ 
   stage, 
@@ -143,13 +145,22 @@ export default function FFEStage({
       <div className="flex">
         {/* Main Workspace */}
         <div className="flex-1 p-6">
-          <FFEQAChecklist
-            roomId={room.id}
-            roomType={room.type}
-            roomName={room.name}
-            onProgressUpdate={handleFFEProgress}
-            onItemUpdate={() => {}} // Reload room data if needed
-          />
+          {isApplicableRoomType(room.type) ? (
+            <BathroomFFEWorkspace
+              roomId={room.id}
+              roomType={room.type}
+              orgId={project.organization?.id || project.orgId}
+              projectId={project.id}
+              onProgressUpdate={handleFFEProgress}
+            />
+          ) : (
+            <EnhancedFFERoomView
+              roomId={room.id}
+              roomType={room.type}
+              orgId={project.organization?.id || project.orgId}
+              onProgressUpdate={handleFFEProgress}
+            />
+          )}
         </div>
 
         {/* Chat Sidebar */}

@@ -27,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import IssueList from '@/components/issues/issue-list'
 import FFELibraryManagement from '@/components/dashboard/ffe-library-management'
-import FFEManagementEnhanced from '@/components/preferences/ffe-management-enhanced'
+import EnhancedBathroomFFE from '@/components/ffe/EnhancedBathroomFFE'
 
 interface PreferencesClientProps {
   user: {
@@ -736,7 +736,57 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
           {/* FFE Library Tab */}
           {activeTab === 'ffe' && (
             <div className="space-y-6">
-              <FFEManagementEnhanced orgId={user.orgId} user={user} />
+              {/* FFE Library Management */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Package className="w-5 h-5 mr-2" />
+                    FFE Library Management
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your organization's global FFE items that appear in all projects
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FFELibraryManagement orgId={user.orgId} user={user} />
+                </CardContent>
+              </Card>
+
+              {/* Enhanced FFE System Demo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Settings className="w-5 h-5 mr-2" />
+                    Enhanced Bathroom FFE System
+                  </CardTitle>
+                  <CardDescription>
+                    Interactive demo of the new three-state FFE checklist system with conditional logic
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Info className="w-5 h-5 text-blue-600" />
+                      <h4 className="font-medium text-blue-900">Demo Mode</h4>
+                    </div>
+                    <p className="text-sm text-blue-800">
+                      This is a demonstration of the enhanced FFE system with three-state logic 
+                      (⏳ Pending, ✅ Included, 🚫 Not Needed), Standard vs Custom configuration, 
+                      and conditional dependencies. Visit <a href="/ffe-demo" className="underline font-medium">the full demo page</a> for more details.
+                    </p>
+                  </div>
+                  
+                  <EnhancedBathroomFFE
+                    roomId="demo-bathroom-preferences"
+                    roomType="BATHROOM"
+                    orgId={user.orgId}
+                    projectId="demo-project-preferences"
+                    onStatusUpdate={(status) => {
+                      console.log('FFE Status Updated:', status)
+                    }}
+                  />
+                </CardContent>
+              </Card>
             </div>
           )}
 

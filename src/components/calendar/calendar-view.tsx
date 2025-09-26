@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle, Users, Building, User, Eye } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle, Users, Building, User, Eye, Palette, Shapes, CheckCircle, FileText, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ interface CalendarTask {
   dueDate: string
   status: string
   type: 'stage' | 'approval' | 'task'
+  stageType?: string
   urgencyLevel?: 'critical' | 'high' | 'medium' | 'low'
   assignedUser?: {
     id: string
@@ -120,17 +121,42 @@ export default function CalendarView({
     return tasksByDate[dateKey] || []
   }
 
+  const getPhaseColor = (stageType?: string) => {
+    const phaseColors: Record<string, string> = {
+      'DESIGN': 'bg-purple-500',
+      'DESIGN_CONCEPT': 'bg-purple-500',
+      'THREE_D': 'bg-blue-500',
+      'CLIENT_APPROVAL': 'bg-green-500',
+      'DRAWINGS': 'bg-orange-500',
+      'FFE': 'bg-pink-500'
+    }
+    return phaseColors[stageType || ''] || 'bg-gray-500'
+  }
+
+  const getPhaseIcon = (stageType?: string) => {
+    const phaseIcons: Record<string, string> = {
+      'DESIGN': '🎨',
+      'DESIGN_CONCEPT': '🎨',
+      'THREE_D': '📊',
+      'CLIENT_APPROVAL': '✅',
+      'DRAWINGS': '📐',
+      'FFE': '🛋️'
+    }
+    return phaseIcons[stageType || ''] || '📋'
+  }
+
   const getTaskColor = (task: CalendarTask) => {
     const dueDate = new Date(task.dueDate)
     const today = new Date()
     const isOverdue = dueDate < today
     const isDueSoon = !isOverdue && (dueDate.getTime() - today.getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
     
+    // Use urgency-based colors for overdue/critical tasks
     if (isOverdue || task.urgencyLevel === 'critical') return 'bg-red-600'
     if (isDueSoon || task.urgencyLevel === 'high') return 'bg-red-400'
-    if (task.urgencyLevel === 'medium') return 'bg-yellow-500'
-    if (task.urgencyLevel === 'low') return 'bg-blue-400'
-    return 'bg-gray-400'
+    
+    // Otherwise use phase-specific colors
+    return getPhaseColor(task.stageType)
   }
 
   const getTaskTextColor = (task: CalendarTask) => {
@@ -214,15 +240,47 @@ export default function CalendarView({
           </div>
         </div>
         {filteredTasks.length > 0 && (
-          <p className="text-sm text-gray-600">
-            Showing {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} with due dates
-            {viewMode === 'mine' && currentUserName && (
-              <span className="text-purple-600"> for {currentUserName}</span>
-            )}
-            {viewMode === 'all' && validTasks.length !== filteredTasks.length && (
-              <span className="text-gray-500"> (filtered from {validTasks.length} total)</span>
-            )}
-          </p>
+          <div>
+            <p className="text-sm text-gray-600 mb-3">
+              Showing {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} with due dates
+              {viewMode === 'mine' && currentUserName && (
+                <span className="text-purple-600"> for {currentUserName}</span>
+              )}
+              {viewMode === 'all' && validTasks.length !== filteredTasks.length && (
+                <span className="text-gray-500"> (filtered from {validTasks.length} total)</span>
+              )}
+            </p>
+            {/* Phase Color Legend */}
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <span className="text-gray-600 font-medium">Phases:</span>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                <span>🎨 Design</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                <span>📊 3D Rendering</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-green-500 rounded"></div>
+                <span>✅ Client Approval</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-orange-500 rounded"></div>
+                <span>📐 Drawings</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-pink-500 rounded"></div>
+                <span>🛋️ FFE</span>
+              </div>
+              <div className="border-l pl-4 ml-2">
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-red-600 rounded"></div>
+                  <span>Overdue/Critical</span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </CardHeader>
       <CardContent>
@@ -284,8 +342,9 @@ export default function CalendarView({
                               className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${getTaskColor(task)} text-white relative`}
                               title={`${task.title} - ${task.projectName || task.project} - Due: ${formatDate(task.dueDate)}${task.assignedUser ? ` - Assigned to: ${task.assignedUser.name}` : ''}`}
                             >
-                              <div className="truncate font-medium">
-                                {task.title.length > 15 ? `${task.title.substring(0, 15)}...` : task.title}
+                              <div className="truncate font-medium flex items-center space-x-1">
+                                <span className="text-xs">{getPhaseIcon(task.stageType)}</span>
+                                <span>{task.title.length > 12 ? `${task.title.substring(0, 12)}...` : task.title}</span>
                               </div>
                               <div className="truncate text-xs opacity-90 flex items-center justify-between">
                                 <span>{task.projectName || task.project}</span>

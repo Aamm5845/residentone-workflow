@@ -36,11 +36,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const roomId = searchParams.get('roomId')
+    // orgId is optional for now - we can get it from the room's project
     const orgId = searchParams.get('orgId')
 
-    if (!roomId || !orgId) {
+    if (!roomId) {
       return NextResponse.json(
-        { error: 'Room ID and Organization ID are required' },
+        { error: 'Room ID is required' },
         { status: 400 }
       )
     }
@@ -49,12 +50,18 @@ export async function GET(request: NextRequest) {
     const room = await prisma.room.findFirst({
       where: {
         id: roomId,
-        project: {
-          orgId: orgId
-        }
+        ...(orgId && {
+          project: {
+            orgId: orgId
+          }
+        })
       },
       include: {
-        project: true
+        project: {
+          include: {
+            organization: true
+          }
+        }
       }
     })
 
@@ -67,6 +74,13 @@ export async function GET(request: NextRequest) {
 
     // Get all FFE item statuses for this room
     const ffeStatuses = await prisma.fFEItemStatus.findMany({
+      where: {
+        roomId: roomId
+      }
+    })
+
+    // Also check for bathroom workspace state
+    const bathroomState = await prisma.fFEBathroomState.findUnique({
       where: {
         roomId: roomId
       }
@@ -104,10 +118,20 @@ export async function GET(request: NextRequest) {
       lastUpdated: new Date().toISOString()
     }
 
-    return NextResponse.json({
+    // Return in format expected by both EnhancedFFERoomView and BathroomFFEWorkspace
+    const response: any = {
       success: true,
-      status: roomStatus
-    })
+      statuses: Object.values(items),  // Return as array
+      roomStatus: roomStatus
+    }
+
+    // Include bathroom workspace data if available
+    if (bathroomState) {
+      response.categorySelections = JSON.parse(bathroomState.categorySelections || '[]')
+      response.itemStatuses = JSON.parse(bathroomState.itemStatuses || '[]')
+    }
+
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Error loading FFE room status:', error)
@@ -118,7 +142,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Save/update room FFE status
+// POST: Save/update room FFE status (single item or full room)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession()
@@ -130,21 +154,32 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { roomId, orgId, projectId, status } = body
+    const { roomId, itemId, state, selectionType, customOptions, standardProduct, notes, status, workspaceState } = body
 
-    if (!roomId || !orgId || !status) {
+    if (!roomId) {
       return NextResponse.json(
-        { error: 'Room ID, Organization ID, and status are required' },
+        { error: 'Room ID is required' },
         { status: 400 }
       )
     }
 
+    // Handle different data formats:
+    // 1. Single item update (new format): itemId is defined
+    // 2. Bathroom workspace state: workspaceState is defined
+    // 3. Full room status (legacy format): status is defined
+    const isSingleItemUpdate = itemId !== undefined
+    const isBathroomWorkspaceUpdate = workspaceState !== undefined
+
     // Verify the room exists and user has access
     const room = await prisma.room.findFirst({
       where: {
-        id: roomId,
+        id: roomId
+      },
+      include: {
         project: {
-          orgId: orgId
+          include: {
+            organization: true
+          }
         }
       }
     })
@@ -168,6 +203,85 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (isSingleItemUpdate) {
+      // Handle single item update
+      const statusData = {
+        roomId: roomId,
+        itemId: itemId,
+        state: state || 'pending',
+        selectionType: selectionType || null,
+        isCustomExpanded: selectionType === 'custom',
+        customOptions: customOptions ? JSON.stringify(customOptions) : null,
+        standardProduct: standardProduct ? JSON.stringify(standardProduct) : null,
+        notes: notes || null,
+        confirmedAt: (state === 'confirmed' || state === 'included') ? new Date() : null,
+        createdById: currentUser.id,
+        updatedById: currentUser.id
+      }
+
+      // Upsert the status record
+      const savedStatus = await prisma.fFEItemStatus.upsert({
+        where: {
+          roomId_itemId: {
+            roomId: roomId,
+            itemId: itemId
+          }
+        },
+        update: {
+          ...statusData,
+          updatedById: currentUser.id,
+          updatedAt: new Date()
+        },
+        create: {
+          ...statusData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'FFE item status updated successfully',
+        status: savedStatus
+      })
+    }
+
+    if (isBathroomWorkspaceUpdate) {
+      // Handle bathroom workspace state update
+      const bathroomState = workspaceState as {
+        categorySelections: Array<{categoryId: string, selectedOptions: string[], quantities?: Record<string, number>}>,
+        itemStatuses: Array<{optionId: string, categoryId: string, status: string, conditionalSelection?: string, subTaskStatuses?: Record<string, string>, quantity?: number}>
+      }
+
+      // Save category selections as metadata
+      await prisma.fFEBathroomState.upsert({
+        where: { roomId },
+        update: {
+          categorySelections: JSON.stringify(bathroomState.categorySelections),
+          itemStatuses: JSON.stringify(bathroomState.itemStatuses),
+          completionPercentage: workspaceState.completionPercentage || 0,
+          updatedById: currentUser.id,
+          updatedAt: new Date()
+        },
+        create: {
+          roomId,
+          categorySelections: JSON.stringify(bathroomState.categorySelections),
+          itemStatuses: JSON.stringify(bathroomState.itemStatuses),
+          completionPercentage: workspaceState.completionPercentage || 0,
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Bathroom workspace state saved successfully'
+      })
+    }
+
+    // Legacy format: full room status update
     const roomStatus = status as FFERoomStatus
 
     // Save each item status

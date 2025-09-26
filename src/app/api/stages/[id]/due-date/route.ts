@@ -8,7 +8,7 @@ import { dueDateSchema, validatePhaseDueDates } from '@/lib/validation/due-date-
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -17,12 +17,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const stageId = params.id
+    const resolvedParams = await params
+    const stageId = resolvedParams.id
     const body = await request.json()
     
     // Validate request body
+    console.log('Due date update request:', { stageId, body })
+    
     const validationResult = dueDateSchema.safeParse(body)
     if (!validationResult.success) {
+      console.error('Due date validation failed:', validationResult.error.issues)
       return NextResponse.json(
         { error: 'Invalid request data', details: validationResult.error.issues },
         { status: 400 }
@@ -85,6 +89,7 @@ export async function PATCH(
       // Validate phase ordering
       const validation = validatePhaseDueDates(phasesForValidation)
       if (!validation.isValid) {
+        console.warn('Phase ordering validation failed:', validation.errors)
         return NextResponse.json(
           { 
             error: 'Invalid phase ordering', 
@@ -96,6 +101,13 @@ export async function PATCH(
     }
 
     // Update the stage's due date
+    console.log('Updating stage due date:', {
+      stageId,
+      dueDate,
+      parsedDate: dueDate ? new Date(dueDate) : null,
+      userId: session.user.id
+    })
+    
     const updatedStage = await prisma.stage.update({
       where: { id: stageId },
       data: {
@@ -132,25 +144,29 @@ export async function PATCH(
       }
     })
 
-    // Log the activity
-    await prisma.activityLog.create({
-      data: {
-        action: 'STAGE_DUE_DATE_UPDATED',
-        details: {
-          stageId: updatedStage.id,
-          stageType: updatedStage.type,
-          roomName: updatedStage.room.name || updatedStage.room.type,
-          projectName: updatedStage.room.project.name,
-          oldDueDate: existingStage.dueDate?.toISOString() || null,
-          newDueDate: updatedStage.dueDate?.toISOString() || null
-        },
-        userId: session.user.id,
-        orgId: session.user.orgId,
-        projectId: updatedStage.room.project.id,
-        roomId: updatedStage.room.id,
-        stageId: updatedStage.id
-      }
-    })
+    // Log the activity (temporarily disabled for debugging)
+    try {
+      await prisma.activityLog.create({
+        data: {
+          action: 'STAGE_DUE_DATE_UPDATED',
+          details: {
+            stageId: updatedStage.id,
+            stageType: updatedStage.type,
+            roomName: updatedStage.room.name || updatedStage.room.type,
+            projectName: updatedStage.room.project.name,
+            oldDueDate: existingStage.dueDate?.toISOString() || null,
+            newDueDate: updatedStage.dueDate?.toISOString() || null
+          },
+          userId: session.user.id,
+          orgId: session.user.orgId,
+          projectId: updatedStage.room.project.id,
+          roomId: updatedStage.room.id,
+          stageId: updatedStage.id
+        }
+      })
+    } catch (activityError) {
+      console.warn('Failed to log activity (non-critical):', activityError)
+    }
 
     return NextResponse.json({
       success: true,

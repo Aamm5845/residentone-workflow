@@ -130,7 +130,17 @@ export async function GET(
     return NextResponse.json(responseData)
   } catch (error) {
     console.error('Error fetching stage sections:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      name: error instanceof Error ? error.name : 'Unknown',
+      stageId: resolvedParams?.id
+    })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stageId: resolvedParams?.id
+    }, { status: 500 })
   }
 }
 

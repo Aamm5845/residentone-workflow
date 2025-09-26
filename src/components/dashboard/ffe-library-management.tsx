@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Plus, Edit2, Trash2, Search, Filter, Building2, Sofa, Lightbulb, Palette, Wrench, ChefHat } from 'lucide-react'
+import { Plus, Edit2, Trash2, Search, Filter, Building2, Sofa, Lightbulb, Palette, Wrench, ChefHat, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -85,6 +85,7 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
     roomTypes: [] as string[],
     isRequired: false,
     isStandard: true,
+    subItems: [] as any[],
     notes: ''
   })
 
@@ -92,11 +93,18 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
   const loadItems = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/ffe/library?orgId=${orgId}&category=${selectedCategory !== 'all' ? selectedCategory : ''}&roomType=${selectedRoomType !== 'all' ? selectedRoomType : ''}&search=${searchTerm}`)
+      console.log('Loading FFE library items for orgId:', orgId)
+      const url = `/api/ffe/library?orgId=${orgId}&category=${selectedCategory !== 'all' ? selectedCategory : ''}&roomType=${selectedRoomType !== 'all' ? selectedRoomType : ''}&search=${searchTerm}`
+      console.log('Fetching:', url)
+      const response = await fetch(url)
+      console.log('Response status:', response.status)
       if (response.ok) {
         const data = await response.json()
+        console.log('FFE library data:', data)
         setItems(data.items || [])
       } else {
+        const errorText = await response.text()
+        console.error('Failed to load FFE library:', response.status, errorText)
         toast.error('Failed to load FFE library')
       }
     } catch (error) {
@@ -113,30 +121,53 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
 
   const handleAddItem = async () => {
     try {
-      if (!formData.name || !formData.itemId || formData.roomTypes.length === 0) {
-        toast.error('Please fill in all required fields')
+      console.log('Adding FFE item:', formData)
+      if (!formData.name || formData.roomTypes.length === 0) {
+        toast.error('Please fill in Name and at least one Room Type')
         return
       }
+      
+      // Auto-generate itemId if not provided
+      const itemId = formData.itemId || formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 50)
+
+      const payload = {
+        orgId,
+        ...formData,
+        itemId
+      }
+      console.log('Sending payload:', payload)
 
       const response = await fetch('/api/ffe/library', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orgId,
-          ...formData
-        })
+        body: JSON.stringify(payload)
       })
 
+      console.log('Add item response status:', response.status)
+      
       if (response.ok) {
+        const result = await response.json()
+        console.log('Add item success:', result)
         toast.success('FFE item added to library')
         setShowAddDialog(false)
         resetForm()
         loadItems()
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to add item')
+        const errorText = await response.text()
+        console.error('Add item failed:', response.status, errorText)
+        try {
+          const error = JSON.parse(errorText)
+          toast.error(error.error || 'Failed to add item')
+        } catch {
+          toast.error(`Failed to add item: ${response.status}`)
+        }
       }
     } catch (error) {
+      console.error('Add item error:', error)
       toast.error('Failed to add item')
     }
   }
@@ -198,8 +229,76 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
       roomTypes: [],
       isRequired: false,
       isStandard: true,
+      subItems: [],
       notes: ''
     })
+  }
+
+  // Helper function to get default sub-items based on item type
+  const getDefaultSubItems = (itemName: string, category: string): any[] => {
+    const name = itemName.toLowerCase()
+    const cat = category.toLowerCase()
+    
+    // Vanity-specific sub-items
+    if (name.includes('vanity')) {
+      return [
+        { name: 'Cabinet', type: 'selection', options: ['Wood', 'MDF', 'Laminate'] },
+        { name: 'Handles', type: 'selection', options: ['Brushed Nickel', 'Matte Black', 'Chrome'] },
+        { name: 'Color', type: 'text' },
+        { name: 'Counter', type: 'selection', options: ['Quartz', 'Marble', 'Granite', 'Solid Surface'] }
+      ]
+    }
+    
+    // Kitchen island sub-items
+    if (name.includes('island')) {
+      return [
+        { name: 'Cabinet Material', type: 'selection', options: ['Wood', 'MDF', 'Plywood'] },
+        { name: 'Cabinet Color', type: 'text' },
+        { name: 'Hardware', type: 'selection', options: ['Brushed Nickel', 'Matte Black', 'Brass'] },
+        { name: 'Countertop', type: 'selection', options: ['Quartz', 'Granite', 'Butcher Block'] },
+        { name: 'Electrical', type: 'checkbox' }
+      ]
+    }
+    
+    // Sofa/seating sub-items
+    if (name.includes('sofa') || name.includes('chair') || name.includes('seating')) {
+      return [
+        { name: 'Fabric', type: 'text' },
+        { name: 'Color', type: 'text' },
+        { name: 'Legs', type: 'selection', options: ['Wood', 'Metal', 'Acrylic'] },
+        { name: 'Cushion Fill', type: 'selection', options: ['Down', 'Foam', 'Down/Foam Mix'] }
+      ]
+    }
+    
+    // Lighting sub-items
+    if (cat.includes('lighting') || name.includes('light') || name.includes('lamp')) {
+      return [
+        { name: 'Finish', type: 'selection', options: ['Brushed Nickel', 'Matte Black', 'Brass', 'Chrome'] },
+        { name: 'Shade', type: 'text' },
+        { name: 'Bulb Type', type: 'selection', options: ['LED', 'Incandescent', 'CFL'] },
+        { name: 'Dimmer Compatible', type: 'checkbox' }
+      ]
+    }
+    
+    // Default generic sub-items
+    return [
+      { name: 'Material', type: 'text' },
+      { name: 'Color', type: 'text' },
+      { name: 'Size', type: 'text' },
+      { name: 'Finish', type: 'text' }
+    ]
+  }
+
+  // Add a sub-item
+  const addSubItem = (name: string) => {
+    const existingSubItems = formData.subItems || []
+    if (!existingSubItems.find((item: any) => item.name === name)) {
+      const newSubItem = { name, type: 'text' }
+      setFormData(prev => ({
+        ...prev,
+        subItems: [...existingSubItems, newSubItem]
+      }))
+    }
   }
 
   const openEditDialog = (item: FFELibraryItem) => {
@@ -211,6 +310,7 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
       roomTypes: item.roomTypes,
       isRequired: item.isRequired,
       isStandard: item.isStandard,
+      subItems: item.subItems || [],
       notes: item.notes || ''
     })
     setShowEditDialog(true)
@@ -237,6 +337,9 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
             <CardTitle className="text-xl font-semibold">FFE Library Management</CardTitle>
             <p className="text-sm text-gray-600 mt-1">
               Manage your organization's custom FFE items that appear in all projects
+            </p>
+            <p className="text-xs text-blue-600 mt-2">
+              Debug: orgId={orgId}, items count={items.length}, loading={loading.toString()}
             </p>
           </div>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -322,12 +425,21 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
           <div className="text-center py-12 text-gray-500">
             <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">No FFE items found</p>
-            <p className="text-sm mt-1">
+            <p className="text-sm mt-1 mb-4">
               {searchTerm || selectedCategory !== 'all' || selectedRoomType !== 'all' 
                 ? 'Try adjusting your search or filters' 
                 : 'Add your first custom FFE item to get started'
               }
             </p>
+            {!searchTerm && selectedCategory === 'all' && selectedRoomType === 'all' && (
+              <Button 
+                onClick={() => setShowAddDialog(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First FFE Item
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -371,7 +483,12 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
                           <Badge variant="destructive" className="text-xs">Required</Badge>
                         )}
                         {!item.isStandard && (
-                          <Badge variant="secondary" className="text-xs">Custom</Badge>
+                          <Badge variant="secondary" className="text-xs">Expandable</Badge>
+                        )}
+                        {item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0 && (
+                          <Badge variant="outline" className="text-xs text-blue-600">
+                            {item.subItems.length} sub-items
+                          </Badge>
                         )}
                       </div>
 
@@ -448,23 +565,36 @@ function FFEItemForm({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Item ID *</label>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium mb-1">Name *</label>
           <Input
-            placeholder="e.g., custom-dining-chair"
+            placeholder="e.g., Bathroom Vanity, Kitchen Island, Living Room Sofa"
+            value={formData.name}
+            onChange={(e) => {
+              updateFormData('name', e.target.value)
+              // Auto-generate ID from name if not editing
+              if (!isEditing && e.target.value) {
+                const autoId = e.target.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9\s]/g, '')
+                  .replace(/\s+/g, '-')
+                  .substring(0, 50)
+                updateFormData('itemId', autoId)
+              }
+            }}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium mb-1">Item ID</label>
+          <Input
+            placeholder="Auto-generated from name"
             value={formData.itemId}
             onChange={(e) => updateFormData('itemId', e.target.value)}
             disabled={isEditing}
           />
-          <p className="text-xs text-gray-500 mt-1">Unique identifier for this item</p>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
-          <Input
-            placeholder="e.g., Custom Dining Chair"
-            value={formData.name}
-            onChange={(e) => updateFormData('name', e.target.value)}
-          />
+          <p className="text-xs text-gray-500 mt-1">
+            {isEditing ? 'Cannot change ID after creation' : 'Auto-generated, or enter custom ID'}
+          </p>
         </div>
       </div>
 
@@ -508,11 +638,115 @@ function FFEItemForm({
         <div className="flex items-center space-x-2">
           <Checkbox
             checked={formData.isStandard}
-            onCheckedChange={(checked) => updateFormData('isStandard', checked)}
+            onCheckedChange={(checked) => {
+              updateFormData('isStandard', checked)
+              // If switching to expandable (not standard), add default sub-items
+              if (!checked && formData.subItems.length === 0) {
+                const defaultSubItems = getDefaultSubItems(formData.name, formData.category)
+                updateFormData('subItems', defaultSubItems)
+              }
+            }}
           />
           <label className="text-sm">Standard item (simple checkbox)</label>
         </div>
       </div>
+
+      {/* Sub-items configuration - only show for expandable items */}
+      {!formData.isStandard && (
+        <div>
+          <label className="block text-sm font-medium mb-2">Sub-items (shown when "Custom" is selected)</label>
+          <div className="border rounded-lg p-4 bg-gray-50">
+            {formData.subItems && formData.subItems.length > 0 ? (
+              <div className="space-y-2">
+                {formData.subItems.map((subItem: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                    <span className="text-sm">{subItem.name}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const newSubItems = formData.subItems.filter((_: any, i: number) => i !== index)
+                        updateFormData('subItems', newSubItems)
+                      }}
+                      className="h-6 w-6 p-0 text-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mb-2">No sub-items configured</p>
+            )}
+            
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => addSubItem('Cabinet')}
+                className="text-xs"
+              >
+                + Cabinet
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => addSubItem('Handles')}
+                className="text-xs"
+              >
+                + Handles
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => addSubItem('Color')}
+                className="text-xs"
+              >
+                + Color
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => addSubItem('Counter')}
+                className="text-xs"
+              >
+                + Counter
+              </Button>
+            </div>
+            
+            <div className="flex gap-2 mt-2">
+              <Input
+                placeholder="Custom sub-item name"
+                className="flex-1 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                    addSubItem(e.currentTarget.value.trim())
+                    e.currentTarget.value = ''
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  const input = e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement
+                  if (input && input.value.trim()) {
+                    addSubItem(input.value.trim())
+                    input.value = ''
+                  }
+                }}
+                className="text-xs"
+              >
+                + Add
+              </Button>
+            </div>
+            
+            <p className="text-xs text-gray-500 mt-2">
+              These items will appear when users select "Custom" for this item
+            </p>
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium mb-1">Notes</label>

@@ -281,6 +281,12 @@ export default function BedroomDesignWorkspace({
 
   // Section completion toggle
   const toggleSectionCompletion = async (sectionType: string) => {
+    if (!workspaceData) return
+    const safeStage = {
+      ...workspaceData.stage,
+      designSections: Array.isArray(workspaceData.stage.designSections) ? workspaceData.stage.designSections : [],
+      assignedUser: workspaceData.stage.assignedUser || null
+    }
     const section = safeStage.designSections.find(s => s.type === sectionType)
     if (!section) {
       // If section doesn't exist, create it first
@@ -332,8 +338,14 @@ export default function BedroomDesignWorkspace({
   const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
     console.log('🔍 getOrCreateSectionId called with:', { sectionType, stageId })
     
-    if (!stageId) {
-      throw new Error('No stage ID available')
+    if (!stageId || !workspaceData) {
+      throw new Error('No stage ID or workspace data available')
+    }
+    
+    const safeStage = {
+      ...workspaceData.stage,
+      designSections: Array.isArray(workspaceData.stage.designSections) ? workspaceData.stage.designSections : [],
+      assignedUser: workspaceData.stage.assignedUser || null
     }
     
     // First try to find existing section

@@ -136,7 +136,7 @@ export default function EnhancedBathroomFFE({
   const [activeTab, setActiveTab] = useState<string>('Base Finishes')
 
   const template = BATHROOM_TEMPLATE
-  const categoryNames = Object.keys(template.categories)
+  const categoryNames = useMemo(() => Object.keys(template.categories), [template.categories])
 
   // Load room status
   useEffect(() => {

@@ -22,6 +22,8 @@ interface FFEItem {
   updatedBy?: { name: string }
   createdAt: string
   updatedAt: string
+  isFromLibrary?: boolean
+  libraryItemId?: string
 }
 
 interface FFEStats {
@@ -399,10 +401,21 @@ function FFEItemCard({ item, onUpdate }: { item: FFEItem; onUpdate: () => void }
   const statusColor = FFE_STATUSES.find(s => s.value === item.status)?.color || 'gray'
   
   return (
-    <div className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+    <div className={`p-3 border rounded-lg hover:bg-gray-50 transition-colors ${
+      item.isFromLibrary 
+        ? 'border-purple-200 bg-purple-50/30' 
+        : 'border-gray-200'
+    }`}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <h5 className="font-medium text-gray-900">{item.name}</h5>
+          <div className="flex items-center gap-2">
+            <h5 className="font-medium text-gray-900">{item.name}</h5>
+            {item.isFromLibrary && (
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                Library
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1">
             <span className={`px-2 py-1 text-xs font-medium rounded-full bg-${statusColor}-100 text-${statusColor}-800`}>
               {FFE_STATUSES.find(s => s.value === item.status)?.label || item.status}

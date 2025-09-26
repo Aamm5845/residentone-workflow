@@ -72,14 +72,18 @@ export default function InteractiveProjectsPage({
       project.rooms?.forEach(room => {
         room.stages?.forEach(stage => {
           if (stage.dueDate && stage.status !== 'COMPLETED') {
+            const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' : 
+                              stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+            
             tasks.push({
               id: stage.id,
-              title: `${stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} - ${room.name || room.type.replace('_', ' ')}`,
+              title: `${phaseTitle} - ${room.name || room.type.replace('_', ' ')}`,
               projectName: project.name,
               clientName: project.client.name,
               dueDate: stage.dueDate.toISOString(),
               status: stage.status,
               type: 'stage' as const,
+              stageType: stage.type,
               urgencyLevel: getPhaseUrgency(stage.dueDate, stage.status) as 'critical' | 'high' | 'medium' | 'low',
               assignedUser: (stage as any).assignedUser ? {
                 id: (stage as any).assignedUser.id,

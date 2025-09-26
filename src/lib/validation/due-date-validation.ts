@@ -2,15 +2,24 @@ import { z } from 'zod'
 
 // Zod schema for due date validation
 export const dueDateSchema = z.object({
-  dueDate: z.string().datetime().nullable().optional()
+  dueDate: z.union([
+    z.string().datetime().nullable(),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), // Accept YYYY-MM-DD format
+    z.null()
+  ]).optional()
     .refine((date) => {
       if (!date) return true // Allow null dates
-      const parsedDate = new Date(date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0) // Reset to start of day
-      return parsedDate >= today
+      try {
+        const parsedDate = new Date(date)
+        if (isNaN(parsedDate.getTime())) return false // Invalid date
+        
+        // Allow past dates for now - this can be adjusted later if needed
+        return true
+      } catch {
+        return false
+      }
     }, {
-      message: "Due date cannot be in the past"
+      message: "Invalid date format"
     })
 })
 

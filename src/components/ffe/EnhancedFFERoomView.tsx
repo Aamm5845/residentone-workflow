@@ -18,12 +18,14 @@ import {
 import { cn } from '@/lib/utils'
 import DynamicFFEItem from './DynamicFFEItem'
 import { FFERoomTemplate, getTemplateForRoomType } from '@/lib/ffe/room-templates'
+import FFEPagination from './FFEPagination'
 import toast from 'react-hot-toast'
 
 interface EnhancedFFERoomViewProps {
   roomId: string
   roomType: string
   orgId: string
+  onProgressUpdate?: (progress: number, isComplete: boolean) => void
 }
 
 interface FFEItemStatus {
@@ -39,13 +41,17 @@ interface FFEItemStatus {
 export default function EnhancedFFERoomView({ 
   roomId, 
   roomType,
-  orgId 
+  orgId,
+  onProgressUpdate 
 }: EnhancedFFERoomViewProps) {
   const [template, setTemplate] = useState<FFERoomTemplate | null>(null)
   const [itemStatuses, setItemStatuses] = useState<Record<string, FFEItemStatus>>({})
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(12)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   
   // Load room template and current statuses
   useEffect(() => {
@@ -183,6 +189,15 @@ export default function EnhancedFFERoomView({
   }
 
   const stats = getCompletionStats()
+  
+  // Update progress when stats change
+  useEffect(() => {
+    if (onProgressUpdate && stats.total > 0) {
+      const progress = Math.round(((stats.confirmed + stats.notNeeded) / stats.total) * 100)
+      const isComplete = progress === 100
+      onProgressUpdate(progress, isComplete)
+    }
+  }, [stats, onProgressUpdate])
 
   if (loading) {
     return (
@@ -287,32 +302,75 @@ export default function EnhancedFFERoomView({
 
       {/* FFE Categories and Items */}
       <div className="space-y-6">
-        {Object.entries(template.categories).map(([categoryName, items]) => (
-          <Card key={categoryName}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                {categoryName}
-                <Badge variant="outline" className="ml-2">
-                  {items.length} items
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {items.map((item) => (
-                <DynamicFFEItem
-                  key={item.id}
-                  item={item}
-                  roomId={roomId}
-                  currentStatus={itemStatuses[item.id]}
-                  onStatusUpdate={handleItemStatusUpdate}
-                  isExpanded={expandedItems.has(item.id)}
-                  onToggleExpanded={() => toggleItemExpanded(item.id)}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        ))}
+        {Object.entries(template.categories).map(([categoryName, items]) => {
+          // Pagination logic for each category
+          const totalItems = items.length
+          const totalPages = Math.ceil(totalItems / itemsPerPage)
+          const startIndex = (currentPage - 1) * itemsPerPage
+          const paginatedItems = items.slice(startIndex, startIndex + itemsPerPage)
+          
+          return (
+            <Card key={categoryName}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    {categoryName}
+                    <Badge variant="outline" className="ml-2">
+                      {items.length} items
+                    </Badge>
+                  </CardTitle>
+                  
+                  {/* View mode toggle */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                    >
+                      Grid
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                    >
+                      List
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className={cn(
+                  viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : 'space-y-4'
+                )}>
+                  {paginatedItems.map((item) => (
+                    <DynamicFFEItem
+                      key={item.id}
+                      item={item}
+                      roomId={roomId}
+                      currentStatus={itemStatuses[item.id]}
+                      onStatusUpdate={handleItemStatusUpdate}
+                      isExpanded={expandedItems.has(item.id)}
+                      onToggleExpanded={() => toggleItemExpanded(item.id)}
+                    />
+                  ))}
+                </div>
+                
+                {/* Pagination for this category */}
+                {totalItems > itemsPerPage && (
+                  <FFEPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Action Buttons */}
