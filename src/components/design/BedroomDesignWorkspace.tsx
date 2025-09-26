@@ -161,6 +161,8 @@ export default function BedroomDesignWorkspace({
   const [postingComment, setPostingComment] = useState<string | null>(null)
   const [teamMembers, setTeamMembers] = useState<Array<{id: string, name: string, email: string, role: string}>>([])
   const [previewFile, setPreviewFile] = useState<any>(null)
+  const [editingImageNote, setEditingImageNote] = useState<string | null>(null)
+  const [imageNotes, setImageNotes] = useState<Record<string, string>>({})
   
   // File input refs for each section
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -645,6 +647,31 @@ export default function BedroomDesignWorkspace({
     }
   }
 
+  // Save image note
+  const saveImageNote = async (assetId: string) => {
+    const note = imageNotes[assetId]?.trim() || ''
+    
+    try {
+      const response = await fetch(`/api/design/assets/${assetId}/note`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save image note')
+      }
+      
+      setEditingImageNote(null)
+      refreshWorkspace()
+      toast.success('Image note saved successfully')
+    } catch (error) {
+      console.error('Save image note error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save image note')
+    }
+  }
+
   // Loading states
   if (isLoading) {
     return (
@@ -891,13 +918,11 @@ export default function BedroomDesignWorkspace({
                           <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
                           <p className="text-sm text-gray-600">{sectionDef.description}</p>
                           <div className="flex items-center space-x-3 mt-2">
-                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              isCompleted 
-                                ? 'bg-green-100 text-green-800 border border-green-200' 
-                                : 'bg-yellow-50 text-yellow-800 border border-yellow-200'
-                            }`}>
-                              {isCompleted ? '✅ Complete' : '🔄 In Progress'}
-                            </div>
+                            {isCompleted && (
+                              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                ✅ Complete
+                              </div>
+                            )}
                             
                             {/* Content indicators with enhanced visibility */}
                             {section?.content && section.content.trim() && (
@@ -1045,45 +1070,114 @@ export default function BedroomDesignWorkspace({
                           </div>
                           
                           {section?.assets && Array.isArray(section.assets) && section.assets.length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                              {section.assets.map((asset) => (
-                                <div 
-                                  key={asset.id} 
-                                  className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square cursor-pointer"
-                                  onClick={() => setPreviewFile({
-                                    id: asset.id,
-                                    name: asset.title,
-                                    originalName: asset.title,
-                                    type: asset.type === 'IMAGE' ? 'image' : asset.type === 'PDF' ? 'pdf' : 'document',
-                                    url: asset.url,
-                                    size: 0,
-                                    uploadedAt: asset.createdAt,
-                                    uploadedBy: { name: 'User' },
-                                    metadata: {
-                                      sizeFormatted: '0 KB',
-                                      extension: asset.url.split('.').pop() || '',
-                                      isImage: asset.type === 'IMAGE',
-                                      isPDF: asset.type === 'PDF'
-                                    }
-                                  })}
-                                >
-                                  <img 
-                                    src={asset.url} 
-                                    alt={asset.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                  />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-                                      <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
-                                        <Eye className="w-4 h-4" />
-                                      </Button>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {section.assets.map((asset) => {
+                                const isEditingNote = editingImageNote === asset.id
+                                const currentNote = imageNotes[asset.id] || asset.userDescription || ''
+                                
+                                return (
+                                  <div key={asset.id} className="bg-gray-50 rounded-lg p-4 space-y-3">
+                                    {/* Image */}
+                                    <div 
+                                      className="group relative bg-gray-100 rounded-lg overflow-hidden aspect-square cursor-pointer"
+                                      onClick={() => setPreviewFile({
+                                        id: asset.id,
+                                        name: asset.title,
+                                        originalName: asset.title,
+                                        type: asset.type === 'IMAGE' ? 'image' : asset.type === 'PDF' ? 'pdf' : 'document',
+                                        url: asset.url,
+                                        size: 0,
+                                        uploadedAt: asset.createdAt,
+                                        uploadedBy: { name: 'User' },
+                                        metadata: {
+                                          sizeFormatted: '0 KB',
+                                          extension: asset.url.split('.').pop() || '',
+                                          isImage: asset.type === 'IMAGE',
+                                          isPDF: asset.type === 'PDF'
+                                        }
+                                      })}
+                                    >
+                                      <img 
+                                        src={asset.url} 
+                                        alt={asset.title}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                      />
+                                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+                                          <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
+                                            <Eye className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Image Title */}
+                                    <h5 className="font-medium text-gray-900 text-sm">{asset.title}</h5>
+                                    
+                                    {/* Image Notes */}
+                                    <div>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-700">Notes</span>
+                                        {!isEditingNote && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setEditingImageNote(asset.id)
+                                              setImageNotes(prev => ({ ...prev, [asset.id]: asset.userDescription || '' }))
+                                            }}
+                                            className="text-xs h-7 px-2"
+                                          >
+                                            <Edit2 className="w-3 h-3 mr-1" />
+                                            {asset.userDescription ? 'Edit' : 'Add Note'}
+                                          </Button>
+                                        )}
+                                      </div>
+                                      
+                                      {isEditingNote ? (
+                                        <div className="space-y-2">
+                                          <textarea
+                                            value={currentNote}
+                                            onChange={(e) => setImageNotes(prev => ({ ...prev, [asset.id]: e.target.value }))}
+                                            placeholder="Add a note about this image... (materials, colors, inspiration, etc.)"
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                            rows={3}
+                                          />
+                                          <div className="flex justify-end space-x-2">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => {
+                                                setEditingImageNote(null)
+                                                setImageNotes(prev => ({ ...prev, [asset.id]: asset.userDescription || '' }))
+                                              }}
+                                              className="text-xs h-7 px-2"
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => saveImageNote(asset.id)}
+                                              className="bg-purple-600 hover:bg-purple-700 text-xs h-7 px-2"
+                                            >
+                                              <Save className="w-3 h-3 mr-1" />
+                                              Save
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="bg-white rounded-md p-3 border border-gray-200">
+                                          {asset.userDescription ? (
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{asset.userDescription}</p>
+                                          ) : (
+                                            <p className="text-sm italic text-gray-500">No notes yet. Click 'Add Note' to describe this image.</p>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
-                                    <p className="text-white text-xs font-medium truncate">{asset.title}</p>
-                                  </div>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           ) : (
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">

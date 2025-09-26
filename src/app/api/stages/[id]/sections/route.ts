@@ -36,6 +36,14 @@ export async function GET(
         designSections: {
           include: {
             assets: {
+              select: {
+                id: true,
+                title: true,
+                url: true,
+                type: true,
+                userDescription: true,
+                createdAt: true
+              },
               orderBy: { createdAt: 'desc' }
             },
             comments: {
