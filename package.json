@@ -23,7 +23,9 @@
     "backup:restore": "node scripts/restore-prisma.js",
     "backup:pg": "node scripts/backup-database.js",
     "backup:restore:pg": "node scripts/restore-database.js",
-    "backup:schedule": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1 -SetupSchedule",
+    "backup:full:prisma": "node scripts/prisma-backup.js",
+    "backup:schedule": "schtasks /create /tn \"ResidentOne-DailyBackup\" /tr \"powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File 'C:\\Users\\ADMIN\\Desktop\\residentone-workflow\\scripts\\daily-backup.ps1'\" /sc daily /st 02:00 /f",
+    "backup:test": "schtasks /run /tn \"ResidentOne-DailyBackup\"",
     "backup:manual": "powershell -ExecutionPolicy Bypass -File scripts/daily-backup.ps1",
     "backup:list": "dir backups\\database-backup-*.* /O-D",
     "dev:safe": "npm run backup && npm run dev"

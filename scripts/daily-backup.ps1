@@ -33,8 +33,8 @@ function Perform-Backup {
         # Change to project directory
         Set-Location $ProjectDir
         
-        # Run the backup script
-        $Result = & node "scripts\backup-database.js" 2>&1
+        # Run the new Prisma backup script
+        $Result = & node "scripts\prisma-backup.js" 2>&1
         
         if ($LASTEXITCODE -eq 0) {
             Write-Log "✅ Backup completed successfully"
@@ -117,9 +117,9 @@ if ($SetupSchedule) {
 # Display recent backup info
 Write-Host "`n📊 Recent Backups:"
 if (Test-Path $BackupDir) {
-    Get-ChildItem "$BackupDir\database-backup-*.sql", "$BackupDir\database-backup-*.json" -ErrorAction SilentlyContinue | 
+    Get-ChildItem "$BackupDir\full-backup-*.json", "$BackupDir\database-backup-*.sql", "$BackupDir\database-backup-*.json" -ErrorAction SilentlyContinue | 
         Sort-Object LastWriteTime -Descending | 
-        Select-Object -First 5 | 
+        Select-Object -First 10 | 
         ForEach-Object {
             $Size = [math]::Round($_.Length / 1KB, 2)
             Write-Host "  📁 $($_.Name) - $Size KB - $($_.LastWriteTime.ToString('yyyy-MM-dd HH:mm'))"
