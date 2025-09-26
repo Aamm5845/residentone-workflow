@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
+import { getStageName } from '@/constants/workflow'
 
 export async function POST(
   request: NextRequest,
@@ -100,7 +101,7 @@ export async function POST(
           userId: user.id,
           type: 'MENTION',
           title: `${session.user.name} mentioned you`,
-          message: `You were mentioned in a comment on ${stage.room?.name || stage.room?.type}`,
+          message: `You were mentioned in a comment on ${getStageName(stage.type)} - ${stage.room?.name || stage.room?.type} (${stage.room.project.name})`,
           relatedId: comment.id,
           relatedType: 'COMMENT'
         }))

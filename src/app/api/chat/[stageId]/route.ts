@@ -11,6 +11,7 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { getStageName } from '@/constants/workflow'
 
 // GET /api/chat/[stageId] - Get all chat messages for a stage
 export async function GET(
@@ -183,7 +184,7 @@ export async function POST(
           userId: user.id,
           type: 'MENTION' as const,
           title: `${session.user.name} mentioned you`,
-          message: `You were mentioned in ${stage.type} - ${stage.room.name}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+          message: `You were mentioned in ${getStageName(stage.type)} - ${stage.room.name} (${stage.room.project.name}): ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
           relatedId: resolvedParams.stageId,
           relatedType: 'STAGE'
         }))
