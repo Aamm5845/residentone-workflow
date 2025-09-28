@@ -20,474 +20,98 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
 }): { subject: string; html: string } {
   const emailedAssets = data.assets.filter(asset => asset.includeInEmail);
   
-  const subject = `✨ Good News! Your ${data.roomName || 'Design'} Is Ready - ${data.projectName}`;
+  const subject = `Your ${data.roomName || 'Design'} Renderings Are Ready | ${data.projectName}`;
   
-  const html = `
-<!DOCTYPE html>
+  // Generate the first image preview and additional download links
+  const filteredAssets = data.assets?.filter(asset => asset.includeInEmail) || [];
+  const firstAsset = filteredAssets[0];
+  const additionalAssets = filteredAssets.slice(1);
+  
+  const firstImageHtml = firstAsset ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <img src="${firstAsset.url}" 
+           alt="Design Preview" 
+           style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"/>
+      <div style="margin-top: 12px;">
+        <a href="${firstAsset.url}" 
+           style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-block;"
+           target="_blank">Download High Resolution</a>
+      </div>
+    </div>` : '';
+  
+  const additionalAssetsHtml = additionalAssets.map((asset, index) => {
+    const cleanFileName = `Design Rendering ${index + 2}`;
+    return `
+      <div style="border: 1px solid #e1e5e9; border-radius: 8px; padding: 16px; margin: 12px 0; background: #fafbfc;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="flex: 1;">
+            <h4 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 14px; font-weight: 600;">${cleanFileName}</h4>
+            <p style="margin: 0; color: #64748b; font-size: 12px;">High Resolution Image</p>
+          </div>
+          <a href="${asset.url}" 
+             style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 500; margin-left: 16px;"
+             target="_blank">Download</a>
+        </div>
+      </div>`;
+  }).join('');
+  
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${subject}</title>
+    <title>Design Delivery - Meisner Interiors</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Helvetica Neue', 'Segoe UI', Roboto, Arial, sans-serif;
-            line-height: 1.6;
-            color: #2c3e50;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 0;
-            margin: 0;
-        }
-        .email-container {
-            max-width: 680px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 0;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        }
-        
-        /* Modern Header */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
-            text-align: center;
-            padding: 60px 40px;
-            position: relative;
-            overflow: hidden;
-        }
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%), linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 10px 10px;
-            opacity: 0.3;
-        }
-        .logo-container {
-            position: relative;
-            z-index: 2;
-        }
-        .meisner-logo {
-            font-size: 32px;
-            font-weight: 400;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            color: #ffffff;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .logo-subtitle {
-            font-size: 12px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 40px;
-        }
-        .header-divider {
-            width: 60px;
-            height: 2px;
-            background: rgba(255,255,255,0.8);
-            margin: 0 auto 30px;
-            border-radius: 1px;
-        }
-        .header-title {
-            font-size: 32px;
-            font-weight: 300;
-            color: #ffffff;
-            margin-bottom: 15px;
-            line-height: 1.2;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header-subtitle {
-            font-size: 18px;
-            color: rgba(255,255,255,0.9);
-            font-weight: 300;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Content Area */
-        .content {
-            padding: 50px 40px;
-        }
-        .greeting {
-            font-size: 18px;
-            color: #34495e;
-            margin-bottom: 40px;
-            line-height: 1.7;
-            text-align: left;
-        }
-        .greeting p {
-            margin-bottom: 20px;
-        }
-        .greeting strong {
-            color: #2c3e50;
-            font-weight: 600;
-        }
-        .project-info {
-            background: #faf9f7;
-            border-left: 4px solid #d4af37;
-            padding: 25px;
-            margin: 35px 0;
-            border-radius: 0 8px 8px 0;
-        }
-        .project-info h3 {
-            color: #2d2926;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .project-detail {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e8e4df;
-        }
-        .project-detail:last-child {
-            border-bottom: none;
-        }
-        .project-detail-label {
-            font-size: 14px;
-            color: #6b645c;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-        .project-detail-value {
-            font-size: 16px;
-            color: #2d2926;
-            font-weight: 400;
-        }
-        
-        /* Renderings Showcase */
-        .renderings-section {
-            margin: 50px 0;
-            background: #f8f9fa;
-            padding: 40px 0;
-            border-radius: 8px;
-        }
-        .section-title {
-            font-size: 28px;
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 12px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
-        }
-        .section-subtitle {
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 16px;
-            margin-bottom: 50px;
-            font-weight: 300;
-            line-height: 1.4;
-        }
-        .renderings-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-            margin: 40px 0;
-            padding: 0 40px;
-        }
-        .rendering-card {
-            background: #ffffff;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border: 1px solid rgba(0,0,0,0.04);
-        }
-        .rendering-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-        .rendering-image {
-            width: 100%;
-            height: 240px;
-            object-fit: cover;
-            display: block;
-        }
-        .rendering-caption {
-            padding: 24px;
-            text-align: center;
-            background: #ffffff;
-        }
-        .rendering-caption h4 {
-            color: #2c3e50;
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            letter-spacing: 0.3px;
-        }
-        .rendering-caption p {
-            color: #95a5a6;
-            font-size: 14px;
-            font-weight: 400;
-            margin: 0;
-        }
-        /* Hero Image Layout (when single image) */
-        .hero-layout {
-            text-align: center;
-            margin: 40px 0;
-        }
-        .hero-image {
-            width: 100%;
-            max-width: 600px;
-            height: auto;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            margin: 0 auto;
-        }
-        .hero-caption {
-            margin-top: 24px;
-            font-size: 18px;
-            color: #7f8c8d;
-            font-style: italic;
-            font-weight: 300;
-        }
-        
-        /* Download Section */
-        .download-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 50px 40px;
-            text-align: center;
-            border-radius: 16px;
-            margin: 50px 0;
-            color: #ffffff;
-        }
-        .download-title {
-            font-size: 26px;
-            color: #ffffff;
-            margin-bottom: 16px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
-        }
-        .download-description {
-            color: rgba(255,255,255,0.9);
-            font-size: 16px;
-            margin-bottom: 35px;
-            line-height: 1.6;
-            font-weight: 300;
-        }
-        .download-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.95);
-            color: #667eea !important;
-            text-decoration: none;
-            padding: 16px 32px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 16px;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            border: none;
-            gap: 10px;
-        }
-        .download-button:hover {
-            background: #ffffff;
-            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
-        }
-        .download-icon {
-            font-size: 18px;
-        }
-        
-        /* Closing Message */
-        .closing-section {
-            background: #f8f9fa;
-            padding: 40px;
-            text-align: center;
-            border-radius: 12px;
-            margin: 40px 0;
-        }
-        .closing-title {
-            font-size: 22px;
-            color: #2c3e50;
-            margin-bottom: 16px;
-            font-weight: 300;
-        }
-        .closing-message {
-            color: #7f8c8d;
-            font-size: 16px;
-            line-height: 1.6;
-            font-weight: 300;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
-        /* Modern Footer */
-        .footer {
-            background: #34495e;
-            padding: 50px 40px;
-            text-align: center;
-            color: #ffffff;
-        }
-        .footer-logo {
-            font-size: 24px;
-            color: #ffffff;
-            font-weight: 300;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-        }
-        .footer-tagline {
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
-            margin-bottom: 30px;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-        .footer-contact {
-            color: rgba(255,255,255,0.9);
-            font-size: 15px;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-        .footer-contact a {
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .footer-contact a:hover {
-            opacity: 0.8;
-        }
-        .footer-disclaimer {
-            color: rgba(255,255,255,0.5);
-            font-size: 12px;
-            line-height: 1.4;
-            margin-top: 30px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        /* Mobile Responsive */
-        @media only screen and (max-width: 600px) {
-            .email-container {
-                margin: 0;
-                border-radius: 0;
-            }
-            .header {
-                padding: 40px 25px;
-            }
-            .content {
-                padding: 40px 25px;
-            }
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            .cta-button-primary,
-            .cta-button-secondary {
-                width: 100%;
-                max-width: 280px;
-                margin-bottom: 15px;
-            }
-            .renderings-grid {
-                grid-template-columns: 1fr;
-            }
-            .steps-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     </style>
 </head>
-<body>
-    <div class="email-container">
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
-        <div class="header">
-            <div class="logo-container">
-                <div class="meisner-logo">MEISNER</div>
-                <div class="logo-subtitle">I N T E R I O R S</div>
-                <div class="header-divider"></div>
-                <h1 class="header-title">✨ Good News!</h1>
-                <p class="header-subtitle">Your ${data.roomName || 'Design'} Is Ready</p>
-            </div>
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+                 alt="Meisner Interiors" 
+                 style="max-width: 200px; height: auto; margin-bottom: 24px;" 
+                 onerror="console.log('Logo failed to load: ${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png');"/>
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Design Delivery</h1>
+            <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 16px; font-weight: 400;">${data.roomName || 'Your Space'} • ${data.projectName}</p>
         </div>
-
+        
         <!-- Content -->
-        <div class="content">
-            <div class="greeting">
-                <p>Dear ${data.clientName},</p>
-                <p>We're excited to share the completed renderings for your <strong>${data.roomName || 'space'}</strong>. Every detail has been carefully crafted to bring your vision to life.</p>
-            </div>
-
-            <!-- Renderings Section -->
-            <div class="renderings-section">
-                <h2 class="section-title">${data.roomName || 'Design'} Renderings</h2>
-                <p class="section-subtitle">Professional visualizations of your beautiful new space</p>
-                
-                ${emailedAssets.length === 1 ? `
-                    <!-- Single Hero Image Layout -->
-                    <div class="hero-layout">
-                        <img src="${emailedAssets[0].url}" alt="${data.roomName || 'Design'} Rendering" class="hero-image" />
-                        <p class="hero-caption">${data.roomName || 'Interior Design'} Rendering</p>
-                    </div>
-                ` : `
-                    <!-- Multiple Images Grid -->
-                    <div class="renderings-grid">
-                        ${emailedAssets.slice(0, 4).map((asset, index) => `
-                            <div class="rendering-card">
-                                <img src="${asset.url}" alt="${data.roomName || 'Design'} Rendering ${index + 1}" class="rendering-image" />
-                                <div class="rendering-caption">
-                                    <h4>View ${index + 1}</h4>
-                                    <p>Design Perspective</p>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    ${emailedAssets.length > 4 ? `<p style="text-align: center; color: #7f8c8d; margin-top: 20px; font-style: italic;">+ ${emailedAssets.length - 4} more rendering${emailedAssets.length > 5 ? 's' : ''} available for download</p>` : ''}
-                `}
-            </div>
-
-            <!-- Download Section -->
-            <div class="download-section">
-                <h2 class="download-title">View & Download All Renderings</h2>
-                <p class="download-description">
-                    Click below to view all renderings and download high-resolution versions.
-                </p>
-                <a href="${data.approvalUrl}" class="download-button">
-                    <span class="download-icon">👁</span>
-                    View All Renderings
-                </a>
-            </div>
-
-            <!-- Closing Message -->
-            <div class="closing-section">
-                <h3 class="closing-title">We look forward to finalizing this space together.</h3>
-                <p class="closing-message">
-                    Thank you for trusting us with your vision. We're here to answer any questions you may have about the design.
-                </p>
-            </div>
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Dear ${data.clientName},</p>
+            
+            <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.7;">We're excited to share the completed renderings for your <strong>${data.roomName || 'space'}</strong>. Every detail has been carefully crafted to bring your vision to life.</p>
+            
+            <!-- First Image Preview -->
+            ${firstImageHtml}
+            
+            <!-- Additional Files Section -->
+            ${additionalAssets.length > 0 ? `
+            <div style="margin: 32px 0;">
+                <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Additional Design Files</h3>
+                ${additionalAssetsHtml}
+            </div>` : ''}
+            
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Thank you for trusting us with your vision. We're here to answer any questions you may have about the design.</p>
         </div>
-
+        
         <!-- Footer -->
-        <div class="footer">
-            <div class="footer-logo">Meisner Interiors</div>
-            <div class="footer-tagline">Transforming spaces, enriching lives</div>
-            <p class="footer-contact">
-                📧 <a href="mailto:projects@meisnerinteriors.com">projects@meisnerinteriors.com</a><br>
-                📞 <a href="tel:+15147976957">514-797-6957</a>
-            </p>
-            <div class="footer-disclaimer">
-                <p>© 2025 Meisner Interiors. All rights reserved.</p>
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors</div>
+            
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
             </div>
-            ${data.trackingPixelUrl ? `<img src="${data.trackingPixelUrl}" width="1" height="1" style="display:none;" />` : ''}
+            
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+            
+            <!-- Tracking Pixel -->
+            ${data.trackingPixelUrl ? `<img src="${data.trackingPixelUrl}" width="1" height="1" style="display:none;" alt="" />` : '<!-- No tracking URL provided -->'}
         </div>
     </div>
 </body>

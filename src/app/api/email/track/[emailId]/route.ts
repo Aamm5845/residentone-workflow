@@ -7,10 +7,14 @@ export async function GET(
   { params }: { params: { emailId: string } }
 ) {
   try {
-    const { emailId } = await params
+    const { emailId } = params
+    
+    console.log('\ud83c\udfaf EMAIL TRACKING - Received request for emailId:', emailId);
     
     // Update the email log with opened timestamp
-    await prisma.emailLog.update({
+    console.log('\ud83c\udfaf TRACKING - Updating email log for ID:', emailId);
+    
+    const updatedLog = await prisma.emailLog.update({
       where: { 
         id: emailId 
       },
@@ -18,6 +22,8 @@ export async function GET(
         openedAt: new Date() 
       }
     })
+    
+    console.log('\u2705 EMAIL TRACKING - Successfully updated email log:', updatedLog.id);
 
     // Log the client approval version as opened if not already
     const emailLog = await prisma.emailLog.findUnique({
@@ -64,7 +70,13 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Error tracking email:', error)
+    console.error('❌ TRACKING ERROR - Failed to track email:', error)
+    console.error('❌ TRACKING ERROR - emailId was:', emailId)
+    console.error('❌ TRACKING ERROR - Full error details:', {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack
+    });
     
     // Still return a pixel even if tracking fails
     const pixel = Buffer.from(

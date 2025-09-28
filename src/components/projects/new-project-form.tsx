@@ -74,6 +74,8 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
   const [showCustomRoomDialog, setShowCustomRoomDialog] = useState(false)
   const [customRoomBase, setCustomRoomBase] = useState('')
   const [customRoomName, setCustomRoomName] = useState('')
+  const [showMultiCustomRoomDialog, setShowMultiCustomRoomDialog] = useState(false)
+  const [customRooms, setCustomRooms] = useState<Array<{ name: string; type: string }>>([{ name: '', type: 'OTHER' }])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [showContractorDialog, setShowContractorDialog] = useState(false)
   const [contractorType, setContractorType] = useState<'contractor' | 'subcontractor'>('contractor')
@@ -266,6 +268,39 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
       ...prev,
       selectedRooms: prev.selectedRooms.filter((_, i) => i !== index)
     }))
+  }
+
+  // Multi-custom room functions
+  const addCustomRoomField = () => {
+    setCustomRooms(prev => [...prev, { name: '', type: 'OTHER' }])
+  }
+
+  const removeCustomRoomField = (index: number) => {
+    setCustomRooms(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const updateCustomRoom = (index: number, field: 'name' | 'type', value: string) => {
+    setCustomRooms(prev => prev.map((room, i) => 
+      i === index ? { ...room, [field]: value } : room
+    ))
+  }
+
+  const saveMultipleCustomRooms = () => {
+    const validRooms = customRooms.filter(room => room.name.trim())
+    
+    const newRooms = validRooms.map(room => ({
+      type: room.type,
+      name: room.type === 'OTHER' ? 'Custom' : (ROOM_TYPES.find(r => r.value === room.type)?.label || 'Custom'),
+      customName: room.name.trim()
+    }))
+
+    setFormData(prev => ({
+      ...prev,
+      selectedRooms: [...prev.selectedRooms, ...newRooms]
+    }))
+    
+    setShowMultiCustomRoomDialog(false)
+    setCustomRooms([{ name: '', type: 'OTHER' }])
   }
 
   const handleSubmit = async () => {
@@ -620,6 +655,27 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                   </div>
                 </div>
               ))}
+              
+              {/* Custom Rooms Section */}
+              <div>
+                <h3 className="text-md font-medium text-gray-900 mb-4">Custom Rooms</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="relative">
+                    <div
+                      onClick={() => setShowMultiCustomRoomDialog(true)}
+                      className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all"
+                    >
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center mx-auto mb-2">
+                          <Plus className="w-6 h-6 text-white" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">Add Custom Rooms</p>
+                        <p className="text-xs text-gray-500 mt-1">Create your own room types</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Selected Rooms Summary */}
@@ -637,17 +693,20 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                   <div className="space-y-2">
                     {formData.selectedRooms.map((room, index) => {
                       const roomInfo = ROOM_TYPES.find(r => r.value === room.type)
+                      
+                      // Handle custom rooms with OTHER type or missing room info
+                      const DisplayIcon = roomInfo?.icon || Settings
+                      const displayColor = roomInfo?.color || 'bg-gray-500'
+                      
                       return (
                         <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
                           <div className="flex items-center space-x-3">
-                            {roomInfo && (
-                              <div className={`w-8 h-8 ${roomInfo.color} rounded flex items-center justify-center`}>
-                                <roomInfo.icon className="w-4 h-4 text-white" />
-                              </div>
-                            )}
+                            <div className={`w-8 h-8 ${displayColor} rounded flex items-center justify-center`}>
+                              <DisplayIcon className="w-4 h-4 text-white" />
+                            </div>
                             <span className="font-medium text-gray-900">
                               {room.customName || room.name}
-                              {room.customName && (
+                              {room.customName && room.type !== 'OTHER' && (
                                 <span className="text-sm text-gray-500 ml-1">({room.name})</span>
                               )}
                             </span>
@@ -706,6 +765,99 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               </div>
             )}
 
+            {/* Multi-Custom Rooms Dialog */}
+            {showMultiCustomRoomDialog && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Add Multiple Custom Rooms</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addCustomRoomField}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Room
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Create multiple custom rooms with your own names. You can optionally choose a base room type for each.
+                  </p>
+                  
+                  <div className="space-y-4 mb-6">
+                    {customRooms.map((room, index) => (
+                      <div key={index} className="p-4 bg-gray-50 rounded-lg border">
+                        <div className="flex items-start space-x-4">
+                          <div className="flex-1 space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Room Name *
+                              </label>
+                              <input
+                                type="text"
+                                value={room.name}
+                                onChange={(e) => updateCustomRoom(index, 'name', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="e.g., Server Room, Wine Cellar, Art Studio"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Base Room Type (Optional)
+                              </label>
+                              <select
+                                value={room.type}
+                                onChange={(e) => updateCustomRoom(index, 'type', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              >
+                                <option value="OTHER">Custom (No Base Type)</option>
+                                {ROOM_TYPES.map(roomType => (
+                                  <option key={roomType.value} value={roomType.value}>
+                                    {roomType.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {customRooms.length > 1 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeCustomRoomField(index)}
+                              className="text-red-600 border-red-200 hover:bg-red-50 mt-6"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowMultiCustomRoomDialog(false)
+                        setCustomRooms([{ name: '', type: 'OTHER' }])
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={saveMultipleCustomRooms}
+                      disabled={!customRooms.some(room => room.name.trim())}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Add {customRooms.filter(room => room.name.trim()).length} Room(s)
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
@@ -746,19 +898,22 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 <div className="grid grid-cols-2 gap-2">
                   {formData.selectedRooms.map((room, index) => {
                     const roomInfo = ROOM_TYPES.find(r => r.value === room.type)
-                    if (!roomInfo) return null
+                    
+                    // Handle custom rooms with OTHER type or missing room info
+                    const DisplayIcon = roomInfo?.icon || Settings
+                    const displayColor = roomInfo?.color || 'bg-gray-500'
                     
                     return (
                       <div
                         key={index}
                         className="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-lg"
                       >
-                        <div className={`w-6 h-6 ${roomInfo.color} rounded flex items-center justify-center`}>
-                          <roomInfo.icon className="w-3 h-3 text-white" />
+                        <div className={`w-6 h-6 ${displayColor} rounded flex items-center justify-center`}>
+                          <DisplayIcon className="w-3 h-3 text-white" />
                         </div>
                         <span className="text-sm font-medium text-gray-900">
                           {room.customName || room.name}
-                          {room.customName && (
+                          {room.customName && room.type !== 'OTHER' && (
                             <span className="text-xs text-gray-500 block">({room.name})</span>
                           )}
                         </span>

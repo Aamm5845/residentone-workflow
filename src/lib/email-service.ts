@@ -11,15 +11,19 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sending function using Resend only
-async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
+async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: string}> }) {
   // Get from address with multiple fallbacks
   let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
   
+  // Use your business email for better deliverability
+  fromAddress = 'projects@meisnerinteriors.com';
+  console.log('\ud83d\udce7 Using business email for better deliverability');
+  
   // If still no from address, provide a sensible default that should work with Resend
-  if (!fromAddress || fromAddress.trim() === '') {
-    fromAddress = 'noreply@resend.dev'; // Resend's default domain for testing
-    console.warn('⚠️ No EMAIL_FROM configured, using Resend default domain');
-  }
+  // if (!fromAddress || fromAddress.trim() === '') {
+  //   fromAddress = 'noreply@resend.dev'; // Resend's default domain for testing
+  //   console.warn('\u26a0\ufe0f No EMAIL_FROM configured, using Resend default domain');
+  // }
   
   console.log('📧 Attempting to send email via Resend:', {
     to: options.to,
@@ -94,18 +98,37 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     });
     
     // Build email data - be very strict about what we send to Resend
+    const trimmedFrom = fromAddress.trim();
+    const trimmedTo = options.to.trim();
+    const trimmedSubject = options.subject.trim();
+    
+    // Validate email addresses format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedFrom)) {
+      throw new Error(`Invalid FROM email address format: ${trimmedFrom}`);
+    }
+    if (!emailRegex.test(trimmedTo)) {
+      throw new Error(`Invalid TO email address format: ${trimmedTo}`);
+    }
+    
     const emailData: Record<string, any> = {
-      from: fromAddress.trim(),
-      to: options.to.trim(),
-      subject: options.subject.trim(),
-      html: options.html
+      from: trimmedFrom,
+      to: trimmedTo,
+      subject: trimmedSubject,
+      html: options.html,
+      // Add reply-to for better deliverability
+      reply_to: 'projects@meisnerinteriors.com'
     };
     
-    // Only add tags if we have valid ones - Resend doesn't like empty arrays or undefined
-    if (cleanTags.length > 0) {
-      emailData.tags = cleanTags;
+    // Add attachments if provided
+    if (options.attachments && options.attachments.length > 0) {
+      console.log('\ud83d\udcc4 Adding', options.attachments.length, 'attachments to email');
+      emailData.attachments = options.attachments;
     }
-    // Don't add tags field at all if empty - this might be causing the validation error
+    
+    // TAGS CAUSE 422 VALIDATION ERROR - PERMANENTLY DISABLED
+    console.log('🚫 Tags disabled - they cause Resend 422 validation errors');
+    // Note: Do not add emailData.tags = cleanTags; - it causes validation errors
     
     // Enhanced debugging: Log processed email data
     console.log('📤 PROCESSED EMAIL DATA FOR RESEND:', {
@@ -139,6 +162,47 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
       validationErrors.push('tags array contains invalid values');
     }
     
+    // Check for potential HTML issues that might cause "Invalid literal value" error
+    const problematicPatterns = [
+      { pattern: /alt=""/g, name: 'empty alt attributes' },
+      { pattern: /src=""/g, name: 'empty src attributes' },
+      { pattern: /href=""/g, name: 'empty href attributes' },
+      { pattern: /title=""/g, name: 'empty title attributes' },
+      { pattern: /class=""/g, name: 'empty class attributes' },
+      { pattern: /id=""/g, name: 'empty id attributes' },
+      { pattern: /style=""/g, name: 'empty style attributes' }
+    ];
+    
+    const foundIssues = [];
+    for (const { pattern, name } of problematicPatterns) {
+      if (pattern.test(emailData.html)) {
+        foundIssues.push(name);
+      }
+    }
+    
+    if (foundIssues.length > 0) {
+      console.warn('\u26a0\ufe0f HTML contains empty attributes that might cause Resend validation errors:', foundIssues);
+      
+      // Clean up empty attributes
+      emailData.html = emailData.html
+        .replace(/alt=""/g, 'alt="Image"')
+        .replace(/src=""/g, '') // Remove empty src entirely
+        .replace(/href=""/g, 'href="#"')
+        .replace(/title=""/g, '') // Remove empty title entirely
+        .replace(/class=""/g, '') // Remove empty class entirely
+        .replace(/id=""/g, '') // Remove empty id entirely
+        .replace(/style=""/g, ''); // Remove empty style entirely
+        
+      console.log('\ud83e\uddf9 Cleaned up empty HTML attributes:', foundIssues);
+    }
+    
+    // Also check for any remaining empty quotes that might be problematic
+    const emptyQuoteMatches = emailData.html.match(/=""/g);
+    if (emptyQuoteMatches) {
+      console.warn('\ud83d\udd0e Found', emptyQuoteMatches.length, 'empty quote patterns in HTML');
+      console.log('Sample empty quotes:', emptyQuoteMatches.slice(0, 5));
+    }
+    
     if (validationErrors.length > 0) {
       console.error('❌ Email validation errors:', validationErrors);
       throw new Error(`Email validation failed: ${validationErrors.join(', ')}`);
@@ -147,13 +211,100 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     // Log exact JSON payload
     console.log('📋 EXACT JSON PAYLOAD:', JSON.stringify(emailData, null, 2));
     
+    // Check ALL fields in emailData for empty strings
+    console.log('🔍 FINAL EMAIL DATA INSPECTION:', {
+      from: { value: emailData.from, isEmpty: emailData.from === '', length: emailData.from?.length },
+      to: { value: emailData.to, isEmpty: emailData.to === '', length: emailData.to?.length },
+      subject: { value: emailData.subject, isEmpty: emailData.subject === '', length: emailData.subject?.length },
+      htmlLength: emailData.html.length,
+      tags: emailData.tags,
+      allKeys: Object.keys(emailData),
+      emptyStringFields: Object.entries(emailData).filter(([key, value]) => value === '').map(([key]) => key)
+    });
+    
+    console.log('📧 Using proper email template');
+    console.log('📧 Final email data:', {
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject,
+      htmlLength: emailData.html.length,
+      hasUndefinedValues: Object.values(emailData).some(v => v === undefined),
+      hasEmptyStrings: Object.values(emailData).some(v => v === ''),
+      allKeys: Object.keys(emailData)
+    });
+    
+    console.log('\ud83d\udce7 About to send email via Resend API');
+    
     const result = await resend.emails.send(emailData);
-    console.log('✅ Email sent successfully:', result.data?.id);
+    console.log('\u2705 Email sent successfully via Resend:', {
+      messageId: result.data?.id,
+      recipientEmail: emailData.to,
+      subject: emailData.subject,
+      fromEmail: emailData.from,
+      fullResult: result
+    });
+    
+    console.log('\ud83d\udce7 EMAIL DELIVERY STATUS:', {
+      success: !!result.data?.id,
+      messageId: result.data?.id,
+      error: result.error,
+      sentTo: emailData.to,
+      sentFrom: emailData.from
+    });
     
     return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
     
   } catch (error) {
     console.error('❌ Resend send failed:', error);
+    
+    // Log the raw error object to understand its structure
+    console.error('🔍 RAW ERROR OBJECT:', {
+      error,
+      errorType: typeof error,
+      errorConstructor: error?.constructor?.name,
+      errorKeys: error ? Object.keys(error) : [],
+      errorMessage: error?.message,
+      errorString: String(error)
+    });
+    
+    // Check if it's a Resend API error with response data
+    if (error && typeof error === 'object' && 'response' in error) {
+      console.error('📊 RESEND API RESPONSE ERROR:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+      
+      // Log the exact validation errors from Resend
+      if (error.response?.data) {
+        console.error('🚨 RESEND VALIDATION DETAILS:', JSON.stringify(error.response.data, null, 2));
+      }
+    }
+    
+    // Check if it's a 422 validation error specifically
+    if (error?.response?.status === 422) {
+      console.error('🚫 422 VALIDATION ERROR - Email data that was rejected:');
+      console.error('📧 Subject:', JSON.stringify(emailData.subject));
+      console.error('📧 From:', JSON.stringify(emailData.from));
+      console.error('📧 To:', JSON.stringify(emailData.to));
+      console.error('📧 HTML length:', emailData.html?.length);
+      console.error('📧 HTML preview:', emailData.html?.substring(0, 200) + '...');
+      console.error('📧 Tags:', JSON.stringify(emailData.tags));
+      
+      // Check for common validation issues
+      const validationIssues = [];
+      if (!emailData.subject) validationIssues.push('Missing subject');
+      if (!emailData.from) validationIssues.push('Missing from');
+      if (!emailData.to) validationIssues.push('Missing to');
+      if (!emailData.html) validationIssues.push('Missing html');
+      if (emailData.subject === '') validationIssues.push('Empty subject');
+      if (emailData.from === '') validationIssues.push('Empty from');
+      if (emailData.to === '') validationIssues.push('Empty to');
+      if (emailData.html === '') validationIssues.push('Empty html');
+      
+      console.error('🔍 Potential validation issues:', validationIssues);
+    }
     
     // Log detailed error for debugging
     if (error instanceof Error) {
@@ -163,11 +314,19 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
         stack: error.stack
       });
       
-      // Check if this is the specific Resend validation error
+      // Check for specific Resend validation errors
       if (error.message.includes('validation_error') || error.message.includes('Invalid literal value')) {
-        console.error('⚠️ RESEND VALIDATION ERROR - This usually means an empty string was sent in a required field');
+        console.error('\u26a0\ufe0f RESEND VALIDATION ERROR - This usually means an empty string was sent in a required field');
         console.error('Email data that caused the error:', JSON.stringify(emailData, null, 2));
         throw new Error(`Resend validation error: ${error.message}. Check console for email data details.`);
+      }
+      
+      // Check for domain verification errors
+      if (error.message.includes('domain') || error.message.includes('verify') || error.message.includes('unauthorized')) {
+        console.error('\u26a0\ufe0f DOMAIN VERIFICATION ERROR - The FROM domain might not be verified with Resend');
+        console.error('From address causing issue:', emailData.from);
+        console.error('Try using noreply@resend.dev or verify your domain in Resend dashboard');
+        throw new Error(`Domain verification error: ${error.message}. Your domain might not be verified with Resend.`);
       }
     }
     
@@ -186,21 +345,36 @@ interface SendClientApprovalEmailOptions {
 
 export async function sendClientApprovalEmail(options: SendClientApprovalEmailOptions): Promise<string> {
   try {
-    // Validate required options
+    console.log('🚀 CLIENT APPROVAL EMAIL - Starting process with options:', {
+      versionId: options.versionId,
+      clientEmail: options.clientEmail,
+      clientName: options.clientName,
+      projectName: options.projectName,
+      assetsCount: options.assets?.length || 0,
+      assets: options.assets
+    });
+    
+    // Validate required options with detailed error messages
+    const validationErrors = [];
     if (!options.versionId || options.versionId.trim() === '') {
-      throw new Error('versionId is required');
+      validationErrors.push('versionId is required');
     }
     if (!options.clientEmail || options.clientEmail.trim() === '') {
-      throw new Error('clientEmail is required');
+      validationErrors.push('clientEmail is required');
     }
     if (!options.clientName || options.clientName.trim() === '') {
-      throw new Error('clientName is required');
+      validationErrors.push('clientName is required');
     }
     if (!options.projectName || options.projectName.trim() === '') {
-      throw new Error('projectName is required');
+      validationErrors.push('projectName is required');
     }
     if (!Array.isArray(options.assets)) {
-      throw new Error('assets must be an array');
+      validationErrors.push('assets must be an array');
+    }
+    
+    if (validationErrors.length > 0) {
+      console.error('❌ CLIENT APPROVAL EMAIL - Validation failed:', validationErrors);
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
     }
     
     console.log('✅ Client approval email options validated:', {
@@ -245,6 +419,12 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
 
     // Generate tracking pixel URL
     const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
+    
+    console.log('\ud83c\udfaf TRACKING SETUP:', {
+      emailLogId: emailLog.id,
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+      fullTrackingUrl: trackingPixelUrl
+    });
 
     // Generate a placeholder approval URL for template compatibility
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -256,8 +436,8 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       roomName: versionDetails?.stage?.room?.name || versionDetails?.stage?.room?.type,
       assetCount: options.assets.length
     });
-
-    // Generate email template with enhanced data
+    
+    // Generate email template with enhanced data - be extra careful with undefined values
     const templateData = {
       clientName: options.clientName || 'Valued Client',
       projectName: options.projectName || 'Your Project',
@@ -268,19 +448,68 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       designPhase: 'Design Showcase'
     };
     
-    // Only add projectAddress if it exists (avoid undefined)
+    // Only add projectAddress if it exists and is not empty (avoid undefined/empty strings)
     const projectAddress = versionDetails?.stage?.room?.project?.address;
-    if (projectAddress) {
+    if (projectAddress && projectAddress.trim() !== '') {
       templateData.projectAddress = projectAddress;
     }
     
-    console.log('📝 Template data being passed:', {
-      ...templateData,
+    console.log('📝 CLIENT APPROVAL TEMPLATE DATA - Detailed inspection:', {
+      clientName: {
+        value: templateData.clientName,
+        type: typeof templateData.clientName,
+        length: templateData.clientName?.length,
+        isEmpty: templateData.clientName === ''
+      },
+      projectName: {
+        value: templateData.projectName,
+        type: typeof templateData.projectName,
+        length: templateData.projectName?.length,
+        isEmpty: templateData.projectName === ''
+      },
+      roomName: {
+        value: templateData.roomName,
+        type: typeof templateData.roomName,
+        length: templateData.roomName?.length,
+        isEmpty: templateData.roomName === ''
+      },
+      approvalUrl: {
+        value: templateData.approvalUrl,
+        type: typeof templateData.approvalUrl,
+        length: templateData.approvalUrl?.length,
+        isEmpty: templateData.approvalUrl === ''
+      },
+      trackingPixelUrl: {
+        value: templateData.trackingPixelUrl,
+        type: typeof templateData.trackingPixelUrl,
+        length: templateData.trackingPixelUrl?.length,
+        isEmpty: templateData.trackingPixelUrl === ''
+      },
+      designPhase: {
+        value: templateData.designPhase,
+        type: typeof templateData.designPhase,
+        length: templateData.designPhase?.length,
+        isEmpty: templateData.designPhase === ''
+      },
       assetsCount: templateData.assets.length,
-      hasProjectAddress: !!projectAddress
+      hasProjectAddress: !!projectAddress,
+      projectAddress: projectAddress
     });
     
+    console.log('🎨 About to generate email template with:', JSON.stringify(templateData, null, 2));
+    
     const { subject, html } = generateMeisnerDeliveryEmailTemplate(templateData);
+    console.log('\u2728 EMAIL TEMPLATE GENERATED:', {
+      subjectLength: subject?.length || 0,
+      htmlLength: html?.length || 0,
+      subjectPreview: subject?.substring(0, 100),
+      subjectIsEmpty: subject === '',
+      htmlIsEmpty: html === '',
+      trackingUrlInHtml: html.includes('api/email/track'),
+      trackingUrlFound: html.match(/api\/email\/track\/[\w-]+/)?.[0] || 'Not found',
+      logoUrlInHtml: html.includes('meisnerinteriorlogo.png'),
+      logoUrlFound: html.match(/http[s]?:\/\/[^\s]+meisnerinteriorlogo\.png/)?.[0] || 'Logo URL not found'
+    });
 
     // Update email log with subject and HTML
     await prisma.emailLog.update({
@@ -297,15 +526,52 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
       // Create safe tags (avoid undefined or problematic values)
       const safeTags = ['client-approval', 'delivery'];
       if (options.projectName && typeof options.projectName === 'string') {
-        const projectTag = options.projectName
+        let projectTag = options.projectName
           .toLowerCase()
           .replace(/\s+/g, '-')
           .replace(/[^a-z0-9-_]/g, '-')
-          .substring(0, 50); // Limit length
-        if (projectTag) {
+          .replace(/-{2,}/g, '-') // Replace multiple hyphens with single
+          .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens AFTER other replacements
+        
+        // Additional cleanup - trim any remaining edge cases
+        projectTag = projectTag.trim();
+        if (projectTag.endsWith('-')) {
+          projectTag = projectTag.slice(0, -1);
+        }
+        if (projectTag.startsWith('-')) {
+          projectTag = projectTag.slice(1);
+        }
+        
+        // Limit length and final validation
+        projectTag = projectTag.substring(0, 50);
+        
+        console.log('🏷️ Tag processing:', {
+          original: options.projectName,
+          processed: projectTag,
+          isValid: projectTag.length > 0 && !projectTag.includes('--') && !projectTag.endsWith('-')
+        });
+        
+        if (projectTag && projectTag.length > 0) {
           safeTags.push(projectTag);
         }
       }
+      
+      // Assets are now embedded as download buttons in the email template
+      console.log('\ud83c\udf86 ASSETS EMBEDDED AS DOWNLOAD BUTTONS:', {
+        assetsCount: options.assets.length,
+        assets: options.assets.map(a => ({ id: a.id, url: a.url, includeInEmail: a.includeInEmail }))
+      });
+      
+      console.log('\ud83d\udce9 CLIENT APPROVAL EMAIL - About to call sendEmail with:', {
+        to: options.clientEmail,
+        subject: subject?.substring(0, 50) + '...',
+        subjectLength: subject?.length || 0,
+        htmlLength: html?.length || 0,
+        tags: safeTags,
+        subjectIsEmpty: subject === '',
+        htmlIsEmpty: html === '',
+        toIsEmpty: options.clientEmail === ''
+      });
       
       emailResult = await sendEmail({
         to: options.clientEmail,

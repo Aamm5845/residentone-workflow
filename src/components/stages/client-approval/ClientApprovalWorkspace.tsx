@@ -316,6 +316,15 @@ export default function ClientApprovalWorkspace({
       // Use the selected assets from state
       const selectedAssetIds = selectedAssets
       
+      console.log('📧 SEND TO CLIENT - Starting with data:', {
+        stageId: stage.id,
+        clientEmail: project.client?.email,
+        clientName: project.client?.name,
+        projectName: project.name,
+        selectedAssetIds,
+        selectedAssetsCount: selectedAssets.length
+      });
+      
       const response = await fetch(`/api/client-approval/${stage.id}/send-to-client`, { 
         method: 'POST',
         headers: {
@@ -324,8 +333,11 @@ export default function ClientApprovalWorkspace({
         body: JSON.stringify({ selectedAssetIds })
       })
       
+      console.log('📧 SEND TO CLIENT - Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ SEND TO CLIENT - Success:', data);
         setCurrentVersion(data.version)
         
         // Fetch email analytics after sending
@@ -338,12 +350,20 @@ export default function ClientApprovalWorkspace({
         
         alert('Email sent to client successfully!')
       } else {
-        const error = await response.json()
-        console.error('Failed to send email:', error)
-        alert(`Failed to send email: ${error.error}`)
+        const errorText = await response.text()
+        let error;
+        try {
+          error = JSON.parse(errorText)
+        } catch {
+          error = { error: errorText }
+        }
+        console.error('❌ SEND TO CLIENT - Failed with status:', response.status);
+        console.error('❌ SEND TO CLIENT - Error details:', error);
+        console.error('❌ SEND TO CLIENT - Raw response:', errorText);
+        alert(`Failed to send email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error sending to client:', error)
+      console.error('💥 SEND TO CLIENT - Exception:', error)
       alert('Failed to send email. Please try again.')
     } finally {
       setLoading(false)
@@ -361,6 +381,15 @@ export default function ClientApprovalWorkspace({
       // Use the selected assets from state
       const selectedAssetIds = selectedAssets
       
+      console.log('🔄 RESEND EMAIL - Starting with data:', {
+        stageId: stage.id,
+        clientEmail: project.client?.email,
+        clientName: project.client?.name,
+        projectName: project.name,
+        selectedAssetIds,
+        selectedAssetsCount: selectedAssets.length
+      });
+      
       const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
         method: 'POST',
         headers: {
@@ -369,8 +398,11 @@ export default function ClientApprovalWorkspace({
         body: JSON.stringify({ selectedAssetIds })
       })
       
+      console.log('🔄 RESEND EMAIL - Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ RESEND EMAIL - Success:', data);
         setCurrentVersion(data.version)
         
         // Fetch email analytics after resending
@@ -383,12 +415,20 @@ export default function ClientApprovalWorkspace({
         
         alert('Email resent to client successfully!')
       } else {
-        const error = await response.json()
-        console.error('Failed to resend email:', error)
-        alert(`Failed to resend email: ${error.error}`)
+        const errorText = await response.text()
+        let error;
+        try {
+          error = JSON.parse(errorText)
+        } catch {
+          error = { error: errorText }
+        }
+        console.error('❌ RESEND EMAIL - Failed with status:', response.status);
+        console.error('❌ RESEND EMAIL - Error details:', error);
+        console.error('❌ RESEND EMAIL - Raw response:', errorText);
+        alert(`Failed to resend email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error resending to client:', error)
+      console.error('💥 RESEND EMAIL - Exception:', error)
       alert('Failed to resend email. Please try again.')
     } finally {
       setLoading(false)

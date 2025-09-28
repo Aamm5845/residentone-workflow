@@ -111,6 +111,13 @@ export async function POST(
       if (!client?.email || !client?.name) {
         return NextResponse.json({ error: 'Client email or name not found' }, { status: 400 })
       }
+      
+      console.log('\ud83d\udce7 RESEND EMAIL - Client details:', {
+        clientId: client.id,
+        clientName: client.name,
+        clientEmail: client.email,
+        projectName: currentVersion.stage.room.project.name
+      });
 
       await sendClientApprovalEmail({
         versionId: currentVersion.id,

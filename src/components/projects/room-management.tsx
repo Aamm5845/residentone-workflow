@@ -96,6 +96,7 @@ export default function RoomManagement({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+
   const currentStageIndex = room.stages.findIndex(stage => 
     ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(stage.status)
   )
@@ -448,10 +449,12 @@ export default function RoomManagement({
               <Camera className="w-4 h-4 mr-2" />
               Take Photo
             </Button>
-            <Button variant="outline" size="sm">
-              <Users className="w-4 h-4 mr-2" />
-              Assign Team
-            </Button>
+            <div className="relative">
+              <Button variant="outline" size="sm">
+                <Users className="w-4 h-4 mr-2" />
+                Assign Team
+              </Button>
+            </div>
           </div>
         </div>
       )}
