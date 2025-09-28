@@ -100,15 +100,43 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Always ensure bathroom library exists (even if empty)
+    // Ensure all room types have their default categories
+    const roomTypeDefaultCategories = {
+      'BATHROOM': ['Flooring', 'Wall', 'Ceiling', 'Doors and Handles', 'Moulding', 'Lighting', 'Electric', 'Plumbing', 'Accessories'],
+      'KITCHEN': ['Flooring', 'Wall', 'Ceiling', 'Cabinets', 'Countertops', 'Appliances', 'Lighting', 'Plumbing', 'Hardware'],
+      'LIVING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Entertainment'],
+      'BEDROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Storage', 'Accessories'],
+      'OFFICE': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Technology', 'Storage', 'Accessories'],
+      'DINING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Storage'],
+      'LAUNDRY_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Appliances', 'Storage', 'Lighting', 'Plumbing', 'Electric'],
+      'ENTRANCE': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture'],
+      'FOYER': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture']
+    }
+
+    // Ensure all existing libraries have their default categories
+    libraries.forEach(library => {
+      const defaultCats = roomTypeDefaultCategories[library.roomType as keyof typeof roomTypeDefaultCategories] || []
+      defaultCats.forEach(catName => {
+        if (!library.categories[catName]) {
+          library.categories[catName] = []
+        }
+      })
+    })
+
+    // Always ensure bathroom library exists with default categories
     const bathroomExists = libraries.some(lib => lib.roomType === 'BATHROOM')
     if (!bathroomExists) {
+      const defaultBathroomCategories: { [key: string]: any[] } = {}
+      roomTypeDefaultCategories.BATHROOM.forEach(catName => {
+        defaultBathroomCategories[catName] = []
+      })
+      
       libraries.unshift({
         id: 'bathroom-lib',
         name: 'Bathroom Preset Library',
         roomType: 'BATHROOM',
         description: 'Bathroom FFE preset library',
-        categories: {},
+        categories: defaultBathroomCategories,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -140,18 +168,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Create library items in database for each category/item combination
+    // Create library with default categories for the room type
     const roomTypeKey = roomType.toLowerCase().replace('_', '-')
     
-    // For empty libraries, we don't create any items yet
-    // Items will be created when user adds them through the UI
+    const roomTypeDefaultCategories = {
+      'BATHROOM': ['Flooring', 'Wall', 'Ceiling', 'Doors and Handles', 'Moulding', 'Lighting', 'Electric', 'Plumbing', 'Accessories'],
+      'KITCHEN': ['Flooring', 'Wall', 'Ceiling', 'Cabinets', 'Countertops', 'Appliances', 'Lighting', 'Plumbing', 'Hardware'],
+      'LIVING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Entertainment'],
+      'BEDROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Storage', 'Accessories'],
+      'OFFICE': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Technology', 'Storage', 'Accessories'],
+      'DINING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Storage'],
+      'LAUNDRY_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Appliances', 'Storage', 'Lighting', 'Plumbing', 'Electric'],
+      'ENTRANCE': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture'],
+      'FOYER': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture']
+    }
+    
+    // Create default categories for this room type
+    const defaultCategories: { [key: string]: any[] } = {}
+    const categoryList = roomTypeDefaultCategories[roomType as keyof typeof roomTypeDefaultCategories] || roomTypeDefaultCategories.BATHROOM
+    categoryList.forEach(categoryName => {
+      defaultCategories[categoryName] = []
+    })
     
     const newLibrary = {
       id: `${roomTypeKey}-lib`,
       name,
       roomType,
       description,
-      categories: {},
+      categories: defaultCategories,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

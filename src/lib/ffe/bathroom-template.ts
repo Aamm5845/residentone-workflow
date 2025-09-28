@@ -89,7 +89,7 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
   description: 'Comprehensive FFE template for all bathroom types with preset library items',
   applicableRoomTypes: BATHROOM_ROOM_TYPES,
   categories: {
-    // All categories start empty - items will be added through the management UI
+    // Default categories with empty items - categories are pre-built, items are added via UI
     'Flooring': [],
     'Wall': [],
     'Ceiling': [],

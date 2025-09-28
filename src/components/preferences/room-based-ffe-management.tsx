@@ -352,7 +352,16 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
   // Add category to library
   const addCategoryToLibrary = async () => {
     try {
-      if (!selectedLibrary || !newCategoryName.trim()) return
+      console.log('🔧 Starting addCategoryToLibrary...')
+      console.log('selectedLibrary:', selectedLibrary)
+      console.log('newCategoryName:', newCategoryName)
+      console.log('orgId:', orgId)
+      
+      if (!selectedLibrary || !newCategoryName.trim()) {
+        console.log('❌ Missing required data')
+        toast.error('Please enter a category name')
+        return
+      }
 
       const categoryName = newCategoryName.trim()
       
@@ -370,12 +379,25 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         },
         orgId // Ensure orgId is passed for category operations
       }
+      
+      console.log('📤 Sending updated library:', updatedLibrary)
 
       const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedLibrary)
       })
+      
+      console.log('📥 API Response status:', response.status)
+      
+      let responseData
+      try {
+        responseData = await response.json()
+        console.log('📥 API Response data:', responseData)
+      } catch (jsonError) {
+        console.error('❌ Failed to parse response JSON:', jsonError)
+        responseData = { error: 'Invalid response format' }
+      }
 
       if (response.ok) {
         toast.success('Category added successfully')
@@ -383,10 +405,12 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         setNewCategoryName('')
         await loadRoomLibraries()
       } else {
-        throw new Error('Failed to add category')
+        console.error('❌ API Error:', responseData)
+        toast.error(responseData.error || `Failed to add category (${response.status})`)
       }
     } catch (error) {
-      toast.error('Failed to add category')
+      console.error('❌ addCategoryToLibrary error:', error)
+      toast.error('Failed to add category: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
