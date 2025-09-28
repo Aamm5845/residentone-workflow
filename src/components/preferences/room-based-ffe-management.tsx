@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -164,7 +165,13 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     isRequired: false,
     allowMultiple: false,
     options: [] as string[],
-    specialLogic: null as any
+    specialLogic: null as any,
+    optionsText: '',
+    hasSpecialLogic: false,
+    specialLogicType: '' as 'toilet' | 'vanity' | '',
+    standardTasks: 1,
+    customTasks: 1,
+    customSubItems: '' as string
   })
 
   // Load room libraries
@@ -241,26 +248,56 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     try {
       if (!selectedLibrary) return
 
-      const newItem: RoomLibraryItem = {
-        id: `item_${Date.now()}`,
+      // Parse options from text
+      const options = itemForm.optionsText.trim() ? 
+        itemForm.optionsText.split('\n').filter(opt => opt.trim()).map(opt => opt.trim()) : 
+        undefined
+
+      // Parse special logic
+      const specialLogic = itemForm.hasSpecialLogic && itemForm.specialLogicType ? {
+        type: itemForm.specialLogicType as 'toilet' | 'vanity',
+        standardTasks: itemForm.standardTasks,
+        customTasks: itemForm.customTasks,
+        customSubItems: itemForm.customSubItems.trim() ? 
+          itemForm.customSubItems.split('\n').filter(item => item.trim()).map(item => item.trim()) : 
+          []
+      } : undefined
+
+      const itemData: RoomLibraryItem = {
+        id: editingItem ? editingItem.id : `item_${Date.now()}`,
         name: itemForm.name,
         category: itemForm.category,
         isRequired: itemForm.isRequired,
         allowMultiple: itemForm.allowMultiple,
-        options: itemForm.options.length > 0 ? itemForm.options : undefined,
-        specialLogic: itemForm.specialLogic,
-        order: (selectedLibrary.categories[itemForm.category]?.length || 0) + 1
+        options,
+        specialLogic,
+        order: editingItem ? editingItem.order : (selectedLibrary.categories[itemForm.category]?.length || 0) + 1
+      }
+
+      let updatedCategories = { ...selectedLibrary.categories }
+      
+      if (editingItem) {
+        // Update existing item
+        updatedCategories = {
+          ...updatedCategories,
+          [itemForm.category]: updatedCategories[itemForm.category]?.map(item => 
+            item.id === editingItem.id ? itemData : item
+          ) || []
+        }
+      } else {
+        // Add new item
+        updatedCategories = {
+          ...updatedCategories,
+          [itemForm.category]: [
+            ...(updatedCategories[itemForm.category] || []),
+            itemData
+          ]
+        }
       }
 
       const updatedLibrary = {
         ...selectedLibrary,
-        categories: {
-          ...selectedLibrary.categories,
-          [itemForm.category]: [
-            ...(selectedLibrary.categories[itemForm.category] || []),
-            newItem
-          ]
-        }
+        categories: updatedCategories
       }
 
       const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
@@ -270,7 +307,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
       })
 
       if (response.ok) {
-        toast.success('Item added to library')
+        toast.success(`Item ${editingItem ? 'updated' : 'added'} successfully`)
         setShowAddItemDialog(false)
         setItemForm({
           name: '',
@@ -278,12 +315,19 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           isRequired: false,
           allowMultiple: false,
           options: [],
-          specialLogic: null
+          specialLogic: null,
+          optionsText: '',
+          hasSpecialLogic: false,
+          specialLogicType: '',
+          standardTasks: 1,
+          customTasks: 1,
+          customSubItems: ''
         })
+        setEditingItem(null)
         loadRoomLibraries()
       }
     } catch (error) {
-      toast.error('Failed to add item')
+      toast.error(`Failed to ${editingItem ? 'update' : 'add'} item`)
     }
   }
 
@@ -390,7 +434,24 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => setShowAddItemDialog(true)}
+                      onClick={() => {
+                        setEditingItem(null)
+                        setItemForm({
+                          name: '',
+                          category: '',
+                          isRequired: false,
+                          allowMultiple: false,
+                          options: [],
+                          specialLogic: null,
+                          optionsText: '',
+                          hasSpecialLogic: false,
+                          specialLogicType: '',
+                          standardTasks: 1,
+                          customTasks: 1,
+                          customSubItems: ''
+                        })
+                        setShowAddItemDialog(true)
+                      }}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Item
@@ -417,13 +478,20 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              setEditingItem(null)
                               setItemForm({
                                 name: '',
                                 category: categoryName,
                                 isRequired: false,
                                 allowMultiple: false,
                                 options: [],
-                                specialLogic: null
+                                specialLogic: null,
+                                optionsText: '',
+                                hasSpecialLogic: false,
+                                specialLogicType: '',
+                                standardTasks: 1,
+                                customTasks: 1,
+                                customSubItems: ''
                               })
                               setShowAddItemDialog(true)
                             }}
@@ -473,7 +541,13 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                       isRequired: item.isRequired,
                                       allowMultiple: item.allowMultiple,
                                       options: item.options || [],
-                                      specialLogic: item.specialLogic
+                                      specialLogic: item.specialLogic,
+                                      optionsText: item.options ? item.options.join('\n') : '',
+                                      hasSpecialLogic: !!item.specialLogic,
+                                      specialLogicType: item.specialLogic?.type || '',
+                                      standardTasks: item.specialLogic?.standardTasks || 1,
+                                      customTasks: item.specialLogic?.customTasks || 1,
+                                      customSubItems: item.specialLogic?.customSubItems ? item.specialLogic.customSubItems.join('\n') : ''
                                     })
                                     setShowAddItemDialog(true)
                                   }}
@@ -528,21 +602,22 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
 
       {/* Add/Edit Item Dialog */}
       <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader className="p-6 pb-4">
             <DialogTitle>{editingItem ? 'Edit' : 'Add'} Library Item</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="px-6 pb-6 space-y-4">
             <div>
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium block mb-2">Name</label>
               <Input
                 value={itemForm.name}
                 onChange={(e) => setItemForm({...itemForm, name: e.target.value})}
                 placeholder="Item name"
               />
             </div>
+            
             <div>
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-sm font-medium block mb-2">Category</label>
               <Select value={itemForm.category} onValueChange={(value) => setItemForm({...itemForm, category: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -554,6 +629,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                 </SelectContent>
               </Select>
             </div>
+            
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -570,8 +646,98 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                 <label className="text-sm">Allow Multiple</label>
               </div>
             </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
+            
+            <div>
+              <label className="text-sm font-medium block mb-2">Options (one per line)</label>
+              <Textarea
+                value={itemForm.optionsText}
+                onChange={(e) => setItemForm({...itemForm, optionsText: e.target.value})}
+                placeholder="Option 1\nOption 2\nOption 3\n..."
+                rows={3}
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter each option on a new line</p>
+            </div>
+            
+            <div>
+              <div className="flex items-center space-x-2 mb-3">
+                <Checkbox
+                  checked={itemForm.hasSpecialLogic}
+                  onCheckedChange={(checked) => setItemForm({...itemForm, hasSpecialLogic: !!checked})}
+                />
+                <label className="text-sm font-medium">Has Special Logic</label>
+              </div>
+              
+              {itemForm.hasSpecialLogic && (
+                <div className="space-y-3 pl-6 border-l-2 border-gray-200">
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Logic Type</label>
+                    <Select 
+                      value={itemForm.specialLogicType} 
+                      onValueChange={(value) => setItemForm({...itemForm, specialLogicType: value as 'toilet' | 'vanity'})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select logic type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="toilet">Toilet Logic</SelectItem>
+                        <SelectItem value="vanity">Vanity Logic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium block mb-2">Standard Tasks</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={itemForm.standardTasks}
+                        onChange={(e) => setItemForm({...itemForm, standardTasks: parseInt(e.target.value) || 1})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-2">Custom Tasks</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={itemForm.customTasks}
+                        onChange={(e) => setItemForm({...itemForm, customTasks: parseInt(e.target.value) || 1})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Custom Sub-Items (one per line)</label>
+                    <Textarea
+                      value={itemForm.customSubItems}
+                      onChange={(e) => setItemForm({...itemForm, customSubItems: e.target.value})}
+                      placeholder="Sub-item 1\nSub-item 2\n..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button variant="outline" onClick={() => {
+                setShowAddItemDialog(false)
+                setItemForm({
+                  name: '',
+                  category: '',
+                  isRequired: false,
+                  allowMultiple: false,
+                  options: [],
+                  specialLogic: null,
+                  optionsText: '',
+                  hasSpecialLogic: false,
+                  specialLogicType: '',
+                  standardTasks: 1,
+                  customTasks: 1,
+                  customSubItems: ''
+                })
+                setEditingItem(null)
+              }}>
                 Cancel
               </Button>
               <Button onClick={addItemToLibrary}>
@@ -584,13 +750,13 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
 
       {/* Edit Library Dialog */}
       <Dialog open={showEditLibraryDialog} onOpenChange={setShowEditLibraryDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="p-6 pb-4">
             <DialogTitle>{selectedLibrary ? 'Edit' : 'Create'} Room Library</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="px-6 pb-6 space-y-4">
             <div>
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium block mb-2">Name</label>
               <Input
                 value={libraryForm.name}
                 onChange={(e) => setLibraryForm({...libraryForm, name: e.target.value})}
@@ -598,7 +764,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Room Type</label>
+              <label className="text-sm font-medium block mb-2">Room Type</label>
               <Select 
                 value={libraryForm.roomType} 
                 onValueChange={(value) => setLibraryForm({...libraryForm, roomType: value})}
@@ -614,14 +780,15 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Description</label>
-              <Input
+              <label className="text-sm font-medium block mb-2">Description</label>
+              <Textarea
                 value={libraryForm.description}
                 onChange={(e) => setLibraryForm({...libraryForm, description: e.target.value})}
                 placeholder="Library description"
+                rows={2}
               />
             </div>
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-2 pt-4">
               <Button variant="outline" onClick={() => setShowEditLibraryDialog(false)}>
                 Cancel
               </Button>

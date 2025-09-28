@@ -181,7 +181,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
         <StatCard
           label="Active Projects"
           value={isLoading ? '...' : statsData?.activeProjects?.toString() || '0'}
-          icon={FolderOpen}
+          icon={Briefcase}
           color="bg-blue-500"
           isLoading={isLoading}
           href="/projects?status=active"
@@ -189,7 +189,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
         <StatCard
           label="Active Rooms"
           value={isLoading ? '...' : statsData?.activeRooms?.toString() || '0'}
-          icon={Users}
+          icon={Layers3}
           color="bg-green-500"
           isLoading={isLoading}
           href="/rooms?status=active"
