@@ -66,12 +66,40 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    // Convert room type to library format
+    const roomTypeMapping: { [key: string]: string } = {
+      'BATHROOM': 'bathroom',
+      'MASTER_BATHROOM': 'bathroom',
+      'FAMILY_BATHROOM': 'bathroom',
+      'GUEST_BATHROOM': 'bathroom',
+      'GIRLS_BATHROOM': 'bathroom',
+      'BOYS_BATHROOM': 'bathroom',
+      'POWDER_ROOM': 'bathroom',
+      'KITCHEN': 'kitchen',
+      'LIVING_ROOM': 'living-room',
+      'BEDROOM': 'bedroom',
+      'MASTER_BEDROOM': 'bedroom',
+      'GUEST_BEDROOM': 'bedroom',
+      'GIRLS_ROOM': 'bedroom',
+      'BOYS_ROOM': 'bedroom',
+      'DINING_ROOM': 'dining-room',
+      'OFFICE': 'office',
+      'STUDY_ROOM': 'office',
+      'ENTRANCE': 'entrance',
+      'FOYER': 'foyer',
+      'LAUNDRY_ROOM': 'laundry-room',
+      'PLAYROOM': 'playroom'
+    }
+    
+    const libraryRoomType = roomTypeMapping[room.type] || room.type.toLowerCase().replace('_', '-')
+    console.log('🔍 Room type mapping:', room.type, '→', libraryRoomType)
+    
     // Get organization library items that apply to this room type
     const libraryItems = await prisma.fFELibraryItem.findMany({
       where: {
         orgId: session.user.orgId,
         roomTypes: {
-          has: room.type
+          has: libraryRoomType
         }
       },
       include: {

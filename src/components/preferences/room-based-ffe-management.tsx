@@ -949,7 +949,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                   setItemForm({...itemForm, logicOptions: newLogicOptions})
                                 }}
                                 placeholder="Choose Size\nSelect Color\nPick Finish\nSpecify Dimensions"
-                                rows={3}
+                                rows={4}
+                                className="min-h-[100px] resize-y"
+                                style={{ whiteSpace: 'pre-wrap' }}
                               />
                               <p className="text-xs text-gray-500 mt-1">
                                 When "{optionName}" is selected, these tasks will be created for completion.
