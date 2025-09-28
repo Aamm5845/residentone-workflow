@@ -72,6 +72,10 @@ export default function ProjectDetailClient({ project, rooms: initialRooms }: Pr
     ))
   }
 
+  const handleRoomDelete = (roomId: string) => {
+    setRooms(prev => prev.filter(room => room.id !== roomId))
+  }
+
   const handleStageStart = async (stageId: string) => {
     try {
       const response = await fetch(`/api/stages/${stageId}`, {
@@ -169,6 +173,7 @@ export default function ProjectDetailClient({ project, rooms: initialRooms }: Pr
               onRoomUpdate={handleRoomUpdate}
               onStageStart={handleStageStart}
               onStageComplete={handleStageComplete}
+              onRoomDelete={handleRoomDelete}
             />
           ))}
         </div>

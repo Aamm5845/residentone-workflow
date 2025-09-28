@@ -100,14 +100,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 1,
         allowMultiple: true,
         defaultState: 'pending',
-        options: [
-          'Ceramic Tiles',
-          'Porcelain Tiles',
-          'Natural Stone',
-          'Marble Tiles',
-          'Travertine',
-          'Mosaic Tiles'
-        ]
       },
       {
         id: 'hardwood',
@@ -118,11 +110,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 2,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Waterproof Engineered Hardwood',
-          'Luxury Vinyl Plank (Wood Look)',
-          'Bamboo Flooring'
-        ]
       },
       {
         id: 'vinyl',
@@ -133,12 +120,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 3,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Luxury Vinyl Tile (LVT)',
-          'Luxury Vinyl Plank (LVP)',
-          'Sheet Vinyl',
-          'Vinyl Composition Tile (VCT)'
-        ]
       },
       {
         id: 'carpet',
@@ -149,11 +130,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 4,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Waterproof Carpet Tiles',
-          'Marine-Grade Carpet',
-          'Bath Mat/Rug System'
-        ]
       }
     ],
 
@@ -168,14 +144,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 1,
         allowMultiple: true,
         defaultState: 'pending',
-        options: [
-          'Subway Tiles',
-          'Large Format Tiles',
-          'Mosaic Tiles',
-          'Natural Stone Tiles',
-          'Glass Tiles',
-          'Ceramic Wall Tiles'
-        ]
       },
       {
         id: 'wall_paint',
@@ -186,13 +154,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 2,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Moisture-Resistant Paint',
-          'Semi-Gloss Paint',
-          'Satin Finish Paint',
-          'Bathroom-Specific Paint',
-          'Antimicrobial Paint'
-        ]
       },
       {
         id: 'wall_panelling',
@@ -203,13 +164,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 3,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Wainscoting',
-          'Beadboard Panelling',
-          'Waterproof Wood Panelling',
-          'PVC Panelling',
-          'Board and Batten'
-        ]
       }
     ],
 
@@ -224,12 +178,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 1,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Flat Ceiling Paint',
-          'Moisture-Resistant Ceiling Paint',
-          'Mildew-Resistant Paint',
-          'Textured Ceiling Paint'
-        ]
       },
       {
         id: 'ceiling_tiles',
@@ -240,12 +188,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 2,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Acoustic Ceiling Tiles',
-          'Waterproof Ceiling Tiles',
-          'Decorative Ceiling Tiles',
-          'Suspended Ceiling System'
-        ]
       }
     ],
 
@@ -260,13 +202,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 1,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Solid Core Door',
-          'Hollow Core Door',
-          'Glass Panel Door',
-          'Pocket Door',
-          'Barn Door'
-        ]
       },
       {
         id: 'handles',
@@ -277,13 +212,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 2,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Privacy Door Handle',
-          'Lever Handle with Lock',
-          'Knob with Privacy Lock',
-          'Smart Door Lock',
-          'Barn Door Hardware'
-        ]
       }
     ],
 
@@ -298,13 +226,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 1,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Standard Baseboard',
-          'Tall Baseboard',
-          'Waterproof MDF Baseboard',
-          'PVC Baseboard',
-          'Decorative Baseboard'
-        ]
       },
       {
         id: 'crown_moulding',
@@ -315,12 +236,6 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
         order: 2,
         allowMultiple: false,
         defaultState: 'pending',
-        options: [
-          'Simple Crown Moulding',
-          'Decorative Crown Moulding',
-          'Cove Moulding',
-          'Moisture-Resistant Crown Moulding'
-        ]
       }
     ],
 

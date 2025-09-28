@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import IssueList from '@/components/issues/issue-list'
 import RoomBasedFFEManagement from '@/components/preferences/room-based-ffe-management'
+import ContractorsManagement from '@/components/preferences/contractors-management'
 
 interface PreferencesClientProps {
   user: {
@@ -325,6 +326,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const tabs = [
     { id: 'backup', name: 'Backup & Recovery', icon: Database },
     { id: 'database', name: 'Database Statistics', icon: RefreshCw },
+    { id: 'contractors', name: 'Contractors', icon: Building },
     { id: 'ffe', name: 'FFE Management', icon: Package },
     { id: 'issues', name: 'Issues', icon: Bug },
     { id: 'account', name: 'Account Settings', icon: User },
@@ -729,6 +731,13 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Contractors Tab */}
+          {activeTab === 'contractors' && (
+            <div className="space-y-6">
+              <ContractorsManagement orgId={user.orgId} user={user} />
             </div>
           )}
 

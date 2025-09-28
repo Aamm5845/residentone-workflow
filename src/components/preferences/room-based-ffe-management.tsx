@@ -37,12 +37,12 @@ interface RoomLibraryItem {
   category: string
   isRequired: boolean
   allowMultiple: boolean
-  options?: string[]
+  options?: string[] // Basic options for simple items
   specialLogic?: {
-    triggerOption: string // The option that triggers additional tasks (e.g., "Custom", "Wall-Mount", etc.)
-    triggerTasks: number // How many additional tasks to create when this option is selected
-    triggerSubItems?: string[] // Names of the additional sub-tasks
-    standardTasks?: number // Tasks for standard/default selection
+    logicOptions: Array<{
+      optionName: string // e.g., "Porcelain", "Mosaic", "Custom"
+      createItems: string[] // Items/tasks to create when this option is selected
+    }>
   }
   order: number
 }
@@ -171,10 +171,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     specialLogic: null as any,
     optionsText: '',
     hasSpecialLogic: false,
-    triggerOption: '',
-    standardTasks: 1,
-    triggerTasks: 1,
-    triggerSubItems: '' as string
+    logicOptions: [] as Array<{
+      optionName: string
+      createItems: string[]
+    }>
   })
 
   // Load room libraries
@@ -257,13 +257,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         undefined
 
       // Parse special logic
-      const specialLogic = itemForm.hasSpecialLogic && itemForm.triggerOption.trim() ? {
-        triggerOption: itemForm.triggerOption.trim(),
-        triggerTasks: itemForm.triggerTasks,
-        triggerSubItems: itemForm.triggerSubItems.trim() ? 
-          itemForm.triggerSubItems.split('\n').filter(item => item.trim()).map(item => item.trim()) : 
-          undefined,
-        standardTasks: itemForm.standardTasks
+      const specialLogic = itemForm.hasSpecialLogic && itemForm.logicOptions.length > 0 ? {
+        logicOptions: itemForm.logicOptions.filter(option => 
+          option.optionName.trim() && option.createItems.length > 0
+        )
       } : undefined
 
       const itemData: RoomLibraryItem = {
@@ -321,10 +318,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           specialLogic: null,
           optionsText: '',
           hasSpecialLogic: false,
-          triggerOption: '',
-          standardTasks: 1,
-          triggerTasks: 1,
-          triggerSubItems: ''
+          logicOptions: []
         })
         setEditingItem(null)
         loadRoomLibraries()
@@ -529,15 +523,12 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                           category: '',
                           isRequired: false,
                           allowMultiple: false,
-                                options: [],
-                                specialLogic: null,
-                                optionsText: '',
-                                hasSpecialLogic: false,
-                                triggerOption: '',
-                                standardTasks: 1,
-                                triggerTasks: 1,
-                                triggerSubItems: ''
-                       })
+                          options: [],
+                          specialLogic: null,
+                          optionsText: '',
+                          hasSpecialLogic: false,
+                          logicOptions: []
+                        })
                         setShowAddItemDialog(true)
                       }}
                     >
@@ -577,10 +568,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                   specialLogic: null,
                                   optionsText: '',
                                   hasSpecialLogic: false,
-                                  specialLogicType: '',
-                                  standardTasks: 1,
-                                  customTasks: 1,
-                                  customSubItems: ''
+                                  logicOptions: []
                                 })
                                 setShowAddItemDialog(true)
                               }}
@@ -618,7 +606,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                     )}
                                     {item.specialLogic && (
                                       <Badge variant="outline" className="text-xs">
-                                        Special Logic: {item.specialLogic.triggerOption}
+                                        Logic: {item.specialLogic.logicOptions?.length || 0} options
                                       </Badge>
                                     )}
                                   </div>
@@ -642,10 +630,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                       specialLogic: item.specialLogic,
                                       optionsText: item.options ? item.options.join('\n') : '',
                                       hasSpecialLogic: !!item.specialLogic,
-                                      triggerOption: item.specialLogic?.triggerOption || '',
-                                      standardTasks: item.specialLogic?.standardTasks || 1,
-                                      triggerTasks: item.specialLogic?.triggerTasks || 1,
-                                      triggerSubItems: item.specialLogic?.triggerSubItems ? item.specialLogic.triggerSubItems.join('\n') : ''
+                                      logicOptions: item.specialLogic?.logicOptions || []
                                     })
                                     setShowAddItemDialog(true)
                                   }}
@@ -766,54 +751,86 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               </div>
               
               {itemForm.hasSpecialLogic && (
-                <div className="space-y-3 pl-6 border-l-2 border-gray-200">
-                  <div>
-                    <label className="text-sm font-medium block mb-2">Trigger Option</label>
-                    <Input
-                      value={itemForm.triggerOption}
-                      onChange={(e) => setItemForm({...itemForm, triggerOption: e.target.value})}
-                      placeholder="e.g., Custom, Wall-Mount, Premium, etc."
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      The option that will create additional tasks when selected
+                <div className="space-y-4 pl-6 border-l-2 border-gray-200">
+                  <div className="bg-blue-50 p-3 rounded-md">
+                    <p className="text-sm font-medium text-blue-900 mb-1">Special Logic Setup</p>
+                    <p className="text-xs text-blue-700">
+                      Define options that will create additional tasks in the completion phase.
                     </p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm font-medium block mb-2">Standard Tasks</label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={itemForm.standardTasks}
-                        onChange={(e) => setItemForm({...itemForm, standardTasks: parseInt(e.target.value) || 1})}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Tasks for standard options</p>
+                  {itemForm.logicOptions.map((option, index) => (
+                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-sm">Option {index + 1}</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newOptions = [...itemForm.logicOptions]
+                            newOptions.splice(index, 1)
+                            setItemForm({...itemForm, logicOptions: newOptions})
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium block mb-2">Option Name</label>
+                          <Input
+                            value={option.optionName}
+                            onChange={(e) => {
+                              const newOptions = [...itemForm.logicOptions]
+                              newOptions[index].optionName = e.target.value
+                              setItemForm({...itemForm, logicOptions: newOptions})
+                            }}
+                            placeholder="e.g., Porcelain, Mosaic, Custom"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium block mb-2">Items to Create (one per line)</label>
+                          <Textarea
+                            value={option.createItems.join('\n')}
+                            onChange={(e) => {
+                              const newOptions = [...itemForm.logicOptions]
+                              newOptions[index].createItems = e.target.value
+                                .split('\n')
+                                .filter(item => item.trim())
+                                .map(item => item.trim())
+                              setItemForm({...itemForm, logicOptions: newOptions})
+                            }}
+                            placeholder="Choose Size\nSelect Color\nPick Finish"
+                            rows={3}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Tasks that will be created when this option is selected
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium block mb-2">Trigger Tasks</label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={itemForm.triggerTasks}
-                        onChange={(e) => setItemForm({...itemForm, triggerTasks: parseInt(e.target.value) || 1})}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Tasks when trigger option is selected</p>
-                    </div>
-                  </div>
+                  ))}
                   
-                  <div>
-                    <label className="text-sm font-medium block mb-2">Additional Sub-Tasks (one per line)</label>
-                    <Textarea
-                      value={itemForm.triggerSubItems}
-                      onChange={(e) => setItemForm({...itemForm, triggerSubItems: e.target.value})}
-                      placeholder="Choose Cabinet\nSelect Countertop\nPick Hardware\nChoose Finish"
-                      rows={3}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Names of additional tasks created when the trigger option is selected
-                    </p>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setItemForm({
+                        ...itemForm,
+                        logicOptions: [
+                          ...itemForm.logicOptions,
+                          { optionName: '', createItems: [] }
+                        ]
+                      })
+                    }}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Option
+                  </Button>
                 </div>
               )}
             </div>
@@ -830,10 +847,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                   specialLogic: null,
                   optionsText: '',
                   hasSpecialLogic: false,
-                  triggerOption: '',
-                  standardTasks: 1,
-                  triggerTasks: 1,
-                  triggerSubItems: ''
+                  logicOptions: []
                 })
                 setEditingItem(null)
               }}>

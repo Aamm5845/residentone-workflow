@@ -19,7 +19,8 @@ import {
   Box,
   CheckCheck,
   Pencil,
-  Users
+  Users,
+  Trash2
 } from 'lucide-react'
 import { WORKFLOW_STAGES, STAGE_CONFIG, getStageConfig, getStageStatusColor, getStageStatusTextColor, type StageStatus } from '@/constants/workflow'
 
@@ -67,6 +68,7 @@ interface RoomManagementProps {
   onRoomUpdate: (roomId: string, updates: any) => void
   onStageStart: (stageId: string) => void
   onStageComplete: (stageId: string) => void
+  onRoomDelete: (roomId: string) => void
 }
 
 // Using centralized STAGE_CONFIG from constants/workflow.ts with 5 phases
@@ -85,11 +87,14 @@ export default function RoomManagement({
   projectId, 
   onRoomUpdate, 
   onStageStart, 
-  onStageComplete 
+  onStageComplete,
+  onRoomDelete 
 }: RoomManagementProps) {
   // Keep rooms collapsed by default to reduce visual clutter
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null)
   const [showAddItems, setShowAddItems] = useState(false)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const currentStageIndex = room.stages.findIndex(stage => 
     ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(stage.status)
@@ -141,6 +146,26 @@ export default function RoomManagement({
     }
   }
 
+  const handleDeleteRoom = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/rooms/${room.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        onRoomDelete(room.id)
+        setShowDeleteConfirmation(false)
+      } else {
+        console.error('Failed to delete room')
+      }
+    } catch (error) {
+      console.error('Error deleting room:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const StatusIcon = ROOM_STATUS_CONFIG[room.status as keyof typeof ROOM_STATUS_CONFIG]?.icon || Clock
 
   return (
@@ -179,6 +204,15 @@ export default function RoomManagement({
                 Start Room
               </Button>
             )}
+            
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteConfirmation(true)}
+              className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
             
             <Button
               variant="outline"
@@ -418,6 +452,38 @@ export default function RoomManagement({
               <Users className="w-4 h-4 mr-2" />
               Assign Team
             </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Room Deletion Confirmation Dialog */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Room</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete <strong>{room.name || room.type.replace('_', ' ')}</strong>? 
+              This will permanently delete all stages, design sections, FFE items, comments, and renderings associated with this room.
+            </p>
+            <p className="text-red-600 text-sm font-medium mb-6">
+              This action cannot be undone.
+            </p>
+            <div className="flex space-x-3 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteConfirmation(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleDeleteRoom}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Room'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
