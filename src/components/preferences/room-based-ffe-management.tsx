@@ -177,6 +177,11 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     }>
   })
 
+  // Special Logic Two-Stage UI State
+  const [specialLogicStage, setSpecialLogicStage] = useState<1 | 2>(1)
+  const [logicOptionsStage1, setLogicOptionsStage1] = useState<string[]>([])
+  const [logicOptionsStage1Text, setLogicOptionsStage1Text] = useState('')
+
   // Load room libraries
   const loadRoomLibraries = async () => {
     try {
@@ -186,11 +191,19 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         const data = await response.json()
         setRoomLibraries(data.libraries || [])
         
-        // Load bathroom library by default if exists
-        const bathroomLib = data.libraries?.find((lib: RoomLibrary) => lib.roomType === 'BATHROOM')
-        if (bathroomLib) {
-          setSelectedRoom('BATHROOM')
-          setSelectedLibrary(bathroomLib)
+        // Update selected library if it exists in the new data
+        if (selectedRoom) {
+          const updatedSelectedLib = data.libraries?.find((lib: RoomLibrary) => lib.roomType === selectedRoom)
+          if (updatedSelectedLib) {
+            setSelectedLibrary(updatedSelectedLib)
+          }
+        } else {
+          // Load bathroom library by default if exists and no room is selected
+          const bathroomLib = data.libraries?.find((lib: RoomLibrary) => lib.roomType === 'BATHROOM')
+          if (bathroomLib) {
+            setSelectedRoom('BATHROOM')
+            setSelectedLibrary(bathroomLib)
+          }
         }
       } else {
         console.error('Failed to load room libraries')
@@ -295,9 +308,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         }
       }
 
-      const updatedLibrary = {
+        const updatedLibrary = {
         ...selectedLibrary,
-        categories: updatedCategories
+        categories: updatedCategories,
+        orgId // Ensure orgId is passed to the API
       }
 
       const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
@@ -308,6 +322,8 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
 
       if (response.ok) {
         toast.success(`Item ${editingItem ? 'updated' : 'added'} successfully`)
+        
+        // Reset form and dialog state
         setShowAddItemDialog(false)
         setItemForm({
           name: '',
@@ -320,8 +336,13 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           hasSpecialLogic: false,
           logicOptions: []
         })
+        setSpecialLogicStage(1)
+        setLogicOptionsStage1([])
+        setLogicOptionsStage1Text('')
         setEditingItem(null)
-        loadRoomLibraries()
+        
+        // Reload libraries and update selected library
+        await loadRoomLibraries()
       }
     } catch (error) {
       toast.error(`Failed to ${editingItem ? 'update' : 'add'} item`)
@@ -346,7 +367,8 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         categories: {
           ...selectedLibrary.categories,
           [categoryName]: []
-        }
+        },
+        orgId // Ensure orgId is passed for category operations
       }
 
       const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
@@ -359,7 +381,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         toast.success('Category added successfully')
         setShowAddCategoryDialog(false)
         setNewCategoryName('')
-        loadRoomLibraries()
+        await loadRoomLibraries()
       } else {
         throw new Error('Failed to add category')
       }
@@ -385,7 +407,8 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
 
       const updatedLibrary = {
         ...selectedLibrary,
-        categories: updatedCategories
+        categories: updatedCategories,
+        orgId // Ensure orgId is passed for delete operations too
       }
 
       const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
@@ -396,7 +419,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
 
       if (response.ok) {
         toast.success(`Category "${categoryName}" deleted successfully`)
-        loadRoomLibraries()
+        await loadRoomLibraries()
       } else {
         throw new Error('Failed to delete category')
       }
@@ -529,6 +552,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                           hasSpecialLogic: false,
                           logicOptions: []
                         })
+                        setSpecialLogicStage(1)
+                        setLogicOptionsStage1([])
+                        setLogicOptionsStage1Text('')
                         setShowAddItemDialog(true)
                       }}
                     >
@@ -570,6 +596,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                   hasSpecialLogic: false,
                                   logicOptions: []
                                 })
+                                setSpecialLogicStage(1)
+                                setLogicOptionsStage1([])
+                                setLogicOptionsStage1Text('')
                                 setShowAddItemDialog(true)
                               }}
                             >
@@ -632,6 +661,17 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                       hasSpecialLogic: !!item.specialLogic,
                                       logicOptions: item.specialLogic?.logicOptions || []
                                     })
+                                    // Set up special logic stages from existing data
+                                    if (item.specialLogic?.logicOptions) {
+                                      const optionNames = item.specialLogic.logicOptions.map((opt: any) => opt.optionName)
+                                      setLogicOptionsStage1(optionNames)
+                                      setLogicOptionsStage1Text(optionNames.join('\n'))
+                                      setSpecialLogicStage(item.specialLogic.logicOptions.length > 0 ? 2 : 1)
+                                    } else {
+                                      setSpecialLogicStage(1)
+                                      setLogicOptionsStage1([])
+                                      setLogicOptionsStage1Text('')
+                                    }
                                     setShowAddItemDialog(true)
                                   }}
                                 >
@@ -745,7 +785,14 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               <div className="flex items-center space-x-2 mb-3">
                 <Checkbox
                   checked={itemForm.hasSpecialLogic}
-                  onCheckedChange={(checked) => setItemForm({...itemForm, hasSpecialLogic: !!checked})}
+                  onCheckedChange={(checked) => {
+                    setItemForm({...itemForm, hasSpecialLogic: !!checked})
+                    if (!checked) {
+                      setSpecialLogicStage(1)
+                      setLogicOptionsStage1([])
+                      setLogicOptionsStage1Text('')
+                    }
+                  }}
                 />
                 <label className="text-sm font-medium">Has Special Logic</label>
               </div>
@@ -753,84 +800,156 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               {itemForm.hasSpecialLogic && (
                 <div className="space-y-4 pl-6 border-l-2 border-gray-200">
                   <div className="bg-blue-50 p-3 rounded-md">
-                    <p className="text-sm font-medium text-blue-900 mb-1">Special Logic Setup</p>
+                    <p className="text-sm font-medium text-blue-900 mb-1">Special Logic Setup - Two Stage Process</p>
                     <p className="text-xs text-blue-700">
-                      Define options that will create additional tasks in the completion phase.
+                      Stage 1: Define custom logic options (like "Porcelain", "Mosaic", "Custom").<br/>
+                      Stage 2: Specify tasks/sub-items to create for each option.
                     </p>
                   </div>
-                  
-                  {itemForm.logicOptions.map((option, index) => (
-                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-sm">Option {index + 1}</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newOptions = [...itemForm.logicOptions]
-                            newOptions.splice(index, 1)
-                            setItemForm({...itemForm, logicOptions: newOptions})
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
+                  {/* Stage Navigation */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <Button
+                      type="button"
+                      variant={specialLogicStage === 1 ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSpecialLogicStage(1)}
+                      className="min-w-[120px]"
+                    >
+                      Stage 1: Options
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={specialLogicStage === 2 ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSpecialLogicStage(2)}
+                      disabled={logicOptionsStage1.length === 0}
+                      className="min-w-[120px]"
+                    >
+                      Stage 2: Sub-items
+                    </Button>
+                  </div>
+
+                  {/* Stage 1: Define Logic Options */}
+                  {specialLogicStage === 1 && (
+                    <div className="space-y-4">
+                      <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md">
+                        <p className="text-sm font-medium text-yellow-900 mb-1">Stage 1: Define Logic Options</p>
+                        <p className="text-xs text-yellow-700">
+                          Enter the custom options that users can choose from (like "Porcelain", "Mosaic", "Custom").
+                        </p>
                       </div>
                       
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-medium block mb-2">Option Name</label>
-                          <Input
-                            value={option.optionName}
-                            onChange={(e) => {
-                              const newOptions = [...itemForm.logicOptions]
-                              newOptions[index].optionName = e.target.value
-                              setItemForm({...itemForm, logicOptions: newOptions})
-                            }}
-                            placeholder="e.g., Porcelain, Mosaic, Custom"
-                          />
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium block mb-2">Logic Options (one per line)</label>
+                        <Textarea
+                          value={logicOptionsStage1Text}
+                          onChange={(e) => {
+                            setLogicOptionsStage1Text(e.target.value)
+                            const options = e.target.value.split('\n').filter(opt => opt.trim()).map(opt => opt.trim())
+                            setLogicOptionsStage1(options)
+                          }}
+                          placeholder="Porcelain\nMosaic\nCustom\nStandard"
+                          rows={4}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          These will be the main options users can select from. Enter each option on a new line.
+                        </p>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (logicOptionsStage1.length > 0) {
+                              setSpecialLogicStage(2)
+                            }
+                          }}
+                          disabled={logicOptionsStage1.length === 0}
+                          className="min-w-[120px]"
+                        >
+                          Next: Sub-items →
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stage 2: Define Sub-items per Option */}
+                  {specialLogicStage === 2 && (
+                    <div className="space-y-4">
+                      <div className="bg-green-50 border border-green-200 p-3 rounded-md">
+                        <p className="text-sm font-medium text-green-900 mb-1">Stage 2: Define Sub-items/Tasks</p>
+                        <p className="text-xs text-green-700">
+                          For each logic option, specify what tasks or sub-items should be created when that option is selected.
+                        </p>
+                      </div>
+                      
+                      {logicOptionsStage1.map((optionName, index) => {
+                        const existingOption = itemForm.logicOptions.find(opt => opt.optionName === optionName)
+                        const createItems = existingOption?.createItems || []
                         
-                        <div>
-                          <label className="text-sm font-medium block mb-2">Items to Create (one per line)</label>
-                          <Textarea
-                            value={option.createItems.join('\n')}
-                            onChange={(e) => {
-                              const newOptions = [...itemForm.logicOptions]
-                              newOptions[index].createItems = e.target.value
-                                .split('\n')
-                                .filter(item => item.trim())
-                                .map(item => item.trim())
-                              setItemForm({...itemForm, logicOptions: newOptions})
-                            }}
-                            placeholder="Choose Size\nSelect Color\nPick Finish"
-                            rows={3}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Tasks that will be created when this option is selected
-                          </p>
+                        return (
+                          <div key={optionName} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="mb-3">
+                              <h4 className="font-medium text-sm flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                                  {optionName}
+                                </span>
+                                <span className="text-gray-500 text-xs">→ What tasks/sub-items to create?</span>
+                              </h4>
+                            </div>
+                            
+                            <div>
+                              <label className="text-sm font-medium block mb-2">Tasks/Sub-items to Create (one per line)</label>
+                              <Textarea
+                                value={createItems.join('\n')}
+                                onChange={(e) => {
+                                  const newCreateItems = e.target.value
+                                    .split('\n')
+                                    .filter(item => item.trim())
+                                    .map(item => item.trim())
+                                  
+                                  // Update the itemForm logicOptions
+                                  const newLogicOptions = [...itemForm.logicOptions]
+                                  const existingIndex = newLogicOptions.findIndex(opt => opt.optionName === optionName)
+                                  
+                                  if (existingIndex >= 0) {
+                                    newLogicOptions[existingIndex].createItems = newCreateItems
+                                  } else {
+                                    newLogicOptions.push({
+                                      optionName,
+                                      createItems: newCreateItems
+                                    })
+                                  }
+                                  
+                                  setItemForm({...itemForm, logicOptions: newLogicOptions})
+                                }}
+                                placeholder="Choose Size\nSelect Color\nPick Finish\nSpecify Dimensions"
+                                rows={3}
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                When "{optionName}" is selected, these tasks will be created for completion.
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      
+                      <div className="flex justify-between">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setSpecialLogicStage(1)}
+                          className="min-w-[120px]"
+                        >
+                          ← Back: Options
+                        </Button>
+                        <div className="text-sm text-green-600 font-medium">
+                          ✓ Special logic configured for {logicOptionsStage1.length} options
                         </div>
                       </div>
                     </div>
-                  ))}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setItemForm({
-                        ...itemForm,
-                        logicOptions: [
-                          ...itemForm.logicOptions,
-                          { optionName: '', createItems: [] }
-                        ]
-                      })
-                    }}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Option
-                  </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -849,6 +968,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                   hasSpecialLogic: false,
                   logicOptions: []
                 })
+                setSpecialLogicStage(1)
+                setLogicOptionsStage1([])
+                setLogicOptionsStage1Text('')
                 setEditingItem(null)
               }}>
                 Cancel
