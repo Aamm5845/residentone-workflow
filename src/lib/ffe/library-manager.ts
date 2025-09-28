@@ -2,6 +2,45 @@ import { prisma } from '@/lib/prisma'
 import { type FFEItemTemplate, getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
 
 /**
+ * Maps room type from enum format to workspace-compatible format
+ * KITCHEN -> kitchen, LAUNDRY_ROOM -> laundry-room, etc.
+ */
+function mapRoomTypeToWorkspaceFormat(roomType: string): string {
+  const roomTypeMapping: { [key: string]: string } = {
+    'BATHROOM': 'bathroom',
+    'MASTER_BATHROOM': 'bathroom',
+    'FAMILY_BATHROOM': 'bathroom',
+    'GUEST_BATHROOM': 'bathroom',
+    'GIRLS_BATHROOM': 'bathroom',
+    'BOYS_BATHROOM': 'bathroom',
+    'POWDER_ROOM': 'bathroom',
+    'KITCHEN': 'kitchen',
+    'LIVING_ROOM': 'living-room',
+    'BEDROOM': 'bedroom',
+    'MASTER_BEDROOM': 'bedroom',
+    'GUEST_BEDROOM': 'bedroom',
+    'GIRLS_ROOM': 'bedroom',
+    'BOYS_ROOM': 'bedroom',
+    'DINING_ROOM': 'dining-room',
+    'OFFICE': 'office',
+    'STUDY_ROOM': 'office',
+    'ENTRANCE': 'entrance',
+    'FOYER': 'foyer',
+    'LAUNDRY_ROOM': 'laundry-room',
+    'PLAYROOM': 'playroom'
+  }
+  
+  return roomTypeMapping[roomType] || roomType.toLowerCase().replace('_', '-')
+}
+
+/**
+ * Maps array of room types to workspace format
+ */
+function mapRoomTypesToWorkspaceFormat(roomTypes: string[]): string[] {
+  return roomTypes.map(mapRoomTypeToWorkspaceFormat)
+}
+
+/**
  * Adds a new custom FFE item to the organization's global library
  */
 export async function addCustomFFEItem(
@@ -20,6 +59,8 @@ export async function addCustomFFEItem(
   fromProjectId?: string
 ): Promise<void> {
   try {
+    // Map room types to workspace-compatible format
+    const mappedRoomTypes = mapRoomTypesToWorkspaceFormat(itemData.roomTypes)
     // Check if item already exists
     const existing = await prisma.fFELibraryItem.findUnique({
       where: {
@@ -29,7 +70,7 @@ export async function addCustomFFEItem(
 
     if (existing) {
       // Update existing item to add new room types if needed
-      const newRoomTypes = [...new Set([...existing.roomTypes, ...itemData.roomTypes])]
+      const newRoomTypes = [...new Set([...existing.roomTypes, ...mappedRoomTypes])]
       await prisma.fFELibraryItem.update({
         where: { id: existing.id },
         data: {
@@ -45,7 +86,7 @@ export async function addCustomFFEItem(
           itemId: itemData.itemId,
           name: itemData.name,
           category: itemData.category,
-          roomTypes: itemData.roomTypes,
+          roomTypes: mappedRoomTypes,
           isRequired: itemData.isRequired,
           isStandard: itemData.isStandard,
           subItems: itemData.subItems || null,
@@ -66,7 +107,7 @@ export async function addCustomFFEItem(
               itemId: itemData.itemId,
               itemName: itemData.name,
               category: itemData.category,
-              roomTypes: itemData.roomTypes,
+              roomTypes: mappedRoomTypes,
               fromProject: fromProjectId
             },
             userId,
@@ -368,6 +409,9 @@ export async function autoAddToLibraryIfNew(
       return // Already in library
     }
 
+    // Convert room type to workspace format
+    const mappedRoomType = mapRoomTypeToWorkspaceFormat(roomType)
+
     // Add to library
     await addCustomFFEItem(
       orgId,
@@ -376,7 +420,7 @@ export async function autoAddToLibraryIfNew(
         itemId,
         name: itemName,
         category,
-        roomTypes: [roomType],
+        roomTypes: [mappedRoomType],
         isRequired: itemConfig?.isRequired || false,
         isStandard: itemConfig?.isStandard || true,
         subItems: itemConfig?.subItems,

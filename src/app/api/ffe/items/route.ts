@@ -3,6 +3,45 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ROOM_FFE_CONFIG } from '@/lib/constants/room-ffe-config'
 
+/**
+ * Maps room type from enum format to workspace-compatible format
+ * KITCHEN -> kitchen, LAUNDRY_ROOM -> laundry-room, etc.
+ */
+function mapRoomTypeToWorkspaceFormat(roomType: string): string {
+  const roomTypeMapping: { [key: string]: string } = {
+    'BATHROOM': 'bathroom',
+    'MASTER_BATHROOM': 'bathroom',
+    'FAMILY_BATHROOM': 'bathroom',
+    'GUEST_BATHROOM': 'bathroom',
+    'GIRLS_BATHROOM': 'bathroom',
+    'BOYS_BATHROOM': 'bathroom',
+    'POWDER_ROOM': 'bathroom',
+    'KITCHEN': 'kitchen',
+    'LIVING_ROOM': 'living-room',
+    'BEDROOM': 'bedroom',
+    'MASTER_BEDROOM': 'bedroom',
+    'GUEST_BEDROOM': 'bedroom',
+    'GIRLS_ROOM': 'bedroom',
+    'BOYS_ROOM': 'bedroom',
+    'DINING_ROOM': 'dining-room',
+    'OFFICE': 'office',
+    'STUDY_ROOM': 'office',
+    'ENTRANCE': 'entrance',
+    'FOYER': 'foyer',
+    'LAUNDRY_ROOM': 'laundry-room',
+    'PLAYROOM': 'playroom'
+  }
+  
+  return roomTypeMapping[roomType] || roomType.toLowerCase().replace('_', '-')
+}
+
+/**
+ * Maps array of room types to workspace format
+ */
+function mapRoomTypesToWorkspaceFormat(roomTypes: string[]): string[] {
+  return roomTypes.map(mapRoomTypeToWorkspaceFormat)
+}
+
 // Get all FFE items for an organization
 export async function GET(request: NextRequest) {
   try {
@@ -140,6 +179,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Item with this name already exists in this category' }, { status: 409 })
     }
 
+    // Map room types to workspace-compatible format
+    const mappedRoomTypes = mapRoomTypesToWorkspaceFormat(roomTypes || [])
+
     // Create in the FFE library
     const newItem = await prisma.fFELibraryItem.create({
       data: {
@@ -147,7 +189,7 @@ export async function POST(request: NextRequest) {
         itemId,
         name,
         category,
-        roomTypes: roomTypes || [],
+        roomTypes: mappedRoomTypes,
         isRequired: isRequired || false,
         isStandard: false, // Custom items are not standard
         subItems: subItems ? JSON.parse(JSON.stringify(subItems)) : null,
