@@ -150,7 +150,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
   const [editingItem, setEditingItem] = useState<RoomLibraryItem | null>(null)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showEditLibraryDialog, setShowEditLibraryDialog] = useState(false)
+  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryToDelete, setCategoryToDelete] = useState<string>('')
   
   // Form states
   const [libraryForm, setLibraryForm] = useState({
@@ -331,6 +334,83 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     }
   }
 
+  // Add category to library
+  const addCategoryToLibrary = async () => {
+    try {
+      if (!selectedLibrary || !newCategoryName.trim()) return
+
+      const categoryName = newCategoryName.trim()
+      
+      // Check if category already exists
+      if (selectedLibrary.categories[categoryName]) {
+        toast.error('Category already exists')
+        return
+      }
+
+      const updatedLibrary = {
+        ...selectedLibrary,
+        categories: {
+          ...selectedLibrary.categories,
+          [categoryName]: []
+        }
+      }
+
+      const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedLibrary)
+      })
+
+      if (response.ok) {
+        toast.success('Category added successfully')
+        setShowAddCategoryDialog(false)
+        setNewCategoryName('')
+        loadRoomLibraries()
+      } else {
+        throw new Error('Failed to add category')
+      }
+    } catch (error) {
+      toast.error('Failed to add category')
+    }
+  }
+
+  // Delete category from library
+  const deleteCategoryFromLibrary = async (categoryName: string) => {
+    try {
+      if (!selectedLibrary) return
+
+      // Check if category has items
+      const categoryItems = selectedLibrary.categories[categoryName] || []
+      if (categoryItems.length > 0) {
+        toast.error(`Cannot delete category "${categoryName}" because it contains ${categoryItems.length} items. Please remove all items first.`)
+        return
+      }
+
+      const updatedCategories = { ...selectedLibrary.categories }
+      delete updatedCategories[categoryName]
+
+      const updatedLibrary = {
+        ...selectedLibrary,
+        categories: updatedCategories
+      }
+
+      const response = await fetch(`/api/ffe/room-libraries/${selectedLibrary.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedLibrary)
+      })
+
+      if (response.ok) {
+        toast.success(`Category "${categoryName}" deleted successfully`)
+        loadRoomLibraries()
+      } else {
+        throw new Error('Failed to delete category')
+      }
+    } catch (error) {
+      toast.error('Failed to delete category')
+    }
+  }
+
   // Create default categories for room type
   const createDefaultCategoriesForRoom = (roomType: string) => {
     const categories: { [key: string]: RoomLibraryItem[] } = {}
@@ -433,6 +513,14 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                       Edit Library
                     </Button>
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddCategoryDialog(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Category
+                    </Button>
+                    <Button
                       size="sm"
                       onClick={() => {
                         setEditingItem(null)
@@ -474,31 +562,41 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                             <CardTitle className="text-lg">{categoryName}</CardTitle>
                             <Badge variant="outline">{items.length} items</Badge>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingItem(null)
-                              setItemForm({
-                                name: '',
-                                category: categoryName,
-                                isRequired: false,
-                                allowMultiple: false,
-                                options: [],
-                                specialLogic: null,
-                                optionsText: '',
-                                hasSpecialLogic: false,
-                                specialLogicType: '',
-                                standardTasks: 1,
-                                customTasks: 1,
-                                customSubItems: ''
-                              })
-                              setShowAddItemDialog(true)
-                            }}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add to {categoryName}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingItem(null)
+                                setItemForm({
+                                  name: '',
+                                  category: categoryName,
+                                  isRequired: false,
+                                  allowMultiple: false,
+                                  options: [],
+                                  specialLogic: null,
+                                  optionsText: '',
+                                  hasSpecialLogic: false,
+                                  specialLogicType: '',
+                                  standardTasks: 1,
+                                  customTasks: 1,
+                                  customSubItems: ''
+                                })
+                                setShowAddItemDialog(true)
+                              }}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Item
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteCategoryFromLibrary(categoryName)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -794,6 +892,50 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               </Button>
               <Button onClick={saveLibrary}>
                 {selectedLibrary ? 'Update' : 'Create'} Library
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle>Add New Category</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-6 space-y-4">
+            <div>
+              <label className="text-sm font-medium block mb-2">Category Name</label>
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Enter category name"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    addCategoryToLibrary()
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Categories help organize FFE items by type (e.g., Flooring, Lighting, Furniture)
+              </p>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowAddCategoryDialog(false)
+                  setNewCategoryName('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={addCategoryToLibrary}
+                disabled={!newCategoryName.trim()}
+              >
+                Add Category
               </Button>
             </div>
           </div>
