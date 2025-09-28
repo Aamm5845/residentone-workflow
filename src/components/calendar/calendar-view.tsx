@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle, Users, Building, User, Eye, Palette, Shapes, CheckCircle, FileText, Package } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle, Users, Building, User, Eye, Palette, Shapes, CheckCircle, FileText, Package, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
+import { getHebrewHolidaysForMonth, HebrewHoliday } from '@/lib/hebrew-holidays'
 import Link from 'next/link'
 
 interface CalendarTask {
@@ -41,6 +42,7 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
+  const [showHolidays, setShowHolidays] = useState(true)
 
   // Filter tasks to only include those with valid due dates
   const validTasks = tasks.filter(task => task.dueDate && task.dueDate !== null && !isNaN(new Date(task.dueDate).getTime()))
@@ -58,6 +60,12 @@ export default function CalendarView({
   // Get current month and year
   const currentMonth = currentDate.getMonth()
   const currentYear = currentDate.getFullYear()
+  
+  // Get Hebrew holidays for the current month
+  const hebrewHolidays = useMemo(() => {
+    if (!showHolidays) return []
+    return getHebrewHolidaysForMonth(currentYear, currentMonth)
+  }, [currentYear, currentMonth, showHolidays])
 
   // Get first day of the month and how many days are in the month
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1)
@@ -120,6 +128,11 @@ export default function CalendarView({
     const dateKey = `${currentYear}-${currentMonth}-${day}`
     return tasksByDate[dateKey] || []
   }
+  
+  const getHolidaysForDate = (day: number | null) => {
+    if (!day || !showHolidays) return []
+    return hebrewHolidays.filter(holiday => holiday.date.getDate() === day)
+  }
 
   const getPhaseColor = (stageType?: string) => {
     const phaseColors: Record<string, string> = {
@@ -169,6 +182,30 @@ export default function CalendarView({
     if (isDueSoon) return 'text-yellow-700'
     return 'text-gray-700'
   }
+  
+  const getHolidayColor = (holiday: HebrewHoliday) => {
+    const colorMap = {
+      'major': 'bg-gradient-to-r from-purple-500 to-purple-600',
+      'minor': 'bg-gradient-to-r from-blue-400 to-blue-500',
+      'fast': 'bg-gradient-to-r from-gray-500 to-gray-600',
+      'modern': 'bg-gradient-to-r from-teal-400 to-teal-500'
+    }
+    return colorMap[holiday.type] || 'bg-gradient-to-r from-gray-400 to-gray-500'
+  }
+  
+  const getHolidayIcon = (holiday: HebrewHoliday) => {
+    if (holiday.name.includes('Hanukkah')) return '🕎'
+    if (holiday.name.includes('Passover')) return '🍷'
+    if (holiday.name.includes('Rosh Hashanah')) return '🍎'
+    if (holiday.name.includes('Yom Kippur')) return '🙏'
+    if (holiday.name.includes('Sukkot')) return '🏕️'
+    if (holiday.name.includes('Purim')) return '🎭'
+    if (holiday.name.includes('Tu BiShvat')) return '🌳'
+    if (holiday.name.includes('Shavot')) return '📜'
+    if (holiday.name.includes('Independence')) return '🇮🇱'
+    if (holiday.name.includes('Holocaust')) return '🕯️'
+    return '✡️'
+  }
 
   if (isLoading) {
     return (
@@ -197,32 +234,43 @@ export default function CalendarView({
               <Calendar className="w-6 h-6 mr-2" />
               Calendar View
             </CardTitle>
-            {currentUserId && (
-              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('all')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
-                    viewMode === 'all'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Users className="w-4 h-4 mr-1.5" />
-                  All Users
-                </button>
-                <button
-                  onClick={() => setViewMode('mine')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
-                    viewMode === 'mine'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <User className="w-4 h-4 mr-1.5" />
-                  My Tasks
-                </button>
-              </div>
-            )}
+            <div className="flex items-center space-x-4">
+              {currentUserId && (
+                <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('all')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
+                      viewMode === 'all'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 mr-1.5" />
+                    All Users
+                  </button>
+                  <button
+                    onClick={() => setViewMode('mine')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
+                      viewMode === 'mine'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <User className="w-4 h-4 mr-1.5" />
+                    My Tasks
+                  </button>
+                </div>
+              )}
+              <Button
+                variant={showHolidays ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowHolidays(!showHolidays)}
+                className="flex items-center"
+              >
+                <Star className="w-4 h-4 mr-1.5" />
+                {showHolidays ? 'Hide' : 'Show'} Holidays
+              </Button>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={today}>
@@ -274,10 +322,18 @@ export default function CalendarView({
                 <span>🛋️ FFE</span>
               </div>
               <div className="border-l pl-4 ml-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-red-600 rounded"></div>
-                  <span>Overdue/Critical</span>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-red-600 rounded"></div>
+                <span>Overdue/Critical</span>
+              </div>
+              {showHolidays && (
+                <div className="border-l pl-4 ml-2">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded"></div>
+                    <span>✡️ Hebrew Holidays</span>
+                  </div>
                 </div>
+              )}
               </div>
             </div>
           </div>
@@ -318,6 +374,7 @@ export default function CalendarView({
             {/* Calendar grid */}
             {calendarDays.map((day, index) => {
               const tasksForDay = getTasksForDate(day)
+              const holidaysForDay = getHolidaysForDate(day)
               const isToday = day && new Date().getDate() === day && 
                             new Date().getMonth() === currentMonth && 
                             new Date().getFullYear() === currentYear
@@ -325,7 +382,7 @@ export default function CalendarView({
               return (
                 <div
                   key={index}
-                  className={`min-h-[100px] p-1 border border-gray-200 ${
+                  className={`min-h-[120px] p-1 border border-gray-200 ${
                     day ? 'bg-white' : 'bg-gray-50'
                   } ${isToday ? 'bg-blue-50 border-blue-300' : ''}`}
                 >
@@ -336,7 +393,22 @@ export default function CalendarView({
                         {isToday && <span className="ml-1 text-xs text-blue-500">(Today)</span>}
                       </div>
                       <div className="space-y-1">
-                        {tasksForDay.slice(0, 3).map((task, taskIndex) => (
+                        {/* Hebrew Holidays */}
+                        {holidaysForDay.map((holiday, holidayIndex) => (
+                          <div
+                            key={holiday.id}
+                            className={`text-xs p-1 rounded text-white ${getHolidayColor(holiday)} border border-white/20`}
+                            title={`${holiday.name} (${holiday.hebrewName}) - ${holiday.description}`}
+                          >
+                            <div className="truncate font-medium flex items-center space-x-1">
+                              <span className="text-xs">{getHolidayIcon(holiday)}</span>
+                              <span>{holiday.name.length > 10 ? `${holiday.name.substring(0, 10)}...` : holiday.name}</span>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Tasks */}
+                        {tasksForDay.slice(0, showHolidays ? 2 : 3).map((task, taskIndex) => (
                           <Link key={task.id} href={`/stages/${task.id}`}>
                             <div
                               className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${getTaskColor(task)} text-white relative`}
@@ -361,9 +433,14 @@ export default function CalendarView({
                             </div>
                           </Link>
                         ))}
-                        {tasksForDay.length > 3 && (
+                        
+                        {/* Show more indicator */}
+                        {(tasksForDay.length > (showHolidays ? 2 : 3) || (showHolidays && holidaysForDay.length > 0 && tasksForDay.length > 2)) && (
                           <div className="text-xs text-gray-500 p-1">
-                            +{tasksForDay.length - 3} more
+                            +{tasksForDay.length - (showHolidays ? 2 : 3)} more
+                            {holidaysForDay.length > 1 && showHolidays && (
+                              <span>, {holidaysForDay.length - 1} more holiday{holidaysForDay.length > 2 ? 's' : ''}</span>
+                            )}
                           </div>
                         )}
                       </div>
