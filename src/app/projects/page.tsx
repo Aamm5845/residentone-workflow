@@ -26,7 +26,38 @@ export default async function Projects({ searchParams }: { searchParams: Promise
   const whereClause: any = {}
   
   if (statusFilter === 'active') {
-    whereClause.status = { in: ['IN_PROGRESS', 'PENDING_APPROVAL'] }
+    // Active projects are those that have started any phase and not all rooms are complete
+    whereClause.AND = [
+      // Must have at least one stage that's been started (not NOT_STARTED)
+      {
+        rooms: {
+          some: {
+            stages: {
+              some: {
+                status: { not: 'NOT_STARTED' }
+              }
+            }
+          }
+        }
+      },
+      // Must not have ALL rooms with ALL applicable stages completed
+      {
+        NOT: {
+          rooms: {
+            every: {
+              stages: {
+                every: {
+                  OR: [
+                    { status: 'COMPLETED' },
+                    { status: 'NOT_APPLICABLE' }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
   } else if (statusFilter === 'completed') {
     whereClause.status = 'COMPLETED'
     

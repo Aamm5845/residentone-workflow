@@ -39,10 +39,10 @@ interface RoomLibraryItem {
   allowMultiple: boolean
   options?: string[]
   specialLogic?: {
-    type: 'toilet' | 'vanity'
-    standardTasks: number
-    customTasks: number
-    customSubItems: string[]
+    triggerOption: string // The option that triggers additional tasks (e.g., "Custom", "Wall-Mount", etc.)
+    triggerTasks: number // How many additional tasks to create when this option is selected
+    triggerSubItems?: string[] // Names of the additional sub-tasks
+    standardTasks?: number // Tasks for standard/default selection
   }
   order: number
 }
@@ -171,10 +171,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     specialLogic: null as any,
     optionsText: '',
     hasSpecialLogic: false,
-    specialLogicType: '' as 'toilet' | 'vanity' | '',
+    triggerOption: '',
     standardTasks: 1,
-    customTasks: 1,
-    customSubItems: '' as string
+    triggerTasks: 1,
+    triggerSubItems: '' as string
   })
 
   // Load room libraries
@@ -257,13 +257,13 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         undefined
 
       // Parse special logic
-      const specialLogic = itemForm.hasSpecialLogic && itemForm.specialLogicType ? {
-        type: itemForm.specialLogicType as 'toilet' | 'vanity',
-        standardTasks: itemForm.standardTasks,
-        customTasks: itemForm.customTasks,
-        customSubItems: itemForm.customSubItems.trim() ? 
-          itemForm.customSubItems.split('\n').filter(item => item.trim()).map(item => item.trim()) : 
-          []
+      const specialLogic = itemForm.hasSpecialLogic && itemForm.triggerOption.trim() ? {
+        triggerOption: itemForm.triggerOption.trim(),
+        triggerTasks: itemForm.triggerTasks,
+        triggerSubItems: itemForm.triggerSubItems.trim() ? 
+          itemForm.triggerSubItems.split('\n').filter(item => item.trim()).map(item => item.trim()) : 
+          undefined,
+        standardTasks: itemForm.standardTasks
       } : undefined
 
       const itemData: RoomLibraryItem = {
@@ -321,10 +321,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           specialLogic: null,
           optionsText: '',
           hasSpecialLogic: false,
-          specialLogicType: '',
+          triggerOption: '',
           standardTasks: 1,
-          customTasks: 1,
-          customSubItems: ''
+          triggerTasks: 1,
+          triggerSubItems: ''
         })
         setEditingItem(null)
         loadRoomLibraries()
@@ -529,15 +529,15 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                           category: '',
                           isRequired: false,
                           allowMultiple: false,
-                          options: [],
-                          specialLogic: null,
-                          optionsText: '',
-                          hasSpecialLogic: false,
-                          specialLogicType: '',
-                          standardTasks: 1,
-                          customTasks: 1,
-                          customSubItems: ''
-                        })
+                                options: [],
+                                specialLogic: null,
+                                optionsText: '',
+                                hasSpecialLogic: false,
+                                triggerOption: '',
+                                standardTasks: 1,
+                                triggerTasks: 1,
+                                triggerSubItems: ''
+                       })
                         setShowAddItemDialog(true)
                       }}
                     >
@@ -618,7 +618,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                     )}
                                     {item.specialLogic && (
                                       <Badge variant="outline" className="text-xs">
-                                        {item.specialLogic.type === 'toilet' ? 'Toilet Logic' : 'Vanity Logic'}
+                                        Special Logic: {item.specialLogic.triggerOption}
                                       </Badge>
                                     )}
                                   </div>
@@ -642,10 +642,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                                       specialLogic: item.specialLogic,
                                       optionsText: item.options ? item.options.join('\n') : '',
                                       hasSpecialLogic: !!item.specialLogic,
-                                      specialLogicType: item.specialLogic?.type || '',
+                                      triggerOption: item.specialLogic?.triggerOption || '',
                                       standardTasks: item.specialLogic?.standardTasks || 1,
-                                      customTasks: item.specialLogic?.customTasks || 1,
-                                      customSubItems: item.specialLogic?.customSubItems ? item.specialLogic.customSubItems.join('\n') : ''
+                                      triggerTasks: item.specialLogic?.triggerTasks || 1,
+                                      triggerSubItems: item.specialLogic?.triggerSubItems ? item.specialLogic.triggerSubItems.join('\n') : ''
                                     })
                                     setShowAddItemDialog(true)
                                   }}
@@ -768,19 +768,15 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
               {itemForm.hasSpecialLogic && (
                 <div className="space-y-3 pl-6 border-l-2 border-gray-200">
                   <div>
-                    <label className="text-sm font-medium block mb-2">Logic Type</label>
-                    <Select 
-                      value={itemForm.specialLogicType} 
-                      onValueChange={(value) => setItemForm({...itemForm, specialLogicType: value as 'toilet' | 'vanity'})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select logic type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="toilet">Toilet Logic</SelectItem>
-                        <SelectItem value="vanity">Vanity Logic</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <label className="text-sm font-medium block mb-2">Trigger Option</label>
+                    <Input
+                      value={itemForm.triggerOption}
+                      onChange={(e) => setItemForm({...itemForm, triggerOption: e.target.value})}
+                      placeholder="e.g., Custom, Wall-Mount, Premium, etc."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      The option that will create additional tasks when selected
+                    </p>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
@@ -792,26 +788,31 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                         value={itemForm.standardTasks}
                         onChange={(e) => setItemForm({...itemForm, standardTasks: parseInt(e.target.value) || 1})}
                       />
+                      <p className="text-xs text-gray-500 mt-1">Tasks for standard options</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium block mb-2">Custom Tasks</label>
+                      <label className="text-sm font-medium block mb-2">Trigger Tasks</label>
                       <Input
                         type="number"
                         min="1"
-                        value={itemForm.customTasks}
-                        onChange={(e) => setItemForm({...itemForm, customTasks: parseInt(e.target.value) || 1})}
+                        value={itemForm.triggerTasks}
+                        onChange={(e) => setItemForm({...itemForm, triggerTasks: parseInt(e.target.value) || 1})}
                       />
+                      <p className="text-xs text-gray-500 mt-1">Tasks when trigger option is selected</p>
                     </div>
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium block mb-2">Custom Sub-Items (one per line)</label>
+                    <label className="text-sm font-medium block mb-2">Additional Sub-Tasks (one per line)</label>
                     <Textarea
-                      value={itemForm.customSubItems}
-                      onChange={(e) => setItemForm({...itemForm, customSubItems: e.target.value})}
-                      placeholder="Sub-item 1\nSub-item 2\n..."
+                      value={itemForm.triggerSubItems}
+                      onChange={(e) => setItemForm({...itemForm, triggerSubItems: e.target.value})}
+                      placeholder="Choose Cabinet\nSelect Countertop\nPick Hardware\nChoose Finish"
                       rows={3}
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Names of additional tasks created when the trigger option is selected
+                    </p>
                   </div>
                 </div>
               )}
@@ -829,10 +830,10 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                   specialLogic: null,
                   optionsText: '',
                   hasSpecialLogic: false,
-                  specialLogicType: '',
+                  triggerOption: '',
                   standardTasks: 1,
-                  customTasks: 1,
-                  customSubItems: ''
+                  triggerTasks: 1,
+                  triggerSubItems: ''
                 })
                 setEditingItem(null)
               }}>
