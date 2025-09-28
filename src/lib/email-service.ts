@@ -12,7 +12,14 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sending function using Resend only
 async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[] }) {
-  const fromAddress = options.from || process.env.EMAIL_FROM;
+  // Get from address with multiple fallbacks
+  let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
+  
+  // If still no from address, provide a sensible default that should work with Resend
+  if (!fromAddress || fromAddress.trim() === '') {
+    fromAddress = 'noreply@resend.dev'; // Resend's default domain for testing
+    console.warn('⚠️ No EMAIL_FROM configured, using Resend default domain');
+  }
   
   console.log('📧 Attempting to send email via Resend:', {
     to: options.to,
@@ -35,10 +42,11 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
   }
   
   try {
-    // Clean and validate tags
+    // Clean and validate tags - be extra careful with undefined/null/empty values
     const cleanTags = options.tags
       ?.filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
       ?.map(tag => tag.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-'))
+      ?.filter(tag => tag.length > 0) // Remove any empty strings after cleaning
       ?.slice(0, 10) || [];
     
     // Enhanced debugging: Log raw input data
@@ -80,22 +88,24 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
         value: options.tags,
         type: typeof options.tags,
         isArray: Array.isArray(options.tags),
-        length: options.tags?.length
+        length: options.tags?.length,
+        cleanedLength: cleanTags.length
       }
     });
     
-    // Build email data
-    const emailData: any = {
+    // Build email data - be very strict about what we send to Resend
+    const emailData: Record<string, any> = {
       from: fromAddress.trim(),
       to: options.to.trim(),
       subject: options.subject.trim(),
       html: options.html
     };
     
-    // Only add tags if we have valid ones
+    // Only add tags if we have valid ones - Resend doesn't like empty arrays or undefined
     if (cleanTags.length > 0) {
       emailData.tags = cleanTags;
     }
+    // Don't add tags field at all if empty - this might be causing the validation error
     
     // Enhanced debugging: Log processed email data
     console.log('📤 PROCESSED EMAIL DATA FOR RESEND:', {
@@ -108,6 +118,31 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
       hasNullFields: Object.entries(emailData).some(([key, value]) => value === null),
       hasEmptyStringFields: Object.entries(emailData).some(([key, value]) => value === '')
     });
+    
+    // Final validation before sending to Resend - check for problematic values
+    const validationErrors = [];
+    
+    // Check for empty strings (Resend doesn't like them)
+    if (emailData.from === '') validationErrors.push('from field is empty string');
+    if (emailData.to === '') validationErrors.push('to field is empty string');
+    if (emailData.subject === '') validationErrors.push('subject field is empty string');
+    if (emailData.html === '') validationErrors.push('html field is empty string');
+    
+    // Check for undefined values
+    if (emailData.from === undefined) validationErrors.push('from field is undefined');
+    if (emailData.to === undefined) validationErrors.push('to field is undefined');
+    if (emailData.subject === undefined) validationErrors.push('subject field is undefined');
+    if (emailData.html === undefined) validationErrors.push('html field is undefined');
+    
+    // Check tags array if present
+    if (emailData.tags && (!Array.isArray(emailData.tags) || emailData.tags.some(tag => !tag || tag.trim() === ''))) {
+      validationErrors.push('tags array contains invalid values');
+    }
+    
+    if (validationErrors.length > 0) {
+      console.error('❌ Email validation errors:', validationErrors);
+      throw new Error(`Email validation failed: ${validationErrors.join(', ')}`);
+    }
     
     // Log exact JSON payload
     console.log('📋 EXACT JSON PAYLOAD:', JSON.stringify(emailData, null, 2));
@@ -124,8 +159,16 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
     if (error instanceof Error) {
       console.error('Error details:', {
         name: error.name,
-        message: error.message
+        message: error.message,
+        stack: error.stack
       });
+      
+      // Check if this is the specific Resend validation error
+      if (error.message.includes('validation_error') || error.message.includes('Invalid literal value')) {
+        console.error('⚠️ RESEND VALIDATION ERROR - This usually means an empty string was sent in a required field');
+        console.error('Email data that caused the error:', JSON.stringify(emailData, null, 2));
+        throw new Error(`Resend validation error: ${error.message}. Check console for email data details.`);
+      }
     }
     
     // Re-throw the error with more context
