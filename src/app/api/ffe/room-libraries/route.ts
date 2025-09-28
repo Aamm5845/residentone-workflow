@@ -31,36 +31,76 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Build room libraries based on room types and available items
-    const roomTypes = ['living-room', 'bedroom', 'kitchen', 'bathroom', 'dining-room', 'office', 'guest-room']
+    // Import bathroom template for proper bathroom library
+    const { BATHROOM_TEMPLATE } = await import('@/lib/ffe/bathroom-template')
     
-    const libraries = roomTypes.map(roomType => {
-      const roomConfig = ROOM_FFE_CONFIG[roomType]
+    // Build room libraries based on room types and available items
+    const roomTypeMapping = {
+      'BATHROOM': 'bathroom',
+      'KITCHEN': 'kitchen', 
+      'LIVING_ROOM': 'living-room',
+      'BEDROOM': 'bedroom',
+      'DINING_ROOM': 'dining-room',
+      'OFFICE': 'office',
+      'ENTRANCE': 'entrance',
+      'LAUNDRY_ROOM': 'laundry-room',
+      'FOYER': 'foyer'
+    }
+    
+    const libraries = []
+    
+    // Special handling for bathroom - use actual template
+    const bathroomLibrary = {
+      id: 'bathroom-lib',
+      name: 'Bathroom Preset Library',
+      roomType: 'BATHROOM',
+      description: 'Standard bathroom FFE preset library with all essential categories',
+      categories: BATHROOM_TEMPLATE.categories,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'System',
+      updatedBy: 'System'
+    }
+    libraries.push(bathroomLibrary)
+    
+    // For other room types, create basic structure
+    Object.keys(roomTypeMapping).filter(rt => rt !== 'BATHROOM').forEach(roomType => {
+      const oldRoomType = roomTypeMapping[roomType as keyof typeof roomTypeMapping]
+      const roomConfig = ROOM_FFE_CONFIG[oldRoomType]
       const customItemsForRoom = customItems.filter(item => 
-        item.roomTypes.includes(roomType)
+        item.roomTypes.includes(oldRoomType)
       )
       
-      const categories = roomConfig ? roomConfig.categories.map(cat => ({
-        categoryId: cat.name,
-        isEnabled: true,
-        customName: cat.name,
-        itemCount: cat.items.length + customItemsForRoom.filter(item => item.category === cat.name).length
-      })) : []
-
-      return {
-        id: `${roomType}-lib`,
-        name: `${roomType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Library`,
-        roomType,
-        version: '1.0',
-        isActive: true,
-        isDefault: true,
-        categories,
-        customItemCount: customItemsForRoom.length,
-        totalItemCount: (roomConfig?.categories.reduce((sum, cat) => sum + cat.items.length, 0) || 0) + customItemsForRoom.length,
-        projectsUsing: 0, // This would require counting actual usage
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const categories: { [key: string]: any[] } = {}
+      const defaultCategories = {
+        'KITCHEN': ['Flooring', 'Wall', 'Ceiling', 'Cabinets', 'Countertops', 'Appliances', 'Lighting', 'Plumbing', 'Hardware'],
+        'LIVING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Entertainment'],
+        'BEDROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Storage', 'Accessories'],
+        'OFFICE': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Technology', 'Storage', 'Accessories'],
+        'DINING_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 'Textiles', 'Accessories', 'Storage'],
+        'LAUNDRY_ROOM': ['Flooring', 'Wall', 'Ceiling', 'Appliances', 'Storage', 'Lighting', 'Plumbing', 'Electric'],
+        'ENTRANCE': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture'],
+        'FOYER': ['Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 'Accessories', 'Furniture']
       }
+      
+      const catList = defaultCategories[roomType as keyof typeof defaultCategories] || ['Flooring', 'Wall', 'Ceiling']
+      catList.forEach(catName => {
+        categories[catName] = []
+      })
+
+      libraries.push({
+        id: `${oldRoomType}-lib`,
+        name: `${roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} Library`,
+        roomType,
+        description: `Standard ${roomType.toLowerCase().replace('_', ' ')} FFE preset library`,
+        categories,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'System',
+        updatedBy: 'System'
+      })
     })
 
     return NextResponse.json({ libraries })

@@ -78,7 +78,8 @@ const ROOM_TYPES = [
   { value: 'OFFICE', label: 'Office', icon: Building2 },
   { value: 'DINING_ROOM', label: 'Dining Room', icon: Sofa },
   { value: 'LAUNDRY_ROOM', label: 'Laundry Room', icon: Settings },
-  { value: 'ENTRANCE', label: 'Entrance', icon: Home }
+  { value: 'ENTRANCE', label: 'Entrance', icon: Home },
+  { value: 'FOYER', label: 'Foyer', icon: Home }
 ]
 
 const DEFAULT_CATEGORIES = {
@@ -111,6 +112,10 @@ const DEFAULT_CATEGORIES = {
     'Lighting', 'Plumbing', 'Electric'
   ],
   ENTRANCE: [
+    'Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 
+    'Accessories', 'Furniture'
+  ],
+  FOYER: [
     'Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 
     'Accessories', 'Furniture'
   ]
@@ -178,8 +183,8 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           setSelectedLibrary(bathroomLib)
         }
       } else {
-        // Create default bathroom library if none exists
-        await createDefaultBathroomLibrary()
+        console.error('Failed to load room libraries')
+        toast.error('Failed to load room libraries')
       }
     } catch (error) {
       console.error('Error loading room libraries:', error)
@@ -189,47 +194,6 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     }
   }
 
-  // Create default bathroom library
-  const createDefaultBathroomLibrary = async () => {
-    try {
-      // Convert bathroom template to room library format
-      const convertedCategories: { [key: string]: RoomLibraryItem[] } = {}
-      
-      Object.entries(BATHROOM_TEMPLATE.categories).forEach(([categoryName, items]) => {
-        convertedCategories[categoryName] = items.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          isRequired: item.isRequired,
-          allowMultiple: item.allowMultiple || false,
-          options: item.options,
-          specialLogic: item.specialLogic,
-          order: item.order
-        }))
-      })
-
-      const bathroomLibrary = {
-        name: 'Bathroom Preset Library',
-        roomType: 'BATHROOM',
-        description: 'Standard bathroom FFE preset library with all essential categories',
-        categories: convertedCategories,
-        orgId
-      }
-
-      const response = await fetch('/api/ffe/room-libraries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bathroomLibrary)
-      })
-
-      if (response.ok) {
-        toast.success('Created default bathroom library')
-        loadRoomLibraries()
-      }
-    } catch (error) {
-      console.error('Error creating default bathroom library:', error)
-    }
-  }
 
   useEffect(() => {
     loadRoomLibraries()
@@ -241,16 +205,8 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     const library = roomLibraries.find(lib => lib.roomType === roomType)
     setSelectedLibrary(library || null)
     
-    if (!library) {
-      // Create new library for this room type
-      const roomLabel = roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-      setLibraryForm({
-        name: `${roomLabel} Preset Library`,
-        roomType,
-        description: `Standard ${roomLabel.toLowerCase()} FFE preset library`
-      })
-      setShowEditLibraryDialog(true)
-    }
+    // Don't automatically show dialog, just select the room
+    // User can manually create library if needed
   }
 
   // Save library
@@ -546,7 +502,15 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
                   No Library for {selectedRoom.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                 </h3>
                 <p className="text-gray-600 mb-4">Create a preset library for this room type</p>
-                <Button onClick={() => handleRoomSelect(selectedRoom)}>
+                <Button onClick={() => {
+                  const roomLabel = selectedRoom.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+                  setLibraryForm({
+                    name: `${roomLabel} Preset Library`,
+                    roomType: selectedRoom,
+                    description: `Standard ${roomLabel.toLowerCase()} FFE preset library`
+                  })
+                  setShowEditLibraryDialog(true)
+                }}>
                   Create Library
                 </Button>
               </CardContent>

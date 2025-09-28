@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, ChevronDown, ChevronUp, Award, X, User } from 'lucide-react'
+import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, ChevronDown, ChevronUp, Award, X, User, Briefcase, Layers3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Building, FolderOpen, Users, CheckCircle, Clock } from 'lucide-react'
+import { Building, FolderOpen, Users, CheckCircle, Clock, Briefcase, TrendingUp } from 'lucide-react'
 
 export default function SimpleDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -56,7 +56,7 @@ export default function SimpleDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
-                <FolderOpen className="h-6 w-6 text-blue-600" />
+                <Briefcase className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">3</p>

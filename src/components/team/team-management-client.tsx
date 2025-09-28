@@ -5,6 +5,7 @@ import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Sh
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface TeamManagementClientProps {
   teamMembers: any[]
@@ -490,7 +491,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                 Role
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Active Stages
+                Tasks & Projects
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Contributions
@@ -538,7 +539,15 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {member._count?.assignedStages || 0}
+                  <div className="space-y-1">
+                    <div className="font-medium">{member._count?.assignedStages || 0} active tasks</div>
+                    <Link 
+                      href={`/team/${member.id}`}
+                      className="text-purple-600 hover:text-purple-800 text-xs font-medium"
+                    >
+                      View by Project →
+                    </Link>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="space-y-1">
