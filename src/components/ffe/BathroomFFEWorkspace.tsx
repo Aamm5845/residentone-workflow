@@ -342,6 +342,12 @@ export default function BathroomFFEWorkspace({
     allItems.forEach(item => {
       const status = itemStatuses[item.id]
       if (status?.state === 'included' || status?.state === 'confirmed') {
+        // Skip main toilet/vanity items if they have custom sub-items - count sub-items instead
+        if ((item.id === 'toilet' && status.selectionType === 'custom') ||
+            (item.id === 'vanity' && status.selectionType === 'custom')) {
+          return // Sub-items will be counted separately
+        }
+        
         // Generate quantity-based items for stats calculation
         const quantityItems = generateQuantityItems(item, status)
         total += quantityItems.length
@@ -356,6 +362,17 @@ export default function BathroomFFEWorkspace({
         total++
         if (status?.state === 'not_needed') notNeeded++
         else pending++
+      }
+    })
+    
+    // Add sub-items from toilet/vanity selections to stats
+    Object.entries(itemStatuses).forEach(([itemId, status]) => {
+      if (status.isCustomItem && (itemId.startsWith('toilet_') || itemId.startsWith('vanity_')) &&
+          (status.state === 'included' || status.state === 'confirmed' || status.state === 'not_needed')) {
+        total++
+        if (status.state === 'confirmed') confirmed++
+        else if (status.state === 'not_needed') notNeeded++
+        else if (status.state === 'included') included++
       }
     })
     
@@ -700,12 +717,6 @@ export default function BathroomFFEWorkspace({
                             />
                             <div className="flex-1">
                               <h4 className="font-medium">{item.name}</h4>
-                              {item.options && (
-                                <p className="text-sm text-gray-600">
-                                  Options: {item.options.slice(0, 3).join(', ')}
-                                  {item.options.length > 3 && ` + ${item.options.length - 3} more`}
-                                </p>
-                              )}
                               <div className="flex items-center space-x-2 mt-1">
                                 {item.isRequired && (
                                   <Badge variant="destructive" className="text-xs">
@@ -985,7 +996,22 @@ export default function BathroomFFEWorkspace({
                 return status?.state === 'included' || status?.state === 'confirmed'
               })
             
-            if (categoryItems.length === 0 && categoryCustomItems.length === 0) return null
+            // Add sub-items created by toilet/vanity selection (toilet_carrier, vanity_cabinet, etc.)
+            const categorySubItems = Object.entries(itemStatuses)
+              .filter(([itemId, status]) => {
+                return status.isCustomItem && status.category === categoryName && 
+                       (status.state === 'included' || status.state === 'confirmed') &&
+                       (itemId.startsWith('toilet_') || itemId.startsWith('vanity_'))
+              })
+              .map(([itemId, status]) => [itemId, {
+                id: itemId,
+                name: status.customName || itemId,
+                category: categoryName,
+                isCustom: true,
+                isSubItem: true
+              }])
+            
+            if (categoryItems.length === 0 && categoryCustomItems.length === 0 && categorySubItems.length === 0) return null
 
             return (
               <Card key={categoryName}>
@@ -996,7 +1022,8 @@ export default function BathroomFFEWorkspace({
                       <CardTitle className="text-base">{categoryName}</CardTitle>
                       <Badge variant="outline">
                         {categoryItems.filter(item => itemStatuses[item.id]?.state === 'confirmed').length + 
-                         categoryCustomItems.filter(([customId, _]) => itemStatuses[customId]?.state === 'confirmed').length} of {categoryItems.length + categoryCustomItems.length} confirmed
+                         categoryCustomItems.filter(([customId, _]) => itemStatuses[customId]?.state === 'confirmed').length +
+                         categorySubItems.filter(([subId, _]) => itemStatuses[subId]?.state === 'confirmed').length} of {categoryItems.length + categoryCustomItems.length + categorySubItems.length} confirmed
                       </Badge>
                     </div>
                   </div>
@@ -1006,6 +1033,12 @@ export default function BathroomFFEWorkspace({
                   {categoryItems.map(item => {
                     const status = itemStatuses[item.id]
                     if (!status) return null
+
+                    // Skip main toilet/vanity items if they have custom sub-items
+                    if ((item.id === 'toilet' && status.selectionType === 'custom') ||
+                        (item.id === 'vanity' && status.selectionType === 'custom')) {
+                      return null // Sub-items will be shown separately
+                    }
 
                     // Generate quantity-based items if quantity > 1
                     const quantityItems = generateQuantityItems(item, status)
@@ -1162,6 +1195,73 @@ export default function BathroomFFEWorkspace({
                             size="sm"
                             variant="outline"
                             onClick={() => handleItemStatusUpdate(customId, {
+                              state: 'not_needed'
+                            })}
+                            disabled={disabled}
+                            className="text-gray-600"
+                          >
+                            Not Needed
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Sub-Items from Toilet/Vanity Selection */}
+                  {categorySubItems.map(([subId, subItem]) => {
+                    const status = itemStatuses[subId]
+                    const isConfirmed = status?.state === 'confirmed'
+
+                    return (
+                      <div key={subId} className={cn(
+                        "flex items-center justify-between p-4 rounded-lg border",
+                        isConfirmed ? "border-green-200 bg-green-50" : "border-orange-200 bg-orange-50"
+                      )}>
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center",
+                            isConfirmed ? "bg-green-600" : "bg-orange-600"
+                          )}>
+                            {isConfirmed ? (
+                              <CheckCircle className="h-5 w-5 text-white" />
+                            ) : (
+                              <Clock className="h-5 w-5 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium">{subItem.name}</h4>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700">
+                                {subId.startsWith('toilet_') ? 'Wall Mount Component' : 'Custom Vanity Component'}
+                              </Badge>
+                              {status?.state === 'confirmed' && (
+                                <Badge className="text-xs bg-green-100 text-green-800">
+                                  Confirmed
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant={isConfirmed ? "secondary" : "default"}
+                            onClick={() => handleItemStatusUpdate(subId, {
+                              state: isConfirmed ? 'included' : 'confirmed'
+                            })}
+                            disabled={disabled}
+                          >
+                            {isConfirmed ? (
+                              <><Clock className="w-4 h-4 mr-1" />Undo</>
+                            ) : (
+                              <><CheckCircle className="w-4 h-4 mr-1" />Confirm</>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleItemStatusUpdate(subId, {
                               state: 'not_needed'
                             })}
                             disabled={disabled}
