@@ -544,17 +544,9 @@ export default function BathroomFFEWorkspace({
 
       {/* Categories - Selection Phase */}
       {currentPhase === 'selection' && (
-        <div className="space-y-4">
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Select Items for Room</h3>
-            <Button 
-              variant="outline" 
-              onClick={loadFFEData}
-              disabled={loading}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
           </div>
           
           {Object.entries(BATHROOM_TEMPLATE.categories).map(([categoryName, items]) => {

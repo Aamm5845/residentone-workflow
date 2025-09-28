@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { BATHROOM_TEMPLATE } from '@/lib/ffe/bathroom-template'
 
 interface RoomLibraryItem {
   id: string
@@ -70,38 +71,48 @@ interface RoomBasedFFEManagementProps {
 }
 
 const ROOM_TYPES = [
-  { value: 'bathroom', label: 'Bathroom', icon: Building2 },
-  { value: 'kitchen', label: 'Kitchen', icon: ChefHat },
-  { value: 'living_room', label: 'Living Room', icon: Sofa },
-  { value: 'bedroom', label: 'Bedroom', icon: Home },
-  { value: 'office', label: 'Office', icon: Building2 },
-  { value: 'dining_room', label: 'Dining Room', icon: Sofa }
+  { value: 'BATHROOM', label: 'Bathroom', icon: Building2 },
+  { value: 'KITCHEN', label: 'Kitchen', icon: ChefHat },
+  { value: 'LIVING_ROOM', label: 'Living Room', icon: Sofa },
+  { value: 'BEDROOM', label: 'Bedroom', icon: Home },
+  { value: 'OFFICE', label: 'Office', icon: Building2 },
+  { value: 'DINING_ROOM', label: 'Dining Room', icon: Sofa },
+  { value: 'LAUNDRY_ROOM', label: 'Laundry Room', icon: Settings },
+  { value: 'ENTRANCE', label: 'Entrance', icon: Home }
 ]
 
 const DEFAULT_CATEGORIES = {
-  bathroom: [
+  BATHROOM: [
     'Flooring', 'Wall', 'Ceiling', 'Doors and Handles', 
     'Moulding', 'Lighting', 'Electric', 'Plumbing', 'Accessories'
   ],
-  kitchen: [
+  KITCHEN: [
     'Flooring', 'Wall', 'Ceiling', 'Cabinets', 'Countertops', 
     'Appliances', 'Lighting', 'Plumbing', 'Hardware'
   ],
-  living_room: [
+  LIVING_ROOM: [
     'Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 
     'Textiles', 'Accessories', 'Entertainment'
   ],
-  bedroom: [
+  BEDROOM: [
     'Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 
     'Textiles', 'Storage', 'Accessories'
   ],
-  office: [
+  OFFICE: [
     'Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 
     'Technology', 'Storage', 'Accessories'
   ],
-  dining_room: [
+  DINING_ROOM: [
     'Flooring', 'Wall', 'Ceiling', 'Furniture', 'Lighting', 
     'Textiles', 'Accessories', 'Storage'
+  ],
+  LAUNDRY_ROOM: [
+    'Flooring', 'Wall', 'Ceiling', 'Appliances', 'Storage', 
+    'Lighting', 'Plumbing', 'Electric'
+  ],
+  ENTRANCE: [
+    'Flooring', 'Wall', 'Ceiling', 'Lighting', 'Storage', 
+    'Accessories', 'Furniture'
   ]
 }
 
@@ -161,9 +172,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
         setRoomLibraries(data.libraries || [])
         
         // Load bathroom library by default if exists
-        const bathroomLib = data.libraries?.find((lib: RoomLibrary) => lib.roomType === 'bathroom')
+        const bathroomLib = data.libraries?.find((lib: RoomLibrary) => lib.roomType === 'BATHROOM')
         if (bathroomLib) {
-          setSelectedRoom('bathroom')
+          setSelectedRoom('BATHROOM')
           setSelectedLibrary(bathroomLib)
         }
       } else {
@@ -181,11 +192,27 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
   // Create default bathroom library
   const createDefaultBathroomLibrary = async () => {
     try {
+      // Convert bathroom template to room library format
+      const convertedCategories: { [key: string]: RoomLibraryItem[] } = {}
+      
+      Object.entries(BATHROOM_TEMPLATE.categories).forEach(([categoryName, items]) => {
+        convertedCategories[categoryName] = items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          isRequired: item.isRequired,
+          allowMultiple: item.allowMultiple || false,
+          options: item.options,
+          specialLogic: item.specialLogic,
+          order: item.order
+        }))
+      })
+
       const bathroomLibrary = {
         name: 'Bathroom Preset Library',
-        roomType: 'bathroom',
+        roomType: 'BATHROOM',
         description: 'Standard bathroom FFE preset library with all essential categories',
-        categories: DEFAULT_BATHROOM_LIBRARY,
+        categories: convertedCategories,
         orgId
       }
 
@@ -216,10 +243,11 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
     
     if (!library) {
       // Create new library for this room type
+      const roomLabel = roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
       setLibraryForm({
-        name: `${roomType.replace('_', ' ')} Preset Library`,
+        name: `${roomLabel} Preset Library`,
         roomType,
-        description: `Standard ${roomType.replace('_', ' ')} FFE preset library`
+        description: `Standard ${roomLabel.toLowerCase()} FFE preset library`
       })
       setShowEditLibraryDialog(true)
     }
@@ -306,7 +334,7 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
   // Create default categories for room type
   const createDefaultCategoriesForRoom = (roomType: string) => {
     const categories: { [key: string]: RoomLibraryItem[] } = {}
-    const categoryList = DEFAULT_CATEGORIES[roomType as keyof typeof DEFAULT_CATEGORIES] || DEFAULT_CATEGORIES.bathroom
+    const categoryList = DEFAULT_CATEGORIES[roomType as keyof typeof DEFAULT_CATEGORIES] || DEFAULT_CATEGORIES.BATHROOM
     
     categoryList.forEach(categoryName => {
       categories[categoryName] = []
@@ -514,7 +542,9 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
           ) : selectedRoom ? (
             <Card className="text-center py-12">
               <CardContent>
-                <h3 className="text-xl font-semibold mb-2">No Library for {selectedRoom.replace('_', ' ')}</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  No Library for {selectedRoom.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                </h3>
                 <p className="text-gray-600 mb-4">Create a preset library for this room type</p>
                 <Button onClick={() => handleRoomSelect(selectedRoom)}>
                   Create Library
@@ -642,57 +672,3 @@ export default function RoomBasedFFEManagement({ orgId, user }: RoomBasedFFEMana
   )
 }
 
-// Default bathroom library structure
-const DEFAULT_BATHROOM_LIBRARY = {
-  'Flooring': [
-    {
-      id: 'tiles',
-      name: 'Tiles',
-      category: 'Flooring',
-      isRequired: false,
-      allowMultiple: true,
-      order: 1
-    },
-    {
-      id: 'hardwood',
-      name: 'Hardwood',
-      category: 'Flooring',
-      isRequired: false,
-      allowMultiple: false,
-      order: 2
-    }
-  ],
-  'Plumbing': [
-    {
-      id: 'toilet',
-      name: 'Toilet',
-      category: 'Plumbing',
-      isRequired: true,
-      allowMultiple: false,
-      specialLogic: {
-        type: 'toilet',
-        standardTasks: 1,
-        customTasks: 4,
-        customSubItems: ['carrier', 'bowl', 'seat', 'flush_plate']
-      },
-      order: 1
-    },
-    {
-      id: 'vanity',
-      name: 'Vanity',
-      category: 'Plumbing',
-      isRequired: false,
-      allowMultiple: false,
-      specialLogic: {
-        type: 'vanity',
-        standardTasks: 1,
-        customTasks: 4,
-        customSubItems: ['cabinet', 'counter', 'handle', 'paint']
-      },
-      order: 2
-    }
-  ],
-  // Add other categories...
-  'Lighting': [],
-  'Accessories': []
-}
