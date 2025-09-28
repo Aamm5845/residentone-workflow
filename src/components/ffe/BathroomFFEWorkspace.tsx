@@ -81,6 +81,7 @@ export default function BathroomFFEWorkspace({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showToiletLogic, setShowToiletLogic] = useState(false)
+  const [showVanityLogic, setShowVanityLogic] = useState(false)
   const [addingCustomItem, setAddingCustomItem] = useState<string | null>(null)
   const [customItemName, setCustomItemName] = useState('')
   const [customItems, setCustomItems] = useState<Record<string, any>>({})
@@ -247,6 +248,56 @@ export default function BathroomFFEWorkspace({
     setShowToiletLogic(false)
   }
 
+  const handleVanitySelection = async (selectionType: 'standard' | 'custom', options?: any) => {
+    const vanityUpdate: any = {
+      state: 'included',
+      selectionType,
+      quantity: 1
+    }
+
+    if (selectionType === 'standard') {
+      vanityUpdate.standardProduct = options?.standardProduct || 'Single Sink Vanity'
+    } else if (selectionType === 'custom') {
+      vanityUpdate.customOptions = options || {}
+      
+      // Auto-add the 4 vanity sub-items for completion phase
+      const subItems = ['cabinet', 'counter', 'handle', 'paint']
+      subItems.forEach(subItemId => {
+        const fullItemId = `vanity_${subItemId}`
+        if (!itemStatuses[fullItemId]) {
+          handleItemStatusUpdate(fullItemId, {
+            state: 'included',
+            quantity: 1,
+            isCustomItem: true,
+            customName: `Vanity ${subItemId.charAt(0).toUpperCase() + subItemId.slice(1)}`,
+            category: 'Plumbing'
+          })
+        }
+      })
+    }
+
+    await handleItemStatusUpdate('vanity', vanityUpdate)
+    setShowVanityLogic(false)
+  }
+
+  // Helper function to generate quantity-based items for completion phase
+  const generateQuantityItems = (item: any, status: FFEItemStatus) => {
+    const items = []
+    const quantity = status.quantity || 1
+    
+    for (let i = 1; i <= quantity; i++) {
+      items.push({
+        id: `${item.id}_qty_${i}`,
+        name: quantity > 1 ? `${item.name} #${i}` : item.name,
+        originalId: item.id,
+        quantityIndex: i,
+        ...item
+      })
+    }
+    
+    return items
+  }
+
   const handleAddCustomItem = async (categoryId: string) => {
     if (!customItemName.trim()) {
       toast.error('Please enter an item name')
@@ -282,7 +333,7 @@ export default function BathroomFFEWorkspace({
 
   const getCompletionStats = () => {
     const allItems = Object.values(BATHROOM_TEMPLATE.categories).flat()
-    const total = allItems.length
+    let total = 0
     let included = 0
     let confirmed = 0
     let notNeeded = 0
@@ -290,10 +341,42 @@ export default function BathroomFFEWorkspace({
     
     allItems.forEach(item => {
       const status = itemStatuses[item.id]
-      if (status?.state === 'confirmed') confirmed++
-      else if (status?.state === 'included') included++
-      else if (status?.state === 'not_needed') notNeeded++
-      else pending++
+      if (status?.state === 'included' || status?.state === 'confirmed') {
+        // Generate quantity-based items for stats calculation
+        const quantityItems = generateQuantityItems(item, status)
+        total += quantityItems.length
+        
+        quantityItems.forEach(qtyItem => {
+          const qtyStatus = itemStatuses[qtyItem.id]
+          if (qtyStatus?.state === 'confirmed') confirmed++
+          else if (qtyStatus?.state === 'not_needed') notNeeded++
+          else if (status.state === 'included') included++
+        })
+      } else {
+        total++
+        if (status?.state === 'not_needed') notNeeded++
+        else pending++
+      }
+    })
+    
+    // Add custom items to stats
+    Object.entries(customItems).forEach(([customId, customItem]) => {
+      const status = itemStatuses[customId]
+      if (status?.state === 'included' || status?.state === 'confirmed') {
+        const quantityItems = generateQuantityItems(customItem, status)
+        total += quantityItems.length
+        
+        quantityItems.forEach(qtyItem => {
+          const qtyStatus = itemStatuses[qtyItem.id]
+          if (qtyStatus?.state === 'confirmed') confirmed++
+          else if (qtyStatus?.state === 'not_needed') notNeeded++
+          else if (status.state === 'included') included++
+        })
+      } else {
+        total++
+        if (status?.state === 'not_needed') notNeeded++
+        else pending++
+      }
     })
     
     return { total, included, confirmed, notNeeded, pending }
@@ -549,6 +632,56 @@ export default function BathroomFFEWorkspace({
                         )
                       }
 
+                      // Special handling for vanity
+                      if (item.id === 'vanity') {
+                        return (
+                          <div key={item.id} className={cn(
+                            "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                            isIncluded ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                          )}>
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                checked={isIncluded}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setShowVanityLogic(true)
+                                  } else {
+                                    handleItemStatusUpdate(item.id, {
+                                      state: 'pending'
+                                    })
+                                  }
+                                }}
+                                disabled={disabled}
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-medium">{item.name}</h4>
+                                <p className="text-sm text-gray-600">
+                                  Click to select standard or custom vanity option
+                                </p>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  {item.isRequired && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Required
+                                    </Badge>
+                                  )}
+                                  {status?.selectionType && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {status.selectionType === 'standard' ? 'Standard' : 'Custom Build'}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {isIncluded && (
+                              <div className="flex items-center space-x-2">
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+
                       return (
                         <div key={item.id} className={cn(
                           "flex items-center justify-between p-3 rounded-lg border transition-colors",
@@ -780,6 +913,50 @@ export default function BathroomFFEWorkspace({
               </div>
             </div>
           )}
+
+          {/* Vanity Selection Logic Modal */}
+          {showVanityLogic && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Select Vanity Type</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowVanityLogic(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-4">
+                  <Button
+                    variant="outline"
+                    className="w-full p-4 h-auto text-left"
+                    onClick={() => handleVanitySelection('standard')}
+                  >
+                    <div>
+                      <div className="font-medium mb-2">Standard Vanity</div>
+                      <div className="text-sm text-gray-600">Simple selection with 1 task</div>
+                      <div className="text-xs text-blue-600 mt-1">Single/double sink, floating, traditional, etc.</div>
+                    </div>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="w-full p-4 h-auto text-left"
+                    onClick={() => handleVanitySelection('custom')}
+                  >
+                    <div>
+                      <div className="font-medium mb-2">Custom Vanity</div>
+                      <div className="text-sm text-gray-600">Complete build with 4 tasks</div>
+                      <div className="text-xs text-blue-600 mt-1">Includes: Cabinet, Counter, Handle, Paint</div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -825,81 +1002,106 @@ export default function BathroomFFEWorkspace({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {/* Regular Template Items */}
+                  {/* Regular Template Items - with quantity expansion */}
                   {categoryItems.map(item => {
                     const status = itemStatuses[item.id]
-                    const isConfirmed = status?.state === 'confirmed'
+                    if (!status) return null
 
-                    return (
-                      <div key={item.id} className={cn(
-                        "flex items-center justify-between p-4 rounded-lg border",
-                        isConfirmed ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"
-                      )}>
-                        <div className="flex items-center space-x-3 flex-1">
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center",
-                            isConfirmed ? "bg-green-600" : "bg-blue-600"
-                          )}>
-                            {isConfirmed ? (
-                              <CheckCircle className="h-5 w-5 text-white" />
-                            ) : (
-                              <Clock className="h-5 w-5 text-white" />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{item.name}</h4>
-                            {status?.quantity && status.quantity > 1 && (
-                              <p className="text-sm text-gray-600">Quantity: {status.quantity}</p>
-                            )}
-                            {status?.selectionType && item.id === 'toilet' && (
-                              <p className="text-sm text-blue-600">
-                                Type: {status.selectionType === 'standard' ? 'Freestanding' : 'Wall Mount'}
-                              </p>
-                            )}
-                            <div className="flex items-center space-x-2 mt-1">
-                              {item.isRequired && (
-                                <Badge variant="destructive" className="text-xs">
-                                  Required
-                                </Badge>
-                              )}
-                              {status?.state === 'confirmed' && (
-                                <Badge className="text-xs bg-green-100 text-green-800">
-                                  Confirmed
-                                </Badge>
+                    // Generate quantity-based items if quantity > 1
+                    const quantityItems = generateQuantityItems(item, status)
+
+                    return quantityItems.map((qtyItem, index) => {
+                      const qtyItemId = qtyItem.id
+                      const qtyStatus = itemStatuses[qtyItemId] || {
+                        ...status,
+                        itemId: qtyItemId,
+                        state: status.state,
+                        updatedAt: status.updatedAt
+                      }
+                      const isConfirmed = qtyStatus?.state === 'confirmed'
+
+                      return (
+                        <div key={qtyItemId} className={cn(
+                          "flex items-center justify-between p-4 rounded-lg border",
+                          isConfirmed ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"
+                        )}>
+                          <div className="flex items-center space-x-3 flex-1">
+                            <div className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center",
+                              isConfirmed ? "bg-green-600" : "bg-blue-600"
+                            )}>
+                              {isConfirmed ? (
+                                <CheckCircle className="h-5 w-5 text-white" />
+                              ) : (
+                                <Clock className="h-5 w-5 text-white" />
                               )}
                             </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium">{qtyItem.name}</h4>
+                              {status.selectionType && (item.id === 'toilet' || item.id === 'vanity') && (
+                                <p className="text-sm text-blue-600">
+                                  Type: {status.selectionType === 'standard' ? 
+                                    (item.id === 'toilet' ? 'Freestanding' : 'Standard') : 
+                                    (item.id === 'toilet' ? 'Wall Mount' : 'Custom Build')
+                                  }
+                                </p>
+                              )}
+                              <div className="flex items-center space-x-2 mt-1">
+                                {item.isRequired && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Required
+                                  </Badge>
+                                )}
+                                {quantityItems.length > 1 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {index + 1} of {quantityItems.length}
+                                  </Badge>
+                                )}
+                                {qtyStatus?.state === 'confirmed' && (
+                                  <Badge className="text-xs bg-green-100 text-green-800">
+                                    Confirmed
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant={isConfirmed ? "secondary" : "default"}
+                              onClick={() => handleItemStatusUpdate(qtyItemId, {
+                                state: isConfirmed ? 'included' : 'confirmed',
+                                originalId: item.id,
+                                quantityIndex: qtyItem.quantityIndex,
+                                isQuantityItem: quantityItems.length > 1
+                              })}
+                              disabled={disabled}
+                            >
+                              {isConfirmed ? (
+                                <><Clock className="w-4 h-4 mr-1" />Undo</>
+                              ) : (
+                                <><CheckCircle className="w-4 h-4 mr-1" />Confirm</>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleItemStatusUpdate(qtyItemId, {
+                                state: 'not_needed',
+                                originalId: item.id,
+                                quantityIndex: qtyItem.quantityIndex,
+                                isQuantityItem: quantityItems.length > 1
+                              })}
+                              disabled={disabled}
+                              className="text-gray-600"
+                            >
+                              Not Needed
+                            </Button>
                           </div>
                         </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant={isConfirmed ? "secondary" : "default"}
-                            onClick={() => handleItemStatusUpdate(item.id, {
-                              state: isConfirmed ? 'included' : 'confirmed'
-                            })}
-                            disabled={disabled}
-                          >
-                            {isConfirmed ? (
-                              <><Clock className="w-4 h-4 mr-1" />Undo</>
-                            ) : (
-                              <><CheckCircle className="w-4 h-4 mr-1" />Confirm</>
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleItemStatusUpdate(item.id, {
-                              state: 'not_needed'
-                            })}
-                            disabled={disabled}
-                            className="text-gray-600"
-                          >
-                            Not Needed
-                          </Button>
-                        </div>
-                      </div>
-                    )
+                      )
+                    })
                   })}
 
                   {/* Custom Items in Completion Phase */}

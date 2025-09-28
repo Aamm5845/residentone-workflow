@@ -567,6 +567,104 @@ export const BATHROOM_TEMPLATE: FFERoomTemplate = {
           wallMountTasks: 4,
           wallMountSubItems: ['carrier', 'bowl', 'seat', 'flush_plate']
         }
+      },
+      
+      // VANITY - Special Logic Implementation
+      {
+        id: 'vanity',
+        name: 'Vanity',
+        category: 'Plumbing',
+        itemType: 'standard_or_custom',
+        isRequired: false,
+        order: 6,
+        hasStandardOption: true,
+        hasCustomOption: true,
+        defaultState: 'pending',
+        
+        // Standard Option - 1 Task
+        standardConfig: {
+          description: 'Standard vanity - simple selection (1 task)',
+          taskCount: 1,
+          options: [
+            'Single Sink Vanity',
+            'Double Sink Vanity',
+            'Floating Vanity',
+            'Traditional Vanity',
+            'Modern Vanity',
+            'Corner Vanity'
+          ]
+        },
+        
+        // Custom Option - 4 Sub-tasks
+        customConfig: {
+          description: 'Custom vanity system (4 tasks)',
+          taskCount: 4,
+          subItems: [
+            {
+              id: 'cabinet',
+              name: 'Cabinet',
+              type: 'selection',
+              isRequired: true,
+              options: [
+                'Shaker Style Cabinet',
+                'Modern Flat Panel Cabinet',
+                'Traditional Raised Panel Cabinet',
+                'Open Shelf Cabinet',
+                'Custom Built-in Cabinet'
+              ]
+            },
+            {
+              id: 'counter',
+              name: 'Counter',
+              type: 'selection',
+              isRequired: true,
+              options: [
+                'Quartz Countertop',
+                'Granite Countertop',
+                'Marble Countertop',
+                'Concrete Countertop',
+                'Wood Countertop',
+                'Solid Surface Countertop'
+              ]
+            },
+            {
+              id: 'handle',
+              name: 'Handle',
+              type: 'selection',
+              isRequired: true,
+              options: [
+                'Bar Pulls - Brushed Nickel',
+                'Bar Pulls - Matte Black',
+                'Knobs - Brushed Gold',
+                'Knobs - Chrome',
+                'Modern Edge Pulls',
+                'Traditional Cup Pulls'
+              ]
+            },
+            {
+              id: 'paint',
+              name: 'Paint',
+              type: 'selection',
+              isRequired: true,
+              options: [
+                'White - Semi Gloss',
+                'Off White - Satin',
+                'Gray - Semi Gloss',
+                'Navy Blue - Semi Gloss',
+                'Natural Wood Stain',
+                'Custom Color Match'
+              ]
+            }
+          ]
+        },
+        
+        // Special vanity logic
+        specialLogic: {
+          type: 'vanity',
+          standardTasks: 1,
+          customTasks: 4,
+          customSubItems: ['cabinet', 'counter', 'handle', 'paint']
+        }
       }
     ],
 
