@@ -149,6 +149,12 @@ export default function BathroomFFEWorkspace({
           }
         }))
         
+        // Auto-jump back to selection phase when item marked as not needed
+        if (updates.state === 'not_needed' && currentPhase === 'completion') {
+          setCurrentPhase('selection')
+          toast.success('Item marked as not needed. You can re-add it from the selection phase.')
+        }
+        
         // Save to general settings if this is a template that should be remembered
         if (orgId) {
           await saveToGeneralSettings(itemId, updates)
@@ -554,18 +560,11 @@ export default function BathroomFFEWorkspace({
           {Object.entries(BATHROOM_TEMPLATE.categories).map(([categoryName, items]) => {
             const isExpanded = expandedCategories.has(categoryName)
             const CategoryIcon = getCategoryIcon(categoryName)
-            const categoryItems = items.filter(item => {
-              const status = itemStatuses[item.id]
-              return !status || status.state === 'pending' || status.state === 'included'
-            })
+            const categoryItems = items // Show all items regardless of status
             
-            // Add custom items for this category
+            // Add custom items for this category - show all custom items
             const categoryCustomItems = Object.entries(customItems)
               .filter(([_, item]) => item.category === categoryName)
-              .filter(([customId, _]) => {
-                const status = itemStatuses[customId]
-                return status?.state === 'included' || status?.state === 'pending'
-              })
             
             if (categoryItems.length === 0 && categoryCustomItems.length === 0) return null
 
@@ -699,10 +698,15 @@ export default function BathroomFFEWorkspace({
                         )
                       }
 
+                      const isNotNeeded = status?.state === 'not_needed'
+                      const isConfirmed = status?.state === 'confirmed'
+
                       return (
                         <div key={item.id} className={cn(
                           "flex items-center justify-between p-3 rounded-lg border transition-colors",
-                          isIncluded ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                          isConfirmed ? "border-green-200 bg-green-50" :
+                          isIncluded ? "border-blue-200 bg-blue-50" : 
+                          isNotNeeded ? "border-gray-200 bg-gray-50" : "border-gray-200 hover:border-gray-300"
                         )}>
                           <div className="flex items-center space-x-3">
                             <Checkbox
@@ -723,43 +727,59 @@ export default function BathroomFFEWorkspace({
                                     Required
                                   </Badge>
                                 )}
-                                {item.allowMultiple && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Multiple
-                                  </Badge>
-                                )}
+                                  {item.allowMultiple && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Multiple
+                                    </Badge>
+                                  )}
+                                  {isConfirmed && (
+                                    <Badge className="text-xs bg-green-100 text-green-800">
+                                      Completed
+                                    </Badge>
+                                  )}
+                                  {isNotNeeded && (
+                                    <Badge variant="outline" className="text-xs text-gray-600">
+                                      Not Needed
+                                    </Badge>
+                                  )}
                               </div>
                             </div>
                           </div>
 
-                          {isIncluded && (
-                            <div className="flex items-center space-x-2">
-                              {item.allowMultiple && (
-                                <div className="flex items-center space-x-2 bg-white rounded border px-2 py-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleQuantityChange(item.id, (status?.quantity || 1) - 1)}
-                                    disabled={disabled || (status?.quantity || 1) <= 1}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="font-medium min-w-8 text-center">{status?.quantity || 1}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleQuantityChange(item.id, (status?.quantity || 1) + 1)}
-                                    disabled={disabled}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              )}
+                          <div className="flex items-center space-x-2">
+                            {(isIncluded || isConfirmed) && item.allowMultiple && (
+                              <div className="flex items-center space-x-2 bg-white rounded border px-2 py-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleQuantityChange(item.id, (status?.quantity || 1) - 1)}
+                                  disabled={disabled || (status?.quantity || 1) <= 1}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="font-medium min-w-8 text-center">{status?.quantity || 1}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleQuantityChange(item.id, (status?.quantity || 1) + 1)}
+                                  disabled={disabled}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                            {isConfirmed && (
                               <CheckCircle className="h-5 w-5 text-green-600" />
-                            </div>
-                          )}
+                            )}
+                            {isIncluded && !isConfirmed && (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                            )}
+                            {isNotNeeded && (
+                              <Circle className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
                         </div>
                       )
                     })}
@@ -768,11 +788,15 @@ export default function BathroomFFEWorkspace({
                     {categoryCustomItems.map(([customId, customItem]) => {
                       const status = itemStatuses[customId]
                       const isIncluded = status?.state === 'included'
+                      const isNotNeeded = status?.state === 'not_needed'
+                      const isConfirmed = status?.state === 'confirmed'
 
                       return (
                         <div key={customId} className={cn(
                           "flex items-center justify-between p-3 rounded-lg border transition-colors",
-                          isIncluded ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                          isConfirmed ? "border-green-200 bg-green-50" :
+                          isIncluded ? "border-blue-200 bg-blue-50" : 
+                          isNotNeeded ? "border-gray-200 bg-gray-50" : "border-gray-200 hover:border-gray-300"
                         )}>
                           <div className="flex items-center space-x-3">
                             <Checkbox
@@ -1280,36 +1304,6 @@ export default function BathroomFFEWorkspace({
         </div>
       )}
 
-      {/* Summary */}
-      <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-blue-800">
-                {currentPhase === 'selection' ? 'Selection Phase Instructions' : 'Completion Phase Instructions'}
-              </h4>
-              <div className="text-sm text-blue-700 mt-2 space-y-1">
-                {currentPhase === 'selection' ? (
-                  <>
-                    <p>• Select items your team needs for this specific bathroom</p>
-                    <p>• Required items must be included or marked as not needed</p>
-                    <p>• Use checkboxes to include items in your project scope</p>
-                    <p>• Once selections are complete, proceed to completion phase</p>
-                  </>
-                ) : (
-                  <>
-                    <p>• Work through each selected item to confirm or mark as not needed</p>
-                    <p>• Confirm items that will be sourced and installed</p>
-                    <p>• Mark items as "Not Needed" if plans have changed</p>
-                    <p>• All items must be confirmed or marked not needed to complete FFE phase</p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
