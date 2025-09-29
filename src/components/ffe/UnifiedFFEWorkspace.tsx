@@ -24,7 +24,8 @@ import {
   Target,
   Edit3,
   Save,
-  X
+  X,
+  Sofa
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FFERoomTemplate, getTemplateForRoomType } from '@/lib/ffe/room-templates'
@@ -64,7 +65,10 @@ const CATEGORY_ICONS = {
   'Lighting': Lightbulb,
   'Electric': Wrench,
   'Plumbing': Wrench,
-  'Accessories': Settings
+  'Accessories': Settings,
+  'Finishes': Palette,
+  'Hardware': Wrench,
+  'Furniture': Sofa
 }
 
 export default function UnifiedFFEWorkspace({ 
@@ -86,6 +90,7 @@ export default function UnifiedFFEWorkspace({
   const [addingCustomItem, setAddingCustomItem] = useState<string | null>(null)
   const [customItemName, setCustomItemName] = useState('')
   const [customItems, setCustomItems] = useState<Record<string, any>>({})
+  const [ffeData, setFFEData] = useState<any>(null) // Store actual FFE data from API
 
   // Load FFE data and statuses
   useEffect(() => {
@@ -96,24 +101,44 @@ export default function UnifiedFFEWorkspace({
     try {
       setLoading(true)
       
-      // Get template for room type (now async and can use custom system)
-      const roomTemplate = await getTemplateForRoomType(roomType, orgId)
-      if (!roomTemplate) {
-        throw new Error(`No template found for room type: ${roomType}`)
-      }
-      setTemplate(roomTemplate)
-      console.log('✅ Loaded template for room type:', roomType, 'Categories:', Object.keys(roomTemplate.categories))
-      
-      // Auto-expand first category if we have categories
-      const categoryNames = Object.keys(roomTemplate.categories)
-      if (categoryNames.length > 0) {
-        setExpandedCategories(new Set([categoryNames[0]]))
+      // Load actual FFE data from database (items + categories)
+      const ffeResponse = await fetch(`/api/ffe?roomId=${roomId}`)
+      if (ffeResponse.ok) {
+        const ffeApiData = await ffeResponse.json()
+        setFFEData(ffeApiData)
+        console.log('✅ Loaded FFE data from API:', {
+          categories: Object.keys(ffeApiData.categories || {}),
+          totalItems: ffeApiData.items?.length || 0
+        })
+        
+        // Auto-expand first category if we have categories
+        const categoryNames = Object.keys(ffeApiData.categories || {})
+        if (categoryNames.length > 0) {
+          setExpandedCategories(new Set([categoryNames[0]]))
+        }
+      } else {
+        console.warn('Failed to load FFE data from API, falling back to template')
+        // Fallback: Get template for room type
+        try {
+          const roomTemplate = await getTemplateForRoomType(roomType, orgId)
+          if (roomTemplate) {
+            setTemplate(roomTemplate)
+            console.log('✅ Loaded template fallback for room type:', roomType)
+            
+            const categoryNames = Object.keys(roomTemplate.categories)
+            if (categoryNames.length > 0) {
+              setExpandedCategories(new Set([categoryNames[0]]))
+            }
+          }
+        } catch (templateError) {
+          console.error('Template fallback also failed:', templateError)
+        }
       }
       
       // Load current FFE item statuses
-      const response = await fetch(`/api/ffe/room-status?roomId=${roomId}`)
-      if (response.ok) {
-        const data = await response.json()
+      const statusResponse = await fetch(`/api/ffe/room-status?roomId=${roomId}`)
+      if (statusResponse.ok) {
+        const data = await statusResponse.json()
         
         // Convert array to object keyed by itemId
         const statusMap: Record<string, FFEItemStatus> = {}
@@ -352,9 +377,13 @@ export default function UnifiedFFEWorkspace({
   }
 
   const getCompletionStats = () => {
-    if (!template) return { total: 0, included: 0, confirmed: 0, notNeeded: 0, pending: 0 }
+    // Use FFE data if available, otherwise fallback to template
+    const categories = (ffeData?.categories) || (template?.categories) || {}
+    if (Object.keys(categories).length === 0) {
+      return { total: 0, included: 0, confirmed: 0, notNeeded: 0, pending: 0 }
+    }
     
-    const allItems = Object.values(template.categories).flat()
+    const allItems = Object.values(categories).flat()
     let total = 0
     let included = 0
     let confirmed = 0
@@ -445,7 +474,7 @@ export default function UnifiedFFEWorkspace({
     setCurrentPhase('selection')
   }
 
-  if (loading || !template) {
+  if (loading || (!ffeData && !template)) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -565,7 +594,7 @@ export default function UnifiedFFEWorkspace({
             <h3 className="text-lg font-semibold">Select Items for Room</h3>
           </div>
           
-          {Object.entries(template.categories).map(([categoryName, items]) => {
+          {Object.entries((ffeData?.categories) || (template?.categories) || {}).map(([categoryName, items]) => {
             const isExpanded = expandedCategories.has(categoryName)
             const CategoryIcon = getCategoryIcon(categoryName)
             const categoryItems = items // Show all items regardless of status
@@ -999,7 +1028,7 @@ export default function UnifiedFFEWorkspace({
             </div>
           </div>
           
-          {Object.entries(template.categories).map(([categoryName, items]) => {
+          {Object.entries((ffeData?.categories) || (template?.categories) || {}).map(([categoryName, items]) => {
             const CategoryIcon = getCategoryIcon(categoryName)
             const categoryItems = items.filter(item => {
               const status = itemStatuses[item.id]
