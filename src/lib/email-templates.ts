@@ -71,8 +71,10 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
             <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
-                 style="max-width: 200px; height: auto; margin-bottom: 24px;" 
-                 onerror="console.log('Logo failed to load: ${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png');"/>
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
+                 draggable="false" 
+                 ondragstart="return false;" 
+                 oncontextmenu="return false;"/>
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Design Delivery</h1>
             <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 16px; font-weight: 400;">${data.roomName || 'Your Space'} • ${data.projectName}</p>
         </div>

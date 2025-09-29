@@ -46,7 +46,7 @@ interface FFEItemStatus {
   updatedAt: string
 }
 
-interface BathroomFFEWorkspaceProps {
+interface UnifiedFFEWorkspaceProps {
   roomId: string
   roomType: string
   orgId?: string
@@ -67,17 +67,17 @@ const CATEGORY_ICONS = {
   'Accessories': Settings
 }
 
-export default function BathroomFFEWorkspace({ 
+export default function UnifiedFFEWorkspace({ 
   roomId, 
   roomType,
   orgId,
   projectId,
   onProgressUpdate,
   disabled = false 
-}: BathroomFFEWorkspaceProps) {
+}: UnifiedFFEWorkspaceProps) {
   const [template, setTemplate] = useState<FFERoomTemplate | null>(null)
   const [itemStatuses, setItemStatuses] = useState<Record<string, FFEItemStatus>>({})
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Plumbing']))
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [currentPhase, setCurrentPhase] = useState<'selection' | 'completion'>('selection')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -103,6 +103,12 @@ export default function BathroomFFEWorkspace({
       }
       setTemplate(roomTemplate)
       console.log('✅ Loaded template for room type:', roomType, 'Categories:', Object.keys(roomTemplate.categories))
+      
+      // Auto-expand first category if we have categories
+      const categoryNames = Object.keys(roomTemplate.categories)
+      if (categoryNames.length > 0) {
+        setExpandedCategories(new Set([categoryNames[0]]))
+      }
       
       // Load current FFE item statuses
       const response = await fetch(`/api/ffe/room-status?roomId=${roomId}`)
@@ -216,19 +222,18 @@ export default function BathroomFFEWorkspace({
     })
   }
 
-  const getCategoryIcon = (categoryId: string) => {
-    const IconComponent = CATEGORY_ICONS[categoryId as keyof typeof CATEGORY_ICONS] || Building2
-    return IconComponent
-  }
-
-  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return
     
     const currentStatus = itemStatuses[itemId]
-    await handleItemStatusUpdate(itemId, {
+    handleItemStatusUpdate(itemId, {
       ...currentStatus,
       quantity: newQuantity
     })
+  }
+
+  const getCategoryIcon = (categoryName: string) => {
+    return CATEGORY_ICONS[categoryName as keyof typeof CATEGORY_ICONS] || Settings
   }
 
   const handleToiletSelection = async (selectionType: 'standard' | 'custom', options?: any) => {
@@ -243,7 +248,7 @@ export default function BathroomFFEWorkspace({
     } else if (selectionType === 'custom') {
       toiletUpdate.customOptions = options || {}
       
-      // Auto-add the 4 wall-mount sub-items for completion phase
+      // Auto-add the 4 toilet sub-items for completion phase
       const subItems = ['carrier', 'bowl', 'seat', 'flush_plate']
       subItems.forEach(subItemId => {
         const fullItemId = `toilet_${subItemId}`
@@ -468,8 +473,8 @@ export default function BathroomFFEWorkspace({
           </div>
           <p className="text-sm text-gray-600">
             {currentPhase === 'selection' 
-              ? 'Select which items will be included in this bathroom'
-              : 'Complete the selected items for this bathroom'
+              ? `Select which items will be included in this ${roomType.replace('_', ' ').toLowerCase()}`
+              : `Complete the selected items for this ${roomType.replace('_', ' ').toLowerCase()}`
             }
           </p>
         </div>
@@ -600,6 +605,8 @@ export default function BathroomFFEWorkspace({
                     {categoryItems.map(item => {
                       const status = itemStatuses[item.id]
                       const isIncluded = status?.state === 'included'
+                      const isNotNeeded = status?.state === 'not_needed'
+                      const isConfirmed = status?.state === 'confirmed'
 
                       // Special handling for toilet
                       if (item.id === 'toilet') {
@@ -675,7 +682,7 @@ export default function BathroomFFEWorkspace({
                               <div className="flex-1">
                                 <h4 className="font-medium">{item.name}</h4>
                                 <p className="text-sm text-gray-600">
-                                  Click to select standard or custom vanity option
+                                  Click to select standard or custom vanity
                                 </p>
                                 <div className="flex items-center space-x-2 mt-1">
                                   {item.isRequired && (
@@ -701,9 +708,7 @@ export default function BathroomFFEWorkspace({
                         )
                       }
 
-                      const isNotNeeded = status?.state === 'not_needed'
-                      const isConfirmed = status?.state === 'confirmed'
-
+                      // Regular item handling
                       return (
                         <div key={item.id} className={cn(
                           "flex items-center justify-between p-3 rounded-lg border transition-colors",
@@ -717,7 +722,7 @@ export default function BathroomFFEWorkspace({
                               onCheckedChange={(checked) => {
                                 handleItemStatusUpdate(item.id, {
                                   state: checked ? 'included' : 'pending',
-                                  quantity: item.allowMultiple ? 1 : undefined
+                                  quantity: 1
                                 })
                               }}
                               disabled={disabled}
@@ -730,27 +735,12 @@ export default function BathroomFFEWorkspace({
                                     Required
                                   </Badge>
                                 )}
-                                  {item.allowMultiple && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Multiple
-                                    </Badge>
-                                  )}
-                                  {isConfirmed && (
-                                    <Badge className="text-xs bg-green-100 text-green-800">
-                                      Completed
-                                    </Badge>
-                                  )}
-                                  {isNotNeeded && (
-                                    <Badge variant="outline" className="text-xs text-gray-600">
-                                      Not Needed
-                                    </Badge>
-                                  )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-2">
-                            {(isIncluded || isConfirmed) && item.allowMultiple && (
+                          {isIncluded && (
+                            <div className="flex items-center space-x-2">
                               <div className="flex items-center space-x-2 bg-white rounded border px-2 py-1">
                                 <Button
                                   size="sm"
@@ -772,17 +762,18 @@ export default function BathroomFFEWorkspace({
                                   <Plus className="h-3 w-3" />
                                 </Button>
                               </div>
-                            )}
-                            {isConfirmed && (
                               <CheckCircle className="h-5 w-5 text-green-600" />
-                            )}
-                            {isIncluded && !isConfirmed && (
-                              <CheckCircle className="h-5 w-5 text-blue-600" />
-                            )}
-                            {isNotNeeded && (
-                              <Circle className="h-5 w-5 text-gray-400" />
-                            )}
-                          </div>
+                            </div>
+                          )}
+                          {isConfirmed && !isIncluded && (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          )}
+                          {isIncluded && !isConfirmed && (
+                            <CheckCircle className="h-5 w-5 text-blue-600" />
+                          )}
+                          {isNotNeeded && (
+                            <Circle className="h-5 w-5 text-gray-400" />
+                          )}
                         </div>
                       )
                     })}
@@ -976,7 +967,7 @@ export default function BathroomFFEWorkspace({
                     <div>
                       <div className="font-medium mb-2">Standard Vanity</div>
                       <div className="text-sm text-gray-600">Simple selection with 1 task</div>
-                      <div className="text-xs text-blue-600 mt-1">Single/double sink, floating, traditional, etc.</div>
+                      <div className="text-xs text-blue-600 mt-1">Single sink, double sink, floating, etc.</div>
                     </div>
                   </Button>
                   
@@ -986,7 +977,7 @@ export default function BathroomFFEWorkspace({
                     onClick={() => handleVanitySelection('custom')}
                   >
                     <div>
-                      <div className="font-medium mb-2">Custom Vanity</div>
+                      <div className="font-medium mb-2">Custom Build Vanity</div>
                       <div className="text-sm text-gray-600">Complete build with 4 tasks</div>
                       <div className="text-xs text-blue-600 mt-1">Includes: Cabinet, Counter, Handle, Paint</div>
                     </div>
@@ -1234,7 +1225,7 @@ export default function BathroomFFEWorkspace({
                     )
                   })}
 
-                  {/* Sub-Items from Toilet/Vanity Selection */}
+                  {/* Sub-Items from toilet/vanity selections */}
                   {categorySubItems.map(([subId, subItem]) => {
                     const status = itemStatuses[subId]
                     const isConfirmed = status?.state === 'confirmed'
@@ -1259,7 +1250,7 @@ export default function BathroomFFEWorkspace({
                             <h4 className="font-medium">{subItem.name}</h4>
                             <div className="flex items-center space-x-2 mt-1">
                               <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700">
-                                {subId.startsWith('toilet_') ? 'Wall Mount Component' : 'Custom Vanity Component'}
+                                Sub-Item
                               </Badge>
                               {status?.state === 'confirmed' && (
                                 <Badge className="text-xs bg-green-100 text-green-800">
@@ -1306,7 +1297,6 @@ export default function BathroomFFEWorkspace({
           })}
         </div>
       )}
-
     </div>
   )
 }

@@ -179,8 +179,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Item with this name already exists in this category' }, { status: 409 })
     }
 
-    // Map room types to workspace-compatible format
-    const mappedRoomTypes = mapRoomTypesToWorkspaceFormat(roomTypes || [])
+    // Map room types to workspace-compatible format and expand for linked room types
+    let expandedRoomTypes = mapRoomTypesToWorkspaceFormat(roomTypes || [])
+    
+    // Check if any of the selected room types are custom room types with linked rooms
+    for (const roomType of roomTypes || []) {
+      const customRoomType = await prisma.fFELibraryItem.findFirst({
+        where: {
+          orgId,
+          itemType: 'ROOM_TYPE',
+          OR: [
+            { itemId: roomType.toLowerCase() },
+            { name: { equals: roomType, mode: 'insensitive' } }
+          ]
+        }
+      })
+      
+      if (customRoomType && customRoomType.subItems?.linkedRooms) {
+        console.log(`🔗 Found custom room type '${customRoomType.name}' with linked rooms:`, customRoomType.subItems.linkedRooms)
+        const linkedRoomTypes = mapRoomTypesToWorkspaceFormat(customRoomType.subItems.linkedRooms as string[])
+        expandedRoomTypes = [...new Set([...expandedRoomTypes, ...linkedRoomTypes])]
+        console.log('🔗 Expanded room types:', expandedRoomTypes)
+      }
+    }
+    
+    console.log('🔗 Creating FFE item with room types:', expandedRoomTypes)
 
     // Create in the FFE library
     const newItem = await prisma.fFELibraryItem.create({
@@ -189,7 +212,7 @@ export async function POST(request: NextRequest) {
         itemId,
         name,
         category,
-        roomTypes: mappedRoomTypes,
+        roomTypes: expandedRoomTypes,
         isRequired: isRequired || false,
         isStandard: false, // Custom items are not standard
         subItems: subItems ? JSON.parse(JSON.stringify(subItems)) : null,

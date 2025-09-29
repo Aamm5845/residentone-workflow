@@ -376,10 +376,351 @@ export const FFE_ROOM_TEMPLATES: Record<string, FFERoomTemplate> = {
 }
 
 // Helper functions
-export function getTemplateForRoomType(roomType: string): FFERoomTemplate | undefined {
+export async function getTemplateForRoomType(roomType: string, orgId?: string): Promise<FFERoomTemplate | undefined> {
   // Convert room type formats (handle both MASTER_BEDROOM and master_bedroom)
   const normalizedType = roomType.toLowerCase().replace('_', '_')
-  return FFE_ROOM_TEMPLATES[normalizedType]
+  
+  // First try to get from predefined templates
+  const predefinedTemplate = FFE_ROOM_TEMPLATES[normalizedType]
+  if (predefinedTemplate) {
+    console.log(`✅ Using predefined template for room type: ${roomType}`)
+    return predefinedTemplate
+  }
+  
+  // If no predefined template found, try to generate from custom room management system
+  if (orgId) {
+    console.log(`🔍 No predefined template found for room type: ${roomType}. Attempting to generate from custom system for org: ${orgId}`)
+    
+    try {
+      // Try different formats for the room type key
+      let customTemplate = await generateTemplateFromCustomSystem(roomType, orgId)
+      
+      // If that doesn't work, try lowercase format
+      if (!customTemplate) {
+        console.log(`Trying lowercase format: ${roomType.toLowerCase()}`)
+        customTemplate = await generateTemplateFromCustomSystem(roomType.toLowerCase(), orgId)
+      }
+      
+      // If that doesn't work, try kebab-case format
+      if (!customTemplate) {
+        const kebabCase = roomType.toLowerCase().replace(/[_\s]+/g, '-')
+        console.log(`Trying kebab-case format: ${kebabCase}`)
+        customTemplate = await generateTemplateFromCustomSystem(kebabCase, orgId)
+      }
+      
+      if (customTemplate) {
+        return customTemplate
+      }
+    } catch (error) {
+      console.warn('Failed to generate template from custom system:', error)
+    }
+  }
+  
+  // Fallback: create a dynamic template
+  console.log(`⚠️ Creating dynamic fallback template for room type: ${roomType} (no custom items found)`)
+  return createDynamicTemplate(roomType)
+}
+
+// Generate template from custom room management system
+async function generateTemplateFromCustomSystem(roomType: string, orgId: string): Promise<FFERoomTemplate | null> {
+  try {
+    console.log(`Generating template for room type '${roomType}' from custom system for org: ${orgId}`)
+    
+    // Fetch categories for this room type from the custom system
+    const categoriesResponse = await fetch(`/api/ffe/categories?orgId=${orgId}`)
+    if (!categoriesResponse.ok) {
+      console.warn('Failed to fetch categories from custom system')
+      return null
+    }
+    
+    const categoriesData = await categoriesResponse.json()
+    const allCategories = categoriesData.categories || []
+    
+    // Filter categories that are applicable to this room type - match against the room type key
+    const applicableCategories = allCategories.filter((cat: any) => 
+      cat.roomTypeKeys && cat.roomTypeKeys.includes(roomType)
+    )
+    
+    if (applicableCategories.length === 0) {
+      console.log(`No custom categories found for room type: ${roomType}`)
+      return null
+    }
+    
+    console.log(`Found ${applicableCategories.length} custom categories for room type: ${roomType}`, applicableCategories.map(c => c.name))
+    
+    // Convert custom categories to FFE template format
+    const templateCategories: { [categoryName: string]: FFEItemTemplate[] } = {}
+    
+    for (const category of applicableCategories) {
+      // Fetch items for this category and room type
+      try {
+        const itemsResponse = await fetch(`/api/ffe/management/items?orgId=${orgId}&roomTypeKey=${roomType}`)
+        
+        let categoryItems: FFEItemTemplate[] = []
+        
+        if (itemsResponse.ok) {
+          const itemsData = await itemsResponse.json()
+          const items = itemsData.items || []
+          
+          // Filter items that belong to this category
+          const categorySpecificItems = items.filter((item: any) => 
+            item.categoryKey === category.key
+          )
+          
+          console.log(`Found ${categorySpecificItems.length} items for category '${category.name}' in room type '${roomType}'`)
+          
+          categoryItems = categorySpecificItems.map((item: any, index: number) => ({
+            id: item.id,
+            name: item.name, // Use the actual name from your custom system!
+            category: category.name,
+            itemType: 'standard_or_custom' as const,
+            isRequired: item.isRequired || false,
+            order: item.order || index + 1,
+            hasStandardOption: true,
+            hasCustomOption: true,
+            standardConfig: {
+              description: `Select from standard ${item.name.toLowerCase()} options`,
+              options: [
+                `Standard ${item.name} Option 1`,
+                `Standard ${item.name} Option 2`,
+                `Standard ${item.name} Option 3`
+              ]
+            },
+            customConfig: {
+              description: `Create custom ${item.name.toLowerCase()} specifications`,
+              subItems: item.logicRules && item.logicRules.length > 0 ? 
+                // Use logic rules from the custom system if available
+                item.logicRules.flatMap((rule: any) => rule.expandsTo || []) : 
+                // Otherwise use default sub-items
+                [
+                  {
+                    id: 'material',
+                    name: 'Material',
+                    type: 'selection' as const,
+                    options: ['Wood', 'Metal', 'Fabric', 'Glass', 'Stone', 'Composite'],
+                    isRequired: true
+                  },
+                  {
+                    id: 'color',
+                    name: 'Color',
+                    type: 'color' as const,
+                    isRequired: true
+                  },
+                  {
+                    id: 'dimensions',
+                    name: 'Dimensions',
+                    type: 'input' as const,
+                    placeholder: 'L x W x H (e.g., 24" x 36" x 30")',
+                    isRequired: true
+                  }
+                ]
+            }
+          }))
+        } else {
+          console.warn(`Failed to fetch items for category: ${category.name}`, itemsResponse.status)
+        }
+        
+        // Only add categories that have items
+        if (categoryItems.length > 0) {
+          templateCategories[category.name] = categoryItems
+        } else {
+          console.log(`No items found for category '${category.name}' - skipping`)
+        }
+        
+      } catch (itemError) {
+        console.warn(`Error fetching items for category ${category.name}:`, itemError)
+      }
+    }
+    
+    // Only return template if it has categories with items
+    if (Object.keys(templateCategories).length === 0) {
+      console.log(`No categories with items found for room type: ${roomType}`)
+      return null
+    }
+    
+    const template: FFERoomTemplate = {
+      roomType: roomType.toLowerCase(),
+      name: formatRoomTypeName(roomType),
+      categories: templateCategories
+    }
+    
+    console.log(`✅ Generated custom template for ${roomType}:`, {
+      roomType: template.roomType,
+      categoryCount: Object.keys(template.categories).length,
+      totalItems: Object.values(template.categories).reduce((sum, items) => sum + items.length, 0),
+      categories: Object.keys(template.categories),
+      items: Object.entries(template.categories).map(([cat, items]) => ({ [cat]: items.map(i => i.name) }))
+    })
+    
+    return template
+    
+  } catch (error) {
+    console.error('Error generating template from custom system:', error)
+    return null
+  }
+}
+
+// Create a dynamic template for custom room types
+function createDynamicTemplate(roomType: string): FFERoomTemplate {
+  const formattedName = formatRoomTypeName(roomType)
+  
+  return {
+    roomType: roomType.toLowerCase(),
+    name: formattedName,
+    categories: {
+      'Items': [
+        {
+          id: `${roomType.toLowerCase().replace(/\s+/g, '_')}_item_1`,
+          name: `${formattedName} Item 1`,
+          category: 'Items',
+          itemType: 'standard_or_custom',
+          isRequired: true,
+          order: 1,
+          hasStandardOption: true,
+          hasCustomOption: true,
+          standardConfig: {
+            description: `Select from standard ${formattedName.toLowerCase()} options`,
+            options: [
+              `Standard ${formattedName} Option 1`,
+              `Standard ${formattedName} Option 2`,
+              `Standard ${formattedName} Option 3`
+            ]
+          },
+          customConfig: {
+            description: `Create custom ${formattedName.toLowerCase()} specifications`,
+            subItems: [
+              {
+                id: 'material',
+                name: 'Material',
+                type: 'selection',
+                options: ['Wood', 'Metal', 'Fabric', 'Glass', 'Stone', 'Composite'],
+                isRequired: true
+              },
+              {
+                id: 'finish',
+                name: 'Finish',
+                type: 'selection',
+                options: ['Matte', 'Glossy', 'Satin', 'Textured', 'Natural'],
+                isRequired: true
+              },
+              {
+                id: 'color',
+                name: 'Color',
+                type: 'color',
+                isRequired: true
+              },
+              {
+                id: 'dimensions',
+                name: 'Dimensions',
+                type: 'input',
+                placeholder: 'L x W x H (e.g., 24" x 36" x 30")',
+                isRequired: true
+              }
+            ]
+          }
+        },
+        {
+          id: `${roomType.toLowerCase().replace(/\s+/g, '_')}_item_2`,
+          name: `${formattedName} Item 2`,
+          category: 'Items',
+          itemType: 'standard_or_custom',
+          isRequired: false,
+          order: 2,
+          hasStandardOption: true,
+          hasCustomOption: true,
+          standardConfig: {
+            description: `Select from standard ${formattedName.toLowerCase()} options`,
+            options: [
+              `Standard ${formattedName} Option A`,
+              `Standard ${formattedName} Option B`,
+              `Standard ${formattedName} Option C`
+            ]
+          },
+          customConfig: {
+            description: `Create custom ${formattedName.toLowerCase()} specifications`,
+            subItems: [
+              {
+                id: 'style',
+                name: 'Style',
+                type: 'selection',
+                options: ['Modern', 'Traditional', 'Transitional', 'Contemporary', 'Industrial'],
+                isRequired: true
+              },
+              {
+                id: 'color',
+                name: 'Color',
+                type: 'color',
+                isRequired: true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+// Format room type name for display
+function formatRoomTypeName(roomType: string): string {
+  return roomType
+    .split(/[-_\s]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+// Create a basic template for custom room types
+function createBasicTemplate(roomType: string): FFERoomTemplate {
+  return {
+    roomType: roomType.toLowerCase(),
+    name: roomType.charAt(0).toUpperCase() + roomType.slice(1).toLowerCase(),
+    categories: {
+      'General': [
+        {
+          id: 'basic_item_1',
+          name: 'Basic Item 1',
+          category: 'General',
+          itemType: 'standard_or_custom',
+          isRequired: false,
+          order: 1,
+          hasStandardOption: true,
+          hasCustomOption: true,
+          standardConfig: {
+            description: 'Select from standard options',
+            options: [
+              'Option 1',
+              'Option 2',
+              'Option 3'
+            ]
+          },
+          customConfig: {
+            description: 'Create custom specifications',
+            subItems: [
+              {
+                id: 'material',
+                name: 'Material',
+                type: 'selection',
+                options: ['Wood', 'Metal', 'Fabric', 'Glass', 'Stone'],
+                isRequired: true
+              },
+              {
+                id: 'color',
+                name: 'Color',
+                type: 'color',
+                isRequired: true
+              },
+              {
+                id: 'size',
+                name: 'Size',
+                type: 'input',
+                placeholder: 'Enter dimensions',
+                isRequired: true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
 }
 
 export function getItemById(template: FFERoomTemplate, itemId: string): FFEItemTemplate | undefined {

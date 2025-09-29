@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 
-// GET - Get all categories for an organization
+// GET - Get all room types for an organization
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -13,38 +13,37 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
     }
 
-    // Get categories from FFELibraryItem with special type marker
-    const categoryItems = await prisma.fFELibraryItem.findMany({
+    // Using FFELibraryItem as temporary storage for room types
+    const roomTypeItems = await prisma.fFELibraryItem.findMany({
       where: {
         orgId,
-        itemType: 'CATEGORY' // Special marker for categories
+        itemType: 'ROOM_TYPE' // Special marker for room types
       },
       orderBy: {
         createdAt: 'asc'
       }
     })
     
-    // Convert to category format
-    const categories = categoryItems.map(item => ({
+    // Convert to room type format
+    const roomTypes = roomTypeItems.map(item => ({
       id: item.id,
       name: item.name,
-      key: item.itemId,
-      order: item.subItems?.order || 1,
-      isActive: item.isStandard,
-      roomTypeKeys: item.subItems?.roomTypeKeys || [],
+      key: item.itemId, // Use itemId as key
+      isActive: item.isStandard, // Use isStandard as isActive
+      linkedRooms: item.subItems?.linkedRooms || [],
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       orgId: item.orgId
     }))
 
-    return NextResponse.json({ categories })
+    return NextResponse.json({ roomTypes })
   } catch (error) {
-    console.error('Error fetching categories:', error)
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
+    console.error('Error fetching room types:', error)
+    return NextResponse.json({ error: 'Failed to fetch room types' }, { status: 500 })
   }
 }
 
-// POST - Create a new category
+// POST - Create a new room type
 export async function POST(request: Request) {
   try {
     // Get session for user ID
@@ -63,64 +62,64 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, key, order, roomTypeKeys, orgId } = body
+    const { name, key, linkedRooms, orgId } = body
 
-    console.log('📝 Creating category with data:', { name, key, order, roomTypeKeys, orgId })
+    console.log('📝 Creating room type with data:', { name, key, linkedRooms, orgId })
+    console.log('📝 Session user:', session.user)
+    console.log('📝 Database user:', { id: user.id, email: user.email })
 
     if (!name || !key || !orgId) {
       return NextResponse.json({ error: 'Name, key, and orgId are required' }, { status: 400 })
     }
 
-    // Create category as FFELibraryItem with special type
-    const categoryItem = await prisma.fFELibraryItem.create({
+    // Create room type as FFELibraryItem with special type
+    const roomTypeItem = await prisma.fFELibraryItem.create({
       data: {
         name,
-        itemId: key.toUpperCase(),
-        category: 'CATEGORY',
-        itemType: 'CATEGORY', // Special marker
+        itemId: key.toLowerCase(),
+        category: 'ROOM_TYPE',
+        itemType: 'ROOM_TYPE', // Special marker
         roomTypes: [],
-        dependsOn: [], // Required field
-        isStandard: true, // Use as isActive
-        subItems: { // Store category-specific data
-          order: order || 1,
-          roomTypeKeys: roomTypeKeys || []
+        dependsOn: [], // Required field - empty array for room types
+        isStandard: true, // Use instead of isActive
+        subItems: { // Use subItems instead of metadata
+          linkedRooms: linkedRooms || []
         },
         orgId,
         // Required fields for FFELibraryItem
-        createdById: user.id,
+        createdById: user.id, // Use actual user ID from database
         updatedById: user.id
       }
     })
     
-    // Convert to category format
-    const category = {
-      id: categoryItem.id,
-      name: categoryItem.name,
-      key: categoryItem.itemId,
-      order: categoryItem.subItems?.order || 1,
-      isActive: categoryItem.isStandard,
-      roomTypeKeys: categoryItem.subItems?.roomTypeKeys || [],
-      createdAt: categoryItem.createdAt,
-      updatedAt: categoryItem.updatedAt,
-      orgId: categoryItem.orgId
+    // Convert to room type format
+    const roomType = {
+      id: roomTypeItem.id,
+      name: roomTypeItem.name,
+      key: roomTypeItem.itemId,
+      isActive: roomTypeItem.isStandard, // Use isStandard as isActive
+      linkedRooms: roomTypeItem.subItems?.linkedRooms || [],
+      createdAt: roomTypeItem.createdAt,
+      updatedAt: roomTypeItem.updatedAt,
+      orgId: roomTypeItem.orgId
     }
 
-    return NextResponse.json({ category })
+    return NextResponse.json({ roomType })
   } catch (error) {
-    console.error('Error creating category:', error)
+    console.error('Error creating room type:', error)
     console.error('Error details:', {
       name: error?.name,
       message: error?.message,
       stack: error?.stack
     })
     return NextResponse.json({ 
-      error: 'Failed to create category', 
+      error: 'Failed to create room type', 
       details: error?.message || 'Unknown error'
     }, { status: 500 })
   }
 }
 
-// PUT - Update a category
+// PUT - Update a room type
 export async function PUT(request: Request) {
   try {
     // Get session for user ID
@@ -139,53 +138,51 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, name, key, order, roomTypeKeys, orgId } = body
+    const { id, name, key, linkedRooms, orgId } = body
 
     if (!id || !orgId) {
       return NextResponse.json({ error: 'ID and orgId are required' }, { status: 400 })
     }
 
-    const categoryItem = await prisma.fFELibraryItem.update({
+    const roomTypeItem = await prisma.fFELibraryItem.update({
       where: {
         id,
         orgId,
-        itemType: 'CATEGORY'
+        itemType: 'ROOM_TYPE'
       },
       data: {
         ...(name && { name }),
-        ...(key && { itemId: key.toUpperCase() }),
-        ...(order !== undefined || roomTypeKeys !== undefined ? { 
+        ...(key && { itemId: key.toLowerCase() }),
+        ...(linkedRooms !== undefined && { 
           subItems: {
-            order: order || 1,
-            roomTypeKeys: roomTypeKeys || []
+            linkedRooms
           }
-        } : {}),
+        }),
         updatedById: user.id,
         updatedAt: new Date()
       }
     })
     
-    // Convert to category format
-    const category = {
-      id: categoryItem.id,
-      name: categoryItem.name,
-      key: categoryItem.itemId,
-      order: categoryItem.subItems?.order || 1,
-      isActive: categoryItem.isStandard,
-      roomTypeKeys: categoryItem.subItems?.roomTypeKeys || [],
-      createdAt: categoryItem.createdAt,
-      updatedAt: categoryItem.updatedAt,
-      orgId: categoryItem.orgId
+    // Convert to room type format
+    const roomType = {
+      id: roomTypeItem.id,
+      name: roomTypeItem.name,
+      key: roomTypeItem.itemId,
+      isActive: roomTypeItem.isStandard,
+      linkedRooms: roomTypeItem.subItems?.linkedRooms || [],
+      createdAt: roomTypeItem.createdAt,
+      updatedAt: roomTypeItem.updatedAt,
+      orgId: roomTypeItem.orgId
     }
 
-    return NextResponse.json({ category })
+    return NextResponse.json({ roomType })
   } catch (error) {
-    console.error('Error updating category:', error)
-    return NextResponse.json({ error: 'Failed to update category' }, { status: 500 })
+    console.error('Error updating room type:', error)
+    return NextResponse.json({ error: 'Failed to update room type' }, { status: 500 })
   }
 }
 
-// DELETE - Delete a category
+// DELETE - Delete a room type
 export async function DELETE(request: Request) {
   try {
     // Get session for user ID
@@ -216,7 +213,7 @@ export async function DELETE(request: Request) {
       where: {
         id,
         orgId,
-        itemType: 'CATEGORY'
+        itemType: 'ROOM_TYPE'
       },
       data: {
         isStandard: false, // Use isStandard instead of isActive
@@ -227,7 +224,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting category:', error)
-    return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 })
+    console.error('Error deleting room type:', error)
+    return NextResponse.json({ error: 'Failed to delete room type' }, { status: 500 })
   }
 }

@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
-import EnhancedFFERoomView from '../ffe/EnhancedFFERoomView'
-import BathroomFFEWorkspace from '../ffe/BathroomFFEWorkspace'
+import UnifiedFFEWorkspace from '../ffe/UnifiedFFEWorkspace'
 import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
-import { isApplicableRoomType } from '@/lib/ffe/bathroom-template-clean'
 
 export default function FFEStage({ 
   stage, 
@@ -145,22 +143,13 @@ export default function FFEStage({
       <div className="flex">
         {/* Main Workspace */}
         <div className="flex-1 p-6">
-          {isApplicableRoomType(room.type) ? (
-            <BathroomFFEWorkspace
-              roomId={room.id}
-              roomType={room.type}
-              orgId={project.organization?.id || project.orgId}
-              projectId={project.id}
-              onProgressUpdate={handleFFEProgress}
-            />
-          ) : (
-            <EnhancedFFERoomView
-              roomId={room.id}
-              roomType={room.type}
-              orgId={project.organization?.id || project.orgId}
-              onProgressUpdate={handleFFEProgress}
-            />
-          )}
+          <UnifiedFFEWorkspace
+            roomId={room.id}
+            roomType={room.type}
+            orgId={project.organization?.id || project.orgId}
+            projectId={project.id}
+            onProgressUpdate={handleFFEProgress}
+          />
         </div>
 
         {/* Chat Sidebar */}

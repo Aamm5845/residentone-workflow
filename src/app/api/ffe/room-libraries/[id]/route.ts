@@ -2,6 +2,53 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+// Delete individual item from room library
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { action, orgId, itemId, categoryName, roomType } = body
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+    }
+
+    if (action === 'delete_item') {
+      // Delete specific item from room library
+      const roomTypeKey = roomType?.toLowerCase().replace('_', '-') || 'bathroom'
+      
+      await prisma.fFELibraryItem.deleteMany({
+        where: {
+          orgId,
+          itemId,
+          roomTypes: {
+            has: roomTypeKey
+          },
+          category: categoryName
+        }
+      })
+
+      return NextResponse.json({ 
+        success: true,
+        message: 'Item deleted successfully'
+      })
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+
+  } catch (error) {
+    console.error('Error in room library PATCH:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // Update a room library by ID
 export async function PUT(
   request: NextRequest,

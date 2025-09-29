@@ -94,12 +94,32 @@ export async function GET(request: NextRequest) {
     const libraryRoomType = roomTypeMapping[room.type] || room.type.toLowerCase().replace('_', '-')
     console.log('🔍 Room type mapping:', room.type, '→', libraryRoomType)
     
-    // Get organization library items that apply to this room type
+    // First get custom room types that link to this room type
+    const customRoomTypes = await prisma.fFELibraryItem.findMany({
+      where: {
+        orgId: session.user.orgId,
+        itemType: 'ROOM_TYPE', // Special marker for room types
+        subItems: {
+          path: ['linkedRooms'],
+          array_contains: [room.type] // Find room types that include this room in linkedRooms
+        }
+      }
+    })
+    
+    console.log(`🔍 Found ${customRoomTypes.length} custom room types linked to room type '${room.type}':`, 
+      customRoomTypes.map(rt => rt.name))
+    
+    // Get organization library items that apply to this room type OR any linked custom room type
     const libraryItems = await prisma.fFELibraryItem.findMany({
       where: {
         orgId: session.user.orgId,
-        roomTypes: {
-          has: libraryRoomType
+        OR: [
+          { roomTypes: { has: libraryRoomType } },
+          ...customRoomTypes.map(rt => ({ roomTypes: { has: rt.itemId.toLowerCase() } }))
+        ],
+        // Skip room types themselves
+        NOT: {
+          itemType: 'ROOM_TYPE'
         }
       },
       include: {
@@ -114,6 +134,13 @@ export async function GET(request: NextRequest) {
         { category: 'asc' },
         { name: 'asc' }
       ]
+    })
+    
+    console.log(`🔍 Found ${libraryItems.length} library items for room type '${libraryRoomType}' (original: '${room.type}')`, {
+      orgId: session.user.orgId,
+      roomType: room.type,
+      mappedRoomType: libraryRoomType,
+      itemIds: libraryItems.map(item => ({ id: item.itemId, name: item.name, category: item.category }))
     })
 
     // Convert library items to FFE item format and combine with room items
@@ -131,7 +158,12 @@ export async function GET(request: NextRequest) {
       createdBy: libItem.createdBy,
       updatedBy: libItem.updatedBy,
       createdAt: libItem.createdAt,
-      updatedAt: libItem.updatedAt
+      updatedAt: libItem.updatedAt,
+      // Add info about custom room type if applicable
+      fromCustomRoomType: customRoomTypes.some(rt => 
+        libItem.roomTypes.includes(rt.itemId.toLowerCase())) ? 
+        customRoomTypes.find(rt => 
+          libItem.roomTypes.includes(rt.itemId.toLowerCase()))?.name : null
     }))
 
     // Combine all items
@@ -160,7 +192,13 @@ export async function GET(request: NextRequest) {
       success: true,
       categories,
       items: allItems,
-      stats
+      stats,
+      // Include information about linked room types for debugging
+      linkedRoomTypes: customRoomTypes.length > 0 ? customRoomTypes.map(rt => ({
+        id: rt.id,
+        name: rt.name,
+        key: rt.itemId
+      })) : []
     })
 
   } catch (error) {

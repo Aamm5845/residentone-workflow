@@ -62,8 +62,8 @@ export default function EnhancedFFERoomView({
     try {
       setLoading(true)
       
-      // Get template for room type
-      const roomTemplate = getTemplateForRoomType(roomType)
+      // Get template for room type (now async and can use custom system)
+      const roomTemplate = await getTemplateForRoomType(roomType, orgId)
       if (!roomTemplate) {
         throw new Error(`No template found for room type: ${roomType}`)
       }
