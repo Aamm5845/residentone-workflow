@@ -261,12 +261,12 @@ export async function PUT(request: Request) {
     })
     
     // Convert to management item format, handling both old and new formats
-    const isNewFormat = itemItem.subItems?.managementItem === true
+    const isUpdatedItemNewFormat = itemItem.subItems?.managementItem === true
     const item = {
       id: itemItem.id,
       name: itemItem.name,
-      categoryKey: isNewFormat ? itemItem.category : (itemItem.subItems?.categoryKey || ''),
-      roomTypeKeys: isNewFormat ? (itemItem.subItems?.originalRoomTypeKeys || []) : [itemItem.category],
+      categoryKey: isUpdatedItemNewFormat ? itemItem.category : (itemItem.subItems?.categoryKey || ''),
+      roomTypeKeys: isUpdatedItemNewFormat ? (itemItem.subItems?.originalRoomTypeKeys || []) : [itemItem.category],
       isRequired: itemItem.isRequired,
       order: itemItem.subItems?.order || 1,
       logicRules: itemItem.subItems?.logicRules || [],
