@@ -117,10 +117,12 @@ export async function GET(request: NextRequest) {
           { roomTypes: { has: libraryRoomType } },
           ...customRoomTypes.map(rt => ({ roomTypes: { has: rt.itemId.toLowerCase() } }))
         ],
-        // Skip room types themselves
+        // Skip room types themselves but include management items
         NOT: {
           itemType: 'ROOM_TYPE'
-        }
+        },
+        // Only include active items
+        isStandard: true
       },
       include: {
         createdBy: {

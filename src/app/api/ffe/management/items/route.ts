@@ -14,15 +14,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
     }
 
-    // Get items from FFELibraryItem with special type marker
+    // Get management items from FFELibraryItem 
     const whereClause: any = {
       orgId,
-      itemType: 'ITEM' // Special marker for items
+      OR: [
+        // New format: items created by management system
+        { subItems: { path: ['managementItem'], equals: true } },
+        // Legacy format: items with itemType marker
+        { itemType: 'ITEM' }
+      ]
     }
 
     // Filter by room type if provided
     if (roomTypeKey) {
-      whereClause.category = roomTypeKey // Store room type key in category field for items
+      whereClause.AND = [
+        whereClause.OR ? { OR: whereClause.OR } : {},
+        {
+          OR: [
+            // New format: check originalRoomTypeKeys in subItems
+            { subItems: { path: ['originalRoomTypeKeys'], array_contains: [roomTypeKey] } },
+            // Legacy format: room type stored in category field
+            { category: roomTypeKey }
+          ]
+        }
+      ]
+      delete whereClause.OR // Move OR to AND structure
     }
 
     const itemItems = await prisma.fFELibraryItem.findMany({
@@ -33,20 +49,24 @@ export async function GET(request: Request) {
       ]
     })
     
-    // Convert to item format
-    const items = itemItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      categoryKey: item.subItems?.categoryKey || '',
-      roomTypeKeys: [item.category], // Room type key stored in category field
-      isRequired: item.isRequired,
-      order: item.subItems?.order || 1,
-      logicRules: item.subItems?.logicRules || [],
-      isActive: item.isStandard,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      orgId: item.orgId
-    }))
+    // Convert to item format, handling both old and new formats
+    const items = itemItems.map(item => {
+      const isNewFormat = item.subItems?.managementItem === true
+      
+      return {
+        id: item.id,
+        name: item.name,
+        categoryKey: isNewFormat ? item.category : (item.subItems?.categoryKey || ''),
+        roomTypeKeys: isNewFormat ? (item.subItems?.originalRoomTypeKeys || []) : [item.category],
+        isRequired: item.isRequired,
+        order: item.subItems?.order || 1,
+        logicRules: item.subItems?.logicRules || [],
+        isActive: item.isStandard,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        orgId: item.orgId
+      }
+    })
 
     return NextResponse.json({ items })
   } catch (error) {
@@ -82,22 +102,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name, categoryKey, roomTypeKeys, and orgId are required' }, { status: 400 })
     }
 
-    // Create item as FFELibraryItem with special type
+    // Map room type keys to workspace format for compatibility
+    const roomTypeMapping: { [key: string]: string } = {
+      'bedroom': 'bedroom',
+      'bathroom': 'bathroom', 
+      'kitchen': 'kitchen',
+      'living-room': 'living-room',
+      'dining-room': 'dining-room',
+      'office': 'office',
+      'entrance': 'entrance',
+      'foyer': 'foyer',
+      'laundry-room': 'laundry-room',
+      'playroom': 'playroom'
+    }
+    
+    // Convert room type keys to workspace compatible format
+    const workspaceRoomTypes = roomTypeKeys.map(key => roomTypeMapping[key] || key)
+    console.log(`📝 Creating item for room types:`, roomTypeKeys, '→', workspaceRoomTypes)
+    
+    // Create item as FFELibraryItem compatible with workspace system
     const itemItem = await prisma.fFELibraryItem.create({
       data: {
         name,
-        itemId: `item-${Date.now()}`, // Generate unique item ID
-        category: roomTypeKeys[0], // Store room type key in category field
-        itemType: 'ITEM', // Special marker
-        roomTypes: [],
+        itemId: `mgmt-${Date.now()}`, // Generate unique item ID with management prefix
+        category: categoryKey, // Use actual category, not room type
+        roomTypes: workspaceRoomTypes, // Store in roomTypes array for workspace compatibility
         dependsOn: [], // Required field
         isRequired: isRequired || false,
-        isStandard: true, // Use as isActive
-        subItems: { // Store item-specific data
-          categoryKey,
+        isStandard: true,
+        subItems: { // Store management-specific metadata
+          managementItem: true,
           order: order || 1,
-          logicRules: logicRules || []
+          logicRules: logicRules || [],
+          originalRoomTypeKeys: roomTypeKeys // Keep original for management reference
         },
+        notes: `Created via FFE Management for ${categoryKey}`,
         orgId,
         // Required fields for FFELibraryItem
         createdById: user.id,
@@ -105,12 +144,12 @@ export async function POST(request: Request) {
       }
     })
     
-    // Convert to item format
+    // Convert to management item format
     const item = {
       id: itemItem.id,
       name: itemItem.name,
-      categoryKey: itemItem.subItems?.categoryKey || '',
-      roomTypeKeys: [itemItem.category],
+      categoryKey: itemItem.category, // Now stored directly in category field
+      roomTypeKeys: itemItem.subItems?.originalRoomTypeKeys || [],
       isRequired: itemItem.isRequired,
       order: itemItem.subItems?.order || 1,
       logicRules: itemItem.subItems?.logicRules || [],
@@ -160,34 +199,74 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ID and orgId are required' }, { status: 400 })
     }
 
+    // First check if this is a new format item
+    const existingItem = await prisma.fFELibraryItem.findUnique({
+      where: { id }
+    })
+    
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    
+    const isNewFormat = existingItem.subItems?.managementItem === true
+    
+    // Map room type keys if provided
+    let workspaceRoomTypes: string[] | undefined
+    if (roomTypeKeys && roomTypeKeys.length > 0) {
+      const roomTypeMapping: { [key: string]: string } = {
+        'bedroom': 'bedroom',
+        'bathroom': 'bathroom', 
+        'kitchen': 'kitchen',
+        'living-room': 'living-room',
+        'dining-room': 'dining-room',
+        'office': 'office',
+        'entrance': 'entrance',
+        'foyer': 'foyer',
+        'laundry-room': 'laundry-room',
+        'playroom': 'playroom'
+      }
+      workspaceRoomTypes = roomTypeKeys.map(key => roomTypeMapping[key] || key)
+    }
+    
     const itemItem = await prisma.fFELibraryItem.update({
       where: {
         id,
-        orgId,
-        itemType: 'ITEM'
+        orgId
       },
       data: {
         ...(name && { name }),
-        ...(roomTypeKeys && roomTypeKeys.length > 0 && { category: roomTypeKeys[0] }),
+        ...(categoryKey && isNewFormat && { category: categoryKey }),
+        ...(workspaceRoomTypes && isNewFormat && { roomTypes: workspaceRoomTypes }),
         ...(isRequired !== undefined && { isRequired }),
-        ...(categoryKey !== undefined || order !== undefined || logicRules !== undefined ? { 
+        // Update subItems based on format
+        ...(isNewFormat ? {
           subItems: {
-            categoryKey: categoryKey || '',
-            order: order || 1,
-            logicRules: logicRules || []
+            managementItem: true,
+            order: order || existingItem.subItems?.order || 1,
+            logicRules: logicRules || existingItem.subItems?.logicRules || [],
+            originalRoomTypeKeys: roomTypeKeys || existingItem.subItems?.originalRoomTypeKeys || []
           }
-        } : {}),
+        } : {
+          // Legacy format
+          ...(roomTypeKeys && roomTypeKeys.length > 0 && { category: roomTypeKeys[0] }),
+          subItems: {
+            categoryKey: categoryKey || existingItem.subItems?.categoryKey || '',
+            order: order || existingItem.subItems?.order || 1,
+            logicRules: logicRules || existingItem.subItems?.logicRules || []
+          }
+        }),
         updatedById: user.id,
         updatedAt: new Date()
       }
     })
     
-    // Convert to item format
+    // Convert to management item format, handling both old and new formats
+    const isNewFormat = itemItem.subItems?.managementItem === true
     const item = {
       id: itemItem.id,
       name: itemItem.name,
-      categoryKey: itemItem.subItems?.categoryKey || '',
-      roomTypeKeys: [itemItem.category],
+      categoryKey: isNewFormat ? itemItem.category : (itemItem.subItems?.categoryKey || ''),
+      roomTypeKeys: isNewFormat ? (itemItem.subItems?.originalRoomTypeKeys || []) : [itemItem.category],
       isRequired: itemItem.isRequired,
       order: itemItem.subItems?.order || 1,
       logicRules: itemItem.subItems?.logicRules || [],
@@ -230,12 +309,11 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID and orgId are required' }, { status: 400 })
     }
 
-    // Soft delete
+    // Soft delete - handle both new and legacy formats
     await prisma.fFELibraryItem.update({
       where: {
         id,
-        orgId,
-        itemType: 'ITEM'
+        orgId
       },
       data: {
         isStandard: false, // Use isStandard instead of isActive
