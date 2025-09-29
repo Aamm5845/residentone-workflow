@@ -330,18 +330,9 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
               {ROOM_TYPE_OPTIONS.filter(room => 
                 room.value.includes('BATHROOM') || room.value === 'POWDER_ROOM'
               ).map(roomType => {
-                // Calculate items from bathroom template
-                const bathroomCategories = [
-                  'Flooring', 'Wall', 'Ceiling', 'Doors and Handles', 'Moulding',
-                  'Lighting', 'Electric', 'Plumbing', 'Accessories'
-                ]
-                const totalItems = bathroomCategories.reduce((count, category) => {
-                  const categoryItems = {
-                    'Flooring': 4, 'Wall': 3, 'Ceiling': 2, 'Doors and Handles': 2,
-                    'Moulding': 2, 'Lighting': 3, 'Electric': 1, 'Plumbing': 5, 'Accessories': 4
-                  }
-                  return count + (categoryItems[category as keyof typeof categoryItems] || 0)
-                }, 0)
+                // No hardcoded categories or items - user managed
+                const bathroomCategories: string[] = []
+                const totalItems = 0
 
                 return (
                   <Card key={roomType.value} className="hover:shadow-md transition-shadow">
@@ -364,16 +355,16 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
                           <Badge variant="secondary">{totalItems}</Badge>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Categories</span>
-                          <Badge variant="outline">{bathroomCategories.length}</Badge>
+                          <span className="text-gray-600">User Managed</span>
+                          <Badge variant="outline">0</Badge>
                         </div>
                       </div>
 
                       <div className="mt-4 pt-4 border-t">
                         <div className="text-xs text-gray-600 space-y-1">
-                          <p>✓ Special toilet logic (freestanding/wall-mount)</p>
-                          <p>✓ Multiple selection support</p>
-                          <p>✓ All bathroom essentials included</p>
+                          <p>⚪ No hardcoded defaults</p>
+                          <p>⚪ User-managed categories</p>
+                          <p>⚪ Custom FFE items only</p>
                         </div>
                       </div>
                     </CardContent>
@@ -382,25 +373,25 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
               })}
             </div>
 
-            {/* Quick Stats */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-              <h4 className="font-medium text-blue-800 mb-2">Bathroom Template Features</h4>
+            {/* No Hardcoded Stats */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
+              <h4 className="font-medium text-gray-800 mb-2">User-Managed System</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">9</div>
-                  <div className="text-blue-700">Categories</div>
+                  <div className="text-2xl font-bold text-gray-600">0</div>
+                  <div className="text-gray-700">Hardcoded Categories</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">26</div>
-                  <div className="text-blue-700">Total Items</div>
+                  <div className="text-2xl font-bold text-gray-600">0</div>
+                  <div className="text-gray-700">Default Items</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">7</div>
-                  <div className="text-blue-700">Room Types</div>
+                  <div className="text-2xl font-bold text-green-600">100%</div>
+                  <div className="text-gray-700">User Control</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">1</div>
-                  <div className="text-blue-700">Special Logic</div>
+                  <div className="text-2xl font-bold text-green-600">∞</div>
+                  <div className="text-gray-700">Custom Items</div>
                 </div>
               </div>
             </div>
@@ -417,83 +408,44 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
               </div>
             </div>
 
-            {/* Bathroom Categories */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { id: 'flooring', name: 'Flooring', items: ['Tiles', 'Hardwood', 'Vinyl', 'Carpet'], icon: Building2, color: 'bg-blue-50 border-blue-200' },
-                { id: 'wall', name: 'Wall', items: ['Tiles', 'Paint', 'Panelling'], icon: Palette, color: 'bg-green-50 border-green-200' },
-                { id: 'ceiling', name: 'Ceiling', items: ['Paint', 'Tiles'], icon: Building2, color: 'bg-purple-50 border-purple-200' },
-                { id: 'doors', name: 'Doors & Handles', items: ['Doors', 'Handles'], icon: Wrench, color: 'bg-orange-50 border-orange-200' },
-                { id: 'moulding', name: 'Moulding', items: ['Baseboard', 'Crown Moulding'], icon: Building2, color: 'bg-yellow-50 border-yellow-200' },
-                { id: 'lighting', name: 'Lighting', items: ['Spots', 'Fixture', 'LED'], icon: Lightbulb, color: 'bg-amber-50 border-amber-200' },
-                { id: 'electric', name: 'Electric', items: ['Fan'], icon: Wrench, color: 'bg-red-50 border-red-200' },
-                { id: 'plumbing', name: 'Plumbing', items: ['Bathtub', 'Shower Kit', 'Faucet', 'Drain', 'Toilet'], icon: Wrench, color: 'bg-cyan-50 border-cyan-200' },
-                { id: 'accessories', name: 'Accessories', items: ['Towel Bar', 'Tissue Holder', 'Hook', 'Towel Warmer'], icon: Settings, color: 'bg-pink-50 border-pink-200' }
-              ].map(category => {
-                const CategoryIcon = category.icon
-                return (
-                  <Card key={category.id} className={`${category.color}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <CategoryIcon className="h-5 w-5 text-gray-600" />
-                        <div>
-                          <h4 className="font-medium">{category.name}</h4>
-                          <p className="text-sm text-gray-600">
-                            {category.items.length} items
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {category.items.map(item => (
-                          <div key={item} className="flex items-center justify-between text-sm">
-                            <span className="text-gray-700">{item}</span>
-                            {item === 'Toilet' && (
-                              <Badge variant="outline" className="text-xs">
-                                Special Logic
-                              </Badge>
-                            )}
-                            {['Tiles', 'Spots', 'Fixture', 'LED', 'Faucet', 'Drain', 'Towel Bar', 'Hook'].includes(item) && (
-                              <Badge variant="secondary" className="text-xs">
-                                Multiple
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+            {/* No Hardcoded Categories */}
+            <div className="text-center py-12">
+              <div className="text-gray-400 mb-4">
+                <Settings className="h-16 w-16 mx-auto" />
+              </div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No Hardcoded Categories</h4>
+              <p className="text-gray-600 max-w-md mx-auto">
+                All categories and items are now user-managed through the FFE Management system. 
+                Create your own categories and items to build your custom FFE library.
+              </p>
             </div>
 
-            {/* Special Features */}
+            {/* User-Managed Features */}
             <div className="mt-6">
-              <h4 className="font-medium mb-3">Special Features</h4>
+              <h4 className="font-medium mb-3">User-Managed Features</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-2 border-blue-200 bg-blue-50">
+                <Card className="border-2 border-green-200 bg-green-50">
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
-                      <Settings className="h-5 w-5 text-blue-600 mt-1" />
+                      <Settings className="h-5 w-5 text-green-600 mt-1" />
                       <div>
-                        <h5 className="font-medium text-blue-800">Toilet Logic</h5>
-                        <p className="text-sm text-blue-700">
-                          Freestanding: 1 simple task<br/>
-                          Wall-mount: 4 component tasks (Carrier, Bowl, Seat, Flush Plate)
+                        <h5 className="font-medium text-green-800">Custom Logic</h5>
+                        <p className="text-sm text-green-700">
+                          Define your own item logic and expansion rules through the FFE Management interface.
                         </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card className="border-2 border-green-200 bg-green-50">
+                <Card className="border-2 border-blue-200 bg-blue-50">
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
-                      <Plus className="h-5 w-5 text-green-600 mt-1" />
+                      <Plus className="h-5 w-5 text-blue-600 mt-1" />
                       <div>
-                        <h5 className="font-medium text-green-800">Multiple Selection</h5>
-                        <p className="text-sm text-green-700">
-                          Many categories support multiple items (e.g., 2 types of tiles, multiple fixtures)
+                        <h5 className="font-medium text-blue-800">Flexible Categories</h5>
+                        <p className="text-sm text-blue-700">
+                          Create unlimited categories and items tailored to your specific workflow and requirements.
                         </p>
                       </div>
                     </div>

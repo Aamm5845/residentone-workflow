@@ -73,57 +73,10 @@ async function main() {
 
   console.log('✅ Created team accounts')
 
-  // Create room presets (standard templates without fake data)
-  await prisma.roomPreset.createMany({
-    data: [
-      {
-        roomType: RoomType.MASTER_BEDROOM,
-        name: 'Default Master Bedroom',
-        description: 'Standard master bedroom preset with essential items',
-        ffeItems: JSON.stringify([
-          'King Size Bed Frame',
-          'Upholstered Headboard',
-          'Mattress',
-          'Bedding Set',
-          'Nightstands (Set of 2)',
-          'Table Lamps (Set of 2)',
-          'Dresser',
-          'Mirror',
-          'Area Rug',
-          'Window Treatments',
-          'Artwork',
-          'Bench',
-          'Accent Chair',
-          'Hardware',
-          'Paint/Wallcovering',
-          'Accessories'
-        ]),
-        sections: JSON.stringify(['WALLS', 'FURNITURE', 'LIGHTING', 'GENERAL']),
-        isDefault: true,
-      },
-      {
-        roomType: RoomType.LIVING_ROOM,
-        name: 'Default Living Room',
-        description: 'Standard living room preset',
-        ffeItems: JSON.stringify([
-          'Sofa',
-          'Lounge Chairs',
-          'Coffee Table',
-          'Side Tables',
-          'Table/Floor Lamps',
-          'Media Unit',
-          'Area Rug',
-          'Window Treatments',
-          'Artwork',
-          'Accessories'
-        ]),
-        sections: JSON.stringify(['WALLS', 'FURNITURE', 'LIGHTING', 'GENERAL']),
-        isDefault: true,
-      },
-    ],
-  })
+  // No hardcoded room presets or FFE items - all user-managed
+  // await prisma.roomPreset.createMany({ data: [] })
 
-  console.log('✅ Created room presets')
+  console.log('✅ Skipped hardcoded room presets - all user-managed')
 
   console.log('🎉 Database seeding completed!')
   console.log('\n📋 System accounts:')

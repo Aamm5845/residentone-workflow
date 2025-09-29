@@ -82,24 +82,13 @@ export const BATHROOM_ROOM_TYPES = [
   'BATHROOM'
 ]
 
-// Complete Bathroom FFE Template
+// Cleared all hardcoded data - users manage their own FFE items
 export const BATHROOM_TEMPLATE: FFERoomTemplate = {
   roomType: 'bathroom',
   name: 'Bathroom',
-  description: 'Comprehensive FFE template for all bathroom types with preset library items',
+  description: 'User-managed FFE items (no hardcoded defaults)',
   applicableRoomTypes: BATHROOM_ROOM_TYPES,
-  categories: {
-    // Default categories with empty items - categories are pre-built, items are added via UI
-    'Flooring': [],
-    'Wall': [],
-    'Ceiling': [],
-    'Doors and Handles': [],
-    'Moulding': [],
-    'Lighting': [],
-    'Electric': [],
-    'Plumbing': [],
-    'Accessories': []
-  }
+  categories: {} // Empty - no hardcoded categories or items
 }
 
 // Enhanced item state types
@@ -111,20 +100,14 @@ export function getBathroomCategoryItems(categoryId: string): FFEItemTemplate[] 
   return category || []
 }
 
-// Helper function to check if toilet is wall-mount and get sub-tasks
+// Cleared - no hardcoded toilet logic
 export function getToiletSubTasks(): FFESubItem[] {
-  const toiletItem = getBathroomCategoryItems('Plumbing').find(item => item.id === 'toilet')
-  return toiletItem?.customConfig?.subItems || []
+  return [] // No hardcoded sub-tasks
 }
 
-// Helper function for toilet special logic
+// Cleared - no hardcoded toilet logic
 export function getToiletTaskCount(selectionType: 'standard' | 'custom'): number {
-  const toiletItem = getBathroomCategoryItems('Plumbing').find(item => item.id === 'toilet')
-  if (!toiletItem?.specialLogic) return 1
-  
-  return selectionType === 'standard' 
-    ? toiletItem.specialLogic.freestandingTasks 
-    : toiletItem.specialLogic.wallMountTasks
+  return 1 // Default to 1 task, no hardcoded logic
 }
 
 // Helper functions for conditional logic
@@ -177,22 +160,7 @@ export function validateBathroomFFECompletion(selectedItems: Record<string, any>
     }
   })
   
-  // Check toilet special logic
-  const toiletStatus = selectedItems.toilet
-  if (toiletStatus && toiletStatus.selectionType === 'custom') {
-    const requiredSubTasks = ['carrier', 'bowl', 'seat', 'flush_plate']
-    for (const subTask of requiredSubTasks) {
-      const subTaskStatus = toiletStatus.customOptions?.[subTask]
-      if (!subTaskStatus || subTaskStatus === '') {
-        missingRequired.push(`Toilet ${subTask.charAt(0).toUpperCase() + subTask.slice(1)}`)
-      }
-    }
-  }
-  
-  // Check for recommended items
-  if (!selectedItems.tissue_holder || selectedItems.tissue_holder.state !== 'included') {
-    warnings.push('Tissue holder is recommended for all bathrooms')
-  }
+  // No hardcoded toilet logic or recommended items
   
   return {
     isValid: missingRequired.length === 0,
@@ -223,7 +191,7 @@ export function validateItemConfiguration(item: FFEItemTemplate, status: any): s
   return errors
 }
 
-// Template registry
+// Template registry - all cleared of hardcoded data
 export const FFE_ROOM_TEMPLATES: Record<string, FFERoomTemplate> = {
   'bathroom': BATHROOM_TEMPLATE,
   'master_bathroom': BATHROOM_TEMPLATE,
@@ -239,15 +207,13 @@ export function getTemplateForRoomType(roomType: string): FFERoomTemplate | unde
   return FFE_ROOM_TEMPLATES[normalizedType]
 }
 
-// Get all categories for a room
+// Cleared - no hardcoded categories
 export function getBathroomCategories(): string[] {
-  return Object.keys(BATHROOM_TEMPLATE.categories)
+  return [] // No hardcoded categories
 }
 
-// Get items that allow multiple selections
+// Cleared - no hardcoded items
 export function getMultipleSelectionItems(): FFEItemTemplate[] {
-  return Object.values(BATHROOM_TEMPLATE.categories)
-    .flat()
-    .filter(item => item.allowMultiple === true)
+  return [] // No hardcoded items
 }
 

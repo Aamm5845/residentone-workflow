@@ -48,44 +48,9 @@ export const FFE_CATEGORIES = {
   APPLIANCES: 'appliances'
 } as const
 
-// Default FFE checklists by room type - simplified for now
+// Default FFE checklists by room type - ALL REMOVED for user control
 export const ROOM_FFE_CONFIG: Record<string, RoomFFEConfig> = {
-  'dining-room': {
-    roomType: 'dining-room',
-    categories: [
-      {
-        id: FFE_CATEGORIES.FURNITURE,
-        name: 'Furniture',
-        order: 1,
-        items: [
-          {
-            id: 'dining-table',
-            name: 'Dining Table',
-            category: FFE_CATEGORIES.FURNITURE,
-            isRequired: true,
-            isStandard: false,
-            subItems: [
-              { id: 'table-size', name: 'Size/Dimensions', required: true },
-              { id: 'table-material', name: 'Material', required: true },
-              { id: 'table-finish', name: 'Finish', required: true }
-            ]
-          },
-          {
-            id: 'dining-chairs',
-            name: 'Dining Chairs',
-            category: FFE_CATEGORIES.FURNITURE,
-            isRequired: true,
-            isStandard: false,
-            subItems: [
-              { id: 'chair-quantity', name: 'Quantity', required: true },
-              { id: 'chair-frame', name: 'Frame Material', required: true },
-              { id: 'chair-upholstery', name: 'Upholstery', required: false }
-            ]
-          }
-        ]
-      }
-    ]
-  }
+  // No hardcoded defaults - users manage all items through FFE Management
 }
 
 // Get default FFE configuration for a room type

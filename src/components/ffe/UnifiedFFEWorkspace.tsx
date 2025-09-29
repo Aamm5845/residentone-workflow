@@ -32,6 +32,17 @@ import { FFERoomTemplate, getTemplateForRoomType } from '@/lib/ffe/room-template
 import ToiletSelectionLogic from './ToiletSelectionLogic'
 import toast from 'react-hot-toast'
 
+interface LogicOption {
+  id: string
+  name: string
+  description?: string
+  itemsToCreate: number
+  subItems?: {
+    name: string
+    category?: string
+  }[]
+}
+
 interface FFEItemStatus {
   itemId: string
   state: 'pending' | 'included' | 'not_needed' | 'confirmed'
@@ -45,6 +56,11 @@ interface FFEItemStatus {
   customName?: string
   category?: string
   updatedAt: string
+  // Logic item properties
+  isLogicItem?: boolean
+  logicOptions?: LogicOption[]
+  selectedLogicOption?: string
+  logicParentId?: string // For items created by logic
 }
 
 interface UnifiedFFEWorkspaceProps {
@@ -56,20 +72,8 @@ interface UnifiedFFEWorkspaceProps {
   disabled?: boolean
 }
 
-const CATEGORY_ICONS = {
-  'Flooring': Building2,
-  'Wall': Palette,
-  'Ceiling': Building2,
-  'Doors and Handles': Wrench,
-  'Moulding': Building2,
-  'Lighting': Lightbulb,
-  'Electric': Wrench,
-  'Plumbing': Wrench,
-  'Accessories': Settings,
-  'Finishes': Palette,
-  'Hardware': Wrench,
-  'Furniture': Sofa
-}
+// Removed hardcoded category icons - using dynamic lookup instead
+const CATEGORY_ICONS: Record<string, any> = {}
 
 export default function UnifiedFFEWorkspace({ 
   roomId, 
@@ -87,6 +91,8 @@ export default function UnifiedFFEWorkspace({
   const [saving, setSaving] = useState(false)
   const [showToiletLogic, setShowToiletLogic] = useState(false)
   const [showVanityLogic, setShowVanityLogic] = useState(false)
+  const [showLogicModal, setShowLogicModal] = useState(false)
+  const [currentLogicItem, setCurrentLogicItem] = useState<any>(null)
   const [addingCustomItem, setAddingCustomItem] = useState<string | null>(null)
   const [customItemName, setCustomItemName] = useState('')
   const [customItems, setCustomItems] = useState<Record<string, any>>({})
@@ -169,6 +175,13 @@ export default function UnifiedFFEWorkspace({
     try {
       setSaving(true)
       
+      console.log('🔄 Updating item status:', {
+        itemId, 
+        updates,
+        isQuantityItem: updates.isQuantityItem,
+        quantityIndex: updates.quantityIndex
+      })
+      
       const response = await fetch('/api/ffe/room-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,14 +193,24 @@ export default function UnifiedFFEWorkspace({
       })
 
       if (response.ok) {
-        setItemStatuses(prev => ({
-          ...prev,
-          [itemId]: {
-            itemId,
-            ...updates,
-            updatedAt: new Date().toISOString()
+        const newStatus = {
+          itemId,
+          ...updates,
+          updatedAt: new Date().toISOString()
+        }
+        
+        setItemStatuses(prev => {
+          const updated = {
+            ...prev,
+            [itemId]: newStatus
           }
-        }))
+          console.log('✅ Updated item statuses:', {
+            itemId,
+            newStatus,
+            allStatuses: Object.keys(updated)
+          })
+          return updated
+        })
         
         // Auto-jump back to selection phase when item marked as not needed
         if (updates.state === 'not_needed' && currentPhase === 'completion') {
@@ -283,7 +306,7 @@ export default function UnifiedFFEWorkspace({
             quantity: 1,
             isCustomItem: true,
             customName: `Toilet ${subItemId.charAt(0).toUpperCase() + subItemId.slice(1)}`,
-            category: 'Plumbing'
+            category: status.category || 'Custom'
           })
         }
       })
@@ -315,7 +338,7 @@ export default function UnifiedFFEWorkspace({
             quantity: 1,
             isCustomItem: true,
             customName: `Vanity ${subItemId.charAt(0).toUpperCase() + subItemId.slice(1)}`,
-            category: 'Plumbing'
+            category: status.category || 'Custom'
           })
         }
       })
@@ -341,6 +364,46 @@ export default function UnifiedFFEWorkspace({
     }
     
     return items
+  }
+
+  const handleLogicItemSelection = async (item: any, selectedOptionId: string) => {
+    const logicOptions = item.logicOptions || []
+    const selectedOption = logicOptions.find((opt: LogicOption) => opt.id === selectedOptionId)
+    
+    if (!selectedOption) {
+      toast.error('Invalid logic option selected')
+      return
+    }
+
+    // Update the main item with the selected logic option
+    await handleItemStatusUpdate(item.id, {
+      state: 'included',
+      isLogicItem: true,
+      selectedLogicOption: selectedOptionId
+    })
+
+    // Create the specified number of sub-items
+    for (let i = 1; i <= selectedOption.itemsToCreate; i++) {
+      const subItemId = `${item.id}_logic_${selectedOptionId}_${i}`
+      
+      let subItemName = `${item.name} - ${selectedOption.name}`
+      if (selectedOption.itemsToCreate > 1) {
+        subItemName += ` #${i}`
+      }
+      
+      await handleItemStatusUpdate(subItemId, {
+        state: 'included',
+        isCustomItem: true,
+        customName: subItemName,
+        category: item.category || 'Logic Items',
+        logicParentId: item.id,
+        quantity: 1
+      })
+    }
+
+    setShowLogicModal(false)
+    setCurrentLogicItem(null)
+    toast.success(`Created ${selectedOption.itemsToCreate} items from ${selectedOption.name}`)
   }
 
   const handleAddCustomItem = async (categoryId: string) => {
@@ -444,6 +507,18 @@ export default function UnifiedFFEWorkspace({
         total++
         if (status?.state === 'not_needed') notNeeded++
         else pending++
+      }
+    })
+    
+    // Add logic items and their sub-items to stats
+    Object.entries(itemStatuses).forEach(([itemId, status]) => {
+      // Include logic parent items and logic sub-items
+      if ((status.isLogicItem || status.logicParentId) && 
+          (status.state === 'included' || status.state === 'confirmed' || status.state === 'not_needed')) {
+        total++
+        if (status.state === 'confirmed') confirmed++
+        else if (status.state === 'not_needed') notNeeded++
+        else if (status.state === 'included') included++
       }
     })
     
@@ -749,10 +824,22 @@ export default function UnifiedFFEWorkspace({
                             <Checkbox
                               checked={isIncluded}
                               onCheckedChange={(checked) => {
-                                handleItemStatusUpdate(item.id, {
-                                  state: checked ? 'included' : 'pending',
-                                  quantity: 1
-                                })
+                                if (checked) {
+                                  // Check if this is a logic item
+                                  if (item.logicOptions && item.logicOptions.length > 0) {
+                                    setCurrentLogicItem(item)
+                                    setShowLogicModal(true)
+                                  } else {
+                                    handleItemStatusUpdate(item.id, {
+                                      state: 'included',
+                                      quantity: 1
+                                    })
+                                  }
+                                } else {
+                                  handleItemStatusUpdate(item.id, {
+                                    state: 'pending'
+                                  })
+                                }
                               }}
                               disabled={disabled}
                             />
@@ -1015,6 +1102,57 @@ export default function UnifiedFFEWorkspace({
               </div>
             </div>
           )}
+
+          {/* Logic Item Selection Modal */}
+          {showLogicModal && currentLogicItem && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Select {currentLogicItem.name} Option</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowLogicModal(false)
+                      setCurrentLogicItem(null)
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {currentLogicItem.logicOptions?.map((option: LogicOption) => (
+                    <Button
+                      key={option.id}
+                      variant="outline"
+                      className="w-full p-4 h-auto text-left"
+                      onClick={() => handleLogicItemSelection(currentLogicItem, option.id)}
+                    >
+                      <div>
+                        <div className="font-medium mb-1">{option.name}</div>
+                        {option.description && (
+                          <div className="text-sm text-gray-600 mb-2">{option.description}</div>
+                        )}
+                        <div className="text-xs text-blue-600">
+                          Creates {option.itemsToCreate} item{option.itemsToCreate > 1 ? 's' : ''}
+                        </div>
+                        {option.subItems && option.subItems.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Items: {option.subItems.map(sub => sub.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </Button>
+                  )) || (
+                    <div className="text-gray-500 text-center py-4">
+                      No logic options available for this item
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1032,7 +1170,19 @@ export default function UnifiedFFEWorkspace({
             const CategoryIcon = getCategoryIcon(categoryName)
             const categoryItems = items.filter(item => {
               const status = itemStatuses[item.id]
-              return status?.state === 'included' || status?.state === 'confirmed'
+              if (!status) return false
+              
+              // Include items that are included or confirmed
+              if (status.state === 'included' || status.state === 'confirmed') {
+                return true
+              }
+              
+              // Also include items that have quantity sub-items that are included/confirmed
+              const quantityItems = generateQuantityItems(item, status)
+              return quantityItems.some(qtyItem => {
+                const qtyStatus = itemStatuses[qtyItem.id]
+                return qtyStatus?.state === 'included' || qtyStatus?.state === 'confirmed'
+              })
             })
             
             // Add custom items for this category in completion phase
@@ -1058,7 +1208,30 @@ export default function UnifiedFFEWorkspace({
                 isSubItem: true
               }])
             
-            if (categoryItems.length === 0 && categoryCustomItems.length === 0 && categorySubItems.length === 0) return null
+            // Add logic items and their sub-items created dynamically
+            const categoryLogicItems = Object.entries(itemStatuses)
+              .filter(([itemId, status]) => {
+                // Include logic parent items that are included/confirmed
+                if (status.isLogicItem && (status.state === 'included' || status.state === 'confirmed')) {
+                  // Check if the original item belongs to this category
+                  const originalItem = items.find(item => item.id === itemId)
+                  return originalItem // Logic parent items show in their original category
+                }
+                // Include logic sub-items that are included/confirmed in this category
+                return status.logicParentId && status.category === categoryName && 
+                       (status.state === 'included' || status.state === 'confirmed')
+              })
+              .map(([itemId, status]) => [itemId, {
+                id: itemId,
+                name: status.customName || itemId,
+                category: categoryName,
+                isCustom: true,
+                isLogicItem: status.isLogicItem,
+                logicParentId: status.logicParentId,
+                selectedLogicOption: status.selectedLogicOption
+              }])
+            
+            if (categoryItems.length === 0 && categoryCustomItems.length === 0 && categorySubItems.length === 0 && categoryLogicItems.length === 0) return null
 
             return (
               <Card key={categoryName}>
@@ -1070,7 +1243,8 @@ export default function UnifiedFFEWorkspace({
                       <Badge variant="outline">
                         {categoryItems.filter(item => itemStatuses[item.id]?.state === 'confirmed').length + 
                          categoryCustomItems.filter(([customId, _]) => itemStatuses[customId]?.state === 'confirmed').length +
-                         categorySubItems.filter(([subId, _]) => itemStatuses[subId]?.state === 'confirmed').length} of {categoryItems.length + categoryCustomItems.length + categorySubItems.length} confirmed
+                         categorySubItems.filter(([subId, _]) => itemStatuses[subId]?.state === 'confirmed').length +
+                         categoryLogicItems.filter(([logicId, _]) => itemStatuses[logicId]?.state === 'confirmed').length} of {categoryItems.length + categoryCustomItems.length + categorySubItems.length + categoryLogicItems.length} confirmed
                       </Badge>
                     </div>
                   </div>
@@ -1092,16 +1266,22 @@ export default function UnifiedFFEWorkspace({
 
                     return quantityItems.map((qtyItem, index) => {
                       const qtyItemId = qtyItem.id
+                      const uniqueKey = `${item.id}-qty-${index}-${qtyItem.quantityIndex}`
+                      
+                      // Each quantity item has its own status
                       const qtyStatus = itemStatuses[qtyItemId] || {
-                        ...status,
                         itemId: qtyItemId,
-                        state: status.state,
-                        updatedAt: status.updatedAt
+                        state: 'included', // Default for new quantity items
+                        updatedAt: new Date().toISOString()
                       }
                       const isConfirmed = qtyStatus?.state === 'confirmed'
+                      const isNotNeeded = qtyStatus?.state === 'not_needed'
+                      
+                      // Don't show items marked as not needed
+                      if (isNotNeeded) return null
 
                       return (
-                        <div key={qtyItemId} className={cn(
+                        <div key={uniqueKey} className={cn(
                           "flex items-center justify-between p-4 rounded-lg border",
                           isConfirmed ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"
                         )}>
@@ -1150,12 +1330,16 @@ export default function UnifiedFFEWorkspace({
                             <Button
                               size="sm"
                               variant={isConfirmed ? "secondary" : "default"}
-                              onClick={() => handleItemStatusUpdate(qtyItemId, {
-                                state: isConfirmed ? 'included' : 'confirmed',
-                                originalId: item.id,
-                                quantityIndex: qtyItem.quantityIndex,
-                                isQuantityItem: quantityItems.length > 1
-                              })}
+                              onClick={() => {
+                                console.log('Updating quantity item:', qtyItemId, 'index:', qtyItem.quantityIndex)
+                                handleItemStatusUpdate(qtyItemId, {
+                                  state: isConfirmed ? 'included' : 'confirmed',
+                                  originalId: item.id,
+                                  quantityIndex: qtyItem.quantityIndex,
+                                  isQuantityItem: true,
+                                  quantity: 1 // Each quantity item is 1 unit
+                                })
+                              }}
                               disabled={disabled}
                             >
                               {isConfirmed ? (
@@ -1167,12 +1351,16 @@ export default function UnifiedFFEWorkspace({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleItemStatusUpdate(qtyItemId, {
-                                state: 'not_needed',
-                                originalId: item.id,
-                                quantityIndex: qtyItem.quantityIndex,
-                                isQuantityItem: quantityItems.length > 1
-                              })}
+                              onClick={() => {
+                                console.log('Marking as not needed:', qtyItemId, 'index:', qtyItem.quantityIndex)
+                                handleItemStatusUpdate(qtyItemId, {
+                                  state: 'not_needed',
+                                  originalId: item.id,
+                                  quantityIndex: qtyItem.quantityIndex,
+                                  isQuantityItem: true,
+                                  quantity: 1 // Each quantity item is 1 unit
+                                })
+                              }}
                               disabled={disabled}
                               className="text-gray-600"
                             >
@@ -1309,6 +1497,88 @@ export default function UnifiedFFEWorkspace({
                             size="sm"
                             variant="outline"
                             onClick={() => handleItemStatusUpdate(subId, {
+                              state: 'not_needed'
+                            })}
+                            disabled={disabled}
+                            className="text-gray-600"
+                          >
+                            Not Needed
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Logic Items and their sub-items */}
+                  {categoryLogicItems.map(([logicId, logicItem]) => {
+                    const status = itemStatuses[logicId]
+                    const isConfirmed = status?.state === 'confirmed'
+                    const isNotNeeded = status?.state === 'not_needed'
+                    
+                    // Don't show items marked as not needed
+                    if (isNotNeeded) return null
+
+                    return (
+                      <div key={logicId} className={cn(
+                        "flex items-center justify-between p-4 rounded-lg border",
+                        isConfirmed ? "border-green-200 bg-green-50" : "border-indigo-200 bg-indigo-50"
+                      )}>
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center",
+                            isConfirmed ? "bg-green-600" : "bg-indigo-600"
+                          )}>
+                            {isConfirmed ? (
+                              <CheckCircle className="h-5 w-5 text-white" />
+                            ) : (
+                              <Clock className="h-5 w-5 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium">{logicItem.name}</h4>
+                            <div className="flex items-center space-x-2 mt-1">
+                              {status?.isLogicItem ? (
+                                <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700">
+                                  Logic Item - {status.selectedLogicOption || 'Selected'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700">
+                                  Logic Sub-Item
+                                </Badge>
+                              )}
+                              {status?.state === 'confirmed' && (
+                                <Badge className="text-xs bg-green-100 text-green-800">
+                                  Confirmed
+                                </Badge>
+                              )}
+                              {status?.logicParentId && (
+                                <Badge variant="secondary" className="text-xs">
+                                  From: {status.logicParentId}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant={isConfirmed ? "secondary" : "default"}
+                            onClick={() => handleItemStatusUpdate(logicId, {
+                              state: isConfirmed ? 'included' : 'confirmed'
+                            })}
+                            disabled={disabled}
+                          >
+                            {isConfirmed ? (
+                              <><Clock className="w-4 h-4 mr-1" />Undo</>
+                            ) : (
+                              <><CheckCircle className="w-4 h-4 mr-1" />Confirm</>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleItemStatusUpdate(logicId, {
                               state: 'not_needed'
                             })}
                             disabled={disabled}

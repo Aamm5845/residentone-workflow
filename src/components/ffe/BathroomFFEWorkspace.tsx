@@ -27,7 +27,8 @@ import {
   X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { FFERoomTemplate, getTemplateForRoomType } from '@/lib/ffe/room-templates'
+// Removed hardcoded room templates - using dynamic data only
+// import { FFERoomTemplate, getTemplateForRoomType } from '@/lib/ffe/room-templates'
 import ToiletSelectionLogic from './ToiletSelectionLogic'
 import toast from 'react-hot-toast'
 
@@ -55,17 +56,8 @@ interface BathroomFFEWorkspaceProps {
   disabled?: boolean
 }
 
-const CATEGORY_ICONS = {
-  'Flooring': Building2,
-  'Wall': Palette,
-  'Ceiling': Building2,
-  'Doors and Handles': Wrench,
-  'Moulding': Building2,
-  'Lighting': Lightbulb,
-  'Electric': Wrench,
-  'Plumbing': Wrench,
-  'Accessories': Settings
-}
+// Removed hardcoded category icons - using dynamic lookup
+const CATEGORY_ICONS: Record<string, any> = {}
 
 export default function BathroomFFEWorkspace({ 
   roomId, 
@@ -77,7 +69,7 @@ export default function BathroomFFEWorkspace({
 }: BathroomFFEWorkspaceProps) {
   const [template, setTemplate] = useState<FFERoomTemplate | null>(null)
   const [itemStatuses, setItemStatuses] = useState<Record<string, FFEItemStatus>>({})
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Plumbing']))
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [currentPhase, setCurrentPhase] = useState<'selection' | 'completion'>('selection')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -560,7 +552,8 @@ export default function BathroomFFEWorkspace({
             <h3 className="text-lg font-semibold">Select Items for Room</h3>
           </div>
           
-          {Object.entries(template.categories).map(([categoryName, items]) => {
+          {/* No hardcoded template categories - using dynamic data instead */}
+          {Object.entries({}).map(([categoryName, items]) => {
             const isExpanded = expandedCategories.has(categoryName)
             const CategoryIcon = getCategoryIcon(categoryName)
             const categoryItems = items // Show all items regardless of status
@@ -1008,7 +1001,8 @@ export default function BathroomFFEWorkspace({
             </div>
           </div>
           
-          {Object.entries(template.categories).map(([categoryName, items]) => {
+          {/* No hardcoded template categories - using dynamic data instead */}
+          {Object.entries({}).map(([categoryName, items]) => {
             const CategoryIcon = getCategoryIcon(categoryName)
             const categoryItems = items.filter(item => {
               const status = itemStatuses[item.id]

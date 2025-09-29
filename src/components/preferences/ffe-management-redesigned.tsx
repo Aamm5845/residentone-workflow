@@ -129,10 +129,13 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     logicRules: [] as any[]
   })
   
-  // Logic rule form state
+  // Logic option form state
   const [logicForm, setLogicForm] = useState({
-    trigger: 'standard' as 'standard' | 'custom',
-    expandsTo: [{ id: '', name: '', type: 'selection', options: [], isRequired: true }]
+    id: '',
+    name: '',
+    description: '',
+    itemsToCreate: 1,
+    subItems: [] as { name: string; category?: string }[]
   })
   
   // Category form state
@@ -288,24 +291,29 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     }
   }
 
-  const addLogicRule = () => {
-    const newRule = {
-      trigger: logicForm.trigger,
-      expandsTo: logicForm.expandsTo.map((item, index) => ({
-        id: item.id || `subitem_${Date.now()}_${index}`,
-        name: item.name,
-        type: item.type,
-        options: item.options,
-        isRequired: item.isRequired
-      }))
+  const addLogicOption = () => {
+    const newOption = {
+      id: logicForm.id || `option_${Date.now()}`,
+      name: logicForm.name,
+      description: logicForm.description,
+      itemsToCreate: logicForm.itemsToCreate,
+      subItems: logicForm.subItems
     }
+    
+    // Update itemForm to include logicOptions (not logicRules)
+    const currentLogicOptions = itemForm.logicRules || [] // Keep backward compatibility
     setItemForm({
       ...itemForm,
-      logicRules: [...itemForm.logicRules, newRule]
+      logicRules: [...currentLogicOptions, newOption] // Store as logicRules for backend compatibility
     })
+    
+    // Reset form
     setLogicForm({
-      trigger: 'standard',
-      expandsTo: [{ id: '', name: '', type: 'selection', options: [], isRequired: true }]
+      id: '',
+      name: '',
+      description: '',
+      itemsToCreate: 1,
+      subItems: []
     })
     setShowLogicDialog(false)
   }
@@ -799,14 +807,14 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
                                           )}
                                           {item.logicRules.length > 0 && (
                                             <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                              Logic Rules: {item.logicRules.length}
+                                              Logic Options: {item.logicRules.length}
                                             </Badge>
                                           )}
                                         </div>
                                         {item.logicRules.length > 0 && (
                                           <div className="text-xs text-gray-600 mt-1">
-                                            Expands: {item.logicRules.map(rule => 
-                                              `${rule.trigger} (${rule.expandsTo.length} items)`
+                                            Options: {item.logicRules.map(option => 
+                                              `${option.name} (${option.itemsToCreate} items)`
                                             ).join(', ')}
                                           </div>
                                         )}
@@ -1016,7 +1024,7 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
           
           <div>
             <div className="flex items-center justify-between">
-              <Label>Logic Rules ({itemForm.logicRules.length})</Label>
+              <Label>Logic Options ({itemForm.logicRules.length})</Label>
               <Button
                 variant="outline"
                 size="sm"
@@ -1024,22 +1032,34 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
                 type="button"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Logic Rule
+                Add Logic Option
               </Button>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Logic options allow users to select different configurations that create multiple sub-items
+            </p>
             {itemForm.logicRules.length > 0 && (
               <div className="space-y-2 mt-2">
-                {itemForm.logicRules.map((rule, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                {itemForm.logicRules.map((option, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                     <div className="text-sm">
-                      <span className="font-medium">{rule.trigger}</span> → {rule.expandsTo.length} sub-items
+                      <div className="font-medium">{option.name}</div>
+                      {option.description && (
+                        <div className="text-gray-600 text-xs mt-1">{option.description}</div>
+                      )}
+                      <div className="text-blue-600 text-xs mt-1">
+                        Creates {option.itemsToCreate} item{option.itemsToCreate > 1 ? 's' : ''}
+                        {option.subItems && option.subItems.length > 0 && (
+                          <span className="ml-2">({option.subItems.map(sub => sub.name).join(', ')})</span>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const newRules = itemForm.logicRules.filter((_, i) => i !== index)
-                        setItemForm({ ...itemForm, logicRules: newRules })
+                        const newOptions = itemForm.logicRules.filter((_, i) => i !== index)
+                        setItemForm({ ...itemForm, logicRules: newOptions })
                       }}
                       type="button"
                     >
@@ -1068,49 +1088,101 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
       </DialogContent>
     </Dialog>
     
-    {/* Logic Rule Dialog */}
+    {/* Logic Option Dialog */}
     <Dialog open={showLogicDialog} onOpenChange={setShowLogicDialog}>
-      <DialogContent>
+      <DialogContent className="max-w-xl">
         <DialogHeader className="pb-4">
-          <DialogTitle>Add Logic Rule</DialogTitle>
+          <DialogTitle>Add Logic Option</DialogTitle>
+          <p className="text-sm text-gray-600">
+            Logic options create dynamic workflows where selecting an item can generate multiple sub-items.
+          </p>
         </DialogHeader>
         
         <div className="space-y-6 py-2">
           <div>
-            <Label>Trigger Type</Label>
-            <Select
-              value={logicForm.trigger}
-              onValueChange={(value) => setLogicForm({ ...logicForm, trigger: value as 'standard' | 'custom' })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="optionName">Option Name</Label>
+            <Input
+              id="optionName"
+              placeholder="e.g., Standard Setup, Advanced Configuration"
+              value={logicForm.name}
+              onChange={(e) => setLogicForm({ ...logicForm, name: e.target.value })}
+            />
           </div>
           
           <div>
-            <Label>Sub-Items</Label>
-            {logicForm.expandsTo.map((subItem, index) => (
+            <Label htmlFor="optionDescription">Description (Optional)</Label>
+            <Input
+              id="optionDescription"
+              placeholder="e.g., Basic setup with 2 tasks"
+              value={logicForm.description}
+              onChange={(e) => setLogicForm({ ...logicForm, description: e.target.value })}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="itemsToCreate">Number of Items to Create</Label>
+            <Input
+              id="itemsToCreate"
+              type="number"
+              min="1"
+              max="10"
+              value={logicForm.itemsToCreate}
+              onChange={(e) => setLogicForm({ ...logicForm, itemsToCreate: parseInt(e.target.value) || 1 })}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              When this option is selected, it will create {logicForm.itemsToCreate} sub-item{logicForm.itemsToCreate > 1 ? 's' : ''}
+            </p>
+          </div>
+          
+          <div>
+            <div className="flex items-center justify-between">
+              <Label>Sub-Items (Optional)</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLogicForm({
+                    ...logicForm,
+                    subItems: [...logicForm.subItems, { name: '', category: '' }]
+                  })
+                }}
+                type="button"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Sub-Item
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Define specific names for the sub-items that will be created
+            </p>
+            
+            {logicForm.subItems.map((subItem, index) => (
               <div key={index} className="flex items-center space-x-2 mt-2">
                 <Input
-                  placeholder="Sub-item name"
+                  placeholder="Sub-item name (e.g., Planning Phase)"
                   value={subItem.name}
                   onChange={(e) => {
-                    const newSubItems = [...logicForm.expandsTo]
+                    const newSubItems = [...logicForm.subItems]
                     newSubItems[index].name = e.target.value
-                    setLogicForm({ ...logicForm, expandsTo: newSubItems })
+                    setLogicForm({ ...logicForm, subItems: newSubItems })
                   }}
+                />
+                <Input
+                  placeholder="Category (optional)"
+                  value={subItem.category || ''}
+                  onChange={(e) => {
+                    const newSubItems = [...logicForm.subItems]
+                    newSubItems[index].category = e.target.value
+                    setLogicForm({ ...logicForm, subItems: newSubItems })
+                  }}
+                  className="w-32"
                 />
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const newSubItems = logicForm.expandsTo.filter((_, i) => i !== index)
-                    setLogicForm({ ...logicForm, expandsTo: newSubItems })
+                    const newSubItems = logicForm.subItems.filter((_, i) => i !== index)
+                    setLogicForm({ ...logicForm, subItems: newSubItems })
                   }}
                   type="button"
                 >
@@ -1118,21 +1190,12 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
                 </Button>
               </div>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setLogicForm({
-                  ...logicForm,
-                  expandsTo: [...logicForm.expandsTo, { id: '', name: '', type: 'selection', options: [], isRequired: true }]
-                })
-              }}
-              className="mt-2"
-              type="button"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Sub-Item
-            </Button>
+            
+            {logicForm.subItems.length === 0 && (
+              <div className="text-xs text-gray-400 italic mt-2">
+                If no sub-items are defined, generic names will be generated (e.g., "Item Name #1", "Item Name #2")
+              </div>
+            )}
           </div>
         </div>
         
@@ -1141,10 +1204,10 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
             Cancel
           </Button>
           <Button 
-            onClick={addLogicRule}
-            disabled={logicForm.expandsTo.some(item => !item.name.trim())}
+            onClick={addLogicOption}
+            disabled={!logicForm.name.trim()}
           >
-            Add Rule
+            Add Logic Option
           </Button>
         </DialogFooter>
       </DialogContent>

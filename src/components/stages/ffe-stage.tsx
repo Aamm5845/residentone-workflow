@@ -6,7 +6,8 @@ import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucid
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
 import UnifiedFFEWorkspace from '../ffe/UnifiedFFEWorkspace'
-import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
+// Removed hardcoded getDefaultFFEConfig import - no longer using default templates
+// import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
 
 export default function FFEStage({ 
   stage, 
@@ -32,7 +33,8 @@ export default function FFEStage({
   }
   
   const isNotApplicable = stage.status === 'NOT_APPLICABLE'
-  const roomConfig = getDefaultFFEConfig(room.type)
+  // No hardcoded room config - all user-managed now
+  const roomConfig = null
   
   const handleFFEProgress = (progress: number, isComplete: boolean) => {
     setFFEProgress(progress)
@@ -87,7 +89,7 @@ export default function FFEStage({
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {roomConfig?.displayName || room.type} FFE Phase
+                {room.type} FFE Phase
               </h2>
               <p className="text-gray-600 mt-1">{room.name || room.type} • {project.name}</p>
               <p className="text-sm text-emerald-600 mt-1">

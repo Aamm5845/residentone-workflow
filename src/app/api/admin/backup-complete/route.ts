@@ -3,6 +3,115 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+// Helper function to fetch all assets in batches to avoid 5MB Prisma limit
+async function fetchAllAssetsPaginated() {
+  try {
+    const allAssets = []
+    let skip = 0
+    let take = 10 // Start with very small batches
+    
+    while (true) {
+      console.log(`📥 Fetching assets ${skip} to ${skip + take} (batch size: ${take})...`)
+      
+      try {
+        const assets = await prisma.asset.findMany({
+          select: {
+            id: true,
+            filename: true,
+            url: true,
+            mimeType: true,
+            size: true,
+            projectId: true,
+            createdAt: true
+          },
+          skip,
+          take,
+          orderBy: { createdAt: 'asc' }
+        })
+        
+        if (assets.length === 0) break
+        
+        allAssets.push(...assets)
+        skip += take
+        
+        // Increase batch size if successful (up to 50)
+        if (take < 50) take = Math.min(take * 2, 50)
+        
+        if (assets.length < take) break
+        
+      } catch (batchError) {
+        console.warn(`⚠️ Batch failed at ${skip}, reducing batch size`)
+        // Reduce batch size and try again
+        take = Math.max(1, Math.floor(take / 2))
+        if (take === 1 && skip > 0) {
+          console.warn('⚠️ Cannot reduce batch size further, stopping at', skip, 'records')
+          break
+        }
+        continue
+      }
+    }
+    
+    console.log(`✅ Fetched ${allAssets.length} assets total`)
+    return allAssets
+  } catch (error) {
+    console.warn('⚠️ Full assets fetch failed, falling back to ultra-minimal data only')
+    // Ultra-minimal fallback: fetch only IDs and URLs (essential for file download)
+    try {
+      return await prisma.asset.findMany({
+        select: {
+          id: true,
+          filename: true,
+          url: true
+        },
+        take: 200, // Very limited number
+        orderBy: { createdAt: 'desc' } // Get most recent
+      })
+    } catch (fallbackError) {
+      console.error('⚠️ Even minimal asset fetch failed, using count-only approach:', fallbackError)
+      // Last resort: just get asset count and create placeholder records
+      try {
+        const assetCount = await prisma.asset.count()
+        console.log(`📊 Asset count: ${assetCount} (backing up metadata only)`)
+        return [{
+          id: 'METADATA_ONLY',
+          filename: `${assetCount}_assets_metadata_only.txt`,
+          url: null,
+          note: `This backup contains ${assetCount} assets but data exceeded query limits. Use database export for full recovery.`
+        }]
+      } catch (countError) {
+        console.error('❌ Cannot even count assets:', countError)
+        return []
+      }
+    }
+  }
+}
+
+// Helper function for paginated fetching of large tables
+async function fetchPaginated(model: any, modelName: string, batchSize = 100) {
+  const allRecords = []
+  let skip = 0
+  
+  while (true) {
+    console.log(`📥 Fetching ${modelName} ${skip} to ${skip + batchSize}...`)
+    
+    const records = await model.findMany({
+      skip,
+      take: batchSize,
+      orderBy: { createdAt: 'asc' }
+    })
+    
+    if (records.length === 0) break
+    
+    allRecords.push(...records)
+    skip += batchSize
+    
+    if (records.length < batchSize) break
+  }
+  
+  console.log(`✅ Fetched ${allRecords.length} ${modelName} total`)
+  return allRecords
+}
+
 // GET /api/admin/backup-complete - Create complete backup with files and users
 export async function GET(request: NextRequest) {
   try {
@@ -43,16 +152,16 @@ export async function GET(request: NextRequest) {
           }
         }),
         
-        clients: await prisma.client.findMany(),
-        contractors: await prisma.contractor.findMany(),
-        projects: await prisma.project.findMany(),
-        rooms: await prisma.room.findMany(),
-        stages: await prisma.stage.findMany(),
-        designSections: await prisma.designSection.findMany(),
-        ffeItems: await prisma.fFEItem.findMany(),
+        clients: await fetchPaginated(prisma.client, 'clients', 50),
+        contractors: await fetchPaginated(prisma.contractor, 'contractors', 50),
+        projects: await fetchPaginated(prisma.project, 'projects', 50),
+        rooms: await fetchPaginated(prisma.room, 'rooms', 100),
+        stages: await fetchPaginated(prisma.stage, 'stages', 200),
+        designSections: await fetchPaginated(prisma.designSection, 'designSections', 100),
+        ffeItems: await fetchPaginated(prisma.fFEItem, 'ffeItems', 100),
         
-        // Get assets with full metadata
-        assets: await prisma.asset.findMany(),
+        // Get assets with full metadata (paginated to avoid 5MB limit)
+        assets: await fetchAllAssetsPaginated(),
         
         // Include COMPLETE client access tokens with actual tokens
         clientAccessTokens: await prisma.clientAccessToken.findMany(),
@@ -81,7 +190,8 @@ export async function GET(request: NextRequest) {
       files: {} as Record<string, string>
     }
 
-    console.log('📁 Downloading actual files from URLs...')
+    console.log('📁 Starting file downloads from URLs...')
+    console.log(`📊 Found ${backup.data.assets.length} assets to process`)
     
     // Download actual files from URLs
     const assets = backup.data.assets
@@ -168,9 +278,20 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Complete backup failed:', error)
+    
+    // Log specific error details
+    if (error instanceof Error) {
+      console.error('❌ Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+    }
+    
     return NextResponse.json({ 
       error: 'Complete backup failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error instanceof Error ? error.name : 'UnknownError'
     }, { status: 500 })
   }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateFFECompletion, updateFFEItemState, generateFFECompletionReport } from '@/lib/ffe/completion-validator'
 import { getFFEItemsForRoom, autoAddToLibraryIfNew } from '@/lib/ffe/library-manager'
-import { getDefaultFFEConfig, type FFEItemState } from '@/lib/constants/room-ffe-config'
+// Removed hardcoded getDefaultFFEConfig import - no longer using defaults
+import { type FFEItemState } from '@/lib/constants/room-ffe-config'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/auth'
 
@@ -37,9 +38,9 @@ export async function GET(request: NextRequest, { params }: { params: { roomId: 
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    // Get FFE items for this room type (default + custom)
+    // Get FFE items for this room type (user-managed only)
     const ffeItems = await getFFEItemsForRoom(room.project.organization.id, room.type)
-    const defaultConfig = getDefaultFFEConfig(room.type)
+    const defaultConfig = null // No hardcoded config
 
     // Build status map
     const statusMap: Record<string, any> = {}
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: { roomId: 
         type: room.type,
         name: room.name
       },
-      categories: defaultConfig?.categories || [],
+      categories: [], // No hardcoded categories
       customItems: ffeItems.customItems,
       itemStatuses: statusMap,
       completion: completionResult

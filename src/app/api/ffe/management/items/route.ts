@@ -283,7 +283,7 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE - Delete an item
+  // DELETE - Delete an item
 export async function DELETE(request: Request) {
   try {
     // Get session for user ID
@@ -309,20 +309,49 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID and orgId are required' }, { status: 400 })
     }
 
-    // Soft delete - handle both new and legacy formats
-    await prisma.fFELibraryItem.update({
+    // First check if item exists
+    const existingItem = await prisma.fFELibraryItem.findUnique({
+      where: { id }
+    })
+    
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    
+    if (existingItem.orgId !== orgId) {
+      return NextResponse.json({ error: 'Unauthorized - item belongs to different organization' }, { status: 403 })
+    }
+
+    // Hard delete - actually remove the item from the database
+    await prisma.fFELibraryItem.delete({
       where: {
         id,
         orgId
-      },
-      data: {
-        isStandard: false, // Use isStandard instead of isActive
-        updatedById: user.id,
-        updatedAt: new Date()
       }
     })
+    
+    // Log the deletion
+    try {
+      await prisma.activityLog.create({
+        data: {
+          type: 'FFE_MANAGEMENT_ITEM_DELETED',
+          description: `FFE management item "${existingItem.name}" permanently deleted`,
+          metadata: {
+            itemId: existingItem.itemId,
+            itemName: existingItem.name,
+            category: existingItem.category,
+            roomTypes: existingItem.roomTypes
+          },
+          userId: user.id,
+          orgId
+        }
+      })
+    } catch (logError) {
+      console.error('Failed to log deletion:', logError)
+      // Don't fail the deletion if logging fails
+    }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: 'Item permanently deleted' })
   } catch (error) {
     console.error('Error deleting item:', error)
     return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 })

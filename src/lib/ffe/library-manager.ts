@@ -135,15 +135,8 @@ export async function getFFEItemsForRoom(
   allItems: FFEItemTemplate[]
 }> {
   try {
-    // Get default items from configuration
-    const defaultConfig = getDefaultFFEConfig(roomType)
+    // No hardcoded default items - only use custom items from organization
     const defaultItems: FFEItemTemplate[] = []
-    
-    if (defaultConfig) {
-      defaultConfig.categories.forEach(category => {
-        defaultItems.push(...category.items)
-      })
-    }
 
     // Get custom items from organization library
     const customLibraryItems = await prisma.fFELibraryItem.findMany({
@@ -389,14 +382,7 @@ export async function autoAddToLibraryIfNew(
   }
 ): Promise<void> {
   try {
-    // Check if this is a new item (not in default config and not in library)
-    const defaultConfig = getDefaultFFEConfig(roomType)
-    const isInDefaultConfig = defaultConfig?.categories
-      .some(cat => cat.items.some(item => item.id === itemId))
-
-    if (isInDefaultConfig) {
-      return // It's a standard item, don't add to library
-    }
+    // No hardcoded defaults to check - proceed with library addition
 
     // Check if already in library
     const existsInLibrary = await prisma.fFELibraryItem.findUnique({

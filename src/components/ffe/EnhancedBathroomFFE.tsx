@@ -31,8 +31,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+// Removed hardcoded BATHROOM_TEMPLATE import - using dynamic data instead
 import { 
-  BATHROOM_TEMPLATE, 
   FFEItemTemplate, 
   FFESubItem, 
   FFEItemState,
@@ -113,12 +113,8 @@ const STATE_CONFIG = {
   }
 }
 
-const CATEGORY_ICONS = {
-  'Base Finishes': Building2,
-  'Fixtures': Wrench,
-  'Accessories': Palette,
-  'Lighting': Lightbulb
-}
+// Removed hardcoded category icons - using dynamic lookup
+const CATEGORY_ICONS: Record<string, any> = {}
 
 export default function EnhancedBathroomFFE({
   roomId,
@@ -133,9 +129,10 @@ export default function EnhancedBathroomFFE({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [showCompleted, setShowCompleted] = useState(true)
-  const [activeTab, setActiveTab] = useState<string>('Base Finishes')
+  const [activeTab, setActiveTab] = useState<string>('')
 
-  const template = BATHROOM_TEMPLATE
+  // No hardcoded template - all data comes from API/library
+  const template = { categories: {} }
   const categoryNames = useMemo(() => Object.keys(template.categories), [template.categories])
 
   // Load room status
@@ -419,7 +416,7 @@ export default function EnhancedBathroomFFE({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">
-                {template.name} FFE Checklist
+                FFE Checklist
               </CardTitle>
               <p className="text-gray-600 mt-1">
                 Furniture, Fixtures & Equipment specification

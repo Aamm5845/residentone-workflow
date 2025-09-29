@@ -25,58 +25,11 @@ interface ToiletSelectionLogicProps {
   disabled?: boolean
 }
 
-const STANDARD_OPTIONS = [
-  'Standard Two-Piece Toilet',
-  'One-Piece Toilet', 
-  'Comfort Height Toilet',
-  'Dual Flush Toilet',
-  'Smart Toilet'
-]
+// Removed hardcoded standard options - should be user-managed
+const STANDARD_OPTIONS: string[] = []
 
-const WALL_MOUNT_SUB_ITEMS = [
-  {
-    id: 'carrier',
-    name: 'Carrier',
-    options: [
-      'Geberit Duofix Carrier',
-      'TOTO In-Wall Carrier',
-      'Kohler In-Wall Carrier',
-      'Grohe Rapid SL Carrier'
-    ]
-  },
-  {
-    id: 'bowl',
-    name: 'Bowl',
-    options: [
-      'TOTO Wall-Hung Bowl',
-      'Kohler Veil Wall-Hung Bowl',
-      'Duravit Starck 3 Bowl',
-      'Geberit Aquaclean Bowl'
-    ]
-  },
-  {
-    id: 'seat',
-    name: 'Seat',
-    options: [
-      'Standard Soft-Close Seat',
-      'Heated Toilet Seat',
-      'Bidet Seat - Basic',
-      'Bidet Seat - Premium',
-      'Smart Toilet Seat'
-    ]
-  },
-  {
-    id: 'flush_plate',
-    name: 'Flush Plate',
-    options: [
-      'Chrome Dual Flush Plate',
-      'Matte Black Dual Flush Plate',
-      'White Dual Flush Plate',
-      'Brass Dual Flush Plate',
-      'Custom Color Match Plate'
-    ]
-  }
-]
+// Removed hardcoded wall mount sub-items - should be user-managed
+const WALL_MOUNT_SUB_ITEMS: any[] = []
 
 export default function ToiletSelectionLogic({ 
   initialStatus,
