@@ -25,6 +25,9 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import type { Session } from 'next-auth'
 
+// Force dynamic rendering since we use searchParams
+export const dynamic = 'force-dynamic'
+
 export default async function FFEPage({ searchParams }: { searchParams: { status?: string, search?: string } }) {
   const session = await getSession() as Session & {
     user: {
