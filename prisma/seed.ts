@@ -18,48 +18,8 @@ async function main() {
 
   console.log('✅ Created organization')
 
-  // Create team member accounts - kept as requested
+  // Create admin account only - team members are handled by setup-team-members.ts
   const hashedPassword = await bcrypt.hash('password', 12)
-
-  const aaron = await prisma.user.create({
-    data: {
-      name: 'Aaron (Designer)',
-      email: 'aaron@example.com',
-      password: hashedPassword,
-      role: UserRole.DESIGNER,
-      orgId: org.id,
-    },
-  })
-
-  const vitor = await prisma.user.create({
-    data: {
-      name: 'Vitor (Renderer)',
-      email: 'vitor@example.com',
-      password: hashedPassword,
-      role: UserRole.RENDERER,
-      orgId: org.id,
-    },
-  })
-
-  const sammy = await prisma.user.create({
-    data: {
-      name: 'Sammy (Drafter)',
-      email: 'sammy@example.com',
-      password: hashedPassword,
-      role: UserRole.DRAFTER,
-      orgId: org.id,
-    },
-  })
-
-  const shaya = await prisma.user.create({
-    data: {
-      name: 'Shaya (FFE)',
-      email: 'shaya@example.com',
-      password: hashedPassword,
-      role: UserRole.FFE,
-      orgId: org.id,
-    },
-  })
 
   const admin = await prisma.user.create({
     data: {
@@ -71,7 +31,7 @@ async function main() {
     },
   })
 
-  console.log('✅ Created team accounts')
+  console.log('✅ Created admin account')
 
   // No hardcoded room presets or FFE items - all user-managed
   // await prisma.roomPreset.createMany({ data: [] })
@@ -81,10 +41,7 @@ async function main() {
   console.log('🎉 Database seeding completed!')
   console.log('\n📋 System accounts:')
   console.log('Admin: admin@example.com / password')
-  console.log('Aaron (Designer): aaron@example.com / password')  
-  console.log('Vitor (Renderer): vitor@example.com / password')
-  console.log('Sammy (Drafter): sammy@example.com / password')
-  console.log('Shaya (FFE): shaya@example.com / password')
+  console.log('\n👥 Team members should be set up using: npm run setup-team-members')
 }
 
 main()

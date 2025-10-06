@@ -374,13 +374,23 @@ export default function PhaseCard({
                 <Play className="w-4 h-4 mr-2" />
                 Open Workspace
               </Button>
-              <Button 
-                onClick={() => onStatusChange('COMPLETE')}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
-              >
-                <Check className="w-4 h-4 mr-2" />
-                Mark Complete
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  onClick={() => onStatusChange('COMPLETE')}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Complete
+                </Button>
+                <Button 
+                  onClick={() => onStatusChange('PENDING')}
+                  variant="outline"
+                  className="flex-1 text-gray-600 border-gray-300 hover:bg-gray-50"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Close
+                </Button>
+              </div>
             </div>
           )}
           
@@ -391,18 +401,26 @@ export default function PhaseCard({
                 <span className="font-medium text-sm">Completed</span>
               </div>
               {phase.completedAt && (
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-gray-500 mb-3">
                   {new Date(phase.completedAt).toLocaleDateString()}
                 </p>
               )}
-              <div className="space-y-1">
+              <div className="space-y-2">
+                <Button 
+                  onClick={onStart}
+                  variant="outline"
+                  className="w-full font-medium transition-all duration-200"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Open Workspace
+                </Button>
                 <Button 
                   onClick={() => onStatusChange('IN_PROGRESS')}
                   variant="ghost" 
                   size="sm"
                   className="text-xs text-gray-500 hover:text-gray-700 w-full"
                 >
-                  Reopen
+                  Reopen Phase
                 </Button>
               </div>
             </div>

@@ -100,10 +100,38 @@ export function useStageActions() {
     }
   }
 
+  const closeStage = async (stageId: string) => {
+    setIsLoading(stageId)
+    try {
+      const response = await fetch(`/api/stages/${stageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'close' })
+      })
+
+      if (response.ok) {
+        const updatedStage = await response.json()
+        
+        // Mutate all related SWR caches
+        mutate((key) => typeof key === 'string' && key.includes('/api/'), undefined, { revalidate: true })
+        
+        return updatedStage
+      } else {
+        throw new Error('Failed to close stage')
+      }
+    } catch (error) {
+      console.error('Error closing stage:', error)
+      throw error
+    } finally {
+      setIsLoading(null)
+    }
+  }
+
   return {
     startStage,
     completeStage,
     reopenStage,
+    closeStage,
     isLoading
   }
 }

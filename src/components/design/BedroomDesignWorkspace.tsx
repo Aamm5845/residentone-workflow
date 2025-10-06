@@ -151,7 +151,7 @@ export default function BedroomDesignWorkspace({
   className = ''
 }: BedroomDesignWorkspaceProps) {
   // State management
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['GENERAL']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
   const [uploadingSection, setUploadingSection] = useState<string | null>(null)

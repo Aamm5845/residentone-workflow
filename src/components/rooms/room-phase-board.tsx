@@ -84,8 +84,8 @@ export default function RoomPhaseBoard({
       } finally {
         setLoading(null)
       }
-    } else if (phase.status === 'IN_PROGRESS') {
-      // Navigate to existing stage workspace if available
+    } else if (phase.status === 'IN_PROGRESS' || phase.status === 'COMPLETE') {
+      // Navigate to stage workspace (for both active and completed phases)
       if (phase.stageId) {
         router.push(`/stages/${phase.stageId}`)
       }

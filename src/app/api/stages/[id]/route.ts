@@ -44,7 +44,7 @@ export async function PATCH(
     }
     
     // Validate action type
-    const validActions = ['start', 'complete', 'pause', 'reopen', 'assign', 'mark_not_applicable', 'mark_applicable', 'reset']
+    const validActions = ['start', 'complete', 'pause', 'reopen', 'assign', 'mark_not_applicable', 'mark_applicable', 'reset', 'close']
     if (!validActions.includes(action)) {
       return NextResponse.json({ 
         error: 'Invalid action',
@@ -169,8 +169,16 @@ export async function PATCH(
           startedAt: null,
           completedById: null
         })
-        activityAction = 'STAGE_RESET'
+      activityAction = 'STAGE_RESET'
       }
+    } else if (action === 'close') {
+      // Close an IN_PROGRESS phase back to NOT_STARTED (preserves work but closes phase)
+      updateData = withUpdateAttribution(session, {
+        status: 'NOT_STARTED',
+        startedAt: null
+        // Preserve assignedTo, completedAt, and completedById if they exist
+      })
+      activityAction = 'STAGE_CLOSED'
     }
     
     if (dueDate) {

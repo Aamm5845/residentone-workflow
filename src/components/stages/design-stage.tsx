@@ -102,7 +102,7 @@ export default function DesignStage({
       </div>
     )
   }
-  // Start with all sections collapsed for better UX
+  // Start with all sections collapsed by default for better UX
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set())
   const [sectionContent, setSectionContent] = useState<Record<string, string>>({})

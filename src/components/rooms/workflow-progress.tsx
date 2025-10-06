@@ -13,7 +13,7 @@ interface WorkflowProgressProps {
 
 export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   const router = useRouter()
-  const { startStage, isLoading } = useStageActions()
+  const { startStage, closeStage, isLoading } = useStageActions()
   const [error, setError] = useState<string | null>(null)
 
   const handleStartPhase = async (stageId: string, stageType: string) => {
@@ -84,6 +84,19 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
     }
   }
 
+  const handleClosePhase = async (stageId: string, stageType: string) => {
+    console.log('🔒 handleClosePhase called:', { stageId, stageType })
+    setError(null)
+    try {
+      console.log('🏁 About to call closeStage...')
+      await closeStage(stageId)
+      console.log('✅ closeStage completed successfully')
+      // SWR will automatically update the UI without page reload
+    } catch (error) {
+      console.error('❌ handleClosePhase error:', error)
+      setError(`Failed to close ${stageType} phase. Please try again.`)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -270,15 +283,25 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                     </div>
                   )}
                   {isActive && phaseStage && (
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="w-full border-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 font-semibold"
-                      onClick={() => router.push(`/stages/${phaseStage.id}`)}
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Open Workspace
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 font-semibold"
+                        onClick={() => router.push(`/stages/${phaseStage.id}`)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Open Workspace
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        className="w-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 text-xs"
+                        onClick={() => handleClosePhase(phaseStage.id, stageType)}
+                      >
+                        Close Phase
+                      </Button>
+                    </div>
                   )}
                   {isNotApplicable && phaseStage && (
                     <Button 
@@ -291,10 +314,21 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                       Mark Applicable
                     </Button>
                   )}
-                  {isCompleted && (
-                    <div className="text-center py-2">
-                      <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
-                      <span className="text-xs text-green-600 font-medium">Phase Complete</span>
+                  {isCompleted && phaseStage && (
+                    <div className="text-center py-2 space-y-2">
+                      <div className="mb-2">
+                        <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
+                        <span className="text-xs text-green-600 font-medium">Phase Complete</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-green-300 text-green-700 hover:bg-green-50 transition-all duration-200"
+                        onClick={() => router.push(`/stages/${phaseStage.id}`)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Open Workspace
+                      </Button>
                     </div>
                   )}
                 </div>
