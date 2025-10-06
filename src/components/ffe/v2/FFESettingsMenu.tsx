@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { 
   Settings, 
   Import, 
@@ -22,7 +24,10 @@ import {
   StickyNote,
   Trash2,
   Copy,
-  Edit
+  Edit,
+  CheckSquare,
+  Square,
+  Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
@@ -57,6 +62,9 @@ export default function FFESettingsMenu({
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showManageItemsDialog, setShowManageItemsDialog] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [selectedTemplateData, setSelectedTemplateData] = useState<any>(null)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false)
   
   // Section form
   const [sectionForm, setSectionForm] = useState({
@@ -74,10 +82,67 @@ export default function FFESettingsMenu({
     notes: ''
   })
   
+  // Load template data when template is selected
+  const handleTemplateSelection = async (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    if (!templateId) {
+      setSelectedTemplateData(null)
+      setSelectedItems(new Set())
+      return
+    }
+    
+    setIsLoadingTemplate(true)
+    try {
+      const response = await fetch(`/api/ffe/v2/templates/${templateId}`)
+      if (response.ok) {
+        const templateData = await response.json()
+        setSelectedTemplateData(templateData)
+        setSelectedItems(new Set()) // Clear previous selections
+      } else {
+        throw new Error('Failed to load template data')
+      }
+    } catch (error) {
+      console.error('Failed to load template:', error)
+      toast.error('Failed to load template data')
+    } finally {
+      setIsLoadingTemplate(false)
+    }
+  }
+  
+  // Toggle item selection
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
+  }
+  
+  // Select/deselect all items
+  const toggleSelectAll = () => {
+    if (!selectedTemplateData) return
+    
+    const allItemIds = selectedTemplateData.sections?.flatMap((section: any) => 
+      section.items?.map((item: any) => item.id) || []
+    ) || []
+    
+    const allSelected = allItemIds.every((id: string) => selectedItems.has(id))
+    
+    if (allSelected) {
+      setSelectedItems(new Set()) // Deselect all
+    } else {
+      setSelectedItems(new Set(allItemIds)) // Select all
+    }
+  }
+  
   // Template import handler
   const handleImportTemplate = async () => {
-    if (!selectedTemplateId) {
-      toast.error('Please select a template to import')
+    if (!selectedTemplateId || selectedItems.size === 0) {
+      toast.error('Please select items to import')
       return
     }
     
@@ -85,14 +150,19 @@ export default function FFESettingsMenu({
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/import-template`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId: selectedTemplateId })
+        body: JSON.stringify({ 
+          templateId: selectedTemplateId,
+          selectedItemIds: Array.from(selectedItems)
+        })
       })
       
       if (response.ok) {
-        toast.success('Template imported successfully!')
+        toast.success(`${selectedItems.size} items imported successfully!`)
         onTemplateImported()
         setShowImportDialog(false)
         setSelectedTemplateId('')
+        setSelectedTemplateData(null)
+        setSelectedItems(new Set())
         setIsOpen(false)
       } else {
         throw new Error('Failed to import template')
@@ -262,7 +332,7 @@ export default function FFESettingsMenu({
 
       {/* Import Template Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Import className="h-5 w-5" />
@@ -273,7 +343,7 @@ export default function FFESettingsMenu({
           <div className="space-y-4">
             <div>
               <Label htmlFor="template-select">Select Template</Label>
-              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+              <Select value={selectedTemplateId} onValueChange={handleTemplateSelection}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a template..." />
                 </SelectTrigger>
@@ -297,17 +367,107 @@ export default function FFESettingsMenu({
               </Select>
             </div>
             
+            {/* Template Items Selection */}
+            {selectedTemplateData && (
+              <div className="border rounded-lg">
+                <div className="p-4 bg-gray-50 border-b">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Select Items to Import</h4>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-600">
+                        {selectedItems.size} of {selectedTemplateData.sections?.reduce((total: number, section: any) => total + (section.items?.length || 0), 0) || 0} items selected
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={toggleSelectAll}
+                      >
+                        {selectedTemplateData.sections?.flatMap((s: any) => s.items || []).every((item: any) => selectedItems.has(item.id)) ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <ScrollArea className="max-h-96">
+                  <div className="p-4 space-y-6">
+                    {isLoadingTemplate ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        <span>Loading template items...</span>
+                      </div>
+                    ) : (
+                      selectedTemplateData.sections?.map((section: any) => (
+                        <div key={section.id} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-medium text-gray-900">{section.name}</h5>
+                            <Badge variant="secondary" className="text-xs">
+                              {section.items?.length || 0} items
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 ml-4">
+                            {section.items?.map((item: any) => (
+                              <div key={item.id} className="flex items-start gap-3 p-2 rounded border hover:bg-gray-50">
+                                <Checkbox
+                                  checked={selectedItems.has(item.id)}
+                                  onCheckedChange={() => toggleItemSelection(item.id)}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{item.name}</span>
+                                    {item.isRequired && (
+                                      <Badge variant="destructive" className="text-xs h-5">Required</Badge>
+                                    )}
+                                    {item.customFields?.linkedItems && Array.isArray(item.customFields.linkedItems) && (
+                                      <Badge variant="outline" className="text-xs h-5">
+                                        {item.customFields.linkedItems.length} linked
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {item.description && (
+                                    <p className="text-sm text-gray-600">{item.description}</p>
+                                  )}
+                                  {item.customFields?.linkedItems && Array.isArray(item.customFields.linkedItems) && (
+                                    <div className="mt-1 text-xs text-blue-600">
+                                      Linked items: {item.customFields.linkedItems.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )) || <div className="text-sm text-gray-500 italic">No items in this section</div>}
+                          </div>
+                        </div>
+                      )) || <div className="text-center text-gray-500 py-4">No sections found in template</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+            
             <div className="text-sm text-gray-600">
-              This will add all sections and items from the selected template to your current FFE instance. After importing, you can delete, add, or duplicate items as needed.
+              {selectedTemplateData ? (
+                'Select the specific items you want to import from this template.'
+              ) : (
+                'Choose a template to see available items for import.'
+              )}
             </div>
             
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowImportDialog(false)
+                setSelectedTemplateId('')
+                setSelectedTemplateData(null)
+                setSelectedItems(new Set())
+              }}>
                 Cancel
               </Button>
-              <Button onClick={handleImportTemplate} disabled={!selectedTemplateId}>
+              <Button 
+                onClick={handleImportTemplate} 
+                disabled={!selectedTemplateId || selectedItems.size === 0}
+              >
                 <Import className="h-4 w-4 mr-2" />
-                Import
+                Import {selectedItems.size > 0 ? `${selectedItems.size} Items` : ''}
               </Button>
             </div>
           </div>

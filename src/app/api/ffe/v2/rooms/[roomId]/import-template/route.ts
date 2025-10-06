@@ -38,9 +38,9 @@ export async function POST(
     }
     
     const { roomId } = await params
-    const { templateId } = await request.json()
+    const { templateId, selectedItemIds } = await request.json()
     
-    console.log('🔍 Import request:', { roomId, templateId, orgId });
+    console.log('🔍 Import request:', { roomId, templateId, selectedItemIds: selectedItemIds?.length || 'all', orgId });
 
     if (!roomId || !templateId) {
       return NextResponse.json({ error: 'Room ID and Template ID are required' }, { status: 400 })
@@ -135,9 +135,22 @@ export async function POST(
           }
         })
 
+        // Filter items based on selection if provided
+        const itemsToImport = selectedItemIds && selectedItemIds.length > 0 
+          ? templateSection.items.filter(item => selectedItemIds.includes(item.id))
+          : templateSection.items;
+        
+        // Skip creating section if no items to import
+        if (itemsToImport.length === 0) {
+          console.log(`⚠️ Skipping section "${templateSection.name}" - no items selected`);
+          // Delete the created section since it has no items
+          await tx.roomFFESection.delete({ where: { id: roomSection.id } });
+          continue;
+        }
+        
         // Create items in room section
         let itemOrder = 0;
-        for (const templateItem of templateSection.items) {
+        for (const templateItem of itemsToImport) {
           // Create the main item
           const mainItem = await tx.roomFFEItem.create({
             data: {
