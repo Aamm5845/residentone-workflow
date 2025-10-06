@@ -136,8 +136,10 @@ export async function POST(
         })
 
         // Create items in room section
+        let itemOrder = 0;
         for (const templateItem of templateSection.items) {
-          await tx.roomFFEItem.create({
+          // Create the main item
+          const mainItem = await tx.roomFFEItem.create({
             data: {
               sectionId: roomSection.id,
               templateItemId: templateItem.id,
@@ -146,14 +148,48 @@ export async function POST(
               state: templateItem.defaultState || 'PENDING',
               isRequired: templateItem.isRequired,
               isCustom: false,
-              order: templateItem.order,
+              order: itemOrder++,
               quantity: 1,
               unitCost: templateItem.estimatedCost,
-              notes: templateItem.customFields ? JSON.stringify(templateItem.customFields) : null,
+              notes: templateItem.customFields?.notes || null,
+              customFields: templateItem.customFields?.linkedItems ? {
+                linkedItems: templateItem.customFields.linkedItems,
+                hasChildren: true
+              } : null,
               createdById: userId,
               updatedById: userId
             }
-          })
+          });
+          
+          // Create linked items as children if they exist
+          if (templateItem.customFields?.linkedItems && Array.isArray(templateItem.customFields.linkedItems)) {
+            let childOrder = 0;
+            for (const linkedItemName of templateItem.customFields.linkedItems) {
+              if (linkedItemName && linkedItemName.trim()) {
+                await tx.roomFFEItem.create({
+                  data: {
+                    sectionId: roomSection.id,
+                    templateItemId: null,
+                    name: linkedItemName.trim(),
+                    description: null,
+                    state: 'PENDING',
+                    isRequired: false,
+                    isCustom: true,
+                    order: itemOrder + (childOrder * 0.1), // Keep children close to parent
+                    quantity: 1,
+                    customFields: {
+                      isLinkedItem: true,
+                      parentItemId: mainItem.id,
+                      parentName: templateItem.name
+                    },
+                    createdById: userId,
+                    updatedById: userId
+                  }
+                });
+                childOrder++;
+              }
+            }
+          }
         }
       }
 

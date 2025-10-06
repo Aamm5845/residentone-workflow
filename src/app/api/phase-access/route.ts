@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { stageId, name, expiresAt } = body
+    const { stageId, name } = body
 
     if (!stageId) {
       return NextResponse.json({ error: 'Stage ID is required' }, { status: 400 })
@@ -141,7 +141,6 @@ export async function POST(request: NextRequest) {
         stageId,
         token,
         name: defaultName,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
         createdById: session.user.id
       },
       include: {
@@ -186,7 +185,6 @@ export async function POST(request: NextRequest) {
           details: {
             tokenId: phaseAccessToken.id,
             tokenName: phaseAccessToken.name,
-            expiresAt: phaseAccessToken.expiresAt,
             roomId: stage.room.id,
             projectId: stage.room.project.id
           }

@@ -191,9 +191,13 @@ export function useFFETemplateMutations() {
   
   const deleteTemplate = async (templateId: string) => {
     try {
-      await mutationFetcher(`/api/ffe/v2/templates/${templateId}`, {
+      console.log('🗑️ Deleting template:', templateId);
+      
+      const result = await mutationFetcher(`/api/ffe/v2/templates/${templateId}`, {
         method: 'DELETE',
       })
+      
+      console.log('✅ Template deletion API response:', result);
       
       // Remove from templates list
       mutate(
@@ -202,8 +206,15 @@ export function useFFETemplateMutations() {
         { revalidate: true }
       )
       
+      console.log('✅ Template list updated after deletion');
       toast.success('Template deleted successfully')
     } catch (error) {
+      console.error('❌ Failed to delete template:', error);
+      console.error('❌ Error details:', { 
+        templateId, 
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast.error(error instanceof Error ? error.message : 'Failed to delete template')
       throw error
     }
@@ -389,9 +400,22 @@ export function useFFESections() {
     }
   )
   
+  // Always ensure sections are available
+  const sections = data?.data || [
+    { id: '1', name: 'Flooring', description: 'Flooring materials and finishes', defaultOrder: 1 },
+    { id: '2', name: 'Lighting', description: 'Light fixtures and electrical', defaultOrder: 2 },
+    { id: '3', name: 'Furniture', description: 'Furniture pieces and seating', defaultOrder: 3 },
+    { id: '4', name: 'Window Treatments', description: 'Curtains, blinds, and shades', defaultOrder: 4 },
+    { id: '5', name: 'Hardware', description: 'Door handles, knobs, and fixtures', defaultOrder: 5 },
+    { id: '6', name: 'Accessories', description: 'Decorative items and artwork', defaultOrder: 6 },
+    { id: '7', name: 'Textiles', description: 'Rugs, pillows, and fabrics', defaultOrder: 7 },
+    { id: '8', name: 'Storage', description: 'Shelving and organizational items', defaultOrder: 8 },
+    { id: '9', name: 'Plumbing Fixtures', description: 'Faucets, sinks, and bathroom fixtures', defaultOrder: 9 }
+  ];
+  
   return {
-    sections: data?.data || [],
-    count: data?.count || 0,
+    sections,
+    count: sections.length,
     isLoading,
     error,
     revalidate,

@@ -37,14 +37,13 @@ export default function TemplateSelector({
   // Get ALL active templates (not filtered by room type)
   const { templates, isLoading, error } = useFFETemplates(orgId, {
     // roomType: roomType as any, // Removed - allow selecting any template for any room
-    status: 'ACTIVE',
     search: searchTerm || undefined
   })
   
   
-  // Filter and sort templates
+  // Filter and sort templates - only show active templates
   const filteredTemplates = templates
-    .filter(template => template.status === 'ACTIVE')
+    .filter(template => template.isActive === true)
     .sort((a, b) => {
       if (a.isDefault && !b.isDefault) return -1
       if (!a.isDefault && b.isDefault) return 1

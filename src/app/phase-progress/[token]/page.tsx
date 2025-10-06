@@ -154,11 +154,6 @@ export default async function PhaseProgressPage({ params }: Props) {
       notFound()
     }
 
-    // Check if token is expired
-    if (isTokenExpired(tokenRecord.expiresAt)) {
-      notFound()
-    }
-
     phaseData = tokenRecord as PhaseData
 
     // Log the access (don't block the request if this fails)
@@ -246,12 +241,10 @@ export default async function PhaseProgressPage({ params }: Props) {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {phaseName} Phase
+              <h1 className="text-xl font-bold text-gray-900">
+                {roomName} - {phaseName}
               </h1>
               <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <span>{roomName}</span>
-                <span>•</span>
                 <span>{project.name}</span>
                 <span>•</span>
                 <span>{project.client.name}</span>
@@ -452,15 +445,14 @@ export default async function PhaseProgressPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Security Notice */}
+            {/* Team Access Notice */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
               <div className="flex items-start space-x-3">
                 <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h5 className="font-semibold text-blue-900 mb-1">Secure Access</h5>
+                  <h5 className="font-semibold text-blue-900 mb-1">Team Access</h5>
                   <p className="text-sm text-blue-800">
-                    This link provides secure, read-only access to phase information. 
-                    Please do not share this link with unauthorized individuals.
+                    Quick link for team members to view phase details.
                   </p>
                 </div>
               </div>

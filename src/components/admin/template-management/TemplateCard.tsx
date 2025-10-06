@@ -34,7 +34,7 @@ export function TemplateCard({
   const itemsCount = template.sections?.reduce((total, section) => total + (section.items?.length || 0), 0) || 0;
 
   return (
-    <Card className={`relative group transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+    <Card className={`relative group transition-all hover:shadow-lg h-full flex flex-col ${isSelected ? 'ring-2 ring-blue-500' : 'hover:ring-1 hover:ring-gray-300'}`}>
       {/* Selection Checkbox */}
       <div className="absolute top-3 left-3 z-10">
         <Checkbox
@@ -44,17 +44,15 @@ export function TemplateCard({
         />
       </div>
 
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between pt-6">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-gray-900 truncate">
+      <CardHeader className="pb-4 flex-grow">
+        <div className="flex items-start justify-between pt-6 h-full">
+          <div className="flex-1 min-w-0 pr-3 flex flex-col">
+            <h3 className="font-semibold text-lg text-gray-900 mb-2 leading-tight">
               {template.name}
             </h3>
-            {template.description && (
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                {template.description}
-              </p>
-            )}
+            <p className="text-sm text-gray-600 leading-relaxed mb-3 flex-grow">
+              {template.description || 'No description provided'}
+            </p>
           </div>
 
           <DropdownMenu>
@@ -91,51 +89,22 @@ export function TemplateCard({
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center space-x-2 mt-3">
-          <Badge variant="outline">
-            {template.roomType}
-          </Badge>
-          <Badge
-            variant={template.isActive ? 'default' : 'secondary'}
-            className={template.isActive ? 'bg-green-100 text-green-800 border-green-200' : ''}
-          >
-            {template.isActive ? 'Active' : 'Inactive'}
-          </Badge>
-        </div>
       </CardHeader>
 
-      <CardContent className="py-3">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Users className="w-4 h-4 mr-2" />
-            <span>{sectionsCount} sections</span>
+      <CardContent className="py-4">
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center">
+            <span className="font-medium">{sectionsCount}</span>
+            <span className="ml-1">sections</span>
           </div>
-          <div className="flex items-center text-gray-600">
-            <Eye className="w-4 h-4 mr-2" />
-            <span>{itemsCount} items</span>
+          <div className="flex items-center">
+            <span className="font-medium">{itemsCount}</span>
+            <span className="ml-1">items</span>
           </div>
         </div>
-
-        {template.sections && template.sections.length > 0 && (
-          <div className="mt-3">
-            <div className="text-xs text-gray-500 mb-2">Sections:</div>
-            <div className="flex flex-wrap gap-1">
-              {template.sections.slice(0, 3).map((section) => (
-                <Badge key={section.id} variant="secondary" className="text-xs">
-                  {section.name}
-                </Badge>
-              ))}
-              {template.sections.length > 3 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{template.sections.length - 3} more
-                </Badge>
-              )}
-            </div>
-          </div>
-        )}
       </CardContent>
 
-      <CardFooter className="pt-3 border-t">
+      <CardFooter className="pt-3 border-t bg-gray-50/50">
         <div className="flex items-center justify-between w-full text-xs text-gray-500">
           <span>
             Created: {new Date(template.createdAt).toLocaleDateString()}
@@ -157,6 +126,17 @@ export function TemplateCard({
             <Button size="sm" variant="outline" onClick={onCopy}>
               <Copy className="w-4 h-4 mr-1" />
               Copy
+            </Button>
+          )}
+          {canDelete && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onDelete}
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
             </Button>
           )}
         </div>

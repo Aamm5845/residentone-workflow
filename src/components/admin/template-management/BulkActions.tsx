@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckSquare, Square, Trash2, Eye, EyeOff, X } from 'lucide-react';
+import { CheckSquare, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -9,7 +9,6 @@ interface BulkActionsProps {
   selectedCount: number;
   canEdit: boolean;
   canDelete: boolean;
-  onStatusChange: (templateIds: string[], isActive: boolean) => void;
   onDelete: () => void;
   onClearSelection: () => void;
 }
@@ -18,7 +17,6 @@ export function BulkActions({
   selectedCount,
   canEdit,
   canDelete,
-  onStatusChange,
   onDelete,
   onClearSelection
 }: BulkActionsProps) {
@@ -33,30 +31,6 @@ export function BulkActions({
         </div>
 
         <div className="flex items-center space-x-2">
-          {canEdit && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onStatusChange([], true)}
-                className="gap-2"
-              >
-                <Eye className="w-4 h-4" />
-                Activate
-              </Button>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onStatusChange([], false)}
-                className="gap-2"
-              >
-                <EyeOff className="w-4 h-4" />
-                Deactivate
-              </Button>
-            </>
-          )}
-
           {canDelete && (
             <Button
               size="sm"

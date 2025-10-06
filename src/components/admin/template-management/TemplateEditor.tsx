@@ -56,12 +56,12 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const [formData, setFormData] = useState({
     name: template?.name || 'New Template',
-    description: template?.description || 'Template description',
-    isActive: template?.isActive ?? true
+    description: template?.description || 'Template description'
   });
 
   const [templateSections, setTemplateSections] = useState<EditableTemplateSection[]>([]);
   const [isSectionLibraryOpen, setIsSectionLibraryOpen] = useState(false);
+  const [isCreatingCustomSection, setIsCreatingCustomSection] = useState(false);
   const [editingItem, setEditingItem] = useState<{
     sectionId: string;
     itemIndex: number;
@@ -73,17 +73,19 @@ export function TemplateEditor({
     if (template?.sections) {
       setTemplateSections(template.sections.map(section => ({
         ...section,
-        items: section.items || []
+        items: (section.items || []).map(item => ({
+          ...item,
+          // Extract linkedItems from customFields if it exists
+          linkedItems: item.customFields?.linkedItems || item.linkedItems || [],
+          // Extract notes from customFields if it exists
+          notes: item.customFields?.notes || item.notes || ''
+        }))
       })));
     } else {
       setTemplateSections([]);
     }
   }, [template]);
 
-  // Debug logging for sections
-  useEffect(() => {
-    console.log('TemplateEditor received sections:', sections);
-  }, [sections]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,6 +137,42 @@ export function TemplateEditor({
 
     setTemplateSections([...templateSections, newTemplateSection]);
     setIsSectionLibraryOpen(false);
+  };
+
+  const addCustomSection = async (sectionName: string) => {
+    // Add to current template immediately
+    const newTemplateSection: EditableTemplateSection = {
+      id: `custom-${Date.now()}`,
+      name: sectionName,
+      order: templateSections.length,
+      items: [],
+      isNew: true
+    };
+
+    setTemplateSections([...templateSections, newTemplateSection]);
+    setIsCreatingCustomSection(false);
+    setIsSectionLibraryOpen(false);
+    
+    // Also save to the library for future use
+    try {
+      await fetch('/api/ffe/v2/sections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: sectionName,
+          description: `Custom section: ${sectionName}`,
+          defaultOrder: 999, // Custom sections go at the end
+          applicableRoomTypes: ['BEDROOM', 'BATHROOM', 'KITCHEN', 'LIVING_ROOM', 'DINING_ROOM', 'OFFICE'],
+          isGlobal: true
+        })
+      });
+      console.log(`Custom section "${sectionName}" saved to library`);
+    } catch (error) {
+      console.log('Could not save custom section to library:', error);
+      // Don't block the user if this fails - the section is still added to the current template
+    }
   };
 
   const removeSection = (sectionIndex: number) => {
@@ -222,8 +260,8 @@ export function TemplateEditor({
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[80vh]">
-      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
         {/* Header Form */}
         <div className="space-y-4 mb-6">
           <div className="space-y-2">
@@ -248,14 +286,6 @@ export function TemplateEditor({
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="isActive"
-              checked={formData.isActive}
-              onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-            />
-            <Label htmlFor="isActive">Active Template</Label>
-          </div>
         </div>
 
         <Separator />
@@ -276,8 +306,8 @@ export function TemplateEditor({
             </Button>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="space-y-4 pr-4">
+          <ScrollArea className="flex-1 h-full">
+            <div className="space-y-4 pr-4 pb-4">
               {templateSections.map((section, sectionIndex) => (
                 <Card key={section.id}>
                   <CardHeader className="pb-3">
@@ -419,27 +449,55 @@ export function TemplateEditor({
       <Dialog open={isSectionLibraryOpen} onOpenChange={setIsSectionLibraryOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Section from Library</DialogTitle>
+            <DialogTitle>Add Section</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {sections && sections.length > 0 ? (
-              sections.map((section) => (
-                <Button
-                  key={section.id}
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => addSectionFromLibrary(section)}
-                >
-                  {section.name}
-                </Button>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm mb-2">No sections available in the library.</p>
-                <p className="text-xs">The section library might be loading or empty. Please ensure the FFE sections have been seeded in the database.</p>
+          
+          {!isCreatingCustomSection ? (
+            <div className="space-y-4">
+              {/* Add Custom Section Button */}
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => setIsCreatingCustomSection(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Custom Section
+              </Button>
+              
+              {/* Divider */}
+              <div className="flex items-center">
+                <div className="flex-1 border-t border-gray-300" />
+                <span className="px-3 text-sm text-gray-500">or choose from library</span>
+                <div className="flex-1 border-t border-gray-300" />
               </div>
-            )}
-          </div>
+              
+              {/* Library Sections */}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {sections && sections.length > 0 ? (
+                  sections.map((section) => (
+                    <Button
+                      key={section.id}
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => addSectionFromLibrary(section)}
+                    >
+                      {section.name}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm mb-2">No sections available in the library.</p>
+                    <p className="text-xs">You can still create custom sections using the button above.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <CustomSectionForm
+              onSave={addCustomSection}
+              onCancel={() => setIsCreatingCustomSection(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -598,6 +656,48 @@ function ItemEditor({ item, onSave, onCancel }: ItemEditorProps) {
         </Button>
         <Button type="submit" disabled={!formData.name.trim()}>
           Save Item
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Custom Section Form Component
+interface CustomSectionFormProps {
+  onSave: (sectionName: string) => void;
+  onCancel: () => void;
+}
+
+function CustomSectionForm({ onSave, onCancel }: CustomSectionFormProps) {
+  const [sectionName, setSectionName] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sectionName.trim()) {
+      onSave(sectionName.trim());
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="sectionName">Section Name</Label>
+        <Input
+          id="sectionName"
+          value={sectionName}
+          onChange={(e) => setSectionName(e.target.value)}
+          placeholder="Enter section name (e.g., Fixtures, Decor, etc.)"
+          required
+          autoFocus
+        />
+      </div>
+      
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!sectionName.trim()}>
+          Create Section
         </Button>
       </div>
     </form>

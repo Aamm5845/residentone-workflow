@@ -14,11 +14,30 @@ export default async function FFESettingsPage({ params }: { params: Promise<{ id
     user: {
       id: string
       orgId: string
+      email?: string
     }
   } | null
   const resolvedParams = await params
   
   if (!session?.user) {
+    return redirect('/auth/signin')
+  }
+
+  // Get orgId from user record if not in session (Vercel fix)
+  let userOrgId = session.user.orgId
+  if (!userOrgId && session.user.email) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      userOrgId = user?.orgId
+    } catch (error) {
+      console.error('Error fetching user orgId:', error)
+    }
+  }
+  
+  if (!userOrgId) {
     return redirect('/auth/signin')
   }
 
@@ -62,7 +81,7 @@ export default async function FFESettingsPage({ params }: { params: Promise<{ id
   }
 
   // Check access - user must belong to same org
-  if (stage.room.project.orgId !== session.user.orgId) {
+  if (stage.room.project.orgId !== userOrgId) {
     return redirect('/auth/signin')
   }
 
@@ -94,7 +113,7 @@ export default async function FFESettingsPage({ params }: { params: Promise<{ id
           roomType={stage.room.type}
           projectId={stage.room.project.id}
           projectName={stage.room.project.name}
-          orgId={session.user.orgId}
+          orgId={userOrgId}
         />
       </div>
     </DashboardLayout>

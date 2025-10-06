@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     const sections = await prisma.fFESectionLibrary.findMany({
       orderBy: { defaultOrder: 'asc' }
     });
+    
+    console.log('Found sections:', sections.length);
 
     // If no sections exist, create some default ones
     if (sections.length === 0) {
@@ -32,26 +34,42 @@ export async function GET(request: NextRequest) {
         { name: 'Plumbing Fixtures', description: 'Faucets, sinks, and bathroom fixtures', defaultOrder: 9 }
       ];
 
-      // Create default sections in database
-      const createdSections = await Promise.all(
-        defaultSections.map(section => 
-          prisma.fFESectionLibrary.create({
-            data: {
-              name: section.name,
-              description: section.description,
-              defaultOrder: section.defaultOrder,
-              applicableRoomTypes: ['BEDROOM', 'BATHROOM', 'KITCHEN', 'LIVING_ROOM', 'DINING_ROOM', 'OFFICE'],
-              isGlobal: true
-            }
-          })
-        )
-      );
+      try {
+        // Create default sections in database
+        const createdSections = [];
+        for (const section of defaultSections) {
+          try {
+            const created = await prisma.fFESectionLibrary.create({
+              data: {
+                name: section.name,
+                description: section.description,
+                defaultOrder: section.defaultOrder,
+                applicableRoomTypes: ['BEDROOM', 'BATHROOM', 'KITCHEN', 'LIVING_ROOM', 'DINING_ROOM', 'OFFICE'],
+                isGlobal: true
+              }
+            });
+            createdSections.push(created);
+          } catch (error) {
+            console.log(`Section ${section.name} might already exist, skipping...`);
+          }
+        }
 
-      return NextResponse.json({
-        success: true,
-        data: createdSections,
-        count: createdSections.length
-      });
+        const allSections = await prisma.fFESectionLibrary.findMany({
+          orderBy: { defaultOrder: 'asc' }
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: allSections,
+          count: allSections.length
+        });
+      } catch (error) {
+        console.error('Error creating default sections:', error);
+        return NextResponse.json(
+          { error: 'Failed to create default sections' },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({
@@ -64,6 +82,55 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching FFE sections:', error);
     return NextResponse.json(
       { error: 'Failed to fetch sections' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await request.json();
+    const { name, description, defaultOrder = 999, applicableRoomTypes = [], isGlobal = true } = data;
+
+    if (!name) {
+      return NextResponse.json({ error: 'Section name is required' }, { status: 400 });
+    }
+
+    // Create new section in database
+    const newSection = await prisma.fFESectionLibrary.create({
+      data: {
+        name,
+        description,
+        defaultOrder,
+        applicableRoomTypes,
+        isGlobal
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: newSection
+    });
+
+  } catch (error) {
+    console.error('Error creating FFE section:', error);
+    
+    // Handle unique constraint errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A section with this name already exists' },
+        { status: 409 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to create section' },
       { status: 500 }
     );
   }

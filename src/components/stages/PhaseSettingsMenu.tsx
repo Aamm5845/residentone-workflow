@@ -281,7 +281,6 @@ export default function PhaseSettingsMenu({
                 entityType="phase"
                 entityId={stageId}
                 entityName={stageName}
-                defaultName={`${stageName} Phase Access`}
               />
             </div>
           </div>

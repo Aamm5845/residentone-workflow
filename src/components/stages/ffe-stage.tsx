@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info, StickyNote } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
 import FFEPhaseWorkspace from '../ffe/v2/FFEPhaseWorkspace'
+import { useFFERoomStore } from '@/stores/ffe-room-store'
 import Link from 'next/link'
 // New FFE system - template-based, user-managed
 
@@ -17,8 +19,10 @@ export default function FFEStage({
   onComplete 
 }: any) {
   const { data: session } = useSession()
+  const { showNotesDrawer, setShowNotesDrawer, getAllNotes, getCompletionStats, currentInstance } = useFFERoomStore()
   const [ffeProgress, setFFEProgress] = useState(0)
   const [isFFEComplete, setIsFFEComplete] = useState(false)
+  const [showUndecidedItems, setShowUndecidedItems] = useState(false)
   
   // Ensure this component only renders for FFE stages
   if (stage.type !== 'FFE') {
@@ -104,6 +108,26 @@ export default function FFEStage({
                 <span className="text-sm font-medium">Ready to Complete</span>
               </div>
             )}
+            <Button
+              variant={showNotesDrawer ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowNotesDrawer(!showNotesDrawer)}
+              className="relative"
+            >
+              <StickyNote className="h-4 w-4 mr-2" />
+              Notes
+              {getAllNotes().length > 0 && (
+                <Badge className="ml-2 h-5 w-5 p-0 text-xs">
+                  {getAllNotes().length}
+                </Badge>
+              )}
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/stages/${stage.id}/ffe-settings`}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
+            </Button>
             <Button 
               onClick={handleComplete}
               className={`font-semibold shadow-md hover:shadow-lg px-6 py-3 ${
@@ -114,12 +138,6 @@ export default function FFEStage({
             >
               <CheckCircle className="w-5 h-5 mr-2" />
               {isFFEComplete ? 'Complete Phase' : 'Force Complete'}
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/stages/${stage.id}/ffe-settings`}>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Link>
             </Button>
           </div>
         </div>
@@ -136,6 +154,34 @@ export default function FFEStage({
               style={{ width: `${ffeProgress}%` }}
             />
           </div>
+          
+          {/* Stats Display */}
+          {currentInstance && (() => {
+            const stats = getCompletionStats()
+            const undecided = stats.total - stats.completed
+            
+            return (
+              <div className="flex gap-6 mt-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <button 
+                    onClick={() => setShowUndecidedItems(!showUndecidedItems)}
+                    className="text-gray-600 hover:text-gray-900 hover:underline cursor-pointer transition-colors"
+                  >
+                    {undecided} Undecided
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">{stats.completed} Completed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-600">{stats.total} Total</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
       
@@ -149,6 +195,8 @@ export default function FFEStage({
             orgId={session?.user?.orgId}
             projectId={project.id}
             onProgressUpdate={handleFFEProgress}
+            showHeader={false}
+            filterUndecided={showUndecidedItems}
           />
         </div>
 

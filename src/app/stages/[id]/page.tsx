@@ -15,11 +15,33 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
     user: {
       id: string
       orgId: string
+      email?: string
     }
   } | null
   const resolvedParams = await params
   
   if (!session?.user) {
+    console.log('No session or user found, redirecting to signin')
+    return redirect('/auth/signin')
+  }
+
+  // Get orgId from user record if not in session (Vercel fix)
+  let userOrgId = session.user.orgId
+  if (!userOrgId && session.user.email) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      userOrgId = user?.orgId
+      console.log('Retrieved orgId from user record:', userOrgId)
+    } catch (error) {
+      console.error('Error fetching user orgId:', error)
+    }
+  }
+  
+  if (!userOrgId) {
+    console.log('No orgId found for user, redirecting to signin')
     return redirect('/auth/signin')
   }
 
@@ -87,6 +109,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
               select: {
                 id: true,
                 name: true,
+                orgId: true,
                 client: {
                   select: {
                     id: true,
@@ -129,6 +152,15 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
 
   if (!stage) {
     notFound()
+  }
+
+  // Check access - user must belong to same org
+  if (stage.room.project.orgId !== userOrgId) {
+    console.log('Org access denied:', {
+      stageOrgId: stage.room.project.orgId,
+      userOrgId: userOrgId
+    })
+    return redirect('/auth/signin')
   }
 
   return (

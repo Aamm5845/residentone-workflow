@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Querying templates with orgId:', orgId);
     const templates = await prisma.fFETemplate.findMany({
       where: {
-        orgId: orgId,
-        status: { not: 'ARCHIVED' }
+        orgId: orgId
       },
       include: {
         sections: {
@@ -108,7 +107,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     console.log('Creating template with data:', data);
     
-    const { name, description, isActive = true, isDefault = false, sections = [] } = data;
+    const { name, description, isDefault = false, sections = [] } = data;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -122,7 +121,7 @@ export async function POST(request: NextRequest) {
           orgId: orgId,
           name,
           description,
-          status: isActive ? 'ACTIVE' : 'DRAFT',
+          status: 'ACTIVE',
           isDefault,
           version: 1,
           tags: [],
@@ -155,7 +154,11 @@ export async function POST(request: NextRequest) {
                 defaultState: itemData.defaultState || 'PENDING',
                 isRequired: itemData.isRequired || false,
                 order: itemData.order || 0,
-                tags: []
+                tags: [],
+                customFields: {
+                  linkedItems: itemData.linkedItems || [],
+                  notes: itemData.notes || ''
+                }
               }
             });
           }

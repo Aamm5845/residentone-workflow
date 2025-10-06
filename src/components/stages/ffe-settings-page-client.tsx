@@ -22,7 +22,9 @@ import {
   RefreshCw,
   Edit,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ArrowRight,
+  Move
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRoomFFEInstance, useRoomFFEMutations, useFFEItemMutations, useFFETemplates } from '@/hooks/ffe/useFFEApi'
@@ -129,6 +131,13 @@ export default function FFESettingsPageClient({
   const [editItemDescription, setEditItemDescription] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false)
+  const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null)
+  const [deletingSectionName, setDeletingSectionName] = useState('')
+  const [deleteTargetSectionId, setDeleteTargetSectionId] = useState('')
+  const [showMoveItemDialog, setShowMoveItemDialog] = useState(false)
+  const [movingItem, setMovingItem] = useState<RoomFFEItem | null>(null)
+  const [moveTargetSectionId, setMoveTargetSectionId] = useState('')
   
   // Flatten all items from all sections with section info
   const allItems: RoomFFEItem[] = React.useMemo(() => {
@@ -429,6 +438,86 @@ export default function FFESettingsPageClient({
     } catch (error) {
       console.error('Failed to update item:', error)
       toast.error('Failed to update item')
+    }
+  }
+
+  // Handle section deletion
+  const handleDeleteSection = (sectionId: string, sectionName: string) => {
+    setDeletingSectionId(sectionId)
+    setDeletingSectionName(sectionName)
+    setDeleteTargetSectionId('')
+    setShowDeleteSectionDialog(true)
+  }
+
+  const handleDeleteSectionConfirm = async () => {
+    if (!deletingSectionId) return
+
+    try {
+      const queryParams = new URLSearchParams({
+        sectionId: deletingSectionId,
+        ...(deleteTargetSectionId && { targetSectionId: deleteTargetSectionId })
+      })
+
+      const response = await fetch(
+        `/api/ffe/v2/rooms/${roomId}/sections?${queryParams}`,
+        { method: 'DELETE' }
+      )
+
+      if (response.ok) {
+        const result = await response.json()
+        await revalidate()
+        setShowDeleteSectionDialog(false)
+        setDeletingSectionId(null)
+        setDeletingSectionName('')
+        setDeleteTargetSectionId('')
+        toast.success(result.message)
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete section')
+      }
+    } catch (error) {
+      console.error('Failed to delete section:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete section')
+    }
+  }
+
+  // Handle item move
+  const handleMoveItem = (item: RoomFFEItem) => {
+    setMovingItem(item)
+    setMoveTargetSectionId('')
+    setShowMoveItemDialog(true)
+  }
+
+  const handleMoveItemConfirm = async () => {
+    if (!movingItem || !moveTargetSectionId) {
+      toast.error('Target section is required')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `/api/ffe/v2/rooms/${roomId}/items/${movingItem.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetSectionId: moveTargetSectionId })
+        }
+      )
+
+      if (response.ok) {
+        const result = await response.json()
+        await revalidate()
+        setShowMoveItemDialog(false)
+        setMovingItem(null)
+        setMoveTargetSectionId('')
+        toast.success(result.message)
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to move item')
+      }
+    } catch (error) {
+      console.error('Failed to move item:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to move item')
     }
   }
 
@@ -738,6 +827,122 @@ export default function FFESettingsPageClient({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Section Dialog */}
+      <Dialog open={showDeleteSectionDialog} onOpenChange={setShowDeleteSectionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Delete Section
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-yellow-700 mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="font-medium">Items will be preserved</span>
+              </div>
+              <p className="text-sm text-yellow-700">
+                Deleting section "{deletingSectionName}" will move its items to another section. Items will not be lost.
+              </p>
+            </div>
+            
+            {instance?.sections && instance.sections.filter(s => s.id !== deletingSectionId).length > 0 ? (
+              <div>
+                <label className="text-sm font-medium">Move items to section (optional)</label>
+                <Select value={deleteTargetSectionId} onValueChange={setDeleteTargetSectionId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Auto-select target section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instance.sections
+                      .filter(s => s.id !== deletingSectionId)
+                      .map(section => (
+                        <SelectItem key={section.id} value={section.id}>
+                          {section.name}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  If not selected, items will be moved to the first available section or a new "Uncategorized" section.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Items will be moved to a new "Uncategorized" section.
+              </p>
+            )}
+            
+            <div className="flex gap-2 justify-end pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowDeleteSectionDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteSectionConfirm}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Section
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Item Dialog */}
+      <Dialog open={showMoveItemDialog} onOpenChange={setShowMoveItemDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Move className="h-5 w-5" />
+              Move Item
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {movingItem && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  Moving: <span className="font-medium">{movingItem.name}</span>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  From: {movingItem.sectionName}
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <label className="text-sm font-medium">Target Section</label>
+              <Select value={moveTargetSectionId} onValueChange={setMoveTargetSectionId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose target section..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(instance?.sections || [])
+                    .filter(s => s.id !== movingItem?.sectionId)
+                    .map(section => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowMoveItemDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleMoveItemConfirm} disabled={!moveTargetSectionId}>
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Move Item
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 
@@ -943,6 +1148,18 @@ export default function FFESettingsPageClient({
                                 <Plus className="h-4 w-4 mr-1" />
                                 Add Item
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteSection(section.id, section.name)
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:border-red-300"
+                                title="Delete section"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         </CardHeader>
@@ -1022,6 +1239,15 @@ export default function FFESettingsPageClient({
                                           title="Edit item"
                                         >
                                           <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleMoveItem(item)}
+                                          title="Move to another section"
+                                          disabled={!instance?.sections || instance.sections.length <= 1}
+                                        >
+                                          <Move className="h-4 w-4" />
                                         </Button>
                                         <Button
                                           variant="ghost"

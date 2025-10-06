@@ -1,11 +1,10 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { RoomType, FFETemplateStatus } from '@prisma/client'
+import { FFETemplateStatus } from '@prisma/client'
 
 export interface FFETemplate {
   id: string
   orgId: string
-  roomType: RoomType
   name: string
   description?: string
   status: FFETemplateStatus
@@ -54,7 +53,7 @@ export interface FFESectionLibraryItem {
   icon?: string
   color?: string
   defaultOrder: number
-  applicableRoomTypes: RoomType[]
+  applicableRoomTypes: string[]
   isGlobal: boolean
 }
 
@@ -69,11 +68,7 @@ interface FFETemplateState {
   
   // Filters
   filters: {
-    roomType?: RoomType
-    status?: FFETemplateStatus
-    isActive?: boolean
-    searchQuery?: string
-    search: string
+    searchQuery: string
   }
   
   // Section Library
@@ -121,7 +116,6 @@ interface FFETemplateState {
   reorderItems: (sectionId: string, itemIds: string[]) => void
   
   // Utility
-  getTemplatesByRoomType: (roomType: RoomType) => FFETemplate[]
   getFilteredTemplates: () => FFETemplate[]
   resetState: () => void
 }
@@ -134,9 +128,7 @@ const initialState = {
   error: null,
   sections: [],
   filters: {
-    search: '',
-    searchQuery: '',
-    isActive: undefined,
+    searchQuery: ''
   },
   sectionLibrary: [],
   isTemplateEditorOpen: false,
@@ -367,25 +359,12 @@ export const useFFETemplateStore = create<FFETemplateState>()(
       })),
       
       // Utility functions
-      getTemplatesByRoomType: (roomType) => {
-        const state = get()
-        return state.templates.filter(t => t.roomType === roomType)
-      },
-      
       getFilteredTemplates: () => {
         const state = get()
         let filtered = state.templates
         
-        if (state.filters.roomType) {
-          filtered = filtered.filter(t => t.roomType === state.filters.roomType)
-        }
-        
-        if (state.filters.status) {
-          filtered = filtered.filter(t => t.status === state.filters.status)
-        }
-        
-        if (state.filters.search) {
-          const search = state.filters.search.toLowerCase()
+        if (state.filters.searchQuery) {
+          const search = state.filters.searchQuery.toLowerCase()
           filtered = filtered.filter(t => 
             t.name.toLowerCase().includes(search) ||
             t.description?.toLowerCase().includes(search) ||

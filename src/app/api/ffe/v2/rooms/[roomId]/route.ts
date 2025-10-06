@@ -230,6 +230,8 @@ export async function POST(
                   isRequired: templateItem.isRequired,
                   order: templateItem.order,
                   quantity: 1,
+                  // Preserve customFields (linkedItems and notes) from template
+                  customFields: templateItem.customFields || {},
                   createdById: userId,
                   updatedById: userId
                 }

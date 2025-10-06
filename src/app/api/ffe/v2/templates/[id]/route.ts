@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,10 +13,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const resolvedParams = await params;
+    const templateId = resolvedParams.id;
+
     // Find template in database
     const template = await prisma.fFETemplate.findFirst({
       where: {
-        id: params.id,
+        id: templateId,
         orgId: session.user.orgId
       },
       include: {
@@ -48,7 +51,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -56,7 +59,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const templateId = params.id;
+    const resolvedParams = await params;
+    const templateId = resolvedParams.id;
     const data = await request.json();
     console.log('Updating template:', templateId, 'with data:', data);
     
@@ -80,7 +84,6 @@ export async function PUT(
         data: {
           name: data.name || existingTemplate.name,
           description: data.description !== undefined ? data.description : existingTemplate.description,
-          roomType: data.roomType || existingTemplate.roomType,
           status: data.status || existingTemplate.status,
           isDefault: data.isDefault !== undefined ? data.isDefault : existingTemplate.isDefault,
           updatedById: session.user.id
@@ -117,7 +120,11 @@ export async function PUT(
                   defaultState: itemData.defaultState || 'PENDING',
                   isRequired: itemData.isRequired || false,
                   order: itemData.order || 0,
-                  tags: []
+                  tags: [],
+                  customFields: {
+                    linkedItems: itemData.linkedItems || [],
+                    notes: itemData.notes || ''
+                  }
                 }
               });
             }
@@ -162,7 +169,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -170,18 +177,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const templateId = params.id;
+    const resolvedParams = await params;
+    const templateId = resolvedParams.id;
     console.log('Deleting template:', templateId);
     
-    // Archive template instead of hard delete
-    const deletedTemplate = await prisma.fFETemplate.updateMany({
+    // Hard delete template and all related data
+    const deletedTemplate = await prisma.fFETemplate.deleteMany({
       where: {
         id: templateId,
         orgId: session.user.orgId
-      },
-      data: {
-        status: 'ARCHIVED',
-        updatedById: session.user.id
       }
     });
     

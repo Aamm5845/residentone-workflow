@@ -143,3 +143,167 @@ export async function POST(
     )
   }
 }
+
+// Delete section with item preservation
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user info from email if id/orgId are missing
+    let userId = session.user.id;
+    let orgId = session.user.orgId;
+    
+    if (!userId || !orgId) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      });
+      
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      
+      userId = user.id;
+      orgId = user.orgId;
+    }
+    
+    const { roomId } = await params
+    const { searchParams } = new URL(request.url)
+    const sectionId = searchParams.get('sectionId')
+    const targetSectionId = searchParams.get('targetSectionId') // Where to move items
+    
+    if (!sectionId) {
+      return NextResponse.json({ error: 'Section ID is required' }, { status: 400 })
+    }
+
+    // Verify section exists and belongs to user's organization
+    const section = await prisma.roomFFESection.findFirst({
+      where: {
+        id: sectionId,
+        instance: {
+          roomId,
+          room: {
+            project: {
+              orgId
+            }
+          }
+        }
+      },
+      include: {
+        items: true,
+        instance: {
+          include: {
+            sections: {
+              where: {
+                id: { not: sectionId } // Get other sections
+              },
+              orderBy: { order: 'asc' }
+            }
+          }
+        }
+      }
+    })
+
+    if (!section) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
+    const { items, instance } = section
+    let targetSection = null
+
+    // If items exist, determine where to move them
+    if (items.length > 0) {
+      if (targetSectionId) {
+        // Move to specified section
+        targetSection = await prisma.roomFFESection.findFirst({
+          where: {
+            id: targetSectionId,
+            instanceId: instance.id
+          }
+        })
+        
+        if (!targetSection) {
+          return NextResponse.json({ 
+            error: 'Target section not found' 
+          }, { status: 404 })
+        }
+      } else {
+        // Use first available section or create a default one
+        if (instance.sections.length > 0) {
+          targetSection = instance.sections[0]
+        } else {
+          // Create a default "Uncategorized" section
+          targetSection = await prisma.roomFFESection.create({
+            data: {
+              instanceId: instance.id,
+              name: 'Uncategorized',
+              description: 'Items moved from deleted sections',
+              order: 1,
+              isExpanded: true,
+              isCompleted: false
+            }
+          })
+        }
+      }
+    }
+
+    // Perform deletion with item relocation in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Move items to target section if items exist
+      if (items.length > 0 && targetSection) {
+        // Get the highest order in target section
+        const targetItems = await tx.roomFFEItem.findMany({
+          where: { sectionId: targetSection.id },
+          orderBy: { order: 'desc' },
+          take: 1
+        })
+        
+        const startOrder = targetItems.length > 0 ? targetItems[0].order + 1 : 1
+        
+        // Move items to target section
+        for (let i = 0; i < items.length; i++) {
+          await tx.roomFFEItem.update({
+            where: { id: items[i].id },
+            data: {
+              sectionId: targetSection.id,
+              order: startOrder + i,
+              updatedById: userId
+            }
+          })
+        }
+      }
+      
+      // Delete the section
+      await tx.roomFFESection.delete({
+        where: { id: sectionId }
+      })
+      
+      return {
+        deletedSectionName: section.name,
+        movedItemsCount: items.length,
+        targetSectionName: targetSection?.name || null
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+      message: result.movedItemsCount > 0 
+        ? `Section "${result.deletedSectionName}" deleted. ${result.movedItemsCount} items moved to "${result.targetSectionName}".`
+        : `Section "${result.deletedSectionName}" deleted.`
+    })
+
+  } catch (error) {
+    console.error('Error deleting section:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete section' },
+      { status: 500 }
+    )
+  }
+}

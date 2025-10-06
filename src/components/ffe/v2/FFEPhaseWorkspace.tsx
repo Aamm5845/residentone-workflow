@@ -37,6 +37,8 @@ interface FFEPhaseWorkspaceProps {
   orgId: string
   projectId: string
   onProgressUpdate?: (progress: number, isComplete: boolean) => void
+  showHeader?: boolean // Add option to hide header when embedded
+  filterUndecided?: boolean // Add option to filter only undecided items
 }
 
 export default function FFEPhaseWorkspace({
@@ -44,7 +46,9 @@ export default function FFEPhaseWorkspace({
   roomType,
   orgId,
   projectId,
-  onProgressUpdate
+  onProgressUpdate,
+  showHeader = true,
+  filterUndecided = false
 }: FFEPhaseWorkspaceProps) {
   // Stores and API hooks
   const {
@@ -213,64 +217,66 @@ export default function FFEPhaseWorkspace({
   
   return (
     <div className="space-y-6">
-      {/* Header with Progress */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {currentInstance.name}
-              </CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                {currentInstance.room.name || currentInstance.room.type} • {stats.total} items
-              </p>
+      {/* Header with Progress - only show when not embedded */}
+      {showHeader && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  {currentInstance.name}
+                </CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  {currentInstance.room.name || currentInstance.room.type} • {stats.total} items
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {/* Notes toggle */}
+                <Button
+                  variant={showNotesDrawer ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowNotesDrawer(!showNotesDrawer)}
+                  className="relative"
+                >
+                  <StickyNote className="h-4 w-4 mr-2" />
+                  Notes
+                  {allNotes.length > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 text-xs">
+                      {allNotes.length}
+                    </Badge>
+                  )}
+                </Button>
+                
+                {/* Settings is now handled by standalone page */}
+                
+              </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              {/* Notes toggle */}
-              <Button
-                variant={showNotesDrawer ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-                className="relative"
-              >
-                <StickyNote className="h-4 w-4 mr-2" />
-                Notes
-                {allNotes.length > 0 && (
-                  <Badge className="ml-2 h-5 w-5 p-0 text-xs">
-                    {allNotes.length}
-                  </Badge>
-                )}
-              </Button>
-              
-              {/* Settings is now handled by standalone page */}
-              
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium">Progress</span>
+                <span className="text-sm text-gray-600">{Math.ceil(progress)}% Complete</span>
+              </div>
+              <Progress value={progress} className="h-2" />
             </div>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-sm text-gray-600">{progress}% Complete</span>
+            
+            {/* Simplified Stats */}
+            <div className="flex gap-4 mt-4 text-sm">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <span>{stats.undecided || (stats.total - stats.completed)} Undecided</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>{stats.completed} Completed</span>
+              </div>
             </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-          
-          {/* Simplified Stats */}
-          <div className="flex gap-4 mt-4 text-sm">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-              <span>{stats.undecided || (stats.total - stats.completed)} Undecided</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>{stats.completed} Completed</span>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+          </CardHeader>
+        </Card>
+      )}
       
       {/* Main Content Area */}
       <div className="flex gap-6">
@@ -279,6 +285,7 @@ export default function FFEPhaseWorkspace({
           <FFESectionAccordion
             sections={currentInstance.sections}
             onItemStateChange={handleItemStateChange}
+            filterUndecided={filterUndecided}
           />
         </div>
         

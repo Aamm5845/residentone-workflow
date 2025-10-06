@@ -67,8 +67,6 @@ export interface FFETemplate {
   orgId: string;
   name: string;
   description?: string;
-  roomType: RoomType;
-  isActive: boolean;
   isDefault: boolean;
   version: number;
   sections: FFETemplateSection[];
@@ -112,8 +110,6 @@ export interface FFERoomItem {
 export interface FFETemplateCreateData {
   name: string;
   description?: string;
-  roomType: RoomType;
-  isActive?: boolean;
   isDefault?: boolean;
   sections: {
     sectionId: string;
@@ -133,8 +129,6 @@ export interface FFETemplateCreateData {
 export interface FFETemplateUpdateData {
   name?: string;
   description?: string;
-  roomType?: RoomType;
-  isActive?: boolean;
   isDefault?: boolean;
   sections?: {
     sectionId: string;
@@ -155,8 +149,6 @@ export interface FFETemplateUpdateData {
 // Filter and Search Types
 export interface FFETemplateFilters {
   searchQuery?: string;
-  roomType?: RoomType;
-  isActive?: boolean;
   createdBy?: string;
 }
 
@@ -221,8 +213,6 @@ export interface UseFFEApiReturn {
 export interface TemplateFormData {
   name: string;
   description: string;
-  roomType: RoomType;
-  isActive: boolean;
   isDefault: boolean;
   sections: {
     sectionId: string;
