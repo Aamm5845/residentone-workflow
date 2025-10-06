@@ -71,7 +71,7 @@ export async function GET() {
 
         // Format stage type properly
         const formatStageType = (type: string) => {
-          switch (type) {
+          switch (type.toUpperCase()) {
             case 'DESIGN_CONCEPT':
             case 'DESIGN':
               return 'Design Concept'
@@ -85,6 +85,10 @@ export async function GET() {
             case 'FFE':
               return 'FFE'
             default:
+              // Special case for three_d variations
+              if (type.toUpperCase().includes('THREE') || type.toUpperCase().includes('3D')) {
+                return '3D Rendering'
+              }
               return type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
           }
         }

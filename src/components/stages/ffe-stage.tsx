@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
-import UnifiedFFEWorkspace from '../ffe/UnifiedFFEWorkspace'
-// Removed hardcoded getDefaultFFEConfig import - no longer using default templates
-// import { getDefaultFFEConfig } from '@/lib/constants/room-ffe-config'
+import FFEPhaseWorkspace from '../ffe/v2/FFEPhaseWorkspace'
+import Link from 'next/link'
+// New FFE system - template-based, user-managed
 
 export default function FFEStage({ 
   stage, 
@@ -15,6 +16,7 @@ export default function FFEStage({
   project, 
   onComplete 
 }: any) {
+  const { data: session } = useSession()
   const [ffeProgress, setFFEProgress] = useState(0)
   const [isFFEComplete, setIsFFEComplete] = useState(false)
   
@@ -64,14 +66,12 @@ export default function FFEStage({
             This phase has been marked as not applicable for this {room.name || room.type}.
           </p>
           <div className="flex justify-center">
-            <PhaseSettingsMenu 
-              stageId={stage.id}
-              stageName="FFE Sourcing"
-              isNotApplicable={isNotApplicable}
-              onReset={() => window.location.reload()}
-              onMarkNotApplicable={() => window.location.reload()}
-              onMarkApplicable={() => window.location.reload()}
-            />
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/stages/${stage.id}/ffe-settings`}>
+                <Settings className="h-4 w-4 mr-2" />
+                FFE Settings
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -115,14 +115,12 @@ export default function FFEStage({
               <CheckCircle className="w-5 h-5 mr-2" />
               {isFFEComplete ? 'Complete Phase' : 'Force Complete'}
             </Button>
-            <PhaseSettingsMenu 
-              stageId={stage.id}
-              stageName="FFE Sourcing"
-              isNotApplicable={isNotApplicable}
-              onReset={() => window.location.reload()}
-              onMarkNotApplicable={() => window.location.reload()}
-              onMarkApplicable={() => window.location.reload()}
-            />
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/stages/${stage.id}/ffe-settings`}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
+            </Button>
           </div>
         </div>
         
@@ -145,10 +143,10 @@ export default function FFEStage({
       <div className="flex">
         {/* Main Workspace */}
         <div className="flex-1 p-6">
-          <UnifiedFFEWorkspace
+          <FFEPhaseWorkspace
             roomId={room.id}
             roomType={room.type}
-            orgId={project.organization?.id || project.orgId}
+            orgId={session?.user?.orgId}
             projectId={project.id}
             onProgressUpdate={handleFFEProgress}
           />

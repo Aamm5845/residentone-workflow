@@ -33,10 +33,41 @@ export class PhaseNotificationService {
   async handlePhaseCompletion(
     stageId: string,
     completedByUserId: string,
-    session: AuthSession
-  ): Promise<PhaseNotificationResult> {
+    session: AuthSession,
+    options: {
+      autoEmail?: boolean
+    } = { autoEmail: true }
+  ): Promise<PhaseNotificationResult & {
+    nextPhaseInfo?: {
+      stageId: string
+      stageType: string
+      assignee: {
+        id: string
+        name: string
+        email: string
+      } | null
+      emailPreview?: {
+        subject: string
+        preview: string
+      }
+    }[]
+  }> {
     
-    const result: PhaseNotificationResult = {
+    const result: PhaseNotificationResult & {
+      nextPhaseInfo?: {
+        stageId: string
+        stageType: string
+        assignee: {
+          id: string
+          name: string
+          email: string
+        } | null
+        emailPreview?: {
+          subject: string
+          preview: string
+        }
+      }[]
+    } = {
       success: true,
       notificationsSent: 0,
       emailsSent: 0,
@@ -44,7 +75,8 @@ export class PhaseNotificationService {
       details: {
         inAppNotifications: [],
         emailNotifications: []
-      }
+      },
+      nextPhaseInfo: []
     }
 
     try {
@@ -117,7 +149,8 @@ export class PhaseNotificationService {
           completedStage,
           room,
           project,
-          result
+          result,
+          options
         )
       } else {
         // Regular case: Notify next phase assignee
@@ -126,7 +159,8 @@ export class PhaseNotificationService {
           completedStage,
           room,
           project,
-          result
+          result,
+          options
         )
       }
 
@@ -154,7 +188,8 @@ export class PhaseNotificationService {
     completedStage: any,
     room: any,
     project: any,
-    result: PhaseNotificationResult
+    result: any,
+    options: { autoEmail?: boolean } = { autoEmail: true }
   ) {
     // Find DRAWINGS and FFE stages
     const drawingsStage = allStages.find(s => s.type === 'DRAWINGS')
@@ -176,15 +211,34 @@ export class PhaseNotificationService {
         result.notificationsSent++
         result.details.inAppNotifications.push(`${stage.type} assignee: ${stage.assignedUser.name}`)
 
-        // Send email notification
-        await this.sendPhaseReadyEmail(
-          stage.assignedUser,
-          stage,
-          completedStage,
-          room,
-          project,
-          result
-        )
+        // Collect next phase info
+        const emailPreview = {
+          subject: `🚀 ${this.getPhaseDisplayName(stage.type)} Phase Ready to Start - ${project.name}`,
+          preview: `Client approval for ${room.name || room.type} has been completed. You can now start the ${this.getPhaseDisplayName(stage.type)} phase.`
+        }
+        
+        result.nextPhaseInfo.push({
+          stageId: stage.id,
+          stageType: stage.type,
+          assignee: {
+            id: stage.assignedUser.id,
+            name: stage.assignedUser.name,
+            email: stage.assignedUser.email
+          },
+          emailPreview
+        })
+
+        // Send email notification only if autoEmail is true
+        if (options.autoEmail) {
+          await this.sendPhaseReadyEmail(
+            stage.assignedUser,
+            stage,
+            completedStage,
+            room,
+            project,
+            result
+          )
+        }
       }
     }
   }
@@ -197,7 +251,8 @@ export class PhaseNotificationService {
     completedStage: any,
     room: any,
     project: any,
-    result: PhaseNotificationResult
+    result: any,
+    options: { autoEmail?: boolean } = { autoEmail: true }
   ) {
     // Define phase sequence
     const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
@@ -224,15 +279,34 @@ export class PhaseNotificationService {
       result.notificationsSent++
       result.details.inAppNotifications.push(`Next phase assignee: ${nextStage.assignedUser.name}`)
 
-      // Send email notification
-      await this.sendPhaseReadyEmail(
-        nextStage.assignedUser,
-        nextStage,
-        completedStage,
-        room,
-        project,
-        result
-      )
+      // Collect next phase info
+      const emailPreview = {
+        subject: `🚀 ${this.getPhaseDisplayName(nextStage.type)} Phase Ready to Start - ${project.name}`,
+        preview: `${this.getPhaseDisplayName(completedStage.type)} for ${room.name || room.type} has been completed. You can now start the ${this.getPhaseDisplayName(nextStage.type)} phase.`
+      }
+      
+      result.nextPhaseInfo.push({
+        stageId: nextStage.id,
+        stageType: nextStage.type,
+        assignee: {
+          id: nextStage.assignedUser.id,
+          name: nextStage.assignedUser.name,
+          email: nextStage.assignedUser.email
+        },
+        emailPreview
+      })
+
+      // Send email notification only if autoEmail is true
+      if (options.autoEmail) {
+        await this.sendPhaseReadyEmail(
+          nextStage.assignedUser,
+          nextStage,
+          completedStage,
+          room,
+          project,
+          result
+        )
+      }
     }
   }
 

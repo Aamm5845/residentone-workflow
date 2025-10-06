@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button'
 import { 
   Settings, 
   Minus, 
-  RotateCcw
+  RotateCcw,
+  Share2,
+  X
 } from 'lucide-react'
 import { type PhaseStatus } from '@/lib/constants/room-phases'
+import AccessTokenManagement from '@/components/shared/AccessTokenManagement'
 
 interface PhaseSettingsMenuProps {
   phaseId: string
@@ -15,6 +18,7 @@ interface PhaseSettingsMenuProps {
   currentStatus: PhaseStatus
   onStatusChange: (status: PhaseStatus) => void
   disabled?: boolean
+  stageId?: string | null // Add stageId for sharing functionality
 }
 
 export default function PhaseSettingsMenu({
@@ -22,10 +26,12 @@ export default function PhaseSettingsMenu({
   phaseName,
   currentStatus,
   onStatusChange,
-  disabled = false
+  disabled = false,
+  stageId
 }: PhaseSettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   const isNotApplicable = currentStatus === 'NOT_APPLICABLE'
   const canMarkNotApplicable = currentStatus === 'PENDING' || currentStatus === 'COMPLETE' || currentStatus === 'IN_PROGRESS'
@@ -86,6 +92,20 @@ export default function PhaseSettingsMenu({
                 {phaseName} Settings
               </div>
               
+              {/* Share Option */}
+              {stageId && (
+                <button
+                  onClick={() => {
+                    setShowShareModal(true)
+                    setIsOpen(false)
+                  }}
+                  className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Share2 className="w-4 h-4 mr-3" />
+                  Share Phase
+                </button>
+              )}
+              
               {/* Not Applicable Options */}
               {canMarkNotApplicable && (
                 <button
@@ -111,6 +131,33 @@ export default function PhaseSettingsMenu({
             </div>
           </div>
         </>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && stageId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Share {phaseName} Phase</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-6">
+              <AccessTokenManagement
+                entityType="phase"
+                entityId={stageId}
+                entityName={phaseName}
+                defaultName={`${phaseName} Phase Access`}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

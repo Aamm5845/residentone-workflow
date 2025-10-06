@@ -39,6 +39,7 @@ interface PhaseCardProps {
     completedAt?: Date | null
     startedAt?: Date | null
     dueDate?: Date | null
+    stageId?: string | null
   }
   onStart: () => void
   onAssign: () => void
@@ -169,6 +170,7 @@ export default function PhaseCard({
                 currentStatus={phase.status}
                 onStatusChange={onStatusChange}
                 disabled={disabled}
+                stageId={phase.stageId}
               />
             )}
           </div>

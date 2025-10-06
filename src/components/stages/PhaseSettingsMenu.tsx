@@ -7,8 +7,10 @@ import {
   RotateCcw, 
   Minus, 
   AlertTriangle,
-  X 
+  X,
+  Share2
 } from 'lucide-react'
+import AccessTokenManagement from '@/components/shared/AccessTokenManagement'
 
 interface PhaseSettingsMenuProps {
   stageId: string
@@ -30,6 +32,7 @@ export default function PhaseSettingsMenu({
   const [isOpen, setIsOpen] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showNotApplicableConfirm, setShowNotApplicableConfirm] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleReset = async () => {
@@ -143,6 +146,18 @@ export default function PhaseSettingsMenu({
                 {stageName} Settings
               </div>
               
+              {/* Share Option */}
+              <button
+                onClick={() => {
+                  setShowShareModal(true)
+                  setIsOpen(false)
+                }}
+                className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <Share2 className="w-4 h-4 mr-3" />
+                Share Phase
+              </button>
+              
               {/* Reset Option */}
               {!isNotApplicable && (
                 <button
@@ -241,6 +256,33 @@ export default function PhaseSettingsMenu({
               >
                 {loading ? 'Marking...' : 'Mark as N/A'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Share {stageName} Phase</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-6">
+              <AccessTokenManagement
+                entityType="phase"
+                entityId={stageId}
+                entityName={stageName}
+                defaultName={`${stageName} Phase Access`}
+              />
             </div>
           </div>
         </div>

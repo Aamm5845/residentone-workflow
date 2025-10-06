@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/client-approval/[stageId] - Get client approval data for a stage
 export async function GET(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -172,7 +172,7 @@ export async function GET(
 // POST /api/client-approval/[stageId] - Push a rendering version to client approval
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()

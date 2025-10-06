@@ -11,13 +11,14 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sending function using Resend only
-async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: string}> }) {
+export async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: string}> }) {
   // Get from address with multiple fallbacks
   let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
   
-  // Use your business email for better deliverability
-  fromAddress = 'projects@meisnerinteriors.com';
-  console.log('\ud83d\udce7 Using business email for better deliverability');
+  // Use your business email for better deliverability (but fallback to verified domain)
+  // TODO: Verify meisnerinteriors.com domain in Resend dashboard
+  fromAddress = 'noreply@resend.dev'; // Using Resend default domain temporarily
+  console.log('\ud83d\udce7 Using Resend default domain (meisnerinteriors.com not verified yet)');
   
   // If still no from address, provide a sensible default that should work with Resend
   // if (!fromAddress || fromAddress.trim() === '') {
@@ -116,8 +117,8 @@ async function sendEmail(options: { to: string; subject: string; html: string; f
       to: trimmedTo,
       subject: trimmedSubject,
       html: options.html,
-      // Add reply-to for better deliverability
-      reply_to: 'projects@meisnerinteriors.com'
+      // Add reply-to for better deliverability (once domain is verified, can use meisnerinteriors.com)
+      // reply_to: 'projects@meisnerinteriors.com'  // TODO: Enable once domain is verified
     };
     
     // Add attachments if provided

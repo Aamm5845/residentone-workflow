@@ -473,7 +473,7 @@ function LastCompletedPhaseCard({
       return stageType // Already formatted
     }
     
-    switch (stageType) {
+    switch (stageType.toUpperCase()) {
       case 'DESIGN_CONCEPT':
       case 'DESIGN':
         return 'Design Concept'
@@ -487,6 +487,10 @@ function LastCompletedPhaseCard({
       case 'FFE':
         return 'FFE'
       default:
+        // Special case for three_d variations
+        if (stageType.toUpperCase().includes('THREE') || stageType.toUpperCase().includes('3D')) {
+          return '3D Rendering'
+        }
         return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
     }
   }
@@ -578,7 +582,7 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
       return stageType // Already formatted
     }
     
-    switch (stageType) {
+    switch (stageType.toUpperCase()) {
       case 'DESIGN_CONCEPT':
       case 'DESIGN':
         return 'Design Concept'
@@ -592,6 +596,10 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
       case 'FFE':
         return 'FFE'
       default:
+        // Special case for three_d variations
+        if (stageType.toUpperCase().includes('THREE') || stageType.toUpperCase().includes('3D')) {
+          return '3D Rendering'
+        }
         return stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
     }
   }

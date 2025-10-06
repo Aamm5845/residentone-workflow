@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText } from 'lucide-react'
 import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -42,6 +42,7 @@ export default async function ProjectDetail({ params }: Props) {
         budget: true,
         createdAt: true,
         updatedAt: true,
+        hasFloorplanApproval: true,
         client: {
           select: {
             id: true,
@@ -346,6 +347,51 @@ export default async function ProjectDetail({ params }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Project Features Section */}
+        {project.hasFloorplanApproval && (
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-6 py-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Project Features</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage project-level workflows and approvals</p>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Floorplan Approval Card */}
+                  <Link
+                    href={`/projects/${project.id}/floorplan-approval`}
+                    className="group block"
+                  >
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
+                            <FileText className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-blue-800 group-hover:text-blue-900 transition-colors">
+                              Floorplan Approval
+                            </h3>
+                            <p className="text-xs text-blue-600 mt-1">
+                              Manage floorplan reviews and client approvals
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          📐
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modern Rooms Section */}
         <div className="max-w-7xl mx-auto px-6 py-8">

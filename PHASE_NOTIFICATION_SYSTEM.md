@@ -11,6 +11,8 @@ When a phase gets completed, the next phase assigned user gets a notification an
 - ✅ **Automatic notifications** when phases complete
 - ✅ **Email alerts** to relevant team members  
 - ✅ **In-app notifications** for next phase assignees
+- ✅ **Optional email confirmation prompts** - allow users to confirm before sending emails
+- ✅ **Manual email trigger endpoint** - send phase-ready emails on demand
 - ✅ **Special client approval handling** - notifies both DRAWINGS and FFE phases
 - ✅ **Professional HTML email templates** 
 - ✅ **Error handling** that doesn't break the main workflow
@@ -88,13 +90,60 @@ The notification system is automatically triggered when completing a phase:
 The API endpoint now includes:
 
 ```typescript
-// Send notifications for phase completion
+// Send notifications for phase completion with optional email control
 const notificationResult = await phaseNotificationService.handlePhaseCompletion(
   stageId,
   session.user.id,
-  session
+  session,
+  { autoEmail: false } // Optional: set to false to skip automatic emails
 )
+
+// Return next phase info for UI confirmation prompts
+if (action === 'complete' && !notificationResult.autoEmail) {
+  return NextResponse.json({
+    message: 'Stage completed successfully',
+    stage: updatedStage,
+    nextPhaseInfo: notificationResult.nextPhaseInfo // For UI email prompt
+  })
+}
 ```
+
+## 🎛️ Optional Email Confirmation
+
+### Email Confirmation Prompts
+
+Starting with the enhanced notification system, you can now control when phase-ready emails are sent:
+
+#### Automatic Mode (Default)
+```typescript
+// Emails sent immediately upon phase completion
+phaseNotificationService.handlePhaseCompletion(stageId, userId, session, { autoEmail: true })
+```
+
+#### Manual Confirmation Mode
+```typescript
+// Emails held back, UI shows confirmation prompt
+phaseNotificationService.handlePhaseCompletion(stageId, userId, session, { autoEmail: false })
+```
+
+### Manual Email Trigger
+
+Send phase-ready emails on demand:
+
+```typescript
+// POST /api/notifications/phase-email
+{
+  "stageId": "stage_123"
+}
+```
+
+### UI Integration
+
+The `SendPhaseEmailPrompt` modal component provides:
+- Next phase preview with assignee information
+- Email subject/preview snippets
+- Individual email selection (multiple assignees)
+- Send confirmation with success feedback
 
 ## 📧 Email Templates
 

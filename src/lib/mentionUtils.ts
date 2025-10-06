@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma'
 import { notifyMention } from './notificationUtils'
 
 // Regular expression to match @mentions (more precise matching)
@@ -97,31 +96,30 @@ export async function findUsersByNames(names: string[], orgId: string): Promise<
   if (names.length === 0) return []
   
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        AND: [
-          { orgId },
-          { name: { not: { startsWith: '[DELETED]' } } },
-          { email: { not: { startsWith: 'deleted_' } } },
-          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } },
-          {
-            OR: names.map(name => ({
-              name: {
-                contains: name,
-                mode: 'insensitive'
-              }
-            }))
-          }
-        ]
+    const response = await fetch('/api/mentions/users-by-names', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      select: {
-        id: true,
-        name: true,
-        email: true
-      }
+      body: JSON.stringify({
+        names,
+        orgId
+      })
     })
     
-    return users
+    if (!response.ok) {
+      console.error('Failed to find users by names:', response.status)
+      return []
+    }
+    
+    const result = await response.json()
+    
+    if (result.success) {
+      return result.data
+    } else {
+      console.error('API returned error:', result.error)
+      return []
+    }
   } catch (error) {
     console.error('Error finding users by names:', error)
     return []
@@ -243,28 +241,21 @@ export async function highlightValidMentions(text: string, orgId: string): Promi
  */
 export async function getTeamMembersForMentions(orgId: string): Promise<Array<{ id: string; name: string; email: string; role: string }>> {
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        AND: [
-          { orgId },
-          { name: { not: null } },
-          { name: { not: { startsWith: '[DELETED]' } } },
-          { email: { not: { startsWith: 'deleted_' } } },
-          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    })
+    const response = await fetch(`/api/mentions/team-members?orgId=${orgId}`)
     
-    return users.filter(user => user.name) as Array<{ id: string; name: string; email: string; role: string }>
+    if (!response.ok) {
+      console.error('Failed to fetch team members:', response.status)
+      return []
+    }
+    
+    const result = await response.json()
+    
+    if (result.success) {
+      return result.data
+    } else {
+      console.error('API returned error:', result.error)
+      return []
+    }
   } catch (error) {
     console.error('Error fetching team members:', error)
     return []

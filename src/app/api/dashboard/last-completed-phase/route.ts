@@ -69,9 +69,33 @@ export async function GET() {
     const roomName = lastCompletedStage.room.name || 
       lastCompletedStage.room.type.replace('_', ' ').toLowerCase()
 
+    // Format stage type properly
+    const formatStageType = (type: string) => {
+      switch (type.toUpperCase()) {
+        case 'DESIGN_CONCEPT':
+        case 'DESIGN':
+          return 'Design Concept'
+        case 'THREE_D':
+        case 'RENDERING':
+          return '3D Rendering'
+        case 'CLIENT_APPROVAL':
+          return 'Client Approval'
+        case 'DRAWINGS':
+          return 'Drawings'
+        case 'FFE':
+          return 'FFE'
+        default:
+          // Special case for three_d variations
+          if (type.toUpperCase().includes('THREE') || type.toUpperCase().includes('3D')) {
+            return '3D Rendering'
+          }
+          return type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+      }
+    }
+
     const response: LastCompletedPhaseDto = {
       id: lastCompletedStage.id,
-      stageType: lastCompletedStage.type.replace('_', ' ').toLowerCase(),
+      stageType: formatStageType(lastCompletedStage.type),
       roomType: lastCompletedStage.room.type.replace('_', ' ').toLowerCase(),
       roomName,
       clientName: lastCompletedStage.room.project.client.name,

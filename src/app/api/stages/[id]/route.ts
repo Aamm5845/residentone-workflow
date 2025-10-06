@@ -35,20 +35,50 @@ export async function PATCH(
     const data = await request.json()
     const { action, assignedTo, dueDate } = data
     
-    // Verify stage access
+    // Validate required parameters
+    if (!action) {
+      return NextResponse.json({ 
+        error: 'Missing action parameter',
+        details: 'Action is required for stage operations'
+      }, { status: 400 })
+    }
+    
+    // Validate action type
+    const validActions = ['start', 'complete', 'pause', 'reopen', 'assign', 'mark_not_applicable', 'mark_applicable', 'reset']
+    if (!validActions.includes(action)) {
+      return NextResponse.json({ 
+        error: 'Invalid action',
+        details: `Action must be one of: ${validActions.join(', ')}`
+      }, { status: 400 })
+    }
+    
+    // Verify stage access with enhanced error handling
     const stage = await prisma.stage.findFirst({
       where: {
         id: resolvedParams.id
+      },
+      include: {
+        room: {
+          select: { 
+            id: true,
+            name: true,
+            type: true
+          }
+        }
       }
     })
 
     if (!stage) {
-      return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
+      return NextResponse.json({ 
+        error: 'Stage not found',
+        details: `No stage found with ID: ${resolvedParams.id}`
+      }, { status: 404 })
     }
     
     // Update stage based on action
     let updateData: any = {}
     let activityAction: string = ActivityActions.STAGE_STATUS_CHANGED
+    let nextPhaseInfo: any[] = []
     
     if (action === 'start') {
       updateData = withUpdateAttribution(session, {
@@ -58,6 +88,7 @@ export async function PATCH(
       })
       activityAction = ActivityActions.STAGE_STARTED
     } else if (action === 'complete') {
+      
       // Handle FFE stages with special validation
       if (stage.type === 'FFE') {
         const ffeResult = await completeFFEStage(resolvedParams.id, session.user.id, data.forceComplete || false)
@@ -183,6 +214,9 @@ export async function PATCH(
     
     // Handle automatic phase transitions and notifications when stages are completed
     if (action === 'complete' && updatedStage.room) {
+      console.log('=== STARTING WORKFLOW TRANSITIONS ===')
+      console.log('Stage completed:', stage.type, 'in room:', updatedStage.room.id)
+      
       try {
         const workflowEvent: WorkflowEvent = {
           type: 'STAGE_COMPLETED',
@@ -191,47 +225,100 @@ export async function PATCH(
           stageId: resolvedParams.id
         }
         
+        console.log('Workflow event:', workflowEvent)
         const transitionResult = await handleWorkflowTransition(workflowEvent, session, ipAddress)
+        console.log('Workflow transition result:', transitionResult)
         
         if (transitionResult.transitionsTriggered.length > 0) {
-          console.log(`Phase transitions triggered:`, transitionResult.transitionsTriggered)
+          console.log(`✅ Phase transitions triggered:`, transitionResult.transitionsTriggered)
+        } else {
+          console.log('⚠️ No phase transitions were triggered')
         }
         
         if (transitionResult.errors.length > 0) {
-          console.error('Phase transition errors:', transitionResult.errors)
+          console.error('❌ Phase transition errors:', transitionResult.errors)
         }
       } catch (transitionError) {
-        console.error('Error handling phase transitions:', transitionError)
+        console.error('❌ Error handling phase transitions:', transitionError)
+        console.error('Transition error stack:', transitionError instanceof Error ? transitionError.stack : 'No stack')
         // Don't fail the main operation if transitions fail
       }
       
-      // Send notifications for phase completion
+      console.log('=== WORKFLOW TRANSITIONS COMPLETE ===')
+      
+      // Send notifications for phase completion (with email prompt)
+      console.log('=== STARTING NOTIFICATION PROCESSING ===')
       try {
+        console.log('Starting phase completion notification processing...')
+        console.log('Stage ID:', resolvedParams.id, 'User ID:', session.user.id)
+        
         const notificationResult = await phaseNotificationService.handlePhaseCompletion(
           resolvedParams.id,
           session.user.id,
-          session
+          session,
+          { autoEmail: false } // Don't send emails automatically, let UI prompt user
         )
         
-        if (notificationResult.success) {
-          console.log(`Phase completion notifications sent:`, {
+        console.log('Notification service result:', notificationResult)
+        
+        if (notificationResult && notificationResult.success) {
+          console.log(`✅ Phase completion notifications processed:`, {
             notifications: notificationResult.notificationsSent,
             emails: notificationResult.emailsSent,
+            nextPhases: notificationResult.nextPhaseInfo?.length || 0,
             details: notificationResult.details
           })
+          
+          // Extract next phase information for UI prompt
+          nextPhaseInfo = notificationResult.nextPhaseInfo || []
+          console.log('Next phase info extracted:', nextPhaseInfo)
         } else {
-          console.error('Phase notification errors:', notificationResult.errors)
+          console.error('❌ Phase notification errors:', notificationResult?.errors || 'Unknown error')
         }
       } catch (notificationError) {
-        console.error('Error sending phase completion notifications:', notificationError)
-        // Don't fail the main operation if notifications fail
+        console.error('❌ Error processing phase completion notifications:', notificationError)
+        console.error('Notification error stack:', notificationError instanceof Error ? notificationError.stack : 'No stack')
+        // Don't fail the main operation if notifications fail - just log the error
+      }
+      
+      console.log('=== NOTIFICATION PROCESSING COMPLETE ===')
+    }
+    
+    // Include next phase info for completion actions
+    const responseData: any = { ...updatedStage }
+    if (action === 'complete' && nextPhaseInfo && nextPhaseInfo.length > 0) {
+      responseData.nextPhaseInfo = nextPhaseInfo
+    }
+    
+    return NextResponse.json(responseData)
+  } catch (error) {
+    console.error('Error updating stage:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error')
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = 'Internal server error'
+    let errorDetails = 'An unexpected error occurred'
+    
+    if (error instanceof Error) {
+      errorDetails = error.message
+      
+      // Handle specific error types
+      if (error.message.includes('Prisma') || error.message.includes('database')) {
+        errorMessage = 'Database error'
+        errorDetails = 'Failed to update stage in database'
+      } else if (error.message.includes('validation') || error.message.includes('constraint')) {
+        errorMessage = 'Validation error'
+      } else if (error.message.includes('unauthorized') || error.message.includes('permission')) {
+        errorMessage = 'Permission error'
+        errorDetails = 'You do not have permission to perform this action'
       }
     }
     
-    return NextResponse.json(updatedStage)
-  } catch (error) {
-    console.error('Error updating stage:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: errorMessage,
+      details: errorDetails,
+      timestamp: new Date().toISOString()
+    }, { status: 500 })
   }
 }
 

@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import IssueList from '@/components/issues/issue-list'
-import FFEManagementRedesigned from '@/components/preferences/ffe-management-redesigned'
+import FFEManagementV2 from '@/components/preferences/ffe-management-v2'
 import ContractorsManagement from '@/components/preferences/contractors-management'
 
 interface PreferencesClientProps {
@@ -745,7 +745,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
           {/* FFE Management Tab */}
           {activeTab === 'ffe' && (
             <div className="space-y-6">
-              <FFEManagementRedesigned orgId={user.orgId} user={user} />
+              <FFEManagementV2 orgId={user.orgId} user={user} />
             </div>
           )}
 
