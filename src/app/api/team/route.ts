@@ -112,6 +112,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Prevent creation of example.com accounts in production
+    if (process.env.NODE_ENV !== 'test' && email.toLowerCase().endsWith('@example.com')) {
+      return NextResponse.json({ 
+        error: 'Invalid email domain. Please use a real email address.' 
+      }, { status: 400 })
+    }
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() }

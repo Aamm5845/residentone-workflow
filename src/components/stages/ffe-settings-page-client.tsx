@@ -72,11 +72,40 @@ export default function FFESettingsPageClient({
 }: FFESettingsPageClientProps) {
   const router = useRouter()
   
-  // API hooks
-  const { instance, isLoading, error, revalidate } = useRoomFFEInstance(roomId)
+  // API hooks - Use the consistent instances endpoint
+  const [instance, setInstance] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<any>(null)
   const { createRoomInstance } = useRoomFFEMutations()
   const { updateItemState, deleteItem, bulkDeleteItems, duplicateItem } = useFFEItemMutations()
   const { templates, isLoading: templatesLoading, error: templatesError } = useFFETemplates(orgId)
+  
+  // Manual revalidation function using the instances endpoint
+  const revalidate = React.useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/ffe/instances?roomId=${roomId}`)
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch instance')
+      }
+      
+      setInstance(data.instance)
+      setError(null)
+    } catch (err) {
+      console.error('Error fetching FFE instance:', err)
+      setError(err)
+      setInstance(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [roomId])
+  
+  // Load instance on mount
+  useEffect(() => {
+    revalidate()
+  }, [revalidate])
   
   // Debug templates loading
   useEffect(() => {
@@ -203,10 +232,18 @@ export default function FFESettingsPageClient({
   // Handle section addition
   const handleSectionAdded = async (section: { name: string; description?: string; items: any[] }) => {
     try {
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
+      if (!instance?.id) {
+        throw new Error('FFE instance not available')
+      }
+      
+      const response = await fetch(`/api/ffe/sections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(section)
+        body: JSON.stringify({
+          instanceId: instance.id,
+          name: section.name,
+          description: section.description
+        })
       })
       
       if (response.ok) {
@@ -459,7 +496,7 @@ export default function FFESettingsPageClient({
       })
 
       const response = await fetch(
-        `/api/ffe/v2/rooms/${roomId}/sections?${queryParams}`,
+        `/api/ffe/sections/${deletingSectionId}`,
         { method: 'DELETE' }
       )
 

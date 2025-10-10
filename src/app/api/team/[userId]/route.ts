@@ -172,6 +172,13 @@ export async function PUT(
 
     // Check if email is unique (if changing email)
     if (validatedData.email && validatedData.email !== existingUser.email) {
+      // Prevent updating to example.com accounts in production
+      if (process.env.NODE_ENV !== 'test' && validatedData.email.toLowerCase().endsWith('@example.com')) {
+        return NextResponse.json({ 
+          error: 'Invalid email domain. Please use a real email address.' 
+        }, { status: 400 })
+      }
+
       const emailExists = await prisma.user.findFirst({
         where: {
           email: validatedData.email,

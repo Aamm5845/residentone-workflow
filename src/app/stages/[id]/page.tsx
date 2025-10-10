@@ -175,10 +175,10 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {getStageName(stage.type)}
+              {getStageName(stage.type)} Phase
             </h1>
             <p className="text-gray-600">
-              {stage.room.name || stage.room.type.replace('_', ' ')} - {stage.room.project.name}
+              {stage.room.name || stage.room.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {stage.room.project.name} • {stage.room.project.client.name}
             </p>
           </div>
         </div>
