@@ -84,8 +84,11 @@ export default function FFESettingsPageClient({
   const revalidate = React.useCallback(async () => {
     try {
       setIsLoading(true)
+      console.log('📞 FFESettings: Calling API with roomId:', roomId)
       const response = await fetch(`/api/ffe/instances?roomId=${roomId}`)
+      console.log('📞 FFESettings: API response status:', response.status)
       const data = await response.json()
+      console.log('📞 FFESettings: API response data:', data)
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch instance')
@@ -93,8 +96,9 @@ export default function FFESettingsPageClient({
       
       setInstance(data.instance)
       setError(null)
+      console.log('📞 FFESettings: Instance set:', data.instance?.sections?.length || 0, 'sections')
     } catch (err) {
-      console.error('Error fetching FFE instance:', err)
+      console.error('❌ FFESettings: Error fetching FFE instance:', err)
       setError(err)
       setInstance(null)
     } finally {
@@ -104,6 +108,7 @@ export default function FFESettingsPageClient({
   
   // Load instance on mount
   useEffect(() => {
+    console.log('🎯 FFESettingsPageClient mounting with roomId:', roomId)
     revalidate()
   }, [revalidate])
   
@@ -1058,84 +1063,93 @@ export default function FFESettingsPageClient({
         </CardContent>
       </Card>
 
-      {/* Items Management - Only show if items exist */}
+      {/* Search and Filter Bar - Only show if items exist */}
       {instance && filteredItems.length > 0 && (
-        <>
-          {/* Search and Filter Bar */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search items..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={filterState}
-                    onChange={(e) => setFilterState(e.target.value as FFEItemState | 'ALL')}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="ALL">All States</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="SELECTED">Selected</option>
-                    <option value="CONFIRMED">Confirmed</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="NOT_NEEDED">Not Needed</option>
-                  </select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSelectAll}
-                  >
-                    {selectedItems.length === filteredItems.length ? 'Deselect All' : 'Select All'}
-                  </Button>
-                </div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search items..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex gap-2">
+                <select
+                  value={filterState}
+                  onChange={(e) => setFilterState(e.target.value as FFEItemState | 'ALL')}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="ALL">All States</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="SELECTED">Selected</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="NOT_NEEDED">Not Needed</option>
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                >
+                  {selectedItems.length === filteredItems.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Bulk Actions Bar */}
-          {selectedItems.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {selectedItems.length} item(s) selected
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleBulkDelete}
-                      disabled={isDeleting}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Selected
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedItems([])}
-                    >
-                      Clear Selection
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      {/* Bulk Actions Bar - Only show when items selected */}
+      {selectedItems.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {selectedItems.length} item(s) selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedItems([])}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-              {/* Sections with Items */}
+      {/* Sections with Items - Always show if sections exist */}
               <div className="space-y-4">
+                {(() => {
+                  console.log('📋 Rendering sections check:', {
+                    hasInstance: !!instance,
+                    hasSections: !!instance?.sections,
+                    sectionsLength: instance?.sections?.length || 0,
+                    sections: instance?.sections
+                  })
+                  return null
+                })()}
                 {instance?.sections && instance.sections.length > 0 ? (
                   instance.sections.map((section) => {
+                    console.log('📋 Rendering section:', section.name, 'with items:', section.items?.length || 0)
                     const sectionItems = filteredItems.filter(item => item.sectionId === section.id)
                     if (sectionItems.length === 0 && searchQuery.trim()) return null // Hide empty sections when filtering
                     
@@ -1327,9 +1341,6 @@ export default function FFESettingsPageClient({
                   </Card>
                 )}
               </div>
-        </>
-      )}
-
 
       {dialogs}
     </div>

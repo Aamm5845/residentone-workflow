@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import type { Session } from 'next-auth'
-
-interface AuthSession extends Session {
-  user: {
-    id: string
-    orgId: string
-    role: 'OWNER' | 'ADMIN' | 'DESIGNER' | 'RENDERER' | 'DRAFTER' | 'FFE' | 'VIEWER'
-  }
-}
 
 export async function DELETE(
   request: NextRequest,
@@ -17,13 +9,38 @@ export async function DELETE(
 ) {
   const params = await context.params
   try {
-    const session = await getSession() as AuthSession | null
+    console.log('🗑️ DELETE /api/ffe/sections/[sectionId] - Getting session...')
+    const session = await getServerSession(authOptions)
+    console.log('🗑️ Session user:', session?.user?.email)
     
     if (!session?.user) {
+      console.log('❌ Unauthorized - no session user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get orgId from email if missing
+    let orgId = session.user.orgId
+    let userId = session.user.id
+    
+    if (!orgId || !userId) {
+      console.log('⚠️ Missing user data, looking up from email:', session.user.email)
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true, role: true }
+      })
+      
+      if (!user) {
+        console.log('❌ User not found in database')
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+      
+      userId = user.id
+      orgId = user.orgId
+      console.log('✅ Retrieved user info:', { userId, orgId, role: user.role })
+    }
+
     const sectionId = params.sectionId
+    console.log('🗑️ Deleting section:', sectionId)
 
     // Check if section exists and user has access
     const section = await prisma.roomFFESection.findFirst({
@@ -32,17 +49,7 @@ export async function DELETE(
         instance: {
           room: {
             project: {
-              // User must be part of organization or have appropriate role
-              OR: [
-                { createdBy: session.user.id },
-                { 
-                  stages: {
-                    some: {
-                      assignedTo: session.user.id
-                    }
-                  }
-                }
-              ]
+              orgId: orgId
             }
           }
         }
@@ -50,38 +57,52 @@ export async function DELETE(
       include: {
         items: {
           select: { id: true }
+        },
+        instance: {
+          include: {
+            room: {
+              include: {
+                project: {
+                  select: { name: true, orgId: true }
+                }
+              }
+            }
+          }
         }
       }
     })
 
     if (!section) {
+      console.log('❌ Section not found or access denied for orgId:', orgId)
       return NextResponse.json({ 
         error: 'Section not found or access denied' 
       }, { status: 404 })
     }
-
-    // Check if user has permission to delete sections
-    // Only FFE specialists, admins, and owners should be able to delete sections
-    if (!['FFE', 'ADMIN', 'OWNER'].includes(session.user.role)) {
-      return NextResponse.json({ 
-        error: 'Insufficient permissions to delete sections' 
-      }, { status: 403 })
-    }
+    
+    console.log('✅ Section found:', section.name, 'with', section.items.length, 'items')
 
     // Delete section (this will cascade delete all items in the section)
+    console.log('🗑️ Deleting section from database...')
     await prisma.roomFFESection.delete({
       where: { id: sectionId }
     })
-
+    
+    console.log('✅ Section deleted successfully:', section.name)
     return NextResponse.json({
       success: true,
-      message: `Section deleted successfully. ${section.items.length} items were also removed.`
+      message: `Section "${section.name}" deleted successfully. ${section.items.length} items were also removed.`
     })
 
   } catch (error) {
-    console.error('Error deleting FFE section:', error)
+    console.error('❌ Error deleting FFE section:', error)
+    console.error('❌ Error details:', {
+      sectionId: params.sectionId,
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json({ 
-      error: 'Failed to delete FFE section' 
+      error: 'Failed to delete FFE section',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
@@ -92,10 +113,21 @@ export async function PUT(
 ) {
   const params = await context.params
   try {
-    const session = await getSession() as AuthSession | null
+    const session = await getServerSession(authOptions)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get orgId from email if missing
+    let orgId = session.user.orgId
+    
+    if (!orgId) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
     }
 
     const sectionId = params.sectionId
@@ -108,16 +140,7 @@ export async function PUT(
         instance: {
           room: {
             project: {
-              OR: [
-                { createdBy: session.user.id },
-                { 
-                  stages: {
-                    some: {
-                      assignedTo: session.user.id
-                    }
-                  }
-                }
-              ]
+              orgId: orgId
             }
           }
         }
