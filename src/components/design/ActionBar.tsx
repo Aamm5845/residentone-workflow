@@ -110,7 +110,7 @@ toast.info('Use the Add Reference button in the main interface')
   }
 
   const handleExportPDF = async () => {
-window.print() // Browser print dialog for now
+    window.print() // Browser print dialog for now
   }
 
   const handleShareWorkspace = async () => {

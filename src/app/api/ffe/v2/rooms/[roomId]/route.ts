@@ -17,6 +17,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check for visibility filter query parameter
+    const { searchParams } = new URL(request.url)
+    const includeHidden = searchParams.get('includeHidden') === 'true'
+    const onlyVisible = searchParams.get('onlyVisible') === 'true'
+    console.log('🔍 Visibility filters:', { includeHidden, onlyVisible })
+
     // Get orgId from email if missing
     let orgId = session.user.orgId;
     
@@ -59,6 +65,7 @@ export async function GET(
         sections: {
           include: {
             items: {
+              ...(onlyVisible ? { where: { visibility: 'VISIBLE' } } : {}),
               include: {
                 templateItem: true
               },
@@ -227,6 +234,7 @@ export async function POST(
                   name: templateItem.name,
                   description: templateItem.description,
                   state: templateItem.defaultState,
+                  visibility: 'VISIBLE', // Default to visible
                   isRequired: templateItem.isRequired,
                   order: templateItem.order,
                   quantity: 1,

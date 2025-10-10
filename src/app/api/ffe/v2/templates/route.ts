@@ -4,37 +4,29 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 GET /api/ffe/v2/templates - Starting request');
     const session = await getSession();
-    console.log('🔍 Session user:', session?.user);
     
     if (!session?.user) {
-      console.log('❌ No session user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get orgId from email if missing
     let orgId = session.user.orgId;
-    console.log('🔍 Initial orgId from session:', orgId);
     
     if (!orgId) {
-      console.log('⚠️ No orgId in session, looking up user by email:', session.user.email);
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { orgId: true }
       });
       
       if (!user) {
-        console.log('❌ User not found in database');
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
       
       orgId = user.orgId;
-      console.log('✅ Retrieved orgId from database:', orgId);
     }
 
     // Fetch templates from database
-    console.log('🔍 Querying templates with orgId:', orgId);
     const templates = await prisma.fFETemplate.findMany({
       where: {
         orgId: orgId
@@ -52,10 +44,6 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log('✅ Found', templates.length, 'templates for orgId:', orgId);
-    templates.forEach((template, index) => {
-      console.log(`  ${index + 1}. ${template.name} (${template.id}) - ${template.sections?.length || 0} sections`);
-    });
 
     return NextResponse.json({
       success: true,
@@ -74,12 +62,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📝 POST /api/ffe/v2/templates - Getting session...');
     const session = await getSession();
-    console.log('📝 Full session:', JSON.stringify(session, null, 2));
     
     if (!session?.user) {
-      console.log('❌ Unauthorized - no session user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -88,24 +73,20 @@ export async function POST(request: NextRequest) {
     let orgId = session.user.orgId;
     
     if (!userId || !orgId) {
-      console.log('⚠️ Missing user ID or orgId, looking up from email:', session.user.email);
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { id: true, orgId: true }
       });
       
       if (!user) {
-        console.log('❌ User not found in database');
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
       
       userId = user.id;
       orgId = user.orgId;
-      console.log('✅ Retrieved user info:', { userId, orgId });
     }
 
     const data = await request.json();
-    console.log('Creating template with data:', data);
     
     const { name, description, isDefault = false, sections = [] } = data;
 
@@ -181,8 +162,6 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    console.log('Template created successfully:', template.id);
-
     return NextResponse.json({
       success: true,
       data: template
@@ -190,12 +169,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating FFE template:', error);
-    console.error('Error stack:', error.stack);
     return NextResponse.json(
       { 
         error: 'Failed to create template', 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: error.message
       },
       { status: 500 }
     );

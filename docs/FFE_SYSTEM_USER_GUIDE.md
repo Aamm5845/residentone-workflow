@@ -115,11 +115,35 @@ Templates define the structure and default items for FFE phases. They ensure con
 
 ## FFE Workflow
 
+The FFE system is organized into two distinct departments:
+
+### FFE Departments
+
+#### Settings Department
+- **Purpose**: Configure sections, items, templates, and control workspace visibility
+- **Access**: Admin and Designer roles only
+- **Key Features**:
+  - Add/edit sections and items
+  - Import FFE templates
+  - Control item visibility with "Use"/"Remove" buttons
+  - Items are never deleted, only hidden from workspace
+
+#### Workspace Department
+- **Purpose**: Execute FFE tasks and track progress on visible items
+- **Access**: All workflow users (Admin, Designer, FFE Specialist)
+- **Key Features**:
+  - Work only with items marked as visible in Settings
+  - Track progress: Pending → Undecided → Completed
+  - Add persistent notes
+  - View completion statistics
+
 ### Starting an FFE Phase
 
 1. **Navigate** to a room in your project
 2. **Click** on the FFE phase in the timeline
-3. **Select a template** from the template selector, or choose "Start Blank"
+3. **Choose your department**:
+   - **Settings**: Configure the FFE structure (Admin/Designer only)
+   - **Workspace**: Execute FFE tasks (all authorized users)
 4. **Begin** working through the FFE items
 
 ### Understanding the Workspace
@@ -138,12 +162,12 @@ Templates define the structure and default items for FFE phases. They ensure con
 ### Working with Items
 
 #### Item States
-Items progress through these states:
-- **Pending**: Not yet addressed (gray)
-- **Selected**: Choice has been made (blue)
-- **Confirmed**: Selection has been approved (yellow)
+Items progress through these states in the Workspace:
+- **Pending**: Starting state, not yet addressed (yellow)
+- **Undecided**: Under consideration, requires decision (gray)
 - **Completed**: Fully resolved and documented (green)
-- **Not Applicable**: Item doesn't apply to this room (gray striped)
+
+*Note: Items default to "Pending" state when created. State changes are only available in the Workspace department.*
 
 #### Changing Item States
 1. **Click** on an item's state chip
@@ -238,16 +262,25 @@ Progress is calculated as:
 ### Permission Matrix
 
 | Action | Admin | Designer | FFE | Viewer |
-|--------|-------|----------|-----|--------|
+|--------|-------|----------|-----|---------|
+| **Templates** |||||
 | View Templates | ✅ | ✅ | ✅ | ✅ |
 | Create Templates | ✅ | ✅ | ❌ | ❌ |
 | Edit Templates | ✅ | ✅ | ❌ | ❌ |
 | Delete Templates | ✅ | ❌ | ❌ | ❌ |
 | Copy Templates | ✅ | ✅ | ❌ | ❌ |
-| FFE Workflow | ✅ | ✅ | ✅ | ❌ |
-| Edit Items | ✅ | ✅ | ✅ | ❌ |
-| Add Notes | ✅ | ✅ | ✅ | ❌ |
-| Complete Phases | ✅ | ✅ | ✅ | ❌ |
+| **Settings Department** |||||
+| Access Settings | ✅ | ✅ | ❌ | ❌ |
+| Add/Edit Sections | ✅ | ✅ | ❌ | ❌ |
+| Add/Edit Items | ✅ | ✅ | ❌ | ❌ |
+| Control Visibility | ✅ | ✅ | ❌ | ❌ |
+| Import Templates | ✅ | ✅ | ❌ | ❌ |
+| **Workspace Department** |||||
+| Access Workspace | ✅ | ✅ | ✅ | ❌ |
+| Change Item States | ✅ | ✅ | ✅ | ❌ |
+| Add/Edit Notes | ✅ | ✅ | ✅ | ❌ |
+| View Progress | ✅ | ✅ | ✅ | ✅ |
+| **System** |||||
 | System Admin | ✅ | ❌ | ❌ | ❌ |
 
 ---

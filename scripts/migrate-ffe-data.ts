@@ -548,9 +548,8 @@ class FFEDataMigrator {
   }
 
   private printSummary(): void {
-    console.log('\n' + '='.repeat(60));
-    console.log('FFE DATA MIGRATION SUMMARY');
-    console.log('='.repeat(60));
+    console.log('\nFFE DATA MIGRATION SUMMARY');
+    console.log('='.repeat(40));
     console.log(`Mode: ${this.isDryRun ? 'DRY RUN' : 'EXECUTE'}`);
     console.log(`Organizations processed: ${this.report.summary.totalOrgs}`);
     console.log(`Rooms processed: ${this.report.summary.totalRooms}`);
@@ -562,17 +561,7 @@ class FFEDataMigrator {
     if (this.report.unmappedItems.length > 0) {
       console.log(`Unmapped items: ${this.report.unmappedItems.length}`);
     }
-
-    console.log('\nNext steps:');
-    if (this.isDryRun) {
-      console.log('- Review the migration report');
-      console.log('- Run with --execute to perform actual migration');
-    } else {
-      console.log('- Verify migrated data in the database');
-      console.log('- Test the new FFE workflow');
-      console.log('- Consider running legacy cleanup after validation');
-    }
-    console.log('='.repeat(60));
+    console.log('='.repeat(40));
   }
 }
 

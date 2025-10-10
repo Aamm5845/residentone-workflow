@@ -15,12 +15,9 @@ export async function GET(request: NextRequest) {
     const sections = await prisma.fFESectionLibrary.findMany({
       orderBy: { defaultOrder: 'asc' }
     });
-    
-    console.log('Found sections:', sections.length);
 
     // If no sections exist, create some default ones
     if (sections.length === 0) {
-      console.log('No sections found in database, creating defaults...');
       
       const defaultSections = [
         { name: 'Flooring', description: 'Flooring materials and finishes', defaultOrder: 1 },
@@ -50,7 +47,7 @@ export async function GET(request: NextRequest) {
             });
             createdSections.push(created);
           } catch (error) {
-            console.log(`Section ${section.name} might already exist, skipping...`);
+            // Section might already exist, skipping
           }
         }
 

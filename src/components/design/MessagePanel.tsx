@@ -177,7 +177,7 @@ export function MessagePanel({ sections, onUpdate, stageId, projectId, roomId }:
           setTeamMembers(data.teamMembers)
         }
       } catch (error) {
-        console.error('Error fetching team members:', error)
+        // Error fetching team members
       }
     }
     

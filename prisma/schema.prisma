@@ -1292,10 +1292,11 @@ model RoomFFEItem {
   templateItemId String?
   name           String
   description    String?
-  state          FFEItemState @default(PENDING)
-  isRequired     Boolean      @default(false)
-  isCustom       Boolean      @default(false)
-  order          Int          @default(0)
+  state          FFEItemState      @default(PENDING)
+  visibility     FFEItemVisibility @default(VISIBLE)
+  isRequired     Boolean           @default(false)
+  isCustom       Boolean           @default(false)
+  order          Int               @default(0)
   quantity       Int          @default(1)
   unitCost       Decimal?
   totalCost      Decimal?
@@ -1321,6 +1322,8 @@ model RoomFFEItem {
 
   @@index([sectionId, order])
   @@index([state])
+  @@index([visibility])
+  @@index([sectionId, visibility])
   @@index([isRequired])
 }
 
@@ -1479,6 +1482,7 @@ enum TagType {
 
 enum FFEItemState {
   PENDING
+  UNDECIDED
   SELECTED
   CONFIRMED
   NOT_NEEDED
@@ -1495,6 +1499,11 @@ enum FFEInstanceStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETED
+}
+
+enum FFEItemVisibility {
+  VISIBLE
+  HIDDEN
 }
 
 // ===== LEGACY FFE STATUS (kept for migration compatibility) =====

@@ -2,6 +2,92 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const resolvedParams = await params
+    const { roomId } = resolvedParams
+    const { searchParams } = new URL(request.url)
+    const includeHidden = searchParams.get('includeHidden') === 'true'
+    const onlyVisible = searchParams.get('onlyVisible') === 'true'
+    const sectionId = searchParams.get('sectionId')
+
+    // Build visibility filter
+    let visibilityWhere: any = {}
+    if (onlyVisible || (!includeHidden && !onlyVisible)) {
+      visibilityWhere.visibility = 'VISIBLE'
+    }
+
+    // Add section filter if provided
+    if (sectionId) {
+      visibilityWhere.sectionId = sectionId
+    }
+
+    // Get all sections with filtered items
+    const instance = await prisma.roomFFEInstance.findUnique({
+      where: {
+        roomId,
+        room: {
+          project: {
+            orgId: session.user.orgId
+          }
+        }
+      },
+      include: {
+        sections: {
+          include: {
+            items: {
+              where: visibilityWhere,
+              include: {
+                templateItem: true,
+                createdBy: {
+                  select: { name: true, email: true }
+                },
+                updatedBy: {
+                  select: { name: true, email: true }
+                }
+              },
+              orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+            }
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    })
+
+    if (!instance) {
+      return NextResponse.json({ error: 'FFE instance not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        instance: {
+          id: instance.id,
+          name: instance.name,
+          status: instance.status,
+          progress: instance.progress
+        },
+        sections: instance.sections
+      }
+    })
+
+  } catch (error) {
+    console.error('Error fetching FFE items:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ roomId: string }> }
@@ -68,6 +154,7 @@ export async function POST(
             name: itemName,
             description: description?.trim() || null,
             state: 'PENDING',
+            visibility: 'VISIBLE', // Default to visible
             isRequired: false,
             isCustom: true,
             order: nextOrder + i - 1,
