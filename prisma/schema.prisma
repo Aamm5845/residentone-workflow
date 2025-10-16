@@ -2099,8 +2099,9 @@ enum SpecBookSectionType {
   STRUCTURAL
   RCP
   
-  // Room-specific section
+  // Room-specific sections
   ROOM
+  DRAWINGS
 }
 
 enum SpecBookGenStatus {

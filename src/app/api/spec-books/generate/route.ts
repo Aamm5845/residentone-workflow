@@ -6,11 +6,15 @@ import { cadConversionService } from '@/lib/cad-conversion'
 import { dropboxService } from '@/lib/dropbox-service'
 
 export async function POST(request: NextRequest) {
+  console.log('📚 Starting spec book generation...')
   try {
     const session = await getSession()
     if (!session?.user) {
+      console.log('❌ Unauthorized: No session or user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('✅ Session valid:', { userId: session.user.id, orgId: session.user.orgId })
 
     const {
       projectId,
@@ -18,6 +22,12 @@ export async function POST(request: NextRequest) {
       selectedSections,
       selectedRooms
     } = await request.json()
+
+    console.log('📋 Request data:', { 
+      projectId, 
+      selectedSections: selectedSections?.length || 0, 
+      selectedRooms: selectedRooms?.length || 0 
+    })
 
     if (!projectId || !coverPageData) {
       return NextResponse.json(
@@ -27,6 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify project access
+    console.log('🔍 Looking up project:', projectId)
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
@@ -50,8 +61,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!project) {
+      console.log('❌ Project not found:', projectId)
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
+
+    console.log('✅ Project found:', { name: project.name, rooms: project.rooms.length })
 
     // Get or create spec book
     let specBook = await prisma.specBook.findFirst({
@@ -124,7 +138,7 @@ export async function POST(request: NextRequest) {
         include: {
           dropboxFiles: true
         }
-      })
+      });
 
       let roomSection = roomSections.find(s => s.type === 'ROOM')
       let drawingsSection = roomSections.find(s => s.type === 'DRAWINGS')
@@ -219,6 +233,12 @@ export async function POST(request: NextRequest) {
 
     try {
       // Generate PDF
+      console.log('📋 Generating PDF with:', {
+        projectId,
+        sections: processedSections.length,
+        rooms: processedRooms.length
+      })
+      
       const generationResult = await pdfGenerationService.generateSpecBook({
         projectId,
         coverPageData,
@@ -226,6 +246,8 @@ export async function POST(request: NextRequest) {
         selectedRooms: processedRooms,
         generatedById: session.user.id
       })
+      
+      console.log('📋 PDF generation result:', { success: generationResult.success })
 
       if (generationResult.success) {
         // Update generation record with success
@@ -280,9 +302,16 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Spec book generation API error:', error)
+    console.error('😱 Spec book generation API error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    })
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

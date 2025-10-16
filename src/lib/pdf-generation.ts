@@ -67,8 +67,10 @@ class PDFGenerationService {
    * Generate a complete spec book PDF
    */
   async generateSpecBook(options: GenerationOptions): Promise<GenerationResult> {
+    console.log('📋 PDF Generation Service: Starting generation...')
     try {
       // Create new PDF document in landscape 17x11
+      console.log('📋 Creating PDF document...')
       const pdfDoc = await PDFDocument.create()
       
       // Set document metadata
@@ -77,11 +79,15 @@ class PDFGenerationService {
       pdfDoc.setCreationDate(new Date())
       
       // Load fonts
+      console.log('📋 Loading fonts...')
       const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica)
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
       
       // Generate pages
+      console.log('📋 Adding cover page...')
       await this.addCoverPage(pdfDoc, options.coverPageData, helvetica, helveticaBold)
+      
+      console.log('📋 Adding table of contents...')
       await this.addTableOfContents(pdfDoc, options, helvetica, helveticaBold)
       
       // Add project-level sections
@@ -137,8 +143,13 @@ class PDFGenerationService {
     try {
       // Read the custom cover PDF template
       const coverTemplatePath = path.join(process.cwd(), 'public', 'SPEC COVER.pdf')
+      console.log('📋 Loading cover template from:', coverTemplatePath)
+      
       const coverPdfBytes = await fs.readFile(coverTemplatePath)
+      console.log('📋 Cover template loaded, size:', coverPdfBytes.length, 'bytes')
+      
       const coverPdf = await PDFDocument.load(coverPdfBytes)
+      console.log('📋 Cover PDF parsed successfully')
       
       // Copy the cover page to our document
       const [coverPage] = await pdfDoc.copyPages(coverPdf, [0])
@@ -202,8 +213,12 @@ class PDFGenerationService {
       })
       
     } catch (error) {
-      console.error('Error loading cover template, using fallback:', error)
+      console.error('❌ Error loading cover template, using fallback:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
       // Fallback to minimalist generated cover if template fails
+      console.log('📋 Using fallback minimalist cover...')
       await this.addMinimalistCover(pdfDoc, coverData, font, boldFont)
     }
   }
