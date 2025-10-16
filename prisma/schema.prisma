@@ -164,6 +164,10 @@ model User {
   approvedDocuments           ProjectUpdateDocument[]     @relation("DocumentApprovedBy")
   authoredMessages            ProjectUpdateMessage[]      @relation("MessageAuthor")
   projectActivities           ProjectUpdateActivity[]     @relation("ActivityActor")
+  // Spec Book Relations
+  createdSpecBooks            SpecBook[]                  @relation("SpecBookCreatedBy")
+  updatedSpecBooks            SpecBook[]                  @relation("SpecBookUpdatedBy")
+  generatedSpecBooks          SpecBookGeneration[]        @relation("SpecBookGeneratedBy")
 }
 
 model Client {
@@ -264,6 +268,8 @@ model Project {
   updateActivities          ProjectUpdateActivity[]
   contractorAssignments     ContractorAssignment[]
   milestones                ProjectMilestone[]
+  // Spec Book Relations
+  specBooks                 SpecBook[]
 }
 
 model Room {
@@ -297,6 +303,8 @@ model Room {
   // Project Updates Relations
   projectUpdates    ProjectUpdate[]
   updateTasks       ProjectUpdateTask[]
+  // Spec Book Relations
+  specBookSections  SpecBookSection[]
 }
 
 model Stage {
@@ -1978,4 +1986,123 @@ enum MilestoneStatus {
   COMPLETED
   CANCELLED
   OVERDUE
+}
+
+// ===== SPEC BOOK SYSTEM MODELS =====
+
+model SpecBook {
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String
+  updatedById String
+
+  // Relations
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User              @relation("SpecBookCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User              @relation("SpecBookUpdatedBy", fields: [updatedById], references: [id])
+  sections    SpecBookSection[]
+  generations SpecBookGeneration[]
+
+  @@index([projectId])
+  @@index([isActive])
+}
+
+model SpecBookSection {
+  id           String              @id @default(cuid())
+  specBookId   String
+  type         SpecBookSectionType
+  name         String
+  description  String?
+  roomId       String? // null for project-level sections
+  order        Int                 @default(0)
+  isIncluded   Boolean             @default(true)
+  renderingUrl String? // for room-specific sections
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  // Relations
+  specBook     SpecBook         @relation(fields: [specBookId], references: [id], onDelete: Cascade)
+  room         Room?            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  dropboxFiles DropboxFileLink[]
+
+  @@index([specBookId, order])
+  @@index([type])
+  @@index([roomId])
+}
+
+model DropboxFileLink {
+  id               String    @id @default(cuid())
+  sectionId        String
+  dropboxPath      String // full path in Dropbox
+  fileName         String
+  fileSize         Int?
+  lastModified     DateTime?
+  dropboxRevision  String? // Dropbox revision ID for caching
+  cadToPdfCacheUrl String? // cached PDF URL in Vercel Blob
+  cacheExpiry      DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  section SpecBookSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, dropboxPath])
+  @@index([sectionId])
+  @@index([dropboxPath])
+  @@index([dropboxRevision])
+}
+
+model SpecBookGeneration {
+  id                String             @id @default(cuid())
+  specBookId        String
+  version           String // e.g., "1.0", "1.1", "2.0"
+  status            SpecBookGenStatus  @default(GENERATING)
+  pdfUrl            String?
+  fileSize          Int?
+  pageCount         Int?
+  sectionsIncluded  Json // array of section IDs included
+  roomsIncluded     Json // array of room IDs included
+  coverPageData     Json // client info, project details for cover
+  errorMessage      String?
+  generatedById     String
+  generatedAt       DateTime           @default(now())
+  completedAt       DateTime?
+  downloadedAt      DateTime? // last time PDF was accessed
+  downloadCount     Int                @default(0)
+
+  // Relations
+  specBook    SpecBook @relation(fields: [specBookId], references: [id], onDelete: Cascade)
+  generatedBy User     @relation("SpecBookGeneratedBy", fields: [generatedById], references: [id])
+
+  @@index([specBookId, generatedAt])
+  @@index([status])
+  @@index([generatedAt])
+}
+
+// ===== SPEC BOOK ENUMS =====
+
+enum SpecBookSectionType {
+  // Project-level sections
+  FLOORPLANS
+  LIGHTING
+  ELECTRICAL
+  PLUMBING
+  STRUCTURAL
+  RCP
+  
+  // Room-specific section
+  ROOM
+}
+
+enum SpecBookGenStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
