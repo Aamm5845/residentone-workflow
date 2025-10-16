@@ -1,5 +1,7 @@
 import { PDFDocument, PDFPage, StandardFonts, rgb, PageSizes } from 'pdf-lib'
 import { put } from '@vercel/blob'
+import fs from 'fs/promises'
+import path from 'path'
 
 interface CoverPageData {
   clientName: string
@@ -123,7 +125,7 @@ class PDFGenerationService {
   }
   
   /**
-   * Add cover page with project information
+   * Add custom cover page from template with dynamic text
    */
   private async addCoverPage(
     pdfDoc: PDFDocument, 
@@ -131,144 +133,129 @@ class PDFGenerationService {
     font: any, 
     boldFont: any
   ) {
+    try {
+      // Read the custom cover PDF template
+      const coverTemplatePath = path.join(process.cwd(), 'public', 'SPEC COVER.pdf')
+      const coverPdfBytes = await fs.readFile(coverTemplatePath)
+      const coverPdf = await PDFDocument.load(coverPdfBytes)
+      
+      // Copy the cover page to our document
+      const [coverPage] = await pdfDoc.copyPages(coverPdf, [0])
+      pdfDoc.addPage(coverPage)
+      
+      // Add dynamic project information to the cover
+      const { width, height } = coverPage.getSize()
+      
+      // Project name (bold) - positioned at bottom right where shown in design
+      const projectNameY = 150 // Adjust based on your template
+      const projectNameX = width - PDFGenerationService.MARGIN - 300 // Right side positioning
+      
+      coverPage.drawText(coverData.projectName, {
+        x: projectNameX,
+        y: projectNameY,
+        size: 16,
+        font: boldFont,
+        color: rgb(0.4, 0.4, 0.4) // Subtle gray to match minimalist design
+      })
+      
+      // Address (regular font) - positioned below project name
+      if (coverData.address) {
+        coverPage.drawText(coverData.address, {
+          x: projectNameX,
+          y: projectNameY - 25,
+          size: 12,
+          font: font,
+          color: rgb(0.5, 0.5, 0.5) // Lighter gray for address
+        })
+      }
+      
+    } catch (error) {
+      console.error('Error loading cover template, using fallback:', error)
+      // Fallback to minimalist generated cover if template fails
+      await this.addMinimalistCover(pdfDoc, coverData, font, boldFont)
+    }
+  }
+  
+  /**
+   * Fallback minimalist cover generation
+   */
+  private async addMinimalistCover(
+    pdfDoc: PDFDocument,
+    coverData: CoverPageData,
+    font: any,
+    boldFont: any
+  ) {
     const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
     const { width, height } = page.getSize()
     
-    // Background color (very light gray)
+    // Clean white background
     page.drawRectangle({
       x: 0,
       y: 0,
       width,
       height,
-      color: rgb(0.98, 0.98, 0.98)
-    })
-    
-    // Header section with company branding
-    const headerHeight = 150
-    page.drawRectangle({
-      x: 0,
-      y: height - headerHeight,
-      width,
-      height: headerHeight,
-      color: rgb(0.2, 0.4, 0.7) // Professional blue
-    })
-    
-    // Company name/logo area
-    page.drawText('MEISNER INTERIORS', {
-      x: PDFGenerationService.MARGIN,
-      y: height - 60,
-      size: 28,
-      font: boldFont,
       color: rgb(1, 1, 1)
     })
     
-    page.drawText('SPECIFICATION BOOK', {
-      x: PDFGenerationService.MARGIN,
-      y: height - 90,
-      size: 16,
+    // Minimalist SPECBOOK title - centered
+    page.drawText('SPECBOOK', {
+      x: width / 2 - 100,
+      y: height / 2 + 50,
+      size: 28,
       font: font,
-      color: rgb(0.9, 0.9, 0.9)
+      color: rgb(0.6, 0.6, 0.6)
     })
     
-    // Project title section
-    const titleY = height - 250
-    page.drawText(coverData.projectName.toUpperCase(), {
+    // Thin line accent
+    page.drawRectangle({
+      x: width / 2 - 100,
+      y: height / 2 + 20,
+      width: 200,
+      height: 0.5,
+      color: rgb(0.7, 0.7, 0.7)
+    })
+    
+    // Company logo/name - bottom left
+    page.drawText('M', {
       x: PDFGenerationService.MARGIN,
-      y: titleY,
-      size: 36,
+      y: 150,
+      size: 20,
       font: boldFont,
-      color: rgb(0.2, 0.2, 0.2)
+      color: rgb(0.4, 0.4, 0.4)
     })
     
-    // Client information
-    const clientY = titleY - 80
-    page.drawText('Prepared for:', {
+    page.drawText('MEISNER', {
       x: PDFGenerationService.MARGIN,
-      y: clientY,
-      size: 14,
+      y: 120,
+      size: 12,
       font: font,
       color: rgb(0.5, 0.5, 0.5)
     })
     
-    page.drawText(coverData.clientName, {
-      x: PDFGenerationService.MARGIN,
-      y: clientY - 25,
-      size: 20,
+    // Project details - bottom right
+    const rightX = width - PDFGenerationService.MARGIN - 300
+    
+    page.drawText(coverData.projectName, {
+      x: rightX,
+      y: 150,
+      size: 16,
       font: boldFont,
-      color: rgb(0.3, 0.3, 0.3)
+      color: rgb(0.4, 0.4, 0.4)
     })
     
     if (coverData.address) {
       page.drawText(coverData.address, {
-        x: PDFGenerationService.MARGIN,
-        y: clientY - 50,
-        size: 14,
+        x: rightX,
+        y: 125,
+        size: 12,
         font: font,
         color: rgb(0.5, 0.5, 0.5)
       })
     }
-    
-    // Description section
-    if (coverData.description) {
-      const descY = clientY - 120
-      page.drawText('Project Description:', {
-        x: PDFGenerationService.MARGIN,
-        y: descY,
-        size: 14,
-        font: boldFont,
-        color: rgb(0.3, 0.3, 0.3)
-      })
-      
-      // Word wrap description
-      const words = coverData.description.split(' ')
-      let line = ''
-      let lineY = descY - 25
-      const maxLineWidth = PDFGenerationService.CONTENT_WIDTH - 100
-      
-      for (const word of words) {
-        const testLine = line + (line ? ' ' : '') + word
-        const lineWidth = font.widthOfTextAtSize(testLine, 12)
-        
-        if (lineWidth > maxLineWidth && line) {
-          page.drawText(line, {
-            x: PDFGenerationService.MARGIN,
-            y: lineY,
-            size: 12,
-            font: font,
-            color: rgb(0.4, 0.4, 0.4)
-          })
-          line = word
-          lineY -= 20
-        } else {
-          line = testLine
-        }
-      }
-      
-      // Draw final line
-      if (line) {
-        page.drawText(line, {
-          x: PDFGenerationService.MARGIN,
-          y: lineY,
-          size: 12,
-          font: font,
-          color: rgb(0.4, 0.4, 0.4)
-        })
-      }
-    }
-    
-    // Date and version
-    const footer = `Generated on ${new Date().toLocaleDateString()}`
-    page.drawText(footer, {
-      x: PDFGenerationService.MARGIN,
-      y: 50,
-      size: 10,
-      font: font,
-      color: rgb(0.6, 0.6, 0.6)
-    })
   }
   
   /**
-   * Add table of contents
+   * Add minimalistic table of contents
    */
   private async addTableOfContents(
     pdfDoc: PDFDocument,
@@ -279,80 +266,118 @@ class PDFGenerationService {
     const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
     const { width, height } = page.getSize()
     
-    // Title
-    page.drawText('TABLE OF CONTENTS', {
-      x: PDFGenerationService.MARGIN,
-      y: height - 100,
-      size: 24,
-      font: boldFont,
-      color: rgb(0.2, 0.2, 0.2)
+    // Clean white background
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: rgb(1, 1, 1)
     })
     
-    let currentY = height - 150
+    // Minimalist title
+    page.drawText('CONTENTS', {
+      x: PDFGenerationService.MARGIN,
+      y: height - 120,
+      size: 18,
+      font: font,
+      color: rgb(0.4, 0.4, 0.4)
+    })
+    
+    // Subtle line under title
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: height - 135,
+      width: 120,
+      height: 0.5,
+      color: rgb(0.7, 0.7, 0.7)
+    })
+    
+    let currentY = height - 180
     let pageNum = 3 // Start after cover and TOC
     
-    // Project sections
+    // Project sections with minimal styling
     if (options.selectedSections.length > 0) {
       page.drawText('PROJECT PLANS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
-        size: 16,
+        size: 12,
         font: boldFont,
-        color: rgb(0.3, 0.3, 0.3)
+        color: rgb(0.5, 0.5, 0.5)
       })
-      currentY -= 30
+      currentY -= 40
       
       for (const section of options.selectedSections) {
-        page.drawText(`${section.name}`, {
-          x: PDFGenerationService.MARGIN + 30,
+        page.drawText(section.name, {
+          x: PDFGenerationService.MARGIN + 20,
           y: currentY,
-          size: 12,
+          size: 11,
           font: font,
-          color: rgb(0.4, 0.4, 0.4)
+          color: rgb(0.6, 0.6, 0.6)
+        })
+        
+        // Dotted line for page numbers
+        const dots = '.'.repeat(Math.floor((width - PDFGenerationService.MARGIN * 2 - 250) / 6))
+        page.drawText(dots, {
+          x: PDFGenerationService.MARGIN + 220,
+          y: currentY,
+          size: 10,
+          font: font,
+          color: rgb(0.8, 0.8, 0.8)
         })
         
         page.drawText(`${pageNum}`, {
-          x: width - PDFGenerationService.MARGIN - 50,
+          x: width - PDFGenerationService.MARGIN - 30,
           y: currentY,
-          size: 12,
+          size: 11,
           font: font,
-          color: rgb(0.4, 0.4, 0.4)
+          color: rgb(0.6, 0.6, 0.6)
         })
         
         currentY -= 25
         pageNum++
       }
       
-      currentY -= 20
+      currentY -= 30
     }
     
-    // Room sections
+    // Room sections with minimal styling
     if (options.selectedRooms.length > 0) {
-      page.drawText('ROOM-SPECIFIC CONTENT', {
+      page.drawText('ROOMS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
-        size: 16,
+        size: 12,
         font: boldFont,
-        color: rgb(0.3, 0.3, 0.3)
+        color: rgb(0.5, 0.5, 0.5)
       })
-      currentY -= 30
+      currentY -= 40
       
       for (const room of options.selectedRooms) {
         const roomName = room.name || room.type.replace('_', ' ')
-        page.drawText(roomName.toUpperCase(), {
-          x: PDFGenerationService.MARGIN + 30,
+        page.drawText(roomName, {
+          x: PDFGenerationService.MARGIN + 20,
           y: currentY,
-          size: 12,
+          size: 11,
           font: font,
-          color: rgb(0.4, 0.4, 0.4)
+          color: rgb(0.6, 0.6, 0.6)
+        })
+        
+        // Dotted line
+        const dots = '.'.repeat(Math.floor((width - PDFGenerationService.MARGIN * 2 - 250) / 6))
+        page.drawText(dots, {
+          x: PDFGenerationService.MARGIN + 220,
+          y: currentY,
+          size: 10,
+          font: font,
+          color: rgb(0.8, 0.8, 0.8)
         })
         
         page.drawText(`${pageNum}`, {
-          x: width - PDFGenerationService.MARGIN - 50,
+          x: width - PDFGenerationService.MARGIN - 30,
           y: currentY,
-          size: 12,
+          size: 11,
           font: font,
-          color: rgb(0.4, 0.4, 0.4)
+          color: rgb(0.6, 0.6, 0.6)
         })
         
         currentY -= 25
@@ -362,7 +387,7 @@ class PDFGenerationService {
   }
   
   /**
-   * Add a project-level section (floorplans, lighting, etc.)
+   * Add a minimalistic project-level section
    */
   private async addProjectSection(
     pdfDoc: PDFDocument,
@@ -370,77 +395,86 @@ class PDFGenerationService {
     font: any,
     boldFont: any
   ) {
-    // For now, create a placeholder page for each section
-    // In full implementation, this would embed the actual CAD PDFs
     const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
     const { width, height } = page.getSize()
     
-    // Section header
+    // Clean white background
     page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: rgb(1, 1, 1)
+    })
+    
+    // Minimal section header
+    page.drawText(section.name, {
       x: PDFGenerationService.MARGIN,
       y: height - 120,
-      width: PDFGenerationService.CONTENT_WIDTH,
-      height: 50,
-      color: rgb(0.95, 0.95, 0.95)
+      size: 16,
+      font: font,
+      color: rgb(0.4, 0.4, 0.4)
     })
     
-    page.drawText(section.name.toUpperCase(), {
-      x: PDFGenerationService.MARGIN + 20,
-      y: height - 100,
-      size: 20,
-      font: boldFont,
-      color: rgb(0.2, 0.2, 0.2)
+    // Subtle line under header
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: height - 135,
+      width: section.name.length * 8,
+      height: 0.5,
+      color: rgb(0.7, 0.7, 0.7)
     })
     
-    // Placeholder for CAD content
+    // Minimalist CAD content area
     const contentY = height - 180
-    const contentHeight = PDFGenerationService.CONTENT_HEIGHT - 200
+    const contentHeight = PDFGenerationService.CONTENT_HEIGHT - 220
     
+    // Thin border for content area
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
       y: contentY - contentHeight,
       width: PDFGenerationService.CONTENT_WIDTH,
       height: contentHeight,
       color: rgb(1, 1, 1),
-      borderColor: rgb(0.8, 0.8, 0.8),
-      borderWidth: 1
+      borderColor: rgb(0.9, 0.9, 0.9),
+      borderWidth: 0.5
     })
     
-    // Center text indicating CAD content will be embedded here
-    page.drawText('CAD DRAWING WILL BE EMBEDDED HERE', {
-      x: width / 2 - 150,
+    // Subtle placeholder text
+    page.drawText('CAD CONTENT', {
+      x: width / 2 - 50,
       y: height / 2,
-      size: 14,
+      size: 12,
       font: font,
-      color: rgb(0.6, 0.6, 0.6)
+      color: rgb(0.8, 0.8, 0.8)
     })
     
-    // List linked files
+    // List linked files in minimal style
     if (section.dropboxFiles.length > 0) {
-      page.drawText('Linked Files:', {
+      page.drawText('Files', {
         x: PDFGenerationService.MARGIN,
-        y: 150,
-        size: 12,
+        y: 170,
+        size: 10,
         font: boldFont,
-        color: rgb(0.4, 0.4, 0.4)
+        color: rgb(0.5, 0.5, 0.5)
       })
       
-      let fileY = 130
+      let fileY = 150
       for (const file of section.dropboxFiles) {
-        page.drawText(`• ${file.fileName}`, {
-          x: PDFGenerationService.MARGIN + 20,
+        page.drawText(file.fileName, {
+          x: PDFGenerationService.MARGIN,
           y: fileY,
-          size: 10,
+          size: 9,
           font: font,
-          color: rgb(0.5, 0.5, 0.5)
+          color: rgb(0.6, 0.6, 0.6)
         })
-        fileY -= 15
+        fileY -= 12
       }
     }
   }
   
   /**
-   * Add a room-specific section with rendering and CAD files
+   * Add a minimalistic room-specific section
    */
   private async addRoomSection(
     pdfDoc: PDFDocument,
@@ -461,26 +495,36 @@ class PDFGenerationService {
     const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
     const { width, height } = page.getSize()
     
-    const roomName = room.name || room.type.replace('_', ' ')
-    
-    // Room header
+    // Clean white background
     page.drawRectangle({
-      x: PDFGenerationService.MARGIN,
-      y: height - 120,
-      width: PDFGenerationService.CONTENT_WIDTH,
-      height: 50,
-      color: rgb(0.2, 0.4, 0.7)
-    })
-    
-    page.drawText(roomName.toUpperCase(), {
-      x: PDFGenerationService.MARGIN + 20,
-      y: height - 100,
-      size: 20,
-      font: boldFont,
+      x: 0,
+      y: 0,
+      width,
+      height,
       color: rgb(1, 1, 1)
     })
     
-    // Rendering placeholder
+    const roomName = room.name || room.type.replace('_', ' ')
+    
+    // Minimal room header
+    page.drawText(roomName, {
+      x: PDFGenerationService.MARGIN,
+      y: height - 120,
+      size: 16,
+      font: font,
+      color: rgb(0.4, 0.4, 0.4)
+    })
+    
+    // Subtle line under header
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: height - 135,
+      width: roomName.length * 8,
+      height: 0.5,
+      color: rgb(0.7, 0.7, 0.7)
+    })
+    
+    // Minimalist rendering area
     const renderingHeight = 400
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
@@ -488,41 +532,52 @@ class PDFGenerationService {
       width: PDFGenerationService.CONTENT_WIDTH,
       height: renderingHeight,
       color: rgb(1, 1, 1),
-      borderColor: rgb(0.8, 0.8, 0.8),
-      borderWidth: 2
+      borderColor: rgb(0.9, 0.9, 0.9),
+      borderWidth: 0.5
     })
     
-    page.drawText('RENDERING IMAGE WILL BE EMBEDDED HERE', {
-      x: width / 2 - 170,
+    page.drawText('RENDERING', {
+      x: width / 2 - 45,
       y: height - 200 - renderingHeight / 2,
-      size: 14,
+      size: 12,
       font: font,
-      color: rgb(0.6, 0.6, 0.6)
+      color: rgb(0.8, 0.8, 0.8)
     })
     
-    // Add separate pages for each CAD file
+    // Add separate minimalist pages for each CAD file
     for (const cadFile of room.cadFiles) {
       const cadPage = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+      const { width: cadWidth, height: cadHeight } = cadPage.getSize()
       
-      // CAD file header
+      // Clean white background
+      cadPage.drawRectangle({
+        x: 0,
+        y: 0,
+        width: cadWidth,
+        height: cadHeight,
+        color: rgb(1, 1, 1)
+      })
+      
+      // Minimal CAD file header
+      cadPage.drawText(`${roomName} — ${cadFile.fileName}`, {
+        x: PDFGenerationService.MARGIN,
+        y: cadHeight - 120,
+        size: 14,
+        font: font,
+        color: rgb(0.4, 0.4, 0.4)
+      })
+      
+      // Subtle line under header
       cadPage.drawRectangle({
         x: PDFGenerationService.MARGIN,
-        y: height - 120,
-        width: PDFGenerationService.CONTENT_WIDTH,
-        height: 50,
-        color: rgb(0.95, 0.95, 0.95)
+        y: cadHeight - 135,
+        width: (roomName.length + cadFile.fileName.length + 3) * 7,
+        height: 0.5,
+        color: rgb(0.7, 0.7, 0.7)
       })
       
-      cadPage.drawText(`${roomName.toUpperCase()} - ${cadFile.fileName}`, {
-        x: PDFGenerationService.MARGIN + 20,
-        y: height - 100,
-        size: 16,
-        font: boldFont,
-        color: rgb(0.2, 0.2, 0.2)
-      })
-      
-      // CAD content placeholder
-      const cadContentY = height - 180
+      // Minimalist CAD content area
+      const cadContentY = cadHeight - 180
       const cadContentHeight = PDFGenerationService.CONTENT_HEIGHT - 200
       
       cadPage.drawRectangle({
@@ -531,22 +586,22 @@ class PDFGenerationService {
         width: PDFGenerationService.CONTENT_WIDTH,
         height: cadContentHeight,
         color: rgb(1, 1, 1),
-        borderColor: rgb(0.8, 0.8, 0.8),
-        borderWidth: 1
+        borderColor: rgb(0.9, 0.9, 0.9),
+        borderWidth: 0.5
       })
       
-      cadPage.drawText('CAD DRAWING WILL BE EMBEDDED HERE', {
-        x: width / 2 - 150,
-        y: height / 2,
-        size: 14,
+      cadPage.drawText('CAD DRAWING', {
+        x: cadWidth / 2 - 60,
+        y: cadHeight / 2,
+        size: 12,
         font: font,
-        color: rgb(0.6, 0.6, 0.6)
+        color: rgb(0.8, 0.8, 0.8)
       })
     }
   }
   
   /**
-   * Add page numbers to all pages except cover
+   * Add minimalistic page numbers to all pages except cover
    */
   private addPageNumbers(pdfDoc: PDFDocument, font: any) {
     const pages = pdfDoc.getPages()
@@ -558,11 +613,11 @@ class PDFGenerationService {
       const pageNumber = index
       
       page.drawText(`${pageNumber}`, {
-        x: width - PDFGenerationService.MARGIN,
-        y: 30,
-        size: 10,
+        x: width - PDFGenerationService.MARGIN - 10,
+        y: 40,
+        size: 9,
         font: font,
-        color: rgb(0.5, 0.5, 0.5)
+        color: rgb(0.7, 0.7, 0.7)
       })
     })
   }
