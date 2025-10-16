@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const imageTypeParam = formData.get('imageType') as string || 'general'
+    const typeParam = formData.get('type') as string // 'rendering' for spec book
+    const roomIdParam = formData.get('roomId') as string
     
     console.log('📤 File upload details:', {
       hasFile: !!file,
@@ -128,6 +130,54 @@ export async function POST(request: NextRequest) {
         storageUsed = 'local'
       }
 
+      // If this is a rendering upload for spec book, update the database
+      let renderingId = null
+      if (typeParam === 'rendering' && roomIdParam) {
+        try {
+          // Import prisma here to avoid circular dependencies
+          const { prisma } = await import('@/lib/prisma')
+          
+          // Update or create spec book section with rendering URL
+          const specBook = await prisma.specBook.findFirst({
+            where: {
+              project: {
+                rooms: {
+                  some: { id: roomIdParam }
+                }
+              },
+              isActive: true
+            }
+          })
+          
+          if (specBook) {
+            const section = await prisma.specBookSection.upsert({
+              where: {
+                specBookId_type_roomId: {
+                  specBookId: specBook.id,
+                  type: 'ROOM',
+                  roomId: roomIdParam
+                }
+              },
+              update: {
+                renderingUrl: uploadResult.url
+              },
+              create: {
+                specBookId: specBook.id,
+                type: 'ROOM',
+                name: 'Room Rendering',
+                roomId: roomIdParam,
+                order: 100,
+                renderingUrl: uploadResult.url
+              }
+            })
+            renderingId = section.id
+          }
+        } catch (dbError) {
+          console.error('Error updating rendering in database:', dbError)
+          // Don't fail the upload, just log the error
+        }
+      }
+
       return NextResponse.json({
         success: true,
         url: uploadResult.url,
@@ -136,7 +186,8 @@ export async function POST(request: NextRequest) {
         originalName: file.name,
         size: file.size,
         type: file.type,
-        storage: storageUsed
+        storage: storageUsed,
+        renderingId
       })
     } catch (uploadError) {
       console.error('Upload error:', uploadError)

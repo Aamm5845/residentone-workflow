@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDropzone } from 'react-dropzone'
@@ -20,32 +20,87 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
   const [renderings, setRenderings] = useState<UploadedRendering[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
+  // Load existing renderings on mount
+  React.useEffect(() => {
+    loadExistingRenderings()
+  }, [roomId])
+
+  const loadExistingRenderings = async () => {
+    try {
+      const response = await fetch(`/api/spec-books/room-renderings?roomId=${roomId}`)
+      const result = await response.json()
+      
+      if (result.success && result.renderings) {
+        setRenderings(result.renderings.map((r: any) => ({
+          id: r.id,
+          url: r.imageUrl,
+          filename: r.filename || 'rendering.jpg',
+          size: r.fileSize || 0
+        })))
+      }
+    } catch (error) {
+      console.error('Error loading existing renderings:', error)
+    }
+  }
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setIsUploading(true)
     
     try {
       for (const file of acceptedFiles) {
-        // TODO: Implement actual file upload to Vercel Blob
-        // This would call /api/upload with the file
+        // Upload to Vercel Blob via API
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'rendering')
+        formData.append('roomId', roomId)
         
-        // Mock upload for now
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData
+        })
         
-        const newRendering: UploadedRendering = {
-          id: Math.random().toString(36),
-          url: URL.createObjectURL(file),
-          filename: file.name,
-          size: file.size
+        const uploadResult = await uploadResponse.json()
+        
+        if (uploadResult.success) {
+          const newRendering: UploadedRendering = {
+            id: uploadResult.renderingId,
+            url: uploadResult.url,
+            filename: file.name,
+            size: file.size
+          }
+          
+          setRenderings(prev => [...prev, newRendering])
+          
+          // Update spec book section with rendering URL
+          await updateRenderingUrl(uploadResult.url)
+        } else {
+          throw new Error(uploadResult.error || 'Upload failed')
         }
-        
-        setRenderings(prev => [...prev, newRendering])
       }
     } catch (error) {
       console.error('Upload error:', error)
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsUploading(false)
     }
-  }, [])
+  }, [roomId])
+
+  const updateRenderingUrl = async (imageUrl: string) => {
+    try {
+      await fetch('/api/spec-books/room-renderings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          roomId,
+          imageUrl
+        })
+      })
+    } catch (error) {
+      console.error('Error updating rendering URL:', error)
+    }
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -56,8 +111,25 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
     disabled: isUploading
   })
 
-  const handleRemoveRendering = (renderingId: string) => {
-    setRenderings(prev => prev.filter(r => r.id !== renderingId))
+  const handleRemoveRendering = async (renderingId: string) => {
+    try {
+      const response = await fetch('/api/spec-books/room-renderings', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ renderingId })
+      })
+      
+      if (response.ok) {
+        setRenderings(prev => prev.filter(r => r.id !== renderingId))
+      } else {
+        throw new Error('Failed to delete rendering')
+      }
+    } catch (error) {
+      console.error('Error removing rendering:', error)
+      alert('Failed to remove rendering')
+    }
   }
 
   const formatFileSize = (bytes: number) => {

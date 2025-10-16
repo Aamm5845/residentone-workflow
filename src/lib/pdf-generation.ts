@@ -196,18 +196,17 @@ class PDFGenerationService {
         })
       }
       
-      // Print date - positioned much lower on the page with minimal styling
+      // Print date - positioned much lower on the page, independent of other content
       const printDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       })
       
-      // Position date at the bottom of the page
-      const dateY = 120 // Fixed position near bottom
+      // Position date at the very bottom of the page, independent of address
       coverPage.drawText(printDate, {
         x: projectNameX,
-        y: dateY,
+        y: 80, // Much lower - near bottom margin
         size: 10,
         font: font,
         color: rgb(0.6, 0.6, 0.6) // Even lighter gray for date
@@ -314,10 +313,9 @@ class PDFGenerationService {
         font: font,
         color: rgb(0.5, 0.5, 0.5)
       })
-      detailY -= 25
     }
     
-    // Print date - positioned at bottom of page
+    // Print date - positioned much lower, independent of other content
     const printDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -326,7 +324,7 @@ class PDFGenerationService {
     
     page.drawText(printDate, {
       x: rightX,
-      y: 120, // Fixed position near bottom
+      y: 80, // Much lower - near bottom margin
       size: 10,
       font: font,
       color: rgb(0.6, 0.6, 0.6)
@@ -603,25 +601,60 @@ class PDFGenerationService {
       color: rgb(0.7, 0.7, 0.7)
     })
     
-    // Minimalist rendering area
-    const renderingHeight = 400
-    page.drawRectangle({
-      x: PDFGenerationService.MARGIN,
-      y: height - 180 - renderingHeight,
-      width: PDFGenerationService.CONTENT_WIDTH,
-      height: renderingHeight,
-      color: rgb(1, 1, 1),
-      borderColor: rgb(0.9, 0.9, 0.9),
-      borderWidth: 0.5
-    })
-    
-    page.drawText('RENDERING', {
-      x: width / 2 - 45,
-      y: height - 200 - renderingHeight / 2,
-      size: 12,
-      font: font,
-      color: rgb(0.8, 0.8, 0.8)
-    })
+    // Add actual rendering image if available
+    if (room.renderingUrl) {
+      try {
+        console.log('📋 Loading rendering image:', room.renderingUrl)
+        
+        // Fetch the image from the URL
+        const response = await fetch(room.renderingUrl)
+        if (response.ok) {
+          const imageBytes = await response.arrayBuffer()
+          
+          // Embed the image based on type
+          let image
+          const contentType = response.headers.get('content-type') || ''
+          if (contentType.includes('png')) {
+            image = await pdfDoc.embedPng(imageBytes)
+          } else {
+            image = await pdfDoc.embedJpg(imageBytes)
+          }
+          
+          // Calculate dimensions to fit within the rendering area while maintaining aspect ratio
+          const maxWidth = PDFGenerationService.CONTENT_WIDTH - 40
+          const maxHeight = 350
+          
+          const { width: imgWidth, height: imgHeight } = image
+          const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight)
+          
+          const scaledWidth = imgWidth * scale
+          const scaledHeight = imgHeight * scale
+          
+          // Center the image in the rendering area
+          const imageX = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
+          const imageY = height - 180 - maxHeight + (maxHeight - scaledHeight) / 2
+          
+          // Draw the actual rendering image
+          page.drawImage(image, {
+            x: imageX,
+            y: imageY,
+            width: scaledWidth,
+            height: scaledHeight
+          })
+          
+          console.log('📋 Rendering image embedded successfully')
+        } else {
+          throw new Error(`Failed to fetch image: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('❌ Error loading rendering image:', error)
+        // Fallback to placeholder if image loading fails
+        this.addRenderingPlaceholder(page, font, width, height)
+      }
+    } else {
+      // No rendering URL provided, show placeholder
+      this.addRenderingPlaceholder(page, font, width, height)
+    }
     
     // Add separate minimalist pages for each CAD file
     for (const cadFile of room.cadFiles) {
@@ -679,6 +712,33 @@ class PDFGenerationService {
     }
   }
   
+  /**
+   * Add rendering placeholder when no image is available
+   */
+  private addRenderingPlaceholder(page: PDFPage, font: any, width: number, height: number) {
+    const renderingHeight = 350
+    const renderingY = height - 180 - renderingHeight
+    
+    // Minimalist rendering area with border
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: renderingY,
+      width: PDFGenerationService.CONTENT_WIDTH,
+      height: renderingHeight,
+      color: rgb(0.98, 0.98, 0.98),
+      borderColor: rgb(0.9, 0.9, 0.9),
+      borderWidth: 0.5
+    })
+    
+    page.drawText('No rendering image uploaded', {
+      x: width / 2 - 85,
+      y: renderingY + renderingHeight / 2,
+      size: 12,
+      font: font,
+      color: rgb(0.7, 0.7, 0.7)
+    })
+  }
+
   /**
    * Add minimalistic page numbers to all pages except cover
    */

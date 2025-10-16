@@ -95,8 +95,21 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [selectedSections, setSelectedSections] = useState<Record<string, boolean>>({})
-  const [selectedRooms, setSelectedRooms] = useState<Record<string, boolean>>({})
+  // Initialize with default selections
+  const [selectedSections, setSelectedSections] = useState<Record<string, boolean>>(() => {
+    const defaultSections: Record<string, boolean> = {}
+    PROJECT_LEVEL_SECTIONS.forEach(section => {
+      defaultSections[section.type] = true
+    })
+    return defaultSections
+  })
+  const [selectedRooms, setSelectedRooms] = useState<Record<string, boolean>>(() => {
+    const defaultRooms: Record<string, boolean> = {}
+    project.rooms.forEach(room => {
+      defaultRooms[room.id] = true
+    })
+    return defaultRooms
+  })
   const [coverPageData, setCoverPageData] = useState<CoverPageData>({
     clientName: project.client.name,
     projectName: project.name,
@@ -112,23 +125,6 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
   })
 
   const currentSpecBook = project.specBooks[0]
-
-  // Initialize default selections
-  useState(() => {
-    const defaultSections: Record<string, boolean> = {}
-    const defaultRooms: Record<string, boolean> = {}
-
-    PROJECT_LEVEL_SECTIONS.forEach(section => {
-      defaultSections[section.type] = true
-    })
-
-    project.rooms.forEach(room => {
-      defaultRooms[room.id] = true
-    })
-
-    setSelectedSections(defaultSections)
-    setSelectedRooms(defaultRooms)
-  })
 
   const handleSectionToggle = useCallback((sectionType: string, checked: boolean) => {
     setSelectedSections(prev => ({
@@ -358,6 +354,7 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                           
                           {selectedSections[section.type] && (
                             <div className="mt-3">
+                              {console.log(`Rendering DropboxFileBrowser for ${section.type}, selected:`, selectedSections[section.type])}
                               <DropboxFileBrowser 
                                 roomId={null}
                                 projectId={project.id}

@@ -2033,6 +2033,7 @@ model SpecBookSection {
   room         Room?            @relation(fields: [roomId], references: [id], onDelete: Cascade)
   dropboxFiles DropboxFileLink[]
 
+  @@unique([specBookId, type, roomId])
   @@index([specBookId, order])
   @@index([type])
   @@index([roomId])

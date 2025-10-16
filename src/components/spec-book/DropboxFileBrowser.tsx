@@ -33,6 +33,7 @@ interface DropboxFileBrowserProps {
 }
 
 export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName }: DropboxFileBrowserProps) {
+  console.log('DropboxFileBrowser rendered with:', { roomId, projectId, sectionType, sectionName })
   const [isOpen, setIsOpen] = useState(false)
   const [currentPath, setCurrentPath] = useState('')
   const [currentFolder, setCurrentFolder] = useState<DropboxFolder | null>(null)
