@@ -74,6 +74,7 @@ export default async function FFESettingsPage({ params }: FFESettingsPageProps) 
         roomName={room.name || 'Room'}
         orgId={room.project?.orgId}
         projectId={room.project?.id}
+        projectName={room.project?.name}
         initialMode="settings"
         userRole={session.user.role}
         showModeToggle={false}

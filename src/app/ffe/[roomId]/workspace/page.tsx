@@ -70,6 +70,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
         roomName={room.name || 'Room'}
         orgId={room.project?.orgId}
         projectId={room.project?.id}
+        projectName={room.project?.name}
         initialMode="workspace"
         userRole={session.user.role}
         showModeToggle={false}

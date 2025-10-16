@@ -22,6 +22,7 @@ interface FFEDepartmentRouterProps {
   roomName: string
   orgId?: string
   projectId?: string
+  projectName?: string
   initialMode?: FFEDepartmentMode
   userRole?: string
   disabled?: boolean
@@ -35,6 +36,7 @@ export default function FFEDepartmentRouter({
   roomName,
   orgId,
   projectId,
+  projectName,
   initialMode = 'workspace',
   userRole,
   disabled = false,

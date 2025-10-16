@@ -350,17 +350,6 @@ export default function FFEPhaseWorkspace({
               
               {/* Right Actions */}
               <div className="flex items-center gap-3">
-                <Link href={`/ffe/${roomId}/settings`}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white hover:bg-gray-50 border-gray-300 shadow-sm"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </Button>
-                </Link>
-                
                 <button
                   onClick={() => setShowNotesDrawer(!showNotesDrawer)}
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 shadow-sm ${
@@ -389,21 +378,24 @@ export default function FFEPhaseWorkspace({
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">
-                {projectName && (
-                  <span className="text-gray-600 font-normal">{projectName} / </span>
-                )}
-                {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'} - FFE Phase
-              </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <div className="flex items-center gap-1">
-                  <Package className="h-4 w-4" />
-                  <span className="font-medium text-gray-900">{stats.total}</span>
-                  <span>items</span>
-                </div>
-                <span className="text-gray-400">•</span>
-                <span>{Math.ceil(progress)}% complete</span>
+            <h1 className="text-xl font-bold text-gray-900">
+              {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'} - FFE Phase
+            </h1>
+            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+              {projectName && (
+                <>
+                  <span>{projectName}</span>
+                  <span>•</span>
+                </>
+              )}
+              <div className="flex items-center gap-1">
+                <Package className="h-4 w-4" />
+                <span className="font-medium text-gray-900">{stats.total}</span>
+                <span>items</span>
               </div>
+              <span>•</span>
+              <span>{Math.ceil(progress)}% complete</span>
+            </div>
             </div>
           </div>
           

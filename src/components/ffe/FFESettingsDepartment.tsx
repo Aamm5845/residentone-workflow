@@ -194,9 +194,31 @@ export default function FFESettingsDepartment({
   }
 
   const handleVisibilityChange = async (itemId: string, newVisibility: FFEItemVisibility) => {
+    // Optimistic update - update UI immediately
+    const previousSections = sections
+    setSections(prevSections => 
+      prevSections.map(section => ({
+        ...section,
+        items: section.items.map(item => 
+          item.id === itemId 
+            ? { ...item, visibility: newVisibility }
+            : item
+        )
+      }))
+    )
+    
+    // Immediately recalculate stats for instant feedback
+    const updatedSections = sections.map(section => ({
+      ...section,
+      items: section.items.map(item => 
+        item.id === itemId 
+          ? { ...item, visibility: newVisibility }
+          : item
+      )
+    }))
+    calculateStats(updatedSections)
+    
     try {
-      setSaving(true)
-      
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/visibility`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -207,34 +229,12 @@ export default function FFESettingsDepartment({
         throw new Error('Failed to update item visibility')
       }
 
-      // Update local state
-      setSections(prevSections => 
-        prevSections.map(section => ({
-          ...section,
-          items: section.items.map(item => 
-            item.id === itemId 
-              ? { ...item, visibility: newVisibility }
-              : item
-          )
-        }))
-      )
-
-      // Recalculate stats
-      const updatedSections = sections.map(section => ({
-        ...section,
-        items: section.items.map(item => 
-          item.id === itemId 
-            ? { ...item, visibility: newVisibility }
-            : item
-        )
-      }))
-      calculateStats(updatedSections)
-
     } catch (error) {
       console.error('Error updating item visibility:', error)
+      // Revert optimistic update on error
+      setSections(previousSections)
+      calculateStats(previousSections)
       throw error // Re-throw to let the component handle the toast
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -581,19 +581,25 @@ export default function FFESettingsDepartment({
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 mb-1">
-              {projectName && (
-                <span className="text-gray-600 font-normal">{projectName} / </span>
-              )}
+            <h1 className="text-xl font-bold text-gray-900">
               {roomName} - FFE Settings
             </h1>
-            <div className="flex items-center gap-3 text-sm text-gray-600">
+            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+              {projectName && (
+                <>
+                  <span>{projectName}</span>
+                  <span>•</span>
+                </>
+              )}
               <span>Manage sections, items, and workspace visibility</span>
               {saving && (
-                <div className="flex items-center gap-1 text-blue-600">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                  <span className="text-xs">Saving...</span>
-                </div>
+                <>
+                  <span>•</span>
+                  <div className="flex items-center gap-1 text-blue-600">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span className="text-xs">Saving...</span>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -1092,9 +1098,9 @@ export default function FFESettingsDepartment({
         ) : (
           sections.map(section => {
             const visibleCount = section.items.filter(item => item.visibility === 'VISIBLE').length
-            const completionRate = section.items.length > 0 
-              ? Math.round((section.items.filter(item => item.state === 'COMPLETED').length / section.items.length) * 100)
-              : 0
+            const includedRate = section.items.length > 0 
+              ? `${visibleCount} of ${section.items.length}` 
+              : '0 of 0'
             
             return (
               <div key={section.id} className="card-elevated">
@@ -1120,9 +1126,9 @@ export default function FFESettingsDepartment({
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
                         
-                        {/* Progress pill */}
-                        <div className="status-chip-progress">
-                          <span className="text-xs font-medium">{completionRate}% complete</span>
+                        {/* Included count pill */}
+                        <div className="status-chip-completed">
+                          <span className="text-xs font-medium">{includedRate} included</span>
                         </div>
                       </div>
                       

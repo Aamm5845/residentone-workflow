@@ -17,7 +17,8 @@ import {
   FileText,
   Save,
   Trash2,
-  Plus
+  Plus,
+  Minus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -89,11 +90,6 @@ export default function FFEItemCard({
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false)
   const [notesText, setNotesText] = useState(notes || '')
   const [isSaving, setIsSaving] = useState(false)
-  
-  // Quantity dialog states
-  const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState(false)
-  const [quantityCount, setQuantityCount] = useState(1)
-  const [customName, setCustomName] = useState('')
 
   const stateConfig = STATE_CONFIGS[state]
   const StateIcon = stateConfig.icon
@@ -103,12 +99,6 @@ export default function FFEItemCard({
     if (!onVisibilityChange || disabled) return
 
     const newVisibility: FFEItemVisibility = visibility === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE'
-    
-    // If making visible and onQuantityInclude is available, show quantity dialog
-    if (newVisibility === 'VISIBLE' && onQuantityInclude && mode === 'settings') {
-      setIsQuantityDialogOpen(true)
-      return
-    }
     
     try {
       await onVisibilityChange(id, newVisibility)
@@ -123,16 +113,17 @@ export default function FFEItemCard({
     }
   }
 
-  const handleQuantityInclude = async () => {
-    if (!onQuantityInclude || disabled || quantityCount < 1) return
+  const handleQuantityInclude = async (quantity: number = 1) => {
+    if (!onQuantityInclude || disabled || quantity < 1) return
 
     try {
       setIsSaving(true)
-      await onQuantityInclude(id, quantityCount, customName.trim() || undefined)
-      setIsQuantityDialogOpen(false)
-      setQuantityCount(1)
-      setCustomName('')
-      toast.success(`${quantityCount} ${name} items included in workspace`)
+      await onQuantityInclude(id, quantity)
+      toast.success(
+        quantity === 1 
+          ? `"${name}" included in workspace`
+          : `${quantity} "${name}" items included in workspace`
+      )
     } catch (error) {
       toast.error('Failed to include items in workspace')
       console.error('Quantity include error:', error)
@@ -140,6 +131,7 @@ export default function FFEItemCard({
       setIsSaving(false)
     }
   }
+
 
   const handleStateChange = async (newState: FFEItemState) => {
     if (!onStateChange || disabled) return
@@ -189,12 +181,12 @@ export default function FFEItemCard({
       <div className="flex items-center space-x-2">
         {visibility === 'VISIBLE' ? (
           <Badge className="bg-green-100 text-green-800 border-green-200">
-            <Eye className="w-3 h-3 mr-1" />
+            <CheckCircle className="w-3 h-3 mr-1" />
             Included in Workspace
           </Badge>
         ) : (
           <Badge variant="outline" className="text-gray-600">
-            <EyeOff className="w-3 h-3 mr-1" />
+            <Plus className="w-3 h-3 mr-1" />
             Not Included
           </Badge>
         )}
@@ -213,16 +205,32 @@ export default function FFEItemCard({
             Remove
           </Button>
         ) : (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleVisibilityToggle}
-            disabled={disabled}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Include
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center border border-gray-300 rounded-md">
+              <input
+                type="number"
+                min="1"
+                max="50"
+                defaultValue="1"
+                className="w-12 text-center text-sm border-0 focus:ring-0 focus:outline-none py-1"
+                id={`quantity-${id}`}
+              />
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                const quantityInput = document.getElementById(`quantity-${id}`) as HTMLInputElement
+                const quantity = parseInt(quantityInput?.value || '1')
+                handleQuantityInclude(quantity)
+              }}
+              disabled={disabled}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Include
+            </Button>
+          </div>
         )}
         
         {/* Delete Button */}
@@ -477,7 +485,7 @@ export default function FFEItemCard({
                 className="btn-ghost p-2 text-red-600 hover:bg-red-50 rounded-lg"
                 title="Remove from workspace"
               >
-                <EyeOff className="h-4 w-4" />
+                <Minus className="h-4 w-4" />
               </button>
             ) : (
               <button
@@ -486,7 +494,7 @@ export default function FFEItemCard({
                 className="btn-ghost p-2 text-green-600 hover:bg-green-50 rounded-lg"
                 title="Include in workspace"
               >
-                <Eye className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
               </button>
             )}
             
@@ -652,111 +660,6 @@ export default function FFEItemCard({
       </div>
     </div>
     
-    {/* Modern Quantity Dialog - only show in settings mode */}
-    {mode === 'settings' && onQuantityInclude && (
-      <Dialog open={isQuantityDialogOpen} onOpenChange={setIsQuantityDialogOpen}>
-        <DialogContent className="max-w-lg animate-slide-in-right">
-          <DialogHeader className="pb-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-50 rounded-xl">
-                <Eye className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900">
-                  Include in Workspace
-                </DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Adding "{name}" to the workspace
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-6">
-            <div className="relative">
-              <input
-                id="quantity"
-                type="number"
-                min={1}
-                max={50}
-                value={quantityCount}
-                onChange={(e) => setQuantityCount(parseInt(e.target.value) || 1)}
-                placeholder=" "
-                className="floating-input peer"
-                required
-              />
-              <label htmlFor="quantity" className="floating-label peer-focus:text-green-600">
-                Quantity *
-              </label>
-              <div className="mt-2">
-                <p className="text-xs text-gray-500">
-                  How many of this item do you need?
-                </p>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <input
-                id="custom-name"
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder=" "
-                className="floating-input peer"
-              />
-              <label htmlFor="custom-name" className="floating-label peer-focus:text-green-600">
-                Custom Name (Optional)
-              </label>
-              <div className="mt-2">
-                <p className="text-xs text-gray-500">
-                  Example: "{name} (Kitchen)", "{name} (Bathroom)"
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-green-700 mb-2">
-                <Eye className="h-4 w-4" />
-                <span className="font-medium text-sm">Preview</span>
-              </div>
-              <p className="text-xs text-green-700">
-                {quantityCount} × {customName.trim() || name} will be added to the workspace
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-            <button
-              onClick={() => {
-                setIsQuantityDialogOpen(false)
-                setQuantityCount(1)
-                setCustomName('')
-              }}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleQuantityInclude}
-              disabled={isSaving || quantityCount < 1}
-              className="btn-primary disabled:opacity-50"
-            >
-              {isSaving ? (
-                <>
-                  <Clock className="h-4 w-4 animate-spin" />
-                  <span>Including...</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4" />
-                  <span>Include {quantityCount > 1 ? `${quantityCount} Items` : 'Item'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )}
     </>
   )
 }
