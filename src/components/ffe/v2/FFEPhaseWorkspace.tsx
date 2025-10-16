@@ -87,6 +87,7 @@ export default function FFEPhaseWorkspace({
   
   // Local state
   const [isCreatingInstance, setIsCreatingInstance] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'undecided' | 'completed'>('all')
   
   // Manual data loading to avoid session dependency
   const revalidate = async () => {
@@ -399,6 +400,53 @@ export default function FFEPhaseWorkspace({
             </div>
           </div>
           
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm font-medium text-gray-700 mr-2">Filter:</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  statusFilter === 'all' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                All ({stats.total})
+              </button>
+              <button
+                onClick={() => setStatusFilter('pending')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  statusFilter === 'pending' 
+                    ? 'bg-white text-blue-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Pending ({stats.pending || 0})
+              </button>
+              <button
+                onClick={() => setStatusFilter('undecided')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  statusFilter === 'undecided' 
+                    ? 'bg-white text-amber-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Undecided ({stats.undecided || 0})
+              </button>
+              <button
+                onClick={() => setStatusFilter('completed')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  statusFilter === 'completed' 
+                    ? 'bg-white text-emerald-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Completed ({stats.completed})
+              </button>
+            </div>
+          </div>
+
           {/* Stats Grid - New Workflow: Pending → Undecided → Completed */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
@@ -483,7 +531,7 @@ export default function FFEPhaseWorkspace({
               sections={currentInstance.sections}
               onItemStateChange={handleItemStateChange}
               onItemVisibilityChange={handleItemVisibilityChange}
-              filterUndecided={filterUndecided}
+              statusFilter={statusFilter}
             />
           </div>
           

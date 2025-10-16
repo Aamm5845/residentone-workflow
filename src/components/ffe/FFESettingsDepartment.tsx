@@ -24,7 +24,9 @@ import {
   Import,
   AlertTriangle,
   Trash2,
-  Package
+  Package,
+  Edit3,
+  Copy
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -79,6 +81,7 @@ export default function FFESettingsDepartment({
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
+  const [showManageItemsDialog, setShowManageItemsDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   
   // Template states
@@ -566,6 +569,33 @@ export default function FFESettingsDepartment({
     }
   }
 
+  const handleDuplicateItem = async (itemId: string, itemName: string) => {
+    try {
+      setSaving(true)
+      
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate item')
+      }
+
+      const result = await response.json()
+      toast.success(result.message || `"${itemName}" duplicated successfully`)
+      
+      // Reload data to show the new item
+      await loadFFEData()
+      
+    } catch (error) {
+      console.error('Error duplicating item:', error)
+      toast.error('Failed to duplicate item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -648,7 +678,7 @@ export default function FFESettingsDepartment({
             {/* Primary Actions */}
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <button
                   disabled={disabled}
                   onClick={() => setShowImportDialog(true)}
@@ -688,6 +718,20 @@ export default function FFESettingsDepartment({
                   <div>
                     <div className="font-medium text-purple-700">Add Item</div>
                     <div className="text-xs text-purple-600">New FFE item</div>
+                  </div>
+                </button>
+                
+                <button
+                  disabled={disabled || stats.totalItems === 0}
+                  onClick={() => setShowManageItemsDialog(true)}
+                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-orange-300 hover:bg-orange-50 disabled:opacity-50"
+                >
+                  <div className="p-2 bg-orange-50 rounded-lg">
+                    <Edit3 className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-orange-700">Manage Items</div>
+                    <div className="text-xs text-orange-600">Edit, duplicate, delete</div>
                   </div>
                 </button>
               </div>
@@ -1218,6 +1262,98 @@ export default function FFESettingsDepartment({
           })
         )}
       </div>
+      
+      {/* Manage Items Dialog */}
+      <Dialog open={showManageItemsDialog} onOpenChange={setShowManageItemsDialog}>
+        <DialogContent className="max-w-4xl animate-slide-in-right">
+          <DialogHeader className="pb-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-50 rounded-xl">
+                <Edit3 className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Manage FFE Items
+                </DialogTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Duplicate or delete items across all sections
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="py-6">
+            {sections.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>No items to manage yet.</p>
+                <p className="text-sm">Import a template or add items manually first.</p>
+              </div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto space-y-4">
+                {sections.map(section => (
+                  <div key={section.id} className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                      <FolderPlus className="h-4 w-4" />
+                      {section.name}
+                      <Badge variant="outline" className="text-xs">
+                        {section.items?.length || 0} items
+                      </Badge>
+                    </h4>
+                    
+                    {!section.items || section.items.length === 0 ? (
+                      <p className="text-sm text-gray-500">No items in this section</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {section.items.map((item: any) => (
+                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{item.name}</div>
+                              {item.description && (
+                                <div className="text-xs text-gray-600">{item.description}</div>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDuplicateItem(item.id, item.name)}
+                                disabled={disabled || saving}
+                                className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Duplicate
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteItem(item.id)}
+                                disabled={disabled || saving}
+                                className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex gap-2 justify-end pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowManageItemsDialog(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

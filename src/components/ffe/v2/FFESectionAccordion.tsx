@@ -61,7 +61,7 @@ interface FFESectionAccordionProps {
   sections: FFESection[]
   onItemStateChange: (itemId: string, newState: FFEItemState, notes?: string) => void
   onItemVisibilityChange?: (itemId: string, newVisibility: 'VISIBLE' | 'HIDDEN') => void
-  filterUndecided?: boolean
+  statusFilter?: 'all' | 'pending' | 'undecided' | 'completed'
 }
 
 const STATE_CONFIG = {
@@ -310,7 +310,7 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
   )
 }
 
-export default function FFESectionAccordion({ sections, onItemStateChange, onItemVisibilityChange, filterUndecided = false }: FFESectionAccordionProps) {
+export default function FFESectionAccordion({ sections, onItemStateChange, onItemVisibilityChange, statusFilter = 'all' }: FFESectionAccordionProps) {
   const { 
     expandedSections, 
     toggleSectionExpanded, 
@@ -481,11 +481,12 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                     const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
                     const { parentItems, childItemsMap } = buildItemHierarchy(visibleItems)
                     
-                    // Apply additional filtering after visibility filter
+                    // Apply status filtering after visibility filter
                     const filteredParentItems = parentItems.filter((item) => {
-                      if (filterUndecided) {
-                        return item.state === 'PENDING' || item.state === 'SELECTED' || item.state === 'CONFIRMED' || item.state === 'NOT_NEEDED'
-                      }
+                      if (statusFilter === 'all') return true
+                      if (statusFilter === 'pending') return item.state === 'PENDING'
+                      if (statusFilter === 'undecided') return item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED'
+                      if (statusFilter === 'completed') return item.state === 'COMPLETED'
                       return true
                     })
                     
@@ -501,14 +502,19 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                       )
                     }
                     
-                    if (filterUndecided && filteredParentItems.length === 0) {
+                    if (statusFilter !== 'all' && filteredParentItems.length === 0) {
+                      const statusLabels = {
+                        pending: 'pending',
+                        undecided: 'undecided',
+                        completed: 'completed'
+                      }
                       return (
                         <div className="text-center py-12">
-                          <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <CheckCircle2 className="h-8 w-8 text-green-600" />
+                          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-gray-400" />
                           </div>
-                          <p className="text-gray-500 text-lg mb-1">All visible items completed!</p>
-                          <p className="text-gray-400 text-sm">Great progress on this section</p>
+                          <p className="text-gray-500 text-lg mb-1">No {statusLabels[statusFilter as keyof typeof statusLabels]} items</p>
+                          <p className="text-gray-400 text-sm">Switch to 'All' to see other items</p>
                         </div>
                       )
                     }

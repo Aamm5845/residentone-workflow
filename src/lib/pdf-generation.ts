@@ -9,6 +9,7 @@ interface CoverPageData {
   address: string
   companyLogo?: string
   description: string
+  specBookType?: string // e.g., "Electrical", "Full Project", "Lighting Only"
   includedSections: string[]
 }
 
@@ -146,9 +147,24 @@ class PDFGenerationService {
       // Add dynamic project information to the cover
       const { width, height } = coverPage.getSize()
       
-      // Project name (bold) - positioned at bottom right where shown in design
-      const projectNameY = 150 // Adjust based on your template
+      // Project info positioning
       const projectNameX = width - PDFGenerationService.MARGIN - 300 // Right side positioning
+      let currentY = 175 // Start higher to accommodate spec book type
+      
+      // Spec book type (if provided) - positioned at top of project info
+      if (coverData.specBookType) {
+        coverPage.drawText(coverData.specBookType.toUpperCase(), {
+          x: projectNameX,
+          y: currentY,
+          size: 12,
+          font: font,
+          color: rgb(0.6, 0.6, 0.6) // Lighter gray for spec book type
+        })
+        currentY -= 25
+      }
+      
+      // Project name (bold) - positioned below spec book type
+      const projectNameY = currentY
       
       coverPage.drawText(coverData.projectName, {
         x: projectNameX,
@@ -168,6 +184,22 @@ class PDFGenerationService {
           color: rgb(0.5, 0.5, 0.5) // Lighter gray for address
         })
       }
+      
+      // Print date - positioned below address with minimal styling
+      const printDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+      
+      const dateY = coverData.address ? projectNameY - 50 : projectNameY - 25
+      coverPage.drawText(printDate, {
+        x: projectNameX,
+        y: dateY,
+        size: 10,
+        font: font,
+        color: rgb(0.6, 0.6, 0.6) // Even lighter gray for date
+      })
       
     } catch (error) {
       console.error('Error loading cover template, using fallback:', error)
@@ -234,10 +266,23 @@ class PDFGenerationService {
     
     // Project details - bottom right
     const rightX = width - PDFGenerationService.MARGIN - 300
+    let detailY = 175
+    
+    // Spec book type (if provided)
+    if (coverData.specBookType) {
+      page.drawText(coverData.specBookType.toUpperCase(), {
+        x: rightX,
+        y: detailY,
+        size: 12,
+        font: font,
+        color: rgb(0.6, 0.6, 0.6)
+      })
+      detailY -= 25
+    }
     
     page.drawText(coverData.projectName, {
       x: rightX,
-      y: 150,
+      y: detailY,
       size: 16,
       font: boldFont,
       color: rgb(0.4, 0.4, 0.4)
@@ -252,6 +297,22 @@ class PDFGenerationService {
         color: rgb(0.5, 0.5, 0.5)
       })
     }
+    
+    // Print date
+    const printDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+    
+    const dateY = coverData.address ? 100 : 125
+    page.drawText(printDate, {
+      x: rightX,
+      y: dateY,
+      size: 10,
+      font: font,
+      color: rgb(0.6, 0.6, 0.6)
+    })
   }
   
   /**
