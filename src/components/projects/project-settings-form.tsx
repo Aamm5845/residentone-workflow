@@ -70,6 +70,12 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     type: 'contractor' as 'contractor' | 'subcontractor',
     specialty: ''
   })
+  const [clientFormData, setClientFormData] = useState({
+    name: project.client?.name || '',
+    email: project.client?.email || '',
+    phone: project.client?.phone || '',
+    company: project.client?.company || ''
+  })
 
   // Track component lifecycle
   useEffect(() => {
@@ -101,6 +107,18 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       projectName: project?.name
     })
   }, [project])
+
+  // Update client form data when entering edit mode
+  useEffect(() => {
+    if (editingSection === 'client') {
+      setClientFormData({
+        name: project.client?.name || '',
+        email: project.client?.email || '',
+        phone: project.client?.phone || '',
+        company: project.client?.company || ''
+      })
+    }
+  }, [editingSection, project.client])
 
   const {
     register,
@@ -306,6 +324,48 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const saveContractors = async () => {
     await updateSection('contractors', { contractors: contractorsList })
+  }
+
+  const updateClient = async () => {
+    console.log('🔧 updateClient called with data:', clientFormData)
+    
+    try {
+      setIsLoading(true)
+      
+      console.log('📡 Making client update request to:', `/api/clients/${project.clientId}`)
+      const response = await fetch(`/api/clients/${project.clientId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(clientFormData),
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        throw new Error(errorData.error || 'Failed to update client')
+      }
+      
+      const result = await response.json()
+      console.log('✅ Client update successful:', result)
+      setEditingSection(null)
+      
+      // Refresh the page to show updated client data
+      router.refresh()
+      
+    } catch (error) {
+      console.error('Client update error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update client')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
@@ -643,12 +703,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           {editingSection === 'client' ? (
             <form onSubmit={(e) => {
               e.preventDefault()
-              // Note: This would typically update the client through a separate API call
-              // For now, we'll show a message that this affects the client record
-              updateSection('client information', {
-                clientId: project.clientId,
-                // Client updates would go to /api/clients/[id] endpoint
-              })
+              updateClient()
             }} className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-800">
@@ -662,7 +717,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                     Client Name *
                   </label>
                   <Input
-                    defaultValue={project.client?.name || ''}
+                    value={clientFormData.name}
+                    onChange={(e) => setClientFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter client name"
                     required
                   />
@@ -673,7 +729,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   </label>
                   <Input
                     type="email"
-                    defaultValue={project.client?.email || ''}
+                    value={clientFormData.email}
+                    onChange={(e) => setClientFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="client@email.com"
                     required
                   />
@@ -687,7 +744,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   </label>
                   <Input
                     type="tel"
-                    defaultValue={project.client?.phone || ''}
+                    value={clientFormData.phone}
+                    onChange={(e) => setClientFormData(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="(555) 123-4567"
                   />
                 </div>
@@ -696,7 +754,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                     Company
                   </label>
                   <Input
-                    defaultValue={project.client?.company || ''}
+                    value={clientFormData.company}
+                    onChange={(e) => setClientFormData(prev => ({ ...prev, company: e.target.value }))}
                     placeholder="Company Name"
                   />
                 </div>
@@ -713,7 +772,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setEditingSection(null)}
+                  onClick={() => {
+                    setEditingSection(null)
+                    // Reset form data to original values
+                    setClientFormData({
+                      name: project.client?.name || '',
+                      email: project.client?.email || '',
+                      phone: project.client?.phone || '',
+                      company: project.client?.company || ''
+                    })
+                  }}
                 >
                   Cancel
                 </Button>
