@@ -196,14 +196,15 @@ class PDFGenerationService {
         })
       }
       
-      // Print date - positioned below address with minimal styling
+      // Print date - positioned much lower on the page with minimal styling
       const printDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       })
       
-      const dateY = coverData.address ? projectNameY - 50 : projectNameY - 25
+      // Position date at the bottom of the page
+      const dateY = 120 // Fixed position near bottom
       coverPage.drawText(printDate, {
         x: projectNameX,
         y: dateY,
@@ -316,7 +317,7 @@ class PDFGenerationService {
       detailY -= 25
     }
     
-    // Print date
+    // Print date - positioned at bottom of page
     const printDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -325,7 +326,7 @@ class PDFGenerationService {
     
     page.drawText(printDate, {
       x: rightX,
-      y: detailY,
+      y: 120, // Fixed position near bottom
       size: 10,
       font: font,
       color: rgb(0.6, 0.6, 0.6)
