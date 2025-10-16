@@ -112,17 +112,22 @@ export async function POST(request: NextRequest) {
       const room = project.rooms.find(r => r.id === roomId)
       if (!room) continue
 
-      // Get room's spec book section
-      let roomSection = await prisma.specBookSection.findFirst({
+      // Get room's spec book sections (both ROOM and DRAWINGS)
+      const roomSections = await prisma.specBookSection.findMany({
         where: {
           specBookId: specBook.id,
-          type: 'ROOM',
-          roomId: roomId
+          roomId: roomId,
+          type: {
+            in: ['ROOM', 'DRAWINGS']
+          }
         },
         include: {
           dropboxFiles: true
         }
       })
+
+      let roomSection = roomSections.find(s => s.type === 'ROOM')
+      let drawingsSection = roomSections.find(s => s.type === 'DRAWINGS')
 
       if (!roomSection) {
         roomSection = await prisma.specBookSection.create({
@@ -139,9 +144,14 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Process CAD files for this room
+      // Process CAD files for this room (from both ROOM and DRAWINGS sections)
       const cadFiles = []
-      for (const dropboxFile of roomSection.dropboxFiles) {
+      const allDropboxFiles = [
+        ...(roomSection?.dropboxFiles || []),
+        ...(drawingsSection?.dropboxFiles || [])
+      ]
+      
+      for (const dropboxFile of allDropboxFiles) {
         if (dropboxFile.cadToPdfCacheUrl) {
           cadFiles.push({
             fileName: dropboxFile.fileName,
