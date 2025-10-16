@@ -45,6 +45,7 @@ interface FFEPhaseWorkspaceProps {
   showHeader?: boolean // Add option to hide header when embedded
   filterUndecided?: boolean // Add option to filter only undecided items
   roomName?: string
+  projectName?: string
 }
 
 export default function FFEPhaseWorkspace({
@@ -55,7 +56,8 @@ export default function FFEPhaseWorkspace({
   onProgressUpdate,
   showHeader = true,
   filterUndecided = false,
-  roomName
+  roomName,
+  projectName
 }: FFEPhaseWorkspaceProps) {
   const router = useRouter()
   
@@ -383,73 +385,66 @@ export default function FFEPhaseWorkspace({
       
       {/* Premium Dashboard Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Aligned Header Section */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-md">
-                <Package className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                  {currentInstance.name}
-                </h1>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg font-medium">
-                    {currentInstance.room.name || currentInstance.room.type}
-                  </span>
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <span className="font-medium text-gray-900">{stats.total}</span>
-                    <span>items total</span>
-                  </div>
+        {/* Compact Header Section - Like Other Phases */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 mb-1">
+                {projectName && (
+                  <span className="text-gray-600 font-normal">{projectName} / </span>
+                )}
+                {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'} - FFE Phase
+              </h1>
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Package className="h-4 w-4" />
+                  <span className="font-medium text-gray-900">{stats.total}</span>
+                  <span>items</span>
                 </div>
+                <span className="text-gray-400">•</span>
+                <span>{Math.ceil(progress)}% complete</span>
               </div>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-3xl font-bold text-blue-600 mb-1">{Math.ceil(progress)}%</div>
-              <div className="text-sm text-gray-600 font-medium">Complete</div>
             </div>
           </div>
           
-          {/* Stats Grid - Similar to FFE Settings */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
+          {/* Stats Grid - New Workflow: Pending → Undecided → Completed */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-200 rounded-lg">
-                  <Clock className="h-5 w-5 text-slate-600" />
+                <div className="p-2 bg-blue-200 rounded-lg">
+                  <Clock className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-slate-900">
-                    {stats.undecided || (stats.total - stats.completed)}
+                  <div className="text-lg font-bold text-blue-900">
+                    {stats.pending || 0}
                   </div>
-                  <div className="text-sm text-slate-600 font-medium">Undecided</div>
+                  <div className="text-xs text-blue-700 font-medium">Pending</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200 hover:shadow-md transition-shadow">
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-200 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-amber-900">
-                    {stats.selected + stats.confirmed || 0}
+                  <div className="text-lg font-bold text-amber-900">
+                    {stats.undecided || 0}
                   </div>
-                  <div className="text-sm text-amber-700 font-medium">In Progress</div>
+                  <div className="text-xs text-amber-700 font-medium">Undecided</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border border-emerald-200 hover:shadow-md transition-shadow">
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-200 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-emerald-900">{stats.completed}</div>
-                  <div className="text-sm text-emerald-700 font-medium">Completed</div>
+                  <div className="text-lg font-bold text-emerald-900">{stats.completed}</div>
+                  <div className="text-xs text-emerald-700 font-medium">Completed</div>
                 </div>
               </div>
             </div>

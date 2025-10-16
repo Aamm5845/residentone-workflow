@@ -57,17 +57,19 @@ interface FFESettingsDepartmentProps {
   roomName: string
   orgId?: string
   projectId?: string
-  onProgressUpdate?: (progress: number, isComplete: boolean) => void
+  projectName?: string
   disabled?: boolean
+  onProgressUpdate?: (progress: number, isComplete: boolean) => void
 }
 
-export default function FFESettingsDepartment({
-  roomId,
-  roomName,
-  orgId,
-  projectId,
-  onProgressUpdate,
-  disabled = false
+export default function FFESettingsDepartment({ 
+  roomId, 
+  roomName, 
+  orgId, 
+  projectId, 
+  projectName,
+  disabled = false, 
+  onProgressUpdate 
 }: FFESettingsDepartmentProps) {
   const [sections, setSections] = useState<FFESection[]>([])
   const [loading, setLoading] = useState(true)
@@ -575,83 +577,60 @@ export default function FFESettingsDepartment({
 
   return (
     <div className="space-y-6">
-      {/* Modern Settings Header */}
-      <div className="card-elevated-strong">
-        <div className="px-6 py-5">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-indigo-50 rounded-lg">
-                  <Settings className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    FFE Settings
-                  </h1>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                    <span className="font-medium">{roomName}</span>
-                    <span className="text-gray-400">•</span>
-                    <span>Manage sections, items, and workspace visibility</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
+      {/* Compact Settings Header - Like Other Phases */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              {projectName && (
+                <span className="text-gray-600 font-normal">{projectName} / </span>
+              )}
+              {roomName} - FFE Settings
+            </h1>
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <span>Manage sections, items, and workspace visibility</span>
               {saving && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
-                  <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">Saving...</span>
+                <div className="flex items-center gap-1 text-blue-600">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span className="text-xs">Saving...</span>
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Modern Statistics Dashboard */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <FolderPlus className="w-4 h-4 text-slate-600" />
-                </div>
-                <div className="text-2xl font-bold text-slate-900">{stats.sectionsCount}</div>
-              </div>
-              <div className="text-sm font-medium text-slate-700">Sections</div>
-              <div className="text-xs text-slate-500 mt-1">Total categories</div>
+        {/* Compact Statistics Dashboard */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <FolderPlus className="w-4 h-4 text-slate-600" />
+              <div className="text-lg font-bold text-slate-900">{stats.sectionsCount}</div>
             </div>
-            
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Package className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="text-2xl font-bold text-blue-900">{stats.totalItems}</div>
-              </div>
-              <div className="text-sm font-medium text-blue-700">Total Items</div>
-              <div className="text-xs text-blue-500 mt-1">All FFE items</div>
+            <div className="text-xs font-medium text-slate-700">Sections</div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="w-4 h-4 text-blue-600" />
+              <div className="text-lg font-bold text-blue-900">{stats.totalItems}</div>
             </div>
-            
-            <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Eye className="w-4 h-4 text-green-600" />
-                </div>
-                <div className="text-2xl font-bold text-green-900">{stats.visibleItems}</div>
-              </div>
-              <div className="text-sm font-medium text-green-700">In Workspace</div>
-              <div className="text-xs text-green-500 mt-1">Visible to users</div>
+            <div className="text-xs font-medium text-blue-700">Total Items</div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Eye className="w-4 h-4 text-green-600" />
+              <div className="text-lg font-bold text-green-900">{stats.visibleItems}</div>
             </div>
-            
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <EyeOff className="w-4 h-4 text-gray-600" />
-                </div>
-                <div className="text-2xl font-bold text-gray-900">{stats.hiddenItems}</div>
-              </div>
-              <div className="text-sm font-medium text-gray-700">Hidden</div>
-              <div className="text-xs text-gray-500 mt-1">Not in workspace</div>
+            <div className="text-xs font-medium text-green-700">In Workspace</div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <EyeOff className="w-4 h-4 text-gray-600" />
+              <div className="text-lg font-bold text-gray-900">{stats.hiddenItems}</div>
             </div>
+            <div className="text-xs font-medium text-gray-700">Hidden</div>
           </div>
         </div>
       </div>

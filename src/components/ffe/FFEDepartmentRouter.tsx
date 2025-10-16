@@ -236,6 +236,7 @@ export default function FFEDepartmentRouter({
             roomName={roomName}
             orgId={orgId}
             projectId={projectId}
+            projectName={projectName}
             disabled={disabled}
           />
         ) : (
@@ -248,6 +249,7 @@ export default function FFEDepartmentRouter({
             showHeader={true}
             filterUndecided={false}
             roomName={roomName}
+            projectName={projectName}
           />
         )}
       </div>

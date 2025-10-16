@@ -65,13 +65,13 @@ interface FFESectionAccordionProps {
 }
 
 const STATE_CONFIG = {
-  PENDING: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
-  UNDECIDED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
+  PENDING: { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Pending' },
+  UNDECIDED: { icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Undecided' },
   COMPLETED: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100', label: 'Completed' },
-  // Legacy states (map to simplified states for backward compatibility)
-  SELECTED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
-  CONFIRMED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
-  NOT_NEEDED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' }
+  // Legacy states (map to current workflow)
+  SELECTED: { icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Undecided' },
+  CONFIRMED: { icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Undecided' },
+  NOT_NEEDED: { icon: XCircle, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Not Needed' }
 }
 
 interface ItemCardProps {
@@ -180,14 +180,6 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
                     Linked
                   </Badge>
                 )}
-                
-                {/* Visibility Status Badge */}
-                {(item.visibility || 'VISIBLE') === 'HIDDEN' && (
-                  <Badge variant="outline" className="h-5 text-xs border-gray-300 text-gray-600">
-                    <EyeOff className="h-3 w-3 mr-1" />
-                    Hidden
-                  </Badge>
-                )}
               </div>
               {item.description && (
                 <p className="text-sm text-gray-600 mb-2">{item.description}</p>
@@ -200,8 +192,26 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
             </div>
           </div>
           
-          {/* Action Buttons */}
+          {/* Action Buttons - Workspace Flow: Pending → Undecided → Completed */}
           <div className="flex gap-2 mb-3 flex-wrap">
+            <Button
+              size="sm" 
+              variant={item.state === 'PENDING' ? 'default' : 'outline'}
+              onClick={() => onStateChange('PENDING')}
+              className="h-8"
+            >
+              <Clock className="h-4 w-4 mr-1" />
+              Pending
+            </Button>
+            <Button
+              size="sm" 
+              variant={item.state === 'UNDECIDED' ? 'default' : 'outline'}
+              onClick={() => onStateChange('UNDECIDED')}
+              className="h-8"
+            >
+              <AlertCircle className="h-4 w-4 mr-1" />
+              Undecided
+            </Button>
             <Button
               size="sm" 
               variant={item.state === 'COMPLETED' ? 'default' : 'outline'}
@@ -211,43 +221,6 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
               <CheckCircle2 className="h-4 w-4 mr-1" />
               Completed
             </Button>
-            <Button
-              size="sm" 
-              variant={item.state !== 'COMPLETED' ? 'secondary' : 'outline'}
-              onClick={() => onStateChange('PENDING')}
-              className="h-8"
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              Undecided
-            </Button>
-            
-            {/* Visibility Toggle */}
-            {onVisibilityChange && (
-              <Button
-                size="sm"
-                variant={(item.visibility || 'VISIBLE') === 'VISIBLE' ? 'outline' : 'default'}
-                onClick={handleVisibilityToggle}
-                disabled={isToggling}
-                className={cn(
-                  "h-8",
-                  (item.visibility || 'VISIBLE') === 'VISIBLE'
-                    ? "border-red-200 text-red-700 hover:bg-red-50"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                )}
-              >
-                {(item.visibility || 'VISIBLE') === 'VISIBLE' ? (
-                  <>
-                    <EyeOff className="h-4 w-4 mr-1" />
-                    Remove
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4 mr-1" />
-                    Include
-                  </>
-                )}
-              </Button>
-            )}
             
             <Button
               size="sm" 
