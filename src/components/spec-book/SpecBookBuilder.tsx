@@ -20,6 +20,9 @@ interface Project {
   id: string
   name: string
   address?: string
+  streetAddress?: string
+  city?: string
+  postalCode?: string
   client: {
     id: string
     name: string
@@ -96,7 +99,11 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
   const [coverPageData, setCoverPageData] = useState<CoverPageData>({
     clientName: project.client.name,
     projectName: project.name,
-    address: project.address || '',
+    address: [
+      project.streetAddress,
+      project.city,
+      project.postalCode
+    ].filter(Boolean).join(', ') || project.address || '',
     companyLogo: '',
     description: '',
     includedSections: []

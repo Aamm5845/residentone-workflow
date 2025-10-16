@@ -55,7 +55,7 @@ interface GenerationResult {
 }
 
 class PDFGenerationService {
-  private static readonly TABLOID_SIZE = [792, 1224] as const // 11" x 17" at 72 DPI
+  private static readonly TABLOID_SIZE = [1224, 792] as const // 17" x 11" landscape at 72 DPI
   private static readonly MARGIN = 72 // 1 inch margin
   private static readonly CONTENT_WIDTH = PDFGenerationService.TABLOID_SIZE[0] - (PDFGenerationService.MARGIN * 2)
   private static readonly CONTENT_HEIGHT = PDFGenerationService.TABLOID_SIZE[1] - (PDFGenerationService.MARGIN * 2)
@@ -65,7 +65,7 @@ class PDFGenerationService {
    */
   async generateSpecBook(options: GenerationOptions): Promise<GenerationResult> {
     try {
-      // Create new PDF document in landscape 11x17
+      // Create new PDF document in landscape 17x11
       const pdfDoc = await PDFDocument.create()
       
       // Set document metadata
