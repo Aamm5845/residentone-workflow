@@ -241,7 +241,14 @@ export default function StageControls({
               
               <Button
                 variant="outline"
-                onClick={() => window.open(`/stages/${stage.id}`, '_blank')}
+                onClick={() => {
+                  // For FFE stages, go directly to the FFE workspace
+                  if (stage.type === 'FFE') {
+                    window.open(`/ffe/${stage.roomId || 'unknown'}/workspace`, '_blank')
+                  } else {
+                    window.open(`/stages/${stage.id}`, '_blank')
+                  }
+                }}
                 className="flex-1"
               >
                 <ArrowRight className="w-4 h-4 mr-2" />

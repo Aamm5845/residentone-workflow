@@ -7,8 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Settings, AlertTriangle, Plus, Package, Info, StickyNote } from 'lucide-react'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
-import FFEPhaseWorkspace from '../ffe/v2/FFEPhaseWorkspace'
-import { useFFERoomStore } from '@/stores/ffe-room-store'
+import FFEDepartmentRouter from '../ffe/FFEDepartmentRouter'
 import Link from 'next/link'
 // New FFE system - template-based, user-managed
 
@@ -19,10 +18,8 @@ export default function FFEStage({
   onComplete 
 }: any) {
   const { data: session } = useSession()
-  const { showNotesDrawer, setShowNotesDrawer, getAllNotes, getCompletionStats, currentInstance } = useFFERoomStore()
   const [ffeProgress, setFFEProgress] = useState(0)
   const [isFFEComplete, setIsFFEComplete] = useState(false)
-  const [showUndecidedItems, setShowUndecidedItems] = useState(false)
   
   // Ensure this component only renders for FFE stages
   if (stage.type !== 'FFE') {
@@ -71,7 +68,7 @@ export default function FFEStage({
           </p>
           <div className="flex justify-center">
             <Button asChild variant="outline" size="sm">
-              <Link href={`/stages/${stage.id}/ffe-settings`}>
+              <Link href={`/ffe/${room.id}/settings`}>
                 <Settings className="h-4 w-4 mr-2" />
                 FFE Settings
               </Link>
@@ -108,22 +105,8 @@ export default function FFEStage({
                 <span className="text-sm font-medium">Ready to Complete</span>
               </div>
             )}
-            <Button
-              variant={showNotesDrawer ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-              className="relative"
-            >
-              <StickyNote className="h-4 w-4 mr-2" />
-              Notes
-              {getAllNotes().length > 0 && (
-                <Badge className="ml-2 h-5 w-5 p-0 text-xs">
-                  {getAllNotes().length}
-                </Badge>
-              )}
-            </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href={`/stages/${stage.id}/ffe-settings`}>
+              <Link href={`/ffe/${room.id}/settings`}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Link>
@@ -155,49 +138,37 @@ export default function FFEStage({
             />
           </div>
           
-          {/* Stats Display */}
-          {currentInstance && (() => {
-            const stats = getCompletionStats()
-            const undecided = stats.total - stats.completed
-            
-            return (
-              <div className="flex gap-6 mt-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                  <button 
-                    onClick={() => setShowUndecidedItems(!showUndecidedItems)}
-                    className="text-gray-600 hover:text-gray-900 hover:underline cursor-pointer transition-colors"
-                  >
-                    {undecided} Undecided
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-600">{stats.completed} Completed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-gray-600">{stats.total} Total</span>
-                </div>
-              </div>
-            )
-          })()}
         </div>
       </div>
       
-      {/* Main Content with Sidebar Layout */}
+      {/* Main Content - Direct Link to FFE Workspace */}
       <div className="flex">
-        {/* Main Workspace */}
+        {/* FFE Navigation */}
         <div className="flex-1 p-6">
-          <FFEPhaseWorkspace
-            roomId={room.id}
-            roomType={room.type}
-            orgId={session?.user?.orgId}
-            projectId={project.id}
-            onProgressUpdate={handleFFEProgress}
-            showHeader={false}
-            filterUndecided={showUndecidedItems}
-          />
+          <div className="text-center py-12">
+            <div className="mb-6">
+              <Package className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">FFE Management</h3>
+              <p className="text-gray-600 mb-6">
+                Use the workspace to track FFE progress and the settings to configure items.
+              </p>
+            </div>
+            
+            <div className="flex justify-center space-x-4">
+              <Button asChild size="lg">
+                <Link href={`/ffe/${room.id}/workspace`}>
+                  <Package className="h-5 w-5 mr-2" />
+                  Open Workspace
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href={`/ffe/${room.id}/settings`}>
+                  <Settings className="h-5 w-5 mr-2" />
+                  FFE Settings
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Chat Sidebar */}

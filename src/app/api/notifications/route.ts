@@ -21,28 +21,64 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const type = searchParams.get('type')
+    const relatedType = searchParams.get('relatedType')
 
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: session.user.id,
-        ...(unreadOnly && { read: false })
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit
-    })
+    // Build filter conditions
+    const where: any = {
+      userId: session.user.id,
+      ...(unreadOnly && { read: false }),
+      ...(type && { type }),
+      ...(relatedType && { relatedType })
+    }
 
-    const unreadCount = await prisma.notification.count({
-      where: {
-        userId: session.user.id,
-        read: false
-      }
+    const skip = (page - 1) * limit
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.notification.count({ where }),
+      prisma.notification.count({
+        where: {
+          userId: session.user.id,
+          read: false
+        }
+      })
+    ])
+
+    // Group notifications by type for stats
+    const notificationStats = await prisma.notification.groupBy({
+      by: ['type'],
+      where: { userId: session.user.id },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } }
     })
 
     return NextResponse.json({
       notifications,
-      unreadCount
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      },
+      stats: {
+        totalNotifications: total,
+        unreadCount,
+        typeBreakdown: notificationStats.map(s => ({
+          type: s.type,
+          count: s._count.id
+        }))
+      }
     })
 
   } catch (error) {
@@ -175,6 +211,106 @@ export async function PATCH(request: NextRequest) {
 
   } catch (error) {
     console.error('Error updating notifications:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// DELETE - Delete notifications
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession()
+    const ipAddress = getIPAddress(request)
+    
+    if (!isValidAuthSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const notificationIds = searchParams.get('ids')?.split(',') || []
+    const deleteAll = searchParams.get('deleteAll') === 'true'
+    const deleteRead = searchParams.get('deleteRead') === 'true'
+
+    if (deleteAll) {
+      // Delete all notifications
+      const result = await prisma.notification.deleteMany({
+        where: { userId: session.user.id }
+      })
+
+      await logActivity({
+        session,
+        action: ActivityActions.NOTIFICATION_DELETED,
+        entity: EntityTypes.NOTIFICATION,
+        entityId: 'bulk',
+        details: {
+          deletionType: 'all',
+          deletedCount: result.count
+        },
+        ipAddress
+      })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: `Deleted ${result.count} notifications` 
+      })
+    } else if (deleteRead) {
+      // Delete only read notifications
+      const result = await prisma.notification.deleteMany({
+        where: {
+          userId: session.user.id,
+          read: true
+        }
+      })
+
+      await logActivity({
+        session,
+        action: ActivityActions.NOTIFICATION_DELETED,
+        entity: EntityTypes.NOTIFICATION,
+        entityId: 'bulk',
+        details: {
+          deletionType: 'read',
+          deletedCount: result.count
+        },
+        ipAddress
+      })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: `Deleted ${result.count} read notifications` 
+      })
+    } else if (notificationIds.length > 0) {
+      // Delete specific notifications
+      const result = await prisma.notification.deleteMany({
+        where: {
+          id: { in: notificationIds },
+          userId: session.user.id
+        }
+      })
+
+      await logActivity({
+        session,
+        action: ActivityActions.NOTIFICATION_DELETED,
+        entity: EntityTypes.NOTIFICATION,
+        entityId: 'bulk',
+        details: {
+          deletionType: 'specific',
+          notificationIds,
+          deletedCount: result.count
+        },
+        ipAddress
+      })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: `Deleted ${result.count} notifications` 
+      })
+    } else {
+      return NextResponse.json({ 
+        error: 'No deletion criteria provided' 
+      }, { status: 400 })
+    }
+
+  } catch (error) {
+    console.error('Error deleting notifications:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -702,11 +702,6 @@ export default function FFESettingsPageClient({
                   )}
                 </SelectContent>
               </Select>
-              
-              {/* Debug info - remove this later */}
-              <div className="text-xs text-gray-400 mt-1">
-                Debug: {templates?.length || 0} templates, orgId: {orgId}, loading: {templatesLoading.toString()}
-              </div>
             </div>
             
             <div className="flex gap-2 justify-end">

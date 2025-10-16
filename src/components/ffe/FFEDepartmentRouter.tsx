@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import FFESettingsDepartment from './FFESettingsDepartment'
-import FFEWorkspaceDepartment from './FFEWorkspaceDepartment'
+import FFEPhaseWorkspace from './v2/FFEPhaseWorkspace'
 
 export type FFEDepartmentMode = 'settings' | 'workspace'
 
@@ -25,6 +26,7 @@ interface FFEDepartmentRouterProps {
   userRole?: string
   disabled?: boolean
   onModeChange?: (mode: FFEDepartmentMode) => void
+  onProgressUpdate?: (progress: number, isComplete: boolean) => void
   showModeToggle?: boolean
 }
 
@@ -37,20 +39,17 @@ export default function FFEDepartmentRouter({
   userRole,
   disabled = false,
   onModeChange,
+  onProgressUpdate,
   showModeToggle = true
 }: FFEDepartmentRouterProps) {
   const [currentMode, setCurrentMode] = useState<FFEDepartmentMode>(initialMode)
   const [workspaceProgress, setWorkspaceProgress] = useState(0)
   const [workspaceComplete, setWorkspaceComplete] = useState(false)
 
-  // Access control - only admins and designers can access settings
-  const canAccessSettings = !userRole || ['admin', 'designer'].includes(userRole.toLowerCase())
+  // Allow all users to access settings
+  const canAccessSettings = true
   
   const handleModeChange = (mode: FFEDepartmentMode) => {
-    if (mode === 'settings' && !canAccessSettings) {
-      return // Prevent access to settings if not authorized
-    }
-    
     setCurrentMode(mode)
     onModeChange?.(mode)
   }
@@ -58,6 +57,7 @@ export default function FFEDepartmentRouter({
   const handleWorkspaceProgressUpdate = (progress: number, isComplete: boolean) => {
     setWorkspaceProgress(progress)
     setWorkspaceComplete(isComplete)
+    onProgressUpdate?.(progress, isComplete)
   }
 
   const getModeConfig = (mode: FFEDepartmentMode) => {
@@ -88,8 +88,8 @@ export default function FFEDepartmentRouter({
 
   return (
     <div className="space-y-6">
-      {/* Mode Toggle Header */}
-      {showModeToggle && (
+      {/* Mode Toggle Header - Only show if showModeToggle is true */}
+      {showModeToggle ? (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -177,6 +177,55 @@ export default function FFEDepartmentRouter({
             </div>
           </CardContent>
         </Card>
+      ) : (
+        /* Simplified header when toggle is disabled */
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <CurrentIcon className={cn("w-8 h-8 mr-3", currentConfig.color)} />
+              FFE {currentConfig.label} - {roomName}
+            </h1>
+            <p className="text-gray-600 mt-1">{currentConfig.description}</p>
+          </div>
+          
+          {/* Show progress indicator and settings navigation for workspace mode */}
+          {currentMode === 'workspace' && (
+            <div className="flex items-center space-x-4">
+              {/* Progress indicator */}
+              <div className="text-right">
+                <div className={cn(
+                  "text-xl font-bold",
+                  workspaceComplete ? "text-green-600" : "text-blue-600"
+                )}>
+                  {Math.round(workspaceProgress)}%
+                </div>
+                <div className="text-sm text-gray-600">Complete</div>
+              </div>
+              
+              {/* Settings button */}
+              {canAccessSettings && (
+                <Button asChild variant="outline" size="sm" disabled={disabled} className="flex items-center">
+                  <Link href={`/ffe/${roomId}/settings`}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
+          
+          {/* Show workspace navigation for settings mode */}
+          {currentMode === 'settings' && (
+            <div className="flex items-center space-x-4">
+              <Button asChild variant="outline" size="sm" disabled={disabled} className="flex items-center">
+                <Link href={`/ffe/${roomId}/workspace`}>
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Workspace
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Render the appropriate department component */}
@@ -190,41 +239,19 @@ export default function FFEDepartmentRouter({
             disabled={disabled}
           />
         ) : (
-          <FFEWorkspaceDepartment
+          <FFEPhaseWorkspace
             roomId={roomId}
-            roomName={roomName}
-            orgId={orgId}
-            projectId={projectId}
-            disabled={disabled}
+            roomType="" 
+            orgId={orgId || ''}
+            projectId={projectId || ''}
             onProgressUpdate={handleWorkspaceProgressUpdate}
+            showHeader={true}
+            filterUndecided={false}
+            roomName={roomName}
           />
         )}
       </div>
 
-      {/* Access denied message for settings */}
-      {!canAccessSettings && currentMode === 'settings' && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4 text-center">
-            <div className="text-red-600 mb-2">
-              <Settings className="w-8 h-8 mx-auto mb-2" />
-              <h3 className="font-medium">Access Restricted</h3>
-              <p className="text-sm">
-                FFE Settings are only accessible to Admins and Designers. 
-                You can use the Workspace to track progress on visible items.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleModeChange('workspace')}
-              className="mt-2"
-            >
-              <Briefcase className="w-4 h-4 mr-2" />
-              Go to Workspace
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

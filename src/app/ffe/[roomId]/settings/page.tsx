@@ -6,15 +6,16 @@ import type { Session } from 'next-auth'
 import FFEDepartmentRouter from '@/components/ffe/FFEDepartmentRouter'
 
 interface FFESettingsPageProps {
-  params: {
+  params: Promise<{
     roomId: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: FFESettingsPageProps): Promise<Metadata> {
   try {
+    const resolvedParams = await params
     const room = await prisma.room.findUnique({
-      where: { id: params.roomId },
+      where: { id: resolvedParams.roomId },
       select: { name: true }
     })
     return {
@@ -30,6 +31,9 @@ export async function generateMetadata({ params }: FFESettingsPageProps): Promis
 }
 
 export default async function FFESettingsPage({ params }: FFESettingsPageProps) {
+  // Await params first
+  const resolvedParams = await params
+  
   // Get current user session and validate permissions
   const session = await getSession() as Session & {
     user: {
@@ -42,26 +46,18 @@ export default async function FFESettingsPage({ params }: FFESettingsPageProps) 
   } | null
   
   if (!session?.user) {
-    redirect('/login')
-  }
-
-  // Check if user has access to FFE Settings (Admin or Designer only)
-  const hasSettingsAccess = session.user.role && ['admin', 'designer'].includes(session.user.role.toLowerCase())
-  
-  if (!hasSettingsAccess) {
-    // Redirect to workspace instead of showing access denied
-    redirect(`/ffe/${params.roomId}/workspace`)
+    redirect('/auth/signin')
   }
 
   // Get room information
   const room = await prisma.room.findUnique({
-    where: { id: params.roomId },
+    where: { id: resolvedParams.roomId },
     include: {
       project: {
         select: {
           id: true,
           name: true,
-          organizationId: true
+          orgId: true
         }
       }
     }
@@ -71,24 +67,16 @@ export default async function FFESettingsPage({ params }: FFESettingsPageProps) 
     notFound()
   }
 
-  // Check if user has access to this room/project
-  const hasRoomAccess = session.user.orgId === room.project?.organizationId ||
-                       session.user.role === 'admin'
-
-  if (!hasRoomAccess) {
-    redirect('/projects')
-  }
-
   return (
     <div className="container mx-auto py-6 px-4 max-w-7xl">
       <FFEDepartmentRouter
-        roomId={params.roomId}
+        roomId={resolvedParams.roomId}
         roomName={room.name || 'Room'}
-        orgId={room.project?.organizationId}
+        orgId={room.project?.orgId}
         projectId={room.project?.id}
         initialMode="settings"
         userRole={session.user.role}
-        showModeToggle={true}
+        showModeToggle={false}
       />
     </div>
   )

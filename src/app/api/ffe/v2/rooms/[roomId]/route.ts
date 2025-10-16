@@ -234,7 +234,7 @@ export async function POST(
                   name: templateItem.name,
                   description: templateItem.description,
                   state: templateItem.defaultState,
-                  visibility: 'VISIBLE', // Default to visible
+                  visibility: 'HIDDEN', // Default to hidden - items must be explicitly added to workspace
                   isRequired: templateItem.isRequired,
                   order: templateItem.order,
                   quantity: 1,

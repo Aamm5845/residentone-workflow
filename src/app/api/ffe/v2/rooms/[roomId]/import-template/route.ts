@@ -122,6 +122,17 @@ export async function POST(
     // Import sections and items from template
     await prisma.$transaction(async (tx) => {
       for (const templateSection of template.sections) {
+        // Filter items based on selection if provided
+        const itemsToImport = selectedItemIds && selectedItemIds.length > 0 
+          ? templateSection.items.filter(item => selectedItemIds.includes(item.id))
+          : templateSection.items;
+        
+        // Skip creating section if no items to import
+        if (itemsToImport.length === 0) {
+          console.log(`⚠️ Skipping section "${templateSection.name}" - no items selected`);
+          continue;
+        }
+
         // Create section in room instance
         const roomSection = await tx.roomFFESection.create({
           data: {
@@ -134,76 +145,69 @@ export async function POST(
             isCompleted: false
           }
         })
-
-        // Filter items based on selection if provided
-        const itemsToImport = selectedItemIds && selectedItemIds.length > 0 
-          ? templateSection.items.filter(item => selectedItemIds.includes(item.id))
-          : templateSection.items;
         
-        // Skip creating section if no items to import
-        if (itemsToImport.length === 0) {
-          console.log(`⚠️ Skipping section "${templateSection.name}" - no items selected`);
-          // Delete the created section since it has no items
-          await tx.roomFFESection.delete({ where: { id: roomSection.id } });
-          continue;
-        }
-        
-        // Create items in room section
+        // Prepare all items data for bulk insert
+        const allItemsData = [];
         let itemOrder = 0;
+        
         for (const templateItem of itemsToImport) {
-          // Create the main item
-          const mainItem = await tx.roomFFEItem.create({
-            data: {
-              sectionId: roomSection.id,
-              templateItemId: templateItem.id,
-              name: templateItem.name,
-              description: templateItem.description,
-              state: templateItem.defaultState || 'PENDING',
-              isRequired: templateItem.isRequired,
-              isCustom: false,
-              order: itemOrder++,
-              quantity: 1,
-              unitCost: templateItem.estimatedCost,
-              notes: templateItem.customFields?.notes || null,
-              customFields: templateItem.customFields?.linkedItems ? {
-                linkedItems: templateItem.customFields.linkedItems,
-                hasChildren: true
-              } : null,
-              createdById: userId,
-              updatedById: userId
-            }
-          });
+          // Main item data
+          const mainItemData = {
+            sectionId: roomSection.id,
+            templateItemId: templateItem.id,
+            name: templateItem.name,
+            description: templateItem.description,
+            state: templateItem.defaultState || 'PENDING',
+            visibility: 'HIDDEN', // Default to hidden - user must explicitly choose to use
+            isRequired: templateItem.isRequired,
+            isCustom: false,
+            order: itemOrder++,
+            quantity: 1,
+            unitCost: templateItem.estimatedCost,
+            notes: templateItem.customFields?.notes || null,
+            customFields: templateItem.customFields?.linkedItems ? {
+              linkedItems: templateItem.customFields.linkedItems,
+              hasChildren: true
+            } : null,
+            createdById: userId,
+            updatedById: userId
+          };
           
-          // Create linked items as children if they exist
+          allItemsData.push(mainItemData);
+          
+          // Add linked items data if they exist
           if (templateItem.customFields?.linkedItems && Array.isArray(templateItem.customFields.linkedItems)) {
             let childOrder = 0;
             for (const linkedItemName of templateItem.customFields.linkedItems) {
               if (linkedItemName && linkedItemName.trim()) {
-                await tx.roomFFEItem.create({
-                  data: {
-                    sectionId: roomSection.id,
-                    templateItemId: null,
-                    name: linkedItemName.trim(),
-                    description: null,
-                    state: 'PENDING',
-                    isRequired: false,
-                    isCustom: true,
-                    order: itemOrder + (childOrder * 0.1), // Keep children close to parent
-                    quantity: 1,
-                    customFields: {
-                      isLinkedItem: true,
-                      parentItemId: mainItem.id,
-                      parentName: templateItem.name
-                    },
-                    createdById: userId,
-                    updatedById: userId
-                  }
+                allItemsData.push({
+                  sectionId: roomSection.id,
+                  templateItemId: null,
+                  name: linkedItemName.trim(),
+                  description: null,
+                  state: 'PENDING',
+                  visibility: 'HIDDEN',
+                  isRequired: false,
+                  isCustom: true,
+                  order: itemOrder + (childOrder * 0.1),
+                  quantity: 1,
+                  customFields: {
+                    isLinkedItem: true,
+                    parentName: templateItem.name
+                  },
+                  createdById: userId,
+                  updatedById: userId
                 });
                 childOrder++;
               }
             }
           }
         }
+        
+        // Bulk create all items for this section
+        await tx.roomFFEItem.createMany({
+          data: allItemsData
+        });
       }
 
       // Update room instance to reference the template
@@ -215,6 +219,8 @@ export async function POST(
           updatedById: userId
         }
       })
+    }, {
+      timeout: 15000 // 15 second timeout (maximum allowed by Prisma Accelerate)
     })
 
     // Fetch updated room instance
@@ -241,8 +247,17 @@ export async function POST(
 
   } catch (error) {
     console.error('Error importing template:', error)
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    })
     return NextResponse.json(
-      { error: 'Failed to import template' },
+      { 
+        error: 'Failed to import template',
+        details: error.message,
+        type: error.name
+      },
       { status: 500 }
     )
   }

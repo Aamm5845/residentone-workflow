@@ -156,6 +156,14 @@ model User {
   assignedTasks               Task[]
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userSessions                UserSession[]
+  // Project Updates Relations
+  authoredUpdates             ProjectUpdate[]             @relation("ProjectUpdateAuthor")
+  completedUpdates            ProjectUpdate[]             @relation("ProjectUpdateCompletedBy")
+  assignedUpdateTasks         ProjectUpdateTask[]         @relation("TaskAssignee")
+  createdUpdateTasks          ProjectUpdateTask[]         @relation("TaskCreatedBy")
+  approvedDocuments           ProjectUpdateDocument[]     @relation("DocumentApprovedBy")
+  authoredMessages            ProjectUpdateMessage[]      @relation("MessageAuthor")
+  projectActivities           ProjectUpdateActivity[]     @relation("ActivityActor")
 }
 
 model Client {
@@ -189,6 +197,9 @@ model Contractor {
   updatedAt          DateTime            @updatedAt
   organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
   projectContractors ProjectContractor[]
+  // Project Updates Relations
+  updateTasks        ProjectUpdateTask[]
+  assignments        ContractorAssignment[]
 
   @@unique([orgId, email])
   @@index([orgId, type])
@@ -231,6 +242,8 @@ model Project {
   coverImages               Json?
   address                   String?
   hasFloorplanApproval      Boolean                    @default(false)
+  hasSpecBook               Boolean                    @default(false)
+  hasProjectUpdates         Boolean                    @default(false)
   approvals                 Approval[]
   assets                    Asset[]
   clientAccessTokens        ClientAccessToken[]
@@ -245,6 +258,12 @@ model Project {
   projectContractors        ProjectContractor[]
   rooms                     Room[]
   tasks                     Task[]
+  // Project Updates Relations
+  projectUpdates            ProjectUpdate[]
+  updateTasks               ProjectUpdateTask[]
+  updateActivities          ProjectUpdateActivity[]
+  contractorAssignments     ContractorAssignment[]
+  milestones                ProjectMilestone[]
 }
 
 model Room {
@@ -275,6 +294,9 @@ model Room {
   tasks             Task[]
   RoomFFEInstance   RoomFFEInstance?
   FFEChangeLog      FFEChangeLog[]
+  // Project Updates Relations
+  projectUpdates    ProjectUpdate[]
+  updateTasks       ProjectUpdateTask[]
 }
 
 model Stage {
@@ -752,6 +774,9 @@ model Asset {
   assetTags               AssetTag[]
   clientApprovalAssets    ClientApprovalAsset[]
   floorplanApprovalAssets FloorplanApprovalAsset[]
+  // Project Updates Relations
+  updatePhotos            ProjectUpdatePhoto[]
+  updateDocuments         ProjectUpdateDocument[]
 }
 
 model Notification {
@@ -1293,7 +1318,7 @@ model RoomFFEItem {
   name           String
   description    String?
   state          FFEItemState      @default(PENDING)
-  visibility     FFEItemVisibility @default(VISIBLE)
+  visibility     FFEItemVisibility @default(HIDDEN)
   isRequired     Boolean           @default(false)
   isCustom       Boolean           @default(false)
   order          Int               @default(0)
@@ -1611,4 +1636,346 @@ enum IssueStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+// ===== PROJECT UPDATES SYSTEM MODELS =====
+
+model ProjectUpdate {
+  id              String                 @id @default(cuid())
+  projectId       String
+  roomId          String?
+  authorId        String
+  type            ProjectUpdateType      @default(GENERAL)
+  category        ProjectUpdateCategory  @default(GENERAL)
+  status          ProjectUpdateStatus    @default(ACTIVE)
+  priority        PriorityLevel          @default(MEDIUM)
+  title           String?
+  description     String?
+  location        String?
+  gpsCoordinates  Json? // {lat: number, lng: number}
+  metadata        Json?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  completedById   String?
+  estimatedCost   Decimal?
+  actualCost      Decimal?
+  timeEstimated   Int? // minutes
+  timeLogged      Int? // minutes
+  parentUpdateId  String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  // Relations
+  project         Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room            Room?                  @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  author          User                   @relation("ProjectUpdateAuthor", fields: [authorId], references: [id])
+  completedBy     User?                  @relation("ProjectUpdateCompletedBy", fields: [completedById], references: [id])
+  parent          ProjectUpdate?         @relation("ProjectUpdateParent", fields: [parentUpdateId], references: [id], onDelete: SetNull)
+  children        ProjectUpdate[]        @relation("ProjectUpdateParent")
+  photos          ProjectUpdatePhoto[]
+  tasks           ProjectUpdateTask[]
+  documents       ProjectUpdateDocument[]
+  messages        ProjectUpdateMessage[]
+  activities      ProjectUpdateActivity[]
+  milestones      ProjectMilestone[]
+  assignments     ContractorAssignment[]
+
+  @@index([projectId, createdAt])
+  @@index([roomId])
+  @@index([status])
+  @@index([priority])
+}
+
+model ProjectUpdatePhoto {
+  id                String           @id @default(cuid())
+  updateId          String
+  assetId           String
+  caption           String?
+  gpsCoordinates    Json? // {lat: number, lng: number}
+  takenAt           DateTime?
+  beforeAfterPairId String?            @unique
+  tags              String[] // array of tags
+  roomArea          String? // specific area within room
+  tradeCategory     String? // plumbing, electrical, etc.
+  isBeforePhoto     Boolean          @default(false)
+  isAfterPhoto      Boolean          @default(false)
+  annotationsData   Json? // markup data
+  aiAnalysis        Json? // AI-detected objects/issues
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  update            ProjectUpdate    @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  asset             Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  beforeAfterPair   ProjectUpdatePhoto? @relation("BeforeAfterPair", fields: [beforeAfterPairId], references: [id], onDelete: SetNull)
+  pairedPhoto       ProjectUpdatePhoto? @relation("BeforeAfterPair")
+
+  @@index([updateId])
+  @@index([takenAt])
+  @@index([tradeCategory])
+}
+
+model ProjectUpdateTask {
+  id              String                 @id @default(cuid())
+  updateId        String?
+  projectId       String
+  roomId          String?
+  title           String
+  description     String?
+  status          TaskStatus             @default(TODO)
+  priority        PriorityLevel          @default(MEDIUM)
+  assigneeId      String?
+  contractorId    String?
+  tradeType       String?
+  estimatedHours  Decimal?
+  actualHours     Decimal?
+  estimatedCost   Decimal?
+  actualCost      Decimal?
+  materials       Json? // list of materials needed
+  dependencies    String[] // array of task IDs this depends on
+  dueDate         DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdById     String
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  // Relations
+  update          ProjectUpdate?         @relation(fields: [updateId], references: [id], onDelete: SetNull)
+  project         Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room            Room?                  @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  assignee        User?                  @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  contractor      Contractor?            @relation(fields: [contractorId], references: [id])
+  createdBy       User                   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  messages        ProjectUpdateMessage[]
+  assignments     ContractorAssignment[]
+
+  @@index([projectId, status])
+  @@index([assigneeId])
+  @@index([contractorId])
+  @@index([dueDate])
+}
+
+model ProjectUpdateDocument {
+  id                  String            @id @default(cuid())
+  updateId            String
+  assetId             String
+  documentType        DocumentType      @default(OTHER)
+  version             String
+  isCurrentVersion    Boolean           @default(true)
+  changesFromPrevious String? // description of what changed
+  approvalStatus      ApprovalStatus    @default(PENDING)
+  approvedById        String?
+  approvedAt          DateTime?
+  expiresAt           DateTime?
+  distributionList    Json? // who should receive this
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  update              ProjectUpdate     @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  asset               Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  approvedBy          User?             @relation("DocumentApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([updateId])
+  @@index([documentType])
+  @@index([approvalStatus])
+}
+
+model ProjectUpdateMessage {
+  id              String                 @id @default(cuid())
+  updateId        String
+  taskId          String?
+  authorId        String
+  content         String
+  messageType     MessageType            @default(MESSAGE)
+  priority        PriorityLevel          @default(NORMAL)
+  parentMessageId String?
+  mentions        String[] // array of user IDs mentioned
+  attachments     Json? // array of asset references
+  readBy          Json? // array of {userId, readAt}
+  reactions       Json? // array of {userId, emoji}
+  isUrgent        Boolean                @default(false)
+  scheduledFor    DateTime? // for scheduled messages
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  update          ProjectUpdate          @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  task            ProjectUpdateTask?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  author          User                   @relation("MessageAuthor", fields: [authorId], references: [id])
+  parentMessage   ProjectUpdateMessage?  @relation("MessageThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies         ProjectUpdateMessage[] @relation("MessageThread")
+
+  @@index([updateId, createdAt])
+  @@index([taskId])
+  @@index([authorId])
+}
+
+model ProjectUpdateActivity {
+  id          String           @id @default(cuid())
+  updateId    String?
+  projectId   String
+  actorId     String?
+  actionType  String
+  entityType  String
+  entityId    String
+  description String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  update      ProjectUpdate?   @relation(fields: [updateId], references: [id], onDelete: SetNull)
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("ActivityActor", fields: [actorId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model ContractorAssignment {
+  id                 String                @id @default(cuid())
+  projectId          String
+  contractorId       String
+  updateId           String?
+  taskId             String?
+  role               String
+  status             AssignmentStatus      @default(ASSIGNED)
+  notificationMethod NotificationMethod   @default(EMAIL)
+  lastNotifiedAt     DateTime?
+  acknowledgedAt     DateTime?
+  completedAt        DateTime?
+  notes              String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  // Relations
+  project            Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractor         Contractor            @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  update             ProjectUpdate?        @relation(fields: [updateId], references: [id], onDelete: SetNull)
+  task               ProjectUpdateTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([contractorId])
+  @@index([status])
+}
+
+model ProjectMilestone {
+  id                   String            @id @default(cuid())
+  projectId            String
+  updateId             String?
+  name                 String
+  description          String?
+  type                 MilestoneType     @default(CUSTOM)
+  status               MilestoneStatus   @default(PENDING)
+  percentage           Decimal           @default(0)
+  targetDate           DateTime?
+  actualDate           DateTime?
+  dependencies         String[] // array of milestone/task IDs
+  celebrateWithClient  Boolean           @default(false)
+  autoGenerateReport   Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  // Relations
+  project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  update               ProjectUpdate?    @relation(fields: [updateId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+// ===== PROJECT UPDATES ENUMS =====
+
+enum ProjectUpdateType {
+  GENERAL
+  PHOTO
+  TASK
+  DOCUMENT
+  COMMUNICATION
+  MILESTONE
+  INSPECTION
+  ISSUE
+}
+
+enum ProjectUpdateCategory {
+  GENERAL
+  PROGRESS
+  QUALITY
+  SAFETY
+  BUDGET
+  SCHEDULE
+  COMMUNICATION
+  APPROVAL
+}
+
+enum ProjectUpdateStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  REQUIRES_ATTENTION
+}
+
+enum PriorityLevel {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+  NORMAL
+}
+
+enum DocumentType {
+  PLAN
+  SPECIFICATION
+  CHANGE_ORDER
+  PERMIT
+  INSPECTION_REPORT
+  PHOTO
+  VIDEO
+  OTHER
+}
+
+enum MessageType {
+  MESSAGE
+  SYSTEM
+  NOTIFICATION
+  URGENT
+  REMINDER
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum NotificationMethod {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum MilestoneType {
+  CUSTOM
+  PHASE_COMPLETION
+  CLIENT_APPROVAL
+  INSPECTION
+  DELIVERY
+  PAYMENT
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
 }

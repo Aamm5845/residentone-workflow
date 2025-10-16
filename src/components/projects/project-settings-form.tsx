@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus } from 'lucide-react'
+import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList } from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 
@@ -22,6 +22,9 @@ const projectSettingsSchema = z.object({
   address: z.string().optional(),
   coverImages: z.array(z.string()).optional(),
   dropboxFolder: z.string().optional().nullable(),
+  hasFloorplanApproval: z.boolean().optional(),
+  hasSpecBook: z.boolean().optional(),
+  hasProjectUpdates: z.boolean().optional(),
 })
 
 type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>
@@ -113,6 +116,9 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       address: project?.address || '',
       coverImages: Array.isArray(project?.coverImages) ? project.coverImages : project?.coverImages ? [project.coverImages] : [],
       dropboxFolder: project?.dropboxFolder || '',
+      hasFloorplanApproval: project?.hasFloorplanApproval || false,
+      hasSpecBook: project?.hasSpecBook || false,
+      hasProjectUpdates: project?.hasProjectUpdates || false,
     }
   })
 
@@ -1068,6 +1074,212 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   <li>• FFE Documentation/</li>
                 </ul>
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* 7. Project Features Section */}
+      <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center">
+            <SettingsIcon className="w-5 h-5 mr-2 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Project Features</h2>
+          </div>
+          {editingSection !== 'features' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingSection('features')}
+              className="flex items-center"
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+          )}
+        </div>
+        
+        <div className="px-6 py-4">
+          {editingSection === 'features' ? (
+            <form onSubmit={handleSubmit((data) => {
+              updateSection('project features', {
+                hasFloorplanApproval: data.hasFloorplanApproval || false,
+                hasSpecBook: data.hasSpecBook || false,
+                hasProjectUpdates: data.hasProjectUpdates || false,
+              })
+            })} className="space-y-6">
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Enable or disable project-level features for this project. Features can be toggled on or off at any time.
+                </p>
+                
+                {/* Floorplan Approval */}
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Folder className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Floorplan Approval</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Manage floorplan reviews and client approvals independently from room workflows
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register('hasFloorplanApproval')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </div>
+                </div>
+                
+                {/* Spec Book */}
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Spec Book</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Organize spec options, generate PDFs, and link CAD files for client presentations
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register('hasSpecBook')}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                  </div>
+                </div>
+                
+                {/* Project Updates */}
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <ClipboardList className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Project Updates</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Track onsite visits, manage revisions, and keep stakeholders informed of progress
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register('hasProjectUpdates')}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3 pt-4 border-t">
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {isLoading ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingSection(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Project-level features currently enabled for this project:
+              </p>
+              
+              <div className="space-y-3">
+                {/* Floorplan Approval Status */}
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Folder className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Floorplan Approval</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    {project.hasFloorplanApproval ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Spec Book Status */}
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <BookOpen className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Spec Book</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    {project.hasSpecBook ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Project Updates Status */}
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <ClipboardList className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Project Updates</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    {project.hasProjectUpdates ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {(!project.hasFloorplanApproval && !project.hasSpecBook && !project.hasProjectUpdates) && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 italic">No project features are currently enabled</p>
+                  <p className="text-sm text-gray-400 mt-1">Click "Edit" to enable project features</p>
+                </div>
+              )}
             </div>
           )}
         </div>

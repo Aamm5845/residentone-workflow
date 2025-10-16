@@ -17,7 +17,9 @@ import {
   Minus,
   Edit3,
   Save,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FFEItemState } from '@prisma/client'
@@ -28,6 +30,7 @@ interface FFEItem {
   name: string
   description?: string
   state: FFEItemState
+  visibility?: 'VISIBLE' | 'HIDDEN'
   isRequired: boolean
   isCustom: boolean
   notes?: string
@@ -57,11 +60,13 @@ interface FFESection {
 interface FFESectionAccordionProps {
   sections: FFESection[]
   onItemStateChange: (itemId: string, newState: FFEItemState, notes?: string) => void
+  onItemVisibilityChange?: (itemId: string, newVisibility: 'VISIBLE' | 'HIDDEN') => void
   filterUndecided?: boolean
 }
 
 const STATE_CONFIG = {
   PENDING: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
+  UNDECIDED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
   COMPLETED: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100', label: 'Completed' },
   // Legacy states (map to simplified states for backward compatibility)
   SELECTED: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Undecided' },
@@ -77,13 +82,15 @@ interface ItemCardProps {
   onStateChange: (newState: FFEItemState, notes?: string) => void
   onToggleExpanded?: () => void
   onChildStateChange?: (itemId: string, newState: FFEItemState, notes?: string) => void
+  onVisibilityChange?: (itemId: string, newVisibility: 'VISIBLE' | 'HIDDEN') => void
 }
 
-function ItemCard({ item, children = [], isChild = false, isExpanded = false, onStateChange, onToggleExpanded, onChildStateChange }: ItemCardProps) {
+function ItemCard({ item, children = [], isChild = false, isExpanded = false, onStateChange, onToggleExpanded, onChildStateChange, onVisibilityChange }: ItemCardProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notesDraft, setNotesDraft] = useState(item.notes || '')
+  const [isToggling, setIsToggling] = useState(false)
   
-  const config = STATE_CONFIG[item.state]
+  const config = STATE_CONFIG[item.state] || STATE_CONFIG.PENDING
   const IconComponent = config.icon
   const hasChildren = children.length > 0
   const isLinkedItem = item.customFields?.isLinkedItem === true
@@ -96,6 +103,22 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
   const handleCancelNotes = () => {
     setNotesDraft(item.notes || '')
     setIsEditingNotes(false)
+  }
+  
+  const handleVisibilityToggle = async () => {
+    if (!onVisibilityChange || isToggling) return
+    
+    setIsToggling(true)
+    const currentVisibility = item.visibility || 'VISIBLE'
+    const newVisibility = currentVisibility === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE'
+    
+    try {
+      await onVisibilityChange(item.id, newVisibility)
+    } catch (error) {
+      console.error('Failed to toggle visibility:', error)
+    } finally {
+      setIsToggling(false)
+    }
   }
   
   // Don't show auto-generated notes for linked items
@@ -157,6 +180,14 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
                     Linked
                   </Badge>
                 )}
+                
+                {/* Visibility Status Badge */}
+                {(item.visibility || 'VISIBLE') === 'HIDDEN' && (
+                  <Badge variant="outline" className="h-5 text-xs border-gray-300 text-gray-600">
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    Hidden
+                  </Badge>
+                )}
               </div>
               {item.description && (
                 <p className="text-sm text-gray-600 mb-2">{item.description}</p>
@@ -170,7 +201,7 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
           </div>
           
           {/* Action Buttons */}
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-2 mb-3 flex-wrap">
             <Button
               size="sm" 
               variant={item.state === 'COMPLETED' ? 'default' : 'outline'}
@@ -189,6 +220,35 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
               <Clock className="h-4 w-4 mr-1" />
               Undecided
             </Button>
+            
+            {/* Visibility Toggle */}
+            {onVisibilityChange && (
+              <Button
+                size="sm"
+                variant={(item.visibility || 'VISIBLE') === 'VISIBLE' ? 'outline' : 'default'}
+                onClick={handleVisibilityToggle}
+                disabled={isToggling}
+                className={cn(
+                  "h-8",
+                  (item.visibility || 'VISIBLE') === 'VISIBLE'
+                    ? "border-red-200 text-red-700 hover:bg-red-50"
+                    : "bg-green-600 hover:bg-green-700 text-white"
+                )}
+              >
+                {(item.visibility || 'VISIBLE') === 'VISIBLE' ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-1" />
+                    Remove
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-1" />
+                    Include
+                  </>
+                )}
+              </Button>
+            )}
+            
             <Button
               size="sm" 
               variant="ghost"
@@ -277,7 +337,7 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
   )
 }
 
-export default function FFESectionAccordion({ sections, onItemStateChange, filterUndecided = false }: FFESectionAccordionProps) {
+export default function FFESectionAccordion({ sections, onItemStateChange, onItemVisibilityChange, filterUndecided = false }: FFESectionAccordionProps) {
   const { 
     expandedSections, 
     toggleSectionExpanded, 
@@ -324,76 +384,131 @@ export default function FFESectionAccordion({ sections, onItemStateChange, filte
   
   if (sections.length === 0) {
     return (
-      <Card className="border border-dashed border-gray-300">
-        <CardContent className="p-8 text-center">
-          <Settings className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="font-medium text-gray-900 mb-2">No Sections Yet</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            This FFE instance doesn't have any sections yet. You can add sections manually or import from a template.
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+        <div className="max-w-md mx-auto">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Settings className="h-10 w-10 text-blue-600" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">No Sections Yet</h3>
+          <p className="text-gray-600 text-lg leading-relaxed mb-6">
+            This FFE workspace doesn't have any sections yet. Add sections and items through the Settings page to get started.
           </p>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Section
-          </Button>
-        </CardContent>
-      </Card>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
+              <Plus className="h-4 w-4" />
+              <span className="font-medium">Tip:</span>
+              <span>Use the Settings page to import templates or add custom sections</span>
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {sections
         .sort((a, b) => a.order - b.order)
+        .filter((section) => {
+          // In workspace, only show sections with visible items
+          const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
+          return visibleItems.length > 0
+        })
         .map((section) => {
           const isExpanded = expandedSections.has(section.id)
           const progress = getSectionProgress(section.id)
           
           return (
-            <Card key={section.id} className="overflow-hidden">
-              {/* Section Header */}
+            <div key={section.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
+              {/* Premium Section Header */}
               <div 
-                className="p-4 bg-gray-50 border-b cursor-pointer hover:bg-gray-100 transition-colors"
+                className={`flex items-center justify-between p-6 cursor-pointer transition-all duration-300 ${
+                  isExpanded 
+                    ? 'bg-gradient-to-r from-blue-50 via-blue-50/50 to-transparent border-b border-blue-100' 
+                    : 'hover:bg-gray-50'
+                }`}
                 onClick={() => toggleSectionExpanded(section.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center space-x-4">
+                  <button className={`p-2 rounded-xl transition-all duration-300 ${
+                    isExpanded 
+                      ? 'bg-blue-100 text-blue-600 shadow-sm' 
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}>
                     {isExpanded ? (
-                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                      <ChevronDown className="h-5 w-5" />
                     ) : (
-                      <ChevronRight className="h-5 w-5 text-gray-500" />
+                      <ChevronRight className="h-5 w-5" />
                     )}
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{section.name}</h3>
-                      {section.description && (
-                        <p className="text-sm text-gray-600">{section.description}</p>
-                      )}
+                  </button>
+                  
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">{section.name}</h3>
+                    {section.description && (
+                      <p className="text-gray-600">{section.description}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-6">
+                  {/* Premium Progress Ring */}
+                  <div className="relative w-16 h-16">
+                    <svg className="transform -rotate-90 w-16 h-16">
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke="rgb(229 231 235)"
+                        strokeWidth="4"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke={progress.percentage === 100 ? "rgb(34 197 94)" : "rgb(59 130 246)"}
+                        strokeWidth="4"
+                        fill="transparent"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 28}`}
+                        strokeDashoffset={`${2 * Math.PI * 28 * (1 - progress.percentage / 100)}`}
+                        className="transition-all duration-700 ease-out"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-sm font-bold ${
+                        progress.percentage === 100 ? 'text-green-600' : 'text-blue-600'
+                      }`}>
+                        {Math.ceil(progress.percentage)}%
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
-                    {/* Item count */}
-                    <div className="text-sm text-gray-600">
-                      {progress.total} items
+                  {/* Item Count Badge */}
+                  <div className="text-right">
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      progress.percentage === 100 
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {progress.completed}/{progress.total} items
                     </div>
-                    
-                    {/* Progress Percentage - Always rounded up */}
-                    <Badge 
-                      variant={progress.percentage === 100 ? "default" : "secondary"}
-                      className="min-w-[60px] justify-center font-medium"
-                    >
-                      {Math.ceil(progress.percentage)}%
-                    </Badge>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {progress.total - progress.completed} remaining
+                    </div>
                   </div>
                 </div>
               </div>
               
-              {/* Section Content */}
+              {/* Premium Section Content */}
               {isExpanded && (
-                <CardContent className="p-4">
+                <div className="bg-gradient-to-b from-gray-50/30 to-white p-6">
                   {(() => {
-                    const { parentItems, childItemsMap } = buildItemHierarchy(section.items)
+                    // Filter items by visibility first
+                    const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
+                    const { parentItems, childItemsMap } = buildItemHierarchy(visibleItems)
                     
-                    // Apply filtering
+                    // Apply additional filtering after visibility filter
                     const filteredParentItems = parentItems.filter((item) => {
                       if (filterUndecided) {
                         return item.state === 'PENDING' || item.state === 'SELECTED' || item.state === 'CONFIRMED' || item.state === 'NOT_NEEDED'
@@ -401,25 +516,26 @@ export default function FFESectionAccordion({ sections, onItemStateChange, filte
                       return true
                     })
                     
-                    if (section.items.length === 0) {
+                    if (visibleItems.length === 0) {
                       return (
-                        <div className="text-center py-8 text-gray-500">
-                          <Minus className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No items in this section</p>
-                          <Button variant="outline" size="sm" className="mt-2">
-                            <Plus className="h-3 w-3 mr-1" />
-                            Add Item
-                          </Button>
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Minus className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 text-lg mb-1">No items in this section yet</p>
+                          <p className="text-gray-400 text-sm">Add items through the Settings page</p>
                         </div>
                       )
                     }
                     
                     if (filterUndecided && filteredParentItems.length === 0) {
                       return (
-                        <div className="text-center py-8 text-gray-500">
-                          <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No undecided items in this section</p>
-                          <p className="text-xs text-gray-400 mt-1">All items have been completed</p>
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle2 className="h-8 w-8 text-green-600" />
+                          </div>
+                          <p className="text-gray-500 text-lg mb-1">All visible items completed!</p>
+                          <p className="text-gray-400 text-sm">Great progress on this section</p>
                         </div>
                       )
                     }
@@ -441,6 +557,7 @@ export default function FFESectionAccordion({ sections, onItemStateChange, filte
                                 onStateChange={(state, notes) => onItemStateChange(item.id, state, notes)}
                                 onToggleExpanded={() => toggleItemExpanded(item.id)}
                                 onChildStateChange={onItemStateChange}
+                                onVisibilityChange={onItemVisibilityChange}
                               />
                             )
                           })}
@@ -448,9 +565,9 @@ export default function FFESectionAccordion({ sections, onItemStateChange, filte
                     )
                   })()
                   }
-                </CardContent>
+                </div>
               )}
-            </Card>
+            </div>
           )
         })}
     </div>

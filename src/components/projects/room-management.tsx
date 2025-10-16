@@ -340,7 +340,14 @@ export default function RoomManagement({
                               <Button 
                                 size="sm"
                                 variant="outline"
-                                onClick={() => window.open(`/stages/${stage.id}`, '_blank')}
+                                onClick={() => {
+                                  // For FFE stages, go directly to the FFE workspace
+                                  if (stage.type === 'FFE') {
+                                    window.open(`/ffe/${room.id}/workspace`, '_blank')
+                                  } else {
+                                    window.open(`/stages/${stage.id}`, '_blank')
+                                  }
+                                }}
                                 className="border-2 hover:bg-gray-50 font-semibold"
                               >
                                 Open Workspace

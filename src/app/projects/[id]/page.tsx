@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList } from 'lucide-react'
 import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -43,6 +43,8 @@ export default async function ProjectDetail({ params }: Props) {
         createdAt: true,
         updatedAt: true,
         hasFloorplanApproval: true,
+        hasSpecBook: true,
+        hasProjectUpdates: true,
         client: {
           select: {
             id: true,
@@ -349,7 +351,7 @@ export default async function ProjectDetail({ params }: Props) {
         </div>
 
         {/* Project Features Section */}
-        {project.hasFloorplanApproval && (
+        {(project.hasFloorplanApproval || project.hasSpecBook || project.hasProjectUpdates) && (
           <div className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-6 py-6">
               <div className="flex items-center justify-between">
@@ -362,31 +364,91 @@ export default async function ProjectDetail({ params }: Props) {
               <div className="mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Floorplan Approval Card */}
-                  <Link
-                    href={`/projects/${project.id}/floorplan-approval`}
-                    className="group block"
-                  >
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-                            <FileText className="w-6 h-6 text-white" />
+                  {project.hasFloorplanApproval && (
+                    <Link
+                      href={`/projects/${project.id}/floorplan-approval`}
+                      className="group block"
+                    >
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
+                              <FileText className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-blue-800 group-hover:text-blue-900 transition-colors">
+                                Floorplan Approval
+                              </h3>
+                              <p className="text-xs text-blue-600 mt-1">
+                                Manage floorplan reviews and client approvals
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-blue-800 group-hover:text-blue-900 transition-colors">
-                              Floorplan Approval
-                            </h3>
-                            <p className="text-xs text-blue-600 mt-1">
-                              Manage floorplan reviews and client approvals
-                            </p>
+                          <div className="text-xs text-blue-600">
+                            📐
                           </div>
-                        </div>
-                        <div className="text-xs text-blue-600">
-                          📐
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  )}
+                  
+                  {/* Spec Book Card */}
+                  {project.hasSpecBook && (
+                    <Link
+                      href={`/projects/${project.id}/spec-book`}
+                      className="group block"
+                    >
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 hover:border-green-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center shadow-sm">
+                              <BookOpen className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-green-800 group-hover:text-green-900 transition-colors">
+                                Spec Book
+                              </h3>
+                              <p className="text-xs text-green-600 mt-1">
+                                Manage spec options, PDFs, and CAD files
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-green-600">
+                            📋
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+                  
+                  {/* Project Updates Card */}
+                  {project.hasProjectUpdates && (
+                    <Link
+                      href={`/projects/${project.id}/project-updates`}
+                      className="group block"
+                    >
+                      <div className="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 hover:border-purple-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center shadow-sm">
+                              <ClipboardList className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-purple-800 group-hover:text-purple-900 transition-colors">
+                                Project Updates
+                              </h3>
+                              <p className="text-xs text-purple-600 mt-1">
+                                Manage onsite visits and revisions
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-purple-600">
+                            📝
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

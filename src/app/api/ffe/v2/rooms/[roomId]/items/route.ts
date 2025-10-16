@@ -154,7 +154,7 @@ export async function POST(
             name: itemName,
             description: description?.trim() || null,
             state: 'PENDING',
-            visibility: 'VISIBLE', // Default to visible
+            visibility: 'HIDDEN', // Default to hidden - items must be explicitly added to workspace
             isRequired: false,
             isCustom: true,
             order: nextOrder + i - 1,

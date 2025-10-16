@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Settings, 
   Plus, 
@@ -19,7 +20,11 @@ import {
   ChevronDown,
   ChevronRight,
   Save,
-  X
+  X,
+  Import,
+  AlertTriangle,
+  Trash2,
+  Package
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -73,6 +78,12 @@ export default function FFESettingsDepartment({
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
+  
+  // Template states
+  const [templates, setTemplates] = useState<any[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [templatesError, setTemplatesError] = useState<any>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   // Form states
   const [newSectionName, setNewSectionName] = useState('')
@@ -91,8 +102,10 @@ export default function FFESettingsDepartment({
 
   // Load FFE data
   useEffect(() => {
+    console.log('🔧 FFESettingsDepartment mounted with props:', { roomId, roomName, orgId, projectId, disabled })
     loadFFEData()
-  }, [roomId])
+    loadTemplates()
+  }, [roomId, orgId])
 
   const loadFFEData = async () => {
     try {
@@ -125,6 +138,34 @@ export default function FFESettingsDepartment({
       toast.error('Failed to load FFE data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadTemplates = async () => {
+    if (!orgId) return
+    
+    try {
+      setTemplatesLoading(true)
+      setTemplatesError(null)
+      
+      const response = await fetch(`/api/ffe/v2/templates?orgId=${orgId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates')
+      }
+      
+      const result = await response.json()
+      if (result.success) {
+        setTemplates(result.data || [])
+      } else {
+        throw new Error(result.error || 'Failed to load templates')
+      }
+      
+    } catch (error) {
+      console.error('Error loading templates:', error)
+      setTemplatesError(error)
+      setTemplates([])
+    } finally {
+      setTemplatesLoading(false)
     }
   }
 
@@ -327,7 +368,7 @@ export default function FFESettingsDepartment({
           name: newItemName.trim(),
           description: newItemDescription.trim() || undefined,
           quantity: newItemQuantity,
-          visibility: 'VISIBLE'
+          visibility: 'HIDDEN'
         })
       })
 
@@ -385,6 +426,144 @@ export default function FFESettingsDepartment({
     }
   }
 
+  const handleImportTemplate = async () => {
+    if (!selectedTemplateId) {
+      toast.error('Please select a template to import')
+      return
+    }
+    
+    try {
+      setSaving(true)
+      
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/import-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: selectedTemplateId })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to import template (${response.status})`)
+      }
+      
+      const result = await response.json()
+      if (result.success) {
+        // Reload data to show the new items
+        await loadFFEData()
+        setShowImportDialog(false)
+        setSelectedTemplateId('')
+        toast.success('Template imported successfully!')
+      }
+      
+    } catch (error) {
+      console.error('Error importing template:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to import template'
+      toast.error(errorMessage)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteSection = async (sectionId: string, sectionName: string) => {
+    if (!confirm(`Are you sure you want to delete the "${sectionName}" section? Items will be moved to another section if available.`)) {
+      return
+    }
+
+    try {
+      setSaving(true)
+      
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to delete section')
+      }
+
+      const result = await response.json()
+      
+      // Reload data to reflect the deletion
+      await loadFFEData()
+      
+      // Show success message from API
+      toast.success(result.message || 'Section deleted successfully')
+      
+    } catch (error) {
+      console.error('Error deleting section:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete section'
+      toast.error(errorMessage)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      setSaving(true)
+      
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete item')
+      }
+
+      // Update local state to remove the item
+      setSections(prevSections => 
+        prevSections.map(section => ({
+          ...section,
+          items: section.items.filter(item => item.id !== itemId)
+        }))
+      )
+
+      // Recalculate stats
+      const updatedSections = sections.map(section => ({
+        ...section,
+        items: section.items.filter(item => item.id !== itemId)
+      }))
+      calculateStats(updatedSections)
+      
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      throw error // Re-throw so FFEItemCard can handle the toast
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleQuantityInclude = async (itemId: string, quantity: number, customName?: string) => {
+    try {
+      setSaving(true)
+      
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/quantity-include`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          quantity, 
+          customName,
+          visibility: 'VISIBLE'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to include items with quantity')
+      }
+
+      // Reload data to show the new quantities
+      await loadFFEData()
+      
+    } catch (error) {
+      console.error('Error including items with quantity:', error)
+      throw error // Re-throw so FFEItemCard can handle the toast
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -393,135 +572,423 @@ export default function FFESettingsDepartment({
     )
   }
 
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold flex items-center">
-            <Settings className="w-5 h-5 mr-2" />
-            FFE Settings - {roomName}
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage sections, items, and workspace visibility
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          {saving && (
-            <div className="flex items-center gap-2 text-blue-600">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Saving...</span>
+      {/* Modern Settings Header */}
+      <div className="card-elevated-strong">
+        <div className="px-6 py-5">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <Settings className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                    FFE Settings
+                  </h1>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                    <span className="font-medium">{roomName}</span>
+                    <span className="text-gray-400">•</span>
+                    <span>Manage sections, items, and workspace visibility</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+            
+            <div className="flex items-center gap-3">
+              {saving && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">Saving...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Modern Statistics Dashboard */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <FolderPlus className="w-4 h-4 text-slate-600" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900">{stats.sectionsCount}</div>
+              </div>
+              <div className="text-sm font-medium text-slate-700">Sections</div>
+              <div className="text-xs text-slate-500 mt-1">Total categories</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Package className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="text-2xl font-bold text-blue-900">{stats.totalItems}</div>
+              </div>
+              <div className="text-sm font-medium text-blue-700">Total Items</div>
+              <div className="text-xs text-blue-500 mt-1">All FFE items</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Eye className="w-4 h-4 text-green-600" />
+                </div>
+                <div className="text-2xl font-bold text-green-900">{stats.visibleItems}</div>
+              </div>
+              <div className="text-sm font-medium text-green-700">In Workspace</div>
+              <div className="text-xs text-green-500 mt-1">Visible to users</div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <EyeOff className="w-4 h-4 text-gray-600" />
+                </div>
+                <div className="text-2xl font-bold text-gray-900">{stats.hiddenItems}</div>
+              </div>
+              <div className="text-sm font-medium text-gray-700">Hidden</div>
+              <div className="text-xs text-gray-500 mt-1">Not in workspace</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Statistics */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.sectionsCount}</div>
-              <div className="text-sm text-gray-600">Sections</div>
+      {/* Modern Action Panel */}
+      <div className="card-elevated">
+        <div className="p-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Primary Actions */}
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  disabled={disabled}
+                  onClick={() => setShowImportDialog(true)}
+                  className="btn-primary h-auto p-4 flex flex-col items-center gap-2 text-left disabled:opacity-50"
+                >
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Import className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium">Import Template</div>
+                    <div className="text-xs opacity-75">Pre-built sections</div>
+                  </div>
+                </button>
+                
+                <button
+                  disabled={disabled}
+                  onClick={() => setShowAddSectionDialog(true)}
+                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-green-300 hover:bg-green-50 disabled:opacity-50"
+                >
+                  <div className="p-2 bg-green-50 rounded-lg">
+                    <FolderPlus className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-green-700">Add Section</div>
+                    <div className="text-xs text-green-600">Create category</div>
+                  </div>
+                </button>
+                
+                <button
+                  disabled={disabled || sections.length === 0}
+                  onClick={() => setShowAddItemDialog(true)}
+                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-purple-300 hover:bg-purple-50 disabled:opacity-50"
+                >
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <Plus className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-purple-700">Add Item</div>
+                    <div className="text-xs text-purple-600">New FFE item</div>
+                  </div>
+                </button>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalItems}</div>
-              <div className="text-sm text-gray-600">Total Items</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.visibleItems}</div>
-              <div className="text-sm text-gray-600">In Workspace</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{stats.hiddenItems}</div>
-              <div className="text-sm text-gray-600">Hidden</div>
+            
+            {/* Bulk Operations */}
+            <div className="lg:border-l lg:pl-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Bulk Operations</h3>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => toggleAllVisibility(true)}
+                  disabled={disabled || saving || stats.totalItems === 0}
+                  className="btn-ghost justify-start px-3 py-2 text-sm disabled:opacity-50"
+                >
+                  <Eye className="w-4 h-4 mr-2 text-green-600" />
+                  Show All Items
+                </button>
+                <button
+                  onClick={() => toggleAllVisibility(false)}
+                  disabled={disabled || saving || stats.totalItems === 0}
+                  className="btn-ghost justify-start px-3 py-2 text-sm disabled:opacity-50"
+                >
+                  <EyeOff className="w-4 h-4 mr-2 text-gray-600" />
+                  Hide All Items
+                </button>
+                
+                {stats.totalItems > 0 && (
+                  <div className="mt-2 pt-2 border-t text-xs text-gray-500">
+                    {stats.visibleItems} of {stats.totalItems} items visible
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center space-x-4">
-        <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-          <DialogTrigger asChild>
-            <Button disabled={disabled}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Import FFE Template</DialogTitle>
-            </DialogHeader>
-            <div className="text-center py-8">
-              <p className="text-gray-600">Template import functionality coming soon...</p>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
-          <DialogTrigger asChild>
-            <Button variant="outline" disabled={disabled}>
-              <FolderPlus className="w-4 h-4 mr-2" />
-              Add Section
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Section</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="section-name">Section Name *</Label>
-                <Input
-                  id="section-name"
-                  value={newSectionName}
-                  onChange={(e) => setNewSectionName(e.target.value)}
-                  placeholder="e.g., Flooring, Lighting, Fixtures"
-                />
+      {/* Modern Import Template Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-2xl animate-slide-in-right">
+          <DialogHeader className="pb-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-50 rounded-xl">
+                <Import className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <Label htmlFor="section-description">Description</Label>
-                <Textarea
-                  id="section-description"
-                  value={newSectionDescription}
-                  onChange={(e) => setNewSectionDescription(e.target.value)}
-                  placeholder="Optional description..."
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddSectionDialog(false)
-                    setNewSectionName('')
-                    setNewSectionDescription('')
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleAddSection} disabled={saving}>
-                  {saving ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Add Section
-                </Button>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Import FFE Template
+                </DialogTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Choose from pre-built templates to quickly setup your FFE items
+                </p>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
+            {/* Left Column - Form */}
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  Available Templates
+                </label>
+                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                  <SelectTrigger className="h-12 border-2 border-gray-200 hover:border-blue-300 transition-colors">
+                    <SelectValue placeholder={templatesLoading ? "Loading templates..." : templates && templates.length > 0 ? "Choose a template..." : "No templates available"} />
+                  </SelectTrigger>
+                  <SelectContent className="animate-slide-in-right">
+                    {templatesLoading ? (
+                      <div className="px-4 py-8 text-center">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-blue-600" />
+                        <p className="text-sm text-gray-500">Loading templates...</p>
+                      </div>
+                    ) : templatesError ? (
+                      <div className="px-4 py-8 text-center">
+                        <AlertTriangle className="h-6 w-6 mx-auto mb-3 text-red-500" />
+                        <p className="text-sm text-red-600">Error loading templates</p>
+                      </div>
+                    ) : (templates || []).length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                          <Import className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-500">No templates available</p>
+                      </div>
+                    ) : (
+                      (templates || []).map(template => (
+                        <SelectItem key={template.id} value={template.id} className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-blue-50 rounded-lg">
+                              <Package className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{template.name}</div>
+                              {template.description && (
+                                <div className="text-sm text-gray-600 mt-1">{template.description}</div>
+                              )}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Right Column - Preview/Help */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-semibold text-gray-900 mb-4">What happens next?</h4>
+              <div className="space-y-4 text-sm text-gray-600">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">1</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Import sections</p>
+                    <p>Template sections will be added to this room</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">2</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Add FFE items</p>
+                    <p>All template items will be imported as hidden by default</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">3</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Customize</p>
+                    <p>Review and show/hide items as needed for your project</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2 text-amber-700 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="font-medium text-sm">Note</span>
+                </div>
+                <p className="text-xs text-amber-700">
+                  Imported items won't affect existing items in this room. You can safely import multiple templates.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
+            <button 
+              onClick={() => setShowImportDialog(false)}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleImportTemplate} 
+              disabled={!selectedTemplateId || saving}
+              className="btn-primary disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Importing...</span>
+                </>
+              ) : (
+                <>
+                  <Import className="h-4 w-4" />
+                  <span>Import Template</span>
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
+      {/* Modern Add Section Dialog */}
+      <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
+        <DialogContent className="max-w-lg animate-slide-in-right">
+          <DialogHeader className="pb-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-50 rounded-xl">
+                <FolderPlus className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Add New Section
+                </DialogTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Create a new category to organize your FFE items
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-6">
+            <div className="relative">
+              <input
+                id="section-name"
+                type="text"
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                placeholder=" "
+                className="floating-input peer"
+                required
+              />
+              <label htmlFor="section-name" className="floating-label peer-focus:text-green-600">
+                Section Name *
+              </label>
+              <div className="mt-2">
+                <p className="text-xs text-gray-500">
+                  Examples: Flooring, Lighting, Fixtures, Furniture
+                </p>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <textarea
+                id="section-description"
+                value={newSectionDescription}
+                onChange={(e) => setNewSectionDescription(e.target.value)}
+                placeholder=" "
+                rows={4}
+                className="floating-input peer resize-none"
+              />
+              <label htmlFor="section-description" className="floating-label peer-focus:text-green-600">
+                Description (Optional)
+              </label>
+              <div className="mt-2">
+                <p className="text-xs text-gray-500">
+                  Brief description of what items belong in this section
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-green-700 mb-2">
+                <FolderPlus className="h-4 w-4" />
+                <span className="font-medium text-sm">What's next?</span>
+              </div>
+              <p className="text-xs text-green-700">
+                After creating the section, you can add FFE items to it or import them from templates.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
+            <button
+              onClick={() => {
+                setShowAddSectionDialog(false)
+                setNewSectionName('')
+                setNewSectionDescription('')
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleAddSection} 
+              disabled={saving || !newSectionName.trim()}
+              className="btn-primary disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <FolderPlus className="w-4 h-4" />
+                  <span>Add Section</span>
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+        {/* Add Item Dialog */}
         <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-          <DialogTrigger asChild>
-            <Button variant="outline" disabled={disabled || sections.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Item</DialogTitle>
@@ -599,132 +1066,171 @@ export default function FFESettingsDepartment({
           </DialogContent>
         </Dialog>
 
-        {/* Bulk Actions */}
-        <div className="flex items-center space-x-2 border-l pl-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toggleAllVisibility(true)}
-            disabled={disabled || saving || stats.totalItems === 0}
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Show All
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toggleAllVisibility(false)}
-            disabled={disabled || saving || stats.totalItems === 0}
-          >
-            <EyeOff className="w-4 h-4 mr-1" />
-            Hide All
-          </Button>
-        </div>
-      </div>
-
-      {/* Sections and Items */}
+      {/* Modern Sections Display */}
       <div className="space-y-4">
         {sections.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="text-gray-400 mb-4">
-                <Settings className="h-16 w-16 mx-auto" />
+          <div className="card-elevated">
+            <div className="p-12 text-center">
+              {/* Animated empty state */}
+              <div className="relative mb-6">
+                <div className="animate-bounce-in">
+                  <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Settings className="h-10 w-10 text-indigo-600" />
+                  </div>
+                </div>
+                
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
+                  <FolderPlus className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
+                  <Import className="h-3 w-3 text-green-600" />
+                </div>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No FFE Sections Yet</h3>
-              <p className="text-gray-600 mb-4">
-                Start by importing a template or adding sections and items manually.
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3">No FFE Sections Yet</h3>
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Start by importing a template for quick setup, or create custom sections to organize your FFE items.
               </p>
-              <div className="flex justify-center space-x-2">
-                <Button onClick={() => setShowImportDialog(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
+              
+              <div className="flex justify-center gap-3">
+                <button 
+                  onClick={() => setShowImportDialog(true)}
+                  className="btn-primary"
+                >
+                  <Import className="w-4 h-4" />
                   Import Template
-                </Button>
-                <Button variant="outline" onClick={() => setShowAddSectionDialog(true)}>
-                  <FolderPlus className="w-4 h-4 mr-2" />
+                </button>
+                <button 
+                  onClick={() => setShowAddSectionDialog(true)}
+                  className="btn-secondary"
+                >
+                  <FolderPlus className="w-4 h-4" />
                   Add Section
-                </Button>
+                </button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
-          sections.map(section => (
-            <Card key={section.id}>
-              <CardHeader 
-                className="cursor-pointer hover:bg-gray-50"
-                onClick={() => toggleSectionExpanded(section.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {section.isExpanded ? (
-                      <ChevronDown className="h-5 w-5 text-gray-600" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5 text-gray-600" />
-                    )}
-                    <div>
-                      <CardTitle className="text-base">{section.name}</CardTitle>
+          sections.map(section => {
+            const visibleCount = section.items.filter(item => item.visibility === 'VISIBLE').length
+            const completionRate = section.items.length > 0 
+              ? Math.round((section.items.filter(item => item.state === 'COMPLETED').length / section.items.length) * 100)
+              : 0
+            
+            return (
+              <div key={section.id} className="card-elevated">
+                {/* Modern Section Header */}
+                <div className="section-header">
+                  <div 
+                    className="flex items-center gap-4 flex-1 cursor-pointer"
+                    onClick={() => toggleSectionExpanded(section.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`transition-transform duration-200 ${
+                        section.isExpanded ? 'rotate-90' : 'rotate-0'
+                      }`}>
+                        <ChevronRight className="h-5 w-5 text-gray-500" />
+                      </div>
+                      
+                      <div className="p-2 bg-slate-50 rounded-lg">
+                        <FolderPlus className="h-5 w-5 text-slate-600" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
+                        
+                        {/* Progress pill */}
+                        <div className="status-chip-progress">
+                          <span className="text-xs font-medium">{completionRate}% complete</span>
+                        </div>
+                      </div>
+                      
                       {section.description && (
                         <p className="text-sm text-gray-600">{section.description}</p>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">
-                      {section.items.length} items
-                    </Badge>
-                    <Badge variant="outline" className="bg-green-50 text-green-700">
-                      {section.items.filter(item => item.visibility === 'VISIBLE').length} visible
-                    </Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="status-chip-pending">
+                        <Package className="h-3 w-3" />
+                        <span>{section.items.length}</span>
+                      </div>
+                      
+                      <div className="status-chip-completed">
+                        <Eye className="h-3 w-3" />
+                        <span>{visibleCount}</span>
+                      </div>
+                    </div>
+                    
+                    <button
+                      className="btn-ghost p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      disabled={disabled || saving}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteSection(section.id, section.name)
+                      }}
+                      title="Delete section"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              </CardHeader>
-              
-              {section.isExpanded && (
-                <CardContent className="border-t space-y-3">
-                  {section.items.length === 0 ? (
-                    <div className="text-center py-6 text-gray-500">
-                      <p>No items in this section yet.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => {
-                          setSelectedSectionId(section.id)
-                          setShowAddItemDialog(true)
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add First Item
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                      {section.items.map(item => (
-                        <FFEItemCard
-                          key={item.id}
-                          id={item.id}
-                          name={item.name}
-                          description={item.description}
-                          state={item.state}
-                          visibility={item.visibility}
-                          notes={item.notes}
-                          sectionName={section.name}
-                          isRequired={item.isRequired}
-                          isCustom={item.isCustom}
-                          quantity={item.quantity}
-                          mode="settings"
-                          disabled={disabled || saving}
-                          onStateChange={handleStateChange}
-                          onVisibilityChange={handleVisibilityChange}
-                          onNotesChange={handleNotesChange}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-          ))
+                
+                {/* Section Content */}
+                {section.isExpanded && (
+                  <div className="px-6 pb-6">
+                    {section.items.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <p className="text-gray-600 mb-4">No items in this section yet</p>
+                        <button
+                          onClick={() => {
+                            setSelectedSectionId(section.id)
+                            setShowAddItemDialog(true)
+                          }}
+                          className="btn-secondary"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add First Item
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {section.items.map(item => (
+                          <FFEItemCard
+                            key={item.id}
+                            id={item.id}
+                            name={item.name}
+                            description={item.description}
+                            state={item.state}
+                            visibility={item.visibility}
+                            notes={item.notes}
+                            sectionName={section.name}
+                            isRequired={item.isRequired}
+                            isCustom={item.isCustom}
+                            quantity={item.quantity}
+                            mode="settings"
+                            disabled={disabled || saving}
+                            onStateChange={handleStateChange}
+                            onVisibilityChange={handleVisibilityChange}
+                            onNotesChange={handleNotesChange}
+                            onDelete={handleDeleteItem}
+                            onQuantityInclude={handleQuantityInclude}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
         )}
       </div>
     </div>
