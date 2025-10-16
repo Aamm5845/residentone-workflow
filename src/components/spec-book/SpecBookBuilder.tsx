@@ -311,25 +311,38 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                   <CardContent>
                     <div className="space-y-3">
                       {PROJECT_LEVEL_SECTIONS.map((section) => (
-                        <div key={section.type} className="flex items-start space-x-3">
-                          <Checkbox
-                            id={section.type}
-                            checked={selectedSections[section.type] || false}
-                            onCheckedChange={(checked) => 
-                              handleSectionToggle(section.type, checked as boolean)
-                            }
-                          />
-                          <div className="flex-1">
-                            <Label 
-                              htmlFor={section.type}
-                              className="font-medium cursor-pointer"
-                            >
-                              {section.name}
-                            </Label>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {section.description}
-                            </p>
+                        <div key={section.type} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start space-x-3">
+                            <Checkbox
+                              id={section.type}
+                              checked={selectedSections[section.type] || false}
+                              onCheckedChange={(checked) => 
+                                handleSectionToggle(section.type, checked as boolean)
+                              }
+                            />
+                            <div className="flex-1">
+                              <Label 
+                                htmlFor={section.type}
+                                className="font-medium cursor-pointer"
+                              >
+                                {section.name}
+                              </Label>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {section.description}
+                              </p>
+                            </div>
                           </div>
+                          
+                          {selectedSections[section.type] && (
+                            <div className="mt-3">
+                              <DropboxFileBrowser 
+                                roomId={null}
+                                projectId={project.id}
+                                sectionType={section.type}
+                                sectionName={section.name}
+                              />
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

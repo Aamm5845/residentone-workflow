@@ -155,7 +155,8 @@ function getSectionDisplayName(sectionType: string): string {
     PLUMBING: 'Plumbing Plans',
     STRUCTURAL: 'Structural Plans',
     RCP: 'Reflected Ceiling Plans',
-    ROOM: 'Room Content'
+    ROOM: 'Room Content',
+    DRAWINGS: 'Room Drawings'
   }
   return displayNames[sectionType] || sectionType
 }
@@ -168,7 +169,8 @@ function getDefaultSectionOrder(sectionType: string): number {
     PLUMBING: 4,
     STRUCTURAL: 5,
     RCP: 6,
-    ROOM: 100
+    ROOM: 100,
+    DRAWINGS: 101
   }
   return orders[sectionType] || 99
 }

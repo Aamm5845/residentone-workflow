@@ -19,7 +19,10 @@ const projectSettingsSchema = z.object({
   type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'HOSPITALITY']),
   budget: z.string().optional(),
   dueDate: z.string().optional(),
-  address: z.string().optional(),
+  address: z.string().optional(), // Legacy field
+  streetAddress: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
   coverImages: z.array(z.string()).optional(),
   dropboxFolder: z.string().optional().nullable(),
   hasFloorplanApproval: z.boolean().optional(),
@@ -113,7 +116,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       type: project?.type || 'RESIDENTIAL',
       budget: project?.budget ? project.budget.toString() : '',
       dueDate: project?.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : '',
-      address: project?.address || '',
+      address: project?.address || '', // Legacy field
+      streetAddress: project?.streetAddress || project?.address || '', // Fallback to legacy address if structured field is empty
+      city: project?.city || '',
+      postalCode: project?.postalCode || '',
       coverImages: Array.isArray(project?.coverImages) ? project.coverImages : project?.coverImages ? [project.coverImages] : [],
       dropboxFolder: project?.dropboxFolder || '',
       hasFloorplanApproval: project?.hasFloorplanApproval || false,
@@ -436,7 +442,9 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 name: data.name,
                 type: data.type,
                 description: data.description,
-                address: data.address,
+                streetAddress: data.streetAddress,
+                city: data.city,
+                postalCode: data.postalCode,
                 budget: data.budget ? parseFloat(data.budget) : null,
                 dueDate: data.dueDate || null
               })
@@ -471,14 +479,36 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 </div>
               </div>
               
-              <div>
+              <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Project Address
                 </label>
-                <Input
-                  {...register('address')}
-                  placeholder="123 Main Street, City, State ZIP"
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Input
+                      {...register('streetAddress')}
+                      placeholder="123 Main Street"
+                      className="mb-2"
+                    />
+                    <label className="text-xs text-gray-500">Street Address</label>
+                  </div>
+                  <div>
+                    <Input
+                      {...register('city')}
+                      placeholder="City"
+                      className="mb-2"
+                    />
+                    <label className="text-xs text-gray-500">City</label>
+                  </div>
+                  <div>
+                    <Input
+                      {...register('postalCode')}
+                      placeholder="12345"
+                      className="mb-2"
+                    />
+                    <label className="text-xs text-gray-500">Postal Code</label>
+                  </div>
+                </div>
               </div>
               
               <div>
@@ -555,7 +585,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Project Address</p>
-                <p className="text-gray-900 mt-1">{project.address || 'No address specified'}</p>
+                <div className="text-gray-900 mt-1">
+                  {project.streetAddress || project.city || project.postalCode ? (
+                    <div className="space-y-1">
+                      {project.streetAddress && <div>{project.streetAddress}</div>}
+                      <div>
+                        {project.city && <span>{project.city}</span>}
+                        {project.city && project.postalCode && <span>, </span>}
+                        {project.postalCode && <span>{project.postalCode}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    project.address || 'No address specified'
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Description</p>

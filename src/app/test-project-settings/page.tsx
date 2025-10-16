@@ -21,7 +21,10 @@ export default function TestProjectSettingsPage() {
     description: '',
     type: 'RESIDENTIAL',
     budget: '',
-    address: ''
+    address: '', // Legacy
+    streetAddress: '',
+    city: '',
+    postalCode: ''
   })
 
   const runTests = async () => {
@@ -81,7 +84,9 @@ export default function TestProjectSettingsPage() {
               description: testFormData.description || results.selectedProject.description,
               type: testFormData.type,
               budget: testFormData.budget ? parseFloat(testFormData.budget) : results.selectedProject.budget,
-              address: testFormData.address || results.selectedProject.address
+              streetAddress: testFormData.streetAddress || results.selectedProject.streetAddress,
+              city: testFormData.city || results.selectedProject.city,
+              postalCode: testFormData.postalCode || results.selectedProject.postalCode
             }),
             credentials: 'include'
           })
@@ -175,6 +180,39 @@ export default function TestProjectSettingsPage() {
                   value={testFormData.budget}
                   onChange={(e) => setTestFormData(prev => ({ ...prev, budget: e.target.value }))}
                   placeholder="New budget"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Test Street Address
+                </label>
+                <Input
+                  type="text"
+                  value={testFormData.streetAddress}
+                  onChange={(e) => setTestFormData(prev => ({ ...prev, streetAddress: e.target.value }))}
+                  placeholder="123 Main Street"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Test City
+                </label>
+                <Input
+                  type="text"
+                  value={testFormData.city}
+                  onChange={(e) => setTestFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="City"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Test Postal Code
+                </label>
+                <Input
+                  type="text"
+                  value={testFormData.postalCode}
+                  onChange={(e) => setTestFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                  placeholder="12345"
                 />
               </div>
             </div>

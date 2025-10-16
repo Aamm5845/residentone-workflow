@@ -245,6 +245,9 @@ model Project {
   updatedAt                 DateTime                   @updatedAt
   coverImages               Json?
   address                   String?
+  streetAddress            String?
+  city                     String?
+  postalCode               String?
   hasFloorplanApproval      Boolean                    @default(false)
   hasSpecBook               Boolean                    @default(false)
   hasProjectUpdates         Boolean                    @default(false)

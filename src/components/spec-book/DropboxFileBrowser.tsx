@@ -26,11 +26,13 @@ interface DropboxFolder {
 }
 
 interface DropboxFileBrowserProps {
-  roomId: string
+  roomId: string | null
   projectId: string
+  sectionType?: string
+  sectionName?: string
 }
 
-export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProps) {
+export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName }: DropboxFileBrowserProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [currentPath, setCurrentPath] = useState('')
   const [currentFolder, setCurrentFolder] = useState<DropboxFolder | null>(null)
@@ -42,14 +44,15 @@ export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProp
   // Load existing linked files on mount
   useEffect(() => {
     fetchLinkedFiles()
-  }, [roomId, projectId])
+  }, [roomId, projectId, sectionType])
 
   const fetchLinkedFiles = async () => {
     try {
       const params = new URLSearchParams({
         projectId,
         ...(roomId && { roomId }),
-        ...(roomId && { sectionType: 'ROOM' })
+        ...(sectionType && { sectionType }),
+        ...(!roomId && !sectionType && { sectionType: 'ROOM' })
       })
       
       const response = await fetch(`/api/spec-books/linked-files?${params}`)
@@ -138,7 +141,7 @@ export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProp
         body: JSON.stringify({
           projectId,
           roomId,
-          sectionType: roomId ? 'ROOM' : undefined,
+          sectionType: sectionType || (roomId ? 'ROOM' : undefined),
           dropboxFiles: selectedFiles.map(file => ({
             path: file.path,
             name: file.name,
@@ -208,7 +211,9 @@ export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProp
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium">CAD Files</h4>
+        <h4 className="font-medium">
+          {sectionName ? `${sectionName} - CAD Files` : 'CAD Files'}
+        </h4>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button 

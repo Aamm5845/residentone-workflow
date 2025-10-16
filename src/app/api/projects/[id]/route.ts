@@ -15,6 +15,13 @@ const updateProjectSchema = z.object({
   clientId: z.string().optional(),
   coverImages: z.array(z.string()).optional().nullable(), // Array of image URLs
   dropboxFolder: z.string().optional().nullable(),
+  address: z.string().optional(), // Legacy field for backward compatibility
+  streetAddress: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  hasFloorplanApproval: z.boolean().optional(),
+  hasSpecBook: z.boolean().optional(),
+  hasProjectUpdates: z.boolean().optional(),
 })
 
 const deleteProjectSchema = z.object({
@@ -185,6 +192,32 @@ export async function PUT(
     }
     if (validatedData.dropboxFolder !== undefined) {
       updateData.dropboxFolder = validatedData.dropboxFolder
+    }
+    // Handle address fields - support both legacy and new structured format
+    if (validatedData.address !== undefined) {
+      updateData.address = validatedData.address
+      // If legacy address is provided but no structured fields, copy to streetAddress
+      if (!validatedData.streetAddress && !validatedData.city && !validatedData.postalCode) {
+        updateData.streetAddress = validatedData.address
+      }
+    }
+    if (validatedData.streetAddress !== undefined) {
+      updateData.streetAddress = validatedData.streetAddress
+    }
+    if (validatedData.city !== undefined) {
+      updateData.city = validatedData.city
+    }
+    if (validatedData.postalCode !== undefined) {
+      updateData.postalCode = validatedData.postalCode
+    }
+    if (validatedData.hasFloorplanApproval !== undefined) {
+      updateData.hasFloorplanApproval = validatedData.hasFloorplanApproval
+    }
+    if (validatedData.hasSpecBook !== undefined) {
+      updateData.hasSpecBook = validatedData.hasSpecBook
+    }
+    if (validatedData.hasProjectUpdates !== undefined) {
+      updateData.hasProjectUpdates = validatedData.hasProjectUpdates
     }
     
     console.log('💾 Update data being sent to DB:', updateData)

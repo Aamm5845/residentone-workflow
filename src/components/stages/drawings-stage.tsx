@@ -9,6 +9,7 @@ import { useDrawingsWorkspace } from '@/hooks/useDrawingsWorkspace'
 import { DrawingAsset, DrawingChecklistItem } from '@/types/drawings'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
+import { DropboxFileBrowser } from '../spec-book/DropboxFileBrowser'
 import {
   CheckCircle,
   PencilRuler,
@@ -27,7 +28,8 @@ import {
   ChevronUp,
   AlertTriangle,
   Clock,
-  Plus
+  Plus,
+  HardDrive
 } from 'lucide-react'
 
 interface DrawingsWorkspaceProps {
@@ -282,7 +284,30 @@ export default function DrawingsWorkspace({
       <div className="flex">
         {/* Main Workspace */}
         <div className="flex-1 p-4 sm:p-6">
-          {/* Drawings Content */}
+        {/* Drawings Content */}
+        
+        {/* CAD Files Section */}
+        <div className="border border-gray-200 rounded-lg p-6 mb-8">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <HardDrive className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">CAD Files from Dropbox</h3>
+              <p className="text-sm text-gray-500">
+                Link CAD files from Dropbox for this room's drawings
+              </p>
+            </div>
+          </div>
+          
+          <DropboxFileBrowser 
+            roomId={room.id}
+            projectId={project.id}
+            sectionType="DRAWINGS"
+            sectionName={`${room.name || room.type} - Drawings`}
+          />
+        </div>
+        
         {/* Checklist Items */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -545,6 +570,7 @@ export default function DrawingsWorkspace({
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mt-6">
           <h4 className="font-semibold text-orange-900 mb-2">📐 How to Use</h4>
           <ul className="text-sm text-orange-800 space-y-1">
+            <li>• Link CAD files from Dropbox that are relevant to this room's drawings</li>
             <li>• Upload technical drawings for each category (Lighting, Elevation, Millwork, Floor Plans)</li>
             <li>• Add descriptions to your files for better organization and context</li>
             <li>• Mark categories as complete once all required drawings are uploaded</li>
