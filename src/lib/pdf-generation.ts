@@ -288,14 +288,17 @@ class PDFGenerationService {
       color: rgb(0.4, 0.4, 0.4)
     })
     
+    detailY -= 25 // Space after project name
+    
     if (coverData.address) {
       page.drawText(coverData.address, {
         x: rightX,
-        y: 125,
+        y: detailY,
         size: 12,
         font: font,
         color: rgb(0.5, 0.5, 0.5)
       })
+      detailY -= 25
     }
     
     // Print date
@@ -305,10 +308,9 @@ class PDFGenerationService {
       day: 'numeric'
     })
     
-    const dateY = coverData.address ? 100 : 125
     page.drawText(printDate, {
       x: rightX,
-      y: dateY,
+      y: detailY,
       size: 10,
       font: font,
       color: rgb(0.6, 0.6, 0.6)

@@ -77,6 +77,7 @@ interface CoverPageData {
   address: string
   companyLogo: string
   description: string
+  specBookType: string
   includedSections: string[]
 }
 
@@ -106,6 +107,7 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
     ].filter(Boolean).join(', ') || project.address || '',
     companyLogo: '',
     description: '',
+    specBookType: 'Full Project',
     includedSections: []
   })
 
@@ -281,16 +283,30 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Input
-                        id="address"
-                        value={coverPageData.address}
-                        onChange={(e) => setCoverPageData(prev => ({ 
-                          ...prev, 
-                          address: e.target.value 
-                        }))}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="address">Address</Label>
+                        <Input
+                          id="address"
+                          value={coverPageData.address}
+                          onChange={(e) => setCoverPageData(prev => ({ 
+                            ...prev, 
+                            address: e.target.value 
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="specBookType">Spec Book Type</Label>
+                        <Input
+                          id="specBookType"
+                          placeholder="e.g., Electrical, Full Project, Lighting Only"
+                          value={coverPageData.specBookType}
+                          onChange={(e) => setCoverPageData(prev => ({ 
+                            ...prev, 
+                            specBookType: e.target.value 
+                          }))}
+                        />
+                      </div>
                     </div>
                     <div>
                       <Label htmlFor="description">Description</Label>
