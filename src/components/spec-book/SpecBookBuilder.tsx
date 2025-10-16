@@ -135,13 +135,6 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
     }))
   }, [])
 
-  const calculateEstimatedCost = useCallback(() => {
-    // Estimate based on number of files that need conversion
-    const selectedSectionCount = Object.values(selectedSections).filter(Boolean).length
-    const selectedRoomCount = Object.values(selectedRooms).filter(Boolean).length
-    const estimatedFiles = selectedSectionCount + (selectedRoomCount * 2) // 2 files per room on average
-    return estimatedFiles * 0.008 // $0.008 per conversion
-  }, [selectedSections, selectedRooms])
 
   const handleGeneratePDF = async () => {
     setIsGenerating(true)
@@ -405,10 +398,6 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                       <div className="flex justify-between text-sm">
                         <span>Rooms:</span>
                         <span>{selectedRoomsList.length}</span>
-                      </div>
-                      <div className="flex justify-between text-sm font-medium pt-2 border-t">
-                        <span>Estimated Cost:</span>
-                        <span>${calculateEstimatedCost().toFixed(3)}</span>
                       </div>
                     </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Folder, File, Plus, X, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -38,6 +38,30 @@ export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProp
   const [selectedFiles, setSelectedFiles] = useState<DropboxFile[]>([])
   const [linkedFiles, setLinkedFiles] = useState<DropboxFile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Load existing linked files on mount
+  useEffect(() => {
+    fetchLinkedFiles()
+  }, [roomId, projectId])
+
+  const fetchLinkedFiles = async () => {
+    try {
+      const params = new URLSearchParams({
+        projectId,
+        ...(roomId && { roomId }),
+        ...(roomId && { sectionType: 'ROOM' })
+      })
+      
+      const response = await fetch(`/api/spec-books/linked-files?${params}`)
+      const result = await response.json()
+      
+      if (result.success) {
+        setLinkedFiles(result.linkedFiles)
+      }
+    } catch (error) {
+      console.error('Error fetching linked files:', error)
+    }
+  }
 
   const fetchFolderContents = async (path: string = '', cursor?: string) => {
     setIsLoading(true)
@@ -105,14 +129,69 @@ export function DropboxFileBrowser({ roomId, projectId }: DropboxFileBrowserProp
   }
 
   const handleLinkFiles = async () => {
-    // TODO: Implement linking files to the room section
-    setLinkedFiles(prev => [...prev, ...selectedFiles])
-    setSelectedFiles([])
-    setIsOpen(false)
+    try {
+      const response = await fetch('/api/spec-books/link-files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          projectId,
+          roomId,
+          sectionType: roomId ? 'ROOM' : undefined,
+          dropboxFiles: selectedFiles.map(file => ({
+            path: file.path,
+            name: file.name,
+            size: file.size,
+            lastModified: file.lastModified
+          }))
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setLinkedFiles(prev => [...prev, ...selectedFiles])
+        setSelectedFiles([])
+        setIsOpen(false)
+        
+        // Show success message
+        alert(`Successfully linked ${result.linkedFiles.length} file(s)!`)
+      } else {
+        alert(`Error linking files: ${result.error}`)
+      }
+      
+    } catch (error) {
+      console.error('Error linking files:', error)
+      alert('Error linking files. Please try again.')
+    }
   }
 
-  const handleUnlinkFile = (file: DropboxFile) => {
-    setLinkedFiles(prev => prev.filter(f => f.id !== file.id))
+  const handleUnlinkFile = async (file: DropboxFile) => {
+    try {
+      const response = await fetch('/api/spec-books/unlink-files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          projectId,
+          filePath: file.path
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setLinkedFiles(prev => prev.filter(f => f.id !== file.id))
+      } else {
+        alert(`Error unlinking file: ${result.error}`)
+      }
+      
+    } catch (error) {
+      console.error('Error unlinking file:', error)
+      alert('Error unlinking file. Please try again.')
+    }
   }
 
   const formatFileSize = (bytes: number) => {
