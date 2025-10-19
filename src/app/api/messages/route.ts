@@ -22,8 +22,6 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const { message, sectionId, roomId } = data
 
-    console.log('📝 Creating message:', { hasMessage: !!message, sectionId, roomId })
-
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
@@ -192,8 +190,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const sectionId = searchParams.get('sectionId')
     const roomId = searchParams.get('roomId')
-
-    console.log('📥 Fetching messages for:', { sectionId, roomId })
 
     let whereClause: any = {
       orgId: session.user.orgId

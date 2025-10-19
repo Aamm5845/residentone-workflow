@@ -211,9 +211,7 @@ export default function InteractiveFFEPhase({ roomId }: InteractiveFFEPhaseProps
     e.preventDefault()
     
     // Debug logging
-    console.log('Form submitted with data:', formData)
-    console.log('Room ID:', roomId)
-    
+
     try {
       const payload = {
         roomId,
@@ -300,7 +298,7 @@ export default function InteractiveFFEPhase({ roomId }: InteractiveFFEPhaseProps
           </Button>
           <Button 
             onClick={() => {
-              console.log('Add Item button clicked')
+              
               setShowAddForm(true)
             }}
             className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg"

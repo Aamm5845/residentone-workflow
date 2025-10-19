@@ -196,14 +196,12 @@ export async function POST(request: NextRequest) {
       })
       
       if (customRoomType && customRoomType.subItems?.linkedRooms) {
-        console.log(`🔗 Found custom room type '${customRoomType.name}' with linked rooms:`, customRoomType.subItems.linkedRooms)
+        
         const linkedRoomTypes = mapRoomTypesToWorkspaceFormat(customRoomType.subItems.linkedRooms as string[])
         expandedRoomTypes = [...new Set([...expandedRoomTypes, ...linkedRoomTypes])]
-        console.log('🔗 Expanded room types:', expandedRoomTypes)
+        
       }
     }
-    
-    console.log('🔗 Creating FFE item with room types:', expandedRoomTypes)
 
     // Create in the FFE library
     const newItem = await prisma.fFELibraryItem.create({

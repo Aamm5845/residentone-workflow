@@ -31,7 +31,6 @@ const fetcher = async (url: string) => {
 
 // POST/PUT/DELETE helper
 const mutationFetcher = async (url: string, options: RequestInit) => {
-  console.log('🚀 Making API request to:', url, 'with options:', options)
   
   const response = await fetch(url, {
     headers: {
@@ -52,9 +51,7 @@ const mutationFetcher = async (url: string, options: RequestInit) => {
     console.error('❌ Response text:', responseText)
     throw new Error(`API request failed with status ${response.status}: Unable to parse JSON response`)
   }
-  
-  console.log('📝 API Response:', { status: response.status, ok: response.ok, data })
-  
+
   if (!response.ok) {
     console.error('❌ API Error:', { status: response.status, error: data?.error, details: data?.details, fullResponse: data })
     throw new Error(data?.error || `API request failed with status ${response.status}: ${JSON.stringify(data)}`)
@@ -76,8 +73,7 @@ export function useFFETemplates(orgId?: string, filters?: {
   if (filters?.search) queryParams.set('search', filters.search)
   
   const key = session && orgId ? `/api/ffe/v2/templates?${queryParams.toString()}` : null
-  
-  
+
   const { data, error, isLoading, mutate: revalidate } = useSWR<APIResponse<any[]>>(
     key,
     fetcher,
@@ -191,22 +187,18 @@ export function useFFETemplateMutations() {
   
   const deleteTemplate = async (templateId: string) => {
     try {
-      console.log('🗑️ Deleting template:', templateId);
       
       const result = await mutationFetcher(`/api/ffe/v2/templates/${templateId}`, {
         method: 'DELETE',
       })
-      
-      console.log('✅ Template deletion API response:', result);
-      
+
       // Remove from templates list
       mutate(
         (key) => typeof key === 'string' && key.startsWith('/api/ffe/v2/templates?'),
         undefined,
         { revalidate: true }
       )
-      
-      console.log('✅ Template list updated after deletion');
+
       toast.success('Template deleted successfully')
     } catch (error) {
       console.error('❌ Failed to delete template:', error);

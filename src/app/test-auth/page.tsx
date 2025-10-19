@@ -21,17 +21,16 @@ export default function TestAuthPage() {
 
     try {
       // Test 1: Check session info
-      console.log('🔍 Testing session info...')
+      
       const sessionResponse = await fetch('/api/auth/session')
       results.sessionInfo = {
         status: sessionResponse.status,
         ok: sessionResponse.ok,
         data: sessionResponse.ok ? await sessionResponse.json() : await sessionResponse.text()
       }
-      console.log('Session test result:', results.sessionInfo)
-
+      
       // Test 2: Test upload API access (GET request)
-      console.log('🔍 Testing upload API access...')
+      
       try {
         const uploadResponse = await fetch('/api/design/upload?sectionId=test-section-id')
         results.uploadApiTest = {
@@ -44,10 +43,9 @@ export default function TestAuthPage() {
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       }
-      console.log('Upload API test result:', results.uploadApiTest)
-
+      
       // Test 3: Test sections API with a POST request
-      console.log('🔍 Testing sections API access...')
+      
       try {
         const sectionsResponse = await fetch('/api/design/sections', {
           method: 'POST',
@@ -67,10 +65,9 @@ export default function TestAuthPage() {
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       }
-      console.log('Sections API test result:', results.sectionsApiTest)
-
+      
       // Test 4: Test comments API
-      console.log('🔍 Testing comments API access...')
+      
       try {
         const commentsResponse = await fetch('/api/design/comments', {
           method: 'POST',
@@ -90,8 +87,7 @@ export default function TestAuthPage() {
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       }
-      console.log('Comments API test result:', results.commentsApiTest)
-
+      
     } catch (error) {
       console.error('❌ Test error:', error)
     } finally {

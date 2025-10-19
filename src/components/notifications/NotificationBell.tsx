@@ -58,7 +58,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
           navigateUrl = `/stages/${notification.relatedId}`
           break
         default:
-          console.log('Unknown related type:', notification.relatedType)
+          
           return
       }
       
@@ -222,7 +222,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
               className="text-center text-blue-600 hover:text-blue-800"
               onSelect={() => {
                 // Navigate to full notifications page
-                console.log('Navigate to notifications page')
+                
               }}
             >
               View all notifications

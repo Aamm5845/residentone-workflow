@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { PROJECT_LEVEL_SECTIONS } from '@/components/spec-book/constants'
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,11 +45,55 @@ export async function GET(request: NextRequest) {
     if (!specBook) {
       return NextResponse.json({ 
         success: true, 
-        linkedFiles: [] 
+        linkedFiles: [],
+        sections: []
       })
     }
 
-    // Find section
+    // If requesting all project-level sections (no roomId and no sectionType)
+    if (!roomId && !sectionType) {
+      const planTypes = PROJECT_LEVEL_SECTIONS.map(section => section.type)
+      
+      const sections = await prisma.specBookSection.findMany({
+        where: {
+          specBookId: specBook.id,
+          roomId: null,
+          type: { in: planTypes }
+        },
+        include: {
+          dropboxFiles: {
+            where: {
+              isActive: true
+            }
+          }
+        },
+        orderBy: {
+          order: 'asc'
+        }
+      })
+
+      const formattedSections = sections.map(section => ({
+        id: section.id,
+        type: section.type,
+        name: section.name,
+        order: section.order,
+        files: section.dropboxFiles.map(file => ({
+          id: file.id,
+          dropboxPath: file.dropboxPath,
+          fileName: file.fileName,
+          fileSize: file.fileSize,
+          lastModified: file.lastModified,
+          cadToPdfCacheUrl: file.cadToPdfCacheUrl
+        }))
+      }))
+
+      return NextResponse.json({
+        success: true,
+        sections: formattedSections
+      })
+    }
+
+    // Original behavior for specific section
     const section = await prisma.specBookSection.findFirst({
       where: {
         specBookId: specBook.id,

@@ -67,10 +67,10 @@ class PDFGenerationService {
    * Generate a complete spec book PDF
    */
   async generateSpecBook(options: GenerationOptions): Promise<GenerationResult> {
-    console.log('📋 PDF Generation Service: Starting generation...')
+    
     try {
       // Create new PDF document in landscape 17x11
-      console.log('📋 Creating PDF document...')
+      
       const pdfDoc = await PDFDocument.create()
       
       // Set document metadata
@@ -79,15 +79,14 @@ class PDFGenerationService {
       pdfDoc.setCreationDate(new Date())
       
       // Load fonts
-      console.log('📋 Loading fonts...')
+      
       const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica)
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
       
       // Generate pages
-      console.log('📋 Adding cover page...')
-      await this.addCoverPage(pdfDoc, options.coverPageData, helvetica, helveticaBold)
       
-      console.log('📋 Adding table of contents...')
+      await this.addCoverPage(pdfDoc, options.coverPageData, helvetica, helveticaBold)
+
       await this.addTableOfContents(pdfDoc, options, helvetica, helveticaBold)
       
       // Add project-level sections
@@ -143,13 +142,10 @@ class PDFGenerationService {
     try {
       // Read the custom cover PDF template
       const coverTemplatePath = path.join(process.cwd(), 'public', 'SPEC COVER.pdf')
-      console.log('📋 Loading cover template from:', coverTemplatePath)
       
       const coverPdfBytes = await fs.readFile(coverTemplatePath)
-      console.log('📋 Cover template loaded, size:', coverPdfBytes.length, 'bytes')
       
       const coverPdf = await PDFDocument.load(coverPdfBytes)
-      console.log('📋 Cover PDF parsed successfully')
       
       // Copy the cover page to our document
       const [coverPage] = await pdfDoc.copyPages(coverPdf, [0])
@@ -218,7 +214,7 @@ class PDFGenerationService {
         stack: error instanceof Error ? error.stack : undefined
       })
       // Fallback to minimalist generated cover if template fails
-      console.log('📋 Using fallback minimalist cover...')
+      
       await this.addMinimalistCover(pdfDoc, coverData, font, boldFont)
     }
   }
@@ -502,29 +498,108 @@ class PDFGenerationService {
       color: rgb(0.7, 0.7, 0.7)
     })
     
-    // Minimalist CAD content area
-    const contentY = height - 180
-    const contentHeight = PDFGenerationService.CONTENT_HEIGHT - 220
-    
-    // Thin border for content area
-    page.drawRectangle({
-      x: PDFGenerationService.MARGIN,
-      y: contentY - contentHeight,
-      width: PDFGenerationService.CONTENT_WIDTH,
-      height: contentHeight,
-      color: rgb(1, 1, 1),
-      borderColor: rgb(0.9, 0.9, 0.9),
-      borderWidth: 0.5
-    })
-    
-    // Subtle placeholder text
-    page.drawText('CAD CONTENT', {
-      x: width / 2 - 50,
-      y: height / 2,
-      size: 12,
-      font: font,
-      color: rgb(0.8, 0.8, 0.8)
-    })
+    // Embed actual converted CAD PDFs if available
+    if (section.dropboxFiles.length > 0) {
+      const contentY = height - 180
+      const contentHeight = PDFGenerationService.CONTENT_HEIGHT - 220
+      
+      let currentY = contentY
+      let filesEmbedded = 0
+      
+      for (const file of section.dropboxFiles) {
+        if (file.cadToPdfCacheUrl && filesEmbedded === 0) { // Only embed first file on section page
+          try {
+            console.log(`[PDF-Generation] Embedding CAD PDF from ${file.cadToPdfCacheUrl}`)
+            
+            // Download the converted PDF
+            const response = await fetch(file.cadToPdfCacheUrl)
+            if (response.ok) {
+              const cadPdfBytes = await response.arrayBuffer()
+              const cadPdf = await PDFDocument.load(cadPdfBytes)
+              
+              // Get first page of the CAD PDF
+              const cadPages = await pdfDoc.copyPages(cadPdf, [0])
+              const cadPage = cadPages[0]
+              
+              // Calculate scaling to fit within content area while maintaining aspect ratio
+              const cadPageSize = cadPage.getSize()
+              const scale = Math.min(
+                PDFGenerationService.CONTENT_WIDTH / cadPageSize.width,
+                contentHeight / cadPageSize.height
+              )
+              
+              const scaledWidth = cadPageSize.width * scale
+              const scaledHeight = cadPageSize.height * scale
+              
+              // Center the CAD content within the available area
+              const x = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
+              const y = currentY - contentHeight + (contentHeight - scaledHeight) / 2
+              
+              // Add the CAD page to our document with scaling and positioning
+              const finalPage = pdfDoc.addPage(cadPage)
+              
+              // Apply transformations to the added page
+              finalPage.scaleContent(scale, scale)
+              finalPage.translateContent(x, y)
+              
+              // Remove the original section page since we're replacing it with CAD content
+              pdfDoc.removePage(pdfDoc.getPageCount() - 2)
+              
+              filesEmbedded++
+              console.log(`[PDF-Generation] Successfully embedded ${file.fileName}`)
+              break // Only embed one file per section page
+            }
+          } catch (error) {
+            console.error(`[PDF-Generation] Failed to embed CAD PDF ${file.fileName}:`, error)
+            // Fall back to placeholder
+          }
+        }
+      }
+      
+      // If no files were embedded, show placeholder
+      if (filesEmbedded === 0) {
+        // Thin border for content area
+        page.drawRectangle({
+          x: PDFGenerationService.MARGIN,
+          y: contentY - contentHeight,
+          width: PDFGenerationService.CONTENT_WIDTH,
+          height: contentHeight,
+          color: rgb(1, 1, 1),
+          borderColor: rgb(0.9, 0.9, 0.9),
+          borderWidth: 0.5
+        })
+        
+        page.drawText('CAD files linked but not yet converted', {
+          x: width / 2 - 120,
+          y: height / 2,
+          size: 12,
+          font: font,
+          color: rgb(0.8, 0.8, 0.8)
+        })
+      }
+    } else {
+      // No files linked
+      const contentY = height - 180
+      const contentHeight = PDFGenerationService.CONTENT_HEIGHT - 220
+      
+      page.drawRectangle({
+        x: PDFGenerationService.MARGIN,
+        y: contentY - contentHeight,
+        width: PDFGenerationService.CONTENT_WIDTH,
+        height: contentHeight,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0.9, 0.9, 0.9),
+        borderWidth: 0.5
+      })
+      
+      page.drawText('No CAD files linked', {
+        x: width / 2 - 80,
+        y: height / 2,
+        size: 12,
+        font: font,
+        color: rgb(0.8, 0.8, 0.8)
+      })
+    }
     
     // List linked files in minimal style
     if (section.dropboxFiles.length > 0) {
@@ -604,7 +679,6 @@ class PDFGenerationService {
     // Add actual rendering image if available
     if (room.renderingUrl) {
       try {
-        console.log('📋 Loading rendering image:', room.renderingUrl)
         
         // Fetch the image from the URL
         const response = await fetch(room.renderingUrl)
@@ -641,8 +715,7 @@ class PDFGenerationService {
             width: scaledWidth,
             height: scaledHeight
           })
-          
-          console.log('📋 Rendering image embedded successfully')
+
         } else {
           throw new Error(`Failed to fetch image: ${response.status}`)
         }
@@ -702,13 +775,68 @@ class PDFGenerationService {
         borderWidth: 0.5
       })
       
-      cadPage.drawText('CAD DRAWING', {
-        x: cadWidth / 2 - 60,
-        y: cadHeight / 2,
-        size: 12,
-        font: font,
-        color: rgb(0.8, 0.8, 0.8)
-      })
+      // Embed the actual CAD PDF if available
+      if (cadFile.pdfUrl) {
+        try {
+          console.log(`[PDF-Generation] Embedding room CAD PDF from ${cadFile.pdfUrl}`)
+          
+          // Download the converted PDF
+          const response = await fetch(cadFile.pdfUrl)
+          if (response.ok) {
+            const cadPdfBytes = await response.arrayBuffer()
+            const cadPdf = await PDFDocument.load(cadPdfBytes)
+            
+            // Get first page of the CAD PDF
+            const cadPages = await pdfDoc.copyPages(cadPdf, [0])
+            const embeddedCadPage = cadPages[0]
+            
+            // Calculate scaling to fit within content area
+            const cadPageSize = embeddedCadPage.getSize()
+            const scale = Math.min(
+              PDFGenerationService.CONTENT_WIDTH / cadPageSize.width,
+              cadContentHeight / cadPageSize.height
+            )
+            
+            const scaledWidth = cadPageSize.width * scale
+            const scaledHeight = cadPageSize.height * scale
+            
+            // Center the CAD content
+            const x = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
+            const y = cadContentY - cadContentHeight + (cadContentHeight - scaledHeight) / 2
+            
+            // Scale and position the CAD page
+            embeddedCadPage.scale(scale, scale)
+            embeddedCadPage.translateTo(x, y)
+            
+            // Replace the current CAD page with the embedded one
+            pdfDoc.addPage(embeddedCadPage)
+            pdfDoc.removePage(pdfDoc.getPageCount() - 2) // Remove the placeholder page
+            
+            console.log(`[PDF-Generation] Successfully embedded room CAD ${cadFile.fileName}`)
+          } else {
+            throw new Error(`Failed to fetch CAD PDF: ${response.status}`)
+          }
+        } catch (error) {
+          console.error(`[PDF-Generation] Failed to embed room CAD PDF ${cadFile.fileName}:`, error)
+          // Fall back to placeholder
+          cadPage.drawText('CAD file conversion failed', {
+            x: cadWidth / 2 - 100,
+            y: cadHeight / 2,
+            size: 12,
+            font: font,
+            color: rgb(0.8, 0.8, 0.8)
+          })
+        }
+      } else {
+        // No converted PDF available
+        cadPage.drawText('CAD file not yet converted', {
+          x: cadWidth / 2 - 90,
+          y: cadHeight / 2,
+          size: 12,
+          font: font,
+          color: rgb(0.8, 0.8, 0.8)
+        })
+      }
     }
   }
   

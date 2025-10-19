@@ -34,9 +34,7 @@ export async function sendEmail(emailData: EmailData): Promise<EmailResult> {
     // Check if Resend is configured
     if (!resend) {
       console.warn('⚠️ RESEND_API_KEY not found, logging email instead of sending')
-      console.log('📧 EMAIL TO SEND:')
-      console.log('To:', emailData.to)
-      console.log('Subject:', emailData.subject)
+
       console.log('HTML Content:', emailData.html.substring(0, 200) + '...')
       
       return {
@@ -47,13 +45,7 @@ export async function sendEmail(emailData: EmailData): Promise<EmailResult> {
 
     // Get from address from environment or use default
     const fromAddress = emailData.from || process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'noreply@residentone.com'
-    
-    console.log('📧 Sending phase notification email via Resend:', {
-      to: emailData.to,
-      subject: emailData.subject,
-      from: fromAddress
-    })
-    
+
     // Send email using Resend
     const result = await resend.emails.send({
       from: fromAddress,
@@ -65,13 +57,10 @@ export async function sendEmail(emailData: EmailData): Promise<EmailResult> {
       ...(emailData.cc && { cc: emailData.cc }),
       ...(emailData.bcc && { bcc: emailData.bcc })
     })
-    
-    console.log('✅ Phase notification email sent successfully:', result.data?.id)
-    
+
     return {
       success: true,
       messageId: result.data?.id || `resend-${Date.now()}`
-    }
     }
     
   } catch (error) {

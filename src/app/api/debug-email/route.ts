@@ -17,24 +17,8 @@ export async function POST(request: NextRequest) {
     html: '<h1>Test Email</h1><p>This is a test email to debug validation issues.</p>'
   }
 
-  console.log('🧪 Debug email payload:', {
-    from: testData.from,
-    to: testData.to,
-    subject: testData.subject,
-    htmlLength: testData.html.length,
-    fromType: typeof testData.from,
-    toType: typeof testData.to,
-    subjectType: typeof testData.subject,
-    htmlType: typeof testData.html,
-    fromEmpty: testData.from === '',
-    toEmpty: testData.to === '',
-    subjectEmpty: testData.subject === '',
-    htmlEmpty: testData.html === ''
-  })
-
   try {
     const result = await resend.emails.send(testData)
-    console.log('✅ Debug email sent:', result.data?.id)
     
     return NextResponse.json({ 
       success: true, 

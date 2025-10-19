@@ -5,14 +5,12 @@ import { nanoid } from 'nanoid'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== DEBUG CLIENT ACCESS ===')
     
     // Check session
     const session = await getSession()
-    console.log('Session:', session)
     
     if (!session?.user) {
-      console.log('No session or user')
+      
       return NextResponse.json({ error: 'No session', session }, { status: 401 })
     }
     
@@ -36,11 +34,9 @@ export async function GET(request: NextRequest) {
     
     // Try to create a test token for first project
     const testProject = projects[0]
-    console.log('Using test project:', testProject.id, testProject.name)
     
     try {
       const token = nanoid(32)
-      console.log('Generated token:', token)
       
       const clientAccessToken = await prisma.clientAccessToken.create({
         data: {
@@ -59,9 +55,7 @@ export async function GET(request: NextRequest) {
           }
         }
       })
-      
-      console.log('Created token successfully:', clientAccessToken)
-      
+
       return NextResponse.json({ 
         success: true,
         message: 'Debug test successful',

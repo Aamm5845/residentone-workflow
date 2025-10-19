@@ -32,8 +32,6 @@ export async function POST(
     
     const { roomId } = await params
     const { name, description, items = [] } = await request.json()
-    
-    console.log('🔍 Creating section:', { roomId, name, orgId });
 
     if (!roomId || !name?.trim()) {
       return NextResponse.json({ error: 'Room ID and section name are required' }, { status: 400 })

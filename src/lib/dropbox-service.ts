@@ -1,5 +1,19 @@
 import { Dropbox } from 'dropbox'
-import fetch from 'node-fetch'
+
+// Custom fetch implementation that properly handles binary responses
+const fetchImpl = async (url: string, options: any) => {
+  const response = await fetch(url, options)
+  
+  // Add buffer method if it doesn't exist (for binary downloads)
+  if (!response.buffer) {
+    response.buffer = async () => {
+      const arrayBuffer = await response.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    }
+  }
+  
+  return response
+}
 
 interface DropboxFile {
   id: string
@@ -21,37 +35,125 @@ interface DropboxFolder {
 
 class DropboxService {
   private dropbox: Dropbox | null = null
+  private teamMemberId: string | null = null
 
-  private getDropbox() {
+  // Get a team client for team-level operations (no user selection)
+  private getTeamClient() {
+    const teamClient = new Dropbox({
+      accessToken: process.env.DROPBOX_ACCESS_TOKEN,
+      fetch: fetchImpl
+      // No selectUser for team operations
+    })
+    return teamClient
+  }
+
+  // Get the team member ID from environment
+  private getTeamMemberId(): string {
+    if (!process.env.DROPBOX_TEAM_MEMBER_ID) {
+      throw new Error('DROPBOX_TEAM_MEMBER_ID environment variable is required for team operations')
+    }
+    return process.env.DROPBOX_TEAM_MEMBER_ID
+  }
+
+  private getClient() {
     if (!this.dropbox) {
-      if (!process.env.DROPBOX_ACCESS_TOKEN) {
-        throw new Error('DROPBOX_ACCESS_TOKEN environment variable is required')
+      const teamMemberId = this.getTeamMemberId()
+      
+      if (process.env.DROPBOX_ACCESS_TOKEN) {
+        this.dropbox = new Dropbox({
+          accessToken: process.env.DROPBOX_ACCESS_TOKEN,
+          fetch: fetchImpl,
+          selectUser: teamMemberId
+        })
+      } else if (process.env.DROPBOX_REFRESH_TOKEN && process.env.DROPBOX_APP_KEY && process.env.DROPBOX_APP_SECRET) {
+        this.dropbox = new Dropbox({
+          refreshToken: process.env.DROPBOX_REFRESH_TOKEN,
+          clientId: process.env.DROPBOX_APP_KEY,
+          clientSecret: process.env.DROPBOX_APP_SECRET,
+          fetch: fetchImpl,
+          selectUser: teamMemberId
+        })
+      } else {
+        throw new Error('Either DROPBOX_ACCESS_TOKEN or DROPBOX_REFRESH_TOKEN (with DROPBOX_APP_KEY and DROPBOX_APP_SECRET) environment variables are required')
       }
-
-      this.dropbox = new Dropbox({
-        accessToken: process.env.DROPBOX_ACCESS_TOKEN,
-        fetch: fetch as any
-      })
     }
     return this.dropbox
   }
 
   /**
-   * List files and folders in a Dropbox directory
+   * List team namespaces - shows all available team folders and shared folders
+   */
+  async listTeamNamespaces(): Promise<any[]> {
+    try {
+      const client = this.getTeamClient()
+      const response = await client.teamNamespacesList({ limit: 50 })
+      return response?.result?.namespaces || []
+    } catch (error) {
+      console.error('[DropboxService] Failed to list team namespaces:', error)
+      return []
+    }
+  }
+
+
+  /**
+   * Get the correct namespace for Meisner Interiors Team Folder
+   */
+  async getMeisnerTeamFolderPath(): Promise<string> {
+    try {
+      const namespaces = await this.listTeamNamespaces()
+      console.log('[DropboxService] Available namespaces:', namespaces.map(ns => ({
+        name: ns.name,
+        type: ns.namespace_type?.['.tag'],
+        id: ns.namespace_id
+      })))
+      
+      // Look for Meisner team folder
+      const meisnerNamespace = namespaces.find(ns => 
+        ns.name === 'Meisner Interiors Team Folder'
+      )
+      
+      if (meisnerNamespace) {
+        // Return the namespace ID for team-level access
+        return meisnerNamespace.namespace_id
+      }
+      
+      // Fallback to known namespace ID
+      return '11511253139'
+      
+    } catch (error) {
+      console.error('[DropboxService] Failed to get Meisner team folder path:', error)
+      return '11511253139' // Fallback to known namespace ID
+    }
+  }
+
+  /**
+   * List files and folders using shared link approach
    */
   async listFolder(path: string = '', cursor?: string): Promise<DropboxFolder> {
     try {
+      console.log('[DropboxService] Listing folder with path:', JSON.stringify(path))
+      
+      // Use the shared link for the main team folder
+      const sharedLinkUrl = 'https://www.dropbox.com/scl/fo/7dk9gbqev0k04gw0ifm7t/AJH6jgqztvAlHM4DKJbtEL0?rlkey=xt236i59o7tevsfozuvd2zo2o&st=gjz3rjtp&dl=0'
+      
+      const client = this.getClient()
       let response
-
+      
       if (cursor) {
-        response = await this.getDropbox().filesListFolderContinue({ cursor })
+        response = await client.filesListFolderContinue({ cursor })
       } else {
-        response = await this.getDropbox().filesListFolder({
-          path: path || '',
+        console.log('[DropboxService] Using shared link to browse:', sharedLinkUrl)
+        console.log('[DropboxService] Sub-path within shared link:', path || '(root)')
+        
+        // Use the sharing API to browse the shared link
+        response = await client.filesListFolder({
+          path: path, // path within the shared folder
+          shared_link: {
+            url: sharedLinkUrl
+          },
           recursive: false,
           include_media_info: false,
-          include_deleted: false,
-          include_has_explicit_shared_members: false
+          include_deleted: false
         })
       }
 
@@ -60,36 +162,39 @@ class DropboxService {
 
       if (response?.result?.entries) {
         for (const entry of response.result.entries) {
+          // Build the path relative to the shared link root
+          let entryPath = entry.path_lower || entry.path_display
+          if (!entryPath) {
+            // If no path provided, construct it from current path + entry name
+            entryPath = path ? `${path}/${entry.name}` : `/${entry.name}`
+          }
+          
           if (entry['.tag'] === 'file') {
             const file: DropboxFile = {
               id: entry.id || '',
               name: entry.name,
-              path: entry.path_lower || entry.path_display || '',
+              path: entryPath,
               size: entry.size || 0,
               lastModified: new Date(entry.client_modified || entry.server_modified || new Date()),
               revision: entry.rev || '',
               isFolder: false
             }
 
-            // Check if it's a CAD file
-            const cadExtensions = ['.dwg', '.dxf', '.step', '.stp', '.iges', '.igs']
-            const isCADFile = cadExtensions.some(ext => 
-              file.name.toLowerCase().endsWith(ext)
-            )
-
-            if (isCADFile) {
-              files.push(file)
-            }
+            files.push(file)
+            console.log('[DropboxService] Added file:', file.name)
+            
           } else if (entry['.tag'] === 'folder') {
-            folders.push({
+            const folder: DropboxFile = {
               id: entry.id || '',
               name: entry.name,
-              path: entry.path_lower || entry.path_display || '',
+              path: entryPath,
               size: 0,
               lastModified: new Date(),
               revision: '',
               isFolder: true
-            })
+            }
+            folders.push(folder)
+            console.log('[DropboxService] Added folder:', folder.name)
           }
         }
       }
@@ -102,23 +207,80 @@ class DropboxService {
       }
 
     } catch (error) {
-      console.error('Dropbox list folder error:', error)
+      console.error('[DropboxService] Shared link folder browsing error:', error)
       throw new Error(`Failed to list Dropbox folder: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   /**
-   * Download a file from Dropbox
+   * Download a file from Dropbox using shared link
    */
   async downloadFile(path: string): Promise<Buffer> {
     try {
-      const response = await this.getDropbox().filesDownload({ path })
+      const client = this.getClient()
+      const sharedLinkUrl = 'https://www.dropbox.com/scl/fo/7dk9gbqev0k04gw0ifm7t/AJH6jgqztvAlHM4DKJbtEL0?rlkey=xt236i59o7tevsfozuvd2zo2o&st=gjz3rjtp&dl=0'
       
-      if (!response?.result?.fileBinary) {
-        throw new Error('No file data received from Dropbox')
+      console.log('[DropboxService] Downloading file via shared link:', path)
+      
+      try {
+        // Method 1: Try sharingGetSharedLinkFile
+        const response = await client.sharingGetSharedLinkFile({
+          url: sharedLinkUrl,
+          path: path
+        })
+        
+        console.log('[DropboxService] Shared link response keys:', Object.keys(response || {}))
+        
+        // Handle different response formats
+        if (response?.result?.fileBinary) {
+          return Buffer.from(response.result.fileBinary as any)
+        } else if (response?.fileBinary) {
+          return Buffer.from(response.fileBinary as any)
+        } else if (response instanceof Buffer) {
+          return response
+        } else if (response) {
+          // Sometimes the response itself is the binary data
+          console.log('[DropboxService] Response type:', typeof response)
+          return Buffer.from(response as any)
+        }
+        
+        throw new Error('No file data in shared link response')
+        
+      } catch (sharedError) {
+        console.warn('[DropboxService] Shared link download failed, trying regular download:', sharedError)
+        
+        // Method 2: Fallback to regular filesDownload (might work if file path is accessible)
+        try {
+          const response = await client.filesDownload({ path })
+          
+          if (!response?.result?.fileBinary) {
+            throw new Error('No file data received from regular download')
+          }
+          
+          return Buffer.from(response.result.fileBinary as any)
+        } catch (regularError) {
+          console.error('[DropboxService] Regular download also failed:', regularError)
+          
+          // Method 3: Final fallback - direct HTTP download
+          try {
+            console.log('[DropboxService] Trying direct HTTP download fallback')
+            const directUrl = sharedLinkUrl.replace('?dl=0', '?dl=1') // Force download
+            const httpResponse = await fetch(directUrl)
+            
+            if (!httpResponse.ok) {
+              throw new Error(`HTTP download failed: ${httpResponse.status}`)
+            }
+            
+            const arrayBuffer = await httpResponse.arrayBuffer()
+            return Buffer.from(arrayBuffer)
+            
+          } catch (httpError) {
+            console.error('[DropboxService] Direct HTTP download also failed:', httpError)
+            throw sharedError // throw the original shared link error
+          }
+        }
       }
-
-      return Buffer.from(response.result.fileBinary as any)
+      
     } catch (error) {
       console.error('Dropbox download error:', error)
       throw new Error(`Failed to download file from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -126,22 +288,55 @@ class DropboxService {
   }
 
   /**
-   * Get file metadata from Dropbox
+   * Get file metadata from Dropbox using shared link
    */
   async getFileMetadata(path: string): Promise<DropboxFile | null> {
     try {
-      const response = await this.getDropbox().filesGetMetadata({ path })
+      const client = this.getClient()
+      const sharedLinkUrl = 'https://www.dropbox.com/scl/fo/7dk9gbqev0k04gw0ifm7t/AJH6jgqztvAlHM4DKJbtEL0?rlkey=xt236i59o7tevsfozuvd2zo2o&st=gjz3rjtp&dl=0'
       
-      if (response?.result?.['.tag'] === 'file') {
-        const file = response.result
-        return {
-          id: file.id || '',
-          name: file.name,
-          path: file.path_lower || file.path_display || '',
-          size: file.size || 0,
-          lastModified: new Date(file.client_modified || file.server_modified || new Date()),
-          revision: file.rev || '',
-          isFolder: false
+      console.log('[DropboxService] Getting metadata via shared link:', path)
+      
+      try {
+        // Method 1: Try shared link metadata
+        const response = await client.sharingGetSharedLinkMetadata({
+          url: sharedLinkUrl,
+          path: path
+        })
+        
+        const file = response?.result
+        if (file && file['.tag'] === 'file') {
+          return {
+            id: file.id || '',
+            name: file.name,
+            path: path, // Use the input path (shared link relative)
+            size: file.size || 0,
+            lastModified: new Date(file.client_modified || file.server_modified || new Date()),
+            revision: file.rev || '',
+            isFolder: false
+          }
+        }
+      } catch (sharedError) {
+        console.warn('[DropboxService] Shared link metadata failed, trying regular metadata:', sharedError)
+        
+        // Method 2: Fallback to regular metadata API
+        try {
+          const response = await client.filesGetMetadata({ path })
+          
+          if (response?.result?.['.tag'] === 'file') {
+            const file = response.result
+            return {
+              id: file.id || '',
+              name: file.name,
+              path: file.path_lower || file.path_display || path,
+              size: file.size || 0,
+              lastModified: new Date(file.client_modified || file.server_modified || new Date()),
+              revision: file.rev || '',
+              isFolder: false
+            }
+          }
+        } catch (regularError) {
+          console.error('[DropboxService] Regular metadata also failed:', regularError)
         }
       }
 
@@ -170,7 +365,8 @@ class DropboxService {
    */
   async searchCADFiles(query: string, maxResults: number = 50): Promise<DropboxFile[]> {
     try {
-      const response = await this.getDropbox().filesSearchV2({
+      const client = this.getClient()
+      const response = await client.filesSearchV2({
         query,
         options: {
           path: '',
@@ -211,7 +407,8 @@ class DropboxService {
    */
   async getTemporaryLink(path: string): Promise<string | null> {
     try {
-      const response = await this.getDropbox().filesGetTemporaryLink({ path })
+      const client = this.getClient()
+      const response = await client.filesGetTemporaryLink({ path })
       return response?.result?.link || null
     } catch (error) {
       console.error('Dropbox temporary link error:', error)

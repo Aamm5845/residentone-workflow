@@ -62,7 +62,6 @@ export async function PUT(
     const resolvedParams = await params;
     const templateId = resolvedParams.id;
     const data = await request.json();
-    console.log('Updating template:', templateId, 'with data:', data);
     
     // Update template in database using transaction
     const updatedTemplate = await prisma.$transaction(async (tx) => {
@@ -179,7 +178,6 @@ export async function DELETE(
 
     const resolvedParams = await params;
     const templateId = resolvedParams.id;
-    console.log('Deleting template:', templateId);
     
     // Hard delete template and all related data
     const deletedTemplate = await prisma.fFETemplate.deleteMany({

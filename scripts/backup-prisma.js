@@ -15,12 +15,8 @@ const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
 const backupFileName = `database-backup-${timestamp}.json`
 const backupFilePath = path.join(backupsDir, backupFileName)
 
-console.log('🔄 Starting Prisma-based database backup...')
-console.log(`📁 Backup location: ${backupFilePath}`)
-
 async function createBackup() {
   try {
-    console.log('📊 Extracting data from database...')
     
     // Extract all data using Prisma
     const backup = {
@@ -58,7 +54,6 @@ async function createBackup() {
 
     // Calculate total records
     const totalRecords = Object.values(backup.data).reduce((sum, table) => sum + table.length, 0)
-    console.log(`📈 Found ${totalRecords} total records`)
     
     // Write backup to file
     fs.writeFileSync(backupFilePath, JSON.stringify(backup, null, 2))
@@ -66,11 +61,7 @@ async function createBackup() {
     // Verify backup was created
     if (fs.existsSync(backupFilePath)) {
       const fileSize = (fs.statSync(backupFilePath).size / 1024).toFixed(2)
-      console.log('✅ Backup completed successfully!')
-      console.log(`📊 Backup size: ${fileSize} KB`)
-      console.log(`📁 Location: ${backupFilePath}`)
-      console.log(`📋 Records backed up: ${totalRecords}`)
-      
+
       // Clean up old backups (keep only last 10)
       cleanupOldBackups()
       
@@ -103,7 +94,7 @@ function cleanupOldBackups() {
       const filesToDelete = files.slice(10)
       filesToDelete.forEach(file => {
         fs.unlinkSync(file.path)
-        console.log(`🗑️ Cleaned up old backup: ${file.name}`)
+        
       })
     }
   } catch (error) {

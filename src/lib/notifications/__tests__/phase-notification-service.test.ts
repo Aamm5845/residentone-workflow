@@ -25,36 +25,28 @@ const mockSession = {
  * Test phase sequence utilities
  */
 export function testPhaseSequenceUtilities() {
-  console.log('🧪 Testing Phase Sequence Utilities...\n')
   
   // Test 1: Regular phase sequence
-  console.log('1. Testing regular phase sequence:')
+  
   const phases = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
   
   phases.forEach(phase => {
     try {
       const info = getPhaseSequenceInfo(phase)
-      console.log(`   ${phase}:`, {
-        order: info.phaseOrder,
-        next: info.nextPhase || 'none',
-        previous: info.previousPhase || 'none',
-        isFirst: info.isFirstPhase,
-        isLast: info.isLastPhase
-      })
+      
     } catch (error) {
       console.error(`   Error with ${phase}:`, error.message)
     }
   })
   
   // Test 2: Client approval special case
-  console.log('\n2. Testing client approval special case:')
+  
   const clientApprovalNext = getNextPhasesToNotify('CLIENT_APPROVAL')
-  console.log('   CLIENT_APPROVAL next phases:', clientApprovalNext)
-  console.log('   Expected: ["DRAWINGS", "FFE"]')
+
   console.log('   Match:', JSON.stringify(clientApprovalNext) === JSON.stringify(['DRAWINGS', 'FFE']))
   
   // Test 3: Other phases next phase logic
-  console.log('\n3. Testing other phases next phase logic:')
+  
   const testCases = [
     { phase: 'DESIGN_CONCEPT', expected: ['THREE_D'] },
     { phase: 'THREE_D', expected: ['CLIENT_APPROVAL'] }, 
@@ -64,18 +56,15 @@ export function testPhaseSequenceUtilities() {
   
   testCases.forEach(({ phase, expected }) => {
     const result = getNextPhasesToNotify(phase)
-    console.log(`   ${phase}: ${JSON.stringify(result)} (expected: ${JSON.stringify(expected)})`)
-    console.log(`   Match: ${JSON.stringify(result) === JSON.stringify(expected)}`)
+
   })
-  
-  console.log('\n✅ Phase sequence utilities test completed\n')
+
 }
 
 /**
  * Test transition summary generation
  */
 export function testTransitionSummaryGeneration() {
-  console.log('🧪 Testing Transition Summary Generation...\n')
   
   const testCases = [
     {
@@ -99,13 +88,11 @@ export function testTransitionSummaryGeneration() {
   ]
   
   testCases.forEach(({ completed, next, room, project }, index) => {
-    console.log(`${index + 1}. Testing ${completed} completion:`)
+    
     const summary = generatePhaseTransitionSummary(completed, next, room, project)
-    console.log(`   Summary: ${summary}`)
-    console.log()
+
   })
-  
-  console.log('✅ Transition summary generation test completed\n')
+
 }
 
 /**
@@ -141,10 +128,7 @@ const mockStageData = {
  */
 export async function testNotificationServiceWithMocks() {
   console.log('🧪 Testing Notification Service (Mock Mode)...\n')
-  
-  console.log('Note: This test uses the actual notification service but with logging instead of real emails.')
-  console.log('The service will attempt to query the database for stage information.\n')
-  
+
   const testScenarios = [
     {
       name: 'Regular Phase Completion (Design Concept)',
@@ -161,9 +145,7 @@ export async function testNotificationServiceWithMocks() {
   ]
   
   for (const scenario of testScenarios) {
-    console.log(`Testing: ${scenario.name}`)
-    console.log(`Stage ID: ${scenario.data.stageId}`)
-    
+
     try {
       // Note: This will fail if the stage doesn't exist in the database
       // It's mainly for testing the service structure and logic flow
@@ -172,22 +154,13 @@ export async function testNotificationServiceWithMocks() {
         scenario.data.completedByUserId,
         mockSession as any
       )
-      
-      console.log(`✅ Result:`, {
-        success: result.success,
-        notifications: result.notificationsSent,
-        emails: result.emailsSent,
-        errors: result.errors
-      })
-      
+
     } catch (error) {
-      console.log(`❌ Expected error (stage not found):`, error.message)
+      
     }
-    
-    console.log()
+
   }
-  
-  console.log('✅ Notification service mock test completed\n')
+
 }
 
 /**
@@ -195,7 +168,7 @@ export async function testNotificationServiceWithMocks() {
  * Call this function to run all tests
  */
 export async function runAllNotificationTests() {
-  console.log('🚀 Running All Phase Notification Tests\n')
+  
   console.log('=' .repeat(50))
   
   // Test 1: Phase sequence utilities (no database required)
@@ -206,8 +179,7 @@ export async function runAllNotificationTests() {
   
   // Test 3: Notification service with mocks (requires database)
   await testNotificationServiceWithMocks()
-  
-  console.log('🎉 All notification tests completed!')
+
   console.log('=' .repeat(50))
 }
 
@@ -215,59 +187,7 @@ export async function runAllNotificationTests() {
  * Integration test instructions
  */
 export function printIntegrationTestInstructions() {
-  console.log(`
-📋 INTEGRATION TEST INSTRUCTIONS
-
-To fully test the notification system with real data:
-
-1. **Setup Phase Assignments:**
-   - Create a test project with a room
-   - Assign different users to each phase (DESIGN_CONCEPT, THREE_D, etc.)
-   - Make sure users have valid email addresses
-
-2. **Test Regular Phase Completion:**
-   - Complete DESIGN_CONCEPT phase via API: PATCH /api/stages/{stageId} with action: "complete"
-   - Check console logs for notification processing
-   - Verify THREE_D assignee receives notification
-   - Check email logs (currently logged, not sent)
-
-3. **Test Client Approval Special Case:**
-   - Complete THREE_D phase first
-   - Complete CLIENT_APPROVAL phase via API
-   - Verify BOTH DRAWINGS and FFE assignees receive notifications
-   - Check that the email templates include correct information
-
-4. **Test Final Phase:**
-   - Complete FFE phase (last phase)
-   - Verify no "next phase" notifications are sent
-   - Only completion notification should be sent
-
-5. **Database Verification:**
-   - Check 'notifications' table for in-app notifications
-   - Verify notification types and recipients are correct
-   - Confirm relatedId points to correct stage
-
-6. **Email Integration:**
-   - Replace the mock sendEmail function in email-service.ts
-   - Configure your email provider (SendGrid, SES, etc.)
-   - Test actual email delivery
-
-📧 Email Template Testing:
-   - Check HTML email rendering in email clients
-   - Verify all template variables are populated
-   - Test responsive design on mobile devices
-
-🔔 Notification Testing:
-   - Test in-app notification display
-   - Verify notification badges and counts
-   - Test marking notifications as read
-
-🚨 Error Handling:
-   - Test with unassigned phases
-   - Test with invalid stage IDs
-   - Test with missing user information
-   - Verify graceful failure (main operation continues even if notifications fail)
-  `)
+  
 }
 
 // Example usage:

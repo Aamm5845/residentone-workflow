@@ -69,9 +69,8 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
         text: options.text || options.html.replace(/<[^>]*>/g, '')
       }
 
-      console.log('📧 Sending email via Mailgun...')
       const result = await mgClient.messages.create(process.env.MAILGUN_DOMAIN, mailgunOptions)
-      console.log('✅ Email sent via Mailgun:', result.id)
+      
       return true
     } catch (error) {
       console.error('❌ Mailgun failed, trying SMTP fallback:', error)
@@ -86,7 +85,7 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
   }
 
   try {
-    console.log('📧 Sending email via SMTP...')
+    
     const info = await transporter.sendMail({
       from: `"${process.env.COMPANY_NAME || 'ResidentOne'}" <${process.env.SMTP_USER}>`,
       to: options.to,
@@ -95,7 +94,6 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
       html: options.html,
     })
 
-    console.log('✅ Email sent via SMTP:', info.messageId)
     return true
   } catch (error) {
     console.error('❌ Failed to send email via SMTP:', error)

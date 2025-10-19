@@ -96,7 +96,6 @@ export default function RoomManagement({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-
   const currentStageIndex = room.stages.findIndex(stage => 
     ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(stage.status)
   )
@@ -261,14 +260,6 @@ export default function RoomManagement({
                 const isActive = status === 'IN_PROGRESS'
                 const isCompleted = status === 'COMPLETED'
                 const canStart = status === 'NOT_STARTED' // Allow any phase to start independently
-                
-                console.log('🏠 Room stage debug:', { 
-                  originalType: stage.type, 
-                  mappedType: mappedStageType, 
-                  stageId: stage.id, 
-                  status,
-                  canStart 
-                })
 
                 return (
                   <div 

@@ -13,11 +13,9 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
     )
 
     if (eligiblePhases.length === 0) {
-      console.log(`No auto-assignable phases found for role: ${userRole}`)
+      
       return { assignedCount: 0, phases: [] }
     }
-
-    console.log(`Auto-assigning user ${userId} with role ${userRole} to phases: ${eligiblePhases.map(p => p.label).join(', ')}`)
 
     // Map phase IDs to stage types (for legacy compatibility)
     const phaseToStageTypeMap: Record<string, string> = {
@@ -72,7 +70,7 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
 
         assignedCount += updateResult.count
         assignedPhases.push(phase.label)
-        console.log(`Assigned ${updateResult.count} ${phase.label} phases to user ${userId}`)
+        
       }
     }
 
@@ -89,7 +87,6 @@ export async function autoAssignUserToPhases(userId: string, userRole: string, o
  */
 export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
   try {
-    console.log(`🎯 Starting auto-assignment for room ${roomId} in org ${orgId}`)
     
     // Get all team members (exclude deleted users and filter for current team)
     const teamMembers = await prisma.user.findMany({
@@ -137,12 +134,11 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
     for (const stage of stages) {
       // Skip if already assigned
       if (stage.assignedTo) {
-        console.log(`⏭️  Skipping ${stage.type} - already assigned`)
+        
         continue
       }
 
       const requiredRole = stageTypeToRoleMap[stage.type]
-      console.log(`🔍 Processing ${stage.type} stage - requires role: ${requiredRole || 'any'}`)
       
       let assignee = null
 
@@ -152,7 +148,7 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
       }
 
       if (!assignee) {
-        console.log(`⚠️  No assignee found for ${stage.type} stage (required role: ${requiredRole})`)
+        
         continue
       }
 
@@ -163,10 +159,9 @@ export async function autoAssignPhasesToTeam(roomId: string, orgId: string) {
       })
 
       assignedCount++
-      console.log(`✅ Auto-assigned ${stage.type} stage to ${assignee.name} (${assignee.role})`)
+      
     }
 
-    console.log(`🎯 Auto-assignment complete: ${assignedCount} stages assigned`)
     return { assignedCount }
   } catch (error) {
     console.error('Error in autoAssignPhasesToTeam:', error)
@@ -250,7 +245,6 @@ export async function reassignPhasesOnRoleChange(userId: string, oldRole: string
  */
 export async function autoAssignAllUnassignedStages() {
   try {
-    console.log('🔄 Starting system-wide auto-assignment of unassigned stages...')
     
     // Get all team members (exclude deleted users and filter for current team)
     const teamMembers = await prisma.user.findMany({
@@ -268,8 +262,6 @@ export async function autoAssignAllUnassignedStages() {
         email: true
       }
     })
-
-    console.log(`👥 Found ${teamMembers.length} team members`)
 
     // Get all unassigned stages
     const unassignedStages = await prisma.stage.findMany({
@@ -293,10 +285,8 @@ export async function autoAssignAllUnassignedStages() {
       }
     })
 
-    console.log(`📋 Found ${unassignedStages.length} unassigned stages`)
-
     if (unassignedStages.length === 0) {
-      console.log('✅ All stages are already assigned!')
+      
       return { assignedCount: 0 }
     }
 
@@ -322,7 +312,7 @@ export async function autoAssignAllUnassignedStages() {
       }
 
       if (!assignee) {
-        console.log(`⚠️  No assignee found for ${stage.type} in ${stage.room.project.name}/${stage.room.name || stage.room.id}`)
+        
         continue
       }
 
@@ -333,10 +323,9 @@ export async function autoAssignAllUnassignedStages() {
       })
 
       assignedCount++
-      console.log(`✅ Assigned ${stage.type} in ${stage.room.project.name}/${stage.room.name || stage.room.id} to ${assignee.name} (${assignee.role})`)
+      
     }
 
-    console.log(`🎯 System-wide auto-assignment complete: ${assignedCount} stages assigned`)
     return { assignedCount }
   } catch (error) {
     console.error('Error in autoAssignAllUnassignedStages:', error)

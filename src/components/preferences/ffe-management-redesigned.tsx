@@ -189,7 +189,6 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     }
   }
 
-
   const loadRoomItems = async (roomTypeKey: string) => {
     try {
       const items = await managementSystem.getItemsForRoom(roomTypeKey)
@@ -330,8 +329,6 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     }
   }
 
-
-
   // Room type management functions
   const openRoomTypeDialog = (roomType?: any) => {
     if (roomType) {
@@ -352,15 +349,9 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     try {
       setLoading(true)
       if (editingRoomType) {
-        console.log('Updating room type:', editingRoomType.id, 'with data:', {
-          name: roomTypeForm.name,
-          key: roomTypeForm.key,
-          linkedRooms: roomTypeForm.linkedRooms
-        })
         
         // Check if the room type still exists in our current state
         const roomTypeExists = roomTypes.some(rt => rt.id === editingRoomType.id)
-        console.log('Room type exists in current state:', roomTypeExists)
         
         if (!roomTypeExists) {
           console.warn('Room type not found in current state, it may have been cleared. Re-creating it.')
@@ -405,7 +396,6 @@ export default function FFEManagementRedesigned({ orgId, user }: FFEManagementRe
     
     try {
       setLoading(true)
-      console.log('Clearing all room types')
       
       // Use the new clearAllRoomTypes function
       await managementSystem.clearAllRoomTypes()

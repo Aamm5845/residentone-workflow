@@ -7,12 +7,11 @@ export async function POST(
   { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    console.log('🔍 POST /api/ffe/v2/rooms/[roomId]/import-template - Starting request');
+    
     const session = await getSession()
-    console.log('🔍 Session user:', session?.user);
     
     if (!session?.user) {
-      console.log('❌ No session user found');
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
@@ -21,33 +20,31 @@ export async function POST(
     let orgId = session.user.orgId;
     
     if (!userId || !orgId) {
-      console.log('⚠️ Missing user ID or orgId, looking up from email:', session.user.email);
+      
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { id: true, orgId: true }
       });
       
       if (!user) {
-        console.log('❌ User not found in database');
+        
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
       
       userId = user.id;
       orgId = user.orgId;
-      console.log('✅ Retrieved user info:', { userId, orgId });
+      
     }
     
     const { roomId } = await params
     const { templateId, selectedItemIds } = await request.json()
-    
-    console.log('🔍 Import request:', { roomId, templateId, selectedItemIds: selectedItemIds?.length || 'all', orgId });
 
     if (!roomId || !templateId) {
       return NextResponse.json({ error: 'Room ID and Template ID are required' }, { status: 400 })
     }
 
     // Verify room belongs to user's organization
-    console.log('🔍 Looking for room:', { roomId, orgId });
+    
     const room = await prisma.room.findFirst({
       where: {
         id: roomId,
@@ -56,15 +53,13 @@ export async function POST(
         }
       }
     })
-    
-    console.log('🔍 Room found:', room ? 'YES' : 'NO');
 
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
     // Get the template with all sections and items
-    console.log('🔍 Looking for template:', { templateId, orgId });
+    
     const template = await prisma.fFETemplate.findFirst({
       where: {
         id: templateId,
@@ -81,11 +76,9 @@ export async function POST(
     })
 
     if (!template) {
-      console.log('❌ Template not found');
+      
       return NextResponse.json({ error: 'Template not found' }, { status: 404 })
     }
-    
-    console.log('✅ Template found with', template.sections.length, 'sections');
 
     // Check if room instance already exists
     let roomInstance = await prisma.roomFFEInstance.findUnique({
@@ -129,7 +122,7 @@ export async function POST(
         
         // Skip creating section if no items to import
         if (itemsToImport.length === 0) {
-          console.log(`⚠️ Skipping section "${templateSection.name}" - no items selected`);
+          
           continue;
         }
 

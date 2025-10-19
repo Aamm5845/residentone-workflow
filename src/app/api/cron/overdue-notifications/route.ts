@@ -6,9 +6,7 @@ export async function POST() {
   try {
     // This endpoint should be called by a cron service (like Vercel Cron or external scheduler)
     // You might want to add authentication/authorization here for security
-    
-    console.log('Starting overdue notifications cron job...')
-    
+
     // Get all organizations to process notifications
     const organizations = await prisma.organization.findMany({
       select: { id: true, name: true }
@@ -26,16 +24,13 @@ export async function POST() {
         await sendOverdueEmailNotifications(org.id)
         
         totalNotificationsCreated++
-        
-        console.log(`Processed overdue notifications for organization: ${org.name}`)
+
       } catch (orgError) {
         console.error(`Error processing notifications for org ${org.name}:`, orgError)
         // Continue processing other organizations even if one fails
       }
     }
-    
-    console.log(`Overdue notifications cron job completed. Processed ${totalNotificationsCreated} organizations.`)
-    
+
     return NextResponse.json({
       success: true,
       message: `Processed overdue notifications for ${totalNotificationsCreated} organizations`,

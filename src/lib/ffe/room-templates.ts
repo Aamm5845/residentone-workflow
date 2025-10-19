@@ -67,13 +67,12 @@ export async function getTemplateForRoomType(roomType: string, orgId?: string): 
   // First try to get from predefined templates
   const predefinedTemplate = FFE_ROOM_TEMPLATES[normalizedType]
   if (predefinedTemplate) {
-    console.log(`✅ Using predefined template for room type: ${roomType}`)
+    
     return predefinedTemplate
   }
   
   // If no predefined template found, try to generate from custom room management system
   if (orgId) {
-    console.log(`🔍 No predefined template found for room type: ${roomType}. Attempting to generate from custom system for org: ${orgId}`)
     
     try {
       // Try different formats for the room type key
@@ -81,14 +80,14 @@ export async function getTemplateForRoomType(roomType: string, orgId?: string): 
       
       // If that doesn't work, try lowercase format
       if (!customTemplate) {
-        console.log(`Trying lowercase format: ${roomType.toLowerCase()}`)
+        
         customTemplate = await generateTemplateFromCustomSystem(roomType.toLowerCase(), orgId)
       }
       
       // If that doesn't work, try kebab-case format
       if (!customTemplate) {
         const kebabCase = roomType.toLowerCase().replace(/[_\s]+/g, '-')
-        console.log(`Trying kebab-case format: ${kebabCase}`)
+        
         customTemplate = await generateTemplateFromCustomSystem(kebabCase, orgId)
       }
       
@@ -101,14 +100,13 @@ export async function getTemplateForRoomType(roomType: string, orgId?: string): 
   }
   
   // Fallback: create a dynamic template
-  console.log(`⚠️ Creating dynamic fallback template for room type: ${roomType} (no custom items found)`)
+  
   return createDynamicTemplate(roomType)
 }
 
 // Generate template from custom room management system
 async function generateTemplateFromCustomSystem(roomType: string, orgId: string): Promise<FFERoomTemplate | null> {
   try {
-    console.log(`Generating template for room type '${roomType}' from custom system for org: ${orgId}`)
     
     // Fetch categories for this room type from the custom system
     const categoriesResponse = await fetch(`/api/ffe/categories?orgId=${orgId}`)
@@ -126,7 +124,7 @@ async function generateTemplateFromCustomSystem(roomType: string, orgId: string)
     )
     
     if (applicableCategories.length === 0) {
-      console.log(`No custom categories found for room type: ${roomType}`)
+      
       return null
     }
     
@@ -150,9 +148,7 @@ async function generateTemplateFromCustomSystem(roomType: string, orgId: string)
           const categorySpecificItems = items.filter((item: any) => 
             item.categoryKey === category.key
           )
-          
-          console.log(`Found ${categorySpecificItems.length} items for category '${category.name}' in room type '${roomType}'`)
-          
+
           categoryItems = categorySpecificItems.map((item: any, index: number) => ({
             id: item.id,
             name: item.name, // Use the actual name from your custom system!
@@ -206,7 +202,7 @@ async function generateTemplateFromCustomSystem(roomType: string, orgId: string)
         if (categoryItems.length > 0) {
           templateCategories[category.name] = categoryItems
         } else {
-          console.log(`No items found for category '${category.name}' - skipping`)
+          
         }
         
       } catch (itemError) {
@@ -216,7 +212,7 @@ async function generateTemplateFromCustomSystem(roomType: string, orgId: string)
     
     // Only return template if it has categories with items
     if (Object.keys(templateCategories).length === 0) {
-      console.log(`No categories with items found for room type: ${roomType}`)
+      
       return null
     }
     

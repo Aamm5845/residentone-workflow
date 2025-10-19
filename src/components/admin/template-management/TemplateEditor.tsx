@@ -41,7 +41,6 @@ interface EditableTemplateItem extends Omit<FFETemplateItem, 'id'> {
   linkedItems?: string[]; // IDs of items this item creates
 }
 
-
 const ITEM_STATES: FFEItemState[] = [
   'PENDING', 'CONFIRMED', 'NOT_NEEDED', 'IN_PROGRESS', 'COMPLETE'
 ];
@@ -85,7 +84,6 @@ export function TemplateEditor({
       setTemplateSections([]);
     }
   }, [template]);
-
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,7 +166,7 @@ export function TemplateEditor({
           isGlobal: true
         })
       });
-      console.log(`Custom section "${sectionName}" saved to library`);
+      
     } catch (error) {
       console.log('Could not save custom section to library:', error);
       // Don't block the user if this fails - the section is still added to the current template

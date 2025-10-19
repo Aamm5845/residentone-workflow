@@ -57,7 +57,7 @@ export function MentionTextarea({
       if (response.ok) {
         const data = await response.json()
         // This would be handled by parent component passing teamMembers prop
-        console.log('Team members fetched:', data.teamMembers)
+        
       }
     } catch (error) {
       console.error('Error fetching team members:', error)
@@ -163,7 +163,6 @@ export function MentionTextarea({
     const mentions = extractMentions(value)
     onSubmit(value, mentions)
   }
-
 
   return (
     <div className="relative">

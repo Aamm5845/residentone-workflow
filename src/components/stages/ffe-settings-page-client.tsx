@@ -84,11 +84,10 @@ export default function FFESettingsPageClient({
   const revalidate = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      console.log('📞 FFESettings: Calling API with roomId:', roomId)
+      
       const response = await fetch(`/api/ffe/instances?roomId=${roomId}`)
-      console.log('📞 FFESettings: API response status:', response.status)
+      
       const data = await response.json()
-      console.log('📞 FFESettings: API response data:', data)
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch instance')
@@ -96,7 +95,7 @@ export default function FFESettingsPageClient({
       
       setInstance(data.instance)
       setError(null)
-      console.log('📞 FFESettings: Instance set:', data.instance?.sections?.length || 0, 'sections')
+      
     } catch (err) {
       console.error('❌ FFESettings: Error fetching FFE instance:', err)
       setError(err)
@@ -108,21 +107,13 @@ export default function FFESettingsPageClient({
   
   // Load instance on mount
   useEffect(() => {
-    console.log('🎯 FFESettingsPageClient mounting with roomId:', roomId)
+    
     revalidate()
   }, [revalidate])
   
   // Debug templates loading
   useEffect(() => {
-    console.log('🔍 Templates debug:', {
-      orgId,
-      templates,
-      templatesArray: Array.isArray(templates) ? templates : 'not an array',
-      templatesLength: Array.isArray(templates) ? templates.length : 'N/A',
-      isLoading: templatesLoading,
-      error: templatesError,
-      templatesData: templates?.data || templates
-    })
+    
   }, [templates, templatesLoading, templatesError, orgId])
 
   // Auto-expand sections when instance loads
@@ -371,21 +362,17 @@ export default function FFESettingsPageClient({
       toast.error('Please select a template to import')
       return
     }
-    
-    console.log('🔍 Starting template import:', { templateId: selectedTemplateId, roomId, orgId });
-    
+
     try {
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/import-template`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ templateId: selectedTemplateId })
       })
-      
-      console.log('🔍 Import response status:', response.status);
-      
+
       if (response.ok) {
         const result = await response.json()
-        console.log('✅ Import successful:', result);
+        
         await revalidate()
         setShowImportDialog(false)
         setSelectedTemplateId('')
@@ -1134,17 +1121,12 @@ export default function FFESettingsPageClient({
       {/* Sections with Items - Always show if sections exist */}
               <div className="space-y-4">
                 {(() => {
-                  console.log('📋 Rendering sections check:', {
-                    hasInstance: !!instance,
-                    hasSections: !!instance?.sections,
-                    sectionsLength: instance?.sections?.length || 0,
-                    sections: instance?.sections
-                  })
+                  
                   return null
                 })()}
                 {instance?.sections && instance.sections.length > 0 ? (
                   instance.sections.map((section) => {
-                    console.log('📋 Rendering section:', section.name, 'with items:', section.items?.length || 0)
+                    
                     const sectionItems = filteredItems.filter(item => item.sectionId === section.id)
                     if (sectionItems.length === 0 && searchQuery.trim()) return null // Hide empty sections when filtering
                     

@@ -8,11 +8,8 @@ export async function GET(
 ) {
   try {
     const { emailId } = params
-    
-    console.log('\ud83c\udfaf EMAIL TRACKING - Received request for emailId:', emailId);
-    
+
     // Update the email log with opened timestamp
-    console.log('\ud83c\udfaf TRACKING - Updating email log for ID:', emailId);
     
     const updatedLog = await prisma.emailLog.update({
       where: { 
@@ -22,8 +19,6 @@ export async function GET(
         openedAt: new Date() 
       }
     })
-    
-    console.log('\u2705 EMAIL TRACKING - Successfully updated email log:', updatedLog.id);
 
     // Log the client approval version as opened if not already
     const emailLog = await prisma.emailLog.findUnique({

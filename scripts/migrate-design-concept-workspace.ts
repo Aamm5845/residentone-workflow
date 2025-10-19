@@ -3,18 +3,14 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function migrateDesignConceptWorkspace() {
-  console.log('🚀 Starting Design Concept Workspace migration...')
-
+  
   try {
     // 1. Get all organizations to create default tags
     const organizations = await prisma.organization.findMany()
-    
-    console.log(`📊 Found ${organizations.length} organizations`)
 
     // 2. Create default tags for each organization
     for (const org of organizations) {
-      console.log(`🏢 Processing organization: ${org.name}`)
-
+      
       // Check if default tags already exist
       const existingTags = await prisma.tag.findMany({
         where: { orgId: org.id }
@@ -51,9 +47,8 @@ async function migrateDesignConceptWorkspace() {
           })
         }
 
-        console.log(`  ✅ Created ${defaultTags.length} default tags`)
       } else {
-        console.log(`  ⏭️  Tags already exist (${existingTags.length} found)`)
+        
       }
     }
 
@@ -71,8 +66,6 @@ async function migrateDesignConceptWorkspace() {
         }
       }
     })
-
-    console.log(`🎨 Found ${designConceptStages.length} Design Concept stages`)
 
     const requiredSections = [
       {
@@ -100,8 +93,6 @@ async function migrateDesignConceptWorkspace() {
     for (const stage of designConceptStages) {
       const projectName = stage.room?.project?.name || 'Unknown Project'
       const roomName = stage.room?.name || stage.room?.type || 'Unknown Room'
-      
-      console.log(`  📋 Processing stage: ${projectName} - ${roomName}`)
 
       // Check which sections are missing
       const existingSectionTypes = stage.designSections.map(s => s.type)
@@ -122,17 +113,13 @@ async function migrateDesignConceptWorkspace() {
           })
         }
 
-        console.log(`    ✅ Created ${missingSections.length} missing sections`)
       } else {
-        console.log(`    ⏭️  All sections already exist`)
+        
       }
     }
 
     // 4. Since the enum has been updated, we just need to ensure all design concept stages have the new sections
     // The old sections would have been handled by the db push command
-    console.log('✅ Section type migration handled by database schema update')
-
-    console.log('🎉 Design Concept Workspace migration completed successfully!')
 
   } catch (error) {
     console.error('❌ Migration failed:', error)
@@ -146,7 +133,7 @@ async function migrateDesignConceptWorkspace() {
 if (require.main === module) {
   migrateDesignConceptWorkspace()
     .then(() => {
-      console.log('Migration completed successfully!')
+      
       process.exit(0)
     })
     .catch((error) => {

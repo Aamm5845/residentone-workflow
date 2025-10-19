@@ -158,12 +158,9 @@ export async function POST(request: NextRequest) {
       
       // Check if Vercel Blob is configured and try it first
       if (isBlobConfigured()) {
-        console.log('☁️ Using Vercel Blob cloud storage')
         
         try {
-          console.log(`💾 Uploading file: ${fileName} (${formatFileSize(file.size)})`)
-          console.log(`📁 Project: ${projectId}, Room: ${roomId}, Section: ${sectionId}`)
-          
+
           // Generate structured file path
           const orgId = (session.user as any)?.orgId || 'default'
           const filePath = generateFilePath(
@@ -180,14 +177,12 @@ export async function POST(request: NextRequest) {
             contentType,
             filename: fileName
           })
-          
-          console.log('✅ Vercel Blob upload successful:', uploadResult.url)
+
           fileUrl = uploadResult.url
           storageType = 'cloud'
           
         } catch (blobError) {
           console.error('❌ Vercel Blob upload failed:', blobError)
-          console.log('🔄 Falling back to local storage')
           
           // Fall back to local storage
           await mkdir(UPLOAD_DIR, { recursive: true })
@@ -201,7 +196,6 @@ export async function POST(request: NextRequest) {
         }
         
       } else {
-        console.log('💾 Using local file storage (Vercel Blob not configured)')
         
         // Ensure upload directory exists
         await mkdir(UPLOAD_DIR, { recursive: true })
@@ -333,8 +327,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      console.log(`✅ File uploaded successfully to ${storageType === 'cloud' ? 'Vercel Blob' : 'local storage'}: ${fileName} (${formatFileSize(file.size)})`)
-
       return NextResponse.json({
         success: true,
         message: 'File uploaded successfully',
@@ -371,8 +363,6 @@ export async function GET(request: NextRequest) {
     const sectionId = searchParams.get('sectionId')
     const roomId = searchParams.get('roomId')
     const projectId = searchParams.get('projectId')
-
-    console.log(`📁 Fetching files for section: ${sectionId}, room: ${roomId}, project: ${projectId}`)
 
     let whereClause: any = {
       orgId: session.user.orgId

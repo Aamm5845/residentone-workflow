@@ -172,7 +172,7 @@ export default function ChatInterface({
     if (!isTyping) {
       setIsTyping(true)
       // TODO: Emit typing event via WebSocket
-      console.log('Started typing...')
+      
     }
 
     // Clear existing timeout
@@ -183,7 +183,7 @@ export default function ChatInterface({
     // Set new timeout to stop typing after 3 seconds
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false)
-      console.log('Stopped typing...')
+      
     }, 3000)
   }, [isTyping])
 

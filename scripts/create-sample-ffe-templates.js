@@ -4,16 +4,13 @@ const prisma = new PrismaClient()
 
 async function createSampleTemplates() {
   try {
-    console.log('🏗️ Creating sample FFE templates...')
-
+    
     // Get the first organization (you can modify this to target your specific org)
     const org = await prisma.organization.findFirst()
     if (!org) {
       console.error('❌ No organization found. Please create an organization first.')
       return
     }
-
-    console.log(`✅ Using organization: ${org.name} (${org.id})`)
 
     // Get the first user (for created/updated fields)
     const user = await prisma.user.findFirst({ where: { orgId: org.id } })
@@ -280,13 +277,6 @@ async function createSampleTemplates() {
         }
       }
     })
-
-    console.log('✅ Created sample templates:')
-    console.log(`   - ${bedroomTemplate.name} (${bedroomTemplate.id})`)
-    console.log(`   - ${bathroomTemplate.name} (${bathroomTemplate.id})`)
-    console.log(`   - ${kitchenTemplate.name} (${kitchenTemplate.id})`)
-
-    console.log('🎉 Sample FFE templates created successfully!')
 
   } catch (error) {
     console.error('❌ Error creating sample templates:', error)

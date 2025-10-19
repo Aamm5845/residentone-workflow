@@ -17,8 +17,6 @@ export async function POST() {
       }, { status: 403 })
     }
 
-    console.log(`🚀 Manual auto-assignment triggered by ${session.user.name} (${session.user.role})`)
-    
     const result = await autoAssignAllUnassignedStages()
     
     return NextResponse.json({

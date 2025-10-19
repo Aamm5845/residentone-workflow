@@ -33,28 +33,28 @@ export default function TestProjectSettingsPage() {
 
     try {
       // Test 1: Get list of projects
-      console.log('🔍 Fetching projects list...')
+      
       const projectsResponse = await fetch('/api/projects', {
         credentials: 'include'
       })
       
       if (projectsResponse.ok) {
         results.projects = await projectsResponse.json()
-        console.log('✅ Projects fetched:', results.projects)
+        
       } else {
         results.projects = { error: `Failed to fetch projects: ${projectsResponse.status}` }
         console.error('❌ Projects fetch failed:', projectsResponse.status)
       }
 
       // Test 2: Check session
-      console.log('🔍 Checking session...')
+      
       const sessionResponse = await fetch('/api/auth/session', {
         credentials: 'include'
       })
       
       if (sessionResponse.ok) {
         results.sessionTest = await sessionResponse.json()
-        console.log('✅ Session data:', results.sessionTest)
+        
       } else {
         results.sessionTest = { error: `Session check failed: ${sessionResponse.status}` }
         console.error('❌ Session check failed:', sessionResponse.status)
@@ -62,7 +62,6 @@ export default function TestProjectSettingsPage() {
 
       // Test 3: If we have projects and a selected one, try to fetch and update it
       if (selectedProjectId && results.projects && Array.isArray(results.projects)) {
-        console.log('🔍 Testing project update...')
         
         // First get the project
         const projectResponse = await fetch(`/api/projects/${selectedProjectId}`, {
@@ -71,7 +70,6 @@ export default function TestProjectSettingsPage() {
         
         if (projectResponse.ok) {
           results.selectedProject = await projectResponse.json()
-          console.log('✅ Selected project:', results.selectedProject)
           
           // Now try to update it
           const updateResponse = await fetch(`/api/projects/${selectedProjectId}`, {
@@ -93,7 +91,7 @@ export default function TestProjectSettingsPage() {
           
           if (updateResponse.ok) {
             results.updateTest = await updateResponse.json()
-            console.log('✅ Project update successful:', results.updateTest)
+            
           } else {
             const errorText = await updateResponse.text()
             results.updateTest = { 

@@ -9,19 +9,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('🧪 Testing email configuration...')
-    
     // Check environment variables
     const resendApiKey = process.env.RESEND_API_KEY
     const emailFrom = process.env.EMAIL_FROM
-    
-    console.log('Environment check:', {
-      hasResendKey: !!resendApiKey,
-      resendKeyLength: resendApiKey?.length,
-      emailFrom,
-      hasEmailFrom: !!emailFrom
-    })
-    
+
     if (!resendApiKey) {
       return NextResponse.json({ 
         error: 'RESEND_API_KEY not configured',
@@ -41,14 +32,7 @@ export async function POST(request: NextRequest) {
       subject: '🧪 Test Email from ResidentOne',
       html: '<h1>Test Email</h1><p>This is a test email to verify Resend configuration.</p>'
     }
-    
-    console.log('📧 Test email data:', {
-      from: testData.from,
-      to: testData.to,
-      subject: testData.subject,
-      htmlLength: testData.html.length
-    })
-    
+
     // Validate data before sending
     const validationErrors = []
     if (!testData.from || testData.from.trim() === '') {

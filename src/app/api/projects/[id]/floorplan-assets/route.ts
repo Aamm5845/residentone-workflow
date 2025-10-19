@@ -122,8 +122,6 @@ export async function POST(
       category: fileConfig.assetType
     })
 
-    console.log(`Processing floorplan upload: ${fileName} (${(file.size / 1024).toFixed(2)}KB) - Type: ${fileConfig.assetType}`)
-
     // Create asset record
     const asset = await prisma.asset.create({
       data: {
@@ -193,8 +191,6 @@ export async function POST(
       },
       ipAddress
     })
-
-    console.log(`✅ Floorplan asset uploaded successfully: ${asset.id} (${fileConfig.assetType})`)
 
     return NextResponse.json({
       success: true,

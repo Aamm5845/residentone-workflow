@@ -318,7 +318,6 @@ export default function BedroomDesignWorkspace({
       }
       
       const result = await response.json()
-      console.log('Section completion updated:', result)
       
       // Refresh workspace to show updated status
       refreshWorkspace()
@@ -336,7 +335,6 @@ export default function BedroomDesignWorkspace({
 
   // Get or create design section
   const getOrCreateSectionId = async (sectionType: string): Promise<string> => {
-    console.log('🔍 getOrCreateSectionId called with:', { sectionType, stageId })
     
     if (!stageId || !workspaceData) {
       throw new Error('No stage ID or workspace data available')
@@ -357,7 +355,7 @@ export default function BedroomDesignWorkspace({
     })
     
     if (existingSection?.id) {
-      console.log('✅ Found existing section:', existingSection.id)
+      
       // Validate the section ID format
       if (typeof existingSection.id !== 'string' || existingSection.id.length < 10) {
         console.error('❌ Invalid section ID format:', existingSection.id)
@@ -368,15 +366,12 @@ export default function BedroomDesignWorkspace({
     
     // If no section exists, create one via API
     try {
-      console.log('🆕 Creating new section via API:', { stageId, type: sectionType })
       
       const requestBody = { 
         stageId,
         type: sectionType
       }
-      
-      console.log('📡 Making request with body:', requestBody)
-      
+
       const response = await fetch('/api/design/sections', {
         method: 'POST',
         headers: { 
@@ -386,14 +381,7 @@ export default function BedroomDesignWorkspace({
         body: JSON.stringify(requestBody),
         credentials: 'include' // Ensure cookies are included
       })
-      
-      console.log('📡 Section creation response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-      
+
       if (!response.ok) {
         let errorText = ''
         try {
@@ -406,10 +394,9 @@ export default function BedroomDesignWorkspace({
       }
       
       const result = await response.json()
-      console.log('📊 Section creation result:', result)
       
       if (result.success && result.section?.id) {
-        console.log('✅ Section created successfully:', result.section.id)
+        
         // Validate the new section ID format
         if (typeof result.section.id !== 'string' || result.section.id.length < 10) {
           console.error('❌ Invalid new section ID format:', result.section.id)
@@ -445,48 +432,30 @@ export default function BedroomDesignWorkspace({
     })
     
     if (!files.length) {
-      console.log('⚠️ No files to upload')
+      
       return
     }
 
     setUploadingSection(sectionType)
     try {
-      console.log('🎯 Getting/creating section ID...')
+      
       const sectionId = await getOrCreateSectionId(sectionType)
-      console.log('✅ Got section ID:', sectionId)
       
       // Upload each file
       const uploadPromises = Array.from(files).map(async (file, index) => {
-        console.log(`📤 Uploading file ${index + 1}/${files.length}:`, {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          sectionId
-        })
         
         const formData = new FormData()
         formData.append('file', file)
         formData.append('sectionId', sectionId)
-        
-        console.log('📡 Making upload request to /api/design/upload...')
-        
+
         // Log all cookies and headers for debugging
-        console.log('🍪 Current cookies:', document.cookie)
-        console.log('🌐 Current location:', window.location.href)
-        
+
         const response = await fetch('/api/design/upload', {
           method: 'POST',
           body: formData,
           credentials: 'include' // Ensure cookies are included
         })
-        
-        console.log('📈 Upload response:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries())
-        })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           console.error('❌ Upload failed with error data:', errorData)
@@ -494,17 +463,14 @@ export default function BedroomDesignWorkspace({
         }
         
         const result = await response.json()
-        console.log('✅ Upload successful:', result)
+        
         return result
       })
-      
-      console.log('⏳ Waiting for all uploads to complete...')
+
       const results = await Promise.all(uploadPromises)
-      console.log('🎉 All uploads completed:', results)
       
       toast.success(`${files.length} file(s) uploaded successfully`)
-      
-      console.log('🔄 Refreshing workspace...')
+
       refreshWorkspace() // Refresh to show uploaded files
       
     } catch (error) {
@@ -512,7 +478,7 @@ export default function BedroomDesignWorkspace({
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       toast.error(error instanceof Error ? error.message : 'Upload failed')
     } finally {
-      console.log('🏁 Upload process finished, clearing uploading state')
+      
       setUploadingSection(null)
     }
   }
@@ -528,15 +494,14 @@ export default function BedroomDesignWorkspace({
     })
     
     if (!comment) {
-      console.log('⚠️ No comment content, aborting')
+      
       return
     }
 
     setPostingComment(sectionType)
     try {
-      console.log('🎯 Getting/creating section ID for comment...')
+      
       const sectionId = await getOrCreateSectionId(sectionType)
-      console.log('✅ Got section ID for comment:', sectionId)
       
       // Map mention names to user IDs using the same matching logic as the mention validation
       const mentionIds = []
@@ -572,26 +537,16 @@ export default function BedroomDesignWorkspace({
         content: comment,
         mentions: mentionIds
       }
-      console.log('📡 Making comment request to /api/design/comments with body:', requestBody)
       
       // Log all cookies and headers for debugging
-      console.log('🍪 Current cookies:', document.cookie)
-      console.log('🌐 Current location:', window.location.href)
-      
+
       const response = await fetch('/api/design/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         credentials: 'include' // Ensure cookies are included
       })
-      
-      console.log('📈 Comment response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-      
+
       if (!response.ok) {
         console.error('❌ Comment request failed with status:', response.status, response.statusText)
         console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()))
@@ -613,10 +568,9 @@ export default function BedroomDesignWorkspace({
       }
       
       const result = await response.json()
-      console.log('✅ Comment posted successfully:', result)
       
       // Clear comment input and refresh
-      console.log('🧹 Clearing comment input and refreshing workspace...')
+      
       setNewComments(prev => ({ ...prev, [sectionType]: '' }))
       refreshWorkspace()
       toast.success('Comment posted successfully')
@@ -626,7 +580,7 @@ export default function BedroomDesignWorkspace({
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       toast.error(error instanceof Error ? error.message : 'Failed to post comment')
     } finally {
-      console.log('🏁 Comment process finished, clearing posting state')
+      
       setPostingComment(null)
     }
   }

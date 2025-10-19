@@ -196,7 +196,6 @@ export async function POST(
           })
         })
 
-        console.log(`Auto-completed 3D rendering stage ${renderingVersion.stageId} when pushing version to client`)
       }
     } catch (stageCompletionError) {
       console.error('Error auto-completing 3D rendering stage:', stageCompletionError)
@@ -219,7 +218,7 @@ export async function POST(
       const transitionResult = await handleWorkflowTransition(workflowEvent, session, ipAddress)
       
       if (transitionResult.transitionsTriggered.length > 0) {
-        console.log(`Phase transitions triggered by push-to-client:`, transitionResult.transitionsTriggered)
+        
         // Add transition info to the response
         result.phaseTransitions = transitionResult.transitionsTriggered
       }

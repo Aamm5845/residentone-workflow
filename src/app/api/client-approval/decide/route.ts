@@ -124,8 +124,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`✅ Client decision processed: ${decision} for version ${version.id}`);
-
     return NextResponse.json({ success: true });
 
   } catch (error) {

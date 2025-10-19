@@ -38,9 +38,6 @@ try {
   process.exit(1)
 }
 
-console.log('🔄 Starting database backup...')
-console.log(`📁 Backup location: ${backupFilePath}`)
-
 // Create pg_dump command
 const pgDumpCommand = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database} --no-password --clean --if-exists --verbose > "${backupFilePath}"`
 
@@ -52,7 +49,7 @@ exec(pgDumpCommand, { env }, (error, stdout, stderr) => {
     console.error('❌ Backup failed:', error.message)
     
     // If pg_dump is not available, try using Prisma
-    console.log('🔄 Trying alternative backup method using Prisma...')
+    
     fallbackBackup()
     return
   }
@@ -60,10 +57,7 @@ exec(pgDumpCommand, { env }, (error, stdout, stderr) => {
   // Check if backup file was created and has content
   if (fs.existsSync(backupFilePath) && fs.statSync(backupFilePath).size > 0) {
     const fileSize = (fs.statSync(backupFilePath).size / 1024).toFixed(2)
-    console.log(`✅ Database backup completed successfully!`)
-    console.log(`📊 Backup size: ${fileSize} KB`)
-    console.log(`📁 Location: ${backupFilePath}`)
-    
+
     // Clean up old backups (keep only last 10)
     cleanupOldBackups()
   } else {
@@ -74,7 +68,6 @@ exec(pgDumpCommand, { env }, (error, stdout, stderr) => {
 
 // Fallback backup method using Prisma's data export
 function fallbackBackup() {
-  console.log('🔄 Using Prisma fallback backup method...')
   
   const prismaBackupCommand = `npx prisma db execute --stdin < "${path.join(__dirname, 'export-data.sql')}"`
   
@@ -101,10 +94,9 @@ COPY (SELECT json_build_object(
   exec(prismaBackupCommand, (error, stdout, stderr) => {
     if (error) {
       console.error('❌ Prisma backup also failed:', error.message)
-      console.log('💡 Please ensure PostgreSQL is running and accessible')
+      
     } else {
-      console.log('✅ Prisma fallback backup completed')
-      console.log(`📁 Location: ${backupFilePath.replace('.sql', '.json')}`)
+
     }
   })
 }
@@ -122,7 +114,7 @@ function cleanupOldBackups() {
       filesToDelete.forEach(file => {
         const filePath = path.join(backupsDir, file)
         fs.unlinkSync(filePath)
-        console.log(`🗑️ Cleaned up old backup: ${file}`)
+        
       })
     }
   } catch (error) {

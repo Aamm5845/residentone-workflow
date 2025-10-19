@@ -11,7 +11,6 @@ async function fetchAllAssetsPaginated() {
     let take = 10 // Start with very small batches
     
     while (true) {
-      console.log(`📥 Fetching assets ${skip} to ${skip + take} (batch size: ${take})...`)
       
       try {
         const assets = await prisma.asset.findMany({
@@ -50,8 +49,7 @@ async function fetchAllAssetsPaginated() {
         continue
       }
     }
-    
-    console.log(`✅ Fetched ${allAssets.length} assets total`)
+
     return allAssets
   } catch (error) {
     console.warn('⚠️ Full assets fetch failed, falling back to ultra-minimal data only')
@@ -71,7 +69,7 @@ async function fetchAllAssetsPaginated() {
       // Last resort: just get asset count and create placeholder records
       try {
         const assetCount = await prisma.asset.count()
-        console.log(`📊 Asset count: ${assetCount} (backing up metadata only)`)
+        
         return [{
           id: 'METADATA_ONLY',
           filename: `${assetCount}_assets_metadata_only.txt`,
@@ -92,7 +90,6 @@ async function fetchPaginated(model: any, modelName: string, batchSize = 100) {
   let skip = 0
   
   while (true) {
-    console.log(`📥 Fetching ${modelName} ${skip} to ${skip + batchSize}...`)
     
     const records = await model.findMany({
       skip,
@@ -107,8 +104,7 @@ async function fetchPaginated(model: any, modelName: string, batchSize = 100) {
     
     if (records.length < batchSize) break
   }
-  
-  console.log(`✅ Fetched ${allRecords.length} ${modelName} total`)
+
   return allRecords
 }
 
@@ -124,8 +120,6 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    console.log('🔄 Starting COMPLETE database backup (includes files and passwords)...')
-    
     // Extract all production data INCLUDING sensitive information
     const backup = {
       timestamp: new Date().toISOString(),
@@ -190,9 +184,6 @@ export async function GET(request: NextRequest) {
       files: {} as Record<string, string>
     }
 
-    console.log('📁 Starting file downloads from URLs...')
-    console.log(`📊 Found ${backup.data.assets.length} assets to process`)
-    
     // Download actual files from URLs
     const assets = backup.data.assets
     const fileDownloadPromises: Promise<void>[] = []
@@ -207,7 +198,7 @@ export async function GET(request: NextRequest) {
               backup.files[asset.id] = base64Content
               downloadedCount++
               if (downloadedCount % 10 === 0) {
-                console.log(`📥 Downloaded ${downloadedCount} files...`)
+                
               }
             } else {
               failedCount++
@@ -232,8 +223,6 @@ export async function GET(request: NextRequest) {
       await Promise.allSettled(fileDownloadPromises)
     }
 
-    console.log(`📊 File download complete: ${downloadedCount} successful, ${failedCount} failed`)
-
     // Calculate statistics
     const stats = Object.entries(backup.data).map(([table, records]) => ({
       table,
@@ -242,9 +231,7 @@ export async function GET(request: NextRequest) {
     
     const totalRecords = stats.reduce((sum, stat) => sum + stat.count, 0)
     const totalFiles = Object.keys(backup.files).length
-    
-    console.log(`✅ Complete backup finished: ${totalRecords} records, ${totalFiles} files`)
-    
+
     // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
     const filename = `residentone-complete-backup-${timestamp}.json`

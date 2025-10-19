@@ -30,7 +30,7 @@ export function useWebSocket() {
     })
 
     socketInstance.on('connect', () => {
-      console.log('Connected to WebSocket server')
+      
       setIsConnected(true)
       setSocket(socketInstance)
 
@@ -41,7 +41,7 @@ export function useWebSocket() {
     })
 
     socketInstance.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server')
+      
       setIsConnected(false)
     })
 

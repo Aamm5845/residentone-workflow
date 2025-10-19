@@ -32,8 +32,6 @@ export async function POST(
     
     const { roomId, itemId } = await params
     const { quantity, customName, visibility = 'VISIBLE' } = await request.json()
-    
-    console.log('🔍 Quantity include request:', { roomId, itemId, quantity, customName, visibility });
 
     if (!roomId || !itemId || !quantity || quantity < 1) {
       return NextResponse.json({ error: 'Room ID, item ID, and valid quantity are required' }, { status: 400 })

@@ -13,17 +13,10 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 Upload API called')
     
     const session = await getSession()
     const ipAddress = getIPAddress(request)
-    
-    console.log('👤 Session check:', { 
-      hasSession: !!session, 
-      userId: session?.user?.id,
-      orgId: session?.user?.orgId
-    })
-    
+
     if (!isValidAuthSession(session)) {
       console.error('❌ Unauthorized - invalid session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,14 +26,6 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const sectionId = formData.get('sectionId') as string
     const userDescription = formData.get('description') as string | null
-    
-    console.log('📁 Form data:', {
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      sectionId,
-      hasDescription: !!userDescription
-    })
 
     if (!file || !sectionId) {
       return NextResponse.json({ 
@@ -99,8 +84,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Section not found:', { sectionId, userId: session.user.id, orgId: session.user.orgId })
       return NextResponse.json({ error: 'Section not found' }, { status: 404 })
     }
-    
-    console.log('✅ Section found:', { sectionId: section.id, type: section.type, stageId: section.stageId })
 
     // For Vercel compatibility: Store files as base64 in database
     // This works in serverless environments without file system access
@@ -117,12 +100,6 @@ export async function POST(request: NextRequest) {
       stageId: section.stageId,
       sectionType: section.type,
       storageMethod: 'postgres_base64'
-    })
-    
-    console.log('💾 Storing file in database (Vercel-compatible)', { 
-      fileName, 
-      size: file.size, 
-      type: file.type 
     })
 
     // Determine asset type

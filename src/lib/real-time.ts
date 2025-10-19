@@ -98,14 +98,13 @@ export class RealTimeService {
     })
 
     this.setupEventHandlers()
-    console.log('🚀 Real-time service initialized')
+    
   }
 
   private setupEventHandlers() {
     if (!this.io) return
 
     this.io.on('connection', async (socket) => {
-      console.log(`Socket connected: ${socket.id}`)
       
       try {
         // Authenticate user
@@ -159,7 +158,7 @@ export class RealTimeService {
             } as UserPresenceEvent)
 
             socket.emit('joined-project', { projectId })
-            console.log(`User ${userName} joined project ${projectId}`)
+            
           } catch (error) {
             console.error('Error joining project:', error)
             socket.emit('error', { message: 'Failed to join project' })
@@ -184,7 +183,6 @@ export class RealTimeService {
             timestamp: new Date().toISOString()
           } as UserPresenceEvent)
 
-          console.log(`User ${userName} left project ${projectId}`)
         })
 
         // Handle typing indicators
@@ -201,7 +199,6 @@ export class RealTimeService {
 
         // Handle disconnect
         socket.on('disconnect', () => {
-          console.log(`Socket disconnected: ${socket.id}`)
           
           // Remove from user connections
           if (this.userConnections.has(userId)) {
@@ -357,7 +354,7 @@ export function useRealTime(projectId?: string) {
     leaveProject: (id: string) => console.log(`Leaving project ${id}...`),
     emit: (event: string, data: any) => console.log(`Emitting ${event}:`, data),
     on: (event: string, callback: (data: any) => void) => console.log(`Listening to ${event}...`),
-    off: (event: string) => console.log(`Stopped listening to ${event}...`)
+    off: (event: string) => 
   }
 }
 
@@ -365,7 +362,6 @@ export function useRealTime(projectId?: string) {
 export function createWebSocketHandler() {
   return async function handler(req: NextApiRequest, res: any) {
     if (!res.socket.server.io) {
-      console.log('Setting up Socket.IO server...')
       
       realTimeService.initialize(res.socket.server)
       res.socket.server.io = realTimeService

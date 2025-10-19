@@ -78,8 +78,6 @@ export async function POST(
         // Generate unique filename
         const timestamp = Date.now()
         const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-        
-        console.log(`Processing rendering upload: ${filename} (${(file.size / 1024).toFixed(2)}KB)`)
 
         // Check if Vercel Blob is available (preferred) or fallback to database
         const useBlobStorage = isBlobConfigured()
@@ -106,7 +104,7 @@ export async function POST(
           
           fileUrl = blobResult.url
           storageProvider = 'vercel-blob'
-          console.log('✅ File uploaded to Vercel Blob:', blobResult.url)
+          
         } else {
           // Fallback to database storage (development only)
           if (process.env.NODE_ENV === 'production') {
@@ -118,7 +116,7 @@ export async function POST(
           const fileData = buffer.toString('base64')
           fileUrl = `data:${file.type};base64,${fileData}`
           storageProvider = 'database'
-          console.log('⚠️ Using database storage (development fallback)')
+          
         }
 
         // Determine asset type
@@ -156,8 +154,6 @@ export async function POST(
         })
 
         uploadedAssets.push(asset)
-
-        console.log(`✅ File uploaded successfully to database: ${asset.id} (${assetType})`)
 
         // Log activity for each file
         await logActivity({

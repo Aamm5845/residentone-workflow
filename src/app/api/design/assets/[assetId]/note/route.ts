@@ -15,17 +15,10 @@ export async function PATCH(
   { params }: { params: { assetId: string } }
 ) {
   try {
-    console.log('📝 Starting asset note update...')
     
     const session = await getSession()
     const ipAddress = getIPAddress(request)
-    
-    console.log('🔑 Session validation:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      userOrgId: session?.user?.orgId
-    })
-    
+
     if (!isValidAuthSession(session)) {
       console.error('❌ Unauthorized access attempt')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,12 +27,6 @@ export async function PATCH(
     const { assetId } = await params
     const data = await request.json()
     const { note } = data
-    
-    console.log('📝 Request data:', {
-      assetId,
-      hasNote: !!note,
-      noteLength: note?.length || 0
-    })
 
     if (!assetId) {
       console.error('❌ Missing assetId')
@@ -48,8 +35,6 @@ export async function PATCH(
       }, { status: 400 })
     }
 
-    console.log('🔍 Looking up asset:', assetId)
-    
     // Verify asset exists and user has access
     const asset = await prisma.asset.findFirst({
       where: {
@@ -74,13 +59,6 @@ export async function PATCH(
         }
       }
     })
-    
-    console.log('🔍 Asset lookup result:', {
-      found: !!asset,
-      assetId: asset?.id,
-      assetTitle: asset?.title,
-      sectionId: asset?.sectionId
-    })
 
     if (!asset) {
       console.error('❌ Asset not found or access denied for:', assetId)
@@ -99,11 +77,6 @@ export async function PATCH(
       data: {
         userDescription: note || null
       }
-    })
-    
-    console.log('✅ Asset note updated successfully:', {
-      assetId: updatedAsset.id,
-      hasNote: !!updatedAsset.userDescription
     })
 
     // Log the activity if we have context

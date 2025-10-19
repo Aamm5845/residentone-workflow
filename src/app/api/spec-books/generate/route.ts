@@ -4,17 +4,16 @@ import { prisma } from '@/lib/prisma'
 import { pdfGenerationService } from '@/lib/pdf-generation'
 import { cadConversionService } from '@/lib/cad-conversion'
 import { dropboxService } from '@/lib/dropbox-service'
+import { CadPreferences } from '@/types/cad'
 
 export async function POST(request: NextRequest) {
-  console.log('📚 Starting spec book generation...')
+  
   try {
     const session = await getSession()
     if (!session?.user) {
-      console.log('❌ Unauthorized: No session or user')
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    console.log('✅ Session valid:', { userId: session.user.id, orgId: session.user.orgId })
 
     const {
       projectId,
@@ -22,12 +21,6 @@ export async function POST(request: NextRequest) {
       selectedSections,
       selectedRooms
     } = await request.json()
-
-    console.log('📋 Request data:', { 
-      projectId, 
-      selectedSections: selectedSections?.length || 0, 
-      selectedRooms: selectedRooms?.length || 0 
-    })
 
     if (!projectId || !coverPageData) {
       return NextResponse.json(
@@ -37,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify project access
-    console.log('🔍 Looking up project:', projectId)
+    
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
@@ -61,11 +54,9 @@ export async function POST(request: NextRequest) {
     })
 
     if (!project) {
-      console.log('❌ Project not found:', projectId)
+      
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
-
-    console.log('✅ Project found:', { name: project.name, rooms: project.rooms.length })
 
     // Get or create spec book
     let specBook = await prisma.specBook.findFirst({
@@ -89,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Process selected sections - convert CAD files if needed
     const processedSections = []
+    console.log(`[DEBUG] Processing ${(selectedSections || []).length} project-level sections`)
     for (const sectionType of selectedSections || []) {
       // Create or update section
       let section = await prisma.specBookSection.findFirst({
@@ -98,7 +90,11 @@ export async function POST(request: NextRequest) {
           roomId: null
         },
         include: {
-          dropboxFiles: true
+          dropboxFiles: {
+            where: {
+              isActive: true
+            }
+          }
         }
       })
 
@@ -112,12 +108,73 @@ export async function POST(request: NextRequest) {
             order: getDefaultSectionOrder(sectionType)
           },
           include: {
-            dropboxFiles: true
+            dropboxFiles: {
+              where: {
+                isActive: true
+              }
+            }
           }
         })
       }
+      
+      console.log(`[DEBUG] Section ${sectionType} has ${section.dropboxFiles?.length || 0} files`)
+      section.dropboxFiles?.forEach((file, index) => {
+        console.log(`[DEBUG] Section file ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId}`)
+      })
+      
+      // Process CAD files for project-level sections (convert if not cached)
+      for (const dropboxFile of section.dropboxFiles || []) {
+        if (!dropboxFile.cadToPdfCacheUrl) {
+          // Convert CAD file if not cached
+          try {
+            console.log(`[CAD-Conversion] Converting project-level ${dropboxFile.fileName} from ${dropboxFile.dropboxPath}`)
+            // Use the path for shared link download (prefer path over ID)
+            const downloadPath = dropboxFile.dropboxPath || dropboxFile.dropboxFileId
+            const fileBuffer = await dropboxService.downloadFile(downloadPath)
+            
+            // Load effective CAD preferences for this file
+            const preferences = await getEffectiveCadPreferences(dropboxFile.id, projectId)
+            
+            const conversionResult = await cadConversionService.convertCADToPDFWithPreferences(
+              dropboxFile.dropboxPath,
+              dropboxFile.dropboxRevision || '',
+              fileBuffer,
+              preferences
+            )
 
-      processedSections.push(section)
+            if (conversionResult.success && conversionResult.pdfUrl) {
+              // Update cache in database
+              await prisma.dropboxFileLink.update({
+                where: { id: dropboxFile.id },
+                data: {
+                  cadToPdfCacheUrl: conversionResult.pdfUrl,
+                  cacheExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+                }
+              })
+              
+              console.log(`[CAD-Conversion] Successfully converted and cached ${dropboxFile.fileName}`)
+              // Update the section object with the new cache URL
+              dropboxFile.cadToPdfCacheUrl = conversionResult.pdfUrl
+            }
+          } catch (error) {
+            console.error(`[CAD-Conversion] Failed to convert project-level CAD file ${dropboxFile.fileName}:`, error)
+            // Continue without this file
+          }
+        } else {
+          console.log(`[CAD-Conversion] Using cached PDF for ${dropboxFile.fileName}`)
+        }
+      }
+
+      // Only add section if it has files with successful conversions or cached PDFs
+      const sectionsWithContent = section.dropboxFiles?.filter(file => file.cadToPdfCacheUrl) || []
+      if (sectionsWithContent.length > 0) {
+        // Update section to only include files with content
+        section.dropboxFiles = sectionsWithContent
+        processedSections.push(section)
+        console.log(`[DEBUG] Added section ${section.name} with ${sectionsWithContent.length} converted files`)
+      } else {
+        console.log(`[DEBUG] Skipped empty section ${section.name} (no converted CAD files)`)
+      }
     }
 
     // Process selected rooms
@@ -136,7 +193,11 @@ export async function POST(request: NextRequest) {
           }
         },
         include: {
-          dropboxFiles: true
+          dropboxFiles: {
+            where: {
+              isActive: true
+            }
+          }
         }
       });
 
@@ -165,6 +226,11 @@ export async function POST(request: NextRequest) {
         ...(drawingsSection?.dropboxFiles || [])
       ]
       
+      console.log(`[DEBUG] Processing ${allDropboxFiles.length} dropbox files for room ${room.name}`)
+      allDropboxFiles.forEach((file, index) => {
+        console.log(`[DEBUG] File ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId}`)
+      })
+      
       for (const dropboxFile of allDropboxFiles) {
         if (dropboxFile.cadToPdfCacheUrl) {
           cadFiles.push({
@@ -174,11 +240,19 @@ export async function POST(request: NextRequest) {
         } else {
           // Convert CAD file if not cached
           try {
-            const fileBuffer = await dropboxService.downloadFile(dropboxFile.dropboxPath)
-            const conversionResult = await cadConversionService.convertCADToPDF(
+            console.log(`[CAD-Conversion] Converting ${dropboxFile.fileName} from ${dropboxFile.dropboxPath}`)
+            // Use the path for shared link download (prefer path over ID)
+            const downloadPath = dropboxFile.dropboxPath || dropboxFile.dropboxFileId
+            const fileBuffer = await dropboxService.downloadFile(downloadPath)
+            
+            // Load effective CAD preferences for this file
+            const preferences = await getEffectiveCadPreferences(dropboxFile.id, projectId)
+            
+            const conversionResult = await cadConversionService.convertCADToPDFWithPreferences(
               dropboxFile.dropboxPath,
               dropboxFile.dropboxRevision || '',
-              fileBuffer
+              fileBuffer,
+              preferences
             )
 
             if (conversionResult.success && conversionResult.pdfUrl) {
@@ -203,13 +277,19 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      processedRooms.push({
-        id: room.id,
-        name: room.name || room.type.replace('_', ' '),
-        type: room.type,
-        renderingUrl: roomSection.renderingUrl,
-        cadFiles
-      })
+      // Only add room if it has content (CAD files or rendering)
+      if (cadFiles.length > 0 || roomSection.renderingUrl) {
+        processedRooms.push({
+          id: room.id,
+          name: room.name || room.type.replace('_', ' '),
+          type: room.type,
+          renderingUrl: roomSection.renderingUrl,
+          cadFiles
+        })
+        console.log(`[DEBUG] Added room ${room.name} with ${cadFiles.length} CAD files and rendering: ${roomSection.renderingUrl ? 'YES' : 'NO'}`)
+      } else {
+        console.log(`[DEBUG] Skipped empty room ${room.name} (no CAD files or rendering)`)
+      }
     }
 
     // Generate version number
@@ -233,10 +313,11 @@ export async function POST(request: NextRequest) {
 
     try {
       // Generate PDF
-      console.log('📋 Generating PDF with:', {
-        projectId,
-        sections: processedSections.length,
-        rooms: processedRooms.length
+      console.log(`[DEBUG] Starting PDF generation with:`)
+      console.log(`[DEBUG] - ${processedSections.length} sections`)
+      console.log(`[DEBUG] - ${processedRooms.length} rooms`)
+      processedSections.forEach(section => {
+        console.log(`[DEBUG] Section ${section.name}: ${section.dropboxFiles?.length || 0} files`)
       })
       
       const generationResult = await pdfGenerationService.generateSpecBook({
@@ -246,8 +327,6 @@ export async function POST(request: NextRequest) {
         selectedRooms: processedRooms,
         generatedById: session.user.id
       })
-      
-      console.log('📋 PDF generation result:', { success: generationResult.success })
 
       if (generationResult.success) {
         // Update generation record with success
@@ -314,6 +393,102 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Gets effective CAD preferences for a dropbox file, falling back to project defaults
+ * and then system defaults if no preferences are found
+ */
+async function getEffectiveCadPreferences(
+  dropboxFileId: string,
+  projectId: string
+): Promise<CadPreferences> {
+  try {
+    // First check for per-file preferences
+    const filePrefs = await prisma.cadPreferences.findUnique({
+      where: { dropboxFileId }
+    })
+    
+    if (filePrefs) {
+      return {
+        layoutName: filePrefs.layoutName,
+        ctbPath: filePrefs.ctbPath,
+        ctbFileId: filePrefs.ctbFileId,
+        plotArea: filePrefs.plotArea as 'extents' | 'display' | 'limits' | 'window',
+        window: filePrefs.window as { xmin: number; ymin: number; xmax: number; ymax: number } | null,
+        centerPlot: filePrefs.centerPlot,
+        scaleMode: filePrefs.scaleMode as 'fit' | 'custom',
+        scaleNumerator: filePrefs.scaleNumerator,
+        scaleDenominator: filePrefs.scaleDenominator,
+        keepAspectRatio: filePrefs.keepAspectRatio,
+        margins: filePrefs.margins as { top: number; right: number; bottom: number; left: number } | null,
+        paperSize: filePrefs.paperSize,
+        orientation: filePrefs.orientation as 'portrait' | 'landscape' | null,
+        dpi: filePrefs.dpi
+      }
+    }
+    
+    // Fallback to project defaults
+    const projectDefaults = await prisma.projectCadDefaults.findUnique({
+      where: { projectId }
+    })
+    
+    if (projectDefaults) {
+      return {
+        layoutName: projectDefaults.layoutName,
+        ctbPath: projectDefaults.ctbPath,
+        ctbFileId: projectDefaults.ctbFileId,
+        plotArea: projectDefaults.plotArea as 'extents' | 'display' | 'limits' | 'window',
+        window: projectDefaults.window as { xmin: number; ymin: number; xmax: number; ymax: number } | null,
+        centerPlot: projectDefaults.centerPlot,
+        scaleMode: projectDefaults.scaleMode as 'fit' | 'custom',
+        scaleNumerator: projectDefaults.scaleNumerator,
+        scaleDenominator: projectDefaults.scaleDenominator,
+        keepAspectRatio: projectDefaults.keepAspectRatio,
+        margins: projectDefaults.margins as { top: number; right: number; bottom: number; left: number } | null,
+        paperSize: projectDefaults.paperSize,
+        orientation: projectDefaults.orientation as 'portrait' | 'landscape' | null,
+        dpi: projectDefaults.dpi
+      }
+    }
+    
+    // System defaults (backward compatible with existing behavior)
+    return {
+      layoutName: null, // Use first/default layout
+      ctbPath: null,
+      ctbFileId: null,
+      plotArea: 'extents',
+      window: null,
+      centerPlot: true,
+      scaleMode: 'fit', // fit_to_page: true
+      scaleNumerator: null,
+      scaleDenominator: null,
+      keepAspectRatio: true,
+      margins: null,
+      paperSize: null, // Auto
+      orientation: null, // Auto
+      dpi: null // Default
+    }
+  } catch (error) {
+    console.error('Error loading CAD preferences, using system defaults:', error)
+    // Return system defaults on error
+    return {
+      layoutName: null,
+      ctbPath: null,
+      ctbFileId: null,
+      plotArea: 'extents',
+      window: null,
+      centerPlot: true,
+      scaleMode: 'fit',
+      scaleNumerator: null,
+      scaleDenominator: null,
+      keepAspectRatio: true,
+      margins: null,
+      paperSize: null,
+      orientation: null,
+      dpi: null
+    }
   }
 }
 

@@ -93,14 +93,14 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
   const loadItems = async () => {
     try {
       setLoading(true)
-      console.log('Loading FFE library items for orgId:', orgId)
+      
       const url = `/api/ffe/library?orgId=${orgId}&category=${selectedCategory !== 'all' ? selectedCategory : ''}&roomType=${selectedRoomType !== 'all' ? selectedRoomType : ''}&search=${searchTerm}`
-      console.log('Fetching:', url)
+      
       const response = await fetch(url)
-      console.log('Response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        console.log('FFE library data:', data)
+        
         setItems(data.items || [])
       } else {
         const errorText = await response.text()
@@ -121,7 +121,7 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
 
   const handleAddItem = async () => {
     try {
-      console.log('Adding FFE item:', formData)
+      
       if (!formData.name || formData.roomTypes.length === 0) {
         toast.error('Please fill in Name and at least one Room Type')
         return
@@ -139,19 +139,16 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
         ...formData,
         itemId
       }
-      console.log('Sending payload:', payload)
-
+      
       const response = await fetch('/api/ffe/library', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
 
-      console.log('Add item response status:', response.status)
-      
       if (response.ok) {
         const result = await response.json()
-        console.log('Add item success:', result)
+        
         toast.success('FFE item added to library')
         setShowAddDialog(false)
         resetForm()

@@ -29,13 +29,10 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
     clearSelectedTemplates
   } = useFFETemplateStore();
 
-
-
   const templatesQuery = useFFETemplates(orgId);
   const sectionsQuery = useFFESections();
   const { createTemplate, updateTemplate, deleteTemplate, copyTemplate } = useFFETemplateMutations();
-  
-  
+
   // Local state
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<FFETemplate | null>(null);
@@ -77,10 +74,10 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
 
   // Handlers
   const handleCreateTemplate = () => {
-    console.log('Create template clicked!');
+    
     setEditingTemplate(null);
     setIsEditorOpen(true);
-    console.log('Editor should be open:', true);
+    
   };
 
   const handleEditTemplate = (template: FFETemplate) => {
@@ -119,7 +116,6 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
       alert(`Failed to delete templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
-
 
   // Loading state
   if (templatesQuery.isLoading || sectionsQuery.isLoading) {
@@ -234,9 +230,9 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
       <Dialog 
         open={isEditorOpen} 
         onOpenChange={(open) => {
-          console.log('Dialog open state changed to:', open);
+          
           if (!open) {
-            console.log('Dialog closed by user');
+            
             setEditingTemplate(null);
           }
           setIsEditorOpen(open);
@@ -255,14 +251,13 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
             orgId={orgId}
             onSave={async (templateData) => {
               try {
-                console.log('Saving template with data:', templateData);
                 
                 if (editingTemplate) {
                   const result = await updateTemplate(editingTemplate.id, templateData);
-                  console.log('Template updated:', result);
+                  
                 } else {
                   const result = await createTemplate(templateData);
-                  console.log('Template created:', result);
+                  
                 }
                 
                 // Refresh the templates list
@@ -271,8 +266,7 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
                 // Close the editor
                 setIsEditorOpen(false);
                 setEditingTemplate(null);
-                
-                console.log('Template save completed successfully');
+
               } catch (error) {
                 console.error('Failed to save template:', error);
                 // Don't close the dialog on error, let user try again
@@ -280,7 +274,7 @@ export function TemplateManagementPage({ orgId, userRole }: TemplateManagementPa
               }
             }}
             onCancel={() => {
-              console.log('Template editor cancelled');
+              
               setIsEditorOpen(false);
               setEditingTemplate(null);
             }}

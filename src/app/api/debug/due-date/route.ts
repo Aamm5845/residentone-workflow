@@ -5,14 +5,11 @@ import { dueDateSchema } from '@/lib/validation/due-date-validation'
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    console.log('Debug session:', session?.user?.id ? 'authenticated' : 'not authenticated')
     
     const body = await request.json()
-    console.log('Debug request body:', body)
     
     // Test validation
     const validationResult = dueDateSchema.safeParse(body)
-    console.log('Debug validation result:', validationResult)
     
     if (!validationResult.success) {
       return NextResponse.json({

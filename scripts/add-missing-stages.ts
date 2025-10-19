@@ -3,7 +3,6 @@ import { PrismaClient, StageType, StageStatus } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function addMissingStages() {
-  console.log('🔍 Checking for existing rooms...')
   
   // Get all rooms
   const rooms = await prisma.room.findMany({
@@ -21,10 +20,8 @@ async function addMissingStages() {
     }
   })
 
-  console.log(`📊 Found ${rooms.length} rooms`)
-
   if (rooms.length === 0) {
-    console.log('✅ No rooms found, nothing to migrate')
+    
     return
   }
 
@@ -43,11 +40,9 @@ async function addMissingStages() {
     }
 
     if (missingStageTypes.length === 0) {
-      console.log(`✅ Room ${room.id} (${room.type}) already has all stages`)
+      
       continue
     }
-
-    console.log(`🔧 Adding missing stages to room ${room.id} (${room.type}): ${missingStageTypes.join(', ')}`)
 
     // Get team members for stage assignments
     const teamMembers = room.project.organization.users
@@ -67,10 +62,9 @@ async function addMissingStages() {
     })
 
     addedStages += stagesToCreate.length
-    console.log(`✅ Added ${stagesToCreate.length} stages to room ${room.id}`)
+    
   }
 
-  console.log(`🎉 Migration complete! Added ${addedStages} stages across ${rooms.length} rooms`)
 }
 
 async function main() {

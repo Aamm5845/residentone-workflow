@@ -64,10 +64,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, key, linkedRooms, orgId } = body
 
-    console.log('📝 Creating room type with data:', { name, key, linkedRooms, orgId })
-    console.log('📝 Session user:', session.user)
-    console.log('📝 Database user:', { id: user.id, email: user.email })
-
     if (!name || !key || !orgId) {
       return NextResponse.json({ error: 'Name, key, and orgId are required' }, { status: 400 })
     }

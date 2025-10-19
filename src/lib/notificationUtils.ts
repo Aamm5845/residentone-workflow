@@ -195,7 +195,6 @@ export async function notifyMention({
   })
 }
 
-
 // Batch create notifications for multiple users
 export async function createBatchNotifications(notifications: CreateNotificationParams[]) {
   const results = await Promise.allSettled(
@@ -204,9 +203,7 @@ export async function createBatchNotifications(notifications: CreateNotification
   
   const successful = results.filter(result => result.status === 'fulfilled').length
   const failed = results.filter(result => result.status === 'rejected').length
-  
-  console.log(`Notifications created: ${successful} successful, ${failed} failed`)
-  
+
   return {
     successful,
     failed,
@@ -231,7 +228,6 @@ export async function notifyProjectTeam({
   try {
     // This would typically fetch project team members from the database
     // For now, we'll return a placeholder
-    console.log('Would notify project team for project:', projectId)
     
     // In a real implementation, you'd:
     // 1. Fetch all team members for the project

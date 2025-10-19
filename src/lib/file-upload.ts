@@ -48,9 +48,7 @@ class FileStorage {
     const extension = filename.split('.').pop()
     const folder = options.folder ? `${options.folder}/` : ''
     const url = `${this.baseUrl}/${folder}${fileId}.${extension}`
-    
-    console.log(`Mock upload: ${filename} (${buffer.length} bytes) -> ${url}`)
-    
+
     // Simulate upload delay
     await new Promise(resolve => setTimeout(resolve, 100))
     
@@ -58,7 +56,7 @@ class FileStorage {
   }
 
   async deleteFile(url: string): Promise<void> {
-    console.log(`Mock delete: ${url}`)
+    
     // In production, this would delete from S3/R2/etc.
   }
 }
@@ -141,7 +139,7 @@ class ImageProcessor {
   private optimizeImage(buffer: Buffer, options: ProcessingOptions): Buffer {
     // Mock image optimization
     // In production, this would compress and resize using Sharp
-    console.log(`Mock optimization: quality=${options.quality}, maxWidth=${options.maxWidth}`)
+    
     return buffer
   }
 }

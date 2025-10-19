@@ -5,12 +5,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('📝 GET /api/ffe/instances - Getting session...')
+    
     const session = await getServerSession(authOptions)
-    console.log('📝 Session:', session?.user?.email)
     
     if (!session?.user) {
-      console.log('❌ Unauthorized - no session user')
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -19,20 +18,20 @@ export async function GET(request: NextRequest) {
     let userId = session.user.id
     
     if (!orgId || !userId) {
-      console.log('⚠️ Missing user data, looking up from email:', session.user.email)
+      
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { id: true, orgId: true }
       })
       
       if (!user) {
-        console.log('❌ User not found in database')
+        
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
       
       userId = user.id
       orgId = user.orgId
-      console.log('✅ Retrieved user info:', { userId, orgId })
+      
     }
 
     const { searchParams } = new URL(request.url)
@@ -41,8 +40,6 @@ export async function GET(request: NextRequest) {
     if (!roomId) {
       return NextResponse.json({ error: 'roomId is required' }, { status: 400 })
     }
-    
-    console.log('📝 Fetching FFE instance for room:', roomId)
 
     // Check if room exists and user has access
     const room = await prisma.room.findFirst({
@@ -60,13 +57,11 @@ export async function GET(request: NextRequest) {
     })
 
     if (!room) {
-      console.log('❌ Room not found or access denied for orgId:', orgId)
+      
       return NextResponse.json({ 
         error: 'Room not found or access denied' 
       }, { status: 404 })
     }
-    
-    console.log('✅ Room found:', room.id, 'in project:', room.project.name)
 
     // Get or create FFE instance for this room
     let instance = await prisma.roomFFEInstance.findUnique({
@@ -87,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     // Create instance if it doesn't exist
     if (!instance) {
-      console.log('🎆 Creating new FFE instance for room:', roomId)
+      
       instance = await prisma.roomFFEInstance.create({
         data: {
           roomId: roomId,
@@ -110,7 +105,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log('✅ FFE instance fetched/created successfully:', instance.id, 'with', instance.sections?.length || 0, 'sections')
     return NextResponse.json({
       success: true,
       instance

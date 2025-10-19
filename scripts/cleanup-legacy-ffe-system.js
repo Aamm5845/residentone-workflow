@@ -136,7 +136,7 @@ class LegacyFFECleanup {
     };
     
     this.log.push(entry);
-    console.log(`[${entry.mode}] ${operation}: ${details} ${success ? '✓' : '✗'}`);
+    
   }
 
   backupFile(filePath) {
@@ -164,7 +164,7 @@ class LegacyFFECleanup {
   }
 
   async auditLegacyFiles() {
-    console.log('\n🔍 AUDITING LEGACY FFE SYSTEM');
+    
     console.log('='.repeat(50));
 
     const audit = {
@@ -216,16 +216,11 @@ class LegacyFFECleanup {
       }
     }
 
-    console.log(`\n📊 AUDIT SUMMARY:`);
-    console.log(`   Files to clean: ${audit.existingFiles.length}`);
-    console.log(`   Missing files: ${audit.missingFiles.length}`);
-    console.log(`   Total size: ${(audit.totalSize / 1024).toFixed(2)} KB`);
-
     return audit;
   }
 
   async cleanupFiles() {
-    console.log('\n🧹 CLEANING UP LEGACY FILES');
+    
     console.log('='.repeat(50));
 
     const filesToDelete = [
@@ -257,7 +252,7 @@ class LegacyFFECleanup {
   }
 
   async cleanupPrismaSchema() {
-    console.log('\n🗄️ CLEANING UP PRISMA SCHEMA');
+    
     console.log('='.repeat(50));
 
     const schemaPath = path.join(PROJECT_ROOT, 'prisma/schema.prisma');
@@ -302,7 +297,7 @@ class LegacyFFECleanup {
   }
 
   async updateFileReferences() {
-    console.log('\n📝 UPDATING FILE REFERENCES');
+    
     console.log('='.repeat(50));
 
     for (const file of LEGACY_CLEANUP_MAP.filesToUpdate) {
@@ -323,7 +318,7 @@ class LegacyFFECleanup {
   }
 
   async generateMigrationScript() {
-    console.log('\n🔄 GENERATING MIGRATION SCRIPT');
+    
     console.log('='.repeat(50));
 
     const migrationSQL = `
@@ -356,7 +351,7 @@ DROP TABLE IF EXISTS "FFERoomLibrary";
   }
 
   async rollbackChanges() {
-    console.log('\n↩️ ROLLING BACK CHANGES');
+    
     console.log('='.repeat(50));
 
     for (const backup of this.backupFiles.reverse()) {
@@ -383,15 +378,12 @@ DROP TABLE IF EXISTS "FFERoomLibrary";
     };
 
     fs.writeFileSync(LOG_FILE, JSON.stringify(logData, null, 2));
-    console.log(`\n📋 Log saved to: ${path.relative(PROJECT_ROOT, LOG_FILE)}`);
+    
   }
 
   async run() {
-    console.log('🚀 LEGACY FFE SYSTEM CLEANUP');
+    
     console.log('='.repeat(60));
-    console.log(`Mode: ${isDryRun ? 'DRY RUN' : shouldExecute ? 'EXECUTE' : 'ROLLBACK'}`);
-    console.log(`Backup Directory: ${path.relative(PROJECT_ROOT, BACKUP_DIR)}`);
-    console.log('');
 
     try {
       if (shouldRollback) {
@@ -406,9 +398,8 @@ DROP TABLE IF EXISTS "FFERoomLibrary";
 
       await this.saveLog();
 
-      console.log('\n✅ CLEANUP COMPLETED');
       if (isDryRun) {
-        console.log('🔍 This was a DRY RUN. Use --execute to perform actual cleanup.');
+        
       }
 
     } catch (error) {

@@ -65,8 +65,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, key, order, roomTypeKeys, orgId } = body
 
-    console.log('📝 Creating category with data:', { name, key, order, roomTypeKeys, orgId })
-
     if (!name || !key || !orgId) {
       return NextResponse.json({ error: 'Name, key, and orgId are required' }, { status: 400 })
     }

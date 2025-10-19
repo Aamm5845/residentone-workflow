@@ -30,10 +30,39 @@ interface DropboxFileBrowserProps {
   projectId: string
   sectionType?: string
   sectionName?: string
+  onLinked?: (payload: {
+    section: { id: string; name: string; type: string }
+    linkedFiles: Array<{
+      id: string
+      fileName: string
+      dropboxPath: string
+      fileSize?: number
+      lastModified?: Date
+    }>
+  }) => void
+  // New props for CTB file selection
+  onFileSelected?: (file: DropboxFile) => void
+  allowedExtensions?: string[] // e.g., ['.ctb', '.dwg', '.dxf']
+  mode?: 'link' | 'select' // 'link' for linking files, 'select' for one-time selection
+  variant?: 'default' | 'settings' | 'ctb-selector'
+  allowMultiple?: boolean
+  maxSelections?: number
 }
 
-export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName }: DropboxFileBrowserProps) {
-  console.log('DropboxFileBrowser rendered with:', { roomId, projectId, sectionType, sectionName })
+export function DropboxFileBrowser({ 
+  roomId, 
+  projectId, 
+  sectionType, 
+  sectionName, 
+  onLinked,
+  onFileSelected,
+  allowedExtensions,
+  mode = 'link',
+  variant = 'default', 
+  allowMultiple = true,
+  maxSelections
+}: DropboxFileBrowserProps) {
+  
   const [isOpen, setIsOpen] = useState(false)
   const [currentPath, setCurrentPath] = useState('')
   const [currentFolder, setCurrentFolder] = useState<DropboxFolder | null>(null)
@@ -68,21 +97,30 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
   }
 
   const fetchFolderContents = async (path: string = '', cursor?: string) => {
+    console.log('[DropboxFileBrowser] fetchFolderContents called with path:', JSON.stringify(path))
+    console.log('[DropboxFileBrowser] fetchFolderContents called with cursor:', cursor)
+    
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
       if (path) params.set('path', path)
       if (cursor) params.set('cursor', cursor)
 
+      console.log('[DropboxFileBrowser] Fetching Dropbox folder:', { path, cursor, url: `/api/dropbox/browse?${params}` })
       const response = await fetch(`/api/dropbox/browse?${params}`)
       const data = await response.json()
+      console.log('[DropboxFileBrowser] Dropbox browse response:', data)
       
       if (data.success) {
         setCurrentFolder(data)
         setCurrentPath(path)
+      } else {
+        console.error('Dropbox browse failed:', data)
+        alert(`Error browsing Dropbox: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error fetching folder contents:', error)
+      alert(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
@@ -118,16 +156,42 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
   }
 
   const handleFolderClick = (folder: DropboxFile) => {
+    console.log('[DropboxFileBrowser] Folder clicked:', folder.name)
+    console.log('[DropboxFileBrowser] Folder path:', folder.path)
+    console.log('[DropboxFileBrowser] Full folder object:', folder)
     fetchFolderContents(folder.path)
   }
 
   const handleFileSelect = (file: DropboxFile) => {
+    // For select mode with single selection, handle differently
+    if (mode === 'select' && !allowMultiple) {
+      setSelectedFiles([file])
+      // Immediately call the selection callback if provided
+      if (onFileSelected) {
+        onFileSelected(file)
+      }
+      return
+    }
+
+    // For multi-selection mode
     setSelectedFiles(prev => {
       const isSelected = prev.some(f => f.id === file.id)
       if (isSelected) {
         return prev.filter(f => f.id !== file.id)
       } else {
-        return [...prev, file]
+        // Check max selections limit
+        if (maxSelections && prev.length >= maxSelections) {
+          alert(`You can only select up to ${maxSelections} file(s)`)
+          return prev
+        }
+        const newSelection = [...prev, file]
+        
+        // For select mode with multiple selection, call callback with all selected
+        if (mode === 'select' && onFileSelected && newSelection.length === 1) {
+          onFileSelected(file)
+        }
+        
+        return newSelection
       }
     })
   }
@@ -144,6 +208,7 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
           roomId,
           sectionType: sectionType || (roomId ? 'ROOM' : undefined),
           dropboxFiles: selectedFiles.map(file => ({
+            id: file.id, // NEW: include file ID
             path: file.path,
             name: file.name,
             size: file.size,
@@ -155,12 +220,28 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
       const result = await response.json()
       
       if (result.success) {
-        setLinkedFiles(prev => [...prev, ...selectedFiles])
+        // Refresh linked files from server instead of local state
+        await fetchLinkedFiles()
         setSelectedFiles([])
         setIsOpen(false)
         
-        // Show success message
-        alert(`Successfully linked ${result.linkedFiles.length} file(s)!`)
+        // Notify parent component if callback provided
+        if (onLinked) {
+          onLinked({
+            section: result.section,
+            linkedFiles: result.linkedFiles
+          })
+        }
+        
+        // Show improved success message with better feedback
+        const linkedCount = result.linkedFiles?.length || 0
+        const skippedCount = result.skippedFiles?.length || 0
+        
+        const msg = skippedCount
+          ? `Linked ${linkedCount} file(s). Skipped ${skippedCount} file(s).`
+          : `Successfully linked ${linkedCount} file(s)!`
+        
+        alert(msg)
       } else {
         alert(`Error linking files: ${result.error}`)
       }
@@ -173,21 +254,23 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
 
   const handleUnlinkFile = async (file: DropboxFile) => {
     try {
-      const response = await fetch('/api/spec-books/unlink-files', {
-        method: 'POST',
+      const response = await fetch('/api/spec-books/link-files', {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           projectId,
-          filePath: file.path
+          dropboxPath: file.path,
+          sectionType: sectionType || (roomId ? 'ROOM' : undefined),
+          roomId
         })
       })
       
       const result = await response.json()
       
       if (result.success) {
-        setLinkedFiles(prev => prev.filter(f => f.id !== file.id))
+        await fetchLinkedFiles() // Refresh from server
       } else {
         alert(`Error unlinking file: ${result.error}`)
       }
@@ -209,6 +292,170 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
     return path.split('/').filter(Boolean).join(' > ') || 'Root'
   }
 
+  // Helper function to check if file extension is allowed
+  const isFileAllowed = (fileName: string): boolean => {
+    if (!allowedExtensions || allowedExtensions.length === 0) {
+      return true // No filtering if no extensions specified
+    }
+    
+    const fileExt = '.' + fileName.toLowerCase().split('.').pop()
+    return allowedExtensions.some(ext => ext.toLowerCase() === fileExt)
+  }
+
+  // Filter files based on allowed extensions
+  const filterFiles = (files: DropboxFile[]): DropboxFile[] => {
+    return files.filter(file => isFileAllowed(file.name))
+  }
+
+  // If this is the settings variant, render inline content without dialog
+  if (variant === 'settings') {
+    return (
+      <div className="space-y-4">
+        {/* Auto-fetch folder contents when component mounts */}
+        {!currentFolder && !isLoading && (
+          <div className="flex items-center justify-center py-4">
+            <Button 
+              onClick={() => {
+                
+                fetchFolderContents()
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Loading...</>
+              ) : (
+                <>Browse Dropbox</>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Search */}
+        {currentFolder && (
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Search for CAD files..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchFiles(searchQuery)}
+            />
+            <Button onClick={() => searchFiles(searchQuery)} disabled={isLoading}>
+              Search
+            </Button>
+          </div>
+        )}
+
+        {/* Breadcrumb */}
+        {currentPath && (
+          <div className="text-sm text-gray-600">
+            📁 {formatPath(currentPath)}
+          </div>
+        )}
+
+        {/* File Browser */}
+        {currentFolder && (
+          <ScrollArea className="h-96 border rounded">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : (
+              <div className="p-4 space-y-2">
+                {/* Back button */}
+                {currentPath && currentPath !== 'Search Results' && (
+                  <div 
+                    className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                    onClick={() => {
+                      const parentPath = currentPath.split('/').slice(0, -1).join('/')
+                      fetchFolderContents(parentPath)
+                    }}
+                  >
+                    <Folder className="w-4 h-4 text-blue-500" />
+                    <span>..</span>
+                  </div>
+                )}
+
+                {/* Folders */}
+                {currentFolder.folders.map((folder) => {
+                  console.log('[DropboxFileBrowser] Rendering folder:', folder.name, 'with path:', folder.path)
+                  return (
+                    <div 
+                      key={folder.id}
+                      className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                      onClick={(e) => {
+                        console.log('[DropboxFileBrowser] Folder div clicked!', folder.name)
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleFolderClick(folder)
+                      }}
+                    >
+                      <Folder className="w-4 h-4 text-blue-500" />
+                      <span className="flex-1">{folder.name}</span>
+                    </div>
+                  )
+                })}
+
+                {/* Files */}
+                {filterFiles(currentFolder.files).map((file) => {
+                  const isSelected = selectedFiles.some(f => f.id === file.id)
+                  return (
+                    <div 
+                      key={file.id}
+                      className={`flex items-center space-x-2 p-2 rounded cursor-pointer ${
+                        isSelected ? 'bg-blue-100' : 'hover:bg-gray-100'
+                      }`}
+                      onClick={() => handleFileSelect(file)}
+                    >
+                      <File className="w-4 h-4 text-gray-500" />
+                      <div className="flex-1">
+                        <div className="font-medium">{file.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(file.size)} • {new Date(file.lastModified).toLocaleDateString()}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <Badge variant="secondary">Selected</Badge>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {filterFiles(currentFolder.files).length === 0 && currentFolder.folders.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    {allowedExtensions && allowedExtensions.length > 0 
+                      ? `No ${allowedExtensions.join(', ')} files found in this folder`
+                      : 'No CAD files found in this folder'
+                    }
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        )}
+
+        {/* Selected Files Summary */}
+        {selectedFiles.length > 0 && (
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Selected Files ({selectedFiles.length})</span>
+              <Button onClick={handleLinkFiles}>
+                Link Selected Files
+              </Button>
+            </div>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {selectedFiles.map((file) => (
+                <div key={file.id} className="text-sm text-gray-600">
+                  📄 {file.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Original dialog mode for backwards compatibility
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -220,7 +467,10 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => fetchFolderContents()}
+              onClick={() => {
+                
+                fetchFolderContents()
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Link Files
@@ -287,7 +537,7 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
                     ))}
 
                     {/* Files */}
-                    {currentFolder.files.map((file) => {
+                    {filterFiles(currentFolder.files).map((file) => {
                       const isSelected = selectedFiles.some(f => f.id === file.id)
                       return (
                         <div 
@@ -311,9 +561,12 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
                       )
                     })}
 
-                    {currentFolder.files.length === 0 && currentFolder.folders.length === 0 && (
+                    {filterFiles(currentFolder.files).length === 0 && currentFolder.folders.length === 0 && (
                       <div className="text-center text-gray-500 py-8">
-                        No CAD files found in this folder
+                        {allowedExtensions && allowedExtensions.length > 0 
+                          ? `No ${allowedExtensions.join(', ')} files found in this folder`
+                          : 'No CAD files found in this folder'
+                        }
                       </div>
                     )}
                   </div>
@@ -331,9 +584,15 @@ export function DropboxFileBrowser({ roomId, projectId, sectionType, sectionName
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">Selected Files ({selectedFiles.length})</span>
-                    <Button onClick={handleLinkFiles}>
-                      Link Selected Files
-                    </Button>
+                    {mode === 'link' ? (
+                      <Button onClick={handleLinkFiles}>
+                        Link Selected Files
+                      </Button>
+                    ) : (
+                      <Button onClick={() => setIsOpen(false)}>
+                        Use Selected
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {selectedFiles.map((file) => (

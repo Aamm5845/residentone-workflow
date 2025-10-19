@@ -164,13 +164,6 @@ export class PhaseNotificationService {
         )
       }
 
-      console.log(`Phase completion notifications processed:`, {
-        stageId,
-        stageType: completedStage.type,
-        notificationsSent: result.notificationsSent,
-        emailsSent: result.emailsSent
-      })
-
     } catch (error) {
       console.error('Error handling phase completion notifications:', error)
       result.success = false
@@ -202,7 +195,7 @@ export class PhaseNotificationService {
         // Create in-app notification
         await this.createInAppNotification(
           stage.assignedUser.id,
-          'PHASE_READY_TO_START',
+        'STAGE_ASSIGNED',
           `${this.getPhaseDisplayName(stage.type)} Phase Ready`,
           `Client approval for ${room.name || room.type} in ${project.name} has been completed. You can now start the ${this.getPhaseDisplayName(stage.type)} phase.`,
           stage.id,
@@ -270,7 +263,7 @@ export class PhaseNotificationService {
       // Create in-app notification
       await this.createInAppNotification(
         nextStage.assignedUser.id,
-        'PHASE_READY_TO_START',
+        'STAGE_ASSIGNED',
         `${this.getPhaseDisplayName(nextStage.type)} Phase Ready`,
         `${this.getPhaseDisplayName(completedStage.type)} for ${room.name || room.type} in ${project.name} has been completed. You can now start the ${this.getPhaseDisplayName(nextStage.type)} phase.`,
         nextStage.id,
@@ -353,9 +346,7 @@ export class PhaseNotificationService {
       
       result.emailsSent++
       result.details.emailNotifications.push(`Phase completion email sent for ${phaseDisplayName}`)
-      
-      console.log('Would send phase completion email:', emailData.subject)
-      
+
     } catch (error) {
       console.error('Error sending phase completion email:', error)
       result.errors.push(`Email send failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -405,9 +396,7 @@ export class PhaseNotificationService {
       
       result.emailsSent++
       result.details.emailNotifications.push(`Phase ready email sent to ${assignedUser.name}`)
-      
-      console.log('Would send phase ready email:', emailData.subject, 'to:', assignedUser.email)
-      
+
     } catch (error) {
       console.error('Error sending phase ready email:', error)
       result.errors.push(`Email send failed: ${error instanceof Error ? error.message : 'Unknown error'}`)

@@ -4,17 +4,19 @@ import { dropboxService } from '@/lib/dropbox-service'
 
 export async function GET(request: NextRequest) {
   try {
+    
     const session = await getSession()
     if (!session?.user) {
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
+    
     const { searchParams } = new URL(request.url)
     const path = searchParams.get('path') || ''
     const cursor = searchParams.get('cursor') || undefined
 
     const result = await dropboxService.listFolder(path, cursor)
-
+    
     return NextResponse.json({
       success: true,
       ...result

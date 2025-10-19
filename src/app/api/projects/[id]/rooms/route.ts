@@ -98,7 +98,7 @@ export async function POST(
       const sharedOrg = await prisma.organization.findFirst()
       if (sharedOrg) {
         const assignmentResult = await autoAssignPhasesToTeam(room.id, sharedOrg.id)
-        console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for new room ${room.id}`)
+        
       }
     } catch (assignmentError) {
       console.error('Failed to auto-assign phases to team:', assignmentError)

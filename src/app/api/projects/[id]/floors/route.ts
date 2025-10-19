@@ -16,7 +16,6 @@ export async function GET(
 
     // Floor model doesn't exist in schema - return empty array
     // TODO: Add Floor model to Prisma schema if floor organization is needed
-    console.log(`Floor data requested for project ${projectId} - returning empty array (Floor model not implemented)`)
     
     return NextResponse.json([])
   } catch (error) {
@@ -42,7 +41,6 @@ export async function POST(
 
     // Floor model doesn't exist in schema - return not implemented error
     // TODO: Add Floor model to Prisma schema if floor organization is needed
-    console.log(`Floor creation requested for project ${projectId} - Floor model not implemented`)
     
     return NextResponse.json({ error: 'Floor functionality not implemented - Floor model missing from schema' }, { status: 501 })
   } catch (error) {

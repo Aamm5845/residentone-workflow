@@ -15,6 +15,8 @@ import Link from 'next/link'
 import { DropboxFileBrowser } from './DropboxFileBrowser'
 import { RenderingUpload } from './RenderingUpload'
 import { SpecBookHistory } from './SpecBookHistory'
+import { SpecBookSettings } from './SpecBookSettings'
+import { PROJECT_LEVEL_SECTIONS } from './constants'
 
 interface Project {
   id: string
@@ -81,14 +83,6 @@ interface CoverPageData {
   includedSections: string[]
 }
 
-const PROJECT_LEVEL_SECTIONS = [
-  { type: 'FLOORPLANS', name: 'Floor Plans', description: 'Overall layout and space planning' },
-  { type: 'LIGHTING', name: 'Lighting Plans', description: 'Lighting layout and specifications' },
-  { type: 'ELECTRICAL', name: 'Electrical Plans', description: 'Electrical layout and outlets' },
-  { type: 'PLUMBING', name: 'Plumbing Plans', description: 'Plumbing layout and fixtures' },
-  { type: 'STRUCTURAL', name: 'Structural Plans', description: 'Structural modifications and details' },
-  { type: 'RCP', name: 'Reflected Ceiling Plans', description: 'Ceiling design and details' },
-]
 
 export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
   const [activeTab, setActiveTab] = useState('builder')
@@ -232,6 +226,7 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-8">
             <TabsTrigger value="builder">Builder</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
@@ -489,6 +484,10 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <SpecBookSettings project={project} session={session} />
           </TabsContent>
 
           <TabsContent value="history">

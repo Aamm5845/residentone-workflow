@@ -112,8 +112,6 @@ export async function POST(
     const fileExtension = file.name.split('.').pop()
     const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
-    console.log(`Processing upload: ${fileName} (${(file.size / 1024).toFixed(2)}KB)`)
-
     // Store file data directly in database as base64
     // This works in Vercel serverless environment
     const fileData = buffer.toString('base64')
@@ -164,8 +162,6 @@ export async function POST(
         }
       }
     })
-
-    console.log(`✅ File uploaded successfully to database: ${asset.id} (${assetType})`)
 
     // If this is a THREE_D stage upload, create or update Client Approval version
     if (stage.type === 'THREE_D' && assetType === 'RENDER') {

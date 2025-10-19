@@ -168,6 +168,9 @@ model User {
   createdSpecBooks            SpecBook[]                  @relation("SpecBookCreatedBy")
   updatedSpecBooks            SpecBook[]                  @relation("SpecBookUpdatedBy")
   generatedSpecBooks          SpecBookGeneration[]        @relation("SpecBookGeneratedBy")
+  // Notification Send Relations
+  receivedNotifications       NotificationSend[]          @relation("NotificationRecipient")
+  sentNotifications           NotificationSend[]          @relation("NotificationActor")
 }
 
 model Client {
@@ -273,6 +276,9 @@ model Project {
   milestones                ProjectMilestone[]
   // Spec Book Relations
   specBooks                 SpecBook[]
+  // CAD Preferences Relations
+  cadPreferences            CadPreferences[]
+  projectCadDefaults        ProjectCadDefaults?
 }
 
 model Room {
@@ -340,6 +346,7 @@ model Stage {
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   tasks                  Task[]
   phaseAccessTokens      PhaseAccessToken[]
+  notificationSends      NotificationSend[]
 
   @@unique([roomId, type])
 }
@@ -802,6 +809,31 @@ model Notification {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationSend {
+  id                String   @id @default(cuid())
+  eventType         String   // 'PHASE_COMPLETED', 'PHASE_ASSIGNED', etc.
+  stageId           String
+  recipientUserId   String
+  actorUserId       String
+  messageId         String?  // Resend message ID
+  status            String   @default("SENT") // 'SENT', 'ERROR', 'PENDING'
+  errorMessage      String?
+  customMessage     String?  // Optional custom message from user
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  stage             Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  recipient         User     @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  actor             User     @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate notifications for same event
+  @@unique([eventType, stageId, recipientUserId])
+  @@index([stageId])
+  @@index([recipientUserId])
+  @@index([eventType])
 }
 
 model RoomPreset {
@@ -2042,7 +2074,8 @@ model SpecBookSection {
 model DropboxFileLink {
   id               String    @id @default(cuid())
   sectionId        String
-  dropboxPath      String // full path in Dropbox
+  dropboxPath      String // full path in Dropbox (UI-relative path)
+  dropboxFileId    String? // immutable Dropbox file ID for reliable downloads
   fileName         String
   fileSize         Int?
   lastModified     DateTime?
@@ -2055,6 +2088,7 @@ model DropboxFileLink {
 
   // Relations
   section SpecBookSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  cadPreferences CadPreferences?
 
   @@unique([sectionId, dropboxPath])
   @@index([sectionId])
@@ -2110,4 +2144,72 @@ enum SpecBookGenStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// ===== CAD PREFERENCES SYSTEM MODELS =====
+
+model CadPreferences {
+  id                String    @id @default(cuid())
+  linkedFileId      String    @unique
+  projectId         String
+  layoutName        String?
+  ctbDropboxPath    String?
+  ctbFileId         String?
+  plotArea          String    @default("extents")
+  window            Json?
+  centerPlot        Boolean   @default(true)
+  scaleMode         String    @default("fit")
+  scaleDenominator  Int?
+  keepAspectRatio   Boolean   @default(true)
+  margins           Json?     @default("{\"top\": 10, \"right\": 10, \"bottom\": 10, \"left\": 10}")
+  paperSize         String?   @default("Auto")
+  orientation       String?
+  dpi               Int?      @default(300)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  linkedFile        DropboxFileLink @relation(fields: [linkedFileId], references: [id], onDelete: Cascade)
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([linkedFileId])
+  @@index([projectId])
+}
+
+model ProjectCadDefaults {
+  id                String    @id @default(cuid())
+  projectId         String    @unique
+  layoutName        String?
+  ctbDropboxPath    String?
+  ctbFileId         String?
+  plotArea          String    @default("extents")
+  window            Json?
+  centerPlot        Boolean   @default(true)
+  scaleMode         String    @default("fit")
+  scaleDenominator  Int?
+  keepAspectRatio   Boolean   @default(true)
+  margins           Json?     @default("{\"top\": 10, \"right\": 10, \"bottom\": 10, \"left\": 10}")
+  paperSize         String?   @default("Auto")
+  orientation       String?
+  dpi               Int?      @default(300)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model CadLayoutCache {
+  id              String    @id @default(cuid())
+  dropboxPath     String
+  dropboxRevision String
+  layouts         Json      // Array of layout names
+  discoveredAt    DateTime  @default(now())
+  expiresAt       DateTime
+
+  @@unique([dropboxPath, dropboxRevision])
+  @@index([dropboxPath])
+  @@index([expiresAt])
 }

@@ -30,12 +30,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log('🔄 Starting COMPLETE database restore...')
-    console.log(`📅 Backup from: ${backup_data.timestamp}`)
-    console.log(`👤 Restoring as: ${session.user.email}`)
-    console.log(`📁 Includes files: ${backup_data.includes_files}`)
-    console.log(`🔐 Includes passwords: ${backup_data.includes_passwords}`)
-
     // Validate backup format
     if (backup_data.version !== '2.0' || backup_data.type !== 'complete') {
       return NextResponse.json({ 
@@ -47,10 +41,8 @@ export async function POST(request: NextRequest) {
     let restoredFiles = 0
     let failedFiles = 0
 
-    // Begin transaction for safe restore
+    // Clear all data first (in separate transaction to avoid timeout)
     await prisma.$transaction(async (tx) => {
-      console.log('🗑️ Clearing existing data...')
-      
       // Clear all data in reverse dependency order
       await tx.clientAccessLog.deleteMany({})
       await tx.clientAccessToken.deleteMany({})
@@ -76,141 +68,189 @@ export async function POST(request: NextRequest) {
       await tx.user.deleteMany({})
       await tx.organization.deleteMany({})
       await tx.roomPreset.deleteMany({})
+    }, {
+      timeout: 15000,
+    })
 
-      console.log('📦 Restoring data in dependency order...')
-      
-      // Restore data in correct dependency order
+    // Restore core data (organizations, users, clients) in first transaction
+    await prisma.$transaction(async (tx) => {
       if (data.organizations?.length > 0) {
         await tx.organization.createMany({ data: data.organizations })
-        console.log(`✅ Restored ${data.organizations.length} organizations`)
       }
 
       if (data.users?.length > 0) {
-        // Extract user data without nested relations for createMany
         const userData = data.users.map((user: any) => {
           const { accounts, sessions, userSessions, ...userWithoutRelations } = user
           return userWithoutRelations
         })
         await tx.user.createMany({ data: userData })
-        console.log(`✅ Restored ${userData.length} users (with passwords)`)
       }
 
       if (data.clients?.length > 0) {
         await tx.client.createMany({ data: data.clients })
-        console.log(`✅ Restored ${data.clients.length} clients`)
       }
 
       if (data.contractors?.length > 0) {
         await tx.contractor.createMany({ data: data.contractors })
-        console.log(`✅ Restored ${data.contractors.length} contractors`)
       }
+    }, {
+      timeout: 15000,
+    })
 
+    // Restore project data in second transaction
+    await prisma.$transaction(async (tx) => {
       if (data.projects?.length > 0) {
         await tx.project.createMany({ data: data.projects })
-        console.log(`✅ Restored ${data.projects.length} projects`)
       }
-
 
       if (data.rooms?.length > 0) {
         await tx.room.createMany({ data: data.rooms })
-        console.log(`✅ Restored ${data.rooms.length} rooms`)
       }
 
       if (data.stages?.length > 0) {
         await tx.stage.createMany({ data: data.stages })
-        console.log(`✅ Restored ${data.stages.length} stages`)
       }
+    }, {
+      timeout: 15000,
+    })
 
+    // Restore detailed data in third transaction
+    await prisma.$transaction(async (tx) => {
       if (data.designSections?.length > 0) {
         await tx.designSection.createMany({ data: data.designSections })
-        console.log(`✅ Restored ${data.designSections.length} design sections`)
       }
 
       if (data.ffeItems?.length > 0) {
         await tx.fFEItem.createMany({ data: data.ffeItems })
-        console.log(`✅ Restored ${data.ffeItems.length} FFE items`)
       }
 
       if (data.assets?.length > 0) {
-        await tx.asset.createMany({ data: data.assets })
-        console.log(`✅ Restored ${data.assets.length} assets`)
+        // Find a valid user ID and org ID for assets missing required fields
+        const fallbackUserId = data.users?.find(user => user.role === 'OWNER')?.id || 
+                               data.users?.[0]?.id || 
+                               session.user.id // Use current session user as last resort
+        const fallbackOrgId = data.organizations?.[0]?.id || 
+                              data.users?.[0]?.orgId || 
+                              session.user.orgId // Use org from backup or session
+        
+        const assetsWithCorrectFields = data.assets.map(asset => {
+          // Determine asset type from filename or mimeType
+          let assetType = asset.type || 'OTHER'
+          if (!asset.type) {
+            if (asset.mimeType) {
+              if (asset.mimeType.startsWith('image/')) {
+                assetType = 'IMAGE'
+              } else if (asset.mimeType === 'application/pdf') {
+                assetType = 'PDF'
+              } else if (asset.mimeType.startsWith('video/')) {
+                assetType = 'OTHER'
+              } else {
+                assetType = 'DOCUMENT'
+              }
+            } else if (asset.filename) {
+              const ext = asset.filename.split('.').pop()?.toLowerCase()
+              if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+                assetType = 'IMAGE'
+              } else if (ext === 'pdf') {
+                assetType = 'PDF'
+              } else {
+                assetType = 'DOCUMENT'
+              }
+            }
+          }
+          
+          return {
+            ...asset,
+            title: asset.title || asset.filename || 'Untitled Asset',
+            filename: asset.filename || null,
+            type: assetType,
+            uploadedBy: asset.uploadedBy || fallbackUserId,
+            orgId: asset.orgId || fallbackOrgId
+          }
+        })
+        await tx.asset.createMany({ data: assetsWithCorrectFields })
       }
+    }, {
+      timeout: 15000,
+    })
 
+    // Restore relationships and secondary data in fourth transaction
+    await prisma.$transaction(async (tx) => {
       if (data.projectContractors?.length > 0) {
         await tx.projectContractor.createMany({ data: data.projectContractors })
-        console.log(`✅ Restored ${data.projectContractors.length} project contractors`)
       }
 
       if (data.approvals?.length > 0) {
         await tx.approval.createMany({ data: data.approvals })
-        console.log(`✅ Restored ${data.approvals.length} approvals`)
       }
 
       if (data.comments?.length > 0) {
         await tx.comment.createMany({ data: data.comments })
-        console.log(`✅ Restored ${data.comments.length} comments`)
       }
 
       if (data.tasks?.length > 0) {
         await tx.task.createMany({ data: data.tasks })
-        console.log(`✅ Restored ${data.tasks.length} tasks`)
       }
+    }, {
+      timeout: 15000,
+    })
 
+    // Restore system data in fifth transaction
+    await prisma.$transaction(async (tx) => {
       if (data.notifications?.length > 0) {
         await tx.notification.createMany({ data: data.notifications })
-        console.log(`✅ Restored ${data.notifications.length} notifications`)
       }
 
       if (data.clientAccessTokens?.length > 0) {
         await tx.clientAccessToken.createMany({ data: data.clientAccessTokens })
-        console.log(`✅ Restored ${data.clientAccessTokens.length} client access tokens (with actual tokens)`)
       }
 
       if (data.clientAccessLogs?.length > 0) {
         await tx.clientAccessLog.createMany({ data: data.clientAccessLogs })
-        console.log(`✅ Restored ${data.clientAccessLogs.length} client access logs`)
       }
 
-      // Restore authentication data
-      if (data.accounts?.length > 0) {
-        await tx.account.createMany({ data: data.accounts })
-        console.log(`✅ Restored ${data.accounts.length} auth accounts`)
-      }
-
-      if (data.sessions?.length > 0) {
-        await tx.session.createMany({ data: data.sessions })
-        console.log(`✅ Restored ${data.sessions.length} sessions`)
-      }
-
-      if (data.verificationTokens?.length > 0) {
-        await tx.verificationToken.createMany({ data: data.verificationTokens })
-        console.log(`✅ Restored ${data.verificationTokens.length} verification tokens`)
-      }
-
-      if (data.passwordResetTokens?.length > 0) {
-        await tx.passwordResetToken.createMany({ data: data.passwordResetTokens })
-        console.log(`✅ Restored ${data.passwordResetTokens.length} password reset tokens`)
-      }
-
-      if (data.userSessions?.length > 0) {
-        await tx.userSession.createMany({ data: data.userSessions })
-        console.log(`✅ Restored ${data.userSessions.length} user sessions`)
+      if (data.clientAccessLogs?.length > 0) {
+        await tx.clientAccessLog.createMany({ data: data.clientAccessLogs })
       }
 
       if (data.roomPresets?.length > 0) {
         await tx.roomPreset.createMany({ data: data.roomPresets })
-        console.log(`✅ Restored ${data.roomPresets.length} room presets`)
       }
 
       if (data.activityLogs?.length > 0) {
         await tx.activityLog.createMany({ data: data.activityLogs })
-        console.log(`✅ Restored ${data.activityLogs.length} activity logs`)
       }
+    }, {
+      timeout: 15000,
+    })
+
+    // Restore authentication data in final transaction
+    await prisma.$transaction(async (tx) => {
+      if (data.accounts?.length > 0) {
+        await tx.account.createMany({ data: data.accounts })
+      }
+
+      if (data.sessions?.length > 0) {
+        await tx.session.createMany({ data: data.sessions })
+      }
+
+      if (data.verificationTokens?.length > 0) {
+        await tx.verificationToken.createMany({ data: data.verificationTokens })
+      }
+
+      if (data.passwordResetTokens?.length > 0) {
+        await tx.passwordResetToken.createMany({ data: data.passwordResetTokens })
+      }
+
+      if (data.userSessions?.length > 0) {
+        await tx.userSession.createMany({ data: data.userSessions })
+      }
+    }, {
+      timeout: 15000,
     })
 
     // Restore files if requested and available
     if (restore_files && files && Object.keys(files).length > 0) {
-      console.log('📁 Restoring files...')
       
       for (const [assetId, fileDataStr] of Object.entries(files)) {
         try {
@@ -223,8 +263,7 @@ export async function POST(request: NextRequest) {
             // 1. Upload file content back to Dropbox
             // 2. Update asset URL in database
             // 3. Verify file integrity
-            
-            console.log(`📄 File ${assetId}: ${Math.round(fileData.size / 1024)}KB`)
+
             restoredFiles++
           }
         } catch (error) {
@@ -232,11 +271,8 @@ export async function POST(request: NextRequest) {
           failedFiles++
         }
       }
-      
-      console.log(`📊 File restore complete: ${restoredFiles} successful, ${failedFiles} failed`)
-    }
 
-    console.log('✅ Complete database restore finished successfully!')
+    }
 
     return NextResponse.json({
       success: true,

@@ -4,7 +4,6 @@ import { isValidAuthSession } from '@/lib/attribution'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Checking session info...')
     
     const session = await getSession()
     
@@ -21,9 +20,7 @@ export async function GET(request: NextRequest) {
       expires: session?.expires,
       isValidAuthSession: isValidAuthSession(session)
     }
-    
-    console.log('Session info:', sessionInfo)
-    
+
     return NextResponse.json({
       success: true,
       sessionInfo,

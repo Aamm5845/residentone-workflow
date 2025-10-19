@@ -96,8 +96,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, categoryKey, roomTypeKeys, isRequired, order, logicRules, orgId } = body
 
-    console.log('📝 Creating item with data:', { name, categoryKey, roomTypeKeys, isRequired, order, orgId })
-
     if (!name || !categoryKey || !roomTypeKeys || roomTypeKeys.length === 0 || !orgId) {
       return NextResponse.json({ error: 'Name, categoryKey, roomTypeKeys, and orgId are required' }, { status: 400 })
     }
@@ -118,7 +116,6 @@ export async function POST(request: Request) {
     
     // Convert room type keys to workspace compatible format
     const workspaceRoomTypes = roomTypeKeys.map(key => roomTypeMapping[key] || key)
-    console.log(`📝 Creating item for room types:`, roomTypeKeys, '→', workspaceRoomTypes)
     
     // Create item as FFELibraryItem compatible with workspace system
     const itemItem = await prisma.fFELibraryItem.create({

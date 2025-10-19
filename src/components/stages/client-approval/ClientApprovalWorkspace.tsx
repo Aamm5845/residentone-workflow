@@ -121,10 +121,10 @@ export default function ClientApprovalWorkspace({
     isLoading: activityLoading,
     mutate: mutateActivity
   } = useSWR(`/api/stages/${stage.id}/activity`, async (url) => {
-    console.log('Fetching activity logs from:', url);
+    
     const res = await fetch(url);
     const data = await res.json();
-    console.log('Activity logs API response:', data);
+    
     return data;
   }, {
     refreshInterval: 30000, // Refresh every 30 seconds
@@ -315,16 +315,7 @@ export default function ClientApprovalWorkspace({
     try {
       // Use the selected assets from state
       const selectedAssetIds = selectedAssets
-      
-      console.log('📧 SEND TO CLIENT - Starting with data:', {
-        stageId: stage.id,
-        clientEmail: project.client?.email,
-        clientName: project.client?.name,
-        projectName: project.name,
-        selectedAssetIds,
-        selectedAssetsCount: selectedAssets.length
-      });
-      
+
       const response = await fetch(`/api/client-approval/${stage.id}/send-to-client`, { 
         method: 'POST',
         headers: {
@@ -332,12 +323,10 @@ export default function ClientApprovalWorkspace({
         },
         body: JSON.stringify({ selectedAssetIds })
       })
-      
-      console.log('📧 SEND TO CLIENT - Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ SEND TO CLIENT - Success:', data);
+        
         setCurrentVersion(data.version)
         
         // Fetch email analytics after sending
@@ -380,16 +369,7 @@ export default function ClientApprovalWorkspace({
     try {
       // Use the selected assets from state
       const selectedAssetIds = selectedAssets
-      
-      console.log('🔄 RESEND EMAIL - Starting with data:', {
-        stageId: stage.id,
-        clientEmail: project.client?.email,
-        clientName: project.client?.name,
-        projectName: project.name,
-        selectedAssetIds,
-        selectedAssetsCount: selectedAssets.length
-      });
-      
+
       const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
         method: 'POST',
         headers: {
@@ -397,12 +377,10 @@ export default function ClientApprovalWorkspace({
         },
         body: JSON.stringify({ selectedAssetIds })
       })
-      
-      console.log('🔄 RESEND EMAIL - Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ RESEND EMAIL - Success:', data);
+        
         setCurrentVersion(data.version)
         
         // Fetch email analytics after resending

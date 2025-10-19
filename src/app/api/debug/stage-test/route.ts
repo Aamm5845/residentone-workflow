@@ -5,19 +5,10 @@ import { isValidAuthSession } from '@/lib/attribution'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Starting stage test...')
     
     // Test 1: Check session
-    console.log('🔍 Testing session...')
+    
     const session = await getSession()
-    console.log('Session result:', {
-      exists: !!session,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email,
-      userRole: session?.user?.role,
-      orgId: session?.user?.orgId,
-      isValid: isValidAuthSession(session)
-    })
 
     if (!isValidAuthSession(session)) {
       return NextResponse.json({ 
@@ -28,12 +19,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Test 2: Simple database query
-    console.log('🔍 Testing database connection...')
+    
     const stageCount = await prisma.stage.count()
-    console.log('Stage count:', stageCount)
-
+    
     // Test 3: Get first stage with minimal data
-    console.log('🔍 Testing basic stage query...')
+    
     const firstStage = await prisma.stage.findFirst({
       select: {
         id: true,
@@ -41,8 +31,7 @@ export async function GET(request: NextRequest) {
         status: true
       }
     })
-    console.log('First stage:', firstStage)
-
+    
     if (!firstStage) {
       return NextResponse.json({
         success: true,
@@ -53,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Test 4: Try to get stage with room/project relations
-    console.log('🔍 Testing stage with relations...')
+    
     const stageWithRelations = await prisma.stage.findFirst({
       where: { id: firstStage.id },
       select: {
@@ -80,10 +69,9 @@ export async function GET(request: NextRequest) {
         }
       }
     })
-    console.log('Stage with relations:', stageWithRelations)
-
+    
     // Test 5: Try to get design sections
-    console.log('🔍 Testing design sections...')
+    
     const designSections = await prisma.designSection.findMany({
       where: { stageId: firstStage.id },
       select: {
@@ -93,8 +81,7 @@ export async function GET(request: NextRequest) {
         content: true
       }
     })
-    console.log('Design sections:', designSections)
-
+    
     return NextResponse.json({
       success: true,
       message: 'All tests passed',

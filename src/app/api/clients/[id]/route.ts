@@ -70,16 +70,9 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
-  console.log('🚀 PUT /api/clients/[id] called with ID:', params.id)
   
   try {
     const session = await getSession() as AuthSession | null
-    console.log('📊 Session data:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      userRole: session?.user?.role,
-      orgId: session?.user?.orgId
-    })
     
     if (!session?.user?.orgId) {
       console.error('❌ Unauthorized - no session or orgId')
@@ -94,13 +87,11 @@ export async function PUT(
     }
 
     // Validate request body
-    console.log('📝 Parsing request body...')
+    
     const body = await request.json()
-    console.log('📄 Client update request body:', body)
     
     const validatedData = updateClientSchema.parse(body)
-    console.log('✔️ Validated data:', validatedData)
-
+    
     // Check if client exists and belongs to the org
     const existingClient = await prisma.client.findFirst({
       where: { 
@@ -147,9 +138,7 @@ export async function PUT(
     if (validatedData.company !== undefined) {
       updateData.company = validatedData.company
     }
-    
-    console.log('💾 Update data being sent to DB:', updateData)
-    
+
     // Update client
     const updatedClient = await prisma.client.update({
       where: { id: params.id },
@@ -164,14 +153,6 @@ export async function PUT(
           }
         }
       }
-    })
-    
-    console.log('✅ Database update successful!')
-    console.log('🎉 Updated client data:', {
-      id: updatedClient.id,
-      name: updatedClient.name,
-      email: updatedClient.email,
-      updatedAt: updatedClient.updatedAt
     })
 
     return NextResponse.json(updatedClient)

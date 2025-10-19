@@ -14,16 +14,10 @@ const MAX_FILE_SIZE = 4 * 1024 * 1024 // 4MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
 export async function POST(request: NextRequest) {
-  console.log('🖼️ POST /api/upload-image called')
   
   try {
     // Check authentication
     const session = await getSession()
-    console.log('📊 Upload session check:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      orgId: session?.user?.orgId
-    })
     
     if (!session?.user?.orgId) {
       console.error('❌ Upload unauthorized - no session or orgId')
@@ -34,38 +28,29 @@ export async function POST(request: NextRequest) {
     const useBlobStorage = isBlobConfigured()
     
     if (useBlobStorage) {
-      console.log('☁️ Using Vercel Blob storage')
+      
     } else {
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json({ 
           error: 'File storage not configured properly. Please contact support.' 
         }, { status: 500 })
       }
-      console.log('⚠️ Using local file storage (development only)')
+      
     }
 
     // Parse form data
-    console.log('📋 Parsing form data...')
+    
     const formData = await request.formData()
     const file = formData.get('file') as File
     const imageTypeParam = formData.get('imageType') as string || 'general'
     const typeParam = formData.get('type') as string // 'rendering' for spec book
     const roomIdParam = formData.get('roomId') as string
-    
-    console.log('📤 File upload details:', {
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      fileType: file?.type,
-      imageType: imageTypeParam
-    })
 
     // Validate parameters
     const { imageType } = uploadSchema.parse({
       imageType: imageTypeParam,
     })
-    console.log('✅ Image type validated:', imageType)
-
+    
     // Validate file
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -99,7 +84,6 @@ export async function POST(request: NextRequest) {
       // Try Vercel Blob first if configured
       if (useBlobStorage) {
         try {
-          console.log('☁️ Uploading to Vercel Blob Storage...')
           
           // Generate structured path for the image
           const orgId = session.user.orgId
@@ -115,17 +99,16 @@ export async function POST(request: NextRequest) {
           
           uploadResult = { url: blobResult.url, path: blobResult.pathname }
           storageUsed = 'vercel-blob'
-          console.log('✅ Vercel Blob upload successful:', blobResult.url)
           
         } catch (blobError) {
-          console.log('❌ Vercel Blob upload failed, falling back to local storage')
+          
           console.error('Vercel Blob error:', blobError)
           uploadResult = await uploadImageLocally(buffer, fileName, imageType)
           storageUsed = 'local-fallback'
         }
       } else {
         // Use local file storage when Vercel Blob not available
-        console.log('📁 Uploading to local storage...')
+        
         uploadResult = await uploadImageLocally(buffer, fileName, imageType)
         storageUsed = 'local'
       }
@@ -220,9 +203,7 @@ async function uploadImageLocally(
     
     // Generate public URL
     const publicUrl = `/uploads/images/${imageType}/${fileName}`
-    
-    console.log(`✅ Image saved locally: ${publicUrl}`)
-    
+
     return {
       url: publicUrl,
       path: filePath

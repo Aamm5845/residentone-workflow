@@ -172,7 +172,6 @@ export async function initializeFFESystem(orgId: string, userId: string) {
     const settings = await getFFEGlobalSettings(orgId)
     
     // Log initialization
-    console.log(`FFE system initialized for organization ${orgId}`)
     
     return {
       success: true,

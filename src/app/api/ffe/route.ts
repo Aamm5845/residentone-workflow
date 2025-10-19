@@ -92,7 +92,6 @@ export async function GET(request: NextRequest) {
     }
     
     const libraryRoomType = roomTypeMapping[room.type] || room.type.toLowerCase().replace('_', '-')
-    console.log('🔍 Room type mapping:', room.type, '→', libraryRoomType)
     
     // First get custom room types that link to this room type
     const customRoomTypes = await prisma.fFELibraryItem.findMany({

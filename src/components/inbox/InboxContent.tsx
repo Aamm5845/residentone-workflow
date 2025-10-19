@@ -61,7 +61,7 @@ export default function InboxContent() {
           navigateUrl = `/stages/${notification.relatedId}`
           break
         default:
-          console.log('Unknown related type:', notification.relatedType)
+          
           return
       }
       

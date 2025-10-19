@@ -17,12 +17,12 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   const [error, setError] = useState<string | null>(null)
 
   const handleStartPhase = async (stageId: string, stageType: string) => {
-    console.log('🔄 handleStartPhase called:', { stageId, stageType })
+    
     setError(null)
     try {
-      console.log('🏁 About to call startStage...')
+      
       await startStage(stageId)
-      console.log('✅ startStage completed successfully')
+      
       // SWR will automatically update the UI without page reload
     } catch (error) {
       console.error('❌ handleStartPhase error:', error)
@@ -31,7 +31,7 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   }
 
   const handleMarkNotApplicable = async (stageId: string, stageType: string) => {
-    console.log('🚫 handleMarkNotApplicable called:', { stageId, stageType })
+    
     setError(null)
     try {
       const response = await fetch(`/api/stages/${stageId}`, {
@@ -48,7 +48,6 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
         throw new Error('Failed to mark as not applicable')
       }
 
-      console.log('✅ Marked as not applicable successfully')
       // SWR will automatically update the UI
       window.location.reload() // Force reload to see changes immediately
     } catch (error) {
@@ -58,7 +57,7 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   }
 
   const handleMarkApplicable = async (stageId: string, stageType: string) => {
-    console.log('✅ handleMarkApplicable called:', { stageId, stageType })
+    
     setError(null)
     try {
       const response = await fetch(`/api/stages/${stageId}`, {
@@ -75,7 +74,6 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
         throw new Error('Failed to mark as applicable')
       }
 
-      console.log('✅ Marked as applicable successfully')
       // SWR will automatically update the UI
       window.location.reload() // Force reload to see changes immediately
     } catch (error) {
@@ -85,12 +83,12 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
   }
 
   const handleClosePhase = async (stageId: string, stageType: string) => {
-    console.log('🔒 handleClosePhase called:', { stageId, stageType })
+    
     setError(null)
     try {
-      console.log('🏁 About to call closeStage...')
+      
       await closeStage(stageId)
-      console.log('✅ closeStage completed successfully')
+      
       // SWR will automatically update the UI without page reload
     } catch (error) {
       console.error('❌ handleClosePhase error:', error)
@@ -254,7 +252,7 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
                           stageConfig.baseColor
                         } hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 shadow-md`}
                         onClick={() => {
-                          console.log('💆 Button clicked!', { phaseStageId: phaseStage.id, stageType, canStart, isStarting })
+                          
                           handleStartPhase(phaseStage.id, stageType)
                         }}
                         disabled={isStarting}

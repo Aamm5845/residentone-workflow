@@ -13,8 +13,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
     }
 
-    console.log('🔄 Starting production database backup...')
-    
     // Extract all production data
     const backup = {
       timestamp: new Date().toISOString(),
@@ -104,9 +102,7 @@ export async function GET(request: NextRequest) {
     }))
     
     const totalRecords = stats.reduce((sum, stat) => sum + stat.count, 0)
-    
-    console.log(`✅ Backup completed: ${totalRecords} total records`)
-    
+
     // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
     const filename = `residentone-backup-${timestamp}.json`

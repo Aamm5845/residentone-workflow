@@ -125,8 +125,7 @@ export function initializeSocket(httpServer: HTTPServer) {
 
   // Connection handling
   io.on('connection', (socket) => {
-    console.log(`User ${socket.data.user?.name} connected`)
-
+    
     // Join user's projects automatically
     if (socket.data.projectIds) {
       socket.data.projectIds.forEach(projectId => {
@@ -150,7 +149,6 @@ export function initializeSocket(httpServer: HTTPServer) {
         projectId
       })
 
-      console.log(`User ${socket.data.user.name} joined project ${projectId}`)
     })
 
     socket.on('leave-project', (projectId) => {
@@ -165,7 +163,6 @@ export function initializeSocket(httpServer: HTTPServer) {
         projectId
       })
 
-      console.log(`User ${socket.data.user.name} left project ${projectId}`)
     })
 
     // Real-time collaboration
@@ -221,7 +218,6 @@ export function initializeSocket(httpServer: HTTPServer) {
         })
       })
 
-      console.log(`User ${socket.data.user.name} disconnected`)
     })
   })
 

@@ -222,9 +222,7 @@ export async function PATCH(
     
     // Handle automatic phase transitions and notifications when stages are completed
     if (action === 'complete' && updatedStage.room) {
-      console.log('=== STARTING WORKFLOW TRANSITIONS ===')
-      console.log('Stage completed:', stage.type, 'in room:', updatedStage.room.id)
-      
+
       try {
         const workflowEvent: WorkflowEvent = {
           type: 'STAGE_COMPLETED',
@@ -232,15 +230,13 @@ export async function PATCH(
           stageType: stage.type,
           stageId: resolvedParams.id
         }
-        
-        console.log('Workflow event:', workflowEvent)
+
         const transitionResult = await handleWorkflowTransition(workflowEvent, session, ipAddress)
-        console.log('Workflow transition result:', transitionResult)
         
         if (transitionResult.transitionsTriggered.length > 0) {
-          console.log(`✅ Phase transitions triggered:`, transitionResult.transitionsTriggered)
+          
         } else {
-          console.log('⚠️ No phase transitions were triggered')
+          
         }
         
         if (transitionResult.errors.length > 0) {
@@ -251,35 +247,23 @@ export async function PATCH(
         console.error('Transition error stack:', transitionError instanceof Error ? transitionError.stack : 'No stack')
         // Don't fail the main operation if transitions fail
       }
-      
-      console.log('=== WORKFLOW TRANSITIONS COMPLETE ===')
-      
+
       // Send notifications for phase completion (with email prompt)
-      console.log('=== STARTING NOTIFICATION PROCESSING ===')
+      
       try {
-        console.log('Starting phase completion notification processing...')
-        console.log('Stage ID:', resolvedParams.id, 'User ID:', session.user.id)
-        
+
         const notificationResult = await phaseNotificationService.handlePhaseCompletion(
           resolvedParams.id,
           session.user.id,
           session,
           { autoEmail: false } // Don't send emails automatically, let UI prompt user
         )
-        
-        console.log('Notification service result:', notificationResult)
-        
+
         if (notificationResult && notificationResult.success) {
-          console.log(`✅ Phase completion notifications processed:`, {
-            notifications: notificationResult.notificationsSent,
-            emails: notificationResult.emailsSent,
-            nextPhases: notificationResult.nextPhaseInfo?.length || 0,
-            details: notificationResult.details
-          })
           
           // Extract next phase information for UI prompt
           nextPhaseInfo = notificationResult.nextPhaseInfo || []
-          console.log('Next phase info extracted:', nextPhaseInfo)
+          
         } else {
           console.error('❌ Phase notification errors:', notificationResult?.errors || 'Unknown error')
         }
@@ -288,8 +272,7 @@ export async function PATCH(
         console.error('Notification error stack:', notificationError instanceof Error ? notificationError.stack : 'No stack')
         // Don't fail the main operation if notifications fail - just log the error
       }
-      
-      console.log('=== NOTIFICATION PROCESSING COMPLETE ===')
+
     }
     
     // Include next phase info for completion actions
@@ -338,11 +321,9 @@ export async function GET(
   try {
     const session = await getSession()
     const resolvedParams = await params
-    
-    console.log(`Fetching stage with ID: ${resolvedParams.id}`)
-    
+
     if (!isValidAuthSession(session)) {
-      console.log('Unauthorized access attempt')
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -389,7 +370,7 @@ export async function GET(
     })
 
     if (!stage) {
-      console.log(`Stage not found: ${resolvedParams.id}`)
+      
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
@@ -405,7 +386,6 @@ export async function GET(
       } : null
     }
 
-    console.log(`Successfully fetched stage: ${stage.id}, type: ${stage.type}, status: ${stage.status}`)
     return NextResponse.json(safeStage)
   } catch (error) {
     console.error('Error fetching stage:', error)

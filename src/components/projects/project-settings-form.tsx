@@ -39,15 +39,6 @@ interface ProjectSettingsFormProps {
 }
 
 export default function ProjectSettingsForm({ project, clients, session }: ProjectSettingsFormProps) {
-  console.log('🔧 PROJECT SETTINGS FORM - Component initializing with:', {
-    hasProject: !!project,
-    projectName: project?.name,
-    projectId: project?.id,
-    projectOrgId: project?.orgId,
-    hasSession: !!session,
-    sessionOrgId: session?.user?.orgId,
-    clientsCount: clients?.length || 0
-  })
   
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -79,7 +70,6 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   // Track component lifecycle
   useEffect(() => {
-    console.log('🎆 PROJECT SETTINGS FORM - Component mounted successfully')
     
     // Check for any immediate issues
     if (!project) {
@@ -91,21 +81,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       console.error('❌ PROJECT SETTINGS FORM - Project missing ID:', project)
       return
     }
-    
-    console.log('✅ PROJECT SETTINGS FORM - Component mounted with valid project data')
-    
+
     // Cleanup function
     return () => {
-      console.log('🗑️ PROJECT SETTINGS FORM - Component unmounting')
+      
     }
   }, [])
   
   // Log project changes
   useEffect(() => {
-    console.log('🔄 PROJECT SETTINGS FORM - Project data updated:', {
-      projectId: project?.id,
-      projectName: project?.name
-    })
+    
   }, [project])
 
   // Update client form data when entering edit mode
@@ -148,10 +133,9 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    console.log('🖼️ handleImageUpload called with:', files ? files.length : 0, 'files')
     
     if (!files) {
-      console.log('⚠️ No files selected')
+      
       return
     }
 
@@ -160,20 +144,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       const uploadedUrls = []
       
       for (const file of Array.from(files)) {
-        console.log('📤 Uploading file:', { name: file.name, size: file.size, type: file.type })
         
         const formData = new FormData()
         formData.append('file', file)
         formData.append('imageType', 'project-cover')
-        
-        console.log('📡 Making upload request to /api/upload-image')
+
         const response = await fetch('/api/upload-image', {
           method: 'POST',
           body: formData,
           credentials: 'include' // Ensure cookies are included
         })
-        
-        console.log('🖼️ Upload response:', { status: response.status, ok: response.ok })
 
         if (!response.ok) {
           throw new Error('Failed to upload image')
@@ -248,13 +228,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const updateSection = async (sectionName: string, sectionData: any) => {
-    console.log('🔧 updateSection called for:', sectionName)
-    console.log('📊 Section data:', sectionData)
-    
+
     try {
       setIsLoading(true)
-      
-      console.log('📡 Making section update request to:', `/api/projects/${project.id}`)
+
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
@@ -327,12 +304,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const updateClient = async () => {
-    console.log('🔧 updateClient called with data:', clientFormData)
     
     try {
       setIsLoading(true)
-      
-      console.log('📡 Making client update request to:', `/api/clients/${project.clientId}`)
+
       const response = await fetch(`/api/clients/${project.clientId}`, {
         method: 'PUT',
         headers: {
@@ -354,7 +329,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       }
       
       const result = await response.json()
-      console.log('✅ Client update successful:', result)
+      
       setEditingSection(null)
       
       // Refresh the page to show updated client data
@@ -369,17 +344,9 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
-    console.log('🎯 onSubmit function called!')
-    console.log('📊 Current session:', session)
-    console.log('📁 Current project:', project)
-    
+
     try {
       setIsLoading(true)
-      console.log('🚀 Project settings form submitted!')
-      console.log('📝 Form data being submitted:', data)
-      console.log('❌ Form errors:', errors)
-      console.log('🔄 Form isDirty:', isDirty)
-      console.log('🖼️ Current cover images:', currentCoverImages)
 
       const submitData = {
         ...data,
@@ -387,12 +354,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         dueDate: data.dueDate || null,
         coverImages: currentCoverImages,
       }
-      
-      console.log('Processed submit data:', submitData)
 
-      console.log('📡 Making API request to:', `/api/projects/${project.id}`)
-      console.log('🔒 Request headers will include session cookies')
-      
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
@@ -402,8 +364,6 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         credentials: 'include' // Ensure cookies are included
       })
 
-      console.log('📈 Response status:', response.status)
-      console.log('🌐 Response ok:', response.ok)
       console.log('🗺️ Response headers:', Object.fromEntries(response.headers.entries()))
       
       if (!response.ok) {
@@ -419,7 +379,6 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       }
       
       const result = await response.json()
-      console.log('Update successful:', result)
       
       // Navigate back to the project page after successful save
       router.push(`/projects/${project.id}?saved=true`)
@@ -482,7 +441,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               variant="outline"
               size="sm"
               onClick={() => {
-                console.log('✏️ Edit button clicked - setting editing section to: project')
+                
                 setEditingSection('project')
               }}
               className="flex items-center"
@@ -496,8 +455,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         <div className="px-6 py-4">
           {editingSection === 'project' ? (
             <form onSubmit={handleSubmit((data) => {
-              console.log('📋 Section form submission - project information')
-              console.log('📝 Section form data:', data)
+
               updateSection('project information', {
                 name: data.name,
                 type: data.type,

@@ -27,13 +27,10 @@ function SignInForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🎯 Form submitted!')
     
     setIsLoading(true)
     setError('')
-    
-    console.log('🔐 Form data:', { email, password })
-    
+
     try {
       // First check if user exists and their approval status
       const checkResponse = await fetch('/api/auth/check-user', {
@@ -64,14 +61,14 @@ function SignInForm() {
       })
       
       if (result?.ok) {
-        console.log('✅ Authentication successful')
+        
         router.push('/dashboard')
         return
       } else if (result?.error) {
-        console.log('❌ Authentication failed:', result.error)
+        
         setError('Invalid email or password. Please check your credentials.')
       } else {
-        console.log('❌ Authentication failed: Unknown error')
+        
         setError('Authentication failed. Please try again.')
       }
     } catch (authError) {

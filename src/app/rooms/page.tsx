@@ -24,8 +24,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
   // Handle filtering based on query parameters
   const statusFilter = searchParams.status
   const searchQuery = searchParams.search
-  console.log('🔍 Rooms page - statusFilter:', statusFilter, 'searchQuery:', searchQuery)
-
+  
   // Build where clause based on filters
   const whereClause: any = {}
 
@@ -54,7 +53,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
         }
       }
     ]
-    console.log('🔍 Active rooms filter applied - excluding fully completed rooms')
+    
   }
 
   // Add search filter
@@ -73,11 +72,11 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
     } else {
       whereClause.OR = searchConditions
     }
-    console.log('🔍 Search filter applied for:', searchQuery)
+    
   }
 
   if (!statusFilter && !searchQuery) {
-    console.log('🔍 No filters applied - showing all rooms')
+    
   }
 
   // Fetch rooms from database
@@ -104,12 +103,12 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
       },
       orderBy: { updatedAt: 'desc' }
     })
-    console.log(`📈 Found ${rooms.length} rooms with filter:`, statusFilter)
+    
     if (statusFilter === 'active') {
-      console.log('📈 Active rooms analysis:')
+      
       rooms.forEach(room => {
         const activeStages = room.stages.filter((s: any) => ['IN_PROGRESS', 'NEEDS_ATTENTION'].includes(s.status))
-        console.log(`  - ${room.name || room.type}: ${activeStages.length} active stages`)
+        
       })
     }
   } catch (error) {

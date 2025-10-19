@@ -22,7 +22,6 @@ export async function PATCH(
     const body = await request.json()
     
     // Validate request body
-    console.log('Due date update request:', { stageId, body })
     
     const validationResult = dueDateSchema.safeParse(body)
     if (!validationResult.success) {

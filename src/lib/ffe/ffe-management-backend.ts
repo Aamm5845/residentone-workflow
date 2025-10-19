@@ -53,7 +53,6 @@ export class FFEManagementSystem {
   // ============ ROOM TYPES MANAGEMENT ============
   async getAllRoomTypes(): Promise<FFEMasterRoomType[]> {
     try {
-      console.log(`Fetching room types for org ${this.orgId} from API...`)
       
       const response = await fetch(`/api/ffe/room-types?orgId=${this.orgId}`)
       if (!response.ok) {
@@ -61,7 +60,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log(`Found ${data.roomTypes.length} room types for org ${this.orgId}`)
+      
       return data.roomTypes
     } catch (error) {
       console.error('Error fetching room types:', error)
@@ -71,7 +70,6 @@ export class FFEManagementSystem {
 
   async createRoomType(name: string, key: string, linkedRooms?: string[]): Promise<FFEMasterRoomType> {
     try {
-      console.log('Creating room type via API:', { name, key, linkedRooms, orgId: this.orgId })
       
       const response = await fetch('/api/ffe/room-types', {
         method: 'POST',
@@ -92,7 +90,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Created room type:', data.roomType)
+      
       return data.roomType
     } catch (error) {
       console.error('Error creating room type:', error)
@@ -102,7 +100,6 @@ export class FFEManagementSystem {
 
   async updateRoomType(id: string, updates: Partial<FFEMasterRoomType>): Promise<FFEMasterRoomType> {
     try {
-      console.log('Updating room type via API:', id, updates)
       
       const response = await fetch('/api/ffe/room-types', {
         method: 'PUT',
@@ -122,7 +119,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Updated room type:', data.roomType)
+      
       return data.roomType
     } catch (error) {
       console.error('Error updating room type:', error)
@@ -132,7 +129,6 @@ export class FFEManagementSystem {
 
   async deleteRoomType(id: string): Promise<void> {
     try {
-      console.log('Deleting room type via API:', id)
       
       const response = await fetch(`/api/ffe/room-types?id=${id}&orgId=${this.orgId}`, {
         method: 'DELETE'
@@ -142,8 +138,7 @@ export class FFEManagementSystem {
         const error = await response.json()
         throw new Error(error.error || `HTTP error! status: ${response.status}`)
       }
-      
-      console.log('Room type deleted successfully:', id)
+
     } catch (error) {
       console.error('Error deleting room type:', error)
       throw error
@@ -152,7 +147,6 @@ export class FFEManagementSystem {
 
   async clearAllRoomTypes(): Promise<void> {
     try {
-      console.log('Clearing all room types for org via API:', this.orgId)
       
       const response = await fetch(`/api/ffe/room-types/clear?orgId=${this.orgId}`, {
         method: 'DELETE'
@@ -164,7 +158,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('All room types cleared successfully:', data.message)
+      
     } catch (error) {
       console.error('Error clearing room types:', error)
       throw error
@@ -174,7 +168,6 @@ export class FFEManagementSystem {
   // ============ CATEGORIES MANAGEMENT ============
   async getAllCategories(): Promise<FFEMasterCategory[]> {
     try {
-      console.log(`Fetching categories for org ${this.orgId} from API...`)
       
       const response = await fetch(`/api/ffe/categories?orgId=${this.orgId}`)
       if (!response.ok) {
@@ -182,7 +175,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log(`Found ${data.categories?.length || 0} categories for org ${this.orgId}`)
+      
       return data.categories || []
     } catch (error) {
       console.error('Error fetching categories:', error)
@@ -205,7 +198,6 @@ export class FFEManagementSystem {
 
   async createCategory(name: string, key: string, order: number, roomTypeKeys: string[]): Promise<FFEMasterCategory> {
     try {
-      console.log('Creating category via API:', { name, key, order, roomTypeKeys, orgId: this.orgId })
       
       const response = await fetch('/api/ffe/categories', {
         method: 'POST',
@@ -227,7 +219,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Created category:', data.category)
+      
       return data.category
     } catch (error) {
       console.error('Error creating category:', error)
@@ -237,7 +229,6 @@ export class FFEManagementSystem {
 
   async updateCategory(id: string, updates: Partial<FFEMasterCategory>): Promise<FFEMasterCategory> {
     try {
-      console.log('Updating category via API:', id, updates)
       
       const response = await fetch('/api/ffe/categories', {
         method: 'PUT',
@@ -257,7 +248,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Updated category:', data.category)
+      
       return data.category
     } catch (error) {
       console.error('Error updating category:', error)
@@ -268,13 +259,12 @@ export class FFEManagementSystem {
   async updateCategoryOrder(categoryId: string, newOrder: number): Promise<void> {
     // Would update the order of categories in the database
     // For now, categories use predefined order from STANDARD_CATEGORIES
-    console.log(`Category order update requested for ${categoryId} -> ${newOrder}`)
+    
   }
 
   // ============ ITEMS MANAGEMENT ============
   async getItemsForRoom(roomTypeKey: string): Promise<FFEMasterItem[]> {
     try {
-      console.log(`Fetching items for room type ${roomTypeKey} and org ${this.orgId} from API...`)
       
       const response = await fetch(`/api/ffe/management/items?orgId=${this.orgId}&roomTypeKey=${roomTypeKey}`)
       if (!response.ok) {
@@ -282,7 +272,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log(`Found ${data.items?.length || 0} items for room type ${roomTypeKey}`)
+      
       return data.items || []
     } catch (error) {
       console.error('Error fetching items for room:', error)
@@ -315,7 +305,6 @@ export class FFEManagementSystem {
     logicRules?: FFEItemLogicRule[]
   ): Promise<FFEMasterItem> {
     try {
-      console.log('Creating item via API:', { name, categoryKey, roomTypeKeys, isRequired, logicRules, orgId: this.orgId })
       
       const response = await fetch('/api/ffe/management/items', {
         method: 'POST',
@@ -339,7 +328,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Created item:', data.item)
+      
       return data.item
     } catch (error) {
       console.error('Error creating item:', error)
@@ -349,7 +338,6 @@ export class FFEManagementSystem {
 
   async updateItem(itemId: string, updates: Partial<FFEMasterItem>): Promise<FFEMasterItem> {
     try {
-      console.log('Updating item via API:', itemId, updates)
       
       const response = await fetch('/api/ffe/management/items', {
         method: 'PUT',
@@ -369,7 +357,7 @@ export class FFEManagementSystem {
       }
       
       const data = await response.json()
-      console.log('Updated item:', data.item)
+      
       return data.item
     } catch (error) {
       console.error('Error updating item:', error)
@@ -379,7 +367,6 @@ export class FFEManagementSystem {
 
   async deleteItem(itemId: string): Promise<void> {
     try {
-      console.log('Deleting item via API:', itemId)
       
       const response = await fetch(`/api/ffe/management/items?id=${itemId}&orgId=${this.orgId}`, {
         method: 'DELETE'
@@ -389,8 +376,7 @@ export class FFEManagementSystem {
         const error = await response.json()
         throw new Error(error.error || `HTTP error! status: ${response.status}`)
       }
-      
-      console.log('Item deleted successfully:', itemId)
+
     } catch (error) {
       console.error('Error deleting item:', error)
       throw error
@@ -418,8 +404,7 @@ export class FFEManagementSystem {
       
       const updatedRules = [...item.logicRules, rule]
       await this.updateItem(itemId, { logicRules: updatedRules })
-      
-      console.log(`Added logic rule to item ${itemId}:`, rule)
+
     } catch (error) {
       console.error('Error creating logic rule:', error)
       throw error
@@ -435,8 +420,7 @@ export class FFEManagementSystem {
       updatedRules[ruleIndex] = { ...updatedRules[ruleIndex], ...updates }
       
       await this.updateItem(itemId, { logicRules: updatedRules })
-      
-      console.log(`Updated logic rule ${ruleIndex} for item ${itemId}:`, updates)
+
     } catch (error) {
       console.error('Error updating logic rule:', error)
       throw error
@@ -450,8 +434,7 @@ export class FFEManagementSystem {
       
       const updatedRules = item.logicRules.filter((_, index) => index !== ruleIndex)
       await this.updateItem(itemId, { logicRules: updatedRules })
-      
-      console.log(`Deleted logic rule ${ruleIndex} from item ${itemId}`)
+
     } catch (error) {
       console.error('Error deleting logic rule:', error)
       throw error
@@ -464,8 +447,7 @@ export class FFEManagementSystem {
       for (const { itemId, order } of itemOrders) {
         await this.updateItem(itemId, { order })
       }
-      
-      console.log('Bulk updated item orders:', itemOrders)
+
     } catch (error) {
       console.error('Error bulk updating item orders:', error)
       throw error
@@ -492,8 +474,7 @@ export class FFEManagementSystem {
           item.logicRules
         )
       }
-      
-      console.log(`Duplicated ${sourceItems.length} items from ${sourceRoomType} to ${targetRoomType}`)
+
     } catch (error) {
       console.error('Error duplicating room library:', error)
       throw error

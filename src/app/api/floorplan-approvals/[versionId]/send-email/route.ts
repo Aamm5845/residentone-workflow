@@ -121,13 +121,7 @@ export async function POST(
     }
 
     // Send actual email using Resend service
-    console.log('Sending floorplan approval email via Resend:', {
-      to: emailData.to,
-      subject: emailData.subject,
-      assetCount: assetsToInclude.length,
-      isTest: !!testEmail
-    })
-
+    
     // Use the actual email service with Resend
     const emailResult = await sendEmail({
       to: emailData.to,

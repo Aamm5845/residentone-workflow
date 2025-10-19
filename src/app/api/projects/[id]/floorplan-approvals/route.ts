@@ -237,8 +237,6 @@ export async function POST(
       ipAddress
     })
 
-    console.log(`✅ Floorplan approval version created: ${version.id} (${versionNumber})`)
-
     return NextResponse.json({
       success: true,
       version: {

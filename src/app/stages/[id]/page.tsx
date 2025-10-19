@@ -21,7 +21,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
   const resolvedParams = await params
   
   if (!session?.user) {
-    console.log('No session or user found, redirecting to signin')
+    
     return redirect('/auth/signin')
   }
 
@@ -34,14 +34,14 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
         select: { orgId: true }
       })
       userOrgId = user?.orgId
-      console.log('Retrieved orgId from user record:', userOrgId)
+      
     } catch (error) {
       console.error('Error fetching user orgId:', error)
     }
   }
   
   if (!userOrgId) {
-    console.log('No orgId found for user, redirecting to signin')
+    
     return redirect('/auth/signin')
   }
 
@@ -156,10 +156,7 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
 
   // Check access - user must belong to same org
   if (stage.room.project.orgId !== userOrgId) {
-    console.log('Org access denied:', {
-      stageOrgId: stage.room.project.orgId,
-      userOrgId: userOrgId
-    })
+    
     return redirect('/auth/signin')
   }
 

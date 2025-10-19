@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
     // Auto-assign the new user to existing phases based on their role
     try {
       const assignmentResult = await autoAssignUserToPhases(newUser.id, role, sharedOrg.id)
-      console.log(`Auto-assigned ${assignmentResult.assignedCount} phases to new user: ${assignmentResult.phases.join(', ')}`)
+      
     } catch (assignmentError) {
       console.error('Failed to auto-assign phases to new user:', assignmentError)
       // Don't fail the user creation if assignment fails

@@ -100,16 +100,9 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
-  console.log('🚀 PUT /api/projects/[id] called with ID:', params.id)
   
   try {
     const session = await getSession() as AuthSession | null
-    console.log('📊 Session data:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      userRole: session?.user?.role,
-      orgId: session?.user?.orgId
-    })
     
     if (!session?.user?.orgId) {
       console.error('❌ Unauthorized - no session or orgId')
@@ -124,16 +117,14 @@ export async function PUT(
     }
 
     // Validate request body
-    console.log('📝 Parsing request body...')
+    
     const body = await request.json()
-    console.log('📄 Project update request body:', body)
+    
     console.log('🔍 Request body keys:', Object.keys(body))
     console.log('📈 Request body size:', JSON.stringify(body).length, 'characters')
-    
-    console.log('✅ Validating data against schema...')
-    const validatedData = updateProjectSchema.parse(body)
-    console.log('✔️ Validated data:', validatedData)
 
+    const validatedData = updateProjectSchema.parse(body)
+    
     // Check if project exists
     const existingProject = await prisma.project.findFirst({
       where: { 
@@ -219,11 +210,9 @@ export async function PUT(
     if (validatedData.hasProjectUpdates !== undefined) {
       updateData.hasProjectUpdates = validatedData.hasProjectUpdates
     }
-    
-    console.log('💾 Update data being sent to DB:', updateData)
+
     console.log('🔍 Update data keys:', Object.keys(updateData))
-    
-    console.log('📊 Executing database update for project ID:', params.id)
+
     const updatedProject = await prisma.project.update({
       where: { id: params.id },
       data: updateData,
@@ -252,14 +241,6 @@ export async function PUT(
           }
         }
       }
-    })
-    
-    console.log('✅ Database update successful!')
-    console.log('🎉 Updated project data:', {
-      id: updatedProject.id,
-      name: updatedProject.name,
-      type: updatedProject.type,
-      updatedAt: updatedProject.updatedAt
     })
 
     return NextResponse.json(updatedProject)
@@ -320,31 +301,26 @@ export async function DELETE(
     // Perform actual deletion with cascade
     // Delete in order: assets -> approvals -> comments -> tasks -> rendering data -> stages -> rooms -> project
     await prisma.$transaction(async (tx) => {
-      console.log(`🗑️ Starting comprehensive deletion of project: ${existingProject.name}`)
       
       // Delete all project assets
       const deletedAssets = await tx.asset.deleteMany({
         where: { projectId: params.id }
       })
-      console.log(`🗑️ Deleted ${deletedAssets.count} project-level assets`)
       
       // Delete all project approvals
       const deletedApprovals = await tx.approval.deleteMany({
         where: { projectId: params.id }
       })
-      console.log(`🗑️ Deleted ${deletedApprovals.count} project-level approvals`)
       
       // Delete all project comments
       const deletedComments = await tx.comment.deleteMany({
         where: { projectId: params.id }
       })
-      console.log(`🗑️ Deleted ${deletedComments.count} project-level comments`)
       
       // Delete all project tasks
       const deletedTasks = await tx.task.deleteMany({
         where: { projectId: params.id }
       })
-      console.log(`🗑️ Deleted ${deletedTasks.count} project-level tasks`)
       
       // Get all room IDs for this project
       const rooms = await tx.room.findMany({
@@ -385,7 +361,6 @@ export async function DELETE(
         const stageIds = stages.map(stage => stage.id)
         
         if (stageIds.length > 0) {
-          console.log(`🗑️ Processing ${stageIds.length} stages for deletion`)
           
           // Delete rendering workspace data first (newer models) - with error handling
           try {
@@ -397,31 +372,27 @@ export async function DELETE(
             const renderingVersionIds = renderingVersions.map(rv => rv.id)
             
             if (renderingVersionIds.length > 0) {
-              console.log(`🗑️ Deleting ${renderingVersionIds.length} rendering versions`)
               
               // Delete rendering notes
               const deletedRenderingNotes = await tx.renderingNote.deleteMany({
                 where: { renderingVersionId: { in: renderingVersionIds } }
               })
-              console.log(`🗑️ Deleted ${deletedRenderingNotes.count} rendering notes`)
               
               // Delete rendering version assets
               const deletedRenderingAssets = await tx.asset.deleteMany({
                 where: { renderingVersionId: { in: renderingVersionIds } }
               })
-              console.log(`🗑️ Deleted ${deletedRenderingAssets.count} rendering assets`)
               
               // Delete client approval versions linked to rendering versions
               const deletedClientApprovalVersions = await tx.clientApprovalVersion.deleteMany({
                 where: { renderingVersionId: { in: renderingVersionIds } }
               })
-              console.log(`🗑️ Deleted ${deletedClientApprovalVersions.count} client approval versions`)
               
               // Delete the rendering versions themselves
               const deletedRenderingVersions = await tx.renderingVersion.deleteMany({
                 where: { id: { in: renderingVersionIds } }
               })
-              console.log(`🗑️ Deleted ${deletedRenderingVersions.count} rendering versions`)
+              
             }
           } catch (renderingError) {
             console.warn('⚠️ Could not delete rendering workspace data (may not exist):', renderingError)
@@ -432,7 +403,7 @@ export async function DELETE(
             const deletedDrawingChecklistItems = await tx.drawingChecklistItem.deleteMany({
               where: { stageId: { in: stageIds } }
             })
-            console.log(`🗑️ Deleted ${deletedDrawingChecklistItems.count} drawing checklist items`)
+            
           } catch (drawingError) {
             console.warn('⚠️ Could not delete drawing checklist items (may not exist):', drawingError)
           }
@@ -441,17 +412,14 @@ export async function DELETE(
           const deletedStageAssets = await tx.asset.deleteMany({
             where: { stageId: { in: stageIds } }
           })
-          console.log(`🗑️ Deleted ${deletedStageAssets.count} stage assets`)
           
           const deletedStageComments = await tx.comment.deleteMany({
             where: { stageId: { in: stageIds } }
           })
-          console.log(`🗑️ Deleted ${deletedStageComments.count} stage comments`)
           
           const deletedStageTasks = await tx.task.deleteMany({
             where: { stageId: { in: stageIds } }
           })
-          console.log(`🗑️ Deleted ${deletedStageTasks.count} stage tasks`)
           
           // Delete design sections
           const sections = await tx.designSection.findMany({
@@ -469,20 +437,19 @@ export async function DELETE(
             const deletedSectionComments = await tx.comment.deleteMany({
               where: { sectionId: { in: sectionIds } }
             })
-            console.log(`🗑️ Deleted ${deletedSectionComments.count} section comments`)
+            
           }
           
           const deletedDesignSections = await tx.designSection.deleteMany({
             where: { stageId: { in: stageIds } }
           })
-          console.log(`🗑️ Deleted ${deletedDesignSections.count} design sections`)
           
           // Delete client approval stages - with error handling
           try {
             const deletedClientApprovalStages = await tx.clientApprovalStage.deleteMany({
               where: { stageId: { in: stageIds } }
             })
-            console.log(`🗑️ Deleted ${deletedClientApprovalStages.count} client approval stages`)
+            
           } catch (approvalError) {
             console.warn('⚠️ Could not delete client approval stages (may not exist):', approvalError)
           }
@@ -497,7 +464,7 @@ export async function DELETE(
                 ]
               }
             })
-            console.log(`🗑️ Deleted ${deletedActivityLogs.count} activity logs`)
+            
           } catch (activityError) {
             console.warn('⚠️ Could not delete activity logs (may not exist):', activityError)
           }
@@ -506,14 +473,14 @@ export async function DELETE(
           const deletedStages = await tx.stage.deleteMany({
             where: { id: { in: stageIds } }
           })
-          console.log(`🗑️ Deleted ${deletedStages.count} stages`)
+          
         }
         
         // Delete rooms
         const deletedRooms = await tx.room.deleteMany({
           where: { id: { in: roomIds } }
         })
-        console.log(`🗑️ Deleted ${deletedRooms.count} rooms`)
+        
       }
       
       // Delete any remaining activity logs for this project - with error handling
@@ -526,7 +493,7 @@ export async function DELETE(
             ]
           }
         })
-        console.log(`🗑️ Deleted ${deletedProjectActivityLogs.count} project activity logs`)
+        
       } catch (projectActivityError) {
         console.warn('⚠️ Could not delete project activity logs (may not exist):', projectActivityError)
       }
@@ -535,7 +502,7 @@ export async function DELETE(
       const deletedProject = await tx.project.delete({
         where: { id: params.id }
       })
-      console.log(`🎉 Successfully deleted project: ${deletedProject.name}`)
+      
     })
     
     return NextResponse.json({

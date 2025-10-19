@@ -119,10 +119,9 @@ export async function PUT(
 
     // Validate request body
     const body = await request.json()
-    console.log('Team member update request body:', body)
+    
     const validatedData = updateUserSchema.parse(body)
-    console.log('Validated data:', validatedData)
-
+    
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: { 
@@ -237,7 +236,7 @@ export async function PUT(
             validatedData.role,
             sharedOrg.id
           )
-          console.log(`Role change auto-assignment: removed ${reassignmentResult.removedCount}, added ${reassignmentResult.addedCount} phase assignments`)
+          
         }
       } catch (assignmentError) {
         console.error('Failed to auto-reassign phases on role change:', assignmentError)

@@ -34,8 +34,6 @@ export async function POST(
       );
     }
 
-    console.log('Copying template:', templateId, 'with new name:', name);
-
     // Copy the template using the service
     const copiedTemplate = await ffeTemplateService.copyTemplate(
       templateId,
@@ -43,8 +41,6 @@ export async function POST(
       session.user.id,
       session.user.orgId
     );
-
-    console.log('Template copied successfully:', copiedTemplate.id);
 
     return NextResponse.json({
       success: true,

@@ -129,7 +129,6 @@ export default function UnifiedFFEWorkspace({
           const roomTemplate = await getTemplateForRoomType(roomType, orgId)
           if (roomTemplate) {
             setTemplate(roomTemplate)
-            console.log('✅ Loaded template fallback for room type:', roomType)
             
             const categoryNames = Object.keys(roomTemplate.categories)
             if (categoryNames.length > 0) {
@@ -174,14 +173,7 @@ export default function UnifiedFFEWorkspace({
   const handleItemStatusUpdate = async (itemId: string, updates: any) => {
     try {
       setSaving(true)
-      
-      console.log('🔄 Updating item status:', {
-        itemId, 
-        updates,
-        isQuantityItem: updates.isQuantityItem,
-        quantityIndex: updates.quantityIndex
-      })
-      
+
       const response = await fetch('/api/ffe/room-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,11 +196,7 @@ export default function UnifiedFFEWorkspace({
             ...prev,
             [itemId]: newStatus
           }
-          console.log('✅ Updated item statuses:', {
-            itemId,
-            newStatus,
-            allStatuses: Object.keys(updated)
-          })
+          
           return updated
         })
         
@@ -1331,7 +1319,7 @@ export default function UnifiedFFEWorkspace({
                               size="sm"
                               variant={isConfirmed ? "secondary" : "default"}
                               onClick={() => {
-                                console.log('Updating quantity item:', qtyItemId, 'index:', qtyItem.quantityIndex)
+                                
                                 handleItemStatusUpdate(qtyItemId, {
                                   state: isConfirmed ? 'included' : 'confirmed',
                                   originalId: item.id,
@@ -1352,7 +1340,7 @@ export default function UnifiedFFEWorkspace({
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                console.log('Marking as not needed:', qtyItemId, 'index:', qtyItem.quantityIndex)
+                                
                                 handleItemStatusUpdate(qtyItemId, {
                                   state: 'not_needed',
                                   originalId: item.id,

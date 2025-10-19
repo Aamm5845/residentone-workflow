@@ -53,9 +53,7 @@ export default function EnhancedFilePreviewModal({ file, isOpen, onClose }: File
       link.download = file.originalName || file.name
       
       // For debugging
-      console.log('Download URL:', file.url)
-      console.log('Download filename:', file.originalName || file.name)
-      
+
       // Append to body, click, and clean up
       document.body.appendChild(link)
       link.click()
@@ -73,7 +71,7 @@ export default function EnhancedFilePreviewModal({ file, isOpen, onClose }: File
   const handleOpenExternal = () => {
     try {
       // For debugging
-      console.log('Opening URL in new tab:', file.url)
+      
       window.open(file.url, '_blank')
     } catch (error) {
       console.error('Open external error:', error)

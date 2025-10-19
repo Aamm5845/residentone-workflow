@@ -8,12 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    console.log('📝 GET /api/ffe/v2/rooms/[roomId] - Getting session...');
+    
     const session = await getServerSession(authOptions);
     console.log('📝 Full session:', JSON.stringify(session, null, 2));
     
     if (!session?.user) {
-      console.log('❌ Unauthorized - no session user');
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,31 +21,29 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const includeHidden = searchParams.get('includeHidden') === 'true'
     const onlyVisible = searchParams.get('onlyVisible') === 'true'
-    console.log('🔍 Visibility filters:', { includeHidden, onlyVisible })
-
+    
     // Get orgId from email if missing
     let orgId = session.user.orgId;
     
     if (!orgId) {
-      console.log('⚠️ Missing orgId, looking up from email:', session.user.email);
+      
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { orgId: true }
       });
       
       if (!user) {
-        console.log('❌ User not found in database');
+        
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
       
       orgId = user.orgId;
-      console.log('✅ Retrieved orgId:', orgId);
+      
     }
 
     const resolvedParams = await params;
     const roomId = resolvedParams.roomId;
-    console.log('📝 Fetching room FFE instance for room:', roomId);
-
+    
     // Find existing FFE instance for this room
     const instance = await prisma.roomFFEInstance.findUnique({
       where: {
@@ -117,11 +115,11 @@ export async function POST(
   { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    console.log('📝 POST /api/ffe/v2/rooms/[roomId] - Creating room FFE instance...');
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user) {
-      console.log('❌ Unauthorized - no session user');
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -130,27 +128,26 @@ export async function POST(
     let orgId = session.user.orgId;
     
     if (!userId || !orgId) {
-      console.log('⚠️ Missing user ID or orgId, looking up from email:', session.user.email);
+      
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { id: true, orgId: true }
       });
       
       if (!user) {
-        console.log('❌ User not found in database');
+        
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
       
       userId = user.id;
       orgId = user.orgId;
-      console.log('✅ Retrieved user info:', { userId, orgId });
+      
     }
 
     const resolvedParams = await params;
     const roomId = resolvedParams.roomId;
     const data = await request.json();
-    console.log('Creating room FFE instance with data:', data);
-
+    
     const { templateId, name, estimatedBudget, notes } = data;
 
     // Check if room exists and belongs to user's organization
@@ -285,8 +282,6 @@ export async function POST(
       });
     });
 
-    console.log('Room FFE instance created successfully:', instance.id);
-
     return NextResponse.json({
       success: true,
       data: instance
@@ -331,8 +326,7 @@ export async function PUT(
     const resolvedParams = await params;
     const roomId = resolvedParams.roomId;
     const data = await request.json();
-    console.log('Updating room FFE instance with data:', data);
-
+    
     // Update the room FFE instance
     const instance = await prisma.roomFFEInstance.update({
       where: { roomId },

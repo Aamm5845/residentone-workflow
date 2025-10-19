@@ -107,7 +107,7 @@ export default function FFESettingsDepartment({
 
   // Load FFE data
   useEffect(() => {
-    console.log('🔧 FFESettingsDepartment mounted with props:', { roomId, roomName, orgId, projectId, disabled })
+    
     loadFFEData()
     loadTemplates()
   }, [roomId, orgId])
@@ -603,7 +603,6 @@ export default function FFESettingsDepartment({
       </div>
     )
   }
-
 
   return (
     <div className="space-y-6">

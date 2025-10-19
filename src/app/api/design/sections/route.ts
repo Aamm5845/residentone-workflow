@@ -11,25 +11,16 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📝 Sections API called')
     
     const session = await getSession()
     const ipAddress = getIPAddress(request)
-    
-    console.log('👤 Session check:', { 
-      hasSession: !!session, 
-      userId: session?.user?.id,
-      orgId: session?.user?.orgId
-    })
-    
+
     if (!isValidAuthSession(session)) {
       console.error('❌ Unauthorized - invalid session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { stageId, type } = await request.json()
-    
-    console.log('📋 Request data:', { stageId, type })
 
     if (!stageId || !type) {
       return NextResponse.json({ 
@@ -68,8 +59,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Stage not found:', { stageId, userId: session.user.id, orgId: session.user.orgId })
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
-    
-    console.log('✅ Stage found:', { stageId: stage.id, type: stage.type })
 
     // Check if section already exists
     const existingSection = await prisma.designSection.findFirst({
@@ -80,14 +69,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingSection) {
-      console.log('♾ Existing section found:', { sectionId: existingSection.id, type: existingSection.type })
+      
       return NextResponse.json({
         success: true,
         section: existingSection
       })
     }
-    
-    console.log('🆕 Creating new section:', { stageId, type })
 
     // Create new section
     const section = await prisma.designSection.create({

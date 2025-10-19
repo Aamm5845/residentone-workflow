@@ -183,7 +183,6 @@ export async function sendOverdueEmailNotifications(orgId: string): Promise<void
       if (user && userTasks.length > 0) {
         // Here you would integrate with your email service
         // For now, we'll just log the intention to send an email
-        console.log(`Would send overdue email to ${user.email} for ${userTasks.length} critical tasks`)
         
         // Example email content
         const taskList = userTasks.map(task => `• ${task.title}`).join('\n')

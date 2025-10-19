@@ -80,10 +80,6 @@ export async function GET(
     })
 
     // Debug logging
-    console.log(`Activity logs for stage ${stageId}:`);
-    console.log(`- Activities: ${activities.length}`);
-    console.log(`- ActivityLogs: ${activityLogs.length}`);
-    console.log(`- ClientApprovalActivities: ${clientApprovalActivities.length}`);
 
     // Combine and format activities from all sources
     const allActivities = [
@@ -121,7 +117,7 @@ export async function GET(
 
     // Add mock data if no activities exist (for testing)
     if (allActivities.length === 0) {
-      console.log('No activities found, adding mock data for testing');
+      
       allActivities.push(
         {
           id: 'mock-1',
@@ -141,8 +137,6 @@ export async function GET(
         }
       );
     }
-
-    console.log(`Returning ${allActivities.length} activities`);
 
     return NextResponse.json({
       success: true,

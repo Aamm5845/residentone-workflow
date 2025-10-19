@@ -184,9 +184,7 @@ export async function processMentions({
   // Wait for all notifications to be created
   const results = await Promise.allSettled(notificationPromises)
   const successCount = results.filter(result => result.status === 'fulfilled' && result.value !== null).length
-  
-  console.log(`Created ${successCount}/${usersToNotify.length} mention notifications`)
-  
+
   return { 
     mentionedUsers: usersToNotify.map(u => ({ id: u.id, name: u.name })), 
     notificationCount: successCount 

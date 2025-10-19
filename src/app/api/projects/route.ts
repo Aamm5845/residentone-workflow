@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 POST /api/projects - Starting project creation')
     
     const session = await getSession() as Session & {
       user: {
@@ -61,7 +60,7 @@ export async function POST(request: NextRequest) {
     } | null
     
     if (!session?.user) {
-      console.log('❌ Unauthorized - no session')
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -72,22 +71,7 @@ export async function POST(request: NextRequest) {
     }
     
     const data = await request.json()
-    console.log('📝 Request data received:', { 
-      name: data.name, 
-      contractorsCount: data.contractors?.length || 0,
-      roomsCount: data.selectedRooms?.length || 0,
-      hasAddress: !!data.projectAddress,
-      hasCoverImages: !!data.coverImages
-    })
-    
-    console.log('📊 Available database fields based on error:')
-    console.log('   ✅ name, description, type, clientId, budget, dueDate')
-    console.log('   ✅ orgId, createdById, status, id, updatedById')
-    console.log('   ✅ coverImageUrl (singular), dropboxFolder')
-    console.log('   ✅ createdAt, updatedAt')
-    console.log('   ❌ address (not available)')
-    console.log('   ❌ coverImages (not available - use coverImageUrl instead)')
-    
+
     const {
       name,
       description,
@@ -104,7 +88,6 @@ export async function POST(request: NextRequest) {
     } = data
 
     // Find or create client (handle unique constraint on orgId + email)
-    console.log('👤 Checking for existing client:', { email: clientEmail, orgId: sharedOrg.id })
     
     let client = await prisma.client.findFirst({
       where: {
@@ -114,10 +97,10 @@ export async function POST(request: NextRequest) {
     })
     
     if (client) {
-      console.log('✅ Found existing client:', { id: client.id, name: client.name, email: client.email })
+      
       // Update client info if provided (optional)
       if (clientName && client.name !== clientName) {
-        console.log('📝 Updating existing client name:', { from: client.name, to: clientName })
+        
         client = await prisma.client.update({
           where: { id: client.id },
           data: { 
@@ -127,7 +110,7 @@ export async function POST(request: NextRequest) {
         })
       }
     } else {
-      console.log('➕ Creating new client:', { name: clientName, email: clientEmail })
+      
       client = await prisma.client.create({
         data: {
           name: clientName,
@@ -136,7 +119,7 @@ export async function POST(request: NextRequest) {
           orgId: sharedOrg.id
         }
       })
-      console.log('✅ Client created successfully:', { id: client.id, name: client.name })
+      
     }
 
     if (!client) {
@@ -144,7 +127,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create project with proper Prisma ORM (fixed to include coverImages)
-    console.log('🚀 Creating project with all fields including coverImages')
     
     const projectData = {
       name: name,
@@ -159,24 +141,13 @@ export async function POST(request: NextRequest) {
       orgId: sharedOrg.id,
       createdById: session.user.id
     }
-    
-    console.log('📝 Creating project with data:', {
-      name: projectData.name,
-      hasCoverImages: !!projectData.coverImages,
-      coverImagesCount: Array.isArray(projectData.coverImages) ? projectData.coverImages.length : 0,
-      hasAddress: !!projectData.address,
-      hasDescription: !!projectData.description
-    })
-    
+
     let project
     try {
       project = await prisma.project.create({
         data: projectData
       })
-      
-      console.log('✅ Project created successfully with coverImages!')
-      console.log(`📸 Cover images saved: ${project.coverImages ? JSON.stringify(project.coverImages) : 'none'}`)
-      
+
     } catch (createError) {
       console.error('❌ Failed to create project:', createError)
       return NextResponse.json({ 
@@ -184,11 +155,9 @@ export async function POST(request: NextRequest) {
         details: createError instanceof Error ? createError.message : 'Unknown error' 
       }, { status: 500 })
     }
-    
-    console.log('✅ Project created successfully:', { id: project.id, name: project.name })
-    
+
     // Create project contractors relationships
-    console.log('👷 Processing contractors:', { contractorsCount: contractors?.length || 0 })
+    
     if (contractors && contractors.length > 0) {
       console.log('✅ Creating contractor relationships:', contractors.map(c => ({ id: c.id, type: c.type })))
       const projectContractors = contractors.map((contractor: any) => ({
@@ -200,9 +169,9 @@ export async function POST(request: NextRequest) {
       await prisma.projectContractor.createMany({
         data: projectContractors
       })
-      console.log('✅ Contractor relationships created successfully')
+      
     } else {
-      console.log('ℹ️ No contractors to process')
+      
     }
 
     // Create rooms and stages
@@ -267,7 +236,7 @@ export async function POST(request: NextRequest) {
       // Auto-assign stages to team members based on their roles
       try {
         const assignmentResult = await autoAssignPhasesToTeam(room.id, sharedOrg.id)
-        console.log(`Auto-assigned ${assignmentResult.assignedCount} stages for room ${room.id}`)
+        
       } catch (assignmentError) {
         console.error('Failed to auto-assign phases to team:', assignmentError)
         // Don't fail room creation if assignment fails
@@ -304,7 +273,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Return the created project with full details using proper Prisma query
-    console.log('📊 Fetching full project details with coverImages...')
     
     const fullProject = await prisma.project.findUnique({
       where: { id: project.id },
@@ -327,9 +295,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found after creation' }, { status: 500 })
     }
 
-    console.log('🎉 Project creation completed successfully! Returning response with status 201')
-    console.log('📦 Project details:', { id: fullProject?.id, name: fullProject?.name, roomsCount: fullProject?.rooms?.length })
-    
     return NextResponse.json(fullProject, { status: 201 })
   } catch (error) {
     console.error('Error creating project:', error)

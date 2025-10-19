@@ -170,8 +170,7 @@ export default function ProjectUpdatesTabs({
       }
     }
     setTimelineActivities(prev => [timelineActivity, ...prev])
-    
-    console.log('Message sent:', newMessage)
+
   }
 
   const handleEditMessage = (messageId: string, content: string) => {
@@ -180,12 +179,12 @@ export default function ProjectUpdatesTabs({
         ? { ...msg, content, isEdited: true, updatedAt: new Date().toISOString() }
         : msg
     ))
-    console.log('Message edited:', messageId, content)
+    
   }
 
   const handleDeleteMessage = (messageId: string) => {
     setMessages(prev => prev.filter(msg => msg.id !== messageId))
-    console.log('Message deleted:', messageId)
+    
   }
 
   const handleReactToMessage = (messageId: string, emoji: string) => {
@@ -213,7 +212,7 @@ export default function ProjectUpdatesTabs({
       }
       return msg
     }))
-    console.log('Message reaction:', messageId, emoji)
+    
   }
 
   const handleUploadFile = async (files: File[]) => {
@@ -225,51 +224,51 @@ export default function ProjectUpdatesTabs({
       type: file.type,
       size: file.size
     }))
-    console.log('Files uploaded:', uploadedFiles)
+    
     return uploadedFiles
   }
 
   // Timeline handlers
   const handleActivityClick = (activity: any) => {
-    console.log('Activity clicked:', activity)
+    
   }
 
   const handleMilestoneClick = (milestone: any) => {
-    console.log('Milestone clicked:', milestone)
+    
   }
 
   const handleExportTimeline = () => {
-    console.log('Exporting timeline...')
+    
   }
 
   // Photo handlers
   const handlePhotoSelect = (photo: any) => {
-    console.log('Photo selected:', photo)
+    
   }
 
   const handlePhotoUpdate = (photoId: string, updates: any) => {
-    console.log('Photo update:', photoId, updates)
+    
     // In production, this would call the API to update the photo
   }
 
   const handlePhotoDelete = (photoId: string) => {
-    console.log('Photo delete:', photoId)
+    
     // In production, this would call the API to delete the photo
   }
 
   // Task handlers
   const handleTaskCreate = (task: any) => {
-    console.log('Task create:', task)
+    
     // In production, this would call the API to create the task
   }
 
   const handleTaskUpdate = (taskId: string, updates: any) => {
-    console.log('Task update:', taskId, updates)
+    
     // In production, this would call the API to update the task
   }
 
   const handleTaskDelete = (taskId: string) => {
-    console.log('Task delete:', taskId)
+    
     // In production, this would call the API to delete the task
   }
 

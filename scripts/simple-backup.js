@@ -12,9 +12,6 @@ const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
 const backupFileName = `database-backup-${timestamp}.json`
 const backupFilePath = path.join(backupsDir, backupFileName)
 
-console.log('🔄 Starting simple database backup...')
-console.log(`📁 Backup location: ${backupFilePath}`)
-
 // Load environment variables
 require('dotenv').config()
 
@@ -70,21 +67,10 @@ async function createSimpleBackup() {
     // Verify backup was created
     if (fs.existsSync(backupFilePath)) {
       const fileSize = (fs.statSync(backupFilePath).size / 1024).toFixed(2)
-      console.log('✅ Simple backup completed successfully!')
-      console.log(`📊 Backup size: ${fileSize} KB`)
-      console.log(`📁 Location: ${backupFilePath}`)
-      console.log(`📋 Type: Configuration and structure backup`)
-      
+
       // Show what was backed up
-      console.log('\n📝 Backup contains:')
-      console.log('• Environment configuration state')
-      console.log('• Project structure information')
-      console.log('• Package dependencies info')
-      console.log('• File structure verification')
-      
-      console.log('\n💡 To backup actual database data, try:')
+
       console.log('   npm run backup:pg  (if PostgreSQL tools are installed)')
-      console.log('   Or wait for your dev server to stop, then: npx prisma generate && npm run backup')
       
       return true
     } else {

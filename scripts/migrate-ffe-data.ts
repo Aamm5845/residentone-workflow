@@ -157,7 +157,6 @@ class FFEDataMigrator {
   private log(message: string, level: 'INFO' | 'ERROR' | 'WARNING' = 'INFO') {
     const timestamp = new Date().toISOString();
     const prefix = this.isDryRun ? '[DRY RUN]' : '[EXECUTE]';
-    console.log(`${prefix} [${level}] ${timestamp}: ${message}`);
     
     if (level === 'ERROR') {
       this.report.errors.push(message);
@@ -548,18 +547,11 @@ class FFEDataMigrator {
   }
 
   private printSummary(): void {
-    console.log('\nFFE DATA MIGRATION SUMMARY');
-    console.log('='.repeat(40));
-    console.log(`Mode: ${this.isDryRun ? 'DRY RUN' : 'EXECUTE'}`);
-    console.log(`Organizations processed: ${this.report.summary.totalOrgs}`);
-    console.log(`Rooms processed: ${this.report.summary.totalRooms}`);
-    console.log(`Templates created: ${this.report.summary.templatesCreated}`);
-    console.log(`Room instances created: ${this.report.summary.roomInstancesCreated}`);
-    console.log(`Items migrated: ${this.report.summary.itemsMigrated}`);
-    console.log(`Errors: ${this.report.summary.errors}`);
     
+    console.log('='.repeat(40));
+
     if (this.report.unmappedItems.length > 0) {
-      console.log(`Unmapped items: ${this.report.unmappedItems.length}`);
+      
     }
     console.log('='.repeat(40));
   }
@@ -575,7 +567,7 @@ if (require.main === module) {
   
   migrator.migrate()
     .then(() => {
-      console.log('Migration completed successfully!');
+      
       process.exit(0);
     })
     .catch((error) => {

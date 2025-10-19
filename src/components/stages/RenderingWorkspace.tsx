@@ -286,10 +286,9 @@ export default function RenderingWorkspace({
         const result = await response.json()
         
         // Log success for internal tracking
-        console.log('Successfully pushed to Client Approval:', result)
         
         if (result.phaseTransitions && result.phaseTransitions.length > 0) {
-          console.log('Client Approval phase automatically started')
+          
         }
         
         // Force page refresh to ensure phase status is updated throughout the UI
@@ -328,7 +327,7 @@ export default function RenderingWorkspace({
 
       if (response.ok) {
         await fetchRenderingVersions()
-        console.log('Version deleted successfully')
+        
       } else {
         const error = await response.json()
         console.error(`Failed to delete version: ${error.error}`)
@@ -338,7 +337,6 @@ export default function RenderingWorkspace({
       console.error('Failed to delete version')
     }
   }
-
 
   // Toggle version expansion
   const toggleVersion = (versionId: string) => {
