@@ -23,6 +23,12 @@
       "maxDuration": 300
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/daily-backup",
+      "schedule": "0 2 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
