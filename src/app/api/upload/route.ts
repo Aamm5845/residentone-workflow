@@ -238,36 +238,12 @@ export async function POST(request: NextRequest) {
                 storageMethod: storageType === 'cloud' ? 'vercel_blob' : 'local_filesystem'
               }),
               userDescription: userDescription || null,
-              uploader: {
-                connect: {
-                  id: session.user.id
-                }
-              },
-              organization: {
-                connect: {
-                  id: session.user.orgId
-                }
-              },
-              project: {
-                connect: {
-                  id: section.stage.room.project.id
-                }
-              },
-              room: {
-                connect: {
-                  id: section.stage.room.id
-                }
-              },
-              stage: {
-                connect: {
-                  id: section.stage.id
-                }
-              },
-              section: {
-                connect: {
-                  id: section.id
-                }
-              }
+              uploadedBy: session.user.id,
+              orgId: session.user.orgId,
+              projectId: section.stage.room.project.id,
+              roomId: section.stage.room.id,
+              stageId: section.stage.id,
+              sectionId: section.id
             }
           })
 
@@ -380,7 +356,7 @@ export async function GET(request: NextRequest) {
     const assets = await prisma.asset.findMany({
       where: whereClause,
       include: {
-        uploader: {
+        uploadedByUser: {
           select: {
             id: true,
             name: true,
@@ -402,7 +378,7 @@ export async function GET(request: NextRequest) {
       url: asset.url,
       size: asset.size,
       uploadedAt: asset.createdAt,
-      uploadedBy: asset.uploader,
+      uploadedBy: asset.uploadedByUser,
       metadata: {
         sizeFormatted: formatFileSize(asset.size),
         extension: asset.filename?.split('.').pop() || '',

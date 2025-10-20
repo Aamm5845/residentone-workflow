@@ -41,7 +41,7 @@ export async function POST(
           include: {
             asset: {
               include: {
-                uploader: {
+                uploadedByUser: {
                   select: {
                     id: true,
                     name: true,
@@ -135,7 +135,7 @@ export async function POST(
           include: {
             asset: {
               include: {
-                uploader: {
+                uploadedByUser: {
                   select: {
                     id: true,
                     name: true,

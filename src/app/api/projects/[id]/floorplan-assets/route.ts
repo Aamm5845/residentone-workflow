@@ -269,7 +269,7 @@ export async function GET(
       include: {
         asset: {
           include: {
-            uploader: {
+            uploadedByUser: {
               select: {
                 id: true,
                 name: true,
@@ -301,7 +301,7 @@ export async function GET(
           mimeType: aa.asset.mimeType,
           description: aa.asset.description,
           createdAt: aa.asset.createdAt,
-          uploadedBy: aa.asset.uploader
+          uploadedBy: aa.asset.uploadedByUser
         }
       }))
     })

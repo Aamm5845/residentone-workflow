@@ -8,7 +8,7 @@ import { put } from '@vercel/blob'
 // Upload files to drawings workspace and link to checklist category
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,7 +16,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = params
+    const resolvedParams = await params
+    const { stageId } = resolvedParams
     if (!stageId) {
       return NextResponse.json({ error: 'Stage ID is required' }, { status: 400 })
     }
@@ -123,19 +124,11 @@ export async function POST(
             roomId: stage.roomId,
             stageId: stageId,
             drawingChecklistItemId: checklistItemId,
-            uploader: {
-              connect: {
-                id: session.user.id
-              }
-            },
-            organization: {
-              connect: {
-                id: session.user.orgId!
-              }
-            }
+            uploadedBy: session.user.id,
+            orgId: session.user.orgId
           },
           include: {
-            uploader: {
+            uploadedByUser: {
               select: { id: true, name: true, email: true }
             }
           }

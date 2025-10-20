@@ -141,8 +141,7 @@ export async function GET(request: NextRequest) {
           // Include ALL fields including password hashes
           include: {
             accounts: true,
-            sessions: true,
-            userSessions: true
+            sessions: true
           }
         }),
         

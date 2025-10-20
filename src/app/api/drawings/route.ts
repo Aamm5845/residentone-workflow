@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       include: {
         assets: {
           include: {
-            uploader: {
+            uploadedByUser: {
               select: { id: true, name: true, email: true }
             }
           },
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         include: {
           assets: {
             include: {
-              uploader: {
+              uploadedByUser: {
                 select: { id: true, name: true, email: true }
               }
             },

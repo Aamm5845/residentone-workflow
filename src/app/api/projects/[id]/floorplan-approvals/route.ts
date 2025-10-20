@@ -49,7 +49,7 @@ export async function GET(
           include: {
             asset: {
               include: {
-                uploader: {
+                uploadedByUser: {
                   select: {
                     id: true,
                     name: true,

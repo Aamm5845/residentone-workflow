@@ -153,16 +153,7 @@ export async function GET(
           },
           messages: {
             take: 3,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true
-                }
-              }
-            }
+            orderBy: { createdAt: 'desc' }
           },
           assignments: {
             include: {

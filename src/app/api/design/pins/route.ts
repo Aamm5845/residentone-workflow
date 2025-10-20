@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        uploader: {
+        uploadedByUser: {
           select: {
             id: true,
             name: true
@@ -290,7 +290,7 @@ export async function GET(request: NextRequest) {
         url: asset.url,
         type: asset.type,
         createdAt: asset.createdAt,
-        uploadedBy: asset.uploader,
+        uploadedBy: asset.uploadedByUser,
         pinnedBy: asset.assetPin?.user,
         pinnedAt: asset.assetPin?.createdAt
       })),

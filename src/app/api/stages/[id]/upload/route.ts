@@ -150,16 +150,8 @@ export async function POST(
         roomId: stage.room.id,
         stageId: stage.id,
         sectionId: designSection.id,
-        uploader: {
-          connect: {
-            id: (session.user as any)?.id || 'unknown'
-          }
-        },
-        organization: {
-          connect: {
-            id: sharedOrg.id
-          }
-        }
+        uploadedBy: (session.user as any)?.id || 'unknown',
+        orgId: sharedOrg.id
       }
     })
 

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // POST /api/client-approval/[stageId]/mark-as-sent - Mark as already sent to client manually
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -13,7 +13,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = await params
+    const resolvedParams = await params
+    const { stageId } = resolvedParams
     const body = await request.json()
     const { selectedAssetIds } = body
 
@@ -40,7 +41,7 @@ export async function POST(
           include: {
             asset: {
               include: {
-                uploader: {
+                uploadedByUser: {
                   select: {
                     id: true,
                     name: true,
@@ -77,7 +78,7 @@ export async function POST(
           include: {
             asset: {
               include: {
-                uploader: {
+                uploadedByUser: {
                   select: {
                     id: true,
                     name: true,

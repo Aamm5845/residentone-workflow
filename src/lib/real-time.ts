@@ -354,7 +354,7 @@ export function useRealTime(projectId?: string) {
     leaveProject: (id: string) => console.log(`Leaving project ${id}...`),
     emit: (event: string, data: any) => console.log(`Emitting ${event}:`, data),
     on: (event: string, callback: (data: any) => void) => console.log(`Listening to ${event}...`),
-    off: (event: string) => 
+    off: (event: string) => console.log(`Stopping listening to ${event}...`)
   }
 }
 

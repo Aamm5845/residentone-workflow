@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import path from 'path'
+import fs from 'fs'
 import { 
   withCreateAttribution,
   logActivity,
@@ -122,36 +124,12 @@ export async function POST(request: NextRequest) {
         provider: provider,
         metadata: metadata,
         userDescription: userDescription || null,
-        uploader: {
-          connect: {
-            id: session.user.id
-          }
-        },
-        organization: {
-          connect: {
-            id: session.user.orgId
-          }
-        },
-        project: {
-          connect: {
-            id: section.stage.room.project.id
-          }
-        },
-        room: {
-          connect: {
-            id: section.stage.room.id
-          }
-        },
-        stage: {
-          connect: {
-            id: section.stage.id
-          }
-        },
-        section: {
-          connect: {
-            id: section.id
-          }
-        }
+        uploadedBy: session.user.id,
+        orgId: session.user.orgId,
+        projectId: section.stage.room.project.id,
+        roomId: section.stage.room.id,
+        stageId: section.stage.id,
+        sectionId: section.id
       }
     })
 
@@ -245,7 +223,7 @@ export async function GET(request: NextRequest) {
         sectionId: sectionId
       },
       include: {
-        uploader: {
+        uploadedByUser: {
           select: {
             id: true,
             name: true,
@@ -298,7 +276,7 @@ export async function GET(request: NextRequest) {
         mimeType: asset.mimeType,
         userDescription: asset.userDescription,
         createdAt: asset.createdAt,
-        uploadedBy: asset.uploader,
+        uploadedBy: asset.uploadedByUser,
         tags: asset.assetTags.map(at => ({
           id: at.tag.id,
           name: at.tag.name,

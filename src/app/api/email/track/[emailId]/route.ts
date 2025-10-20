@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma'
 // GET /api/email/track/[emailId] - Track email opens via pixel
 export async function GET(
   request: NextRequest,
-  { params }: { params: { emailId: string } }
+  { params }: { params: Promise<{ emailId: string }> }
 ) {
   try {
-    const { emailId } = params
+    const resolvedParams = await params
+    const { emailId } = resolvedParams
 
     // Update the email log with opened timestamp
     
@@ -66,7 +67,7 @@ export async function GET(
 
   } catch (error) {
     console.error('❌ TRACKING ERROR - Failed to track email:', error)
-    console.error('❌ TRACKING ERROR - emailId was:', emailId)
+    console.error('❌ TRACKING ERROR - emailId was:', resolvedParams?.emailId || 'undefined')
     console.error('❌ TRACKING ERROR - Full error details:', {
       name: error?.name,
       message: error?.message,

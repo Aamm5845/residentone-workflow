@@ -527,8 +527,6 @@ export default function FFEManagementEnhanced({ orgId, user }: FFEManagementEnha
                 </div>
               </div>
             </div>
-
-            </div>
           </TabsContent>
         </Tabs>
       </CardContent>

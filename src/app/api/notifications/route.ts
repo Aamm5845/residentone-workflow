@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
     }
 
     const notification = await prisma.notification.create({
-      data: withCreateAttribution(session, {
+      data: {
         userId,
         type,
         title,
         message,
         relatedId,
         relatedType
-      })
+      }
     })
 
     // Log the activity

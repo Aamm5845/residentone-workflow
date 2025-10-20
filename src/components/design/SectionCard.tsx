@@ -214,6 +214,26 @@ export function SectionCard({
     }
   }
 
+  // Delete asset
+  const handleDeleteAsset = async (assetId: string, assetTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${assetTitle}"?`)) return
+
+    try {
+      const response = await fetch(`/api/design/upload?assetId=${assetId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        onDataChange()
+        toast.success('Asset deleted')
+      } else {
+        throw new Error('Failed to delete asset')
+      }
+    } catch (error) {
+      toast.error('Failed to delete asset')
+    }
+  }
+
   return (
     <div className={`border-2 rounded-xl transition-all duration-200 ${
       section?.completed 
@@ -460,10 +480,10 @@ export function SectionCard({
                       <div key={asset.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
                         <div className="flex items-start space-x-3">
                           <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            {asset.type === 'image' ? (
+                            {asset.type === 'image' || asset.type === 'IMAGE' ? (
                               <ImageIcon className="w-5 h-5 text-gray-500" />
                             ) : (
-                              <LinkIcon className="w-5 h-5 text-gray-500" />
+                              <FileText className="w-5 h-5 text-gray-500" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -474,6 +494,23 @@ export function SectionCard({
                             <p className="text-xs text-gray-500 mt-2">
                               {formatDistanceToNow(new Date(asset.createdAt), { addSuffix: true })}
                             </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => window.open(asset.url, '_blank')}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View asset"
+                            >
+                              <LinkIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAsset(asset.id, asset.title)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete asset"
+                              disabled={isStageCompleted}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       </div>

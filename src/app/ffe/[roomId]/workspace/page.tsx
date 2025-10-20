@@ -13,8 +13,9 @@ interface FFEWorkspacePageProps {
 
 export async function generateMetadata({ params }: FFEWorkspacePageProps): Promise<Metadata> {
   try {
+    const { roomId } = await params
     const room = await prisma.room.findUnique({
-      where: { id: params.roomId },
+      where: { id: roomId },
       select: { name: true }
     })
     return {
@@ -30,6 +31,8 @@ export async function generateMetadata({ params }: FFEWorkspacePageProps): Promi
 }
 
 export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps) {
+  const { roomId } = await params
+  
   // Get current user session and validate permissions
   const session = await getSession() as Session & {
     user: {
@@ -47,7 +50,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
 
   // Get room information
   const room = await prisma.room.findUnique({
-    where: { id: params.roomId },
+    where: { id: roomId },
     include: {
       project: {
         select: {
@@ -66,7 +69,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
   return (
     <div className="container mx-auto py-6 px-4 max-w-7xl">
       <FFEDepartmentRouter
-        roomId={params.roomId}
+        roomId={roomId}
         roomName={room.name || 'Room'}
         orgId={room.project?.orgId}
         projectId={room.project?.id}

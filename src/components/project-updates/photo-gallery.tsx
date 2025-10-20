@@ -743,7 +743,7 @@ export default function PhotoGallery({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Uploaded by: </span>
-                    {selectedPhoto.asset.uploader.name}
+                    {selectedPhoto.asset.uploadedByUser?.name || 'Unknown'}
                   </div>
                   <div>
                     <span className="font-medium">Size: </span>

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        uploader: {
+        uploadedByUser: {
           select: { id: true, name: true }
         },
         section: {
@@ -89,8 +89,8 @@ export async function GET(request: NextRequest) {
         createdAt: asset.createdAt.toISOString(),
         read: false,
         author: {
-          name: asset.uploader?.name || 'Unknown User',
-          id: asset.uploader?.id || 'unknown'
+          name: asset.uploadedByUser?.name || 'Unknown User',
+          id: asset.uploadedByUser?.id || 'unknown'
         }
       }))
     ]

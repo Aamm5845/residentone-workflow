@@ -443,7 +443,7 @@ export default function DrawingsWorkspace({
                           <p className="text-xs text-gray-500 mt-1">
                             {formatFileSize(asset.size)} • {formatDate(asset.createdAt)}
                           </p>
-                          <p className="text-xs text-gray-500">by {asset.uploader.name}</p>
+                          <p className="text-xs text-gray-500">by {asset.uploadedByUser?.name || 'Unknown'}</p>
                           
                           {/* Description */}
                           <div className="mt-2">

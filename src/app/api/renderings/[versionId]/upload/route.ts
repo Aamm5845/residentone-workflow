@@ -198,7 +198,7 @@ export async function POST(
     console.error('❌ Fatal error uploading files to rendering version:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      versionId
+      versionId: resolvedParams?.versionId || 'unknown'
     })
     return NextResponse.json({ 
       error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` 

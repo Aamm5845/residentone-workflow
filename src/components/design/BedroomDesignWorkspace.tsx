@@ -644,6 +644,27 @@ export default function BedroomDesignWorkspace({
     }
   }
 
+  // Delete asset
+  const handleDeleteAsset = async (assetId: string, assetTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${assetTitle}"?`)) return
+
+    try {
+      const response = await fetch(`/api/design/upload?assetId=${assetId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        refreshWorkspace()
+        toast.success('Asset deleted successfully')
+      } else {
+        throw new Error('Failed to delete asset')
+      }
+    } catch (error) {
+      console.error('Delete asset error:', error)
+      toast.error('Failed to delete asset')
+    }
+  }
+
   // Loading states
   if (isLoading) {
     return (
@@ -1076,8 +1097,20 @@ export default function BedroomDesignWorkspace({
                                       />
                                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-                                          <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
+                                          <Button size="sm" variant="secondary" className="h-8 w-8 p-0" title="View image">
                                             <Eye className="w-4 h-4" />
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="secondary" 
+                                            className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white" 
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleDeleteAsset(asset.id, asset.title)
+                                            }}
+                                            title="Delete image"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
                                           </Button>
                                         </div>
                                       </div>

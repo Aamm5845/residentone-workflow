@@ -115,10 +115,24 @@ model User {
   updatedRooms                Room[]                      @relation("UpdatedByUserRoom")
   sessions                    Session[]
   assignedStages              Stage[]                     @relation("AssignedToUser")
+  assignedTasks               ProjectUpdateTask[]         @relation("TaskAssignee")
+  clientAccessTokens          ClientAccessToken[]         @relation("ClientAccessTokenCreatedBy")
   completedStages             Stage[]                     @relation("CompletedByUserStage")
   createdStages               Stage[]                     @relation("CreatedByUserStage")
+  createdTasks                ProjectUpdateTask[]         @relation("TaskCreatedBy")
+  renderingNotes              RenderingNote[]             @relation("RenderingNoteAuthor")
   updatedStages               Stage[]                     @relation("UpdatedByUserStage")
   uploadedAssets              Asset[]                     @relation("UploadedByUser")
+  createdFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceCreatedBy")
+  updatedFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceUpdatedBy")
+  createdFFETemplates         FFETemplate[]               @relation("FFETemplateCreatedBy")
+  updatedFFETemplates         FFETemplate[]               @relation("FFETemplateUpdatedBy")
+  createdRenderingVersions    RenderingVersion[]          @relation("RenderingVersionCreatedBy")
+  updatedRenderingVersions    RenderingVersion[]          @relation("RenderingVersionUpdatedBy")
+  completedRenderingVersions  RenderingVersion[]          @relation("RenderingVersionCompletedBy")
+  activityLogs                ActivityLog[]               @relation("ActivityLogActor")
+  specBookGenerations         SpecBookGeneration[]        @relation("SpecBookGeneratedBy")
+  activities                  Activity[]                  @relation("ActivityUser")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -153,6 +167,7 @@ model Contractor {
   updatedAt          DateTime            @updatedAt
   organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
   projectContractors ProjectContractor[]
+  projectUpdateTasks ProjectUpdateTask[]
 
   @@unique([orgId, email])
   @@index([orgId, type])
@@ -201,6 +216,7 @@ model Project {
   hasSpecBook               Boolean                    @default(false)
   hasProjectUpdates         Boolean                    @default(false)
   approvals                 Approval[]
+  assets                    Asset[]                    @relation("ProjectAssets")
   comments                  Comment[]
   floorplanApprovalVersions FloorplanApprovalVersion[]
   client                    Client                     @relation(fields: [clientId], references: [id])
@@ -209,6 +225,8 @@ model Project {
   updatedBy                 User?                      @relation("UpdatedByUser", fields: [updatedById], references: [id])
   projectContractors        ProjectContractor[]
   rooms                     Room[]
+  specBooks                 SpecBook[]
+  clientAccessTokens        ClientAccessToken[] @relation("ClientAccessTokenProject")
 }
 
 model Room {
@@ -224,13 +242,18 @@ model Room {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   approvals       Approval[]
+  assets          Asset[]         @relation("RoomAssets")
   comments        Comment[]
   ffeItems        FFEItem[]
   ffeItemStatuses FFEItemStatus[]
   createdBy       User?           @relation("CreatedByUserRoom", fields: [createdById], references: [id])
   project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectUpdateTasks ProjectUpdateTask[]
+  specBookSections SpecBookSection[]
   updatedBy       User?           @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
   stages          Stage[]
+  ffeInstance     RoomFFEInstance? @relation("RoomFFEInstance")
+  renderingVersions RenderingVersion[] @relation("RoomRenderingVersions")
 }
 
 model Stage {
@@ -247,6 +270,7 @@ model Stage {
   completedById          String?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  assets                 Asset[]                 @relation("StageAssets")
   chatMessages           ChatMessage[]
   clientApprovalVersions ClientApprovalVersion[]
   comments               Comment[]
@@ -256,6 +280,7 @@ model Stage {
   createdBy              User?                   @relation("CreatedByUserStage", fields: [createdById], references: [id])
   room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
+  renderingVersions      RenderingVersion[]      @relation("StageRenderingVersions")
 
   @@unique([roomId, type])
 }
@@ -271,6 +296,7 @@ model DesignSection {
   completedById  String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+  assets         Asset[]           @relation("SectionAssets")
   checklistItems ChecklistItem[]
   comments       Comment[]
   completedBy    User?             @relation("CompletedByUserSection", fields: [completedById], references: [id])
@@ -396,6 +422,7 @@ model FFEItem {
   updatedById  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  assets       Asset[]   @relation("FFEItemAssets")
   comments     Comment[]
   createdBy    User?     @relation("CreatedByUserFFE", fields: [createdById], references: [id])
   room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -453,6 +480,7 @@ model ClientApprovalVersion {
   activityLogs        ClientApprovalActivity[]
   assets              ClientApprovalAsset[]
   emailLogs           ClientApprovalEmailLog[]
+  emailLogsGeneric    EmailLog[]                @relation("EmailLogs")
   aaronApprovedBy     User?                     @relation("ClientApprovalAaronApprovedBy", fields: [aaronApprovedById], references: [id])
   renderingVersion    RenderingVersion?         @relation(fields: [renderingVersionId], references: [id])
   sentBy              User?                     @relation("ClientApprovalSentBy", fields: [sentById], references: [id])
@@ -682,7 +710,14 @@ model Asset {
   updatedAt               DateTime                 @updatedAt
   drawingChecklistItemId  String?
   approval                Approval?                @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  ffeItem                 FFEItem?                 @relation("FFEItemAssets", fields: [ffeItemId], references: [id], onDelete: Cascade)
+  project                 Project?                 @relation("ProjectAssets", fields: [projectId], references: [id], onDelete: Cascade)
+  renderingVersion        RenderingVersion?        @relation("RenderingAssets", fields: [renderingVersionId], references: [id], onDelete: Cascade)
+  room                    Room?                    @relation("RoomAssets", fields: [roomId], references: [id], onDelete: Cascade)
+  section                 DesignSection?           @relation("SectionAssets", fields: [sectionId], references: [id], onDelete: Cascade)
+  stage                   Stage?                   @relation("StageAssets", fields: [stageId], references: [id], onDelete: Cascade)
   uploadedByUser          User                     @relation("UploadedByUser", fields: [uploadedBy], references: [id])
+  drawingChecklistItem    DrawingChecklistItem?    @relation("DrawingChecklistAssets", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
   assetPin                AssetPin?
   assetTags               AssetTag[]
   clientApprovalAssets    ClientApprovalAsset[]
@@ -778,6 +813,7 @@ model EmailLog {
   providerId     String?
   provider       String?
   deliveredAt    DateTime?
+  version        ClientApprovalVersion @relation("EmailLogs", fields: [versionId], references: [id], onDelete: Cascade)
 }
 
 model ClientApproval {
@@ -796,6 +832,7 @@ model Activity {
   message   String
   userId    String?
   timestamp DateTime @default(now())
+  user      User?    @relation("ActivityUser", fields: [userId], references: [id])
 }
 
 model RenderingVersion {
@@ -812,7 +849,14 @@ model RenderingVersion {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   completedAt           DateTime?
+  assets                Asset[]                @relation("RenderingAssets")
+  notes                 RenderingNote[]
   clientApprovalVersion ClientApprovalVersion?
+  room                  Room                   @relation("RoomRenderingVersions", fields: [roomId], references: [id], onDelete: Cascade)
+  stage                 Stage                  @relation("StageRenderingVersions", fields: [stageId], references: [id], onDelete: Cascade)
+  createdBy             User                   @relation("RenderingVersionCreatedBy", fields: [createdById], references: [id])
+  updatedBy             User?                  @relation("RenderingVersionUpdatedBy", fields: [updatedById], references: [id])
+  completedBy           User?                  @relation("RenderingVersionCompletedBy", fields: [completedById], references: [id])
 
   @@unique([roomId, version])
   @@index([stageId])
@@ -826,6 +870,8 @@ model RenderingNote {
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  author    User             @relation("RenderingNoteAuthor", fields: [authorId], references: [id])
+  version   RenderingVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 
   @@index([versionId])
   @@index([createdAt])
@@ -842,6 +888,7 @@ model DrawingChecklistItem {
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   completedAt DateTime?
+  assets      Asset[]              @relation("DrawingChecklistAssets")
 
   @@unique([stageId, type])
   @@index([stageId])
@@ -858,6 +905,7 @@ model ActivityLog {
   ipAddress String?
   orgId     String?
   createdAt DateTime @default(now())
+  actor     User?    @relation("ActivityLogActor", fields: [actorId], references: [id])
 
   @@index([actorId])
   @@index([orgId])
@@ -879,6 +927,9 @@ model ClientAccessToken {
   lastAccessedAt DateTime?
   accessCount    Int       @default(0)
   lastAccessedIP String?
+  accessLogs     ClientAccessLog[]
+  project        Project   @relation("ClientAccessTokenProject", fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy      User      @relation("ClientAccessTokenCreatedBy", fields: [createdById], references: [id])
 
   @@index([projectId])
   @@index([token])
@@ -894,6 +945,7 @@ model ClientAccessLog {
   action    String
   metadata  Json?
   createdAt DateTime @default(now())
+  token     ClientAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 
   @@index([tokenId])
   @@index([createdAt])
@@ -1067,6 +1119,10 @@ model FFETemplate {
   updatedAt   DateTime          @updatedAt
   createdById String
   updatedById String
+  sections    FFETemplateSection[] @relation("TemplateToSections")
+  instances   RoomFFEInstance[] @relation("RoomFFEInstanceTemplate")
+  createdBy   User @relation("FFETemplateCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User @relation("FFETemplateUpdatedBy", fields: [updatedById], references: [id])
 
   @@unique([orgId, name], name: "unique_template_per_org")
   @@index([orgId])
@@ -1085,6 +1141,8 @@ model FFETemplateSection {
   color         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  template      FFETemplate @relation("TemplateToSections", fields: [templateId], references: [id], onDelete: Cascade)
+  items         FFETemplateItem[] @relation("SectionToItems")
 
   @@index([templateId, order])
 }
@@ -1105,6 +1163,8 @@ model FFETemplateItem {
   customFields  Json?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  section       FFETemplateSection @relation("SectionToItems", fields: [sectionId], references: [id], onDelete: Cascade)
+  roomItems     RoomFFEItem[] @relation("RoomFFEItemTemplate")
 
   @@index([sectionId, order])
   @@index([isRequired])
@@ -1127,6 +1187,11 @@ model RoomFFEInstance {
   updatedAt            DateTime          @updatedAt
   createdById          String
   updatedById          String
+  template             FFETemplate?      @relation("RoomFFEInstanceTemplate", fields: [templateId], references: [id])
+  room                 Room              @relation("RoomFFEInstance", fields: [roomId], references: [id], onDelete: Cascade)
+  sections             RoomFFESection[]  @relation("RoomFFEInstanceSections")
+  createdBy            User              @relation("RoomFFEInstanceCreatedBy", fields: [createdById], references: [id])
+  updatedBy            User              @relation("RoomFFEInstanceUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([roomId])
   @@index([templateId])
@@ -1146,6 +1211,8 @@ model RoomFFESection {
   notes             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  instance          RoomFFEInstance @relation("RoomFFEInstanceSections", fields: [instanceId], references: [id], onDelete: Cascade)
+  items             RoomFFEItem[] @relation("RoomFFESectionItems")
 
   @@index([instanceId, order])
 }
@@ -1176,6 +1243,8 @@ model RoomFFEItem {
   updatedAt      DateTime          @updatedAt
   createdById    String
   updatedById    String
+  section        RoomFFESection @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
+  templateItem   FFETemplateItem? @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
 
   @@index([sectionId, order])
   @@index([state])
@@ -1240,6 +1309,7 @@ model ProjectUpdate {
   parentUpdateId String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
+  tasks          ProjectUpdateTask[]
 
   @@index([projectId, createdAt])
   @@index([roomId])
@@ -1294,6 +1364,13 @@ model ProjectUpdateTask {
   createdById    String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  assignee       User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignments    ContractorAssignment[]
+  contractor     Contractor?   @relation(fields: [contractorId], references: [id])
+  createdBy      User          @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  messages       ProjectUpdateMessage[]
+  room           Room?         @relation(fields: [roomId], references: [id])
+  update         ProjectUpdate? @relation(fields: [updateId], references: [id])
 
   @@index([projectId, status])
   @@index([assigneeId])
@@ -1340,6 +1417,7 @@ model ProjectUpdateMessage {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   deletedAt       DateTime?
+  task            ProjectUpdateTask? @relation(fields: [taskId], references: [id])
 
   @@index([updateId, createdAt])
   @@index([taskId])
@@ -1379,6 +1457,7 @@ model ContractorAssignment {
   notes              String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  task               ProjectUpdateTask? @relation(fields: [taskId], references: [id])
 
   @@index([projectId])
   @@index([contractorId])
@@ -1416,6 +1495,9 @@ model SpecBook {
   updatedAt   DateTime @updatedAt
   createdById String
   updatedById String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sections    SpecBookSection[]
+  generations SpecBookGeneration[] @relation("SpecBookGenerations")
 
   @@index([projectId])
   @@index([isActive])
@@ -1433,6 +1515,9 @@ model SpecBookSection {
   renderingUrl String?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+  dropboxFiles DropboxFileLink[]
+  room         Room?               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  specBook     SpecBook            @relation(fields: [specBookId], references: [id], onDelete: Cascade)
 
   @@unique([specBookId, type, roomId])
   @@index([specBookId, order])
@@ -1454,6 +1539,7 @@ model DropboxFileLink {
   isActive         Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  section          SpecBookSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([sectionId, dropboxPath])
   @@index([sectionId])
@@ -1478,6 +1564,8 @@ model SpecBookGeneration {
   completedAt      DateTime?
   downloadedAt     DateTime?
   downloadCount    Int               @default(0)
+  specBook         SpecBook          @relation("SpecBookGenerations", fields: [specBookId], references: [id], onDelete: Cascade)
+  generatedBy      User              @relation("SpecBookGeneratedBy", fields: [generatedById], references: [id])
 
   @@index([specBookId, generatedAt])
   @@index([status])
