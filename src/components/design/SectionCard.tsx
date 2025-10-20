@@ -28,6 +28,7 @@ import { formatDistanceToNow } from 'date-fns'
 // Import existing components
 import { UploadZone } from './UploadZone'
 import { NotesFeed } from './NotesFeed'
+import { RenderIcon } from '@/lib/design-icons'
 
 // Enhanced interfaces
 interface SectionDefinition {
@@ -258,7 +259,10 @@ export function SectionCard({
             
             {/* Section Icon */}
             <div className={`w-12 h-12 bg-gradient-to-br ${sectionDef.color} rounded-xl flex items-center justify-center text-white text-xl shadow-lg`}>
-              {sectionDef.icon}
+              <RenderIcon 
+                name={sectionDef.icon} 
+                className="w-8 h-8 text-white" 
+              />
             </div>
             
             {/* Section Info */}

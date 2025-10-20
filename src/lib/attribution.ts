@@ -165,6 +165,12 @@ export const ActivityActions = {
   SECTION_UPDATED: 'section_updated',
   SECTION_COMPLETED: 'section_completed',
 
+  // Design template actions
+  TEMPLATE_CREATED: 'template_created',
+  TEMPLATE_UPDATED: 'template_updated',
+  TEMPLATE_DELETED: 'template_deleted',
+  TEMPLATE_REORDERED: 'template_reordered',
+
   // Asset actions
   ASSET_UPLOADED: 'asset_uploaded',
   ASSET_DELETED: 'asset_deleted',
@@ -224,6 +230,7 @@ export const EntityTypes = {
   ROOM: 'Room',
   STAGE: 'Stage',
   DESIGN_SECTION: 'DesignSection',
+  DESIGN_SECTION_TEMPLATE: 'DesignSectionTemplate',
   ASSET: 'Asset',
   COMMENT: 'Comment',
   USER: 'User',

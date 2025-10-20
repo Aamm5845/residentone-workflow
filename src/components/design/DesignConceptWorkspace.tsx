@@ -14,8 +14,11 @@ import {
   Palette,
   Activity,
   Loader2,
-  MessageCircle
+  MessageCircle,
+  Plus,
+  Settings
 } from 'lucide-react'
+import { RenderIcon } from '@/lib/design-icons'
 import { formatDistanceToNow } from 'date-fns'
 import useSWR, { mutate } from 'swr'
 import { toast } from 'sonner'
@@ -106,12 +109,12 @@ interface DesignConceptWorkspaceProps {
   className?: string
 }
 
-// Section definitions with updated types
+// Professional section definitions with Lucide icons
 const SECTION_DEFINITIONS = [
   {
     id: 'GENERAL',
     name: 'General',
-    icon: '✨',
+    icon: 'Sparkles',
     color: 'from-purple-500 to-pink-500',
     description: 'Overall design concept, mood, and styling direction',
     placeholder: 'Describe the overall design vision, mood, color palette, and style direction for this space...'
@@ -119,7 +122,7 @@ const SECTION_DEFINITIONS = [
   {
     id: 'WALL_COVERING',
     name: 'Wall Covering',
-    icon: '🎨',
+    icon: 'PaintRoller',
     color: 'from-blue-500 to-cyan-500',
     description: 'Wall treatments, paint colors, wallpaper, and finishes',
     placeholder: 'Detail wall paint colors, wallpaper selections, textures, accent walls, and any special wall treatments...'
@@ -127,7 +130,7 @@ const SECTION_DEFINITIONS = [
   {
     id: 'CEILING',
     name: 'Ceiling',
-    icon: '⬆️',
+    icon: 'PanelTop',
     color: 'from-amber-500 to-orange-500',
     description: 'Ceiling design, treatments, lighting integration, and details',
     placeholder: 'Specify ceiling treatments, crown molding, lighting fixtures, paint colors, and architectural details...'
@@ -135,7 +138,7 @@ const SECTION_DEFINITIONS = [
   {
     id: 'FLOOR',
     name: 'Floor',
-    icon: '⬇️',
+    icon: 'Grid',
     color: 'from-emerald-500 to-teal-500',
     description: 'Flooring materials, patterns, transitions, and area rugs',
     placeholder: 'Describe flooring materials, patterns, transitions between spaces, area rugs, and floor treatments...'
@@ -427,6 +430,24 @@ export default function DesignConceptWorkspace({
           <div className="flex-1" />
           {activeTab === 'sections' && (
             <div className="flex items-center space-x-2 px-4 py-2">
+              <Button
+                onClick={() => {/* TODO: Open section manager */}}
+                variant="outline"
+                size="sm"
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Settings className="w-4 h-4 mr-1" />
+                Manage Sections
+              </Button>
+              <Button
+                onClick={() => {/* TODO: Open add section dialog */}}
+                variant="outline"
+                size="sm"
+                className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Section
+              </Button>
               <Button
                 onClick={expandedSections.size === 0 ? expandAllSections : collapseAllSections}
                 variant="outline"
