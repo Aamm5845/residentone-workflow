@@ -46,6 +46,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import { toSafeFilterValue, fromSafeFilterValue, ALL_ANY } from '@/lib/selectSafe'
+import { useToast } from '@/components/ui/toast'
+import CreateTaskDialog from './create-task-dialog'
+import TaskCalendar from './task-calendar'
 
 interface Task {
   id: string
@@ -155,22 +159,31 @@ export default function TaskBoard({
   availableUsers = [],
   availableContractors = []
 }: TaskBoardProps) {
+  const { success, error: showError } = useToast()
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'calendar'>('kanban')
   const [showCompleted, setShowCompleted] = useState(true)
-  const [filterPriority, setFilterPriority] = useState<string>('')
-  const [filterAssignee, setFilterAssignee] = useState<string>('')
-  const [filterTradeType, setFilterTradeType] = useState<string>('')
+  const [filterPriority, setFilterPriority] = useState<string>(ALL_ANY)
+  const [filterAssignee, setFilterAssignee] = useState<string>(ALL_ANY)
+  const [filterTradeType, setFilterTradeType] = useState<string>(ALL_ANY)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [createTaskDialogOpen, setCreateTaskDialogOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
 
   // Filter and organize tasks
   const filteredTasks = tasks.filter(task => {
     if (!showCompleted && task.status === 'DONE') return false
-    if (filterPriority && task.priority !== filterPriority) return false
-    if (filterAssignee && task.assigneeId !== filterAssignee) return false
-    if (filterTradeType && task.tradeType !== filterTradeType) return false
+    
+    const safePriority = fromSafeFilterValue(filterPriority)
+    const safeAssignee = fromSafeFilterValue(filterAssignee)
+    const safeTradeType = fromSafeFilterValue(filterTradeType)
+    
+    if (safePriority && task.priority !== safePriority) return false
+    if (safeAssignee && task.assigneeId !== safeAssignee) return false
+    if (safeTradeType && task.tradeType !== safeTradeType) return false
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !task.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -185,7 +198,7 @@ export default function TaskBoard({
   }
 
   // Handle drag and drop
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || !canEdit || !onTaskUpdate) return
 
     const { source, destination, draggableId } = result
@@ -197,15 +210,44 @@ export default function TaskBoard({
 
     // Different columns - update task status
     const newStatus = destination.droppableId as Task['status']
-    onTaskUpdate(draggableId, { 
-      status: newStatus,
-      ...(newStatus === 'IN_PROGRESS' && !tasks.find(t => t.id === draggableId)?.startedAt && {
-        startedAt: new Date().toISOString()
-      }),
-      ...(newStatus === 'DONE' && {
-        completedAt: new Date().toISOString()
+    const task = tasks.find(t => t.id === draggableId)
+    
+    if (!task) return
+
+    try {
+      await onTaskUpdate(draggableId, { 
+        status: newStatus,
+        ...(newStatus === 'IN_PROGRESS' && !task.startedAt && {
+          startedAt: new Date().toISOString()
+        }),
+        ...(newStatus === 'DONE' && {
+          completedAt: new Date().toISOString()
+        })
       })
-    })
+      
+      success('Task Updated', `Task moved to ${statusConfig[newStatus].label.toLowerCase()}`)
+    } catch (error) {
+      showError('Update Failed', 'Failed to update task status. Please try again.')
+    }
+  }
+
+  const handleCreateTask = async (data: any) => {
+    if (onTaskCreate) {
+      await onTaskCreate(data)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (taskToDelete && onTaskDelete) {
+      try {
+        await onTaskDelete(taskToDelete)
+        success('Task Deleted', 'Task deleted successfully')
+      } catch (error) {
+        showError('Delete Failed', error instanceof Error ? error.message : 'Failed to delete task')
+      }
+    }
+    setDeleteConfirmOpen(false)
+    setTaskToDelete(null)
   }
 
   const TaskCard = ({ task, index }: { task: Task; index: number }) => {
@@ -282,9 +324,8 @@ export default function TaskBoard({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (onTaskDelete && confirm('Are you sure you want to delete this task?')) {
-                              onTaskDelete(task.id)
-                            }
+                            setTaskToDelete(task.id)
+                            setDeleteConfirmOpen(true)
                           }}
                           className="text-red-600"
                         >
@@ -413,10 +454,7 @@ export default function TaskBoard({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => {
-                setEditingTask(null)
-                setTaskDialogOpen(true)
-              }}
+              onClick={() => setCreateTaskDialogOpen(true)}
             >
               <Plus className="w-4 h-4" />
             </Button>
@@ -481,7 +519,7 @@ export default function TaskBoard({
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Priorities</SelectItem>
+              <SelectItem value={ALL_ANY}>All Priorities</SelectItem>
               {Object.entries(priorityConfig).map(([key, config]) => (
                 <SelectItem key={key} value={key}>{config.label}</SelectItem>
               ))}
@@ -493,10 +531,27 @@ export default function TaskBoard({
               <SelectValue placeholder="Assignee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Assignees</SelectItem>
+              <SelectItem value={ALL_ANY}>All Assignees</SelectItem>
               {availableUsers.map(user => (
                 <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterTradeType} onValueChange={setFilterTradeType}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Trade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ANY}>All Trades</SelectItem>
+              <SelectItem value="electrical">Electrical</SelectItem>
+              <SelectItem value="plumbing">Plumbing</SelectItem>
+              <SelectItem value="construction">Construction</SelectItem>
+              <SelectItem value="painting">Painting</SelectItem>
+              <SelectItem value="hvac">HVAC</SelectItem>
+              <SelectItem value="flooring">Flooring</SelectItem>
+              <SelectItem value="roofing">Roofing</SelectItem>
+              <SelectItem value="general">General</SelectItem>
             </SelectContent>
           </Select>
 
@@ -513,10 +568,7 @@ export default function TaskBoard({
           {/* Add task */}
           {canEdit && (
             <Button
-              onClick={() => {
-                setEditingTask(null)
-                setTaskDialogOpen(true)
-              }}
+              onClick={() => setCreateTaskDialogOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Task
@@ -584,10 +636,13 @@ export default function TaskBoard({
       )}
 
       {viewMode === 'calendar' && (
-        <div className="text-center py-12 text-gray-500">
-          <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p>Calendar view coming soon</p>
-        </div>
+        <TaskCalendar
+          tasks={filteredTasks}
+          onTaskClick={(task) => {
+            setSelectedTask(task)
+            setTaskDialogOpen(true)
+          }}
+        />
       )}
 
       {/* Task detail dialog */}
@@ -751,6 +806,36 @@ export default function TaskBoard({
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={createTaskDialogOpen}
+        onOpenChange={setCreateTaskDialogOpen}
+        onCreateTask={handleCreateTask}
+        availableUsers={availableUsers}
+        availableContractors={availableContractors}
+        projectRooms={[]}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone and will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Delete Task
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

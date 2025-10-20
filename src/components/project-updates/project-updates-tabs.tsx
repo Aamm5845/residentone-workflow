@@ -2,11 +2,14 @@
 
 import React, { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock } from 'lucide-react'
+import { Calendar, Clock, FileImage, CheckSquare, MessageCircle, Activity } from 'lucide-react'
 import PhotoGallery from './photo-gallery'
 import TaskBoard from './task-board'
 import ChatInterface from './chat-interface'
 import Timeline from './timeline'
+import EmptyState from './empty-state'
+import { useTasks } from '@/hooks/useTasks'
+import { useToast, ToastContainer } from '@/components/ui/toast'
 
 interface ProjectUpdatesTabsProps {
   projectId: string
@@ -23,117 +26,14 @@ export default function ProjectUpdatesTabs({
   project,
   projectUpdates,
   photos,
-  tasks,
+  tasks: initialTasks,
   availableUsers,
   availableContractors
 }: ProjectUpdatesTabsProps) {
-  const [messages, setMessages] = useState<any[]>([
-    {
-      id: '1',
-      content: 'Great progress on the kitchen electrical work! The outlets look professionally installed.',
-      authorId: availableUsers[0]?.id || 'user1',
-      author: availableUsers[0] || { id: 'user1', name: 'Project Manager', email: 'pm@example.com' },
-      messageType: 'MESSAGE' as const,
-      priority: 'NORMAL' as const,
-      mentions: [],
-      attachments: [],
-      reactions: [{ emoji: '👍', users: [{ id: 'user2', name: 'Contractor' }] }],
-      readBy: [{ userId: availableUsers[0]?.id || 'user1', userName: availableUsers[0]?.name || 'User', readAt: '2024-01-15T10:00:00Z' }],
-      isUrgent: false,
-      isEdited: false,
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: '2024-01-15T10:00:00Z'
-    },
-    {
-      id: '2',
-      content: 'Thanks! The GFCI outlets are all tested and working properly. Ready for the next phase.',
-      authorId: availableUsers[1]?.id || 'user2',
-      author: availableUsers[1] || { id: 'user2', name: 'Electrician', email: 'electrician@example.com' },
-      messageType: 'MESSAGE' as const,
-      priority: 'NORMAL' as const,
-      mentions: [availableUsers[0]?.id || 'user1'],
-      attachments: [],
-      reactions: [],
-      readBy: [{ userId: availableUsers[1]?.id || 'user2', userName: availableUsers[1]?.name || 'User', readAt: '2024-01-15T11:00:00Z' }],
-      isUrgent: false,
-      isEdited: false,
-      createdAt: '2024-01-15T11:00:00Z',
-      updatedAt: '2024-01-15T11:00:00Z'
-    }
-  ])
-
-  const [timelineActivities, setTimelineActivities] = useState<any[]>([
-    {
-      id: '1',
-      type: 'UPDATE' as const,
-      title: 'Project update created',
-      description: 'Kitchen electrical progress update posted',
-      timestamp: '2024-01-15T10:00:00Z',
-      author: availableUsers[0] || { id: 'user1', name: 'Project Manager', email: 'pm@example.com' },
-      metadata: {
-        updateId: projectUpdates[0]?.id || '1',
-        priority: 'HIGH' as const,
-        tags: ['electrical', 'kitchen', 'progress']
-      },
-      isImportant: true
-    },
-    {
-      id: '2',
-      type: 'PHOTO' as const,
-      title: 'Photos uploaded',
-      description: 'Kitchen electrical outlet installation photos added',
-      timestamp: '2024-01-15T10:15:00Z',
-      author: availableUsers[0] || { id: 'user1', name: 'Project Manager', email: 'pm@example.com' },
-      metadata: {
-        photoId: photos[0]?.id || '1',
-        photoUrl: photos[0]?.asset?.url || 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400',
-        photoCount: photos.length,
-        roomArea: 'Kitchen',
-        tags: ['electrical', 'outlets', 'progress']
-      }
-    },
-    {
-      id: '3',
-      type: 'TASK' as const,
-      title: 'Task assigned',
-      description: 'Kitchen island electrical installation task assigned',
-      timestamp: '2024-01-15T10:30:00Z',
-      author: availableUsers[0] || { id: 'user1', name: 'Project Manager', email: 'pm@example.com' },
-      metadata: {
-        taskId: tasks[0]?.id || '1',
-        taskTitle: tasks[0]?.title || 'Install kitchen island electrical',
-        assigneeId: tasks[0]?.assignee?.id || 'user2',
-        assigneeName: tasks[0]?.assignee?.name || 'Electrician',
-        priority: 'HIGH' as const,
-        progress: 75
-      }
-    },
-    {
-      id: '4',
-      type: 'MESSAGE' as const,
-      title: 'Team discussion',
-      description: 'Team members discussing electrical installation progress',
-      timestamp: '2024-01-15T11:00:00Z',
-      author: availableUsers[1] || { id: 'user2', name: 'Electrician', email: 'electrician@example.com' },
-      metadata: {
-        messageId: '2',
-        messageContent: 'Thanks! The GFCI outlets are all tested and working properly.'
-      }
-    },
-    {
-      id: '5',
-      type: 'APPROVAL' as const,
-      title: 'Work approved',
-      description: 'Kitchen electrical work approved for next phase',
-      timestamp: '2024-01-15T12:00:00Z',
-      author: project.client || { id: 'client1', name: 'Client', email: 'client@example.com' },
-      metadata: {
-        priority: 'HIGH' as const,
-        tags: ['approval', 'electrical', 'kitchen']
-      },
-      isImportant: true
-    }
-  ])
+  const { toasts, success, error: showError, dismissToast } = useToast()
+  const { tasks, isLoading: tasksLoading, error: tasksError, createTask, updateTask, deleteTask } = useTasks(projectId)
+  const [messages, setMessages] = useState<any[]>([])
+  const [timelineActivities, setTimelineActivities] = useState<any[]>([])
 
   // Chat handlers
   const handleSendMessage = (content: string, parentId?: string, attachments?: any[]) => {
@@ -257,22 +157,37 @@ export default function ProjectUpdatesTabs({
   }
 
   // Task handlers
-  const handleTaskCreate = (task: any) => {
-    
-    // In production, this would call the API to create the task
+  const handleTaskCreate = async (task: any) => {
+    try {
+      await createTask(task)
+      success('Task Created', `Task "${task.title}" created successfully`)
+    } catch (error) {
+      showError('Create Failed', error instanceof Error ? error.message : 'Failed to create task')
+    }
   }
 
-  const handleTaskUpdate = (taskId: string, updates: any) => {
-    
-    // In production, this would call the API to update the task
+  const handleTaskUpdate = async (taskId: string, updates: any) => {
+    try {
+      await updateTask(taskId, updates)
+      // Success toast handled in TaskBoard for drag and drop
+    } catch (error) {
+      showError('Update Failed', error instanceof Error ? error.message : 'Failed to update task')
+      throw error // Re-throw so TaskBoard can handle UI reversion
+    }
   }
 
-  const handleTaskDelete = (taskId: string) => {
-    
-    // In production, this would call the API to delete the task
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      await deleteTask(taskId)
+      // Success toast is handled by TaskBoard
+    } catch (error) {
+      showError('Delete Failed', error instanceof Error ? error.message : 'Failed to delete task')
+      throw error // Re-throw so TaskBoard can handle UI updates
+    }
   }
 
   return (
+    <>
     <Tabs defaultValue="overview" className="w-full">
       <TabsList className="grid w-full grid-cols-5 mb-8">
         <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -290,23 +205,34 @@ export default function ProjectUpdatesTabs({
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h3 className="text-lg font-semibold mb-4">Recent Updates</h3>
               <div className="space-y-4">
-                {projectUpdates.map((update: any) => (
-                  <div key={update.id} className="flex items-start gap-4 p-4 border border-gray-100 rounded-lg">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{update.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{update.description}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                        <span>by {update.author.name}</span>
-                        <span>{new Date(update.createdAt).toLocaleDateString()}</span>
-                        <span>{update._count.photos} photos</span>
-                        <span>{update._count.tasks} tasks</span>
+                {projectUpdates.length === 0 ? (
+                  <EmptyState
+                    icon={Activity}
+                    title="No updates yet"
+                    description="Start documenting your project progress by creating your first update."
+                    actionLabel="Add Update"
+                    onAction={() => console.log('Add update clicked')}
+                    variant="subtle"
+                  />
+                ) : (
+                  projectUpdates.map((update: any) => (
+                    <div key={update.id} className="flex items-start gap-4 p-4 border border-gray-100 rounded-lg">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{update.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{update.description}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <span>by {update.author.name}</span>
+                          <span>{new Date(update.createdAt).toLocaleDateString()}</span>
+                          <span>{update._count.photos} photos</span>
+                          <span>{update._count.tasks} tasks</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -343,61 +269,121 @@ export default function ProjectUpdatesTabs({
       </TabsContent>
 
       <TabsContent value="photos">
-        <PhotoGallery
-          projectId={projectId}
-          updateId={projectUpdates[0]?.id || ''}
-          photos={photos}
-          onPhotoSelect={handlePhotoSelect}
-          onPhotoUpdate={handlePhotoUpdate}
-          onPhotoDelete={handlePhotoDelete}
-          canEdit={true}
-          showBeforeAfter={true}
-        />
+        {photos.length === 0 ? (
+          <EmptyState
+            icon={FileImage}
+            title="No photos yet"
+            description="Upload photos to document your project progress and share updates with your team."
+            actionLabel="Upload Photos"
+            onAction={() => console.log('Upload photos clicked')}
+          />
+        ) : (
+          <PhotoGallery
+            projectId={projectId}
+            updateId={projectUpdates[0]?.id || ''}
+            photos={photos}
+            onPhotoSelect={handlePhotoSelect}
+            onPhotoUpdate={handlePhotoUpdate}
+            onPhotoDelete={handlePhotoDelete}
+            canEdit={true}
+            showBeforeAfter={true}
+          />
+        )}
       </TabsContent>
 
       <TabsContent value="tasks">
-        <TaskBoard
-          projectId={projectId}
-          tasks={tasks}
-          onTaskCreate={handleTaskCreate}
-          onTaskUpdate={handleTaskUpdate}
-          onTaskDelete={handleTaskDelete}
-          canEdit={true}
-          showDependencies={true}
-          availableUsers={availableUsers}
-          availableContractors={availableContractors}
-        />
+        {tasks.length === 0 ? (
+          <EmptyState
+            icon={CheckSquare}
+            title="No tasks yet"
+            description="Create tasks to organize work, assign team members, and track progress on your project."
+            actionLabel="Create Task"
+            onAction={() => {
+              // TaskBoard will handle the create dialog
+              console.log('Create task from empty state - TaskBoard should handle this')
+            }}
+          />
+        ) : tasksLoading ? (
+          <div className="space-y-6">
+            <div className="h-8 bg-gray-200 rounded animate-pulse" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <div className="h-6 bg-gray-200 rounded animate-pulse" />
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, j) => (
+                      <div key={j} className="h-20 bg-gray-100 rounded animate-pulse" />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <TaskBoard
+            projectId={projectId}
+            tasks={tasks}
+            onTaskCreate={handleTaskCreate}
+            onTaskUpdate={handleTaskUpdate}
+            onTaskDelete={handleTaskDelete}
+            canEdit={true}
+            showDependencies={true}
+            availableUsers={availableUsers}
+            availableContractors={availableContractors}
+          />
+        )}
       </TabsContent>
 
       <TabsContent value="messages">
-        <ChatInterface
-          projectId={projectId}
-          messages={messages}
-          currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
-          participants={availableUsers}
-          onSendMessage={handleSendMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onReactToMessage={handleReactToMessage}
-          onUploadFile={handleUploadFile}
-          canEdit={true}
-          showParticipants={true}
-          height="h-[600px]"
-        />
+        {messages.length === 0 ? (
+          <EmptyState
+            icon={MessageCircle}
+            title="No messages yet"
+            description="Start a conversation with your team to discuss project details and coordinate work."
+            actionLabel="Start Conversation"
+            onAction={() => console.log('Start conversation clicked')}
+          />
+        ) : (
+          <ChatInterface
+            projectId={projectId}
+            messages={messages}
+            currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
+            participants={availableUsers}
+            onSendMessage={handleSendMessage}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onReactToMessage={handleReactToMessage}
+            onUploadFile={handleUploadFile}
+            canEdit={true}
+            showParticipants={true}
+            height="h-[600px]"
+          />
+        )}
       </TabsContent>
 
       <TabsContent value="timeline">
-        <Timeline
-          activities={timelineActivities}
-          currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
-          onActivityClick={handleActivityClick}
-          onMilestoneClick={handleMilestoneClick}
-          onExportTimeline={handleExportTimeline}
-          showFilters={true}
-          showMilestones={true}
-          maxHeight="max-h-[600px]"
-        />
+        {timelineActivities.length === 0 ? (
+          <EmptyState
+            icon={Activity}
+            title="No timeline activities yet"
+            description="Project activities will appear here as you create updates, upload photos, and manage tasks."
+            variant="subtle"
+          />
+        ) : (
+          <Timeline
+            activities={timelineActivities}
+            currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
+            onActivityClick={handleActivityClick}
+            onMilestoneClick={handleMilestoneClick}
+            onExportTimeline={handleExportTimeline}
+            showFilters={true}
+            showMilestones={true}
+            maxHeight="max-h-[600px]"
+          />
+        )}
       </TabsContent>
     </Tabs>
+    <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>
   )
 }
