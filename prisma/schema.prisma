@@ -118,6 +118,7 @@ model User {
   completedStages             Stage[]                     @relation("CompletedByUserStage")
   createdStages               Stage[]                     @relation("CreatedByUserStage")
   updatedStages               Stage[]                     @relation("UpdatedByUserStage")
+  uploadedAssets              Asset[]                     @relation("UploadedByUser")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -681,6 +682,7 @@ model Asset {
   updatedAt               DateTime                 @updatedAt
   drawingChecklistItemId  String?
   approval                Approval?                @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  uploadedByUser          User                     @relation("UploadedByUser", fields: [uploadedBy], references: [id])
   assetPin                AssetPin?
   assetTags               AssetTag[]
   clientApprovalAssets    ClientApprovalAsset[]
