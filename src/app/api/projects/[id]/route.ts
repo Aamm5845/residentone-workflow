@@ -64,12 +64,22 @@ export async function GET(
         },
         rooms: {
           include: {
+            section: true,
             stages: {
               include: {
                 assignedUser: {
                   select: { id: true, name: true, email: true, role: true }
                 }
               }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
+        roomSections: {
+          orderBy: { order: 'asc' },
+          include: {
+            _count: {
+              select: { rooms: true }
             }
           }
         },

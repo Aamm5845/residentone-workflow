@@ -87,17 +87,35 @@ class PDFGenerationService {
       
       await this.addCoverPage(pdfDoc, options.coverPageData, helvetica, helveticaBold)
 
-      await this.addTableOfContents(pdfDoc, options, helvetica, helveticaBold)
+      // Add placeholder TOC page (will be updated later)
+      const tocPageIndex = pdfDoc.getPageCount()
+      const tocPage = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+      
+      // Track section page numbers as we add them
+      const sectionPageNumbers: { name: string; pageNum: number }[] = []
+      const roomPageNumbers: { name: string; pageNum: number }[] = []
       
       // Add project-level sections
       for (const section of options.selectedSections) {
+        const beforePageCount = pdfDoc.getPageCount()
         await this.addProjectSection(pdfDoc, section, helvetica, helveticaBold)
+        const afterPageCount = pdfDoc.getPageCount()
+        // Page number is the first page of this section (in 1-based numbering)
+        sectionPageNumbers.push({ name: section.name, pageNum: beforePageCount })
       }
       
       // Add room-specific sections
       for (const room of options.selectedRooms) {
+        const beforePageCount = pdfDoc.getPageCount()
         await this.addRoomSection(pdfDoc, room, helvetica, helveticaBold)
+        const afterPageCount = pdfDoc.getPageCount()
+        const roomName = room.name || room.type.replace('_', ' ')
+        // Page number is the first page of this room (in 1-based numbering)
+        roomPageNumbers.push({ name: roomName, pageNum: beforePageCount })
       }
+      
+      // Now update the TOC with actual page numbers
+      await this.updateTableOfContents(pdfDoc, tocPageIndex, sectionPageNumbers, roomPageNumbers, helvetica, helveticaBold)
       
       // Add page numbers
       this.addPageNumbers(pdfDoc, helvetica)
@@ -328,15 +346,17 @@ class PDFGenerationService {
   }
   
   /**
-   * Add minimalistic table of contents
+   * Update table of contents with actual page numbers after all pages are generated
    */
-  private async addTableOfContents(
+  private async updateTableOfContents(
     pdfDoc: PDFDocument,
-    options: GenerationOptions,
+    tocPageIndex: number,
+    sectionPageNumbers: { name: string; pageNum: number }[],
+    roomPageNumbers: { name: string; pageNum: number }[],
     font: any,
     boldFont: any
   ) {
-    const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+    const page = pdfDoc.getPage(tocPageIndex)
     const { width, height } = page.getSize()
     
     // Clean white background
@@ -367,10 +387,9 @@ class PDFGenerationService {
     })
     
     let currentY = height - 180
-    let pageNum = 3 // Start after cover and TOC
     
     // Project sections with minimal styling
-    if (options.selectedSections.length > 0) {
+    if (sectionPageNumbers.length > 0) {
       page.drawText('PROJECT PLANS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
@@ -380,7 +399,7 @@ class PDFGenerationService {
       })
       currentY -= 40
       
-      for (const section of options.selectedSections) {
+      for (const section of sectionPageNumbers) {
         page.drawText(section.name, {
           x: PDFGenerationService.MARGIN + 20,
           y: currentY,
@@ -399,7 +418,7 @@ class PDFGenerationService {
           color: rgb(0.8, 0.8, 0.8)
         })
         
-        page.drawText(`${pageNum}`, {
+        page.drawText(`${section.pageNum}`, {
           x: width - PDFGenerationService.MARGIN - 30,
           y: currentY,
           size: 11,
@@ -408,14 +427,13 @@ class PDFGenerationService {
         })
         
         currentY -= 25
-        pageNum++
       }
       
       currentY -= 30
     }
     
     // Room sections with minimal styling
-    if (options.selectedRooms.length > 0) {
+    if (roomPageNumbers.length > 0) {
       page.drawText('ROOMS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
@@ -425,9 +443,8 @@ class PDFGenerationService {
       })
       currentY -= 40
       
-      for (const room of options.selectedRooms) {
-        const roomName = room.name || room.type.replace('_', ' ')
-        page.drawText(roomName, {
+      for (const room of roomPageNumbers) {
+        page.drawText(room.name, {
           x: PDFGenerationService.MARGIN + 20,
           y: currentY,
           size: 11,
@@ -445,7 +462,7 @@ class PDFGenerationService {
           color: rgb(0.8, 0.8, 0.8)
         })
         
-        page.drawText(`${pageNum}`, {
+        page.drawText(`${room.pageNum}`, {
           x: width - PDFGenerationService.MARGIN - 30,
           y: currentY,
           size: 11,
@@ -454,7 +471,6 @@ class PDFGenerationService {
         })
         
         currentY -= 25
-        pageNum += 1 + room.cadFiles.length // 1 for rendering + 1 per CAD file
       }
     }
   }
@@ -658,11 +674,11 @@ class PDFGenerationService {
     
     const roomName = room.name || room.type.replace('_', ' ')
     
-    // Minimal room header
+    // Minimal room header - smaller to maximize image space
     page.drawText(roomName, {
       x: PDFGenerationService.MARGIN,
-      y: height - 120,
-      size: 16,
+      y: height - 60,
+      size: 14,
       font: font,
       color: rgb(0.4, 0.4, 0.4)
     })
@@ -670,8 +686,8 @@ class PDFGenerationService {
     // Subtle line under header
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
-      y: height - 135,
-      width: roomName.length * 8,
+      y: height - 72,
+      width: roomName.length * 7,
       height: 0.5,
       color: rgb(0.7, 0.7, 0.7)
     })
@@ -694,19 +710,20 @@ class PDFGenerationService {
             image = await pdfDoc.embedJpg(imageBytes)
           }
           
-          // Calculate dimensions to fit within the rendering area while maintaining aspect ratio
-          const maxWidth = PDFGenerationService.CONTENT_WIDTH - 40
-          const maxHeight = 350
+          // Calculate dimensions to maximize image size while maintaining aspect ratio
+          // Use almost full page with minimal margins - like the framed presentation
+          const availableWidth = width - (PDFGenerationService.MARGIN * 2)
+          const availableHeight = height - 100 - PDFGenerationService.MARGIN // Top margin for title + bottom margin
           
           const { width: imgWidth, height: imgHeight } = image
-          const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight)
+          const scale = Math.min(availableWidth / imgWidth, availableHeight / imgHeight)
           
           const scaledWidth = imgWidth * scale
           const scaledHeight = imgHeight * scale
           
-          // Center the image in the rendering area
-          const imageX = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
-          const imageY = height - 180 - maxHeight + (maxHeight - scaledHeight) / 2
+          // Center the image on the page
+          const imageX = (width - scaledWidth) / 2
+          const imageY = (height - 100 - scaledHeight) / 2 + PDFGenerationService.MARGIN / 2
           
           // Draw the actual rendering image
           page.drawImage(image, {
@@ -844,15 +861,16 @@ class PDFGenerationService {
    * Add rendering placeholder when no image is available
    */
   private addRenderingPlaceholder(page: PDFPage, font: any, width: number, height: number) {
-    const renderingHeight = 350
-    const renderingY = height - 180 - renderingHeight
+    // Use almost full page for placeholder to match actual rendering layout
+    const availableHeight = height - 100 - PDFGenerationService.MARGIN
+    const renderingY = PDFGenerationService.MARGIN + availableHeight / 4
     
     // Minimalist rendering area with border
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
       y: renderingY,
       width: PDFGenerationService.CONTENT_WIDTH,
-      height: renderingHeight,
+      height: availableHeight / 2,
       color: rgb(0.98, 0.98, 0.98),
       borderColor: rgb(0.9, 0.9, 0.9),
       borderWidth: 0.5
@@ -860,7 +878,7 @@ class PDFGenerationService {
     
     page.drawText('No rendering image uploaded', {
       x: width / 2 - 85,
-      y: renderingY + renderingHeight / 2,
+      y: height / 2,
       size: 12,
       font: font,
       color: rgb(0.7, 0.7, 0.7)

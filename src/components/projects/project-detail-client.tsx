@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Plus, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import RoomManagement from './room-management'
 
 interface Room {
@@ -12,6 +13,13 @@ interface Room {
   status: string
   currentStage: string | null
   progressFFE: number
+  sectionId?: string | null
+  section?: {
+    id: string
+    name: string
+    order: number
+  } | null
+  order: number
   stages: any[]
   ffeItems: any[]
 }
@@ -59,12 +67,43 @@ const ROOM_CATEGORIES = {
 
 const ROOM_TYPES = Object.values(ROOM_CATEGORIES).flat()
 
+interface Section {
+  id: string
+  name: string
+}
+
 export default function ProjectDetailClient({ project, rooms: initialRooms }: ProjectDetailClientProps) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms)
+  const [sections, setSections] = useState<Section[]>([])
+  const [roomSections, setRoomSections] = useState<Record<string, string>>({})
+  const [roomOrder, setRoomOrder] = useState<Record<string, string[]>>({})
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [showAddRoomDialog, setShowAddRoomDialog] = useState(false)
   const [selectedRoomType, setSelectedRoomType] = useState('')
   const [customRoomName, setCustomRoomName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
+
+  // Load sections from database API and update rooms
+  useEffect(() => {
+    async function loadSections() {
+      try {
+        const response = await fetch(`/api/projects/${project.id}/sections`)
+        if (response.ok) {
+          const sectionsData = await response.json()
+          setSections(sectionsData)
+        }
+      } catch (error) {
+        console.error('Error loading sections:', error)
+      }
+    }
+    
+    loadSections()
+  }, [project.id])
+  
+  // Update rooms state when initialRooms changes (on navigation)
+  useEffect(() => {
+    setRooms(initialRooms)
+  }, [initialRooms])
 
   const handleRoomUpdate = (roomId: string, updates: any) => {
     setRooms(prev => prev.map(room => 
@@ -116,6 +155,16 @@ export default function ProjectDetailClient({ project, rooms: initialRooms }: Pr
     }
   }
 
+  const toggleSection = (sectionId: string) => {
+    const newCollapsed = new Set(collapsedSections)
+    if (newCollapsed.has(sectionId)) {
+      newCollapsed.delete(sectionId)
+    } else {
+      newCollapsed.add(sectionId)
+    }
+    setCollapsedSections(newCollapsed)
+  }
+
   const addNewRoom = async () => {
     if (!selectedRoomType) return
 
@@ -146,14 +195,32 @@ export default function ProjectDetailClient({ project, rooms: initialRooms }: Pr
     }
   }
 
+  // Group rooms by section and apply ordering
+  const getRoomsForSection = (sectionId: string) => {
+    const sectionRooms = rooms.filter(room => 
+      sectionId === 'unassigned' 
+        ? !room.sectionId 
+        : room.sectionId === sectionId
+    )
+    
+    // Sort by database order field
+    return sectionRooms.sort((a, b) => (a.order || 0) - (b.order || 0))
+  }
+  
+  const unassignedRooms = getRoomsForSection('unassigned')
+  const roomsBySection = sections.reduce((acc, section) => {
+    acc[section.id] = getRoomsForSection(section.id)
+    return acc
+  }, {} as Record<string, Room[]>)
+
   return (
     <div>
       {/* Rooms Management Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Project Rooms</h3>
-            <p className="text-sm text-gray-600">{rooms.length} rooms in this project</p>
+            <h3 className="text-lg font-semibold text-gray-900">Rooms</h3>
+            <p className="text-sm text-gray-600">Manage and track progress for all project rooms</p>
           </div>
           <Button 
             onClick={() => setShowAddRoomDialog(true)}
@@ -164,18 +231,93 @@ export default function ProjectDetailClient({ project, rooms: initialRooms }: Pr
           </Button>
         </div>
         
-        <div className="p-6 space-y-6">
-          {rooms.map(room => (
-            <RoomManagement
-              key={room.id}
-              room={room}
-              projectId={project.id}
-              onRoomUpdate={handleRoomUpdate}
-              onStageStart={handleStageStart}
-              onStageComplete={handleStageComplete}
-              onRoomDelete={handleRoomDelete}
-            />
-          ))}
+        <div className="p-6 space-y-4">
+          {/* Sections with rooms */}
+          {sections.map((section) => {
+            const sectionRooms = roomsBySection[section.id] || []
+
+            return (
+              <div key={section.id} className="space-y-3">
+                {/* Section Header */}
+                <div className="flex items-center space-x-3 pt-4 first:pt-0">
+                  <div className="flex-1 h-px bg-gradient-to-r from-purple-200 via-purple-300 to-transparent"></div>
+                  <div className="flex items-center space-x-2">
+                    <Layers className="w-4 h-4 text-purple-600" />
+                    <h4 className="font-semibold text-gray-900 uppercase text-sm tracking-wide">{section.name}</h4>
+                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                      {sectionRooms.length} room{sectionRooms.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-l from-purple-200 via-purple-300 to-transparent"></div>
+                </div>
+                
+                {/* Rooms in section */}
+                {sectionRooms.length > 0 ? (
+                  <div className="space-y-6">
+                    {sectionRooms.map(room => (
+                      <RoomManagement
+                        key={room.id}
+                        room={room}
+                        projectId={project.id}
+                        onRoomUpdate={handleRoomUpdate}
+                        onStageStart={handleStageStart}
+                        onStageComplete={handleStageComplete}
+                        onRoomDelete={handleRoomDelete}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm italic">
+                    No rooms in this section yet
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          
+          {/* Unassigned Rooms */}
+          {unassignedRooms.length > 0 && (
+            <div className="space-y-3">
+              {sections.length > 0 && (
+                <>
+                  {/* Section Header for Unassigned */}
+                  <div className="flex items-center space-x-3 pt-4">
+                    <div className="flex-1 h-px bg-gradient-to-r from-gray-200 via-gray-300 to-transparent"></div>
+                    <div className="flex items-center space-x-2">
+                      <Home className="w-4 h-4 text-gray-600" />
+                      <h4 className="font-semibold text-gray-900 uppercase text-sm tracking-wide">Unassigned Rooms</h4>
+                      <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
+                        {unassignedRooms.length} room{unassignedRooms.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 h-px bg-gradient-to-l from-gray-200 via-gray-300 to-transparent"></div>
+                  </div>
+                </>
+              )}
+              
+              <div className="space-y-6">
+                {unassignedRooms.map(room => (
+                  <RoomManagement
+                    key={room.id}
+                    room={room}
+                    projectId={project.id}
+                    onRoomUpdate={handleRoomUpdate}
+                    onStageStart={handleStageStart}
+                    onStageComplete={handleStageComplete}
+                    onRoomDelete={handleRoomDelete}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {rooms.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              <Home className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No rooms yet</p>
+              <p className="text-sm mt-1">Add rooms to start tracking project progress</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -90,6 +90,54 @@ export async function DELETE(
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> }
+) {
+  try {
+    const session = await getSession() as Session & {
+      user: {
+        id: string
+        orgId: string
+        role: string
+      }
+    } | null
+    const resolvedParams = await params
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const data = await request.json()
+    const { name, sectionId, order } = data
+
+    const updateData: any = {}
+    if (name !== undefined) updateData.name = name
+    if (sectionId !== undefined) updateData.sectionId = sectionId
+    if (order !== undefined) updateData.order = order
+
+    const room = await prisma.room.update({
+      where: { id: resolvedParams.roomId },
+      data: updateData,
+      include: {
+        section: true,
+        stages: {
+          include: {
+            assignedUser: {
+              select: { name: true }
+            }
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(room)
+  } catch (error) {
+    console.error('Error updating room:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ roomId: string }> }

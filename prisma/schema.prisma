@@ -225,15 +225,32 @@ model Project {
   updatedBy                 User?                      @relation("UpdatedByUser", fields: [updatedById], references: [id])
   projectContractors        ProjectContractor[]
   rooms                     Room[]
+  roomSections              RoomSection[]
   specBooks                 SpecBook[]
   clientAccessTokens        ClientAccessToken[] @relation("ClientAccessTokenProject")
+}
+
+model RoomSection {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rooms     Room[]
+
+  @@index([projectId])
+  @@index([projectId, order])
 }
 
 model Room {
   id              String          @id @default(cuid())
   projectId       String
+  sectionId       String?
   type            RoomType
   name            String?
+  order           Int             @default(0)
   status          RoomStatus      @default(NOT_STARTED)
   currentStage    String?
   progressFFE     Int             @default(0)
@@ -248,12 +265,17 @@ model Room {
   ffeItemStatuses FFEItemStatus[]
   createdBy       User?           @relation("CreatedByUserRoom", fields: [createdById], references: [id])
   project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  section         RoomSection?    @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   projectUpdateTasks ProjectUpdateTask[]
   specBookSections SpecBookSection[]
   updatedBy       User?           @relation("UpdatedByUserRoom", fields: [updatedById], references: [id])
   stages          Stage[]
   ffeInstance     RoomFFEInstance? @relation("RoomFFEInstance")
   renderingVersions RenderingVersion[] @relation("RoomRenderingVersions")
+
+  @@index([projectId])
+  @@index([sectionId])
+  @@index([projectId, order])
 }
 
 model Stage {

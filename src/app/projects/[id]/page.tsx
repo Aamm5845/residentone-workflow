@@ -52,6 +52,16 @@ export default async function ProjectDetail({ params }: Props) {
             email: true
           }
         },
+        roomSections: {
+          select: {
+            id: true,
+            name: true,
+            order: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        },
         rooms: {
           select: {
             id: true,
@@ -59,6 +69,8 @@ export default async function ProjectDetail({ params }: Props) {
             name: true,
             status: true,
             createdAt: true,
+            sectionId: true,
+            order: true,
             stages: {
               select: {
                 id: true,
@@ -88,7 +100,11 @@ export default async function ProjectDetail({ params }: Props) {
                 ffeItems: true
               }
             }
-          }
+          },
+          orderBy: [
+            { sectionId: 'asc' },
+            { order: 'asc' }
+          ]
         }
       }
     })
@@ -464,11 +480,28 @@ export default async function ProjectDetail({ params }: Props) {
             </div>
           </div>
           
-          {/* Room Cards Grid */}
-          <RoomGridClient 
-            initialRooms={project.rooms}
-            projectId={project.id}
-            roomCards={project.rooms.map((room: any) => {
+          {/* Room Cards Organized by Sections */}
+          {(() => {
+            const roomSections = project.roomSections || []
+            const allRooms = project.rooms
+            
+            // Group rooms by section
+            const roomsBySection: Record<string, any[]> = {}
+            const unassignedRooms: any[] = []
+            
+            allRooms.forEach((room: any) => {
+              if (room.sectionId) {
+                if (!roomsBySection[room.sectionId]) {
+                  roomsBySection[room.sectionId] = []
+                }
+                roomsBySection[room.sectionId].push(room)
+              } else {
+                unassignedRooms.push(room)
+              }
+            })
+            
+            // Function to render room card
+            const renderRoomCard = (room: any) => {
               const roomProgress = getRoomProgress(room)
               const currentPhase = getCurrentPhase(room)
               const roomIconData = getRoomIcon(room.type)
@@ -713,8 +746,54 @@ export default async function ProjectDetail({ params }: Props) {
                   </div>
                 </Link>
               )
-            })}
-          />
+            }
+            
+            return (
+              <div className="space-y-8">
+                {/* Render sections */}
+                {roomSections.map((section: any) => {
+                  const sectionRooms = roomsBySection[section.id] || []
+                  
+                  if (sectionRooms.length === 0) return null
+                  
+                  return (
+                    <div key={section.id}>
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
+                        <p className="text-sm text-gray-500">{sectionRooms.length} room{sectionRooms.length !== 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {sectionRooms.map(renderRoomCard)}
+                      </div>
+                    </div>
+                  )
+                })}
+                
+                {/* Render unassigned rooms */}
+                {unassignedRooms.length > 0 && (
+                  <div>
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {roomSections.length > 0 ? 'Unassigned Rooms' : 'All Rooms'}
+                      </h3>
+                      <p className="text-sm text-gray-500">{unassignedRooms.length} room{unassignedRooms.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {unassignedRooms.map(renderRoomCard)}
+                    </div>
+                  </div>
+                )}
+                
+                {/* No rooms message */}
+                {allRooms.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    <Home className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                    <p>No rooms in this project yet.</p>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
     </DashboardLayout>

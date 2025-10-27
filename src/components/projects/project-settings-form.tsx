@@ -8,9 +8,10 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList } from 'lucide-react'
+import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home } from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
+import RoomsManagementSection from './rooms-management-section'
 
 // Form validation schema
 const projectSettingsSchema = z.object({
@@ -1148,7 +1149,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         </div>
       </div>
       
-      {/* 7. Project Features Section */}
+      {/* 7. Rooms Management Section */}
+      <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center">
+            <Home className="w-5 h-5 mr-2 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Rooms Management</h2>
+          </div>
+        </div>
+        <div className="px-6 py-4">
+          <RoomsManagementSection projectId={project.id} />
+        </div>
+      </div>
+      
+      {/* 8. Project Features Section */}
       <div className="bg-white border border-gray-200 rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center">
