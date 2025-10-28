@@ -176,51 +176,54 @@ class PDFGenerationService {
       const [coverPage] = await pdfDoc.copyPages(coverPdf, [0])
       pdfDoc.addPage(coverPage)
       
-      // Add dynamic project information to the cover
+      // Add dynamic project information to the cover - CENTERED and VERTICALLY SPACED
       const { width, height } = coverPage.getSize()
       
-      // Project info positioning
-      const projectNameX = width - PDFGenerationService.MARGIN - 300 // Right side positioning
-      let currentY = 175 // Start higher to accommodate spec book type
+      // Calculate vertical centering with proper spacing between elements
+      const centerY = height / 2
+      let contentY = centerY + 150 // Start above center
       
-      // Spec book type (if provided) - positioned at top of project info
+      // Spec book type (if provided) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
       if (coverData.specBookType) {
+        const specBookTypeWidth = font.widthOfTextAtSize(coverData.specBookType.toUpperCase(), 28)
         coverPage.drawText(coverData.specBookType.toUpperCase(), {
-          x: projectNameX,
-          y: currentY,
+          x: (width - specBookTypeWidth) / 2, // Center horizontally
+          y: contentY,
           size: 28, // Increased from 12 for large format
           font: font,
           color: rgb(1, 1, 1) // White text on black background
         })
-        currentY -= 50
+        contentY -= 90 // More spacing between elements
       }
       
-      // Project name (bold) - positioned below spec book type
+      // Project name (bold) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
-      const projectNameY = currentY
-      
+      const projectNameWidth = boldFont.widthOfTextAtSize(coverData.projectName, 38)
       coverPage.drawText(coverData.projectName, {
-        x: projectNameX,
-        y: projectNameY,
+        x: (width - projectNameWidth) / 2, // Center horizontally
+        y: contentY,
         size: 38, // Increased from 16 for large format
         font: boldFont,
         color: rgb(1, 1, 1) // White text on black background
       })
       
-      // Address (regular font) - positioned below project name
+      contentY -= 90 // More spacing before address
+      
+      // Address (regular font) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
       if (coverData.address) {
+        const addressWidth = font.widthOfTextAtSize(coverData.address, 28)
         coverPage.drawText(coverData.address, {
-          x: projectNameX,
-          y: projectNameY - 60,
+          x: (width - addressWidth) / 2, // Center horizontally
+          y: contentY,
           size: 28, // Increased from 12 for large format
           font: font,
           color: rgb(1, 1, 1) // White text on black background
         })
       }
       
-      // Print date - positioned much lower on the page, independent of other content
+      // Print date - positioned at bottom, centered horizontally
       // WHITE text for black background - SCALED UP for large format
       const printDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -228,10 +231,10 @@ class PDFGenerationService {
         day: 'numeric'
       })
       
-      // Position date at the very bottom of the page, independent of address
+      const printDateWidth = font.widthOfTextAtSize(printDate, 22)
       coverPage.drawText(printDate, {
-        x: projectNameX,
-        y: 80,
+        x: (width - printDateWidth) / 2, // Center horizontally
+        y: 120, // Higher from bottom to avoid overlap with any footer elements
         size: 22, // Increased from 10 for large format
         font: font,
         color: rgb(1, 1, 1) // White text on black background
