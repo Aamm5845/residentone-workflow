@@ -523,12 +523,15 @@ class PDFGenerationService {
       let filesEmbedded = 0
       
       for (const file of section.dropboxFiles) {
-        if (file.cadToPdfCacheUrl && filesEmbedded === 0) { // Only embed first file on section page
+        // Support both CAD-converted PDFs and directly uploaded PDFs
+        const pdfUrl = file.uploadedPdfUrl || file.cadToPdfCacheUrl
+        
+        if (pdfUrl && filesEmbedded === 0) { // Only embed first file on section page
           try {
-            console.log(`[PDF-Generation] Embedding CAD PDF from ${file.cadToPdfCacheUrl}`)
+            console.log(`[PDF-Generation] Embedding PDF from ${pdfUrl}`)
             
-            // Download the converted PDF
-            const response = await fetch(file.cadToPdfCacheUrl)
+            // Download the PDF
+            const response = await fetch(pdfUrl)
             if (response.ok) {
               const cadPdfBytes = await response.arrayBuffer()
               const cadPdf = await PDFDocument.load(cadPdfBytes)

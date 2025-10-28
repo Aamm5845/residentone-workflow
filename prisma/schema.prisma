@@ -1575,6 +1575,7 @@ model DropboxFileLink {
   lastModified     DateTime?
   dropboxRevision  String?
   cadToPdfCacheUrl String?
+  uploadedPdfUrl   String?   // Direct PDF upload URL (alternative to Dropbox)
   cacheExpiry      DateTime?
   isActive         Boolean   @default(true)
   createdAt        DateTime  @default(now())
