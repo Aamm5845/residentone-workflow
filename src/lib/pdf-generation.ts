@@ -41,6 +41,7 @@ interface GenerationOptions {
     name: string
     type: string
     renderingUrl?: string
+    renderingUrls?: string[]
     cadFiles: Array<{
       fileName: string
       pdfUrl: string
@@ -654,6 +655,7 @@ class PDFGenerationService {
       name: string
       type: string
       renderingUrl?: string
+      renderingUrls?: string[]
       cadFiles: Array<{
         fileName: string
         pdfUrl: string
@@ -695,57 +697,93 @@ class PDFGenerationService {
       color: rgb(0.7, 0.7, 0.7)
     })
     
-    // Add actual rendering image if available
-    if (room.renderingUrl) {
-      try {
+    // Get all rendering URLs (support both new array and legacy single URL)
+    const renderingUrls = room.renderingUrls && room.renderingUrls.length > 0
+      ? room.renderingUrls
+      : room.renderingUrl ? [room.renderingUrl] : []
+    
+    // Add rendering images - create a page for each
+    if (renderingUrls.length > 0) {
+      for (let renderingIndex = 0; renderingIndex < renderingUrls.length; renderingIndex++) {
+        const renderingUrl = renderingUrls[renderingIndex]
+        // Use the main page for the first rendering, create new pages for additional renderings
+        const currentPage = renderingIndex === 0 ? page : pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+        const { width: pageWidth, height: pageHeight } = currentPage.getSize()
         
-        // Fetch the image from the URL
-        const response = await fetch(room.renderingUrl)
-        if (response.ok) {
-          const imageBytes = await response.arrayBuffer()
-          
-          // Embed the image based on type
-          let image
-          const contentType = response.headers.get('content-type') || ''
-          if (contentType.includes('png')) {
-            image = await pdfDoc.embedPng(imageBytes)
-          } else {
-            image = await pdfDoc.embedJpg(imageBytes)
-          }
-          
-          // Calculate dimensions to maximize image size while maintaining aspect ratio
-          // Use almost full page with minimal margins - like the framed presentation
-          const availableWidth = width - (PDFGenerationService.MARGIN * 2)
-          const availableHeight = height - 100 - PDFGenerationService.MARGIN // Top margin for title + bottom margin
-          
-          const { width: imgWidth, height: imgHeight } = image
-          const scale = Math.min(availableWidth / imgWidth, availableHeight / imgHeight)
-          
-          const scaledWidth = imgWidth * scale
-          const scaledHeight = imgHeight * scale
-          
-          // Center the image on the page
-          const imageX = (width - scaledWidth) / 2
-          const imageY = (height - 100 - scaledHeight) / 2 + PDFGenerationService.MARGIN / 2
-          
-          // Draw the actual rendering image
-          page.drawImage(image, {
-            x: imageX,
-            y: imageY,
-            width: scaledWidth,
-            height: scaledHeight
+        if (renderingIndex > 0) {
+          // For additional pages, add the same header
+          currentPage.drawRectangle({
+            x: 0,
+            y: 0,
+            width: pageWidth,
+            height: pageHeight,
+            color: rgb(1, 1, 1)
           })
-
-        } else {
-          throw new Error(`Failed to fetch image: ${response.status}`)
+          
+          currentPage.drawText(roomName, {
+            x: PDFGenerationService.MARGIN,
+            y: pageHeight - 60,
+            size: 14,
+            font: font,
+            color: rgb(0.4, 0.4, 0.4)
+          })
+          
+          currentPage.drawRectangle({
+            x: PDFGenerationService.MARGIN,
+            y: pageHeight - 72,
+            width: roomName.length * 7,
+            height: 0.5,
+            color: rgb(0.7, 0.7, 0.7)
+          })
         }
-      } catch (error) {
-        console.error('❌ Error loading rendering image:', error)
-        // Fallback to placeholder if image loading fails
-        this.addRenderingPlaceholder(page, font, width, height)
+        
+        try {
+          // Fetch the image from the URL
+          const response = await fetch(renderingUrl)
+          if (response.ok) {
+            const imageBytes = await response.arrayBuffer()
+            
+            // Embed the image based on type
+            let image
+            const contentType = response.headers.get('content-type') || ''
+            if (contentType.includes('png')) {
+              image = await pdfDoc.embedPng(imageBytes)
+            } else {
+              image = await pdfDoc.embedJpg(imageBytes)
+            }
+            
+            // Calculate dimensions to maximize image size while maintaining aspect ratio
+            const availableWidth = pageWidth - (PDFGenerationService.MARGIN * 2)
+            const availableHeight = pageHeight - 100 - PDFGenerationService.MARGIN
+            
+            const { width: imgWidth, height: imgHeight } = image
+            const scale = Math.min(availableWidth / imgWidth, availableHeight / imgHeight)
+            
+            const scaledWidth = imgWidth * scale
+            const scaledHeight = imgHeight * scale
+            
+            // Center the image on the page
+            const imageX = (pageWidth - scaledWidth) / 2
+            const imageY = (pageHeight - 100 - scaledHeight) / 2 + PDFGenerationService.MARGIN / 2
+            
+            // Draw the actual rendering image
+            currentPage.drawImage(image, {
+              x: imageX,
+              y: imageY,
+              width: scaledWidth,
+              height: scaledHeight
+            })
+          } else {
+            throw new Error(`Failed to fetch image: ${response.status}`)
+          }
+        } catch (error) {
+          console.error('❌ Error loading rendering image:', error)
+          // Fallback to placeholder if image loading fails
+          this.addRenderingPlaceholder(currentPage, font, pageWidth, pageHeight)
+        }
       }
     } else {
-      // No rendering URL provided, show placeholder
+      // No rendering URLs provided, show placeholder
       this.addRenderingPlaceholder(page, font, width, height)
     }
     

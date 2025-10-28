@@ -1553,9 +1553,10 @@ model SpecBookSection {
   description  String?
   roomId       String?
   order        Int                 @default(0)
-  isIncluded   Boolean             @default(true)
-  renderingUrl String?
-  createdAt    DateTime            @default(now())
+  isIncluded    Boolean             @default(true)
+  renderingUrl  String?
+  renderingUrls String[]            @default([])
+  createdAt     DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   dropboxFiles DropboxFileLink[]
   room         Room?               @relation(fields: [roomId], references: [id], onDelete: Cascade)

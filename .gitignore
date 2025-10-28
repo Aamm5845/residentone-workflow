@@ -133,3 +133,10 @@ test-nextauth-*
 update-all-passwords.ts
 verify-passwords.ts
 approve-all-users.ts
+
+# SMS debugging and test files
+test-twilio.js
+check-user-sms.js
+check-phone-fields.js
+send-test-sms.js
+SMS_DEBUG_RESULTS.md

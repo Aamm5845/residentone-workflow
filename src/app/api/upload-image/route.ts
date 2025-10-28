@@ -133,6 +133,20 @@ export async function POST(request: NextRequest) {
           })
           
           if (specBook) {
+            // Get existing section to append to renderingUrls array
+            const existingSection = await prisma.specBookSection.findUnique({
+              where: {
+                specBookId_type_roomId: {
+                  specBookId: specBook.id,
+                  type: 'ROOM',
+                  roomId: roomIdParam
+                }
+              }
+            })
+            
+            const currentUrls = existingSection?.renderingUrls || []
+            const updatedUrls = [...currentUrls, uploadResult.url]
+            
             const section = await prisma.specBookSection.upsert({
               where: {
                 specBookId_type_roomId: {
@@ -142,7 +156,8 @@ export async function POST(request: NextRequest) {
                 }
               },
               update: {
-                renderingUrl: uploadResult.url
+                renderingUrl: uploadResult.url, // Keep for backward compatibility
+                renderingUrls: updatedUrls
               },
               create: {
                 specBookId: specBook.id,
@@ -150,7 +165,8 @@ export async function POST(request: NextRequest) {
                 name: 'Room Rendering',
                 roomId: roomIdParam,
                 order: 100,
-                renderingUrl: uploadResult.url
+                renderingUrl: uploadResult.url,
+                renderingUrls: [uploadResult.url]
               }
             })
             renderingId = section.id

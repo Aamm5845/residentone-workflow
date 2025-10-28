@@ -28,12 +28,19 @@ export async function GET(request: NextRequest) {
     })
 
     const renderings = []
-    if (section && section.renderingUrl) {
-      renderings.push({
-        id: section.id,
-        imageUrl: section.renderingUrl,
-        filename: 'rendering.jpg',
-        fileSize: 0 // We don't store file size currently
+    if (section) {
+      // Support both new renderingUrls array and legacy single renderingUrl
+      const urls = section.renderingUrls && section.renderingUrls.length > 0 
+        ? section.renderingUrls 
+        : section.renderingUrl ? [section.renderingUrl] : []
+      
+      urls.forEach((url, index) => {
+        renderings.push({
+          id: `${section.id}-${index}`,
+          imageUrl: url,
+          filename: `rendering-${index + 1}.jpg`,
+          fileSize: 0 // We don't store file size currently
+        })
       })
     }
 
@@ -94,7 +101,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Update or create section with rendering URL
+    // Get existing section to append to renderingUrls array
+    const existingSection = await prisma.specBookSection.findUnique({
+      where: {
+        specBookId_type_roomId: {
+          specBookId: specBook.id,
+          type: 'ROOM',
+          roomId: roomId
+        }
+      }
+    })
+    
+    const currentUrls = existingSection?.renderingUrls || []
+    const updatedUrls = [...currentUrls, imageUrl]
+    
+    // Update or create section with rendering URLs array
     const section = await prisma.specBookSection.upsert({
       where: {
         specBookId_type_roomId: {
@@ -104,7 +125,8 @@ export async function POST(request: NextRequest) {
         }
       },
       update: {
-        renderingUrl: imageUrl
+        renderingUrl: imageUrl, // Keep for backward compatibility
+        renderingUrls: updatedUrls
       },
       create: {
         specBookId: specBook.id,
@@ -112,7 +134,8 @@ export async function POST(request: NextRequest) {
         name: room.name || room.type.replace('_', ' '),
         roomId: roomId,
         order: 100,
-        renderingUrl: imageUrl
+        renderingUrl: imageUrl,
+        renderingUrls: [imageUrl]
       }
     })
 
@@ -137,17 +160,39 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { renderingId } = await request.json()
+    const { renderingId, imageUrl } = await request.json()
 
     if (!renderingId) {
       return NextResponse.json({ error: 'renderingId is required' }, { status: 400 })
     }
 
-    // Remove rendering URL from section
+    // Extract section ID and index from composite rendering ID
+    const [sectionId, indexStr] = renderingId.split('-')
+    const index = parseInt(indexStr, 10)
+    
+    // Get the section
+    const section = await prisma.specBookSection.findUnique({
+      where: { id: sectionId }
+    })
+    
+    if (!section) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+    
+    // Remove the specific URL from the array
+    const currentUrls = section.renderingUrls || []
+    const updatedUrls = currentUrls.filter((url, i) => {
+      // Support both index-based removal and URL-based removal
+      return imageUrl ? url !== imageUrl : i !== index
+    })
+    
+    // Update section with new array
     await prisma.specBookSection.update({
-      where: { id: renderingId },
+      where: { id: sectionId },
       data: {
-        renderingUrl: null
+        renderingUrls: updatedUrls,
+        // Keep renderingUrl as the first URL if available, otherwise null
+        renderingUrl: updatedUrls.length > 0 ? updatedUrls[0] : null
       }
     })
 

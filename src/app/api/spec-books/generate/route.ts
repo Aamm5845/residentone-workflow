@@ -277,16 +277,22 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Get all rendering URLs (support both new array and legacy single URL)
+      const renderingUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
+        ? roomSection.renderingUrls
+        : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
+      
       // Only add room if it has content (CAD files or rendering)
-      if (cadFiles.length > 0 || roomSection.renderingUrl) {
+      if (cadFiles.length > 0 || renderingUrls.length > 0) {
         processedRooms.push({
           id: room.id,
           name: room.name || room.type.replace('_', ' '),
           type: room.type,
-          renderingUrl: roomSection.renderingUrl,
+          renderingUrl: roomSection.renderingUrl, // Keep for backward compatibility
+          renderingUrls: renderingUrls,
           cadFiles
         })
-        console.log(`[DEBUG] Added room ${room.name} with ${cadFiles.length} CAD files and rendering: ${roomSection.renderingUrl ? 'YES' : 'NO'}`)
+        console.log(`[DEBUG] Added room ${room.name} with ${cadFiles.length} CAD files and ${renderingUrls.length} rendering(s)`)
       } else {
         console.log(`[DEBUG] Skipped empty room ${room.name} (no CAD files or rendering)`)
       }
