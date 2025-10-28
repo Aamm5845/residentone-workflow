@@ -446,18 +446,17 @@ export default function IssueList({ currentUser }: IssueListProps) {
                   </div>
                   
                   <div className="relative ml-4">
-                  <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenDropdown(openDropdown === issue.id ? null : issue.id)
-                        }}
-                        className="hover:bg-gray-100"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenDropdown(openDropdown === issue.id ? null : issue.id)
+                      }}
+                      className="hover:bg-gray-100"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
                     
                     {openDropdown === issue.id && (() => {
                       // Check permissions
