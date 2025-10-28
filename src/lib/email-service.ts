@@ -15,16 +15,11 @@ export async function sendEmail(options: { to: string; subject: string; html: st
   // Get from address with multiple fallbacks
   let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
   
-  // Use your business email for better deliverability (but fallback to verified domain)
-  // TODO: Verify meisnerinteriors.com domain in Resend dashboard
-  fromAddress = 'noreply@resend.dev'; // Using Resend default domain temporarily
-  
-  // If still no from address, provide a sensible default that should work with Resend
-  // if (!fromAddress || fromAddress.trim() === '') {
-  //   fromAddress = 'noreply@resend.dev'; // Resend's default domain for testing
-  //   console.warn('\u26a0\ufe0f No EMAIL_FROM configured, using Resend default domain');
-  // }
-  
+  // If no from address is configured, use Resend default domain
+  if (!fromAddress || fromAddress.trim() === '') {
+    fromAddress = 'noreply@resend.dev'; // Resend's default domain as fallback
+    console.warn('⚠️ No EMAIL_FROM configured, using Resend default domain')
+  }
   
   // Validate required fields
   if (!fromAddress || fromAddress.trim() === '') {
@@ -138,21 +133,38 @@ export async function sendEmail(options: { to: string; subject: string; html: st
     
     
     
+    console.log('Sending email via Resend:', {
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject,
+      hasHtml: !!emailData.html,
+      htmlLength: emailData.html?.length
+    });
+    
     const result = await resend.emails.send(emailData);
+    
+    console.log('Email sent successfully:', result);
     
     return { messageId: result.data?.id || 'resend-' + Date.now(), provider: 'resend' };
     
   } catch (error) {
     console.error('Resend send failed:', error);
+    console.error('Email data that failed:', {
+      from: emailData?.from,
+      to: emailData?.to,
+      subject: emailData?.subject
+    });
     
     // Check for specific Resend validation errors
     if (error instanceof Error) {
-      if (error.message.includes('validation_error') || error.message.includes('Invalid literal value')) {
-        throw new Error(`Resend validation error: ${error.message}`);
+      // Domain not verified error
+      if (error.message.includes('domain') || error.message.includes('verify') || error.message.includes('unauthorized') || error.message.includes('not verified')) {
+        console.error('Domain verification issue detected. Please verify your domain in Resend dashboard.');
+        throw new Error(`Domain verification error: The email domain is not verified in Resend. Please verify "${emailData.from?.split('@')[1]}" in your Resend dashboard at https://resend.com/domains`);
       }
       
-      if (error.message.includes('domain') || error.message.includes('verify') || error.message.includes('unauthorized')) {
-        throw new Error(`Domain verification error: ${error.message}. Your domain might not be verified with Resend.`);
+      if (error.message.includes('validation_error') || error.message.includes('Invalid literal value')) {
+        throw new Error(`Resend validation error: ${error.message}`);
       }
     }
     
@@ -266,40 +278,14 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     let deliveryError = null;
     
     try {
-      // Create safe tags (avoid undefined or problematic values)
-      const safeTags = ['client-approval', 'delivery'];
-      if (options.projectName && typeof options.projectName === 'string') {
-        let projectTag = options.projectName
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^a-z0-9-_]/g, '-')
-          .replace(/-{2,}/g, '-') // Replace multiple hyphens with single
-          .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens AFTER other replacements
-        
-        // Additional cleanup - trim any remaining edge cases
-        projectTag = projectTag.trim();
-        if (projectTag.endsWith('-')) {
-          projectTag = projectTag.slice(0, -1);
-        }
-        if (projectTag.startsWith('-')) {
-          projectTag = projectTag.slice(1);
-        }
-        
-        // Limit length and final validation
-        projectTag = projectTag.substring(0, 50);
-        
-        
-        if (projectTag && projectTag.length > 0) {
-          safeTags.push(projectTag);
-        }
-      }
-      
+      // TAGS DISABLED: Resend API causes 422 validation errors with tags
+      // Sending without tags to ensure email delivery works
       
       emailResult = await sendEmail({
         to: options.clientEmail,
         subject,
-        html,
-        tags: safeTags
+        html
+        // tags removed - causes 422 errors with Resend API
       });
       
       deliveryStatus = 'SENT';

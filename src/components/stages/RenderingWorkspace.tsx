@@ -271,6 +271,34 @@ export default function RenderingWorkspace({
     }
   }
 
+  // Delete asset
+  const deleteAsset = async (assetId: string, assetTitle: string, isPushedToClient: boolean) => {
+    if (isPushedToClient) {
+      alert('Cannot delete files from versions that have been pushed to client approval')
+      return
+    }
+
+    if (!window.confirm(`Delete "${assetTitle}"? This cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/assets/${assetId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await fetchRenderingVersions()
+      } else {
+        const error = await response.json()
+        console.error(`Failed to delete asset: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting asset:', error)
+      console.error('Failed to delete asset')
+    }
+  }
+
   // Push version to client approval
   const pushToClient = async (versionId: string) => {
     if (!window.confirm('Push this version to Client Approval? This action cannot be undone.')) {
@@ -652,7 +680,7 @@ export default function RenderingWorkspace({
                     {version.assets.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {version.assets.map((asset) => (
-                          <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                          <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden group/asset">
                             <div className="aspect-video bg-gray-100 relative">
                               {(asset.type === 'RENDER' || asset.type === 'IMAGE') && (
                                 <img
@@ -666,12 +694,27 @@ export default function RenderingWorkspace({
                                   <FileText className="w-12 h-12 text-gray-400" />
                                 </div>
                               )}
+                              {/* Delete button - only show when not pushed to client */}
+                              {!isPushedToClient && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="absolute top-2 right-2 opacity-0 group-hover/asset:opacity-100 transition-opacity h-8 w-8 p-0 bg-red-600 hover:bg-red-700"
+                                  onClick={() => deleteAsset(asset.id, asset.title, isPushedToClient)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                             <div className="p-3">
-                              <h6 className="font-medium text-gray-900 truncate">{asset.title}</h6>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatFileSize(asset.size)} • {new Date(asset.createdAt).toLocaleDateString()}
-                              </p>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h6 className="font-medium text-gray-900 truncate">{asset.title}</h6>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {formatFileSize(asset.size)} • {new Date(asset.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
                               
                               {/* Asset Description */}
                               <div className="mt-2">
@@ -1075,21 +1118,6 @@ export default function RenderingWorkspace({
             </div>
           )
         })}
-
-        {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
-          <h4 className="font-semibold text-blue-900 mb-2">📝 How to Use</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Create versions (V1, V2, etc.) to organize different iterations</li>
-            <li>• Upload multiple images per version with individual descriptions</li>
-            <li>• Use the notes section to communicate with your team</li>
-            <li>• Mark Complete individual versions when they're ready</li>
-            <li>• Push to Client Approval to send completed versions for client review</li>
-            <li>• <strong>Once pushed to client approval, versions become locked</strong> - no further editing allowed</li>
-            <li>• <strong>Delete versions</strong> if needed - this permanently removes the version and all its files</li>
-            <li>• Revision requests will reopen the version for further editing</li>
-          </ul>
-        </div>
           </div>
         </div>
 
