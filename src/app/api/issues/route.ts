@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
       priority = 'MEDIUM',
       projectId,
       roomId,
-      stageId
+      stageId,
+      metadata
     } = data
 
     // Validate required fields
@@ -176,7 +177,8 @@ export async function POST(request: NextRequest) {
         orgId: organization?.id || null,
         projectId: projectId || null,
         roomId: roomId || null,
-        stageId: stageId || null
+        stageId: stageId || null,
+        metadata: metadata || null
       },
       include: {
         reporter: {

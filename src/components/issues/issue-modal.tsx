@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal } from 'lucide-react'
 
 interface Issue {
   id: string
@@ -31,6 +31,9 @@ interface Issue {
     image?: string
     role: string
   }
+  metadata?: {
+    consoleLog?: string
+  }
 }
 
 interface IssueModalProps {
@@ -39,6 +42,7 @@ interface IssueModalProps {
   onIssueCreated?: () => void
   onIssueUpdated?: () => void
   editingIssue?: Issue | null
+  viewOnly?: boolean
 }
 
 const ISSUE_TYPES = {
@@ -48,10 +52,11 @@ const ISSUE_TYPES = {
   GENERAL: { icon: MessageCircle, label: 'General' }
 }
 
-export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue }: IssueModalProps) {
+export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue, viewOnly = false }: IssueModalProps) {
   const { data: session } = useSession()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [consoleLog, setConsoleLog] = useState('')
   const [type, setType] = useState<'BUG' | 'FEATURE_REQUEST' | 'UPDATE_REQUEST' | 'GENERAL'>('GENERAL')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
   const [status, setStatus] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'>('OPEN')
@@ -69,6 +74,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     if (editingIssue) {
       setTitle(editingIssue.title)
       setDescription(editingIssue.description)
+      setConsoleLog(editingIssue.metadata?.consoleLog || '')
       setType(editingIssue.type)
       setPriority(editingIssue.priority)
       setStatus(editingIssue.status)
@@ -76,6 +82,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       // Reset form for new issue
       setTitle('')
       setDescription('')
+      setConsoleLog('')
       setType('GENERAL')
       setPriority('MEDIUM')
       setStatus('OPEN')
@@ -87,6 +94,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     if (!isEditing) {
       setTitle('')
       setDescription('')
+      setConsoleLog('')
       setType('GENERAL')
       setPriority('MEDIUM')
       setStatus('OPEN')
@@ -112,7 +120,10 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             description,
             type,
             priority,
-            status
+            status,
+            metadata: {
+              consoleLog: consoleLog || undefined
+            }
           }),
         })
 
@@ -133,7 +144,10 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             title,
             description,
             type,
-            priority
+            priority,
+            metadata: {
+              consoleLog: consoleLog || undefined
+            }
           }),
         })
 
@@ -176,8 +190,33 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     }
   }
 
-  const handleMarkResolved = () => {
-    setStatus('RESOLVED')
+  const handleMarkResolved = async () => {
+    if (!editingIssue) return
+    
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/issues/${editingIssue.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'RESOLVED'
+        }),
+      })
+
+      if (response.ok) {
+        onIssueUpdated?.()
+        handleClose()
+      } else {
+        throw new Error('Failed to resolve issue')
+      }
+    } catch (error) {
+      console.error('Error resolving issue:', error)
+      alert('Failed to resolve issue. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Don't render if no user session
@@ -187,14 +226,14 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className={viewOnly ? "max-w-3xl" : "max-w-md"}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-2">
               <AlertCircle className="w-5 h-5 text-red-600" />
-              <span>{isEditing ? 'Manage Issue' : 'Report Issue'}</span>
+              <span>{viewOnly ? 'View Issue' : isEditing ? 'Manage Issue' : 'Report Issue'}</span>
             </div>
-            {isEditing && canDelete && (
+            {isEditing && canDelete && !viewOnly && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -207,7 +246,83 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        {viewOnly ? (
+          <div className="space-y-4 p-6">
+            {/* Quick Actions for viewing */}
+            {isEditing && (
+              <div className="flex space-x-2 pb-4 border-b">
+                {editingIssue?.status !== 'RESOLVED' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleMarkResolved}
+                    className="text-green-700 border-green-200 hover:bg-green-50"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Mark Resolved
+                  </Button>
+                )}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Type</Label>
+                <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
+                  {ISSUE_TYPES[type].label}
+                </div>
+              </div>
+
+              <div>
+                <Label>Priority</Label>
+                <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
+                  {priority}
+                </div>
+              </div>
+              
+              <div>
+                <Label>Status</Label>
+                <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
+                  {status.replace('_', ' ')}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label>Title</Label>
+              <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
+                {title}
+              </div>
+            </div>
+
+            <div>
+              <Label>Description</Label>
+              <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm whitespace-pre-wrap">
+                {description}
+              </div>
+            </div>
+
+            {consoleLog && (
+              <div>
+                <Label className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4" />
+                  Console Log
+                </Label>
+                <div className="mt-2 px-3 py-2 bg-gray-900 text-green-400 rounded-md text-xs font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                  {consoleLog}
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-3 pt-4">
+              <Button type="button" onClick={handleClose} className="flex-1">
+                Close
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
           {/* Quick Actions for editing */}
           {isEditing && (
             <div className="flex space-x-2 pb-4 border-b">
@@ -300,6 +415,21 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             />
           </div>
 
+          <div>
+            <Label htmlFor="consoleLog" className="flex items-center gap-2">
+              <Terminal className="w-4 h-4" />
+              Console Log (Press F12 to open browser console)
+            </Label>
+            <Textarea
+              id="consoleLog"
+              value={consoleLog}
+              onChange={(e) => setConsoleLog(e.target.value)}
+              placeholder="Paste any console errors or logs here...\n\nPress F12 in your browser to open the developer console, then copy any error messages and paste them here."
+              rows={6}
+              className="font-mono text-sm"
+            />
+          </div>
+
           <div className="flex space-x-3 pt-4">
             <Button type="submit" disabled={isSubmitting} className="flex-1">
               {isSubmitting ? (isEditing ? 'Updating...' : 'Submitting...') : (isEditing ? 'Update Issue' : 'Submit Issue')}
@@ -309,6 +439,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   )

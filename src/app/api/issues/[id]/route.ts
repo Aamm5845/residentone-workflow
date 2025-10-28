@@ -126,7 +126,8 @@ export async function PATCH(
       type,
       priority,
       status,
-      assignedTo
+      assignedTo,
+      metadata
     } = data
 
     // Get the current issue to check permissions and log changes
@@ -158,6 +159,7 @@ export async function PATCH(
     if (type !== undefined) updateData.type = type
     if (priority !== undefined) updateData.priority = priority
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo
+    if (metadata !== undefined) updateData.metadata = metadata
 
     // Handle status changes
     if (status !== undefined) {

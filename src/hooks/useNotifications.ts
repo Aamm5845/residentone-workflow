@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
+import { sendMentionNotification, requestNotificationPermission } from '@/lib/notifications'
 
 export interface Notification {
   id: string
@@ -26,19 +27,22 @@ interface UseNotificationsOptions {
   limit?: number
   autoRefresh?: boolean
   refreshInterval?: number
+  enableDesktopNotifications?: boolean
 }
 
 export function useNotifications({
   unreadOnly = false,
   limit = 50,
   autoRefresh = true,
-  refreshInterval = 30000 // 30 seconds
+  refreshInterval = 30000, // 30 seconds
+  enableDesktopNotifications = true
 }: UseNotificationsOptions = {}) {
   const { data: session } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [previousUnreadCount, setPreviousUnreadCount] = useState(0)
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -61,8 +65,25 @@ export function useNotifications({
       }
 
       const data: NotificationResponse = await response.json()
+      
+      // Check for new mention notifications for desktop alerts
+      if (enableDesktopNotifications && data.notifications.length > 0) {
+        const newMentions = data.notifications.filter(
+          n => n.type === 'MENTION' && !n.read && 
+          !notifications.find(existing => existing.id === n.id)
+        )
+        
+        // Send desktop notification for each new mention
+        newMentions.forEach(mention => {
+          const mentionedBy = mention.title.replace(' mentioned you', '')
+          const link = mention.relatedId ? `/stages/${mention.relatedId}` : undefined
+          sendMentionNotification(mentionedBy, mention.message, link)
+        })
+      }
+      
       setNotifications(data.notifications)
       setUnreadCount(data.unreadCount)
+      setPreviousUnreadCount(data.unreadCount)
 
     } catch (err) {
       console.error('Error fetching notifications:', err)
@@ -179,6 +200,13 @@ export function useNotifications({
   const getNotificationsByType = useCallback((type: string) => {
     return notifications.filter(notif => notif.type === type)
   }, [notifications])
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (enableDesktopNotifications && session?.user) {
+      requestNotificationPermission()
+    }
+  }, [enableDesktopNotifications, session])
 
   // Initial fetch
   useEffect(() => {

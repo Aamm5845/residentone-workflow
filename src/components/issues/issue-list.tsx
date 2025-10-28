@@ -26,7 +26,8 @@ import {
   Trash2,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react'
 import IssueModal from './issue-modal'
 
@@ -69,6 +70,9 @@ interface Issue {
       role: string
     }
   }>
+  metadata?: {
+    consoleLog?: string
+  }
 }
 
 interface IssueListProps {
@@ -119,6 +123,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null)
+  const [viewingIssue, setViewingIssue] = useState<Issue | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   
   // Use passed currentUser or extract from session
@@ -188,7 +193,15 @@ export default function IssueList({ currentUser }: IssueListProps) {
     setShowModal(true)
   }
 
+  const handleViewIssue = (issue: Issue) => {
+    setViewingIssue(issue)
+    setEditingIssue(issue)
+    setShowModal(true)
+    setOpenDropdown(null)
+  }
+
   const handleEditIssue = (issue: Issue) => {
+    setViewingIssue(null)
     setEditingIssue(issue)
     setShowModal(true)
     setOpenDropdown(null)
@@ -244,6 +257,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
   const handleModalClose = () => {
     setShowModal(false)
     setEditingIssue(null)
+    setViewingIssue(null)
   }
 
   const handleIssueCreated = () => {
@@ -432,9 +446,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
                   </div>
                   
                   <div className="relative ml-4">
-                    {/* Only show 3-dot menu if user has any permissions */}
-                    {(issue.reporter.id === user.id || ['ADMIN', 'OWNER'].includes(user.role)) && (
-                      <Button 
+                  <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={(e) => {
@@ -460,6 +472,17 @@ export default function IssueList({ currentUser }: IssueListProps) {
                       return (
                         <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <div className="py-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewIssue(issue)
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                            >
+                              <Eye className="w-4 h-4 mr-3" />
+                              View Details
+                            </button>
+                            
                             {canUpdate && (
                               <button
                                 onClick={(e) => {
@@ -501,7 +524,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
                             
                             {!canUpdate && !canDelete && (
                               <div className="px-4 py-2 text-sm text-gray-500 italic">
-                                No actions available
+                                Limited actions
                               </div>
                             )}
                           </div>
@@ -523,6 +546,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
         onIssueCreated={handleIssueCreated}
         onIssueUpdated={handleIssueUpdated}
         editingIssue={editingIssue}
+        viewOnly={!!viewingIssue}
       />
     </div>
   )

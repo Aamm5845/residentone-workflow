@@ -200,10 +200,13 @@ export async function POST(
         })
 
         // Send SMS notifications to mentioned users with SMS enabled
-        const smsPromises = validUsers
-          .filter(user => user.phoneNumber && user.smsNotificationsEnabled)
-          .map(async (user) => {
+        const usersForSMS = validUsers.filter(user => user.phoneNumber && user.smsNotificationsEnabled)
+        console.log(`[SMS] Found ${usersForSMS.length} user(s) eligible for SMS:`, 
+          usersForSMS.map(u => ({ name: u.name, phone: u.phoneNumber })))
+        
+        const smsPromises = usersForSMS.map(async (user) => {
             try {
+              console.log(`[SMS] Attempting to send to ${user.name} at ${user.phoneNumber}...`)
               await sendMentionSMS({
                 to: user.phoneNumber!,
                 mentionedBy: session.user.name || 'Someone',
@@ -212,16 +215,16 @@ export async function POST(
                 message: content.trim(),
                 stageId: resolvedParams.stageId
               })
-              console.log(`SMS sent to ${user.name} at ${user.phoneNumber}`)
+              console.log(`[SMS] ✅ Successfully sent to ${user.name} at ${user.phoneNumber}`)
             } catch (error) {
-              console.error(`Failed to send SMS to ${user.name}:`, error)
+              console.error(`[SMS] ❌ Failed to send SMS to ${user.name}:`, error)
               // Don't fail the whole request if SMS fails
             }
           })
         
         // Send all SMS in parallel but don't wait for them
         Promise.all(smsPromises).catch(err => 
-          console.error('Some SMS notifications failed:', err)
+          console.error('[SMS] Some SMS notifications failed:', err)
         )
 
         // Get the created mentions for response

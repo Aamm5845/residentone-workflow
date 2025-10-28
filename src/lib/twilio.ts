@@ -40,19 +40,30 @@ export async function sendMentionSMS({
   message: string
   stageId: string
 }) {
+  console.log('[Twilio] sendMentionSMS called with:', { to, mentionedBy, stageName, projectName })
+  
   const client = getTwilioClient()
   
   if (!client || !twilioPhoneNumber) {
-    throw new Error('Twilio not configured')
+    const error = 'Twilio not configured - client or phone number missing'
+    console.error(`[Twilio] ${error}`)
+    console.error('[Twilio] Environment check:', {
+      hasAccountSid: !!accountSid,
+      hasAuthToken: !!authToken,
+      hasPhoneNumber: !!twilioPhoneNumber
+    })
+    throw new Error(error)
   }
 
   // Format the phone number (ensure it has country code)
   const formattedPhone = to.startsWith('+') ? to : `+1${to.replace(/\D/g, '')}`
+  console.log(`[Twilio] Formatted phone: ${to} -> ${formattedPhone}`)
 
   // Create the SMS body with mention details
   const smsBody = `🔔 ${mentionedBy} mentioned you in ${stageName} (${projectName}):\n\n"${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n\nReply to this message to respond in the chat.`
 
   try {
+    console.log(`[Twilio] Sending SMS from ${twilioPhoneNumber} to ${formattedPhone}...`)
     const sentMessage = await client.messages.create({
       body: smsBody,
       from: twilioPhoneNumber,
@@ -61,10 +72,22 @@ export async function sendMentionSMS({
       statusCallback: `${process.env.APP_URL || process.env.NEXTAUTH_URL}/api/sms/status`
     })
 
-    console.log('SMS sent successfully:', sentMessage.sid)
+    console.log('[Twilio] ✅ SMS sent successfully!')
+    console.log('[Twilio] Message details:', {
+      sid: sentMessage.sid,
+      status: sentMessage.status,
+      to: sentMessage.to,
+      from: sentMessage.from
+    })
     return sentMessage
-  } catch (error) {
-    console.error('Failed to send SMS:', error)
+  } catch (error: any) {
+    console.error('[Twilio] ❌ Failed to send SMS')
+    console.error('[Twilio] Error details:', {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      moreInfo: error.moreInfo
+    })
     throw error
   }
 }
