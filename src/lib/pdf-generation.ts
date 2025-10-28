@@ -59,10 +59,16 @@ interface GenerationResult {
 }
 
 class PDFGenerationService {
-  private static readonly TABLOID_SIZE = [1224, 792] as const // 17" x 11" landscape at 72 DPI
-  private static readonly MARGIN = 72 // 1 inch margin
-  private static readonly CONTENT_WIDTH = PDFGenerationService.TABLOID_SIZE[0] - (PDFGenerationService.MARGIN * 2)
-  private static readonly CONTENT_HEIGHT = PDFGenerationService.TABLOID_SIZE[1] - (PDFGenerationService.MARGIN * 2)
+  private static readonly PAGE_SIZE = [2592, 1728] as const // 36" x 24" landscape at 72 DPI
+  private static readonly MARGIN = 100 // Margin in points
+  private static readonly CONTENT_WIDTH = PDFGenerationService.PAGE_SIZE[0] - (PDFGenerationService.MARGIN * 2)
+  private static readonly CONTENT_HEIGHT = PDFGenerationService.PAGE_SIZE[1] - (PDFGenerationService.MARGIN * 2)
+  
+  // Design colors
+  private static readonly BRAND_COLOR = rgb(0.2, 0.2, 0.25) // Dark charcoal
+  private static readonly ACCENT_COLOR = rgb(0.7, 0.65, 0.6) // Warm taupe
+  private static readonly TEXT_COLOR = rgb(0.3, 0.3, 0.3) // Dark gray
+  private static readonly LIGHT_TEXT = rgb(0.6, 0.6, 0.6) // Light gray
 
   /**
    * Generate a complete spec book PDF
@@ -90,7 +96,7 @@ class PDFGenerationService {
 
       // Add placeholder TOC page (will be updated later)
       const tocPageIndex = pdfDoc.getPageCount()
-      const tocPage = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+      const tocPage = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
       
       // Track section page numbers as we add them
       const sectionPageNumbers: { name: string; pageNum: number }[] = []
@@ -247,7 +253,7 @@ class PDFGenerationService {
     font: any,
     boldFont: any
   ) {
-    const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+    const page = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
     const { width, height } = page.getSize()
     
     // Clean white background
@@ -485,7 +491,7 @@ class PDFGenerationService {
     font: any,
     boldFont: any
   ) {
-    const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+    const page = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
     const { width, height } = page.getSize()
     
     // Clean white background
@@ -654,7 +660,7 @@ class PDFGenerationService {
     boldFont: any
   ) {
     // Room overview page with rendering
-    const page = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+    const page = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
     const { width, height } = page.getSize()
     
     // Clean white background
@@ -668,23 +674,8 @@ class PDFGenerationService {
     
     const roomName = room.name || room.type.replace('_', ' ')
     
-    // Minimal room header - smaller to maximize image space
-    page.drawText(roomName, {
-      x: PDFGenerationService.MARGIN,
-      y: height - 60,
-      size: 14,
-      font: font,
-      color: rgb(0.4, 0.4, 0.4)
-    })
-    
-    // Subtle line under header
-    page.drawRectangle({
-      x: PDFGenerationService.MARGIN,
-      y: height - 72,
-      width: roomName.length * 7,
-      height: 0.5,
-      color: rgb(0.7, 0.7, 0.7)
-    })
+    // Add professional page decoration
+    await this.addPageDecoration(pdfDoc, page, roomName, 'RENDERING', font, boldFont)
     
     // Get all rendering URLs (support both new array and legacy single URL)
     const renderingUrls = room.renderingUrls && room.renderingUrls.length > 0
@@ -696,11 +687,11 @@ class PDFGenerationService {
       for (let renderingIndex = 0; renderingIndex < renderingUrls.length; renderingIndex++) {
         const renderingUrl = renderingUrls[renderingIndex]
         // Use the main page for the first rendering, create new pages for additional renderings
-        const currentPage = renderingIndex === 0 ? page : pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+        const currentPage = renderingIndex === 0 ? page : pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
         const { width: pageWidth, height: pageHeight } = currentPage.getSize()
         
         if (renderingIndex > 0) {
-          // For additional pages, add the same header
+          // For additional pages, add the same styling
           currentPage.drawRectangle({
             x: 0,
             y: 0,
@@ -709,21 +700,8 @@ class PDFGenerationService {
             color: rgb(1, 1, 1)
           })
           
-          currentPage.drawText(roomName, {
-            x: PDFGenerationService.MARGIN,
-            y: pageHeight - 60,
-            size: 14,
-            font: font,
-            color: rgb(0.4, 0.4, 0.4)
-          })
-          
-          currentPage.drawRectangle({
-            x: PDFGenerationService.MARGIN,
-            y: pageHeight - 72,
-            width: roomName.length * 7,
-            height: 0.5,
-            color: rgb(0.7, 0.7, 0.7)
-          })
+          // Add professional page decoration
+          await this.addPageDecoration(pdfDoc, currentPage, roomName, `RENDERING ${renderingIndex + 1}`, font, boldFont)
         }
         
         try {
@@ -742,8 +720,11 @@ class PDFGenerationService {
             }
             
             // Calculate dimensions to maximize image size while maintaining aspect ratio
+            // Account for header (150pts) and footer (80pts)
+            const headerHeight = 150
+            const footerHeight = 80
             const availableWidth = pageWidth - (PDFGenerationService.MARGIN * 2)
-            const availableHeight = pageHeight - 100 - PDFGenerationService.MARGIN
+            const availableHeight = pageHeight - headerHeight - footerHeight
             
             const { width: imgWidth, height: imgHeight } = image
             const scale = Math.min(availableWidth / imgWidth, availableHeight / imgHeight)
@@ -751,9 +732,9 @@ class PDFGenerationService {
             const scaledWidth = imgWidth * scale
             const scaledHeight = imgHeight * scale
             
-            // Center the image on the page
+            // Center the image in the available space
             const imageX = (pageWidth - scaledWidth) / 2
-            const imageY = (pageHeight - 100 - scaledHeight) / 2 + PDFGenerationService.MARGIN / 2
+            const imageY = footerHeight + (availableHeight - scaledHeight) / 2
             
             // Draw the actual rendering image
             currentPage.drawImage(image, {
@@ -778,7 +759,7 @@ class PDFGenerationService {
     
     // Add separate minimalist pages for each CAD file
     for (const cadFile of room.cadFiles) {
-      const cadPage = pdfDoc.addPage(PDFGenerationService.TABLOID_SIZE)
+      const cadPage = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
       const { width: cadWidth, height: cadHeight } = cadPage.getSize()
       
       // Clean white background
@@ -875,6 +856,92 @@ class PDFGenerationService {
         })
       }
     }
+  }
+  
+  /**
+   * Add professional header and footer with logo to a page
+   */
+  private async addPageDecoration(
+    pdfDoc: PDFDocument,
+    page: PDFPage,
+    title: string,
+    subtitle: string | null,
+    font: any,
+    boldFont: any
+  ) {
+    const { width, height } = page.getSize()
+    
+    try {
+      // Load and embed the logo
+      const logoPath = path.join(process.cwd(), 'public', 'meisnerinteriorlogo.png')
+      const logoBytes = await fs.readFile(logoPath)
+      const logoImage = await pdfDoc.embedPng(logoBytes)
+      
+      const logoHeight = 60
+      const logoWidth = (logoImage.width / logoImage.height) * logoHeight
+      
+      // Draw logo in top left
+      page.drawImage(logoImage, {
+        x: PDFGenerationService.MARGIN,
+        y: height - PDFGenerationService.MARGIN - logoHeight,
+        width: logoWidth,
+        height: logoHeight
+      })
+    } catch (error) {
+      console.error('Failed to load logo:', error)
+      // Continue without logo
+    }
+    
+    // Top border line - elegant and thin
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: height - PDFGenerationService.MARGIN,
+      width: width - (PDFGenerationService.MARGIN * 2),
+      height: 3,
+      color: PDFGenerationService.BRAND_COLOR
+    })
+    
+    // Title text (top right)
+    const titleSize = 32
+    const titleWidth = font.widthOfTextAtSize(title, titleSize)
+    page.drawText(title, {
+      x: width - PDFGenerationService.MARGIN - titleWidth,
+      y: height - PDFGenerationService.MARGIN - 50,
+      size: titleSize,
+      font: boldFont,
+      color: PDFGenerationService.BRAND_COLOR
+    })
+    
+    // Subtitle (if provided)
+    if (subtitle) {
+      const subtitleSize = 18
+      const subtitleWidth = font.widthOfTextAtSize(subtitle, subtitleSize)
+      page.drawText(subtitle, {
+        x: width - PDFGenerationService.MARGIN - subtitleWidth,
+        y: height - PDFGenerationService.MARGIN - 80,
+        size: subtitleSize,
+        font: font,
+        color: PDFGenerationService.TEXT_COLOR
+      })
+    }
+    
+    // Bottom border - accent color
+    page.drawRectangle({
+      x: PDFGenerationService.MARGIN,
+      y: PDFGenerationService.MARGIN - 3,
+      width: width - (PDFGenerationService.MARGIN * 2),
+      height: 2,
+      color: PDFGenerationService.ACCENT_COLOR
+    })
+    
+    // Page info in bottom left
+    page.drawText('MEISNER INTERIORS', {
+      x: PDFGenerationService.MARGIN,
+      y: PDFGenerationService.MARGIN - 30,
+      size: 10,
+      font: font,
+      color: PDFGenerationService.LIGHT_TEXT
+    })
   }
   
   /**
