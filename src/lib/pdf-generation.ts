@@ -523,6 +523,9 @@ class PDFGenerationService {
       let currentY = contentY
       let filesEmbedded = 0
       
+      // Remember the placeholder page index before adding CAD pages
+      const placeholderPageIndex = pdfDoc.getPageCount() - 1
+      
       for (const file of section.dropboxFiles) {
         // Support both CAD-converted PDFs and directly uploaded PDFs
         const pdfUrl = file.uploadedPdfUrl || file.cadToPdfCacheUrl
@@ -559,7 +562,7 @@ class PDFGenerationService {
       
       // Remove the original placeholder section page if files were embedded
       if (filesEmbedded > 0) {
-        pdfDoc.removePage(pdfDoc.getPageIndex(page))
+        pdfDoc.removePage(placeholderPageIndex)
       }
       
       // If no files were embedded, show placeholder
@@ -824,6 +827,9 @@ class PDFGenerationService {
         try {
           console.log(`[PDF-Generation] Embedding room CAD PDF from ${cadFile.pdfUrl}`)
           
+          // Remember the placeholder page index before adding CAD pages
+          const placeholderPageIndex = pdfDoc.getPageCount() - 1
+          
           // Download the converted PDF
           const response = await fetch(cadFile.pdfUrl)
           if (response.ok) {
@@ -841,7 +847,7 @@ class PDFGenerationService {
             }
             
             // Remove the placeholder page
-            pdfDoc.removePage(pdfDoc.getPageIndex(cadPage))
+            pdfDoc.removePage(placeholderPageIndex)
             
             console.log(`[PDF-Generation] Successfully embedded ${pageCount} page(s) from room CAD ${cadFile.fileName}`)
           } else {
