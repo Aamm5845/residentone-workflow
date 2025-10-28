@@ -108,6 +108,7 @@ public/uploads/*
 
 # Database backups (sensitive data - keep local only)
 backups/
+.db-backups/
 *.sql
 *.dump
 backup-log.txt
