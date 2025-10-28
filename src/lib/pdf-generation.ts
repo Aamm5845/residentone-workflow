@@ -165,8 +165,8 @@ class PDFGenerationService {
     boldFont: any
   ) {
     try {
-      // Read the custom cover PDF template
-      const coverTemplatePath = path.join(process.cwd(), 'public', 'SPEC COVER.pdf')
+      // Read the custom cover PDF template (NEW COVER with black background)
+      const coverTemplatePath = path.join(process.cwd(), 'public', 'NEW COVER.pdf')
       
       const coverPdfBytes = await fs.readFile(coverTemplatePath)
       
@@ -184,18 +184,20 @@ class PDFGenerationService {
       let currentY = 175 // Start higher to accommodate spec book type
       
       // Spec book type (if provided) - positioned at top of project info
+      // WHITE text for black background
       if (coverData.specBookType) {
         coverPage.drawText(coverData.specBookType.toUpperCase(), {
           x: projectNameX,
           y: currentY,
           size: 12,
           font: font,
-          color: rgb(0.6, 0.6, 0.6) // Lighter gray for spec book type
+          color: rgb(1, 1, 1) // White text on black background
         })
         currentY -= 25
       }
       
       // Project name (bold) - positioned below spec book type
+      // WHITE text for black background
       const projectNameY = currentY
       
       coverPage.drawText(coverData.projectName, {
@@ -203,21 +205,23 @@ class PDFGenerationService {
         y: projectNameY,
         size: 16,
         font: boldFont,
-        color: rgb(0.4, 0.4, 0.4) // Subtle gray to match minimalist design
+        color: rgb(1, 1, 1) // White text on black background
       })
       
       // Address (regular font) - positioned below project name
+      // WHITE text for black background
       if (coverData.address) {
         coverPage.drawText(coverData.address, {
           x: projectNameX,
           y: projectNameY - 25,
           size: 12,
           font: font,
-          color: rgb(0.5, 0.5, 0.5) // Lighter gray for address
+          color: rgb(1, 1, 1) // White text on black background
         })
       }
       
       // Print date - positioned much lower on the page, independent of other content
+      // WHITE text for black background
       const printDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -230,7 +234,7 @@ class PDFGenerationService {
         y: 80, // Much lower - near bottom margin
         size: 10,
         font: font,
-        color: rgb(0.6, 0.6, 0.6) // Even lighter gray for date
+        color: rgb(1, 1, 1) // White text on black background
       })
       
     } catch (error) {
