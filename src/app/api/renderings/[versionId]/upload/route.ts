@@ -11,6 +11,19 @@ import {
   isValidAuthSession
 } from '@/lib/attribution'
 
+// Configure route to handle larger file uploads
+export const runtime = 'nodejs'
+export const maxDuration = 60 // seconds
+
+// Configure body parser for larger files (10MB)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+}
+
 // POST /api/renderings/[versionId]/upload - Upload files to a rendering version
 export async function POST(
   request: NextRequest,
