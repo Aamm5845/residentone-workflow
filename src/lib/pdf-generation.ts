@@ -757,59 +757,12 @@ class PDFGenerationService {
       this.addRenderingPlaceholder(page, font, width, height)
     }
     
-    // Add separate minimalist pages for each CAD file
+    // Add separate pages for each CAD file
     for (const cadFile of room.cadFiles) {
-      const cadPage = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
-      const { width: cadWidth, height: cadHeight } = cadPage.getSize()
-      
-      // Clean white background
-      cadPage.drawRectangle({
-        x: 0,
-        y: 0,
-        width: cadWidth,
-        height: cadHeight,
-        color: rgb(1, 1, 1)
-      })
-      
-      // Minimal CAD file header
-      cadPage.drawText(`${roomName} — ${cadFile.fileName}`, {
-        x: PDFGenerationService.MARGIN,
-        y: cadHeight - 120,
-        size: 14,
-        font: font,
-        color: rgb(0.4, 0.4, 0.4)
-      })
-      
-      // Subtle line under header
-      cadPage.drawRectangle({
-        x: PDFGenerationService.MARGIN,
-        y: cadHeight - 135,
-        width: (roomName.length + cadFile.fileName.length + 3) * 7,
-        height: 0.5,
-        color: rgb(0.7, 0.7, 0.7)
-      })
-      
-      // Minimalist CAD content area
-      const cadContentY = cadHeight - 180
-      const cadContentHeight = PDFGenerationService.CONTENT_HEIGHT - 200
-      
-      cadPage.drawRectangle({
-        x: PDFGenerationService.MARGIN,
-        y: cadContentY - cadContentHeight,
-        width: PDFGenerationService.CONTENT_WIDTH,
-        height: cadContentHeight,
-        color: rgb(1, 1, 1),
-        borderColor: rgb(0.9, 0.9, 0.9),
-        borderWidth: 0.5
-      })
-      
       // Embed the actual CAD PDF if available
       if (cadFile.pdfUrl) {
         try {
           console.log(`[PDF-Generation] Embedding room CAD PDF from ${cadFile.pdfUrl}`)
-          
-          // Remember the placeholder page index before adding CAD pages
-          const placeholderPageIndex = pdfDoc.getPageCount() - 1
           
           // Download the converted PDF
           const response = await fetch(cadFile.pdfUrl)
@@ -822,13 +775,16 @@ class PDFGenerationService {
             const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
             const cadPages = await pdfDoc.copyPages(cadPdf, pageIndices)
             
-            // Add each page at full size (no scaling)
-            for (const embeddedCadPage of cadPages) {
+            // Add each CAD page at full size with professional styling
+            for (let pageIndex = 0; pageIndex < cadPages.length; pageIndex++) {
+              const embeddedCadPage = cadPages[pageIndex]
               pdfDoc.addPage(embeddedCadPage)
+              
+              // Add professional page decoration on top of the CAD content
+              const pageTitle = `${roomName} — ${cadFile.fileName}`
+              const pageSubtitle = pageCount > 1 ? `PAGE ${pageIndex + 1} OF ${pageCount}` : 'DRAWING'
+              await this.addPageDecoration(pdfDoc, embeddedCadPage, pageTitle, pageSubtitle, font, boldFont)
             }
-            
-            // Remove the placeholder page
-            pdfDoc.removePage(placeholderPageIndex)
             
             console.log(`[PDF-Generation] Successfully embedded ${pageCount} page(s) from room CAD ${cadFile.fileName}`)
           } else {
@@ -836,24 +792,28 @@ class PDFGenerationService {
           }
         } catch (error) {
           console.error(`[PDF-Generation] Failed to embed room CAD PDF ${cadFile.fileName}:`, error)
-          // Fall back to placeholder
-          cadPage.drawText('CAD file conversion failed', {
-            x: cadWidth / 2 - 100,
-            y: cadHeight / 2,
-            size: 12,
+          // Create error placeholder page
+          const errorPage = pdfDoc.addPage(PDFGenerationService.PAGE_SIZE)
+          const { width, height } = errorPage.getSize()
+          
+          errorPage.drawRectangle({
+            x: 0,
+            y: 0,
+            width,
+            height,
+            color: rgb(1, 1, 1)
+          })
+          
+          await this.addPageDecoration(pdfDoc, errorPage, roomName, 'ERROR', font, boldFont)
+          
+          errorPage.drawText('CAD file conversion failed', {
+            x: width / 2 - 120,
+            y: height / 2,
+            size: 18,
             font: font,
-            color: rgb(0.8, 0.8, 0.8)
+            color: rgb(0.8, 0.2, 0.2)
           })
         }
-      } else {
-        // No converted PDF available
-        cadPage.drawText('CAD file not yet converted', {
-          x: cadWidth / 2 - 90,
-          y: cadHeight / 2,
-          size: 12,
-          font: font,
-          color: rgb(0.8, 0.8, 0.8)
-        })
       }
     }
   }

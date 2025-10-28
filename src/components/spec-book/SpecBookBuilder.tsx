@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ArrowLeft, BookOpen, Settings, FileText, Download, Plus, Folder, File, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, BookOpen, Settings, FileText, Download, Plus, Folder, File, Loader2, AlertCircle, GripVertical } from 'lucide-react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -84,6 +87,54 @@ interface CoverPageData {
   includedSections: string[]
 }
 
+// Sortable Room Item Component
+function SortableRoomItem({ room, isSelected, onToggle, children }: {
+  room: { id: string; name: string; type: string }
+  isSelected: boolean
+  onToggle: (checked: boolean) => void
+  children: React.ReactNode
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: room.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 bg-white">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-3 flex-1">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+            <GripVertical className="w-5 h-5 text-gray-400" />
+          </div>
+          <Checkbox
+            id={room.id}
+            checked={isSelected}
+            onCheckedChange={onToggle}
+          />
+          <Label 
+            htmlFor={room.id}
+            className="font-medium cursor-pointer flex-1"
+          >
+            {room.name || room.type.replace('_', ' ')}
+          </Label>
+        </div>
+      </div>
+      {isSelected && (
+        <div className="mt-3 space-y-3 ml-8">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
   const [activeTab, setActiveTab] = useState('builder')
@@ -105,6 +156,17 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
     })
     return defaultRooms
   })
+  
+  // State for room ordering
+  const [roomOrder, setRoomOrder] = useState<string[]>(() => project.rooms.map(r => r.id))
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
   const [coverPageData, setCoverPageData] = useState<CoverPageData>({
     clientName: project.client.name,
     projectName: project.name,
@@ -134,6 +196,18 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
       [roomId]: checked
     }))
   }, [])
+  
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    
+    if (over && active.id !== over.id) {
+      setRoomOrder((items) => {
+        const oldIndex = items.indexOf(active.id as string)
+        const newIndex = items.indexOf(over.id as string)
+        return arrayMove(items, oldIndex, newIndex)
+      })
+    }
+  }, [])
 
 
   const handleGeneratePDF = async () => {
@@ -144,7 +218,8 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
     try {
       // Prepare data for generation
       const selectedSectionTypes = Object.keys(selectedSections).filter(key => selectedSections[key])
-      const selectedRoomIds = Object.keys(selectedRooms).filter(key => selectedRooms[key])
+      // Use ordered room list
+      const selectedRoomIds = roomOrder.filter(roomId => selectedRooms[roomId])
       
       setGenerationProgress(20)
       
@@ -188,7 +263,9 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
     }
   }
 
-  const selectedRoomsList = project.rooms.filter(room => selectedRooms[room.id])
+  // Get rooms in order
+  const orderedRooms = roomOrder.map(id => project.rooms.find(r => r.id === id)).filter(Boolean) as typeof project.rooms
+  const selectedRoomsList = orderedRooms.filter(room => selectedRooms[room.id])
   const selectedSectionsList = PROJECT_LEVEL_SECTIONS.filter(section => selectedSections[section.type])
 
   return (
@@ -374,43 +451,37 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                   <CardHeader>
                     <CardTitle>Room-Specific Content</CardTitle>
                     <p className="text-sm text-gray-600">
-                      Select which rooms to include with renderings and drawings
+                      Drag to reorder • Select which rooms to include with renderings and drawings
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {project.rooms.map((room) => (
-                        <div key={room.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={room.id}
-                                checked={selectedRooms[room.id] || false}
-                                onCheckedChange={(checked) => 
-                                  handleRoomToggle(room.id, checked as boolean)
-                                }
-                              />
-                              <Label 
-                                htmlFor={room.id}
-                                className="font-medium cursor-pointer"
-                              >
-                                {room.name || room.type.replace('_', ' ')}
-                              </Label>
-                            </div>
-                          </div>
-                          
-                          {selectedRooms[room.id] && (
-                            <div className="mt-3 space-y-3">
+                    <DndContext 
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext 
+                        items={roomOrder}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-4">
+                          {orderedRooms.map((room) => (
+                            <SortableRoomItem
+                              key={room.id}
+                              room={room}
+                              isSelected={selectedRooms[room.id] || false}
+                              onToggle={(checked) => handleRoomToggle(room.id, checked as boolean)}
+                            >
                               <RenderingUpload roomId={room.id} />
                               <DropboxFileBrowser 
                                 roomId={room.id}
                                 projectId={project.id}
                               />
-                            </div>
-                          )}
+                            </SortableRoomItem>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </SortableContext>
+                    </DndContext>
                   </CardContent>
                 </Card>
               </div>
