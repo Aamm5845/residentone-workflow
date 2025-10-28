@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { DropboxFileBrowser } from './DropboxFileBrowser'
+import { PlanPdfUpload } from './PlanPdfUpload'
 import { RenderingUpload } from './RenderingUpload'
 import { SpecBookHistory } from './SpecBookHistory'
 import { SpecBookSettings } from './SpecBookSettings'
@@ -348,8 +349,12 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                           </div>
                           
                           {selectedSections[section.type] && (
-                            <div className="mt-3">
-                              {console.log(`Rendering DropboxFileBrowser for ${section.type}, selected:`, selectedSections[section.type])}
+                            <div className="mt-3 space-y-3">
+                              <PlanPdfUpload
+                                projectId={project.id}
+                                sectionType={section.type}
+                                sectionName={section.name}
+                              />
                               <DropboxFileBrowser 
                                 roomId={null}
                                 projectId={project.id}

@@ -77,6 +77,8 @@ model User {
   password                    String?
   role                        UserRole                    @default(DESIGNER)
   orgId                       String?
+  phoneNumber                 String?
+  smsNotificationsEnabled     Boolean                     @default(false)
   mustChangePassword          Boolean                     @default(false)
   approvalStatus              UserApprovalStatus          @default(PENDING)
   approvedAt                  DateTime?

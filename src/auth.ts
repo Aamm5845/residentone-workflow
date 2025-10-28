@@ -24,6 +24,8 @@ export const authOptions: NextAuthOptions = {
 
         try {
           console.log('🔐 Auth attempt for:', credentials.email)
+          console.log('📊 DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'NOT SET')
+          console.log('🔌 Prisma client ready')
           
           const user = await prisma.user.findUnique({
             where: {

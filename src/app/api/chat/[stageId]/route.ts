@@ -12,6 +12,7 @@ import {
   type AuthSession
 } from '@/lib/attribution'
 import { getStageName } from '@/constants/workflow'
+import { sendMentionSMS } from '@/lib/twilio'
 
 // GET /api/chat/[stageId] - Get all chat messages for a stage
 export async function GET(
@@ -166,7 +167,12 @@ export async function POST(
           id: { in: mentions },
           orgId: { not: null } // Only active users
         },
-        select: { id: true, name: true }
+        select: { 
+          id: true, 
+          name: true,
+          phoneNumber: true,
+          smsNotificationsEnabled: true
+        }
       })
 
       if (validUsers.length > 0) {
@@ -192,6 +198,31 @@ export async function POST(
         await prisma.notification.createMany({
           data: notificationData
         })
+
+        // Send SMS notifications to mentioned users with SMS enabled
+        const smsPromises = validUsers
+          .filter(user => user.phoneNumber && user.smsNotificationsEnabled)
+          .map(async (user) => {
+            try {
+              await sendMentionSMS({
+                to: user.phoneNumber!,
+                mentionedBy: session.user.name || 'Someone',
+                stageName: getStageName(stage.type),
+                projectName: stage.room.project.name,
+                message: content.trim(),
+                stageId: resolvedParams.stageId
+              })
+              console.log(`SMS sent to ${user.name} at ${user.phoneNumber}`)
+            } catch (error) {
+              console.error(`Failed to send SMS to ${user.name}:`, error)
+              // Don't fail the whole request if SMS fails
+            }
+          })
+        
+        // Send all SMS in parallel but don't wait for them
+        Promise.all(smsPromises).catch(err => 
+          console.error('Some SMS notifications failed:', err)
+        )
 
         // Get the created mentions for response
         const fullMentions = await prisma.chatMention.findMany({

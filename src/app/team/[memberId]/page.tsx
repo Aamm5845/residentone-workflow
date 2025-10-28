@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
 import ProjectOrganizedTasks from '@/components/team/project-organized-tasks'
+import { PhoneNumberSettings } from '@/components/team/PhoneNumberSettings'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Mail, User as UserIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -225,7 +226,7 @@ export default async function TeamMemberTasks({ params }: PageProps) {
         <ProjectOrganizedTasks member={member} isExpanded={true} />
 
         {/* Additional Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Summary</h3>
             <div className="space-y-3">
@@ -263,6 +264,14 @@ export default async function TeamMemberTasks({ params }: PageProps) {
               )}
             </div>
           </div>
+
+          {/* SMS Notifications Settings */}
+          <PhoneNumberSettings
+            userId={member.id}
+            initialPhoneNumber={member.phoneNumber}
+            initialSmsEnabled={member.smsNotificationsEnabled}
+            canEdit={session.user.id === member.id || ['OWNER', 'ADMIN'].includes(session.user.role)}
+          />
         </div>
       </div>
     </DashboardLayout>
