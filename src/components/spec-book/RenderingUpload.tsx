@@ -113,12 +113,19 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
 
   const handleRemoveRendering = async (renderingId: string) => {
     try {
+      // Find the rendering to get its URL
+      const rendering = renderings.find(r => r.id === renderingId)
+      if (!rendering) return
+      
       const response = await fetch('/api/spec-books/room-renderings', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ renderingId })
+        body: JSON.stringify({ 
+          renderingId,
+          imageUrl: rendering.url // Pass the URL to ensure correct removal
+        })
       })
       
       if (response.ok) {

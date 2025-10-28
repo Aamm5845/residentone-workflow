@@ -527,7 +527,7 @@ class PDFGenerationService {
         // Support both CAD-converted PDFs and directly uploaded PDFs
         const pdfUrl = file.uploadedPdfUrl || file.cadToPdfCacheUrl
         
-        if (pdfUrl && filesEmbedded === 0) { // Only embed first file on section page
+        if (pdfUrl) {
           try {
             console.log(`[PDF-Generation] Embedding PDF from ${pdfUrl}`)
             
@@ -537,43 +537,29 @@ class PDFGenerationService {
               const cadPdfBytes = await response.arrayBuffer()
               const cadPdf = await PDFDocument.load(cadPdfBytes)
               
-              // Get first page of the CAD PDF
-              const cadPages = await pdfDoc.copyPages(cadPdf, [0])
-              const cadPage = cadPages[0]
+              // Get ALL pages of the CAD PDF
+              const pageCount = cadPdf.getPageCount()
+              const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
+              const cadPages = await pdfDoc.copyPages(cadPdf, pageIndices)
               
-              // Calculate scaling to fit within content area while maintaining aspect ratio
-              const cadPageSize = cadPage.getSize()
-              const scale = Math.min(
-                PDFGenerationService.CONTENT_WIDTH / cadPageSize.width,
-                contentHeight / cadPageSize.height
-              )
+              // Add each page at full size (no scaling)
+              for (const cadPage of cadPages) {
+                pdfDoc.addPage(cadPage)
+                filesEmbedded++
+              }
               
-              const scaledWidth = cadPageSize.width * scale
-              const scaledHeight = cadPageSize.height * scale
-              
-              // Center the CAD content within the available area
-              const x = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
-              const y = currentY - contentHeight + (contentHeight - scaledHeight) / 2
-              
-              // Add the CAD page to our document with scaling and positioning
-              const finalPage = pdfDoc.addPage(cadPage)
-              
-              // Apply transformations to the added page
-              finalPage.scaleContent(scale, scale)
-              finalPage.translateContent(x, y)
-              
-              // Remove the original section page since we're replacing it with CAD content
-              pdfDoc.removePage(pdfDoc.getPageCount() - 2)
-              
-              filesEmbedded++
-              console.log(`[PDF-Generation] Successfully embedded ${file.fileName}`)
-              break // Only embed one file per section page
+              console.log(`[PDF-Generation] Successfully embedded ${pageCount} page(s) from ${file.fileName}`)
             }
           } catch (error) {
             console.error(`[PDF-Generation] Failed to embed CAD PDF ${file.fileName}:`, error)
             // Fall back to placeholder
           }
         }
+      }
+      
+      // Remove the original placeholder section page if files were embedded
+      if (filesEmbedded > 0) {
+        pdfDoc.removePage(pdfDoc.getPageIndex(page))
       }
       
       // If no files were embedded, show placeholder
@@ -844,33 +830,20 @@ class PDFGenerationService {
             const cadPdfBytes = await response.arrayBuffer()
             const cadPdf = await PDFDocument.load(cadPdfBytes)
             
-            // Get first page of the CAD PDF
-            const cadPages = await pdfDoc.copyPages(cadPdf, [0])
-            const embeddedCadPage = cadPages[0]
+            // Get ALL pages of the CAD PDF
+            const pageCount = cadPdf.getPageCount()
+            const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
+            const cadPages = await pdfDoc.copyPages(cadPdf, pageIndices)
             
-            // Calculate scaling to fit within content area
-            const cadPageSize = embeddedCadPage.getSize()
-            const scale = Math.min(
-              PDFGenerationService.CONTENT_WIDTH / cadPageSize.width,
-              cadContentHeight / cadPageSize.height
-            )
+            // Add each page at full size (no scaling)
+            for (const embeddedCadPage of cadPages) {
+              pdfDoc.addPage(embeddedCadPage)
+            }
             
-            const scaledWidth = cadPageSize.width * scale
-            const scaledHeight = cadPageSize.height * scale
+            // Remove the placeholder page
+            pdfDoc.removePage(pdfDoc.getPageIndex(cadPage))
             
-            // Center the CAD content
-            const x = PDFGenerationService.MARGIN + (PDFGenerationService.CONTENT_WIDTH - scaledWidth) / 2
-            const y = cadContentY - cadContentHeight + (cadContentHeight - scaledHeight) / 2
-            
-            // Scale and position the CAD page
-            embeddedCadPage.scale(scale, scale)
-            embeddedCadPage.translateTo(x, y)
-            
-            // Replace the current CAD page with the embedded one
-            pdfDoc.addPage(embeddedCadPage)
-            pdfDoc.removePage(pdfDoc.getPageCount() - 2) // Remove the placeholder page
-            
-            console.log(`[PDF-Generation] Successfully embedded room CAD ${cadFile.fileName}`)
+            console.log(`[PDF-Generation] Successfully embedded ${pageCount} page(s) from room CAD ${cadFile.fileName}`)
           } else {
             throw new Error(`Failed to fetch CAD PDF: ${response.status}`)
           }

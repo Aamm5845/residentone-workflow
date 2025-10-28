@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Upload, X, File, Loader2, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDropzone } from 'react-dropzone'
@@ -22,7 +22,35 @@ interface PDFUploadProps {
 
 export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate }: PDFUploadProps) {
   const [uploading, setUploading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<PDFFile[]>(existingFiles)
+  
+  // Fetch current files on mount and when sectionId changes
+  useEffect(() => {
+    loadFiles()
+  }, [sectionId])
+  
+  const loadFiles = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/spec-books/linked-files?sectionId=${sectionId}`)
+      if (response.ok) {
+        const data = await response.json()
+        // Filter to only show uploaded PDFs
+        const pdfFiles = data.files?.filter((f: any) => f.uploadedPdfUrl).map((f: any) => ({
+          id: f.id,
+          fileName: f.fileName,
+          uploadedPdfUrl: f.uploadedPdfUrl,
+          fileSize: f.fileSize
+        })) || []
+        setFiles(pdfFiles)
+      }
+    } catch (error) {
+      console.error('Failed to load files:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return
@@ -64,19 +92,11 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
           throw new Error('Failed to link PDF to section')
         }
 
-        const linkResult = await linkResponse.json()
-
-        // Add to local state
-        setFiles(prev => [...prev, {
-          id: linkResult.fileLink.id,
-          fileName: file.name,
-          uploadedPdfUrl: uploadResult.url,
-          fileSize: file.size
-        }])
-
         toast.success(`${file.name} uploaded successfully`)
       }
 
+      // Reload files to ensure we have the latest state
+      await loadFiles()
       onUpdate?.()
     } catch (error) {
       console.error('Upload error:', error)
@@ -105,7 +125,8 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
         throw new Error('Failed to remove PDF')
       }
 
-      setFiles(prev => prev.filter(f => f.id !== fileId))
+      // Reload files to ensure we have the latest state
+      await loadFiles()
       toast.success('PDF removed')
       onUpdate?.()
     } catch (error) {
