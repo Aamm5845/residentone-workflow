@@ -25,7 +25,9 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
     name: member.name || '',
     email: member.email || '',
     role: member.role || 'DESIGNER',
-    image: member.image || null
+    image: member.image || null,
+    phoneNumber: member.phoneNumber || '',
+    smsNotificationsEnabled: member.smsNotificationsEnabled || false
   })
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -200,6 +202,51 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
               </p>
             )}
           </div>
+
+          {/* Phone Number for SMS */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              📱 Phone Number (for SMS notifications)
+            </label>
+            <Input
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={(e) => {
+                // Format phone number as user types
+                const cleaned = e.target.value.replace(/\D/g, '')
+                let formatted = cleaned
+                if (cleaned.length <= 3) {
+                  formatted = cleaned
+                } else if (cleaned.length <= 6) {
+                  formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`
+                } else {
+                  formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
+                }
+                setFormData(prev => ({ ...prev, phoneNumber: formatted }))
+              }}
+              placeholder="(555) 123-4567"
+              maxLength={14}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              US/Canada format. Used for chat mention SMS notifications.
+            </p>
+          </div>
+
+          {/* SMS Notifications Toggle */}
+          {formData.phoneNumber && (
+            <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+              <input
+                type="checkbox"
+                id="smsEnabled"
+                checked={formData.smsNotificationsEnabled}
+                onChange={(e) => setFormData(prev => ({ ...prev, smsNotificationsEnabled: e.target.checked }))}
+                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+              />
+              <label htmlFor="smsEnabled" className="text-sm font-medium text-gray-700">
+                📲 Enable SMS notifications for chat mentions
+              </label>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3 pt-4">
             <Button

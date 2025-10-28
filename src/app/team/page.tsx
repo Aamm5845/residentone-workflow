@@ -34,7 +34,15 @@ export default async function TeamManagement() {
           not: null
         }
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        phoneNumber: true,
+        smsNotificationsEnabled: true,
+        createdAt: true,
         organization: true,
         assignedStages: {
           include: {

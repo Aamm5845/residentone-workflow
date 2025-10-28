@@ -12,6 +12,8 @@ const updateUserSchema = z.object({
   email: z.string().email("Invalid email address").optional(),
   role: z.nativeEnum(UserRole).optional(),
   image: z.string().min(1).optional().nullable(), // Accept relative URLs from local storage
+  phoneNumber: z.string().optional().nullable(),
+  smsNotificationsEnabled: z.boolean().optional(),
 })
 
 interface AuthSession extends Session {
@@ -200,6 +202,8 @@ export async function PUT(
         ...(validatedData.email && { email: validatedData.email }),
         ...(validatedData.role && { role: validatedData.role }),
         ...(validatedData.image !== undefined && { image: validatedData.image }),
+        ...(validatedData.phoneNumber !== undefined && { phoneNumber: validatedData.phoneNumber ? validatedData.phoneNumber.replace(/\D/g, '') : null }),
+        ...(validatedData.smsNotificationsEnabled !== undefined && { smsNotificationsEnabled: validatedData.smsNotificationsEnabled }),
         updatedAt: new Date(),
       },
       select: {
@@ -208,6 +212,8 @@ export async function PUT(
         email: true,
         role: true,
         image: true,
+        phoneNumber: true,
+        smsNotificationsEnabled: true,
         createdAt: true,
         updatedAt: true,
         _count: {

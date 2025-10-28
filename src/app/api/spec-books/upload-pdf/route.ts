@@ -9,22 +9,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    const projectId = formData.get('projectId') as string | null
-    const sectionType = formData.get('sectionType') as string | null
-    const sectionId = formData.get('sectionId') as string | null
-
-    // Handle both direct file upload (with projectId + sectionType) 
-    // and metadata-only upload (with sectionId + fileName + uploadedPdfUrl)
+    // Check content type to determine which flow to use
+    const contentType = request.headers.get('content-type') || ''
+    
     let targetSectionId: string
     let uploadedPdfUrl: string | undefined
     let fileName: string
     let fileSize: number | undefined
     let pageCount: number | undefined
 
-    if (file && projectId && sectionType) {
-      // Direct file upload flow
+    if (contentType.includes('multipart/form-data')) {
+      // Direct file upload flow with formData
+      const formData = await request.formData()
+      const file = formData.get('file') as File | null
+      const projectId = formData.get('projectId') as string | null
+      const sectionType = formData.get('sectionType') as string | null
+
+      if (!file || !projectId || !sectionType) {
+        return NextResponse.json(
+          { error: 'Missing required fields: file, projectId, and sectionType' },
+          { status: 400 }
+        )
+      }
+
       fileName = file.name
       fileSize = file.size
 
@@ -32,6 +39,7 @@ export async function POST(request: NextRequest) {
       const { put } = await import('@vercel/blob')
       const blob = await put(`spec-books/${projectId}/${sectionType}/${file.name}`, file, {
         access: 'public',
+        addRandomSuffix: true, // Generate unique filename to avoid overwrites
       })
       uploadedPdfUrl = blob.url
 
@@ -59,7 +67,9 @@ export async function POST(request: NextRequest) {
         specBook = await prisma.specBook.create({
           data: {
             projectId,
-            name: 'Default Spec Book'
+            name: 'Default Spec Book',
+            createdById: session.user.id,
+            updatedById: session.user.id
           }
         })
       }
@@ -85,12 +95,21 @@ export async function POST(request: NextRequest) {
       }
 
       targetSectionId = section.id
-    } else if (sectionId) {
-      // Legacy flow: metadata-only upload
+    } else {
+      // Legacy flow: JSON payload with metadata
       const jsonData = await request.json()
+      const sectionId = jsonData.sectionId
       fileName = jsonData.fileName
       uploadedPdfUrl = jsonData.uploadedPdfUrl
       fileSize = jsonData.fileSize
+
+      if (!sectionId || !fileName || !uploadedPdfUrl) {
+        return NextResponse.json(
+          { error: 'Missing required fields: sectionId, fileName, and uploadedPdfUrl' },
+          { status: 400 }
+        )
+      }
+
       targetSectionId = sectionId
 
       // Verify section exists and user has access
@@ -111,11 +130,6 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         )
       }
-    } else {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
     }
 
     // Create a file link entry for the uploaded PDF
@@ -142,8 +156,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error linking PDF to section:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Full error details:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    })
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     )
   }
