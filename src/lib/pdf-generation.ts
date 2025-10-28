@@ -179,9 +179,9 @@ class PDFGenerationService {
       // Add dynamic project information to the cover - CENTERED and VERTICALLY SPACED
       const { width, height } = coverPage.getSize()
       
-      // Calculate vertical centering with proper spacing between elements
+      // Calculate vertical positioning - start lower for better balance
       const centerY = height / 2
-      let contentY = centerY + 150 // Start above center
+      let contentY = centerY + 50 // Start slightly above center for better visual balance
       
       // Spec book type (if provided) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
@@ -194,7 +194,7 @@ class PDFGenerationService {
           font: font,
           color: rgb(1, 1, 1) // White text on black background
         })
-        contentY -= 90 // More spacing between elements
+        contentY -= 80 // Spacing between elements
       }
       
       // Project name (bold) - centered horizontally and vertically
@@ -208,7 +208,7 @@ class PDFGenerationService {
         color: rgb(1, 1, 1) // White text on black background
       })
       
-      contentY -= 90 // More spacing before address
+      contentY -= 80 // Spacing before address
       
       // Address (regular font) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
@@ -234,7 +234,7 @@ class PDFGenerationService {
       const printDateWidth = font.widthOfTextAtSize(printDate, 22)
       coverPage.drawText(printDate, {
         x: (width - printDateWidth) / 2, // Center horizontally
-        y: 120, // Higher from bottom to avoid overlap with any footer elements
+        y: 150, // Position near bottom with adequate spacing
         size: 22, // Increased from 10 for large format
         font: font,
         color: rgb(1, 1, 1) // White text on black background
@@ -727,9 +727,9 @@ class PDFGenerationService {
             }
             
             // Calculate dimensions to maximize image size while maintaining aspect ratio
-            // Account for header (200pts) and footer (100pts) with extra padding
-            const headerHeight = 200 // Increased to avoid covering top border
-            const footerHeight = 100 // Increased to avoid covering bottom border
+            // Account for header (240pts) and footer (120pts) with extra padding to avoid overlap
+            const headerHeight = 240 // Increased to clear header decorations completely
+            const footerHeight = 120 // Increased to clear footer decorations completely
             const availableWidth = pageWidth - (PDFGenerationService.MARGIN * 2)
             const availableHeight = pageHeight - headerHeight - footerHeight
             
