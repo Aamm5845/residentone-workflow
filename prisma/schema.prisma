@@ -133,6 +133,10 @@ model User {
   activityLogs                ActivityLog[]               @relation("ActivityLogActor")
   specBookGenerations         SpecBookGeneration[]        @relation("SpecBookGeneratedBy")
   activities                  Activity[]                  @relation("ActivityUser")
+  reportedIssues              Issue[]                     @relation("IssueReporter")
+  assignedIssues              Issue[]                     @relation("IssueAssignee")
+  resolvedIssues              Issue[]                     @relation("IssueResolver")
+  issueComments               IssueComment[]              @relation("IssueCommentAuthor")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -228,6 +232,7 @@ model Project {
   roomSections              RoomSection[]
   specBooks                 SpecBook[]
   clientAccessTokens        ClientAccessToken[] @relation("ClientAccessTokenProject")
+  issues                    Issue[]             @relation("IssueProject")
 }
 
 model RoomSection {
@@ -272,6 +277,7 @@ model Room {
   stages          Stage[]
   ffeInstance     RoomFFEInstance? @relation("RoomFFEInstance")
   renderingVersions RenderingVersion[] @relation("RoomRenderingVersions")
+  issues          Issue[]          @relation("IssueRoom")
 
   @@index([projectId])
   @@index([sectionId])
@@ -303,6 +309,7 @@ model Stage {
   room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   renderingVersions      RenderingVersion[]      @relation("StageRenderingVersions")
+  issues                 Issue[]                 @relation("IssueStage")
 
   @@unique([roomId, type])
 }
@@ -1027,6 +1034,14 @@ model Issue {
   resolvedAt  DateTime?
   closedAt    DateTime?
   metadata    Json?
+  
+  reporter    User          @relation("IssueReporter", fields: [reportedBy], references: [id])
+  assignee    User?         @relation("IssueAssignee", fields: [assignedTo], references: [id])
+  resolver    User?         @relation("IssueResolver", fields: [resolvedBy], references: [id])
+  project     Project?      @relation("IssueProject", fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?         @relation("IssueRoom", fields: [roomId], references: [id], onDelete: Cascade)
+  stage       Stage?        @relation("IssueStage", fields: [stageId], references: [id], onDelete: Cascade)
+  comments    IssueComment[]
 
   @@index([reportedBy])
   @@index([assignedTo])
@@ -1044,6 +1059,9 @@ model IssueComment {
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author    User     @relation("IssueCommentAuthor", fields: [authorId], references: [id])
 
   @@index([issueId])
   @@index([createdAt])
