@@ -184,44 +184,44 @@ class PDFGenerationService {
       let currentY = 175 // Start higher to accommodate spec book type
       
       // Spec book type (if provided) - positioned at top of project info
-      // WHITE text for black background
+      // WHITE text for black background - SCALED UP for large format
       if (coverData.specBookType) {
         coverPage.drawText(coverData.specBookType.toUpperCase(), {
           x: projectNameX,
           y: currentY,
-          size: 12,
+          size: 28, // Increased from 12 for large format
           font: font,
           color: rgb(1, 1, 1) // White text on black background
         })
-        currentY -= 25
+        currentY -= 50
       }
       
       // Project name (bold) - positioned below spec book type
-      // WHITE text for black background
+      // WHITE text for black background - SCALED UP for large format
       const projectNameY = currentY
       
       coverPage.drawText(coverData.projectName, {
         x: projectNameX,
         y: projectNameY,
-        size: 16,
+        size: 38, // Increased from 16 for large format
         font: boldFont,
         color: rgb(1, 1, 1) // White text on black background
       })
       
       // Address (regular font) - positioned below project name
-      // WHITE text for black background
+      // WHITE text for black background - SCALED UP for large format
       if (coverData.address) {
         coverPage.drawText(coverData.address, {
           x: projectNameX,
-          y: projectNameY - 25,
-          size: 12,
+          y: projectNameY - 60,
+          size: 28, // Increased from 12 for large format
           font: font,
           color: rgb(1, 1, 1) // White text on black background
         })
       }
       
       // Print date - positioned much lower on the page, independent of other content
-      // WHITE text for black background
+      // WHITE text for black background - SCALED UP for large format
       const printDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -231,8 +231,8 @@ class PDFGenerationService {
       // Position date at the very bottom of the page, independent of address
       coverPage.drawText(printDate, {
         x: projectNameX,
-        y: 80, // Much lower - near bottom margin
-        size: 10,
+        y: 80,
+        size: 22, // Increased from 10 for large format
         font: font,
         color: rgb(1, 1, 1) // White text on black background
       })
@@ -379,42 +379,42 @@ class PDFGenerationService {
       color: rgb(1, 1, 1)
     })
     
-    // Minimalist title
+    // Minimalist title - SCALED UP for large format
     page.drawText('CONTENTS', {
       x: PDFGenerationService.MARGIN,
-      y: height - 120,
-      size: 18,
-      font: font,
+      y: height - 180,
+      size: 48, // Increased from 18 for large format
+      font: boldFont,
       color: rgb(0.4, 0.4, 0.4)
     })
     
     // Subtle line under title
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
-      y: height - 135,
-      width: 120,
-      height: 0.5,
+      y: height - 200,
+      width: 300,
+      height: 2,
       color: rgb(0.7, 0.7, 0.7)
     })
     
-    let currentY = height - 180
+    let currentY = height - 280
     
-    // Project sections with minimal styling
+    // Project sections with minimal styling - SCALED UP for large format
     if (sectionPageNumbers.length > 0) {
       page.drawText('PROJECT PLANS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
-        size: 12,
+        size: 32, // Increased from 12 for large format
         font: boldFont,
         color: rgb(0.5, 0.5, 0.5)
       })
-      currentY -= 40
+      currentY -= 70
       
       for (const section of sectionPageNumbers) {
         page.drawText(section.name, {
-          x: PDFGenerationService.MARGIN + 20,
+          x: PDFGenerationService.MARGIN + 40,
           y: currentY,
-          size: 11,
+          size: 28, // Increased from 11 for large format
           font: font,
           color: rgb(0.6, 0.6, 0.6)
         })
@@ -430,35 +430,35 @@ class PDFGenerationService {
         })
         
         page.drawText(`${section.pageNum}`, {
-          x: width - PDFGenerationService.MARGIN - 30,
+          x: width - PDFGenerationService.MARGIN - 80,
           y: currentY,
-          size: 11,
+          size: 28, // Increased from 11 for large format
           font: font,
           color: rgb(0.6, 0.6, 0.6)
         })
         
-        currentY -= 25
+        currentY -= 50 // Increased spacing for large format
       }
       
-      currentY -= 30
+      currentY -= 60 // Increased spacing for large format
     }
     
-    // Room sections with minimal styling
+    // Room sections with minimal styling - SCALED UP for large format
     if (roomPageNumbers.length > 0) {
       page.drawText('ROOMS', {
         x: PDFGenerationService.MARGIN,
         y: currentY,
-        size: 12,
+        size: 32, // Increased from 12 for large format
         font: boldFont,
         color: rgb(0.5, 0.5, 0.5)
       })
-      currentY -= 40
+      currentY -= 70
       
       for (const room of roomPageNumbers) {
         page.drawText(room.name, {
-          x: PDFGenerationService.MARGIN + 20,
+          x: PDFGenerationService.MARGIN + 40,
           y: currentY,
-          size: 11,
+          size: 28, // Increased from 11 for large format
           font: font,
           color: rgb(0.6, 0.6, 0.6)
         })
@@ -474,14 +474,14 @@ class PDFGenerationService {
         })
         
         page.drawText(`${room.pageNum}`, {
-          x: width - PDFGenerationService.MARGIN - 30,
+          x: width - PDFGenerationService.MARGIN - 80,
           y: currentY,
-          size: 11,
+          size: 28, // Increased from 11 for large format
           font: font,
           color: rgb(0.6, 0.6, 0.6)
         })
         
-        currentY -= 25
+        currentY -= 50 // Increased spacing for large format
       }
     }
   }
@@ -724,9 +724,9 @@ class PDFGenerationService {
             }
             
             // Calculate dimensions to maximize image size while maintaining aspect ratio
-            // Account for header (150pts) and footer (80pts)
-            const headerHeight = 150
-            const footerHeight = 80
+            // Account for header (200pts) and footer (100pts) with extra padding
+            const headerHeight = 200 // Increased to avoid covering top border
+            const footerHeight = 100 // Increased to avoid covering bottom border
             const availableWidth = pageWidth - (PDFGenerationService.MARGIN * 2)
             const availableHeight = pageHeight - headerHeight - footerHeight
             
@@ -841,7 +841,7 @@ class PDFGenerationService {
       const logoBytes = await fs.readFile(logoPath)
       const logoImage = await pdfDoc.embedPng(logoBytes)
       
-      const logoHeight = 60
+      const logoHeight = 120 // Increased from 60 for large format
       const logoWidth = (logoImage.width / logoImage.height) * logoHeight
       
       // Draw logo in top left
@@ -856,53 +856,53 @@ class PDFGenerationService {
       // Continue without logo
     }
     
-    // Top border line - elegant and thin
+    // Top border line - elegant and thicker for large format
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
       y: height - PDFGenerationService.MARGIN,
       width: width - (PDFGenerationService.MARGIN * 2),
-      height: 3,
+      height: 6, // Increased from 3 for large format
       color: PDFGenerationService.BRAND_COLOR
     })
     
-    // Title text (top right)
-    const titleSize = 32
-    const titleWidth = font.widthOfTextAtSize(title, titleSize)
+    // Title text (top right) - SCALED UP for large format
+    const titleSize = 72 // Increased from 32 for large format
+    const titleWidth = boldFont.widthOfTextAtSize(title, titleSize)
     page.drawText(title, {
       x: width - PDFGenerationService.MARGIN - titleWidth,
-      y: height - PDFGenerationService.MARGIN - 50,
+      y: height - PDFGenerationService.MARGIN - 100,
       size: titleSize,
       font: boldFont,
       color: PDFGenerationService.BRAND_COLOR
     })
     
-    // Subtitle (if provided)
+    // Subtitle (if provided) - SCALED UP for large format
     if (subtitle) {
-      const subtitleSize = 18
+      const subtitleSize = 42 // Increased from 18 for large format
       const subtitleWidth = font.widthOfTextAtSize(subtitle, subtitleSize)
       page.drawText(subtitle, {
         x: width - PDFGenerationService.MARGIN - subtitleWidth,
-        y: height - PDFGenerationService.MARGIN - 80,
+        y: height - PDFGenerationService.MARGIN - 160,
         size: subtitleSize,
         font: font,
         color: PDFGenerationService.TEXT_COLOR
       })
     }
     
-    // Bottom border - accent color
+    // Bottom border - accent color, thicker for large format
     page.drawRectangle({
       x: PDFGenerationService.MARGIN,
-      y: PDFGenerationService.MARGIN - 3,
+      y: PDFGenerationService.MARGIN - 5,
       width: width - (PDFGenerationService.MARGIN * 2),
-      height: 2,
+      height: 4, // Increased from 2 for large format
       color: PDFGenerationService.ACCENT_COLOR
     })
     
-    // Page info in bottom left
+    // Page info in bottom left - SCALED UP for large format
     page.drawText('MEISNER INTERIORS', {
       x: PDFGenerationService.MARGIN,
-      y: PDFGenerationService.MARGIN - 30,
-      size: 10,
+      y: PDFGenerationService.MARGIN - 50,
+      size: 24, // Increased from 10 for large format
       font: font,
       color: PDFGenerationService.LIGHT_TEXT
     })
