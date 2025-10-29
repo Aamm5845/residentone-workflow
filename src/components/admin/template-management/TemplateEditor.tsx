@@ -20,6 +20,7 @@ import type {
   FFESection, 
   FFEItemState 
 } from '@/types/ffe-v2';
+import { getPresetItemsForSection } from '@/lib/constants/ffe-section-presets';
 
 interface TemplateEditorProps {
   template: FFETemplate | null;
@@ -125,11 +126,23 @@ export function TemplateEditor({
 
   // Section management
   const addSectionFromLibrary = (section: FFESection) => {
+    // Get preset items for this section
+    const presetItems = getPresetItemsForSection(section.name);
+    
     const newTemplateSection: EditableTemplateSection = {
       id: `temp-${Date.now()}`,
       name: section.name,
       order: templateSections.length,
-      items: [],
+      items: presetItems.map((preset, index) => ({
+        name: preset.name,
+        description: preset.description || '',
+        defaultState: preset.defaultState,
+        isRequired: preset.isRequired,
+        order: preset.order,
+        notes: preset.notes || '',
+        linkedItems: [],
+        isNew: true
+      })),
       isNew: true
     };
 

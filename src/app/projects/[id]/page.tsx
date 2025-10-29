@@ -400,9 +400,6 @@ export default async function ProjectDetail({ params }: Props) {
                               </p>
                             </div>
                           </div>
-                          <div className="text-xs text-blue-600">
-                            📐
-                          </div>
                         </div>
                       </div>
                     </Link>
@@ -429,9 +426,6 @@ export default async function ProjectDetail({ params }: Props) {
                               </p>
                             </div>
                           </div>
-                          <div className="text-xs text-green-600">
-                            📋
-                          </div>
                         </div>
                       </div>
                     </Link>
@@ -457,9 +451,6 @@ export default async function ProjectDetail({ params }: Props) {
                                 Manage onsite visits and revisions
                               </p>
                             </div>
-                          </div>
-                          <div className="text-xs text-purple-600">
-                            📝
                           </div>
                         </div>
                       </div>

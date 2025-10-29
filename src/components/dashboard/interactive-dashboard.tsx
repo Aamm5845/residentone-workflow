@@ -364,47 +364,60 @@ function TaskItem({ task }: { task: Task }) {
     window.location.href = `/stages/${task.id}`
   }
 
+  const formatTaskTitle = (title: string, stageType: string, roomType: string) => {
+    // Format phase names properly
+    const phaseName = stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    // Format room type properly
+    const formattedRoom = roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    return `${phaseName} - ${formattedRoom}`
+  }
+
   return (
     <div 
-      className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+      className={`flex items-center justify-between p-5 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
         isOverdue 
-          ? 'bg-red-50 border border-red-200 hover:bg-red-100 shadow-md' 
+          ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300 shadow-md' 
           : isDueSoon
-          ? 'bg-yellow-50 border border-yellow-200 hover:bg-yellow-100' 
-          : 'bg-gray-50 hover:bg-gray-100'
+          ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100 hover:border-yellow-300' 
+          : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
       }`}
       onClick={handleTaskClick}
     >
-      <div className="flex items-center space-x-4">
-        <div className="w-8 h-8 bg-white rounded border-2 border-gray-300 flex items-center justify-center">
-          <span className="text-lg">{statusIcons[task.status as keyof typeof statusIcons] || '📋'}</span>
-        </div>
+      <div className="flex items-center space-x-4 flex-1 min-w-0">
         <div>
-          <div className="flex items-center space-x-2">
-            <h3 className={`font-medium ${
+          <div className="flex items-center space-x-2 mb-1">
+            <h3 className={`font-semibold text-base ${
               isOverdue ? 'text-red-900' : isDueSoon ? 'text-yellow-900' : 'text-gray-900'
-            }`}>{task.title}</h3>
+            }`}>{formatTaskTitle(task.title, task.stageType, task.roomType)}</h3>
             {isOverdue && (
-              <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full border border-red-200">
+              <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 OVERDUE
               </span>
             )}
             {isDueSoon && (
-              <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full border border-yellow-200">
+              <span className="bg-yellow-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 DUE SOON
               </span>
             )}
           </div>
-          <p className={`text-sm mt-1 ${
-            isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-gray-500'
-          }`}>
-            {task.project} • {task.client}{task.dueDate ? ` • ${formatDueDate(task.dueDate)}` : ''}
-          </p>
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <span className="font-medium">{task.project}</span>
+            <span className="text-gray-400">•</span>
+            <span>{task.client}</span>
+            {task.dueDate && (
+              <>
+                <span className="text-gray-400">•</span>
+                <span className={`font-medium ${
+                  isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-gray-600'
+                }`}>{formatDueDate(task.dueDate)}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex items-center space-x-2">
-        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${priorityColors[task.priority]}`}>
-          {task.priority}
+      <div className="flex items-center space-x-3 flex-shrink-0">
+        <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg border-2 ${priorityColors[task.priority]}`}>
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
         </span>
       </div>
     </div>

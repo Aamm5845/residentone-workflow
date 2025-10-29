@@ -257,13 +257,6 @@ export function SectionCard({
               )}
             </button>
             
-            {/* Section Icon */}
-            <div className={`w-12 h-12 bg-gradient-to-br ${sectionDef.color} rounded-xl flex items-center justify-center text-white text-xl shadow-lg`}>
-              <RenderIcon 
-                name={sectionDef.icon} 
-                className="w-8 h-8 text-white" 
-              />
-            </div>
             
             {/* Section Info */}
             <div className="flex-1">
@@ -277,24 +270,24 @@ export function SectionCard({
                 {/* Status Indicators */}
                 <div className="flex items-center space-x-1.5">
                   {hasContent && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
                       Content
                     </span>
                   )}
                   {assetCount > 0 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
                       <Paperclip className="w-3 h-3 mr-1" />
                       {assetCount}
                     </span>
                   )}
                   {commentCount > 0 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
                       <MessageSquare className="w-3 h-3 mr-1" />
                       {commentCount}
                     </span>
                   )}
                   {checklistItems > 0 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
                       <CheckSquare className="w-3 h-3 mr-1" />
                       {completedChecklist}/{checklistItems}
                     </span>

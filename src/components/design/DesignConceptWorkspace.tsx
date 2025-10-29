@@ -109,13 +109,13 @@ interface DesignConceptWorkspaceProps {
   className?: string
 }
 
-// Professional section definitions with Lucide icons
+// Professional section definitions
 const SECTION_DEFINITIONS = [
   {
     id: 'GENERAL',
     name: 'General',
     icon: 'Sparkles',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-gray-600 to-gray-700',
     description: 'Overall design concept, mood, and styling direction',
     placeholder: 'Describe the overall design vision, mood, color palette, and style direction for this space...'
   },
@@ -123,7 +123,7 @@ const SECTION_DEFINITIONS = [
     id: 'WALL_COVERING',
     name: 'Wall Covering',
     icon: 'PaintRoller',
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-gray-600 to-gray-700',
     description: 'Wall treatments, paint colors, wallpaper, and finishes',
     placeholder: 'Detail wall paint colors, wallpaper selections, textures, accent walls, and any special wall treatments...'
   },
@@ -131,7 +131,7 @@ const SECTION_DEFINITIONS = [
     id: 'CEILING',
     name: 'Ceiling',
     icon: 'PanelTop',
-    color: 'from-amber-500 to-orange-500',
+    color: 'from-gray-600 to-gray-700',
     description: 'Ceiling design, treatments, lighting integration, and details',
     placeholder: 'Specify ceiling treatments, crown molding, lighting fixtures, paint colors, and architectural details...'
   },
@@ -139,7 +139,7 @@ const SECTION_DEFINITIONS = [
     id: 'FLOOR',
     name: 'Floor',
     icon: 'Grid',
-    color: 'from-emerald-500 to-teal-500',
+    color: 'from-gray-600 to-gray-700',
     description: 'Flooring materials, patterns, transitions, and area rugs',
     placeholder: 'Describe flooring materials, patterns, transitions between spaces, area rugs, and floor treatments...'
   }
@@ -314,9 +314,6 @@ export default function DesignConceptWorkspace({
       <div className="px-6 py-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-sm">
-              <Palette className="w-7 h-7 text-white" />
-            </div>
             
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900">
@@ -393,9 +390,9 @@ export default function DesignConceptWorkspace({
 
         {/* Progress Bar */}
         <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 ease-out"
+              className="bg-gray-800 h-2 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -407,22 +404,20 @@ export default function DesignConceptWorkspace({
             onClick={() => setActiveTab('sections')}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
               activeTab === 'sections'
-                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-800'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
-            <Palette className="w-4 h-4 inline mr-2" />
             Design Sections
           </button>
           <button
             onClick={() => setActiveTab('activity')}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
               activeTab === 'activity'
-                ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-800'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
-            <Activity className="w-4 h-4 inline mr-2" />
             Activity Log
           </button>
           
