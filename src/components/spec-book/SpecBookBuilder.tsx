@@ -221,6 +221,9 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
       // Use ordered room list
       const selectedRoomIds = roomOrder.filter(roomId => selectedRooms[roomId])
       
+      console.log('[SpecBook] Room order being sent to API:', selectedRoomIds)
+      console.log('[SpecBook] Room names in order:', selectedRoomIds.map(id => project.rooms.find(r => r.id === id)?.name || 'Unknown'))
+      
       setGenerationProgress(20)
       
       const response = await fetch('/api/spec-books/generate', {

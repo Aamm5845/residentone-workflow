@@ -177,7 +177,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process selected rooms
+    // Process selected rooms - maintain order from frontend
+    console.log('[PDF-Generation] Selected rooms order from frontend:', selectedRooms)
     const processedRooms = []
     for (const roomId of selectedRooms || []) {
       const room = project.rooms.find(r => r.id === roomId)
