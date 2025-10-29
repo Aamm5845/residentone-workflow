@@ -4,6 +4,10 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
 import FFEDepartmentRouter from '@/components/ffe/FFEDepartmentRouter'
+import DashboardLayout from '@/components/layout/dashboard-layout'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
 
 interface FFEWorkspacePageProps {
   params: {
@@ -56,7 +60,12 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
         select: {
           id: true,
           name: true,
-          orgId: true
+          orgId: true,
+          client: {
+            select: {
+              name: true
+            }
+          }
         }
       }
     }
@@ -67,17 +76,37 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
-      <FFEDepartmentRouter
-        roomId={roomId}
-        roomName={room.name || 'Room'}
-        orgId={room.project?.orgId}
-        projectId={room.project?.id}
-        projectName={room.project?.name}
-        initialMode="workspace"
-        userRole={session.user.role}
-        showModeToggle={false}
-      />
-    </div>
+    <DashboardLayout session={session}>
+      <div className="p-6 space-y-6">
+        {/* Header - matching other stages */}
+        <div className="flex items-center space-x-4">
+          <Button asChild variant="ghost" size="icon">
+            <Link href={`/projects/${room.project?.id}`}>
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              FFE Phase
+            </h1>
+            <p className="text-gray-600">
+              {room.name || room.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {room.project?.name} • {room.project?.client?.name}
+            </p>
+          </div>
+        </div>
+
+        {/* FFE Content */}
+        <FFEDepartmentRouter
+          roomId={roomId}
+          roomName={room.name || 'Room'}
+          orgId={room.project?.orgId}
+          projectId={room.project?.id}
+          projectName={room.project?.name}
+          initialMode="workspace"
+          userRole={session.user.role}
+          showModeToggle={false}
+        />
+      </div>
+    </DashboardLayout>
   )
 }

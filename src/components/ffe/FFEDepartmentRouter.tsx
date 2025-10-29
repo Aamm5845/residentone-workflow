@@ -179,56 +179,7 @@ export default function FFEDepartmentRouter({
             </div>
           </CardContent>
         </Card>
-      ) : (
-        /* Simplified header when toggle is disabled */
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <CurrentIcon className={cn("w-8 h-8 mr-3", currentConfig.color)} />
-              FFE {currentConfig.label} - {roomName}
-            </h1>
-            <p className="text-gray-600 mt-1">{currentConfig.description}</p>
-          </div>
-          
-          {/* Show progress indicator and settings navigation for workspace mode */}
-          {currentMode === 'workspace' && (
-            <div className="flex items-center space-x-4">
-              {/* Progress indicator */}
-              <div className="text-right">
-                <div className={cn(
-                  "text-xl font-bold",
-                  workspaceComplete ? "text-green-600" : "text-blue-600"
-                )}>
-                  {Math.round(workspaceProgress)}%
-                </div>
-                <div className="text-sm text-gray-600">Complete</div>
-              </div>
-              
-              {/* Settings button */}
-              {canAccessSettings && (
-                <Button asChild variant="outline" size="sm" disabled={disabled} className="flex items-center">
-                  <Link href={`/ffe/${roomId}/settings`}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </Link>
-                </Button>
-              )}
-            </div>
-          )}
-          
-          {/* Show workspace navigation for settings mode */}
-          {currentMode === 'settings' && (
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm" disabled={disabled} className="flex items-center">
-                <Link href={`/ffe/${roomId}/workspace`}>
-                  <Briefcase className="w-4 h-4 mr-2" />
-                  Workspace
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+      ) : null}
 
       {/* Render the appropriate department component */}
       <div>
