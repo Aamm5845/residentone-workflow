@@ -624,6 +624,17 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                           />
                           <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 animate-in fade-in slide-in-from-top-1 duration-200" style={{minWidth: '224px', transform: 'translateX(-8px)', zIndex: 9999, position: 'absolute'}}>
                             <div className="py-1">
+                              <Link
+                                href={`/team/${member.id}`}
+                                onClick={() => setOpenDropdown(null)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                View Details
+                              </Link>
+                              
+                              <div className="border-t border-gray-100 my-1"></div>
+                              
                               <button
                                 onClick={() => {
                                   setEditingMember(member)
