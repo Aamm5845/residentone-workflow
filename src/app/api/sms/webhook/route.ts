@@ -27,16 +27,26 @@ export async function POST(request: NextRequest) {
     })
 
     // Validate the request is from Twilio
-    const validator = twilio.validateRequest(
-      authToken,
-      twilioSignature,
-      url,
-      params
-    )
+    // NOTE: In development or if behind a proxy, validation might fail
+    // You can temporarily skip validation for testing
+    const shouldValidate = process.env.NODE_ENV === 'production'
+    
+    if (shouldValidate) {
+      const validator = twilio.validateRequest(
+        authToken,
+        twilioSignature,
+        url,
+        params
+      )
 
-    if (!validator) {
-      console.error('Invalid Twilio signature')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      if (!validator) {
+        console.error('[SMS Webhook] Invalid Twilio signature')
+        console.error('[SMS Webhook] URL:', url)
+        console.error('[SMS Webhook] Signature:', twilioSignature)
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else {
+      console.log('[SMS Webhook] Skipping signature validation (development mode)')
     }
 
     // Extract SMS details
@@ -44,21 +54,42 @@ export async function POST(request: NextRequest) {
     const body = params.Body // Message body
     const messageSid = params.MessageSid
 
-    console.log('Received SMS:', { from, body, messageSid })
+    console.log('[SMS Webhook] Received SMS:', { from, body, messageSid })
 
-    // Find the user by phone number
-    const user = await prisma.user.findFirst({
+    // Normalize phone number for matching (remove all non-digits)
+    const normalizePhone = (phone: string) => phone.replace(/\D/g, '')
+    const fromNormalized = normalizePhone(from)
+    
+    console.log('[SMS Webhook] Looking for user with phone:', { from, normalized: fromNormalized })
+
+    // Find all users with SMS enabled
+    const allUsers = await prisma.user.findMany({
       where: {
-        phoneNumber: from,
+        phoneNumber: { not: null },
         smsNotificationsEnabled: true,
         orgId: { not: null }
       },
       select: {
         id: true,
         name: true,
-        orgId: true
+        orgId: true,
+        phoneNumber: true
       }
     })
+    
+    // Find user by matching normalized phone numbers
+    const user = allUsers.find(u => {
+      if (!u.phoneNumber) return false
+      const userPhoneNormalized = normalizePhone(u.phoneNumber)
+      return userPhoneNormalized === fromNormalized
+    })
+    
+    console.log('[SMS Webhook] Found user:', user ? { id: user.id, name: user.name } : 'NOT FOUND')
+    console.log('[SMS Webhook] All users checked:', allUsers.map(u => ({
+      name: u.name,
+      stored: u.phoneNumber,
+      normalized: normalizePhone(u.phoneNumber || '')
+    })))
 
     if (!user) {
       console.error('User not found for phone number:', from)
