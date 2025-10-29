@@ -99,7 +99,7 @@ export default async function Projects({ searchParams }: { searchParams: Promise
           }
         }
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { createdAt: 'desc' }
     })
   } catch (error) {
     console.error('Error fetching projects:', error)
@@ -142,7 +142,7 @@ export default async function Projects({ searchParams }: { searchParams: Promise
             }
           }
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { createdAt: 'desc' }
       })
     } catch (fallbackError) {
       console.error('Fallback query also failed:', fallbackError)
