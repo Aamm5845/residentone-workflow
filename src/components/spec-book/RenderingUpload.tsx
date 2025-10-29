@@ -71,8 +71,7 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
           
           setRenderings(prev => [...prev, newRendering])
           
-          // Update spec book section with rendering URL
-          await updateRenderingUrl(uploadResult.url)
+          console.log('[RenderingUpload] Uploaded rendering:', newRendering)
         } else {
           throw new Error(uploadResult.error || 'Upload failed')
         }
@@ -85,23 +84,6 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
     }
   }, [roomId])
 
-  const updateRenderingUrl = async (imageUrl: string) => {
-    try {
-      await fetch('/api/spec-books/room-renderings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          roomId,
-          imageUrl
-        })
-      })
-    } catch (error) {
-      console.error('Error updating rendering URL:', error)
-    }
-  }
-
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -113,29 +95,29 @@ export function RenderingUpload({ roomId }: RenderingUploadProps) {
 
   const handleRemoveRendering = async (renderingId: string) => {
     try {
-      // Find the rendering to get its URL
-      const rendering = renderings.find(r => r.id === renderingId)
-      if (!rendering) return
-      
+      // renderingId is now the URL itself
       const response = await fetch('/api/spec-books/room-renderings', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          renderingId,
-          imageUrl: rendering.url // Pass the URL to ensure correct removal
+          renderingId, // URL is the ID
+          roomId // Pass roomId to find the section
         })
       })
       
-      if (response.ok) {
+      const result = await response.json()
+      
+      if (result.success) {
+        // Remove from UI
         setRenderings(prev => prev.filter(r => r.id !== renderingId))
       } else {
-        throw new Error('Failed to delete rendering')
+        throw new Error(result.error || 'Failed to delete rendering')
       }
     } catch (error) {
       console.error('Error removing rendering:', error)
-      alert('Failed to remove rendering')
+      alert(`Failed to remove rendering: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

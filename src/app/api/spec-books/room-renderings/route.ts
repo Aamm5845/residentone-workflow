@@ -35,10 +35,13 @@ export async function GET(request: NextRequest) {
         : section.renderingUrl ? [section.renderingUrl] : []
       
       urls.forEach((url, index) => {
+        // Use the URL as ID for stability - extract filename from URL
+        const filename = url.split('/').pop()?.split('?')[0] || `rendering-${index + 1}.jpg`
         renderings.push({
-          id: `${section.id}-${index}`,
+          id: url, // Use URL as stable ID
+          sectionId: section.id, // Include section ID for deletion
           imageUrl: url,
-          filename: `rendering-${index + 1}.jpg`,
+          filename: filename,
           fileSize: 0 // We don't store file size currently
         })
       })
@@ -160,19 +163,24 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { renderingId, imageUrl } = await request.json()
+    const { renderingId, roomId } = await request.json()
 
-    if (!renderingId) {
-      return NextResponse.json({ error: 'renderingId is required' }, { status: 400 })
+    if (!renderingId || !roomId) {
+      return NextResponse.json({ error: 'renderingId and roomId are required' }, { status: 400 })
     }
 
-    // Extract section ID and index from composite rendering ID
-    const [sectionId, indexStr] = renderingId.split('-')
-    const index = parseInt(indexStr, 10)
+    // renderingId is now the URL itself
+    const urlToRemove = renderingId
     
-    // Get the section
-    const section = await prisma.specBookSection.findUnique({
-      where: { id: sectionId }
+    // Get the section for this room
+    const section = await prisma.specBookSection.findFirst({
+      where: {
+        roomId: roomId,
+        type: 'ROOM',
+        specBook: {
+          isActive: true
+        }
+      }
     })
     
     if (!section) {
@@ -181,14 +189,15 @@ export async function DELETE(request: NextRequest) {
     
     // Remove the specific URL from the array
     const currentUrls = section.renderingUrls || []
-    const updatedUrls = currentUrls.filter((url, i) => {
-      // Support both index-based removal and URL-based removal
-      return imageUrl ? url !== imageUrl : i !== index
-    })
+    const updatedUrls = currentUrls.filter(url => url !== urlToRemove)
+    
+    console.log(`[DELETE] Removing ${urlToRemove} from room ${roomId}`)
+    console.log(`[DELETE] Current URLs:`, currentUrls)
+    console.log(`[DELETE] Updated URLs:`, updatedUrls)
     
     // Update section with new array
     await prisma.specBookSection.update({
-      where: { id: sectionId },
+      where: { id: section.id },
       data: {
         renderingUrls: updatedUrls,
         // Keep renderingUrl as the first URL if available, otherwise null
