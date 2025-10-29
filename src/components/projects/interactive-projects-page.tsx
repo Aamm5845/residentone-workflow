@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search, Filter, MoreVertical, Building, Calendar } from 'lucide-react'
+import { Plus, Search, Filter, MoreVertical, Building, Calendar, List, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
 import { getPhaseUrgency } from '@/lib/validation/due-date-validation'
@@ -297,27 +297,29 @@ export default function InteractiveProjectsPage({
         <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
           <button 
             onClick={() => setViewMode('list')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
               viewMode === 'list' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
+            <List className="w-4 h-4 mr-1.5" />
             List
           </button>
           <button 
             onClick={() => setViewMode('board')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
               viewMode === 'board' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
+            <LayoutGrid className="w-4 h-4 mr-1.5" />
             Board
           </button>
           <button 
             onClick={() => setViewMode('calendar')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
               viewMode === 'calendar' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'

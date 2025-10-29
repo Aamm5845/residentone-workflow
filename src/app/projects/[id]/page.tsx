@@ -672,19 +672,19 @@ export default async function ProjectDetail({ params }: Props) {
                                   <div 
                                     className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${
                                       isCompleted 
-                                        ? 'bg-green-500 shadow-lg shadow-green-500/50' 
+                                        ? 'bg-emerald-100 border-2 border-emerald-300' 
                                         : isInProgress 
-                                        ? 'bg-blue-500 shadow-lg shadow-blue-500/50' 
-                                        : 'bg-gray-200 border-2 border-gray-300'
+                                        ? 'bg-blue-100 border-2 border-blue-300' 
+                                        : 'bg-gray-100 border-2 border-gray-300'
                                     }`}
                                   >
                                     {isCompleted && (
-                                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                       </svg>
                                     )}
                                     {isInProgress && (
-                                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
                                     )}
@@ -693,7 +693,7 @@ export default async function ProjectDetail({ params }: Props) {
                                   {index < phaseIds.length - 1 && (
                                     <div 
                                       className={`absolute top-5 left-10 w-full h-0.5 transition-all duration-300 ${
-                                        isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                                        isCompleted ? 'bg-emerald-300' : 'bg-gray-300'
                                       }`}
                                       style={{ width: 'calc(100% + 0.75rem)' }}
                                     />
@@ -702,7 +702,7 @@ export default async function ProjectDetail({ params }: Props) {
                                 
                                 {/* Phase Label */}
                                 <div className={`text-[10px] font-medium text-center leading-tight ${
-                                  isCompleted ? 'text-green-700' : 
+                                  isCompleted ? 'text-emerald-700' : 
                                   isInProgress ? 'text-blue-700' : 
                                   'text-gray-500'
                                 }`}>
