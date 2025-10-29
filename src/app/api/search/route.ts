@@ -41,12 +41,11 @@ export async function GET(request: NextRequest) {
       take: 15
     })
 
-    // Search rooms
+    // Search rooms (excluding type enum field from search)
     const rooms = await prisma.room.findMany({
       where: {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
-          { type: { contains: searchTerm.toUpperCase() } },
           { project: { name: { contains: searchTerm, mode: 'insensitive' } } },
           { project: { client: { name: { contains: searchTerm, mode: 'insensitive' } } } }
         ]
@@ -67,11 +66,10 @@ export async function GET(request: NextRequest) {
       take: 15
     })
 
-    // Search stages (all statuses, not just active)
+    // Search stages (all statuses, not just active) - excluding type enum from search
     const stages = await prisma.stage.findMany({
       where: {
         OR: [
-          { type: { contains: searchTerm.toUpperCase() } },
           { room: { name: { contains: searchTerm, mode: 'insensitive' } } },
           { room: { project: { name: { contains: searchTerm, mode: 'insensitive' } } } },
           { room: { project: { client: { name: { contains: searchTerm, mode: 'insensitive' } } } } }
@@ -128,22 +126,23 @@ export async function GET(request: NextRequest) {
         ]
       },
       include: {
-        designSection: {
-          include: {
-            stage: {
-              include: {
-                room: {
-                  include: {
-                    project: {
-                      select: {
-                        id: true,
-                        name: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        room: {
+          select: {
+            id: true,
+            name: true,
+            type: true
+          }
+        },
+        stage: {
+          select: {
+            id: true,
+            type: true
           }
         }
       },
@@ -180,12 +179,12 @@ export async function GET(request: NextRequest) {
         subtitle: `${stage.room.project.name} • ${stage.room.project.client.name}`,
         href: `/stages/${stage.id}`
       })),
-      ...assets.filter(asset => asset.designSection?.stage?.room?.project).map(asset => ({
+      ...assets.filter(asset => asset.project).map(asset => ({
         id: asset.id,
         type: 'file' as const,
         title: asset.title || 'Untitled File',
-        subtitle: `File in ${asset.designSection!.stage!.room!.project!.name}`,
-        href: `/stages/${asset.designSection!.stage!.id}`
+        subtitle: asset.project ? `File in ${asset.project.name}` : 'File',
+        href: asset.stage ? `/stages/${asset.stage.id}` : asset.project ? `/projects/${asset.project.id}` : '/dashboard'
       }))
     ]
 
