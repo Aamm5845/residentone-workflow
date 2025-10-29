@@ -11,12 +11,13 @@ import Image from 'next/image'
 import type { Session } from 'next-auth'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     memberId: string
-  }
+  }>
 }
 
 export default async function TeamMemberTasks({ params }: PageProps) {
+  const resolvedParams = await params
   const session = await getSession() as Session & {
     user: {
       id: string
@@ -31,10 +32,12 @@ export default async function TeamMemberTasks({ params }: PageProps) {
 
   let member: any = null
   
+  console.log('[Team Member Page] Loading member:', resolvedParams.memberId)
+  
   try {
     member = await prisma.user.findUnique({
       where: {
-        id: params.memberId,
+        id: resolvedParams.memberId,
         orgId: { not: null } // Only active team members
       },
       include: {
@@ -72,18 +75,28 @@ export default async function TeamMemberTasks({ params }: PageProps) {
         }
       }
     })
-  } catch (error) {
-    console.warn('Database unavailable, using fallback data')
     
-    // Fallback data for when database is unavailable
-    member = {
-      id: params.memberId,
-      name: 'Team Member',
-      email: 'member@company.com',
-      role: 'DESIGNER',
-      assignedStages: [],
-      _count: { assignedStages: 0, comments: 0, uploadedAssets: 0 }
-    }
+    console.log('[Team Member Page] Member loaded:', {
+      id: member?.id,
+      name: member?.name,
+      email: member?.email,
+      role: member?.role,
+      hasPhone: !!member?.phoneNumber,
+      phoneNumber: member?.phoneNumber,
+      smsEnabled: member?.smsNotificationsEnabled,
+      tasksCount: member?.assignedStages?.length || 0,
+      _count: member?._count
+    })
+  } catch (error) {
+    console.error('[Team Member Page] Database error:', error)
+    console.error('[Team Member Page] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      memberId: resolvedParams.memberId,
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    
+    // Return error instead of fallback
+    throw error
   }
 
   if (!member) {
