@@ -42,8 +42,6 @@ interface FFEPhaseWorkspaceProps {
   orgId: string
   projectId: string
   onProgressUpdate?: (progress: number, isComplete: boolean) => void
-  showHeader?: boolean // Add option to hide header when embedded
-  filterUndecided?: boolean // Add option to filter only undecided items
   roomName?: string
   projectName?: string
 }
@@ -54,8 +52,6 @@ export default function FFEPhaseWorkspace({
   orgId,
   projectId,
   onProgressUpdate,
-  showHeader = true,
-  filterUndecided = false,
   roomName,
   projectName
 }: FFEPhaseWorkspaceProps) {

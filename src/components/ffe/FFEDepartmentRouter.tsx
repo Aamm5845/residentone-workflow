@@ -248,8 +248,6 @@ export default function FFEDepartmentRouter({
             orgId={orgId || ''}
             projectId={projectId || ''}
             onProgressUpdate={handleWorkspaceProgressUpdate}
-            showHeader={true}
-            filterUndecided={false}
             roomName={roomName}
             projectName={projectName}
           />
