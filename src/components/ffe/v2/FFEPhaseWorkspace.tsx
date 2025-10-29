@@ -364,171 +364,169 @@ export default function FFEPhaseWorkspace({
             </button>
           </div>
         </div>
-          
-          {/* Status Filter Tabs */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm font-medium text-gray-700 mr-2">Filter:</span>
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  statusFilter === 'all' 
-                    ? 'bg-white text-gray-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                All ({stats.total})
-              </button>
-              <button
-                onClick={() => setStatusFilter('pending')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  statusFilter === 'pending' 
-                    ? 'bg-white text-blue-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Pending ({stats.pending || 0})
-              </button>
-              <button
-                onClick={() => setStatusFilter('undecided')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  statusFilter === 'undecided' 
-                    ? 'bg-white text-amber-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Undecided ({stats.undecided || 0})
-              </button>
-              <button
-                onClick={() => setStatusFilter('completed')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  statusFilter === 'completed' 
-                    ? 'bg-white text-emerald-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Completed ({stats.completed})
-              </button>
-            </div>
+        
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm font-medium text-gray-700 mr-2">Filter:</span>
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                statusFilter === 'all' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              All ({stats.total})
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                statusFilter === 'pending' 
+                  ? 'bg-white text-blue-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Pending ({stats.pending || 0})
+            </button>
+            <button
+              onClick={() => setStatusFilter('undecided')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                statusFilter === 'undecided' 
+                  ? 'bg-white text-amber-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Undecided ({stats.undecided || 0})
+            </button>
+            <button
+              onClick={() => setStatusFilter('completed')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                statusFilter === 'completed' 
+                  ? 'bg-white text-emerald-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Completed ({stats.completed})
+            </button>
           </div>
+        </div>
 
-          {/* Stats Grid - New Workflow: Pending → Undecided → Completed */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-200 rounded-lg">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-blue-900">
-                    {stats.pending || 0}
-                  </div>
-                  <div className="text-xs text-blue-700 font-medium">Pending</div>
-                </div>
+        {/* Stats Grid - New Workflow: Pending → Undecided → Completed */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-200 rounded-lg">
+                <Clock className="h-4 w-4 text-blue-600" />
               </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-200 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
+              <div>
+                <div className="text-lg font-bold text-blue-900">
+                  {stats.pending || 0}
                 </div>
-                <div>
-                  <div className="text-lg font-bold text-amber-900">
-                    {stats.undecided || 0}
-                  </div>
-                  <div className="text-xs text-amber-700 font-medium">Undecided</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-200 rounded-lg">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-emerald-900">{stats.completed}</div>
-                  <div className="text-xs text-emerald-700 font-medium">Completed</div>
-                </div>
+                <div className="text-xs text-blue-700 font-medium">Pending</div>
               </div>
             </div>
           </div>
           
-          {/* Progress Bar - Similar to FFE Settings */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-              <span className="text-sm font-medium text-gray-900">{Math.ceil(progress)}% Complete</span>
-            </div>
-            
-            <div className="relative">
-              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-700 ease-out" 
-                  style={{ width: `${progress}%` }}
-                />
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-200 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
               </div>
-              
-              {progress > 0 && (
-                <div 
-                  className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full shadow-sm transition-all duration-700 ease-out"
-                  style={{ left: `calc(${Math.min(progress, 100)}% - 6px)` }}
-                />
-              )}
+              <div>
+                <div className="text-lg font-bold text-amber-900">
+                  {stats.undecided || 0}
+                </div>
+                <div className="text-xs text-amber-700 font-medium">Undecided</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-200 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-emerald-900">{stats.completed}</div>
+                <div className="text-xs text-emerald-700 font-medium">Completed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Progress Bar - Similar to FFE Settings */}
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+            <span className="text-sm font-medium text-gray-900">{Math.ceil(progress)}% Complete</span>
+          </div>
+          
+          <div className="relative">
+            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-700 ease-out" 
+                style={{ width: `${progress}%` }}
+              />
             </div>
             
-            <div className="flex justify-between text-xs text-gray-500 mt-2">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>100%</span>
-            </div>
+            {progress > 0 && (
+              <div 
+                className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full shadow-sm transition-all duration-700 ease-out"
+                style={{ left: `calc(${Math.min(progress, 100)}% - 6px)` }}
+              />
+            )}
+          </div>
+          
+          <div className="flex justify-between text-xs text-gray-500 mt-2">
+            <span>0%</span>
+            <span>25%</span>
+            <span>50%</span>
+            <span>75%</span>
+            <span>100%</span>
           </div>
         </div>
       </div>
       
       {/* Content Area */}
       <div className="flex gap-6">
-          {/* Main Content Area */}
-          <div className="flex-1">
-            <FFESectionAccordion
-              sections={currentInstance.sections}
-              onItemStateChange={handleItemStateChange}
-              onItemVisibilityChange={handleItemVisibilityChange}
-              statusFilter={statusFilter}
-            />
-          </div>
-          
-          {/* Notes Sidebar - Only show when notes drawer is open */}
-          {showNotesDrawer && (
-            <div className="w-80">
-              <NotesDrawer 
-                notes={allNotes}
-                onClose={() => setShowNotesDrawer(false)}
-              />
-            </div>
-          )}
+        {/* Main Content Area */}
+        <div className="flex-1">
+          <FFESectionAccordion
+            sections={currentInstance.sections}
+            onItemStateChange={handleItemStateChange}
+            onItemVisibilityChange={handleItemVisibilityChange}
+            statusFilter={statusFilter}
+          />
         </div>
         
-        {/* Completion Status */}
-        {progress === 100 && stats.total > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 rounded-xl">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-green-800">FFE Phase Complete! 🎉</h3>
-                <p className="text-green-700 mt-1">
-                  All {stats.total} items have been processed. Ready to move to the next phase.
-                </p>
-              </div>
-            </div>
+        {/* Notes Sidebar - Only show when notes drawer is open */}
+        {showNotesDrawer && (
+          <div className="w-80">
+            <NotesDrawer 
+              notes={allNotes}
+              onClose={() => setShowNotesDrawer(false)}
+            />
           </div>
         )}
       </div>
+      
+      {/* Completion Status */}
+      {progress === 100 && stats.total > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-100 rounded-xl">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-green-800">FFE Phase Complete! 🎉</h3>
+              <p className="text-green-700 mt-1">
+                All {stats.total} items have been processed. Ready to move to the next phase.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
