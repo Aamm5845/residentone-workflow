@@ -71,13 +71,28 @@ export async function sendMentionSMS({
 
   try {
     console.log(`[Twilio] Sending SMS from ${twilioPhoneNumber} to ${formattedPhone}...`)
-    const sentMessage = await client.messages.create({
+    
+    // Build message parameters
+    const messageParams: any = {
       body: smsBody,
       from: twilioPhoneNumber,
-      to: formattedPhone,
-      // Store stageId in status callback for tracking
-      statusCallback: `${process.env.APP_URL || process.env.NEXTAUTH_URL}/api/sms/status`
+      to: formattedPhone
+    }
+    
+    // Only add statusCallback if APP_URL is set
+    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL
+    if (appUrl && appUrl.startsWith('http')) {
+      messageParams.statusCallback = `${appUrl}/api/sms/status`
+    }
+    
+    console.log('[Twilio] Request parameters:', {
+      from: messageParams.from,
+      to: messageParams.to,
+      bodyLength: messageParams.body.length,
+      hasStatusCallback: !!messageParams.statusCallback
     })
+    
+    const sentMessage = await client.messages.create(messageParams)
 
     console.log('[Twilio] ✅ SMS sent successfully!')
     console.log('[Twilio] Message details:', {
