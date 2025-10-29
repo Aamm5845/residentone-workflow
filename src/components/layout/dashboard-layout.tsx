@@ -27,6 +27,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { IssueNotification } from '@/components/issues/issue-notification'
 import { IssueModal } from '@/components/issues/issue-modal'
 import { NavigationMenu } from './NavigationMenu'
+import { GlobalSearch } from './GlobalSearch'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -74,13 +75,8 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               </div>
               
               {/* Global Search */}
-              <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2 w-80">
-                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                <input 
-                  type="text" 
-                  placeholder="Search projects, rooms, or tasks..."
-                  className="bg-transparent border-none outline-none text-sm flex-1"
-                />
+              <div className="hidden md:block">
+                <GlobalSearch />
               </div>
             </div>
 
