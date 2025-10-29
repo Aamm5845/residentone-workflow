@@ -880,14 +880,15 @@ export default function BedroomDesignWorkspace({
 
           {/* Design Sections */}
           <div className="space-y-6">
-            {safeStage.designSections.map((section) => {
-              const sectionType = section.type
+            {['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR'].map((sectionType) => {
               const sectionDef = {
-                'GENERAL': { name: 'General Design', description: 'Overall design concept, mood, and styling direction' },
-                'WALL_COVERING': { name: 'Wall Covering', description: 'Wall treatments, paint colors, wallpaper, and finishes' },
-                'CEILING': { name: 'Ceiling Design', description: 'Ceiling treatments, lighting integration, and details' },
-                'FLOOR': { name: 'Floor Design', description: 'Flooring materials, patterns, transitions, and area rugs' }
-              }[sectionType] || { name: sectionType.replace(/_/g, ' '), description: 'Custom section' }
+                'GENERAL': { name: 'General Design', icon: '✨', color: 'from-purple-500 to-pink-500', description: 'Overall design concept, mood, and styling direction' },
+                'WALL_COVERING': { name: 'Wall Covering', icon: '🎨', color: 'from-blue-500 to-cyan-500', description: 'Wall treatments, paint colors, wallpaper, and finishes' },
+                'CEILING': { name: 'Ceiling Design', icon: '⬆️', color: 'from-amber-500 to-orange-500', description: 'Ceiling treatments, lighting integration, and details' },
+                'FLOOR': { name: 'Floor Design', icon: '⬇️', color: 'from-emerald-500 to-teal-500', description: 'Flooring materials, patterns, transitions, and area rugs' }
+              }[sectionType]
+              
+              const section = safeStage.designSections.find(s => s.type === sectionType)
               const isCompleted = section?.completed || false
               const isExpanded = expandedSections.has(sectionType)
               const isUploading = uploadingSection === sectionType
@@ -903,6 +904,9 @@ export default function BedroomDesignWorkspace({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 bg-gradient-to-br ${sectionDef.color} rounded-xl flex items-center justify-center shadow-sm`}>
+                          <span className="text-2xl">{sectionDef.icon}</span>
+                        </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
                           <p className="text-sm text-gray-600">{sectionDef.description}</p>
