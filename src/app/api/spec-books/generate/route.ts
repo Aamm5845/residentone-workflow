@@ -3,7 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { pdfGenerationService } from '@/lib/pdf-generation'
 import { cadConversionService } from '@/lib/cad-conversion'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 import { CadPreferences } from '@/types/cad'
 
 export async function POST(request: NextRequest) {

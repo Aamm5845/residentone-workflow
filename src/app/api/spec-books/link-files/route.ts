@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export async function POST(request: NextRequest) {
   try {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { cadConversionService } from '@/lib/cad-conversion'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 import { headers } from 'next/headers'
 
 export async function POST(request: NextRequest) {

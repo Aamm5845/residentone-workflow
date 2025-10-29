@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import type { Session } from 'next-auth'
 import { enhancedCADConversionService } from '@/lib/cad-conversion-enhanced'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 import { 
   EffectiveCadPreferences, 
   DEFAULT_CAD_PREFERENCES,

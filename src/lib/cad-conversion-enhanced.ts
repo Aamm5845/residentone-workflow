@@ -8,7 +8,7 @@ import {
   WindowCoordinates,
   Margins
 } from '@/types/cad-preferences'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 interface ConversionInput {
   dropboxPath: string

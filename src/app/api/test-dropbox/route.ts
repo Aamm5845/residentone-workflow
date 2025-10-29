@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export async function GET() {
   try {

@@ -1,4 +1,4 @@
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 import { CtbFile } from '@/types/cad-preferences'
 
 /**

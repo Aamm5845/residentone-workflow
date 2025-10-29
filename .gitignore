@@ -117,6 +117,9 @@ export-data.sql
 # Sensitive configuration and secret files
 *.env.*.local
 .env.backup
+.env.local.backup
+.env.local.old
+.env.local.new
 config/secrets.json
 test-*.js
 test-*.ts
@@ -125,6 +128,12 @@ test-*.ts
 *.pem
 *.p12
 *.pfx
+
+# Dropbox setup documentation (contains real tokens)
+DROPBOX_TEAM_SETUP_GUIDE.md
+VERCEL_ENV_SETUP.md
+MIGRATION_COMPLETE.md
+QUICK_START.md
 
 # Development and testing files with potential secrets
 debug-*
