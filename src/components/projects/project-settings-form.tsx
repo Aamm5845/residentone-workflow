@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home } from 'lucide-react'
+import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search } from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 import RoomsManagementSection from './rooms-management-section'
@@ -54,6 +54,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [contractorsList, setContractorsList] = useState(project.contractors || [])
   const [showAddContractorDialog, setShowAddContractorDialog] = useState(false)
+  const [showSelectContractorDialog, setShowSelectContractorDialog] = useState(false)
+  const [availableContractors, setAvailableContractors] = useState<any[]>([])
+  const [loadingContractors, setLoadingContractors] = useState(false)
+  const [contractorSearchTerm, setContractorSearchTerm] = useState('')
   const [newContractor, setNewContractor] = useState({
     businessName: '',
     contactName: '',
@@ -845,16 +849,43 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 </div>
               )}
               
-              {/* Add New Contractor Button */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddContractorDialog(true)}
-                className="w-full border-dashed border-2 border-gray-300 hover:border-purple-400"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Contractor or Subcontractor
-              </Button>
+              {/* Add Contractor Buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    setLoadingContractors(true)
+                    try {
+                      const response = await fetch('/api/contractors')
+                      if (response.ok) {
+                        const data = await response.json()
+                        setAvailableContractors(data)
+                        setShowSelectContractorDialog(true)
+                      }
+                    } catch (error) {
+                      console.error('Error loading contractors:', error)
+                      alert('Failed to load contractors library')
+                    } finally {
+                      setLoadingContractors(false)
+                    }
+                  }}
+                  className="border-2 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
+                  disabled={loadingContractors}
+                >
+                  <Building className="w-4 h-4 mr-2" />
+                  {loadingContractors ? 'Loading...' : 'Select from Library'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddContractorDialog(true)}
+                  className="border-dashed border-2 border-gray-300 hover:border-purple-400"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Contractor
+                </Button>
+              </div>
               
               {/* Action Buttons */}
               <div className="flex items-center space-x-3 pt-4 border-t">
@@ -1529,6 +1560,143 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 Add {newContractor.type === 'contractor' ? 'Contractor' : 'Subcontractor'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Contractor from Library Dialog */}
+      {showSelectContractorDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Select Contractor from Library
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowSelectContractorDialog(false)
+                    setContractorSearchTerm('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search contractors..."
+                  value={contractorSearchTerm}
+                  onChange={(e) => setContractorSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {availableContractors.filter(c => 
+                c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+              ).length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Building className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No contractors found</p>
+                  <p className="text-sm mt-1">Try adjusting your search or add contractors in Preferences</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {availableContractors
+                    .filter(c => 
+                      c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                      c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                      c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+                    )
+                    .map((contractor) => {
+                      const isAlreadyAdded = contractorsList.some(
+                        (c: any) => c.id === contractor.id || c.email === contractor.email
+                      )
+                      
+                      return (
+                        <div
+                          key={contractor.id}
+                          className={`border rounded-lg p-4 transition-all ${
+                            isAlreadyAdded 
+                              ? 'border-gray-200 bg-gray-50 opacity-60' 
+                              : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                          }`}
+                          onClick={() => {
+                            if (!isAlreadyAdded) {
+                              setContractorsList([...contractorsList, {
+                                id: contractor.id,
+                                businessName: contractor.businessName,
+                                contactName: contractor.contactName,
+                                email: contractor.email,
+                                phone: contractor.phone,
+                                address: contractor.address,
+                                type: contractor.type.toLowerCase(),
+                                specialty: contractor.specialty
+                              }])
+                              setShowSelectContractorDialog(false)
+                              setContractorSearchTerm('')
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h4 className="font-semibold text-gray-900">{contractor.businessName}</h4>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  contractor.type === 'CONTRACTOR' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
+                                </span>
+                                {isAlreadyAdded && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Added
+                                  </span>
+                                )}
+                              </div>
+                              {contractor.specialty && (
+                                <p className="text-sm text-gray-600 mb-1">
+                                  <span className="font-medium">Specialty:</span> {contractor.specialty}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                                {contractor.contactName && (
+                                  <span>{contractor.contactName}</span>
+                                )}
+                                {contractor.email && (
+                                  <span>{contractor.email}</span>
+                                )}
+                                {contractor.phone && (
+                                  <span>{contractor.phone}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSelectContractorDialog(false)
+                  setContractorSearchTerm('')
+                }}
+                className="w-full"
+              >
+                Close
               </Button>
             </div>
           </div>
