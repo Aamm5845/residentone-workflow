@@ -286,8 +286,40 @@ After implementing fixes, verify:
 
 ## CONCLUSION
 
-**Root Cause**: Recent header removal created a gap where FFEDepartmentRouter passes `showHeader={true}` but FFEPhaseWorkspace no longer has header code.
+**Root Cause**: Recent header removal created a gap where FFEDepartmentRouter passes `showHeader={true}` but FFEPhaseWorkspace no longer has header code. Additionally, FFE pages didn't match the standard stage header layout used by other phases.
 
-**Solution**: Clean separation of concerns - router handles ALL UI chrome, content components handle ONLY content.
+**Solution**: 
+1. Clean separation of concerns - router handles ALL UI chrome, content components handle ONLY content.
+2. Standardize FFE pages to use DashboardLayout and standard phase header format
+3. Remove redundant headers from FFEDepartmentRouter when embedded
 
-**Status**: Ready to implement fixes. No database changes needed. Safe refactor.
+**Status**: ✅ FIXED - Implemented and deployed. FFE now matches other phases exactly.
+
+---
+
+## FIXES APPLIED (2025-10-29)
+
+### Fix #1: Removed Props from FFEPhaseWorkspace
+- Removed `showHeader` prop (no longer needed)
+- Removed `filterUndecided` prop (not used)
+- Component now renders content only
+
+### Fix #2: Standardized Page Layout
+Both `/ffe/[roomId]/workspace/page.tsx` and `/ffe/[roomId]/settings/page.tsx` now:
+- Use `DashboardLayout` wrapper (like other phases)
+- Include standard header with:
+  - Back arrow button → returns to project
+  - Title: "FFE Phase" or "FFE Settings"
+  - Breadcrumb: Room • Project • Client
+- Embed FFEDepartmentRouter for content only
+
+### Fix #3: Cleaned FFEDepartmentRouter
+- When `showModeToggle={false}`, no header is rendered
+- Router only manages switching between workspace/settings modes
+- All chrome (headers, navigation) handled by parent pages
+
+### Result:
+✅ FFE workspace header now matches other phases exactly
+✅ Consistent navigation experience across all phases
+✅ Clean component hierarchy
+✅ Build succeeds with no errors
