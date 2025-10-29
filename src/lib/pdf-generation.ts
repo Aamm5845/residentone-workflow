@@ -179,9 +179,9 @@ class PDFGenerationService {
       // Add dynamic project information to the cover - CENTERED and VERTICALLY SPACED
       const { width, height } = coverPage.getSize()
       
-      // Calculate vertical positioning - position much lower to avoid SPECBOOK text
-      const centerY = height / 2
-      let contentY = centerY - 150 // Start well below center to clear the SPECBOOK text
+      // Calculate vertical positioning - position in lower section below SPECBOOK
+      // Start from bottom and work up to ensure proper spacing
+      let contentY = 450 // Position in lower quarter of page, well below SPECBOOK
       
       // Spec book type (if provided) - centered horizontally and vertically
       // WHITE text for black background - SCALED UP for large format
@@ -234,7 +234,7 @@ class PDFGenerationService {
       const printDateWidth = font.widthOfTextAtSize(printDate, 22)
       coverPage.drawText(printDate, {
         x: (width - printDateWidth) / 2, // Center horizontally
-        y: 200, // Position higher from bottom for better balance
+        y: 250, // Position at bottom with spacing from edge
         size: 22, // Increased from 10 for large format
         font: font,
         color: rgb(1, 1, 1) // White text on black background
