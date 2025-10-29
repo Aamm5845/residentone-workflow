@@ -56,6 +56,11 @@ export default async function TeamMemberTasks({ params }: PageProps) {
       },
       include: {
         assignedStages: {
+          where: {
+            status: {
+              in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION', 'ON_HOLD', 'PENDING_APPROVAL']
+            }
+          },
           include: {
             room: {
               include: {
@@ -69,16 +74,9 @@ export default async function TeamMemberTasks({ params }: PageProps) {
               }
             }
           },
-          where: {
-            status: {
-              in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION', 'ON_HOLD', 'PENDING_APPROVAL']
-            }
-          },
-          orderBy: [
-            { status: 'asc' },
-            { dueDate: 'asc' },
-            { createdAt: 'desc' }
-          ]
+          orderBy: {
+            createdAt: 'desc'
+          }
         },
         _count: {
           select: {
