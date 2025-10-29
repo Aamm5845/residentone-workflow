@@ -13,11 +13,27 @@ import {
   X,
   Check,
   ChevronDown,
-  ChevronUp,
   ChevronRight,
   GripVertical
 } from 'lucide-react'
 import AddRoomDialog from './add-room-dialog'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface Room {
   id: string
@@ -42,6 +58,80 @@ interface RoomsManagementSectionProps {
   projectId: string
 }
 
+// Sortable Room Item Component
+function SortableRoomItem({ room, sections, isSubmitting, onMoveToSection, onDelete, formatRoomName, formatStatus }: {
+  room: Room
+  sections: Section[]
+  isSubmitting: boolean
+  onMoveToSection: (roomId: string, sectionId: string | null) => void
+  onDelete: (roomId: string) => void
+  formatRoomName: (room: Room) => string
+  formatStatus: (status: string) => string
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: room.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between bg-white"
+    >
+      <div className="flex items-center space-x-3">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="w-4 h-4 text-gray-400" />
+        </div>
+        <Home className="w-5 h-5 text-gray-500" />
+        <div>
+          <h5 className="font-medium text-gray-900">{formatRoomName(room)}</h5>
+          <p className="text-sm text-gray-500">{room.type.replace(/_/g, ' ')}</p>
+        </div>
+        <Badge variant="outline" className="text-xs">
+          {formatStatus(room.status)}
+        </Badge>
+      </div>
+      <div className="flex items-center space-x-2">
+        <select
+          value={room.sectionId || ''}
+          onChange={(e) => onMoveToSection(room.id, e.target.value || null)}
+          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          disabled={isSubmitting}
+        >
+          <option value="">Unassigned</option>
+          {sections.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <Button
+          onClick={() => onDelete(room.id)}
+          size="sm"
+          variant="outline"
+          disabled={isSubmitting}
+          className="hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function RoomsManagementSection({ projectId }: RoomsManagementSectionProps) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [sections, setSections] = useState<Section[]>([])
@@ -56,6 +146,14 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
   const [newSectionName, setNewSectionName] = useState('')
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editSectionName, setEditSectionName] = useState('')
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     fetchData()
@@ -221,40 +319,51 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
     }
   }
 
-  const handleMoveRoom = async (roomId: string, sectionId: string, direction: 'up' | 'down') => {
-    const room = rooms.find(r => r.id === roomId)
-    if (!room) return
+  const handleDragEnd = async (event: DragEndEvent, sectionId: string | null) => {
+    const { active, over } = event
 
-    const roomsInSection = getRoomsForSection(sectionId === 'unassigned' ? null : sectionId)
-    const currentIndex = roomsInSection.findIndex(r => r.id === roomId)
-    if (currentIndex === -1) return
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (newIndex < 0 || newIndex >= roomsInSection.length) return
-    
-    const swapRoom = roomsInSection[newIndex]
+    if (!over || active.id === over.id) return
 
+    const roomsInSection = getRoomsForSection(sectionId)
+    const oldIndex = roomsInSection.findIndex(r => r.id === active.id)
+    const newIndex = roomsInSection.findIndex(r => r.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reorderedRooms = arrayMove(roomsInSection, oldIndex, newIndex)
+
+    // Optimistically update UI
+    const updatedRooms = rooms.map(room => {
+      const indexInReordered = reorderedRooms.findIndex(r => r.id === room.id)
+      if (indexInReordered !== -1) {
+        return { ...room, order: indexInReordered }
+      }
+      return room
+    })
+    setRooms(updatedRooms)
+
+    // Save to database
     setIsSubmitting(true)
     try {
-      // Swap orders
-      await Promise.all([
-        fetch(`/api/rooms/${room.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: swapRoom.order })
-        }),
-        fetch(`/api/rooms/${swapRoom.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: room.order })
-        })
-      ])
+      const updates = reorderedRooms.map((room, index) => ({
+        id: room.id,
+        order: index
+      }))
 
-      // Refresh data
-      await fetchData()
+      await Promise.all(
+        updates.map(update =>
+          fetch(`/api/rooms/${update.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: update.order })
+          })
+        )
+      )
     } catch (err) {
-      console.error('Error reordering room:', err)
-      alert('Failed to reorder room. Please try again.')
+      console.error('Error reordering rooms:', err)
+      alert('Failed to save room order. Please try again.')
+      // Refresh to get correct order from server
+      await fetchData()
     } finally {
       setIsSubmitting(false)
     }
@@ -490,63 +599,31 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
               </div>
 
               {!collapsedSections.has(section.id) && sectionRooms.length > 0 && (
-                <div className="divide-y divide-gray-100">
-                  {sectionRooms.map((room, index) => (
-                    <div key={room.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <GripVertical className="w-4 h-4 text-gray-400" />
-                        <Home className="w-5 h-5 text-gray-500" />
-                        <div>
-                          <h5 className="font-medium text-gray-900">{formatRoomName(room)}</h5>
-                          <p className="text-sm text-gray-500">{room.type.replace(/_/g, ' ')}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {formatStatus(room.status)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          onClick={() => handleMoveRoom(room.id, section.id, 'up')}
-                          size="sm"
-                          variant="outline"
-                          disabled={index === 0 || isSubmitting}
-                          title="Move up"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          onClick={() => handleMoveRoom(room.id, section.id, 'down')}
-                          size="sm"
-                          variant="outline"
-                          disabled={index === sectionRooms.length - 1 || isSubmitting}
-                          title="Move down"
-                        >
-                          <ChevronDown className="w-3 h-3" />
-                        </Button>
-                        <select
-                          value={room.sectionId || ''}
-                          onChange={(e) => handleMoveRoomToSection(room.id, e.target.value || null)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Unassigned</option>
-                          {sections.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                        <Button
-                          onClick={() => handleDeleteRoom(room.id)}
-                          size="sm"
-                          variant="outline"
-                          disabled={isSubmitting}
-                          className="hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => handleDragEnd(event, section.id)}
+                >
+                  <SortableContext
+                    items={sectionRooms.map(r => r.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="divide-y divide-gray-100">
+                      {sectionRooms.map((room) => (
+                        <SortableRoomItem
+                          key={room.id}
+                          room={room}
+                          sections={sections}
+                          isSubmitting={isSubmitting}
+                          onMoveToSection={handleMoveRoomToSection}
+                          onDelete={handleDeleteRoom}
+                          formatRoomName={formatRoomName}
+                          formatStatus={formatStatus}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               )}
               
               {!collapsedSections.has(section.id) && sectionRooms.length === 0 && (
@@ -572,65 +649,31 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
             </div>
 
             {unassignedRooms.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {unassignedRooms.map((room, index) => (
-                  <div key={room.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <GripVertical className="w-4 h-4 text-gray-400" />
-                      <Home className="w-5 h-5 text-gray-500" />
-                      <div>
-                        <h5 className="font-medium text-gray-900">{formatRoomName(room)}</h5>
-                        <p className="text-sm text-gray-500">{room.type.replace(/_/g, ' ')}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {formatStatus(room.status)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        onClick={() => handleMoveRoom(room.id, 'unassigned', 'up')}
-                        size="sm"
-                        variant="outline"
-                        disabled={index === 0 || isSubmitting}
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        onClick={() => handleMoveRoom(room.id, 'unassigned', 'down')}
-                        size="sm"
-                        variant="outline"
-                        disabled={index === unassignedRooms.length - 1 || isSubmitting}
-                        title="Move down"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      {sections.length > 0 && (
-                        <select
-                          value=""
-                          onChange={(e) => handleMoveRoomToSection(room.id, e.target.value || null)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Unassigned</option>
-                          {sections.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      )}
-                      <Button
-                        onClick={() => handleDeleteRoom(room.id)}
-                        size="sm"
-                        variant="outline"
-                        disabled={isSubmitting}
-                        className="hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => handleDragEnd(event, null)}
+              >
+                <SortableContext
+                  items={unassignedRooms.map(r => r.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="divide-y divide-gray-100">
+                    {unassignedRooms.map((room) => (
+                      <SortableRoomItem
+                        key={room.id}
+                        room={room}
+                        sections={sections}
+                        isSubmitting={isSubmitting}
+                        onMoveToSection={handleMoveRoomToSection}
+                        onDelete={handleDeleteRoom}
+                        formatRoomName={formatRoomName}
+                        formatStatus={formatStatus}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <div className="p-8 text-center text-gray-500">
                 <Home className="w-12 h-12 mx-auto mb-3 text-gray-400" />

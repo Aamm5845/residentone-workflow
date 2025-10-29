@@ -93,8 +93,8 @@ export async function GET(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    // Calculate completion statistics
-    const totalSections = 4 // GENERAL, WALL_COVERING, CEILING, FLOOR
+    // Calculate completion statistics - dynamic based on actual sections
+    const totalSections = stage.designSections?.length || 0
     const completedSections = stage.designSections?.filter(section => section.completed).length || 0
     const percentage = totalSections > 0 ? Math.round((completedSections / totalSections) * 100) : 0
 
@@ -160,9 +160,8 @@ export async function PATCH(
     const data = await request.json()
     const { sectionType, content, isComplete, action } = data
 
-    // Validate section type
-    const validSectionTypes = ['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR']
-    if (!validSectionTypes.includes(sectionType)) {
+    // Validate section type - allow custom sections
+    if (!sectionType || typeof sectionType !== 'string') {
       return NextResponse.json({ error: 'Invalid section type' }, { status: 400 })
     }
 
@@ -278,5 +277,87 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating design section:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST method to create a new custom section
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const resolvedParams = await params
+    const ipAddress = getIPAddress(request)
+    
+    if (!isValidAuthSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const data = await request.json()
+    const { type, content } = data
+
+    // Validate input
+    if (!type || typeof type !== 'string') {
+      return NextResponse.json({ error: 'Section type is required' }, { status: 400 })
+    }
+
+    // Find the stage
+    const stage = await prisma.stage.findFirst({
+      where: {
+        id: resolvedParams.id
+      },
+      include: {
+        designSections: true,
+        room: {
+          include: {
+            project: true
+          }
+        }
+      }
+    })
+
+    if (!stage) {
+      return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
+    }
+
+    // Check if section already exists
+    const existingSection = stage.designSections?.find(s => s.type === type)
+    if (existingSection) {
+      return NextResponse.json({ error: 'Section already exists' }, { status: 400 })
+    }
+
+    // Create new section
+    const designSection = await prisma.designSection.create({
+      data: withCreateAttribution(session, {
+        stageId: stage.id,
+        type: type,
+        content: content || '',
+        completed: false
+      })
+    })
+
+    // Log the activity
+    await logActivity({
+      session,
+      action: ActivityActions.SECTION_CREATED,
+      entity: EntityTypes.DESIGN_SECTION,
+      entityId: designSection.id,
+      details: {
+        sectionType: type,
+        stageName: `${stage.type} - ${stage.room?.name || stage.room?.type}`,
+        projectName: stage.room?.project.name,
+        isCustomSection: true
+      },
+      ipAddress
+    })
+
+    return NextResponse.json(designSection, { status: 201 })
+  } catch (error) {
+    console.error('Error creating custom section:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
