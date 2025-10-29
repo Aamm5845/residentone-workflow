@@ -613,10 +613,10 @@ export default async function ProjectDetail({ params }: Props) {
                     
                     {/* Stages Overview */}
                     <div className="space-y-3">
-                      <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                      <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Workflow Stages
                       </div>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-5 gap-3">
                         {(() => {
                           const stageTypeMap: Record<string, string> = {
                             'DESIGN': 'DESIGN_CONCEPT',
@@ -628,6 +628,15 @@ export default async function ProjectDetail({ params }: Props) {
                           }
                           
                           const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+                          
+                          // Phase names for labels
+                          const phaseLabels: Record<string, string> = {
+                            'DESIGN_CONCEPT': 'Design',
+                            'THREE_D': '3D',
+                            'CLIENT_APPROVAL': 'Approval',
+                            'DRAWINGS': 'Drawings',
+                            'FFE': 'FFE'
+                          }
                           
                           return phaseIds.map((phaseId, index) => {
                             // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed/in_progress
@@ -646,32 +655,58 @@ export default async function ProjectDetail({ params }: Props) {
                             // Hide phase completely if it's marked as NOT_APPLICABLE, but keep the grid position
                             if (matchingStage?.status === 'NOT_APPLICABLE') {
                               return (
-                                <div key={phaseId} className="text-center">
+                                <div key={phaseId} className="flex flex-col items-center">
                                   {/* Empty space to maintain grid layout */}
                                 </div>
                               )
                             }
                             
-                            // Get the correct icon for each phase
-                            const phaseIcons: Record<string, string> = {
-                              'DESIGN_CONCEPT': '🎨',
-                              'THREE_D': '🎥',
-                              'CLIENT_APPROVAL': '👥',
-                              'DRAWINGS': '📜',
-                              'FFE': '🛋️'
-                            }
+                            const isCompleted = matchingStage?.status === 'COMPLETED'
+                            const isInProgress = matchingStage?.status === 'IN_PROGRESS'
+                            const isPending = !isCompleted && !isInProgress
                             
                             return (
-                              <div key={phaseId} className="text-center">
-                                <div className="text-xs mb-2">{phaseIcons[phaseId]}</div>
-                                <div className="flex justify-center">
+                              <div key={phaseId} className="flex flex-col items-center space-y-2">
+                                {/* Status Indicator - Modern Design */}
+                                <div className="relative">
                                   <div 
-                                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                                      matchingStage?.status === 'COMPLETED' ? 'bg-green-500' :
-                                      matchingStage?.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                                      'bg-gray-300'
+                                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                                      isCompleted 
+                                        ? 'bg-green-500 shadow-lg shadow-green-500/50' 
+                                        : isInProgress 
+                                        ? 'bg-blue-500 shadow-lg shadow-blue-500/50' 
+                                        : 'bg-gray-200 border-2 border-gray-300'
                                     }`}
-                                  />
+                                  >
+                                    {isCompleted && (
+                                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                    {isInProgress && (
+                                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  {/* Connection Line */}
+                                  {index < phaseIds.length - 1 && (
+                                    <div 
+                                      className={`absolute top-5 left-10 w-full h-0.5 transition-all duration-300 ${
+                                        isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                                      }`}
+                                      style={{ width: 'calc(100% + 0.75rem)' }}
+                                    />
+                                  )}
+                                </div>
+                                
+                                {/* Phase Label */}
+                                <div className={`text-[10px] font-medium text-center leading-tight ${
+                                  isCompleted ? 'text-green-700' : 
+                                  isInProgress ? 'text-blue-700' : 
+                                  'text-gray-500'
+                                }`}>
+                                  {phaseLabels[phaseId]}
                                 </div>
                               </div>
                             )
