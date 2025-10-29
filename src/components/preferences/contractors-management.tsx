@@ -71,8 +71,6 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
   const [formLoading, setFormLoading] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  const canManage = ['OWNER', 'ADMIN'].includes(user.role)
-
   useEffect(() => {
     loadContractors()
   }, [])
@@ -97,7 +95,6 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canManage) return
 
     setFormLoading(true)
     try {
@@ -144,8 +141,6 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
   }
 
   const handleDelete = async (id: string) => {
-    if (!canManage) return
-
     try {
       const response = await fetch(`/api/contractors/${id}`, {
         method: 'DELETE'
@@ -196,17 +191,7 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!canManage ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex">
-                <AlertCircle className="w-5 h-5 text-yellow-400 mr-2 flex-shrink-0 mt-0.5" />
-                <p className="text-yellow-700">
-                  You need Owner or Admin privileges to manage contractors.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
+          <div className="space-y-6">
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-blue-50 p-4 rounded-lg">
@@ -346,7 +331,6 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
                 </div>
               )}
             </div>
-          )}
         </CardContent>
       </Card>
 

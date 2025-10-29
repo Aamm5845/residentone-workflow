@@ -321,67 +321,14 @@ export default function FFEPhaseWorkspace({
   const allNotes = getAllNotes()
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
-      {/* Premium Navigation Header */}
-      {showHeader && (
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Left Navigation */}
-              <div className="flex items-center gap-4">
-                <Link 
-                  href={`/projects/${projectId}`}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 transition-all duration-200 font-medium"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>Back to Project Phases</span>
-                </Link>
-                
-                <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                
-                {/* Premium Breadcrumbs */}
-                <nav className="flex items-center gap-1 text-sm">
-                  <span className="text-gray-500">FFE Workspace</span>
-                  <span className="text-gray-300 mx-2">/</span>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg font-medium">
-                    {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'}
-                  </span>
-                </nav>
-              </div>
-              
-              {/* Right Actions */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 shadow-sm ${
-                    showNotesDrawer 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 scale-105' 
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
-                  }`}
-                >
-                  <StickyNote className="h-4 w-4" />
-                  <span>Notes</span>
-                  {allNotes.length > 0 && (
-                    <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold animate-bounce">
-                      {allNotes.length}
-                    </div>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Premium Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Compact Header Section - Like Other Phases */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-            <h1 className="text-xl font-bold text-gray-900">
+    <div className="bg-gray-50">
+      {/* Compact Header Section - Like Other Phases */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">
               {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'} - FFE Phase
-            </h1>
+            </h2>
             <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
               {projectName && (
                 <>
@@ -397,8 +344,26 @@ export default function FFEPhaseWorkspace({
               <span>•</span>
               <span>{Math.ceil(progress)}% complete</span>
             </div>
-            </div>
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowNotesDrawer(!showNotesDrawer)}
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                showNotesDrawer 
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
+              }`}
+            >
+              <StickyNote className="h-4 w-4" />
+              <span>Notes</span>
+              {allNotes.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {allNotes.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
           
           {/* Status Filter Tabs */}
           <div className="flex items-center gap-2 mb-4">
@@ -519,12 +484,12 @@ export default function FFEPhaseWorkspace({
               <span>50%</span>
               <span>75%</span>
               <span>100%</span>
-            </div>
           </div>
         </div>
-        
-        {/* Content Area */}
-        <div className="flex gap-6">
+      </div>
+      
+      {/* Content Area */}
+      <div className="flex gap-6">
           {/* Main Content Area */}
           <div className="flex-1">
             <FFESectionAccordion
