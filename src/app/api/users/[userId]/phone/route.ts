@@ -32,9 +32,19 @@ export async function PUT(
 
     // Validate phone number if provided
     if (phoneNumber && phoneNumber.trim() !== '') {
-      if (!validatePhoneNumber(phoneNumber)) {
+      // Basic validation: check if it's a valid international format
+      const cleaned = phoneNumber.replace(/\D/g, '')
+      if (cleaned.length < 10 || cleaned.length > 15) {
         return NextResponse.json(
-          { error: 'Invalid phone number format. Please use a 10-digit US/Canada number.' },
+          { error: 'Invalid phone number. Must be between 10-15 digits with country code.' },
+          { status: 400 }
+        )
+      }
+      
+      // Ensure it starts with + for international format
+      if (!phoneNumber.startsWith('+')) {
+        return NextResponse.json(
+          { error: 'Phone number must include country code (e.g., +1234567890)' },
           { status: 400 }
         )
       }

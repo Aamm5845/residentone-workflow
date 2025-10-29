@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Phone, Save, X, Send } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface PhoneNumberSettingsProps {
   userId: string
@@ -21,7 +22,25 @@ export function PhoneNumberSettings({
   initialSmsEnabled,
   canEdit = true 
 }: PhoneNumberSettingsProps) {
-  const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber || '')
+  // Parse initial phone number to separate country code
+  const parsePhoneNumber = (fullNumber: string | null | undefined) => {
+    if (!fullNumber) return { countryCode: '+1', number: '' }
+    
+    // If it starts with +, extract country code
+    if (fullNumber.startsWith('+')) {
+      const match = fullNumber.match(/^(\+\d{1,3})(\d+)$/)
+      if (match) {
+        return { countryCode: match[1], number: match[2] }
+      }
+    }
+    
+    // Otherwise assume US/Canada and add +1
+    return { countryCode: '+1', number: fullNumber.replace(/\D/g, '') }
+  }
+  
+  const initial = parsePhoneNumber(initialPhoneNumber)
+  const [countryCode, setCountryCode] = useState(initial.countryCode)
+  const [phoneNumber, setPhoneNumber] = useState(initial.number)
   const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(initialSmsEnabled || false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -50,13 +69,16 @@ export function PhoneNumberSettings({
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // Combine country code with phone number
+      const fullPhoneNumber = countryCode + phoneNumber.replace(/\D/g, '')
+      
       const response = await fetch(`/api/users/${userId}/phone`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber.replace(/\D/g, ''), // Send only digits
+          phoneNumber: fullPhoneNumber,
           smsNotificationsEnabled
         })
       })
@@ -77,7 +99,9 @@ export function PhoneNumberSettings({
   }
 
   const handleCancel = () => {
-    setPhoneNumber(initialPhoneNumber || '')
+    const initial = parsePhoneNumber(initialPhoneNumber)
+    setCountryCode(initial.countryCode)
+    setPhoneNumber(initial.number)
     setSmsNotificationsEnabled(initialSmsEnabled || false)
     setIsEditing(false)
   }
@@ -122,7 +146,9 @@ export function PhoneNumberSettings({
         <div className="space-y-3">
           <div>
             <Label className="text-sm text-gray-600">Phone Number</Label>
-            <p className="text-base font-medium">{phoneNumber || 'Not set'}</p>
+            <p className="text-base font-medium">
+              {phoneNumber ? `${countryCode} ${phoneNumber}` : 'Not set'}
+            </p>
           </div>
           <div>
             <Label className="text-sm text-gray-600">SMS Notifications</Label>
@@ -158,18 +184,35 @@ export function PhoneNumberSettings({
           <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700">
             Phone Number
           </Label>
-          <Input
-            id="phoneNumber"
-            type="tel"
-            value={phoneNumber}
-            onChange={handlePhoneChange}
-            placeholder="(555) 123-4567"
-            disabled={!isEditing}
-            className="mt-1"
-            maxLength={14}
-          />
+          <div className="flex gap-2 mt-1">
+            <Select value={countryCode} onValueChange={setCountryCode} disabled={!isEditing}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                <SelectItem value="+49">🇩🇪 +49</SelectItem>
+                <SelectItem value="+61">🇦🇺 +61</SelectItem>
+                <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                <SelectItem value="+81">🇯🇵 +81</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              id="phoneNumber"
+              type="tel"
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+              placeholder="(555) 123-4567"
+              disabled={!isEditing}
+              className="flex-1"
+              maxLength={14}
+            />
+          </div>
           <p className="text-xs text-gray-500 mt-1">
-            US/Canada phone number for SMS notifications
+            Enter your phone number with country code for SMS notifications
           </p>
         </div>
 

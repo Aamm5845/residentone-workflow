@@ -56,7 +56,14 @@ export async function sendMentionSMS({
   }
 
   // Format the phone number (ensure it has country code)
-  const formattedPhone = to.startsWith('+') ? to : `+1${to.replace(/\D/g, '')}`
+  let formattedPhone = to
+  
+  // If phone doesn't start with +, add +1 (US/Canada default)
+  if (!to.startsWith('+')) {
+    const digitsOnly = to.replace(/\D/g, '')
+    formattedPhone = `+1${digitsOnly}`
+  }
+  
   console.log(`[Twilio] Formatted phone: ${to} -> ${formattedPhone}`)
 
   // Create the SMS body with mention details

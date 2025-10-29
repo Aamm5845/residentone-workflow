@@ -81,10 +81,19 @@ export async function POST(
 
     } catch (twilioError: any) {
       console.error(`[Test SMS] ❌ Twilio error:`, twilioError)
+      console.error(`[Test SMS] Twilio error code:`, twilioError.code)
+      console.error(`[Test SMS] Twilio error details:`, {
+        code: twilioError.code,
+        message: twilioError.message,
+        status: twilioError.status,
+        moreInfo: twilioError.moreInfo
+      })
       
       return NextResponse.json({
         error: 'Failed to send SMS. Please check your phone number and try again.',
-        details: twilioError.message
+        details: twilioError.message,
+        twilioCode: twilioError.code,
+        moreInfo: twilioError.moreInfo
       }, { status: 500 })
     }
 
