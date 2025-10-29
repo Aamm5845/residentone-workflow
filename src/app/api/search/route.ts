@@ -19,13 +19,16 @@ export async function GET(request: NextRequest) {
 
     const searchTerm = query.toLowerCase()
 
-    // Search projects
+    // Search projects (including by client name)
     const projects = await prisma.project.findMany({
       where: {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
           { description: { contains: searchTerm, mode: 'insensitive' } },
-          { client: { name: { contains: searchTerm, mode: 'insensitive' } } }
+          { client: { name: { contains: searchTerm, mode: 'insensitive' } } },
+          { client: { email: { contains: searchTerm, mode: 'insensitive' } } },
+          { address: { contains: searchTerm, mode: 'insensitive' } },
+          { streetAddress: { contains: searchTerm, mode: 'insensitive' } }
         ]
       },
       include: {
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      take: 10
+      take: 15
     })
 
     // Search rooms
@@ -43,7 +46,9 @@ export async function GET(request: NextRequest) {
       where: {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
-          { type: { contains: searchTerm.toUpperCase() } }
+          { type: { contains: searchTerm.toUpperCase() } },
+          { project: { name: { contains: searchTerm, mode: 'insensitive' } } },
+          { project: { client: { name: { contains: searchTerm, mode: 'insensitive' } } } }
         ]
       },
       include: {
@@ -59,18 +64,18 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      take: 10
+      take: 15
     })
 
-    // Search stages (tasks)
+    // Search stages (all statuses, not just active)
     const stages = await prisma.stage.findMany({
       where: {
         OR: [
           { type: { contains: searchTerm.toUpperCase() } },
           { room: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { room: { project: { name: { contains: searchTerm, mode: 'insensitive' } } } }
-        ],
-        status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'NEEDS_ATTENTION', 'PENDING_APPROVAL'] }
+          { room: { project: { name: { contains: searchTerm, mode: 'insensitive' } } } },
+          { room: { project: { client: { name: { contains: searchTerm, mode: 'insensitive' } } } } }
+        ]
       },
       include: {
         room: {
@@ -92,6 +97,59 @@ export async function GET(request: NextRequest) {
       take: 10
     })
 
+    // Search clients
+    const clients = await prisma.client.findMany({
+      where: {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+          { phone: { contains: searchTerm, mode: 'insensitive' } },
+          { company: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      },
+      include: {
+        projects: {
+          select: {
+            id: true,
+            name: true
+          },
+          take: 1
+        }
+      },
+      take: 10
+    })
+
+    // Search assets/files
+    const assets = await prisma.asset.findMany({
+      where: {
+        OR: [
+          { title: { contains: searchTerm, mode: 'insensitive' } },
+          { userDescription: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      },
+      include: {
+        designSection: {
+          include: {
+            stage: {
+              include: {
+                room: {
+                  include: {
+                    project: {
+                      select: {
+                        id: true,
+                        name: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      take: 10
+    })
+
     // Format results
     const results = [
       ...projects.map(project => ({
@@ -100,6 +158,13 @@ export async function GET(request: NextRequest) {
         title: project.name,
         subtitle: `Client: ${project.client.name}`,
         href: `/projects/${project.id}`
+      })),
+      ...clients.map(client => ({
+        id: client.id,
+        type: 'client' as const,
+        title: client.name,
+        subtitle: client.projects.length > 0 ? `Project: ${client.projects[0].name}` : 'No projects',
+        href: client.projects.length > 0 ? `/projects/${client.projects[0].id}` : '/projects'
       })),
       ...rooms.map(room => ({
         id: room.id,
@@ -114,6 +179,13 @@ export async function GET(request: NextRequest) {
         title: `${formatStageType(stage.type)} - ${stage.room.name || stage.room.type.replace('_', ' ')}`,
         subtitle: `${stage.room.project.name} • ${stage.room.project.client.name}`,
         href: `/stages/${stage.id}`
+      })),
+      ...assets.filter(asset => asset.designSection?.stage?.room?.project).map(asset => ({
+        id: asset.id,
+        type: 'file' as const,
+        title: asset.title || 'Untitled File',
+        subtitle: `File in ${asset.designSection!.stage!.room!.project!.name}`,
+        href: `/stages/${asset.designSection!.stage!.id}`
       }))
     ]
 

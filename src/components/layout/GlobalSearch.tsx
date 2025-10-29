@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, Loader2, FolderOpen, Home, CheckSquare } from 'lucide-react'
+import { Search, X, Loader2, FolderOpen, Home, CheckSquare, User, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 interface SearchResult {
   id: string
-  type: 'project' | 'room' | 'stage'
+  type: 'project' | 'room' | 'stage' | 'client' | 'file'
   title: string
   subtitle: string
   href: string
@@ -78,10 +78,14 @@ export function GlobalSearch() {
     switch (type) {
       case 'project':
         return <FolderOpen className="w-4 h-4 text-purple-500" />
+      case 'client':
+        return <User className="w-4 h-4 text-pink-500" />
       case 'room':
         return <Home className="w-4 h-4 text-blue-500" />
       case 'stage':
         return <CheckSquare className="w-4 h-4 text-green-500" />
+      case 'file':
+        return <FileText className="w-4 h-4 text-orange-500" />
       default:
         return <Search className="w-4 h-4 text-gray-400" />
     }
@@ -91,10 +95,14 @@ export function GlobalSearch() {
     switch (type) {
       case 'project':
         return 'Project'
+      case 'client':
+        return 'Client'
       case 'room':
         return 'Room'
       case 'stage':
         return 'Stage'
+      case 'file':
+        return 'File'
       default:
         return ''
     }
