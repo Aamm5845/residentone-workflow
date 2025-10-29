@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Phone, Save, X } from 'lucide-react'
+import { Phone, Save, X, Send } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 interface PhoneNumberSettingsProps {
@@ -25,6 +25,7 @@ export function PhoneNumberSettings({
   const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(initialSmsEnabled || false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSendingTest, setIsSendingTest] = useState(false)
 
   // Format phone number as user types
   const formatPhoneInput = (value: string) => {
@@ -79,6 +80,36 @@ export function PhoneNumberSettings({
     setPhoneNumber(initialPhoneNumber || '')
     setSmsNotificationsEnabled(initialSmsEnabled || false)
     setIsEditing(false)
+  }
+
+  const handleSendTestSMS = async () => {
+    if (!phoneNumber || !smsNotificationsEnabled) {
+      toast.error('Please save a phone number and enable SMS first')
+      return
+    }
+
+    setIsSendingTest(true)
+    try {
+      const response = await fetch(`/api/users/${userId}/phone/test-sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to send test SMS')
+      }
+
+      const data = await response.json()
+      toast.success('Test SMS sent! Check your phone.')
+    } catch (error) {
+      console.error('Error sending test SMS:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send test SMS')
+    } finally {
+      setIsSendingTest(false)
+    }
   }
 
   if (!canEdit) {
@@ -158,6 +189,25 @@ export function PhoneNumberSettings({
             disabled={!isEditing || !phoneNumber}
           />
         </div>
+
+        {/* Test SMS Button */}
+        {!isEditing && phoneNumber && smsNotificationsEnabled && (
+          <div className="pt-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSendTestSMS}
+              disabled={isSendingTest}
+              className="w-full"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSendingTest ? 'Sending...' : 'Send Test SMS'}
+            </Button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Send a test message to verify SMS notifications are working
+            </p>
+          </div>
+        )}
 
         {isEditing && (
           <div className="flex gap-2 pt-2">
