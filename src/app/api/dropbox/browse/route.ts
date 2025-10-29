@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/auth'
 import { dropboxService } from '@/lib/dropbox-service-v2'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+
+const getSession = () => getServerSession(authOptions)
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +17,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const path = searchParams.get('path') || ''
     const cursor = searchParams.get('cursor') || undefined
+    const memberId = searchParams.get('memberId') || undefined
 
-    const result = await dropboxService.listFolder(path, cursor)
+    const result = await dropboxService.listFolder(path, memberId, cursor)
     
     return NextResponse.json({
       success: true,

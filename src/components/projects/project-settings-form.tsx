@@ -12,6 +12,7 @@ import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 import RoomsManagementSection from './rooms-management-section'
+import { DropboxFolderBrowser } from './DropboxFolderBrowser'
 
 // Form validation schema
 const projectSettingsSchema = z.object({
@@ -1092,58 +1093,66 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         
         <div className="px-6 py-4">
           {editingSection === 'storage' ? (
-            <form onSubmit={handleSubmit((data) => {
-              updateSection('file storage', {
-                dropboxFolder: data.dropboxFolder || null
-              })
-            })} className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Custom Dropbox Folder
-                </label>
-                <Input
-                  {...register('dropboxFolder')}
-                  placeholder="/Custom/Project/Folder"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Optional: Specify a custom Dropbox folder for this project's files
+                <h3 className="text-sm font-medium text-gray-900 mb-4">
+                  Select Dropbox Folder for Project Files
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Browse and select the Dropbox folder where this project's files will be stored.
                 </p>
+                <DropboxFolderBrowser
+                  currentPath={watch('dropboxFolder') || ''}
+                  onSelect={(path) => {
+                    setValue('dropboxFolder', path, { shouldDirty: true })
+                    // Auto-save when folder is selected
+                    updateSection('file storage', { dropboxFolder: path })
+                  }}
+                />
               </div>
               
-              <div className="flex items-center space-x-3 pt-4">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
+              <div className="flex items-center space-x-3 pt-4 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setEditingSection(null)}
                 >
-                  Cancel
+                  Done
                 </Button>
               </div>
-            </form>
+            </div>
           ) : (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Custom Dropbox Folder</p>
-                <p className="text-gray-900 mt-1">{project.dropboxFolder || 'Using default Dropbox folder structure'}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Default Structure:</h4>
-                <p className="text-sm text-gray-600">/Projects/{project.name}/</p>
-                <ul className="text-sm text-gray-600 mt-2 space-y-1 ml-4">
-                  <li>• Design Assets/</li>
-                  <li>• 3D Renderings/</li>
-                  <li>• Client Approvals/</li>
-                  <li>• Technical Drawings/</li>
-                  <li>• FFE Documentation/</li>
-                </ul>
-              </div>
+              {project.dropboxFolder ? (
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Dropbox Folder Location</p>
+                  <div className="flex items-center space-x-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <Folder className="w-5 h-5 text-purple-600" />
+                    <span className="text-gray-900 font-mono text-sm">{project.dropboxFolder}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    All project files will be organized in this Dropbox folder.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium text-gray-500">No Dropbox folder linked</p>
+                  <p className="text-gray-600 mt-1 text-sm">
+                    Click "Edit" to link a Dropbox folder for this project.
+                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4 mt-3">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Suggested Structure:</h4>
+                    <p className="text-sm text-gray-600">/Projects/{project.name}/</p>
+                    <ul className="text-sm text-gray-600 mt-2 space-y-1 ml-4">
+                      <li>• Design Assets/</li>
+                      <li>• 3D Renderings/</li>
+                      <li>• Client Approvals/</li>
+                      <li>• Technical Drawings/</li>
+                      <li>• FFE Documentation/</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
