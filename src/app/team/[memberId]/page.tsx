@@ -64,13 +64,17 @@ export default async function TeamMemberTasks({ params }: PageProps) {
           include: {
             room: {
               include: {
-                project: {
+            project: {
+              select: {
+                id: true,
+                name: true,
+                client: {
                   select: {
-                    id: true,
-                    name: true,
-                    clientName: true
+                    name: true
                   }
                 }
+              }
+            }
               }
             }
           },

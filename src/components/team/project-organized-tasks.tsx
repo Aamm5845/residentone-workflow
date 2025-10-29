@@ -17,7 +17,9 @@ interface Stage {
     project: {
       id: string
       name: string
-      clientName?: string
+      client: {
+        name: string
+      }
     }
   }
 }
@@ -100,7 +102,7 @@ function organizeTasksByProject(stages: Stage[]): ProjectGroup[] {
       projectMap.set(projectId, {
         projectId,
         projectName: stage.room.project.name,
-        clientName: stage.room.project.clientName || '',
+        clientName: stage.room.project.client.name || '',
         rooms: [],
         totalStages: 0
       })
