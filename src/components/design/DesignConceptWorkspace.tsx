@@ -109,37 +109,29 @@ interface DesignConceptWorkspaceProps {
   className?: string
 }
 
-// Professional section definitions
-const SECTION_DEFINITIONS = [
+// Professional section definitions (simplified - no colors/icons)
+const DEFAULT_SECTIONS = [
   {
     id: 'GENERAL',
     name: 'General',
-    icon: 'Sparkles',
-    color: 'from-gray-600 to-gray-700',
     description: 'Overall design concept, mood, and styling direction',
     placeholder: 'Describe the overall design vision, mood, color palette, and style direction for this space...'
   },
   {
     id: 'WALL_COVERING',
     name: 'Wall Covering',
-    icon: 'PaintRoller',
-    color: 'from-gray-600 to-gray-700',
     description: 'Wall treatments, paint colors, wallpaper, and finishes',
     placeholder: 'Detail wall paint colors, wallpaper selections, textures, accent walls, and any special wall treatments...'
   },
   {
     id: 'CEILING',
     name: 'Ceiling',
-    icon: 'PanelTop',
-    color: 'from-gray-600 to-gray-700',
     description: 'Ceiling design, treatments, lighting integration, and details',
     placeholder: 'Specify ceiling treatments, crown molding, lighting fixtures, paint colors, and architectural details...'
   },
   {
     id: 'FLOOR',
     name: 'Floor',
-    icon: 'Grid',
-    color: 'from-gray-600 to-gray-700',
     description: 'Flooring materials, patterns, transitions, and area rugs',
     placeholder: 'Describe flooring materials, patterns, transitions between spaces, area rugs, and floor treatments...'
   }
@@ -162,6 +154,10 @@ export default function DesignConceptWorkspace({
   const [isCompleting, setIsCompleting] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
   const [activeTab, setActiveTab] = useState<'sections' | 'activity'>('sections')
+  const [showAddSection, setShowAddSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState('')
+  const [newSectionDescription, setNewSectionDescription] = useState('')
+  const [isCreatingSection, setIsCreatingSection] = useState(false)
 
   // Data fetching with SWR
   const { data: workspaceData, error, isLoading, mutate: refreshWorkspace } = useSWR<WorkspaceData>(
@@ -206,12 +202,57 @@ export default function DesignConceptWorkspace({
     setExpandedSections(newExpanded)
   }
 
+  // Get all sections (default + custom)
+  const allSectionDefs = useMemo(() => {
+    const customSections = stage?.designSections
+      ?.filter(s => !DEFAULT_SECTIONS.find(d => d.id === s.type))
+      .map(s => ({
+        id: s.type,
+        name: s.type.replace(/_/g, ' '),
+        description: 'Custom section',
+        placeholder: 'Enter your notes for this section...'
+      })) || []
+    
+    return [...DEFAULT_SECTIONS, ...customSections]
+  }, [stage])
+
   const expandAllSections = () => {
-    setExpandedSections(new Set(SECTION_DEFINITIONS.map(s => s.id)))
+    setExpandedSections(new Set(allSectionDefs.map(s => s.id)))
   }
 
   const collapseAllSections = () => {
     setExpandedSections(new Set())
+  }
+  
+  // Add custom section
+  const handleAddSection = async () => {
+    if (!newSectionName.trim() || !stageId) return
+    
+    setIsCreatingSection(true)
+    try {
+      const response = await fetch(`/api/stages/${stageId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: newSectionName.toUpperCase().replace(/\s+/g, '_'),
+          content: newSectionDescription || ''
+        })
+      })
+      
+      if (response.ok) {
+        toast.success('Section added successfully')
+        setNewSectionName('')
+        setNewSectionDescription('')
+        setShowAddSection(false)
+        await refreshWorkspace()
+      } else {
+        throw new Error('Failed to add section')
+      }
+    } catch (error) {
+      toast.error('Failed to add section')
+    } finally {
+      setIsCreatingSection(false)
+    }
   }
 
   // Phase completion handler
@@ -435,7 +476,7 @@ export default function DesignConceptWorkspace({
                 Manage Sections
               </Button>
               <Button
-                onClick={() => {/* TODO: Open add section dialog */}}
+                onClick={() => setShowAddSection(true)}
                 variant="outline"
                 size="sm"
                 className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
@@ -525,7 +566,69 @@ export default function DesignConceptWorkspace({
           {/* Design Sections Tab */}
           {activeTab === 'sections' && (
             <div className="space-y-6">
-              {SECTION_DEFINITIONS.map((sectionDef) => {
+              {/* Add Section Card */}
+              {showAddSection && (
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Custom Section</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Section Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newSectionName}
+                        onChange={(e) => setNewSectionName(e.target.value)}
+                        placeholder="e.g., Lighting, Furniture, Accessories"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Description (Optional)
+                      </label>
+                      <textarea
+                        value={newSectionDescription}
+                        onChange={(e) => setNewSectionDescription(e.target.value)}
+                        placeholder="Brief description of this section..."
+                        className="w-full h-20 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Button
+                        onClick={handleAddSection}
+                        disabled={!newSectionName.trim() || isCreatingSection}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        {isCreatingSection ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Section
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowAddSection(false)
+                          setNewSectionName('')
+                          setNewSectionDescription('')
+                        }}
+                        variant="outline"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Existing Sections */}
+              {allSectionDefs.map((sectionDef) => {
                 const section = stage.designSections?.find(s => s.type === sectionDef.id)
                 const isExpanded = expandedSections.has(sectionDef.id)
 

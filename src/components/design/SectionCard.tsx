@@ -34,8 +34,8 @@ import { RenderIcon } from '@/lib/design-icons'
 interface SectionDefinition {
   id: string
   name: string
-  icon: string
-  color: string
+  icon?: string
+  color?: string
   description: string
   placeholder: string
 }
