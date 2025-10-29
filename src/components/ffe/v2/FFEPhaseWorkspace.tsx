@@ -484,6 +484,7 @@ export default function FFEPhaseWorkspace({
               <span>50%</span>
               <span>75%</span>
               <span>100%</span>
+            </div>
           </div>
         </div>
       </div>
