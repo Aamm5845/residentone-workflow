@@ -37,8 +37,7 @@ export default async function TeamMemberTasks({ params }: PageProps) {
   try {
     member = await prisma.user.findUnique({
       where: {
-        id: resolvedParams.memberId,
-        orgId: { not: null } // Only active team members
+        id: resolvedParams.memberId
       },
       include: {
         assignedStages: {
@@ -89,18 +88,30 @@ export default async function TeamMemberTasks({ params }: PageProps) {
     })
   } catch (error) {
     console.error('[Team Member Page] Database error:', error)
+    console.error('[Team Member Page] Error type:', typeof error)
+    console.error('[Team Member Page] Error constructor:', error?.constructor?.name)
     console.error('[Team Member Page] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: error instanceof Error ? error.message : String(error),
       memberId: resolvedParams.memberId,
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      errorKeys: error ? Object.keys(error) : [],
+      errorString: JSON.stringify(error, null, 2)
     })
     
-    // Return error instead of fallback
-    throw error
+    // Don't throw - redirect to team page with error
+    console.error('[Team Member Page] Redirecting to team page due to error')
+    redirect('/team?error=member_load_failed')
   }
 
   if (!member) {
-    redirect('/team')
+    console.error('[Team Member Page] Member not found:', resolvedParams.memberId)
+    redirect('/team?error=member_not_found')
+  }
+  
+  // Check if user is active team member
+  if (!member.orgId) {
+    console.error('[Team Member Page] Member not in organization:', resolvedParams.memberId)
+    redirect('/team?error=member_not_active')
   }
 
   const getRoleColor = (role: string) => {
