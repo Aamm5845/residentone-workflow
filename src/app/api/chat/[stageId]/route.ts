@@ -216,6 +216,30 @@ export async function POST(
                 stageId: resolvedParams.stageId
               })
               console.log(`[SMS] ✅ Successfully sent to ${user.name} at ${user.phoneNumber}`)
+              
+              // Track this SMS conversation for reply routing
+              const existingConvo = await prisma.smsConversation.findFirst({
+                where: {
+                  userId: user.id,
+                  stageId: resolvedParams.stageId
+                }
+              })
+              
+              if (existingConvo) {
+                await prisma.smsConversation.update({
+                  where: { id: existingConvo.id },
+                  data: { lastMessageAt: new Date() }
+                })
+              } else {
+                await prisma.smsConversation.create({
+                  data: {
+                    userId: user.id,
+                    phoneNumber: user.phoneNumber!,
+                    stageId: resolvedParams.stageId,
+                    lastMessageAt: new Date()
+                  }
+                })
+              }
             } catch (error) {
               console.error(`[SMS] ❌ Failed to send SMS to ${user.name}:`, error)
               // Don't fail the whole request if SMS fails

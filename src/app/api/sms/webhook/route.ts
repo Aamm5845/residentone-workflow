@@ -104,36 +104,37 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Find the most recent stage where this user was mentioned
-    // This is a simplified approach - you may want to track the stageId in the SMS
-    const recentMention = await prisma.chatMention.findFirst({
+    // Find the most recent SMS conversation for this user
+    const recentConversation = await prisma.smsConversation.findFirst({
       where: {
-        mentionedId: user.id
+        userId: user.id
       },
       include: {
-        message: {
+        stage: {
           include: {
-            stage: {
+            room: {
               include: {
-                room: {
-                  include: {
-                    project: true
-                  }
-                }
+                project: true
               }
             }
           }
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        lastMessageAt: 'desc'
       }
     })
 
-    if (!recentMention) {
+    console.log('[SMS Webhook] Found conversation:', recentConversation ? {
+      stageId: recentConversation.stageId,
+      projectName: recentConversation.stage.room.project.name,
+      lastMessageAt: recentConversation.lastMessageAt
+    } : 'NOT FOUND')
+
+    if (!recentConversation) {
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>We couldn't find the conversation you're replying to. Please check the app.</Message>
+  <Message>We couldn't find the conversation you're replying to. Please check the app or ask someone to mention you first.</Message>
 </Response>`
       return new NextResponse(twiml, {
         status: 200,
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
       data: {
         content: `📱 [SMS Reply] ${body}`,
         authorId: user.id,
-        stageId: recentMention.message.stageId
+        stageId: recentConversation.stageId
       },
       include: {
         author: {

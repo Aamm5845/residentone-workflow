@@ -139,6 +139,7 @@ model User {
   assignedIssues              Issue[]                     @relation("IssueAssignee")
   resolvedIssues              Issue[]                     @relation("IssueResolver")
   issueComments               IssueComment[]              @relation("IssueCommentAuthor")
+  smsConversations            SmsConversation[]           @relation("UserSmsConversations")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -312,8 +313,27 @@ model Stage {
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
   renderingVersions      RenderingVersion[]      @relation("StageRenderingVersions")
   issues                 Issue[]                 @relation("IssueStage")
+  smsConversations       SmsConversation[]       @relation("StageSmsConversations")
 
   @@unique([roomId, type])
+}
+
+model SmsConversation {
+  id            String   @id @default(cuid())
+  userId        String
+  phoneNumber   String
+  stageId       String
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation("UserSmsConversations", fields: [userId], references: [id], onDelete: Cascade)
+  stage         Stage    @relation("StageSmsConversations", fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([phoneNumber])
+  @@index([stageId])
+  @@index([lastMessageAt])
+  @@index([userId, stageId])
 }
 
 model DesignSection {

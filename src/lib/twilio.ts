@@ -67,7 +67,8 @@ export async function sendMentionSMS({
   console.log(`[Twilio] Formatted phone: ${to} -> ${formattedPhone}`)
 
   // Create the SMS body with mention details
-  const smsBody = `🔔 ${mentionedBy} mentioned you in ${stageName} (${projectName}):\n\n"${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n\nReply to this message to respond in the chat.`
+  // Include stage ID in a format we can parse from replies
+  const smsBody = `🔔 ${mentionedBy} mentioned you in ${stageName} (${projectName}):\n\n"${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n\nReply to respond. [Ref: ${stageId.substring(0, 8)}]`
 
   try {
     console.log(`[Twilio] Sending SMS from ${twilioPhoneNumber} to ${formattedPhone}...`)
