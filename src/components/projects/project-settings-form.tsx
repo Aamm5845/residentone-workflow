@@ -272,7 +272,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     }
   }
 
-  const addContractor = () => {
+  const addContractor = async () => {
     if (!newContractor.businessName || !newContractor.email) {
       alert('Please fill in required fields: Business Name and Email')
       return
@@ -283,22 +283,50 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       return
     }
 
-    const contractor = {
-      ...newContractor,
-      id: Date.now().toString() // Temporary ID
-    }
+    try {
+      // Save to contractors library database
+      const response = await fetch('/api/contractors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName: newContractor.businessName,
+          contactName: newContractor.contactName || null,
+          email: newContractor.email,
+          phone: newContractor.phone || null,
+          address: newContractor.address || null,
+          type: newContractor.type.toUpperCase(),
+          specialty: newContractor.specialty || null
+        })
+      })
 
-    setContractorsList([...contractorsList, contractor])
-    setNewContractor({
-      businessName: '',
-      contactName: '',
-      email: '',
-      phone: '',
-      address: '',
-      type: 'contractor',
-      specialty: ''
-    })
-    setShowAddContractorDialog(false)
+      if (response.ok) {
+        const savedContractor = await response.json()
+        
+        // Add the saved contractor to the project's contractor list
+        const contractor = {
+          id: savedContractor.id,
+          ...newContractor
+        }
+
+        setContractorsList([...contractorsList, contractor])
+        setNewContractor({
+          businessName: '',
+          contactName: '',
+          email: '',
+          phone: '',
+          address: '',
+          type: 'contractor',
+          specialty: ''
+        })
+        setShowAddContractorDialog(false)
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to save contractor to library')
+      }
+    } catch (error) {
+      console.error('Error saving contractor:', error)
+      alert('Failed to save contractor to library')
+    }
   }
 
   const removeContractor = (index: number) => {

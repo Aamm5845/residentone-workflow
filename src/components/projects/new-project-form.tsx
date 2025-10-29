@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera } from 'lucide-react'
+import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera, Building, Search } from 'lucide-react'
 import Image from 'next/image'
 
 interface NewProjectFormProps {
@@ -78,9 +78,11 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
   const [customRooms, setCustomRooms] = useState<Array<{ name: string; type: string }>>([{ name: '', type: 'OTHER' }])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [showContractorDialog, setShowContractorDialog] = useState(false)
+  const [showSelectContractorDialog, setShowSelectContractorDialog] = useState(false)
   const [contractorType, setContractorType] = useState<'contractor' | 'subcontractor'>('contractor')
   const [contractorForm, setContractorForm] = useState({ businessName: '', contactName: '', email: '', phone: '', address: '' })
   const [existingContractors, setExistingContractors] = useState<any[]>([])
+  const [contractorSearchTerm, setContractorSearchTerm] = useState('')
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -579,25 +581,59 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               )}
               
               {/* Add Contractor Buttons */}
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => addContractor('contractor')}
-                  className="flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Contractor
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => addContractor('subcontractor')}
-                  className="flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Subcontractor
-                </Button>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setContractorType('contractor')
+                      setShowSelectContractorDialog(true)
+                    }}
+                    className="border-2 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
+                  >
+                    <Building className="w-4 h-4 mr-2" />
+                    Select Contractor
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setContractorType('contractor')
+                      addContractor('contractor')
+                    }}
+                    className="border-dashed border-2"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Contractor
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setContractorType('subcontractor')
+                      setShowSelectContractorDialog(true)
+                    }}
+                    className="border-2 border-purple-300 hover:border-purple-400 hover:bg-purple-50"
+                  >
+                    <Building className="w-4 h-4 mr-2" />
+                    Select Subcontractor
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setContractorType('subcontractor')
+                      addContractor('subcontractor')
+                    }}
+                    className="border-dashed border-2"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Subcontractor
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1064,6 +1100,134 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 Add {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Contractor from Library Dialog */}
+      {showSelectContractorDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Select {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'} from Library
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowSelectContractorDialog(false)
+                    setContractorSearchTerm('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  placeholder="Search contractors..."
+                  value={contractorSearchTerm}
+                  onChange={(e) => setContractorSearchTerm(e.target.value)}
+                  className="w-full pl-9 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {existingContractors.filter(c => 
+                c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+              ).length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Building className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No contractors found</p>
+                  <p className="text-sm mt-1">Try adjusting your search or add contractors in Preferences</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {existingContractors
+                    .filter(c => 
+                      c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                      c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                      c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+                    )
+                    .map((contractor) => {
+                      const isAlreadyAdded = formData.contractors.some(
+                        (c: any) => c.id === contractor.id || c.email === contractor.email
+                      )
+                      
+                      return (
+                        <div
+                          key={contractor.id}
+                          className={`border rounded-lg p-4 transition-all ${
+                            isAlreadyAdded 
+                              ? 'border-gray-200 bg-gray-50 opacity-60' 
+                              : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50 cursor-pointer'
+                          }`}
+                          onClick={() => {
+                            if (!isAlreadyAdded) {
+                              selectExistingContractor(contractor, contractorType)
+                              setShowSelectContractorDialog(false)
+                              setContractorSearchTerm('')
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h4 className="font-semibold text-gray-900">{contractor.businessName}</h4>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  contractor.type === 'CONTRACTOR' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
+                                </span>
+                                {isAlreadyAdded && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Added
+                                  </span>
+                                )}
+                              </div>
+                              {contractor.specialty && (
+                                <p className="text-sm text-gray-600 mb-1">
+                                  <span className="font-medium">Specialty:</span> {contractor.specialty}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                                {contractor.contactName && (
+                                  <span>{contractor.contactName}</span>
+                                )}
+                                {contractor.email && (
+                                  <span>{contractor.email}</span>
+                                )}
+                                {contractor.phone && (
+                                  <span>{contractor.phone}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSelectContractorDialog(false)
+                  setContractorSearchTerm('')
+                }}
+                className="w-full"
+              >
+                Close
               </Button>
             </div>
           </div>
