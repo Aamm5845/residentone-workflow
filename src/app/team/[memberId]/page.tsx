@@ -35,6 +35,21 @@ export default async function TeamMemberTasks({ params }: PageProps) {
   console.log('[Team Member Page] Loading member:', resolvedParams.memberId)
   
   try {
+    // First, try to get basic user info
+    member = await prisma.user.findUnique({
+      where: {
+        id: resolvedParams.memberId
+      }
+    })
+    
+    if (!member) {
+      console.log('[Team Member Page] User not found with ID:', resolvedParams.memberId)
+      redirect('/team?error=member_not_found')
+    }
+    
+    console.log('[Team Member Page] Basic user loaded:', member.name, member.email)
+    
+    // Now load the full data
     member = await prisma.user.findUnique({
       where: {
         id: resolvedParams.memberId
@@ -60,8 +75,8 @@ export default async function TeamMemberTasks({ params }: PageProps) {
             }
           },
           orderBy: [
-            { status: 'asc' }, // IN_PROGRESS first
-            { dueDate: 'asc' }, // Soonest due dates first
+            { status: 'asc' },
+            { dueDate: 'asc' },
             { createdAt: 'desc' }
           ]
         },
