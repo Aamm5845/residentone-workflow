@@ -28,6 +28,7 @@ import {
   Edit3,
   Copy
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import FFEItemCard, { FFEItemState, FFEItemVisibility } from './common/FFEItemCard'
@@ -76,12 +77,14 @@ export default function FFESettingsDepartment({
   const [sections, setSections] = useState<FFESection[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
 
   // Dialog states
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showManageItemsDialog, setShowManageItemsDialog] = useState(false)
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   
   // Template states
@@ -96,6 +99,9 @@ export default function FFESettingsDepartment({
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDescription, setTemplateDescription] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   // Stats
   const [stats, setStats] = useState({
@@ -470,14 +476,14 @@ export default function FFESettingsDepartment({
   }
 
   const handleDeleteSection = async (sectionId: string, sectionName: string) => {
-    if (!confirm(`Are you sure you want to delete the "${sectionName}" section? Items will be moved to another section if available.`)) {
+    if (!confirm(`Are you sure you want to delete the "${sectionName}" section? All items in this section will also be permanently deleted.`)) {
       return
     }
 
     try {
       setSaving(true)
       
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}`, {
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}&deleteItems=true`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -596,6 +602,70 @@ export default function FFESettingsDepartment({
     }
   }
 
+  const handleSaveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      toast.error('Please enter a template name')
+      return
+    }
+
+    if (sections.length === 0) {
+      toast.error('No sections to save as template')
+      return
+    }
+
+    try {
+      setSavingTemplate(true)
+
+      // Format sections data for template creation
+      const sectionsData = sections.map((section, index) => ({
+        name: section.name,
+        description: section.description || '',
+        order: index,
+        items: section.items.map((item, itemIndex) => ({
+          name: item.name,
+          description: item.description || '',
+          defaultState: item.state,
+          isRequired: item.isRequired,
+          order: itemIndex,
+          notes: item.notes || ''
+        }))
+      }))
+
+      const response = await fetch('/api/ffe/v2/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          description: templateDescription.trim(),
+          isDefault: false,
+          sections: sectionsData
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.details || 'Failed to save template')
+      }
+
+      const result = await response.json()
+      toast.success(`Template "${templateName}" created successfully`)
+      
+      // Reset form and close dialog
+      setTemplateName('')
+      setTemplateDescription('')
+      setShowSaveTemplateDialog(false)
+      
+      // Reload templates list
+      await loadTemplates()
+      
+    } catch (error) {
+      console.error('Error saving template:', error)
+      toast.error(error.message || 'Failed to save template')
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -665,7 +735,7 @@ export default function FFESettingsDepartment({
               <EyeOff className="w-4 h-4 text-gray-600" />
               <div className="text-lg font-bold text-gray-900">{stats.hiddenItems}</div>
             </div>
-            <div className="text-xs font-medium text-gray-700">Hidden</div>
+            <div className="text-xs font-medium text-gray-700">Not in Workspace</div>
           </div>
         </div>
       </div>
@@ -721,16 +791,16 @@ export default function FFESettingsDepartment({
                 </button>
                 
                 <button
-                  disabled={disabled || stats.totalItems === 0}
-                  onClick={() => setShowManageItemsDialog(true)}
+                  disabled={disabled || sections.length === 0}
+                  onClick={() => setShowSaveTemplateDialog(true)}
                   className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-orange-300 hover:bg-orange-50 disabled:opacity-50"
                 >
                   <div className="p-2 bg-orange-50 rounded-lg">
-                    <Edit3 className="w-5 h-5 text-orange-600" />
+                    <Save className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-orange-700">Manage Items</div>
-                    <div className="text-xs text-orange-600">Edit, duplicate, delete</div>
+                    <div className="font-medium text-orange-700">Save as Template</div>
+                    <div className="text-xs text-orange-600">Reuse later</div>
                   </div>
                 </button>
               </div>
@@ -840,46 +910,13 @@ export default function FFESettingsDepartment({
             
             {/* Right Column - Preview/Help */}
             <div className="bg-gray-50 rounded-xl p-6">
-              <h4 className="font-semibold text-gray-900 mb-4">What happens next?</h4>
-              <div className="space-y-4 text-sm text-gray-600">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-blue-600">1</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Import sections</p>
-                    <p>Template sections will be added to this room</p>
-                  </div>
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-700 mb-2">
+                  <Package className="h-4 w-4" />
+                  <span className="font-medium text-sm">Template Import</span>
                 </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-blue-600">2</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Add FFE items</p>
-                    <p>All template items will be imported as hidden by default</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-blue-600">3</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Customize</p>
-                    <p>Review and show/hide items as needed for your project</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="flex items-center gap-2 text-amber-700 mb-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="font-medium text-sm">Note</span>
-                </div>
-                <p className="text-xs text-amber-700">
-                  Imported items won't affect existing items in this room. You can safely import multiple templates.
+                <p className="text-sm text-blue-700">
+                  All template sections and items will be imported. Items are hidden by default - use the "Include" button to add them to your workspace.
                 </p>
               </div>
             </div>
@@ -1099,19 +1136,10 @@ export default function FFESettingsDepartment({
         {sections.length === 0 ? (
           <div className="card-elevated">
             <div className="p-12 text-center">
-              {/* Animated empty state */}
-              <div className="relative mb-6">
-                <div className="animate-bounce-in">
-                  <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Settings className="h-10 w-10 text-indigo-600" />
-                  </div>
-                </div>
-                
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
-                  <FolderPlus className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
-                  <Import className="h-3 w-3 text-green-600" />
+              {/* Empty state icon */}
+              <div className="mb-6">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-2xl flex items-center justify-center mx-auto">
+                  <Settings className="h-10 w-10 text-indigo-600" />
                 </div>
               </div>
               
@@ -1211,6 +1239,35 @@ export default function FFESettingsDepartment({
                 {/* Section Content */}
                 {section.isExpanded && (
                   <div className="px-6 pb-6">
+                    {section.items.length > 0 && (
+                      <div className="flex items-center gap-2 py-2 px-3 bg-gray-50 border-b border-gray-200">
+                        <Checkbox
+                          id={`select-all-${section.id}`}
+                          checked={section.items.every(item => selectedItemIds.has(item.id))}
+                          onCheckedChange={(checked) => {
+                            setSelectedItemIds(prev => {
+                              const newSet = new Set(prev)
+                              section.items.forEach(item => {
+                                if (checked) {
+                                  newSet.add(item.id)
+                                } else {
+                                  newSet.delete(item.id)
+                                }
+                              })
+                              return newSet
+                            })
+                          }}
+                        />
+                        <label htmlFor={`select-all-${section.id}`} className="text-sm font-medium cursor-pointer">
+                          Select All
+                        </label>
+                        {selectedItemIds.size > 0 && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            ({Array.from(selectedItemIds).filter(id => section.items.some(item => item.id === id)).length} selected)
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {section.items.length === 0 ? (
                       <div className="text-center py-8">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
@@ -1230,28 +1287,60 @@ export default function FFESettingsDepartment({
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {section.items.map(item => (
-                          <FFEItemCard
-                            key={item.id}
-                            id={item.id}
-                            name={item.name}
-                            description={item.description}
-                            state={item.state}
-                            visibility={item.visibility}
-                            notes={item.notes}
-                            sectionName={section.name}
-                            isRequired={item.isRequired}
-                            isCustom={item.isCustom}
-                            quantity={item.quantity}
-                            mode="settings"
-                            disabled={disabled || saving}
-                            onStateChange={handleStateChange}
-                            onVisibilityChange={handleVisibilityChange}
-                            onNotesChange={handleNotesChange}
-                            onDelete={handleDeleteItem}
-                            onQuantityInclude={handleQuantityInclude}
-                          />
-                        ))}
+                        {section.items
+                          .filter(item => !(item.customFields?.isLinkedItem)) // Don't render linked items here, they're shown under parent
+                          .map(item => {
+                            // Find linked children for this item
+                            const linkedChildren = item.customFields?.hasChildren
+                              ? section.items
+                                  .filter(child => 
+                                    child.customFields?.isLinkedItem && 
+                                    child.customFields?.parentName === item.name
+                                  )
+                                  .map(child => ({
+                                    id: child.id,
+                                    name: child.name,
+                                    visibility: child.visibility
+                                  }))
+                              : []
+                            
+                            return (
+                              <FFEItemCard
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                description={item.description}
+                                state={item.state}
+                                visibility={item.visibility}
+                                notes={item.notes}
+                                sectionName={section.name}
+                                isRequired={item.isRequired}
+                                isCustom={item.isCustom}
+                                quantity={item.quantity}
+                                customFields={item.customFields}
+                                linkedChildren={linkedChildren}
+                                mode="settings"
+                                disabled={disabled || saving}
+                                isSelected={selectedItemIds.has(item.id)}
+                                onSelect={(itemId, selected) => {
+                                  setSelectedItemIds(prev => {
+                                    const newSet = new Set(prev)
+                                    if (selected) {
+                                      newSet.add(itemId)
+                                    } else {
+                                      newSet.delete(itemId)
+                                    }
+                                    return newSet
+                                  })
+                                }}
+                                onStateChange={handleStateChange}
+                                onVisibilityChange={handleVisibilityChange}
+                                onNotesChange={handleNotesChange}
+                                onDelete={handleDeleteItem}
+                                onQuantityInclude={handleQuantityInclude}
+                              />
+                            )
+                          })}
                       </div>
                     )}
                   </div>
@@ -1350,6 +1439,99 @@ export default function FFESettingsDepartment({
                 Close
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save as Template Dialog */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent className="max-w-lg animate-slide-in-right">
+          <DialogHeader className="pb-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-50 rounded-xl">
+                <Save className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Save as Template
+                </DialogTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Create a reusable template from current sections and items
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="py-6 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Package className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">What will be saved:</p>
+                  <ul className="text-xs space-y-1 list-disc list-inside">
+                    <li>{stats.sectionsCount} section{stats.sectionsCount !== 1 ? 's' : ''}</li>
+                    <li>{stats.totalItems} item{stats.totalItems !== 1 ? 's' : ''} with descriptions and notes</li>
+                    <li>Item order and required status</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="template-name">Template Name *</Label>
+              <Input
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g., Master Bathroom Standard"
+                disabled={savingTemplate}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="template-description">Description (Optional)</Label>
+              <Textarea
+                id="template-description"
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+                placeholder="Add notes about when to use this template..."
+                disabled={savingTemplate}
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowSaveTemplateDialog(false)
+                setTemplateName('')
+                setTemplateDescription('')
+              }}
+              disabled={savingTemplate}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveAsTemplate}
+              disabled={!templateName.trim() || savingTemplate || sections.length === 0}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {savingTemplate ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Template
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

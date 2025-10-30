@@ -55,11 +55,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
     }
 
-    // Check if user has permission to update settings
-    if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
     const updatedSettings = await prisma.fFEGlobalSettings.upsert({
       where: { orgId },
       create: {

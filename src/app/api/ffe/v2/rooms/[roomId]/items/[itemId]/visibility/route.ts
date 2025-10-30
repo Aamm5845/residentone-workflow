@@ -123,13 +123,62 @@ export async function PATCH(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Update the visibility
-    const updatedItem = await prisma.roomFFEItem.update({
+    // Check if this is a parent item with linked children
+    const hasLinkedChildren = item.customFields && 
+      (item.customFields as any).hasChildren === true
+    
+    // Update the parent item and all linked children if applicable
+    if (hasLinkedChildren) {
+      // Find all child items in the same section
+      const childItems = await prisma.roomFFEItem.findMany({
+        where: {
+          sectionId: item.sectionId,
+          customFields: {
+            path: ['isLinkedItem'],
+            equals: true
+          },
+          customFields: {
+            path: ['parentName'],
+            equals: item.name
+          }
+        }
+      })
+      
+      // Update parent and all children in a transaction
+      await prisma.$transaction([
+        // Update parent
+        prisma.roomFFEItem.update({
+          where: { id: itemId },
+          data: {
+            visibility: visibility,
+            updatedById: userId
+          }
+        }),
+        // Update all children
+        ...childItems.map(child =>
+          prisma.roomFFEItem.update({
+            where: { id: child.id },
+            data: {
+              visibility: visibility,
+              updatedById: userId
+            }
+          })
+        )
+      ])
+    } else {
+      // Simple update for non-parent items
+      await prisma.roomFFEItem.update({
+        where: { id: itemId },
+        data: {
+          visibility: visibility,
+          updatedById: userId
+        }
+      })
+    }
+    
+    // Fetch the updated item with section info
+    const updatedItem = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
-      data: {
-        visibility: visibility,
-        updatedById: userId
-      },
       include: {
         section: {
           select: {

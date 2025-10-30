@@ -208,11 +208,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check permissions
-    if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
     // For now, just return success since we don't have the full tables
     // In a full implementation, this would restore the entity from the snapshot
     return NextResponse.json({ 

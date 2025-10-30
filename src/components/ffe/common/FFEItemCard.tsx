@@ -18,8 +18,12 @@ import {
   Save,
   Trash2,
   Plus,
-  Minus
+  Minus,
+  ChevronRight,
+  ChevronDown,
+  Link2
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -37,10 +41,17 @@ interface FFEItemCardProps {
   isRequired?: boolean
   isCustom?: boolean
   quantity?: number
+  customFields?: any
+  linkedChildren?: Array<{id: string; name: string; visibility: FFEItemVisibility}>
   
   // Behavior control
   mode: 'settings' | 'workspace'
   disabled?: boolean
+  isChildItem?: boolean
+  
+  // Selection (for settings mode)
+  isSelected?: boolean
+  onSelect?: (itemId: string, selected: boolean) => void
   
   // Event handlers
   onStateChange?: (itemId: string, newState: FFEItemState) => Promise<void>
@@ -79,8 +90,13 @@ export default function FFEItemCard({
   isRequired = false,
   isCustom = false,
   quantity = 1,
+  customFields,
+  linkedChildren = [],
   mode,
   disabled = false,
+  isChildItem = false,
+  isSelected = false,
+  onSelect,
   onStateChange,
   onVisibilityChange,
   onNotesChange,
@@ -90,6 +106,14 @@ export default function FFEItemCard({
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false)
   const [notesText, setNotesText] = useState(notes || '')
   const [isSaving, setIsSaving] = useState(false)
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  const [pendingQuantity, setPendingQuantity] = useState(1)
+  const [itemNames, setItemNames] = useState<string[]>([])
+  const [selectedItems, setSelectedItems] = useState<boolean[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  const hasLinkedChildren = customFields?.hasChildren === true && linkedChildren.length > 0
+  const allChildrenVisible = linkedChildren.every(child => child.visibility === 'VISIBLE')
 
   const stateConfig = STATE_CONFIGS[state]
   const StateIcon = stateConfig.icon
@@ -116,14 +140,46 @@ export default function FFEItemCard({
   const handleQuantityInclude = async (quantity: number = 1) => {
     if (!onQuantityInclude || disabled || quantity < 1) return
 
+    // If quantity is 1, just include it directly
+    if (quantity === 1) {
+      try {
+        setIsSaving(true)
+        await onQuantityInclude(id, quantity)
+        toast.success(`"${name}" included in workspace`)
+      } catch (error) {
+        toast.error('Failed to include items in workspace')
+        console.error('Quantity include error:', error)
+      } finally {
+        setIsSaving(false)
+      }
+      return
+    }
+
+    // If quantity > 1, open rename dialog
+    setPendingQuantity(quantity)
+    setItemNames(Array.from({ length: quantity }, (_, i) => `${name} ${i + 1}`))
+    setSelectedItems(Array.from({ length: quantity }, () => true)) // All selected by default
+    setIsRenameDialogOpen(true)
+  }
+
+  const handleConfirmQuantityInclude = async () => {
+    if (!onQuantityInclude || disabled) return
+
+    // Filter to only include selected items
+    const selectedItemNames = itemNames.filter((_, index) => selectedItems[index])
+    const selectedCount = selectedItemNames.length
+
+    if (selectedCount === 0) {
+      toast.error('Please select at least one item to include')
+      return
+    }
+
     try {
       setIsSaving(true)
-      await onQuantityInclude(id, quantity)
-      toast.success(
-        quantity === 1 
-          ? `"${name}" included in workspace`
-          : `${quantity} "${name}" items included in workspace`
-      )
+      // Pass only the selected items
+      await onQuantityInclude(id, selectedCount, selectedItemNames.join('|||'))
+      toast.success(`${selectedCount} item${selectedCount > 1 ? 's' : ''} included in workspace`)
+      setIsRenameDialogOpen(false)
     } catch (error) {
       toast.error('Failed to include items in workspace')
       console.error('Quantity include error:', error)
@@ -164,7 +220,12 @@ export default function FFEItemCard({
   const handleDelete = async () => {
     if (!onDelete || disabled) return
 
-    if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+    // Build confirmation message with extra warning if item is visible in workspace
+    const confirmMessage = visibility === 'VISIBLE'
+      ? `⚠️ WARNING: "${name}" is currently visible in the workspace.\n\nAre you sure you want to delete it? This action cannot be undone.`
+      : `Are you sure you want to delete "${name}"? This action cannot be undone.`
+
+    if (confirm(confirmMessage)) {
       try {
         await onDelete(id)
         toast.success(`"${name}" deleted successfully`)
@@ -294,6 +355,82 @@ export default function FFEItemCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Rename Items Dialog */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Name Your Items</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Select and name the items you want to add:
+              </p>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="select-all"
+                  checked={selectedItems.every(Boolean)}
+                  onCheckedChange={(checked) => {
+                    setSelectedItems(Array.from({ length: pendingQuantity }, () => !!checked))
+                  }}
+                />
+                <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                  Select All
+                </Label>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {itemNames.map((itemName, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`item-${index}`}
+                    checked={selectedItems[index]}
+                    onCheckedChange={(checked) => {
+                      const newSelected = [...selectedItems]
+                      newSelected[index] = !!checked
+                      setSelectedItems(newSelected)
+                    }}
+                  />
+                  <Input
+                    value={itemName}
+                    onChange={(e) => {
+                      const newNames = [...itemNames]
+                      newNames[index] = e.target.value
+                      setItemNames(newNames)
+                    }}
+                    placeholder={`${name} ${index + 1}`}
+                    className="flex-1"
+                    disabled={!selectedItems[index]}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between items-center pt-4 border-t">
+              <p className="text-sm text-gray-600">
+                {selectedItems.filter(Boolean).length} of {pendingQuantity} items selected
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRenameDialogOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmQuantityInclude} disabled={isSaving || selectedItems.filter(Boolean).length === 0}>
+                  {isSaving ? (
+                    <Clock className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  Include {selectedItems.filter(Boolean).length} Item{selectedItems.filter(Boolean).length !== 1 ? 's' : ''}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 
@@ -382,11 +519,12 @@ export default function FFEItemCard({
     <>
     {/* Modern Professional Item Card */}
     <div className={cn(
-      "item-row group relative",
+      "item-row group relative transition-all duration-300",
       // Settings mode styling
       mode === 'settings' && {
-        "bg-green-50/30 border-l-4 border-l-green-400": visibility === 'VISIBLE',
-        "hover:bg-gray-50/50": visibility === 'HIDDEN'
+        "bg-green-100 border-l-4 border-l-green-500 shadow-sm": visibility === 'VISIBLE',
+        "bg-white hover:bg-gray-50/50": visibility === 'HIDDEN',
+        "ml-8 border-l-2 border-l-gray-300": isChildItem
       },
       // Workspace mode styling  
       mode === 'workspace' && {
@@ -396,25 +534,55 @@ export default function FFEItemCard({
       },
       disabled && "opacity-60 pointer-events-none"
     )}>
-      {/* Left Column - State Icon */}
+      {/* Left Column - Checkbox (settings) or State Icon (workspace) */}
       <div className="flex items-center gap-3">
-        <div className={cn(
-          "state-icon transition-all duration-200",
-          state === 'COMPLETED' && "state-icon-completed",
-          state === 'PENDING' && "state-icon-progress", 
-          state === 'UNDECIDED' && "state-icon-pending"
-        )}>
-          <StateIcon className="h-4 w-4" />
-        </div>
+        {/* Expand/Collapse button for parent items */}
+        {mode === 'settings' && hasLinkedChildren && !isChildItem && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-gray-200 rounded transition-colors"
+            title={isExpanded ? 'Collapse children' : 'Expand children'}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-gray-600" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-gray-600" />
+            )}
+          </button>
+        )}
+        
+        {mode === 'settings' && onSelect && !isChildItem ? (
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelect(id, !!checked)}
+            disabled={disabled}
+            className="h-5 w-5"
+          />
+        ) : mode === 'settings' && visibility === 'VISIBLE' && !hasLinkedChildren ? (
+          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-green-500 transition-all duration-200">
+            <CheckCircle className="h-4 w-4 text-white" />
+          </div>
+        ) : !hasLinkedChildren && !isChildItem ? (
+          <div className={cn(
+            "state-icon transition-all duration-200",
+            state === 'COMPLETED' && "state-icon-completed",
+            state === 'PENDING' && "state-icon-progress", 
+            state === 'UNDECIDED' && "state-icon-pending"
+          )}>
+            <StateIcon className="h-4 w-4" />
+          </div>
+        ) : null}
         
         {/* Drag Handle (future feature) */}
-        <div className="opacity-0 group-hover:opacity-30 transition-opacity cursor-move">
-          <div className="flex flex-col gap-0.5">
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+        {!hasLinkedChildren && !isChildItem && (
+          <div className="opacity-0 group-hover:opacity-30 transition-opacity cursor-move">
+            <div className="flex flex-col gap-0.5">
+              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       {/* Middle Column - Item Meta */}
@@ -426,6 +594,12 @@ export default function FFEItemCard({
               
               {/* Compact badges */}
               <div className="flex items-center gap-1">
+                {hasLinkedChildren && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-700 font-medium">
+                    <Link2 className="h-3 w-3 mr-1" />
+                    {linkedChildren.length} linked
+                  </span>
+                )}
                 {quantity > 1 && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 font-medium">
                     {quantity}x
@@ -436,9 +610,14 @@ export default function FFEItemCard({
                     Required
                   </span>
                 )}
-                {isCustom && (
+                {isCustom && !isChildItem && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700 font-medium">
                     Custom
+                  </span>
+                )}
+                {isChildItem && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 font-medium">
+                    Linked Item
                   </span>
                 )}
                 {hasNotes && (
@@ -475,26 +654,31 @@ export default function FFEItemCard({
       </div>
       
       {/* Right Column - Quick Actions */}
-      <div className="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className={cn(
+        "flex items-center gap-2 ml-4 transition-opacity",
+        mode === 'settings' && visibility === 'VISIBLE' ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      )}>
         {mode === 'settings' ? (
           <>
             {visibility === 'VISIBLE' ? (
               <button
                 onClick={handleVisibilityToggle}
                 disabled={disabled}
-                className="btn-ghost p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                className="btn-ghost p-2 text-red-600 hover:bg-red-100 rounded-lg font-medium text-sm"
                 title="Remove from workspace"
               >
-                <Minus className="h-4 w-4" />
+                <Minus className="h-4 w-4 mr-1" />
+                Remove
               </button>
             ) : (
               <button
                 onClick={handleVisibilityToggle}
                 disabled={disabled}
-                className="btn-ghost p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                className="btn-ghost p-2 text-green-600 hover:bg-green-100 rounded-lg font-medium text-sm"
                 title="Include in workspace"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-1" />
+                Add
               </button>
             )}
             
@@ -659,6 +843,68 @@ export default function FFEItemCard({
         )}
       </div>
     </div>
+    
+    {/* Linked Children (Only show in settings mode when expanded) */}
+    {mode === 'settings' && hasLinkedChildren && isExpanded && (
+      <div className="ml-12 mt-2 space-y-2">
+        {linkedChildren.map((child) => (
+          <div
+            key={child.id}
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-lg border-l-2 transition-all duration-200 group",
+              child.visibility === 'VISIBLE'
+                ? "bg-green-50 border-l-green-400"
+                : "bg-gray-50 border-l-gray-300"
+            )}
+          >
+            <div className="flex items-center justify-center w-4 h-4">
+              <Link2 className="h-3 w-3 text-gray-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-700">{child.name}</p>
+              <p className="text-xs text-gray-500">Linked item</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {child.visibility === 'VISIBLE' ? (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-medium">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Included
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-200 text-gray-600 font-medium">
+                  Hidden
+                </span>
+              )}
+              {onDelete && (
+                <button
+                  onClick={async () => {
+                    if (confirm(`Are you sure you want to delete "${child.name}"? This action cannot be undone.`)) {
+                      try {
+                        await onDelete(child.id)
+                        toast.success(`"${child.name}" deleted successfully`)
+                      } catch (error) {
+                        toast.error('Failed to delete item')
+                        console.error('Delete error:', error)
+                      }
+                    }
+                  }}
+                  disabled={disabled}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-100 rounded text-red-600"
+                  title="Delete linked item"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700">
+            <strong>Note:</strong> Adding the parent item to workspace will automatically include all {linkedChildren.length} linked item{linkedChildren.length !== 1 ? 's' : ''}.
+          </p>
+        </div>
+      </div>
+    )}
     
     </>
   )

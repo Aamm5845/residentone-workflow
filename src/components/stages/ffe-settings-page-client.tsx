@@ -159,7 +159,6 @@ export default function FFESettingsPageClient({
   const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false)
   const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null)
   const [deletingSectionName, setDeletingSectionName] = useState('')
-  const [deleteTargetSectionId, setDeleteTargetSectionId] = useState('')
   const [showMoveItemDialog, setShowMoveItemDialog] = useState(false)
   const [movingItem, setMovingItem] = useState<RoomFFEItem | null>(null)
   const [moveTargetSectionId, setMoveTargetSectionId] = useState('')
@@ -474,7 +473,6 @@ export default function FFESettingsPageClient({
   const handleDeleteSection = (sectionId: string, sectionName: string) => {
     setDeletingSectionId(sectionId)
     setDeletingSectionName(sectionName)
-    setDeleteTargetSectionId('')
     setShowDeleteSectionDialog(true)
   }
 
@@ -482,11 +480,6 @@ export default function FFESettingsPageClient({
     if (!deletingSectionId) return
 
     try {
-      const queryParams = new URLSearchParams({
-        sectionId: deletingSectionId,
-        ...(deleteTargetSectionId && { targetSectionId: deleteTargetSectionId })
-      })
-
       const response = await fetch(
         `/api/ffe/sections/${deletingSectionId}`,
         { method: 'DELETE' }
@@ -498,7 +491,6 @@ export default function FFESettingsPageClient({
         setShowDeleteSectionDialog(false)
         setDeletingSectionId(null)
         setDeletingSectionName('')
-        setDeleteTargetSectionId('')
         toast.success(result.message)
       } else {
         const errorData = await response.json()
@@ -863,43 +855,15 @@ export default function FFESettingsPageClient({
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-yellow-700 mb-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-red-700 mb-2">
                 <AlertTriangle className="h-4 w-4" />
-                <span className="font-medium">Items will be preserved</span>
+                <span className="font-medium">Warning: Items will be deleted</span>
               </div>
-              <p className="text-sm text-yellow-700">
-                Deleting section "{deletingSectionName}" will move its items to another section. Items will not be lost.
+              <p className="text-sm text-red-700">
+                Deleting section "{deletingSectionName}" will permanently delete all items in this section. This action cannot be undone.
               </p>
             </div>
-            
-            {instance?.sections && instance.sections.filter(s => s.id !== deletingSectionId).length > 0 ? (
-              <div>
-                <label className="text-sm font-medium">Move items to section (optional)</label>
-                <Select value={deleteTargetSectionId} onValueChange={setDeleteTargetSectionId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Auto-select target section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {instance.sections
-                      .filter(s => s.id !== deletingSectionId)
-                      .map(section => (
-                        <SelectItem key={section.id} value={section.id}>
-                          {section.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  If not selected, items will be moved to the first available section or a new "Uncategorized" section.
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">
-                Items will be moved to a new "Uncategorized" section.
-              </p>
-            )}
             
             <div className="flex gap-2 justify-end pt-4 border-t">
               <Button variant="outline" onClick={() => setShowDeleteSectionDialog(false)}>

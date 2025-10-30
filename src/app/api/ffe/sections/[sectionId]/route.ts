@@ -71,13 +71,13 @@ export async function DELETE(
       }, { status: 404 })
     }
     
-    // Delete section (this will cascade delete all items in the section)
+    // Delete section (this will cascade delete all items in the section due to onDelete: Cascade in schema)
     await prisma.roomFFESection.delete({
       where: { id: sectionId }
     })
     return NextResponse.json({
       success: true,
-      message: `Section "${section.name}" deleted successfully. ${section.items.length} items were also removed.`
+      message: `Section "${section.name}" and its ${section.items.length} item(s) deleted successfully.`
     })
 
   } catch (error) {

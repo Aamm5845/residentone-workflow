@@ -84,16 +84,20 @@ export async function POST(
     }
 
     // For multiple quantities or custom names, we need to create duplicate items
+    // Parse custom names if provided (format: "Name 1|||Name 2|||Name 3")
+    const customNames = customName ? customName.split('|||') : []
+    
     const result = await prisma.$transaction(async (tx) => {
       const createdItems = []
       
-      // Update the original item
+      // Update the original item with the first custom name (or keep original)
+      const firstName = customNames.length > 0 ? customNames[0] : item.name
       const originalItem = await tx.roomFFEItem.update({
         where: { id: itemId },
         data: {
           visibility: visibility as 'VISIBLE' | 'HIDDEN',
           quantity: 1,
-          name: customName ? `${customName}` : item.name,
+          name: firstName,
           updatedById: userId
         }
       })
@@ -101,11 +105,12 @@ export async function POST(
 
       // Create additional items for quantity > 1
       for (let i = 2; i <= quantity; i++) {
+        const itemName = customNames.length >= i ? customNames[i - 1] : `${item.name} (${i})`
         const newItem = await tx.roomFFEItem.create({
           data: {
             sectionId: item.sectionId,
             templateItemId: item.templateItemId,
-            name: customName ? `${customName} (${i})` : `${item.name} (${i})`,
+            name: itemName,
             description: item.description,
             state: 'PENDING',
             visibility: visibility as 'VISIBLE' | 'HIDDEN',
