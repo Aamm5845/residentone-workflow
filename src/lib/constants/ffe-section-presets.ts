@@ -92,6 +92,47 @@ export const SECTION_PRESET_ITEMS: Record<string, PresetItem[]> = {
     { name: 'Baskets', defaultState: 'PENDING', isRequired: false, order: 12 },
   ],
 
+  'Accessories': [
+    { name: 'Wall Art', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Mirrors', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Picture Frames', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Decorative Pillows', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Throw Blanket', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Plants', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Vases', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Candles', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Clock', defaultState: 'PENDING', isRequired: false, order: 8 },
+  ],
+
+  'Wall Treatments': [
+    { name: 'Paint', defaultState: 'PENDING', isRequired: true, order: 0 },
+    { name: 'Wallpaper', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Wall Panels', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Wainscoting', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Accent Wall', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Tile', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Stone', defaultState: 'PENDING', isRequired: false, order: 6 },
+  ],
+
+  'Ceiling': [
+    { name: 'Ceiling Paint', defaultState: 'PENDING', isRequired: true, order: 0 },
+    { name: 'Crown Molding', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Ceiling Medallion', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Coffered Ceiling', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Tray Ceiling', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Beams', defaultState: 'PENDING', isRequired: false, order: 5 },
+  ],
+
+  'Hardware': [
+    { name: 'Door Handles', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Door Knobs', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Door Locks', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Cabinet Pulls', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Cabinet Knobs', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Drawer Pulls', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Hinges', defaultState: 'PENDING', isRequired: false, order: 6 },
+  ],
+
   'Bedding': [
     { name: 'Sheets', defaultState: 'PENDING', isRequired: false, order: 0 },
     { name: 'Fitted Sheet', defaultState: 'PENDING', isRequired: false, order: 1 },
@@ -122,6 +163,31 @@ export const SECTION_PRESET_ITEMS: Record<string, PresetItem[]> = {
     { name: 'Tub Faucet', defaultState: 'PENDING', isRequired: false, order: 8 },
     { name: 'Drain', defaultState: 'PENDING', isRequired: false, order: 9 },
     { name: 'Bidet', defaultState: 'PENDING', isRequired: false, order: 10 },
+  ],
+
+  // Alternative names for Plumbing/Fixtures section
+  'Plumbing Fixtures': [
+    { name: 'Toilet', defaultState: 'PENDING', isRequired: true, order: 0 },
+    { name: 'Vanity & Sink', defaultState: 'PENDING', isRequired: true, order: 1 },
+    { name: 'Faucet', defaultState: 'PENDING', isRequired: true, order: 2 },
+    { name: 'Shower', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Shower Head', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Bathtub', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Tub Faucet', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Shower Valve', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Drain', defaultState: 'PENDING', isRequired: false, order: 8 },
+    { name: 'Bidet', defaultState: 'PENDING', isRequired: false, order: 9 },
+    { name: 'Towel Warmer', defaultState: 'PENDING', isRequired: false, order: 10 },
+  ],
+
+  'Plumbing': [
+    { name: 'Toilet', defaultState: 'PENDING', isRequired: true, order: 0 },
+    { name: 'Vanity & Sink', defaultState: 'PENDING', isRequired: true, order: 1 },
+    { name: 'Faucets', defaultState: 'PENDING', isRequired: true, order: 2 },
+    { name: 'Shower', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Bathtub', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Shower Head', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Drain', defaultState: 'PENDING', isRequired: false, order: 6 },
   ],
 
   'Bathroom Accessories': [
@@ -238,6 +304,140 @@ export const SECTION_PRESET_ITEMS: Record<string, PresetItem[]> = {
     { name: 'Credenza', defaultState: 'PENDING', isRequired: false, order: 7 },
     { name: 'Computer Monitor', defaultState: 'PENDING', isRequired: false, order: 8 },
     { name: 'Printer Stand', defaultState: 'PENDING', isRequired: false, order: 9 },
+  ],
+
+  // Molding & Trim
+  'Molding': [
+    { name: 'Crown Molding', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Base Molding', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Baseboard', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Chair Rail', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Picture Rail', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Door Casing', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Window Casing', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Shoe Molding', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Quarter Round', defaultState: 'PENDING', isRequired: false, order: 8 },
+    { name: 'Ceiling Medallion', defaultState: 'PENDING', isRequired: false, order: 9 },
+    { name: 'Corner Blocks', defaultState: 'PENDING', isRequired: false, order: 10 },
+  ],
+
+  'Trim': [
+    { name: 'Baseboard', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Crown Molding', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Door Trim', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Window Trim', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Chair Rail', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Wainscoting', defaultState: 'PENDING', isRequired: false, order: 5 },
+  ],
+
+  // Decor sections
+  'Decor': [
+    { name: 'Wall Art', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Mirrors', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Picture Frames', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Decorative Pillows', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Throw Blankets', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Plants & Planters', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Vases', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Candles', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Books', defaultState: 'PENDING', isRequired: false, order: 8 },
+    { name: 'Sculptures', defaultState: 'PENDING', isRequired: false, order: 9 },
+    { name: 'Clock', defaultState: 'PENDING', isRequired: false, order: 10 },
+    { name: 'Decorative Trays', defaultState: 'PENDING', isRequired: false, order: 11 },
+    { name: 'Decorative Boxes', defaultState: 'PENDING', isRequired: false, order: 12 },
+  ],
+
+  'Textiles': [
+    { name: 'Area Rugs', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Runner Rugs', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Throw Pillows', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Throw Blankets', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Curtains', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Drapes', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Table Runners', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Placemats', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Napkins', defaultState: 'PENDING', isRequired: false, order: 8 },
+    { name: 'Upholstery Fabric', defaultState: 'PENDING', isRequired: false, order: 9 },
+  ],
+
+  'Storage': [
+    { name: 'Shelving Units', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Bookcases', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Storage Cabinets', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Storage Bins', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Baskets', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Storage Boxes', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Closet Organizers', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Drawer Organizers', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Shelves', defaultState: 'PENDING', isRequired: false, order: 8 },
+    { name: 'Hooks', defaultState: 'PENDING', isRequired: false, order: 9 },
+  ],
+
+  'Doors': [
+    { name: 'Interior Doors', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Door Hardware', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Door Handles', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Door Knobs', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Door Hinges', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Door Stops', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Pocket Doors', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'French Doors', defaultState: 'PENDING', isRequired: false, order: 7 },
+    { name: 'Barn Doors', defaultState: 'PENDING', isRequired: false, order: 8 },
+  ],
+
+  'Windows': [
+    { name: 'Windows', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Window Hardware', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Window Locks', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Window Screens', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Window Sills', defaultState: 'PENDING', isRequired: false, order: 4 },
+  ],
+
+  'Mirrors': [
+    { name: 'Wall Mirror', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Vanity Mirror', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Floor Mirror', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Medicine Cabinet Mirror', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Decorative Mirror', defaultState: 'PENDING', isRequired: false, order: 4 },
+  ],
+
+  'Rugs': [
+    { name: 'Area Rug', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Runner Rug', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Accent Rug', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Bath Mat', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Door Mat', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Rug Pad', defaultState: 'PENDING', isRequired: false, order: 5 },
+  ],
+
+  'Art': [
+    { name: 'Wall Art', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Paintings', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Prints', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Photographs', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Sculptures', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Picture Frames', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Gallery Wall', defaultState: 'PENDING', isRequired: false, order: 6 },
+  ],
+
+  'Greenery': [
+    { name: 'Plants', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Planters', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Plant Stands', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Hanging Plants', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Vases', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Faux Plants', defaultState: 'PENDING', isRequired: false, order: 5 },
+  ],
+
+  'Laundry': [
+    { name: 'Washer', defaultState: 'PENDING', isRequired: false, order: 0 },
+    { name: 'Dryer', defaultState: 'PENDING', isRequired: false, order: 1 },
+    { name: 'Laundry Sink', defaultState: 'PENDING', isRequired: false, order: 2 },
+    { name: 'Drying Rack', defaultState: 'PENDING', isRequired: false, order: 3 },
+    { name: 'Ironing Board', defaultState: 'PENDING', isRequired: false, order: 4 },
+    { name: 'Laundry Baskets', defaultState: 'PENDING', isRequired: false, order: 5 },
+    { name: 'Storage Cabinets', defaultState: 'PENDING', isRequired: false, order: 6 },
+    { name: 'Shelving', defaultState: 'PENDING', isRequired: false, order: 7 },
   ],
 
   // Generic/fallback items for any section without presets

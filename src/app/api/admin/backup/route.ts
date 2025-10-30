@@ -89,9 +89,49 @@ export async function GET(request: NextRequest) {
         // Add other important tables
         approvals: await prisma.approval.findMany(),
         comments: await prisma.comment.findMany(),
+        
+        // Chat and messaging
+        chatMessages: await prisma.chatMessage.findMany(),
+        chatMentions: await prisma.chatMention.findMany(),
+        smsConversations: await prisma.smsConversation.findMany(),
+        
+        // Notifications
         notifications: await prisma.notification.findMany(),
+        notificationSends: await prisma.notificationSend.findMany(),
+        
+        // Activity logs
+        activityLogs: await prisma.activityLog.findMany(),
+        activities: await prisma.activity.findMany(),
+        phaseAccessLogs: await prisma.phaseAccessLog.findMany(),
+        ffeAuditLogs: await prisma.fFEAuditLog.findMany(),
+        ffeChangeLogs: await prisma.fFEChangeLog.findMany(),
+        
+        // Tasks and projects
         tasks: await prisma.task.findMany(),
         projectContractors: await prisma.projectContractor.findMany(),
+        projectUpdates: await prisma.projectUpdate.findMany(),
+        projectUpdateTasks: await prisma.projectUpdateTask.findMany(),
+        projectUpdateMessages: await prisma.projectUpdateMessage.findMany(),
+        projectUpdateActivities: await prisma.projectUpdateActivity.findMany(),
+        projectMilestones: await prisma.projectMilestone.findMany(),
+        contractorAssignments: await prisma.contractorAssignment.findMany(),
+        
+        // Issues
+        issues: await prisma.issue.findMany(),
+        issueComments: await prisma.issueComment.findMany(),
+        
+        // Email logs
+        emailLogs: await prisma.emailLog.findMany(),
+        clientApprovalEmailLogs: await prisma.clientApprovalEmailLog.findMany(),
+        floorplanApprovalEmailLogs: await prisma.floorplanApprovalEmailLog.findMany(),
+        
+        // Tags and metadata
+        tags: await prisma.tag.findMany(),
+        assetTags: await prisma.assetTag.findMany(),
+        commentTags: await prisma.commentTag.findMany(),
+        assetPins: await prisma.assetPin.findMany(),
+        commentPins: await prisma.commentPin.findMany(),
+        commentLikes: await prisma.commentLike.findMany(),
       }
     }
 

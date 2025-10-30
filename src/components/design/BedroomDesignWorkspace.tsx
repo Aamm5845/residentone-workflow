@@ -164,6 +164,9 @@ export default function BedroomDesignWorkspace({
   const [editingImageNote, setEditingImageNote] = useState<string | null>(null)
   const [imageNotes, setImageNotes] = useState<Record<string, string>>({})
   const [isClient, setIsClient] = useState(false)
+  const [showAddSection, setShowAddSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState('')
+  const [isCreatingSection, setIsCreatingSection] = useState(false)
   
   // Handle client-side rendering to avoid hydration issues
   useEffect(() => {
@@ -277,6 +280,37 @@ export default function BedroomDesignWorkspace({
       newExpanded.add(sectionType)
     }
     setExpandedSections(newExpanded)
+  }
+  
+  // Add custom section
+  const handleAddCustomSection = async () => {
+    if (!newSectionName.trim() || !stageId) return
+    
+    setIsCreatingSection(true)
+    try {
+      const response = await fetch(`/api/stages/${stageId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: newSectionName.toUpperCase().replace(/\s+/g, '_'),
+          content: ''
+        })
+      })
+      
+      if (response.ok) {
+        toast.success('Section added successfully')
+        setNewSectionName('')
+        setShowAddSection(false)
+        await refreshWorkspace()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to add section')
+      }
+    } catch (error) {
+      toast.error('Failed to add section')
+    } finally {
+      setIsCreatingSection(false)
+    }
   }
 
   // Section completion toggle
@@ -876,19 +910,85 @@ export default function BedroomDesignWorkspace({
                   Complete each section to finalize your design concept
                 </p>
               </div>
+              <Button
+                onClick={() => setShowAddSection(true)}
+                variant="outline"
+                size="sm"
+                className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Section
+              </Button>
             </div>
+            
+            {/* Add Custom Section Form */}
+            {showAddSection && (
+              <div className="mb-6 border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Custom Section</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Section Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newSectionName}
+                      onChange={(e) => setNewSectionName(e.target.value)}
+                      placeholder="e.g., Lighting, Furniture, Accessories"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      onClick={handleAddCustomSection}
+                      disabled={!newSectionName.trim() || isCreatingSection}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      {isCreatingSection ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Section
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowAddSection(false)
+                        setNewSectionName('')
+                      }}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* Design Sections */}
           <div className="space-y-6">
-            {['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR'].map((sectionType) => {
-              const sectionDef = {
-                'GENERAL': { name: 'General Design', icon: '✨', color: 'from-purple-500 to-pink-500', description: 'Overall design concept, mood, and styling direction' },
-                'WALL_COVERING': { name: 'Wall Covering', icon: '🎨', color: 'from-blue-500 to-cyan-500', description: 'Wall treatments, paint colors, wallpaper, and finishes' },
-                'CEILING': { name: 'Ceiling Design', icon: '⬆️', color: 'from-amber-500 to-orange-500', description: 'Ceiling treatments, lighting integration, and details' },
-                'FLOOR': { name: 'Floor Design', icon: '⬇️', color: 'from-emerald-500 to-teal-500', description: 'Flooring materials, patterns, transitions, and area rugs' }
-              }[sectionType]
+            {/* Get all unique section types: 4 defaults + any custom ones from database */}
+            {React.useMemo(() => {
+              const defaultSections = ['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR']
+              const customSections = safeStage.designSections
+                .map(s => s.type)
+                .filter(type => !defaultSections.includes(type))
+              const allSectionTypes = [...defaultSections, ...customSections]
               
-              const section = safeStage.designSections.find(s => s.type === sectionType)
+              return allSectionTypes.map((sectionType) => {
+                const sectionDef = {
+                  'GENERAL': { name: 'General Design', description: 'Overall design concept, mood, and styling direction' },
+                  'WALL_COVERING': { name: 'Wall Covering', description: 'Wall treatments, paint colors, wallpaper, and finishes' },
+                  'CEILING': { name: 'Ceiling Design', description: 'Ceiling treatments, lighting integration, and details' },
+                  'FLOOR': { name: 'Floor Design', description: 'Flooring materials, patterns, transitions, and area rugs' }
+                }[sectionType] || { name: sectionType.replace(/_/g, ' '), description: 'Custom section' }
+                
+                const section = safeStage.designSections.find(s => s.type === sectionType)
               const isCompleted = section?.completed || false
               const isExpanded = expandedSections.has(sectionType)
               const isUploading = uploadingSection === sectionType
@@ -903,10 +1003,7 @@ export default function BedroomDesignWorkspace({
                     onClick={() => toggleSection(sectionType)}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 bg-gradient-to-br ${sectionDef.color} rounded-xl flex items-center justify-center shadow-sm`}>
-                          <span className="text-2xl">{sectionDef.icon}</span>
-                        </div>
+                      <div className="flex-1">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
                           <p className="text-sm text-gray-600">{sectionDef.description}</p>
@@ -1251,13 +1348,14 @@ export default function BedroomDesignWorkspace({
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              )
-            })}
+              </div>
+            )}
           </div>
+        );
+      })
+    }, [safeStage.designSections, expandedSections, uploadingSection, editingSection, postingComment, isClient])}
+    </div>
           
           {/* 3. Completion Section */}
           {canMarkComplete && (

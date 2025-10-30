@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole, RoomType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedFFESectionLibrary } from './seeds/ffe-system-seed'
 
 const prisma = new PrismaClient()
 
@@ -25,10 +26,9 @@ async function main() {
 
   console.log('✅ Skipped admin creation - use setup-team-members.ts instead')
 
-  // No hardcoded room presets or FFE items - all user-managed
-  // await prisma.roomPreset.createMany({ data: [] })
-
-  console.log('✅ Skipped hardcoded room presets - all user-managed')
+  // Seed FFE Section Library with preset items
+  await seedFFESectionLibrary()
+  console.log('✅ Seeded FFE Section Library with preset items')
 
   console.log('🎉 Database seeding completed!')
   console.log('\n👥 Team members should be set up using: npm run setup-team-members')

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import DesignConceptWorkspace from '@/components/design/DesignConceptWorkspace'
+import BedroomDesignWorkspace from '@/components/design/BedroomDesignWorkspace'
 
 // Simple test page to verify our Design Concept Workspace integration
 export default function TestDesignWorkspacePage() {
@@ -23,7 +23,7 @@ export default function TestDesignWorkspacePage() {
         </div>
 
         <div className="bg-white rounded-lg shadow">
-          <DesignConceptWorkspace 
+          <BedroomDesignWorkspace 
             stageId={mockStageId}
             roomId={mockRoomId}
             projectId={mockProjectId}

@@ -30,6 +30,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { LinkedItemDisplay } from './FFESettingsMenuEnhanced'
 
 interface FFESettingsMenuProps {
   roomId: string
@@ -407,34 +408,12 @@ export default function FFESettingsMenu({
                           
                           <div className="space-y-2 ml-4">
                             {section.items?.map((item: any) => (
-                              <div key={item.id} className="flex items-start gap-3 p-2 rounded border hover:bg-gray-50">
-                                <Checkbox
-                                  checked={selectedItems.has(item.id)}
-                                  onCheckedChange={() => toggleItemSelection(item.id)}
-                                  className="mt-1"
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{item.name}</span>
-                                    {item.isRequired && (
-                                      <Badge variant="destructive" className="text-xs h-5">Required</Badge>
-                                    )}
-                                    {item.customFields?.linkedItems && Array.isArray(item.customFields.linkedItems) && (
-                                      <Badge variant="outline" className="text-xs h-5">
-                                        {item.customFields.linkedItems.length} linked
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {item.description && (
-                                    <p className="text-sm text-gray-600">{item.description}</p>
-                                  )}
-                                  {item.customFields?.linkedItems && Array.isArray(item.customFields.linkedItems) && (
-                                    <div className="mt-1 text-xs text-blue-600">
-                                      Linked items: {item.customFields.linkedItems.join(', ')}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                              <LinkedItemDisplay
+                                key={item.id}
+                                item={item}
+                                isSelected={selectedItems.has(item.id)}
+                                onToggle={() => toggleItemSelection(item.id)}
+                              />
                             )) || <div className="text-sm text-gray-500 italic">No items in this section</div>}
                           </div>
                         </div>

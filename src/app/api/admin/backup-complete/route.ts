@@ -159,24 +159,104 @@ export async function GET(request: NextRequest) {
         // Include COMPLETE client access tokens with actual tokens
         clientAccessTokens: await prisma.clientAccessToken.findMany(),
         clientAccessLogs: await prisma.clientAccessLog.findMany(),
+        phaseAccessTokens: await prisma.phaseAccessToken.findMany(),
+        phaseAccessLogs: await prisma.phaseAccessLog.findMany(),
         
         // All other data
         approvals: await prisma.approval.findMany(),
         comments: await prisma.comment.findMany(),
+        
+        // Chat and messaging (COMPLETE)
+        chatMessages: await prisma.chatMessage.findMany(),
+        chatMentions: await prisma.chatMention.findMany(),
+        smsConversations: await prisma.smsConversation.findMany(),
+        
+        // Notifications (COMPLETE)
         notifications: await prisma.notification.findMany(),
+        notificationSends: await prisma.notificationSend.findMany(),
+        
+        // Activity and Audit Logs (COMPLETE)
+        activityLogs: await prisma.activityLog.findMany(),
+        activities: await prisma.activity.findMany(),
+        ffeAuditLogs: await prisma.fFEAuditLog.findMany(),
+        ffeChangeLogs: await prisma.fFEChangeLog.findMany(),
+        
+        // Tasks and Project Updates (COMPLETE)
         tasks: await prisma.task.findMany(),
         projectContractors: await prisma.projectContractor.findMany(),
+        projectUpdates: await prisma.projectUpdate.findMany(),
+        projectUpdateTasks: await prisma.projectUpdateTask.findMany(),
+        projectUpdatePhotos: await prisma.projectUpdatePhoto.findMany(),
+        projectUpdateDocuments: await prisma.projectUpdateDocument.findMany(),
+        projectUpdateMessages: await prisma.projectUpdateMessage.findMany(),
+        projectUpdateActivities: await prisma.projectUpdateActivity.findMany(),
+        projectMilestones: await prisma.projectMilestone.findMany(),
+        contractorAssignments: await prisma.contractorAssignment.findMany(),
         
-        // Auth-related data
+        // Issues (COMPLETE)
+        issues: await prisma.issue.findMany(),
+        issueComments: await prisma.issueComment.findMany(),
+        
+        // Email Logs (COMPLETE)
+        emailLogs: await prisma.emailLog.findMany(),
+        clientApprovalEmailLogs: await prisma.clientApprovalEmailLog.findMany(),
+        floorplanApprovalEmailLogs: await prisma.floorplanApprovalEmailLog.findMany(),
+        
+        // Tags and metadata (COMPLETE)
+        tags: await prisma.tag.findMany(),
+        assetTags: await prisma.assetTag.findMany(),
+        commentTags: await prisma.commentTag.findMany(),
+        assetPins: await prisma.assetPin.findMany(),
+        commentPins: await prisma.commentPin.findMany(),
+        commentLikes: await prisma.commentLike.findMany(),
+        checklistItems: await prisma.checklistItem.findMany(),
+        
+        // Client Approvals (COMPLETE)
+        clientApprovals: await prisma.clientApproval.findMany(),
+        clientApprovalActivities: await prisma.clientApprovalActivity.findMany(),
+        clientApprovalAssets: await prisma.clientApprovalAsset.findMany(),
+        floorplanApprovalActivities: await prisma.floorplanApprovalActivity.findMany(),
+        floorplanApprovalAssets: await prisma.floorplanApprovalAsset.findMany(),
+        floorplanApprovalVersions: await prisma.floorplanApprovalVersion.findMany(),
+        
+        // FFE System (COMPLETE)
+        ffeLibraryItems: await prisma.fFELibraryItem.findMany(),
+        ffeGeneralSettings: await prisma.fFEGeneralSettings.findMany(),
+        ffeBathroomStates: await prisma.fFEBathroomState.findMany(),
+        ffeTemplates: await prisma.fFETemplate.findMany(),
+        ffeTemplateSections: await prisma.fFETemplateSection.findMany(),
+        ffeTemplateItems: await prisma.fFETemplateItem.findMany(),
+        roomFfeInstances: await prisma.roomFFEInstance.findMany(),
+        roomFfeSections: await prisma.roomFFESection.findMany(),
+        roomFfeItems: await prisma.roomFFEItem.findMany(),
+        ffeSectionLibrary: await prisma.fFESectionLibrary.findMany(),
+        
+        // Rendering & Drawings (COMPLETE)
+        renderingVersions: await prisma.renderingVersion.findMany(),
+        renderingNotes: await prisma.renderingNote.findMany(),
+        drawingChecklistItems: await prisma.drawingChecklistItem.findMany(),
+        
+        // Spec Books (COMPLETE)
+        specBooks: await prisma.specBook.findMany(),
+        specBookSections: await prisma.specBookSection.findMany(),
+        specBookGenerations: await prisma.specBookGeneration.findMany(),
+        dropboxFileLinks: await prisma.dropboxFileLink.findMany(),
+        
+        // CAD Preferences (COMPLETE)
+        cadPreferences: await prisma.cadPreferences.findMany(),
+        projectCadDefaults: await prisma.projectCadDefaults.findMany(),
+        cadLayoutCache: await prisma.cadLayoutCache.findMany(),
+        
+        // Room sections and presets
+        roomSections: await prisma.roomSection.findMany(),
+        roomPresets: await prisma.roomPreset.findMany(),
+        
+        // Auth-related data (COMPLETE)
         accounts: await prisma.account.findMany(),
         sessions: await prisma.session.findMany(),
         verificationTokens: await prisma.verificationToken.findMany(),
         passwordResetTokens: await prisma.passwordResetToken.findMany(),
         userSessions: await prisma.userSession.findMany(),
-        
-        // Additional tables
-        roomPresets: await prisma.roomPreset.findMany(),
-        activityLogs: await prisma.activityLog.findMany(),
       },
       
       // File downloads will be added here

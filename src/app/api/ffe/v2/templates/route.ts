@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
+// Default preset items for each section type
+const SECTION_PRESET_ITEMS: Record<string, any[]> = {
+  'Plumbing': [
+    { name: 'Toilet', description: 'Toilet fixture', isRequired: true, order: 1 },
+    { name: 'Vanity & Sink', description: 'Vanity cabinet and sink', isRequired: true, order: 2 },
+    { name: 'Bathtub', description: 'Bathtub fixture', isRequired: false, order: 3 },
+    { name: 'Shower', description: 'Shower fixture and enclosure', isRequired: false, order: 4 },
+    { name: 'Faucets', description: 'All faucets and fixtures', isRequired: true, order: 5 }
+  ],
+  'Lighting': [
+    { name: 'Overhead Lighting', description: 'Main ceiling light fixture', isRequired: true, order: 1 },
+    { name: 'Task Lighting', description: 'Focused work area lighting', isRequired: false, order: 2 },
+    { name: 'Accent Lighting', description: 'Decorative or ambient lighting', isRequired: false, order: 3 }
+  ],
+  'Flooring': [
+    { name: 'Primary Flooring', description: 'Main floor covering', isRequired: true, order: 1 },
+    { name: 'Area Rug', description: 'Accent rug or carpet', isRequired: false, order: 2 }
+  ],
+  'Wall Treatments': [
+    { name: 'Wall Paint/Finish', description: 'Primary wall treatment', isRequired: true, order: 1 },
+    { name: 'Accent Wall', description: 'Special wall treatment or feature', isRequired: false, order: 2 }
+  ],
+  'Furniture': [
+    { name: 'Primary Furniture', description: 'Main furniture pieces', isRequired: false, order: 1 },
+    { name: 'Storage Furniture', description: 'Cabinets, shelving, etc.', isRequired: false, order: 2 },
+    { name: 'Seating', description: 'Chairs, benches, etc.', isRequired: false, order: 3 }
+  ],
+  'Ceiling': [
+    { name: 'Ceiling Finish', description: 'Ceiling paint or treatment', isRequired: true, order: 1 },
+    { name: 'Crown Molding', description: 'Decorative ceiling molding', isRequired: false, order: 2 }
+  ],
+  'Window Treatments': [
+    { name: 'Window Coverings', description: 'Curtains, blinds, or shades', isRequired: false, order: 1 }
+  ],
+  'Accessories': [
+    { name: 'Decorative Items', description: 'Art, plants, decorative objects', isRequired: false, order: 1 },
+    { name: 'Functional Accessories', description: 'Mirrors, storage baskets, etc.', isRequired: false, order: 2 }
+  ],
+  'Hardware': [
+    { name: 'Door Hardware', description: 'Door handles and locks', isRequired: false, order: 1 },
+    { name: 'Cabinet Hardware', description: 'Pulls, knobs, and handles', isRequired: false, order: 2 }
+  ]
+};
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -124,25 +168,31 @@ export async function POST(request: NextRequest) {
           }
         });
 
+        // Determine which items to use: provided items or preset items
+        let itemsToCreate = sectionData.items || [];
+        
+        // If no items provided, use preset items for this section
+        if (itemsToCreate.length === 0 && SECTION_PRESET_ITEMS[sectionData.name]) {
+          itemsToCreate = SECTION_PRESET_ITEMS[sectionData.name];
+        }
+
         // Create items for this section
-        if (sectionData.items && sectionData.items.length > 0) {
-          for (const itemData of sectionData.items) {
-            await tx.fFETemplateItem.create({
-              data: {
-                sectionId: section.id,
-                name: itemData.name,
-                description: itemData.description,
-                defaultState: itemData.defaultState || 'PENDING',
-                isRequired: itemData.isRequired || false,
-                order: itemData.order || 0,
-                tags: [],
-                customFields: {
-                  linkedItems: itemData.linkedItems || [],
-                  notes: itemData.notes || ''
-                }
+        for (const itemData of itemsToCreate) {
+          await tx.fFETemplateItem.create({
+            data: {
+              sectionId: section.id,
+              name: itemData.name,
+              description: itemData.description,
+              defaultState: itemData.defaultState || 'PENDING',
+              isRequired: itemData.isRequired || false,
+              order: itemData.order || 0,
+              tags: [],
+              customFields: {
+                linkedItems: itemData.linkedItems || [],
+                notes: itemData.notes || ''
               }
-            });
-          }
+            }
+          });
         }
       }
 
