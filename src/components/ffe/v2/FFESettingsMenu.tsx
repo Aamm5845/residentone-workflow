@@ -66,6 +66,10 @@ export default function FFESettingsMenu({
   const [selectedTemplateData, setSelectedTemplateData] = useState<any>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false)
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set())
+  const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false)
+  const [sectionToDelete, setSectionToDelete] = useState<{id: string, name: string, itemCount: number} | null>(null)
+  const [deleteItemsWithSection, setDeleteItemsWithSection] = useState(false)
   
   // Section form
   const [sectionForm, setSectionForm] = useState({
@@ -250,6 +254,103 @@ export default function FFESettingsMenu({
     } catch (error) {
       console.error('Add item error:', error)
       toast.error('Failed to add item')
+    }
+  }
+  
+  // Toggle section selection
+  const toggleSectionSelection = (sectionId: string) => {
+    setSelectedSections(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId)
+      } else {
+        newSet.add(sectionId)
+      }
+      return newSet
+    })
+  }
+  
+  // Select/deselect all sections
+  const toggleSelectAllSections = () => {
+    const allSectionIds = currentSections.map(s => s.id)
+    const allSelected = allSectionIds.every(id => selectedSections.has(id))
+    
+    if (allSelected) {
+      setSelectedSections(new Set())
+    } else {
+      setSelectedSections(new Set(allSectionIds))
+    }
+  }
+  
+  // Handle delete section click
+  const handleDeleteSectionClick = (sectionId: string, sectionName: string, itemCount: number) => {
+    setSectionToDelete({ id: sectionId, name: sectionName, itemCount })
+    setDeleteItemsWithSection(false)
+    setShowDeleteSectionDialog(true)
+  }
+  
+  // Handle bulk delete sections
+  const handleBulkDeleteSections = async () => {
+    if (selectedSections.size === 0) {
+      toast.error('No sections selected')
+      return
+    }
+    
+    const totalItems = currentSections
+      .filter(s => selectedSections.has(s.id))
+      .reduce((sum, s) => sum + (s.items?.length || 0), 0)
+    
+    const confirmMsg = `Delete ${selectedSections.size} section(s) with ${totalItems} total items? This cannot be undone.`
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      const deletePromises = Array.from(selectedSections).map(sectionId =>
+        fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}&deleteItems=true`, {
+          method: 'DELETE'
+        })
+      )
+      
+      const results = await Promise.all(deletePromises)
+      const allSuccess = results.every(r => r.ok)
+      
+      if (allSuccess) {
+        toast.success(`Deleted ${selectedSections.size} section(s)`)
+        setSelectedSections(new Set())
+        onItemDeleted?.()
+      } else {
+        throw new Error('Some deletions failed')
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      toast.error('Failed to delete all sections')
+    }
+  }
+  
+  // Confirm section deletion
+  const confirmDeleteSection = async () => {
+    if (!sectionToDelete) return
+    
+    try {
+      const response = await fetch(
+        `/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionToDelete.id}&deleteItems=${deleteItemsWithSection}`,
+        { method: 'DELETE' }
+      )
+      
+      if (response.ok) {
+        toast.success(
+          deleteItemsWithSection 
+            ? `Deleted section "${sectionToDelete.name}" and ${sectionToDelete.itemCount} items`
+            : `Deleted section "${sectionToDelete.name}" (items kept as orphaned)`
+        )
+        setShowDeleteSectionDialog(false)
+        setSectionToDelete(null)
+        onItemDeleted?.()
+      } else {
+        throw new Error('Failed to delete section')
+      }
+    } catch (error) {
+      console.error('Delete section error:', error)
+      toast.error('Failed to delete section')
     }
   }
   
@@ -638,19 +739,47 @@ export default function FFESettingsMenu({
       </Dialog>
 
       {/* Manage Items Dialog */}
-      <Dialog open={showManageItemsDialog} onOpenChange={setShowManageItemsDialog}>
+      <Dialog open={showManageItemsDialog} onOpenChange={(open) => {
+        setShowManageItemsDialog(open)
+        if (!open) setSelectedSections(new Set())
+      }}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5" />
-              Manage FFE Items
+              Manage FFE Sections & Items
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="text-sm text-gray-600">
-              Delete items you don't need or duplicate items for multiple quantities.
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Select sections to delete, or manage individual items.
+              </div>
+              {selectedSections.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDeleteSections}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedSections.size} Section{selectedSections.size > 1 ? 's' : ''}
+                </Button>
+              )}
             </div>
+            
+            {currentSections.length > 1 && (
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
+                <Checkbox
+                  checked={currentSections.length > 0 && currentSections.every(s => selectedSections.has(s.id))}
+                  onCheckedChange={toggleSelectAllSections}
+                  id="select-all-sections"
+                />
+                <Label htmlFor="select-all-sections" className="cursor-pointer font-medium">
+                  Select All Sections
+                </Label>
+              </div>
+            )}
             
             {currentSections.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -661,53 +790,79 @@ export default function FFESettingsMenu({
             ) : (
               <div className="max-h-96 overflow-y-auto space-y-4">
                 {currentSections.map(section => (
-                  <div key={section.id} className="border rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <FolderPlus className="h-4 w-4" />
-                      {section.name}
-                      <Badge variant="outline" className="text-xs">
-                        {section.items?.length || 0} items
-                      </Badge>
-                    </h4>
-                    
-                    {!section.items || section.items.length === 0 ? (
-                      <p className="text-sm text-gray-500">No items in this section</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {section.items.map((item: any) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{item.name}</div>
-                              {item.description && (
-                                <div className="text-xs text-gray-600">{item.description}</div>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDuplicateItem(item.id, item.name)}
-                                className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                              >
-                                <Copy className="h-3 w-3 mr-1" />
-                                Duplicate
-                              </Button>
-                              
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteItem(item.id, item.name)}
-                                className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                  <div key={section.id} className={cn(
+                    "border rounded-lg p-4 transition-colors",
+                    selectedSections.has(section.id) && "border-blue-500 bg-blue-50/50"
+                  )}>
+                    <div className="flex items-start gap-3 mb-3">
+                      <Checkbox
+                        checked={selectedSections.has(section.id)}
+                        onCheckedChange={() => toggleSectionSelection(section.id)}
+                        id={`section-${section.id}`}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                            <FolderPlus className="h-4 w-4" />
+                            {section.name}
+                            <Badge variant="outline" className="text-xs">
+                              {section.items?.length || 0} items
+                            </Badge>
+                          </h4>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteSectionClick(section.id, section.name, section.items?.length || 0)}
+                            className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete Section
+                          </Button>
+                        </div>
                       </div>
-                    )}
+                    </div>
+                    
+                    <div className="ml-9">
+                      {!section.items || section.items.length === 0 ? (
+                        <p className="text-sm text-gray-500">No items in this section</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {section.items.map((item: any) => (
+                            <div key={item.id} className="flex items-center justify-between p-3 bg-white rounded-md border">
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{item.name}</div>
+                                {item.description && (
+                                  <div className="text-xs text-gray-600">{item.description}</div>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDuplicateItem(item.id, item.name)}
+                                  className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Duplicate
+                                </Button>
+                                
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteItem(item.id, item.name)}
+                                  className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -719,6 +874,99 @@ export default function FFESettingsMenu({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Section Confirmation Dialog */}
+      <Dialog open={showDeleteSectionDialog} onOpenChange={setShowDeleteSectionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Delete Section
+            </DialogTitle>
+          </DialogHeader>
+          
+          {sectionToDelete && (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-gray-900 mb-2">
+                  You are about to delete the section:
+                </p>
+                <p className="font-semibold text-gray-900 mb-3">
+                  "{sectionToDelete.name}"
+                </p>
+                <p className="text-sm text-red-600">
+                  This section contains {sectionToDelete.itemCount} item{sectionToDelete.itemCount !== 1 ? 's' : ''}.
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-900">
+                  What should happen to the items in this section?
+                </Label>
+                
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => setDeleteItemsWithSection(false)}
+                  >
+                    <div className="pt-0.5">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                        !deleteItemsWithSection ? "border-blue-600 bg-blue-600" : "border-gray-300"
+                      )}>
+                        {!deleteItemsWithSection && <div className="w-2 h-2 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-gray-900">Keep Items (Orphan)</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Delete only the section. Items will remain but won't be organized in a section.
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-red-50 transition-colors"
+                    onClick={() => setDeleteItemsWithSection(true)}
+                  >
+                    <div className="pt-0.5">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                        deleteItemsWithSection ? "border-red-600 bg-red-600" : "border-gray-300"
+                      )}>
+                        {deleteItemsWithSection && <div className="w-2 h-2 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-red-600">Delete Items Too</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Permanently delete the section and all {sectionToDelete.itemCount} item{sectionToDelete.itemCount !== 1 ? 's' : ''} inside it.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowDeleteSectionDialog(false)
+                    setSectionToDelete(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={confirmDeleteSection}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteItemsWithSection ? 'Delete Section & Items' : 'Delete Section Only'}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

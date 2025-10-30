@@ -174,7 +174,8 @@ export async function DELETE(
     const { roomId } = await params
     const { searchParams } = new URL(request.url)
     const sectionId = searchParams.get('sectionId')
-    const targetSectionId = searchParams.get('targetSectionId') // Where to move items
+    const deleteItems = searchParams.get('deleteItems') === 'true' // Delete items instead of moving
+    const targetSectionId = searchParams.get('targetSectionId') // Where to move items (if not deleting)
     
     if (!sectionId) {
       return NextResponse.json({ error: 'Section ID is required' }, { status: 400 })
@@ -215,8 +216,8 @@ export async function DELETE(
     const { items, instance } = section
     let targetSection = null
 
-    // If items exist, determine where to move them
-    if (items.length > 0) {
+    // If items exist and we're NOT deleting them, determine where to move them
+    if (items.length > 0 && !deleteItems) {
       if (targetSectionId) {
         // Move to specified section
         targetSection = await prisma.roomFFESection.findFirst({
@@ -251,11 +252,15 @@ export async function DELETE(
       }
     }
 
-    // Perform deletion with item relocation in a transaction
+    // Perform deletion with item handling in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Move items to target section if items exist
-      if (items.length > 0 && targetSection) {
-        // Get the highest order in target section
+      if (deleteItems && items.length > 0) {
+        // Delete all items in the section
+        await tx.roomFFEItem.deleteMany({
+          where: { sectionId: sectionId }
+        })
+      } else if (items.length > 0 && targetSection) {
+        // Move items to target section
         const targetItems = await tx.roomFFEItem.findMany({
           where: { sectionId: targetSection.id },
           orderBy: { order: 'desc' },
@@ -284,7 +289,8 @@ export async function DELETE(
       
       return {
         deletedSectionName: section.name,
-        movedItemsCount: items.length,
+        itemsDeleted: deleteItems ? items.length : 0,
+        movedItemsCount: deleteItems ? 0 : items.length,
         targetSectionName: targetSection?.name || null
       }
     })
@@ -292,9 +298,11 @@ export async function DELETE(
     return NextResponse.json({
       success: true,
       data: result,
-      message: result.movedItemsCount > 0 
-        ? `Section "${result.deletedSectionName}" deleted. ${result.movedItemsCount} items moved to "${result.targetSectionName}".`
-        : `Section "${result.deletedSectionName}" deleted.`
+      message: result.itemsDeleted > 0
+        ? `Section "${result.deletedSectionName}" and ${result.itemsDeleted} items deleted.`
+        : result.movedItemsCount > 0 
+          ? `Section "${result.deletedSectionName}" deleted. ${result.movedItemsCount} items moved to "${result.targetSectionName}".`
+          : `Section "${result.deletedSectionName}" deleted.`
     })
 
   } catch (error) {

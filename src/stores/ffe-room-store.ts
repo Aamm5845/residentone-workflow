@@ -410,14 +410,18 @@ export const useFFERoomStore = create<FFERoomState>()(
         
         const allItems = state.currentInstance.sections.flatMap(s => s.items)
         const completed = allItems.filter(i => i.state === 'COMPLETED').length
-        const undecided = allItems.length - completed
+        const pending = allItems.filter(i => i.state === 'PENDING').length
+        // Undecided includes UNDECIDED state and legacy states (SELECTED, CONFIRMED)
+        const undecided = allItems.filter(i => 
+          i.state === 'UNDECIDED' || i.state === 'SELECTED' || i.state === 'CONFIRMED'
+        ).length
         
         return {
           total: allItems.length,
           undecided,
           completed,
           // Legacy counts for backward compatibility
-          pending: allItems.filter(i => i.state === 'PENDING').length,
+          pending,
           selected: allItems.filter(i => i.state === 'SELECTED').length,
           confirmed: allItems.filter(i => i.state === 'CONFIRMED').length,
           notNeeded: allItems.filter(i => i.state === 'NOT_NEEDED').length
