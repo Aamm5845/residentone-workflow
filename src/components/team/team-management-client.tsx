@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Shield } from 'lucide-react'
+import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Shield, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
@@ -603,7 +603,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                 </td>
                 {canManageTeam && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
-                    <div className="relative">
+                    <div className="relative flex items-center justify-end space-x-2">
                       <Button
                         onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                         variant="outline"
@@ -612,6 +612,18 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Edit
+                      </Button>
+                      
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                      >
+                        <Link href={`/team/${member.id}/preferences`}>
+                          <Settings className="h-3 w-3 mr-1" />
+                          Team Preferences
+                        </Link>
                       </Button>
                       
                       {openDropdown === member.id && (
