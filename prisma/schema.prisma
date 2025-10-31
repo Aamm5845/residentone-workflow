@@ -339,7 +339,7 @@ model SmsConversation {
 model DesignSection {
   id             String            @id @default(cuid())
   stageId        String
-  type           DesignSectionType
+  type           String            // Changed from DesignSectionType enum to String to allow custom sections
   content        String?
   completed      Boolean           @default(false)
   createdById    String?
@@ -1792,12 +1792,9 @@ enum StageStatus {
   NOT_APPLICABLE
 }
 
-enum DesignSectionType {
-  GENERAL
-  WALL_COVERING
-  CEILING
-  FLOOR
-}
+// DesignSectionType enum removed - now using String to allow custom sections
+// Default sections: GENERAL, WALL_COVERING, CEILING, FLOOR
+// Custom sections can be any string value (e.g., LIGHTING, FURNITURE, etc.)
 
 enum TagType {
   MUST_HAVE

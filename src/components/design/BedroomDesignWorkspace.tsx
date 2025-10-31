@@ -183,6 +183,8 @@ export default function BedroomDesignWorkspace({
     {
       refreshInterval: 30000, // Refresh every 30 seconds
       revalidateOnFocus: true,
+      revalidateOnMount: true, // Always revalidate on mount
+      dedupingInterval: 0, // Disable deduplication to allow immediate refetch
       errorRetryCount: 3,
       errorRetryInterval: 5000
     }
@@ -808,25 +810,12 @@ export default function BedroomDesignWorkspace({
 
           {/* Status Controls */}
           <div className="flex items-center space-x-3">
-            <div className="text-right">
-              <div className="text-4xl font-bold text-gray-900">{overallProgress}%</div>
-              <div className="text-sm text-gray-500">Complete</div>
-            </div>
-            
-            {/* Status Dropdown */}
-            <div className="relative">
-              <select
-                value={safeStage.status}
-                onChange={(e) => updateStatus(e.target.value)}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                  STATUS_CONFIG[safeStage.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                <option value="DRAFT">Draft</option>
-                <option value="IN_REVIEW">In Review</option>
-                <option value="FINALIZED">Finalized</option>
-              </select>
-            </div>
+            {overallProgress > 0 && (
+              <div className="text-right">
+                <div className="text-4xl font-bold text-gray-900">{overallProgress}%</div>
+                <div className="text-sm text-gray-500">Complete</div>
+              </div>
+            )}
             
             {/* Design Notifications */}
             <DesignNotificationIndicator stageId={safeStage.id} />
@@ -859,7 +848,10 @@ export default function BedroomDesignWorkspace({
               <Palette className="w-5 h-5 text-purple-600" />
               <div>
                 <p className="text-xs text-gray-600">Design Sections</p>
-                <p className="font-bold text-gray-900">{workspaceData.completion.totalSections}</p>
+                <p className="font-bold text-gray-900">
+                  {/* Always show 4 default sections + any custom sections */}
+                  {4 + safeStage.designSections.filter(s => !['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR'].includes(s.type)).length}
+                </p>
               </div>
             </div>
           </div>
@@ -973,11 +965,14 @@ export default function BedroomDesignWorkspace({
           {/* Design Sections */}
           <div className="space-y-6">
             {/* Get all unique section types: 4 defaults + any custom ones from database */}
-            {React.useMemo(() => {
+            {(() => {
+              // Define default 4 sections that should always be shown
               const defaultSections = ['GENERAL', 'WALL_COVERING', 'CEILING', 'FLOOR']
+              // Get any custom sections from the database that aren't in the default list
               const customSections = safeStage.designSections
                 .map(s => s.type)
                 .filter(type => !defaultSections.includes(type))
+              // Combine defaults (always 4) + any custom sections from DB
               const allSectionTypes = [...defaultSections, ...customSections]
               
               return allSectionTypes.map((sectionType) => {
@@ -999,12 +994,12 @@ export default function BedroomDesignWorkspace({
                 <div key={sectionType} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                   {/* Section Header */}
                   <div 
-                    className="p-6 cursor-pointer select-none" 
+                    className="p-6 cursor-pointer" 
                     onClick={() => toggleSection(sectionType)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div>
+                        <div className="select-none">
                           <h3 className="text-lg font-semibold text-gray-900">{sectionDef.name}</h3>
                           <p className="text-sm text-gray-600">{sectionDef.description}</p>
                           <div className="flex items-center space-x-3 mt-2">
@@ -1120,9 +1115,9 @@ export default function BedroomDesignWorkspace({
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-4 select-text">
                               {section?.content ? (
-                                <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
+                                <p className="text-gray-700 whitespace-pre-wrap select-text">{section.content}</p>
                               ) : (
                                 <p className="italic text-gray-500">No design notes added yet. Click 'Add Notes' to get started.</p>
                               )}
@@ -1268,9 +1263,9 @@ export default function BedroomDesignWorkspace({
                                           </div>
                                         </div>
                                       ) : (
-                                        <div className="bg-white rounded-md p-3 border border-gray-200">
+                                        <div className="bg-white rounded-md p-3 border border-gray-200 select-text">
                                           {asset.userDescription ? (
-                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{asset.userDescription}</p>
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap select-text">{asset.userDescription}</p>
                                           ) : (
                                             <p className="text-sm italic text-gray-500">No notes yet. Click 'Add Note' to describe this image.</p>
                                           )}
@@ -1306,21 +1301,21 @@ export default function BedroomDesignWorkspace({
                           {section?.comments && Array.isArray(section.comments) && section.comments.length > 0 && (
                             <div className="space-y-3 mb-4">
                               {section.comments.map((comment) => (
-                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3 select-text">
                                   <div className="flex items-start space-x-3">
                                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                                       <span className="text-sm font-medium text-purple-600">
                                         {comment.author.name.charAt(0).toUpperCase()}
                                       </span>
                                     </div>
-                                    <div className="flex-1">
-                                      <div className="flex items-center space-x-2 mb-1">
+                                    <div className="flex-1 select-text">
+                                      <div className="flex items-center space-x-2 mb-1 select-none">
                                         <span className="font-medium text-gray-900 text-sm">{comment.author.name}</span>
                                         <span className="text-xs text-gray-500">
                                           {isClient ? new Date(comment.createdAt).toLocaleDateString() : 'Loading date...'}
                                         </span>
                                       </div>
-                                      <p className="text-gray-700 text-sm whitespace-pre-wrap">{comment.content}</p>
+                                      <p className="text-gray-700 text-sm whitespace-pre-wrap select-text">{comment.content}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -1352,9 +1347,9 @@ export default function BedroomDesignWorkspace({
               </div>
             )}
           </div>
-        );
+        )
       })
-    }, [safeStage.designSections, expandedSections, uploadingSection, editingSection, postingComment, isClient])}
+    })()}
     </div>
           
           {/* 3. Completion Section */}

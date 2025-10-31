@@ -352,7 +352,10 @@ export async function POST(
       ipAddress
     })
 
-    return NextResponse.json(designSection, { status: 201 })
+    return NextResponse.json({ 
+      success: true,
+      section: designSection 
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating custom section:', error)
     return NextResponse.json({ 

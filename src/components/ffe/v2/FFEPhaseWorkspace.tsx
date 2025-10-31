@@ -274,37 +274,20 @@ export default function FFEPhaseWorkspace({
         <div className="text-center py-16 px-8">
           <div className="max-w-md mx-auto">
             {/* Animated Empty State Icon */}
-            <div className="relative mb-6">
+            <div className="mb-6">
               <div className="animate-bounce-in">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Package className="h-10 w-10 text-blue-600" />
                 </div>
-              </div>
-              
-              {/* Floating elements around the main icon */}
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
-                <Plus className="h-4 w-4 text-green-600" />
-              </div>
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center animate-pulse">
-                <Settings className="h-3 w-3 text-amber-600" />
               </div>
             </div>
             
             <h3 className="text-xl font-bold text-gray-900 mb-3">
               Ready to Setup FFE Items
             </h3>
-            <p className="text-gray-600 mb-8 leading-relaxed">
+            <p className="text-gray-600 leading-relaxed">
               This room doesn't have any FFE items yet. Get started by importing a template or adding custom sections through the <span className="font-medium text-blue-600">Settings</span> page.
             </p>
-            
-            {/* Call-to-action hint */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
-                <Import className="h-4 w-4" />
-                <span className="font-medium">Pro Tip:</span>
-                <span>Import a template to get started quickly</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

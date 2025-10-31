@@ -11,9 +11,9 @@ import {
 } from '@/lib/attribution'
 
 interface RequestParams {
-  params: {
+  params: Promise<{
     sectionId: string
-  }
+  }>
 }
 
 export async function PATCH(request: NextRequest, { params }: RequestParams) {
@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest, { params }: RequestParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { sectionId } = params
+    const { sectionId } = await params
     const { completed } = await request.json()
 
     if (typeof completed !== 'boolean') {
@@ -68,8 +68,7 @@ export async function PATCH(request: NextRequest, { params }: RequestParams) {
       where: { id: sectionId },
       data: withUpdateAttribution(session, { 
         completed,
-        completedAt: completed ? new Date() : null,
-        completedBy: completed ? session.user.id : null
+        completedById: completed ? session.user.id : null
       }),
       include: {
         stage: {
