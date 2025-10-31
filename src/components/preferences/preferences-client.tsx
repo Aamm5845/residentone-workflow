@@ -21,7 +21,10 @@ import {
   FileText,
   Bug,
   Package,
-  Building
+  Building,
+  Cloud,
+  Calendar,
+  ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -70,6 +73,9 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const [error, setError] = useState<string | null>(null)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
+  const [cloudBackups, setCloudBackups] = useState<any[]>([])
+  const [loadingCloudBackups, setLoadingCloudBackups] = useState(false)
+  const [cloudBackupsError, setCloudBackupsError] = useState<string | null>(null)
 
   const canManageBackups = ['OWNER', 'ADMIN'].includes(user.role)
   const canCompleteBackup = user.role === 'OWNER'
@@ -77,6 +83,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   useEffect(() => {
     if (activeTab === 'backup') {
       loadBackupInfo()
+      loadCloudBackups()
     } else if (activeTab === 'database') {
       loadDatabaseStats()
     }
@@ -102,6 +109,34 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
       console.error('Failed to load backup info:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCloudBackups = async () => {
+    if (!canManageBackups) return
+    
+    try {
+      setLoadingCloudBackups(true)
+      setCloudBackupsError(null)
+      
+      const response = await fetch('/api/admin/cloud-backups')
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCloudBackups(data.backups || [])
+      } else if (response.status === 503) {
+        // Cloud storage not configured
+        setCloudBackupsError('Cloud backup storage is not configured')
+        setCloudBackups([])
+      } else {
+        const errorData = await response.json()
+        setCloudBackupsError(errorData.error || 'Failed to load cloud backups')
+      }
+    } catch (error) {
+      console.error('Failed to load cloud backups:', error)
+      setCloudBackupsError('Failed to load cloud backups')
+    } finally {
+      setLoadingCloudBackups(false)
     }
   }
 
@@ -564,6 +599,152 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Cloud Backups Card */}
+              {canManageBackups && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center">
+                          <Cloud className="w-5 h-5 mr-2 text-purple-600" />
+                          Cloud Backups
+                        </CardTitle>
+                        <CardDescription>
+                          View and download automatic daily backups stored in Vercel Blob Storage
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadCloudBackups}
+                        disabled={loadingCloudBackups}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loadingCloudBackups ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Loading State */}
+                    {loadingCloudBackups && (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="w-6 h-6 text-purple-600 animate-spin mr-2" />
+                        <span className="text-gray-600">Loading cloud backups...</span>
+                      </div>
+                    )}
+
+                    {/* Error State */}
+                    {!loadingCloudBackups && cloudBackupsError && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex">
+                          <Info className="w-5 h-5 text-yellow-400 mr-2 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-yellow-700 font-medium">{cloudBackupsError}</p>
+                            <p className="text-sm text-yellow-600 mt-1">
+                              Cloud backups are only available when the app is deployed to Vercel with Blob Storage configured.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Backups List */}
+                    {!loadingCloudBackups && !cloudBackupsError && (
+                      <div className="space-y-4">
+                        {cloudBackups.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Cloud className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-500">No cloud backups found</p>
+                            <p className="text-sm text-gray-400 mt-1">
+                              Automatic backups run daily at 2:00 AM UTC when deployed to Vercel
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                              <div className="flex items-center">
+                                <Info className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
+                                <p className="text-sm text-purple-700">
+                                  Showing {Math.min(cloudBackups.length, 10)} most recent backups. 
+                                  Backups are compressed and stored securely in Vercel Blob Storage.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                              <table className="w-full">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Backup File
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Created
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Size
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Action
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {cloudBackups.slice(0, 10).map((backup: any, index: number) => (
+                                    <tr key={backup.filename} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center">
+                                          <Database className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
+                                          <span className="text-sm font-medium text-gray-900">
+                                            {backup.filename}
+                                          </span>
+                                          {index === 0 && (
+                                            <Badge className="ml-2 bg-green-100 text-green-800 border-green-200">
+                                              Latest
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center text-sm text-gray-600">
+                                          <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                                          {formatDate(backup.uploadedAt)}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-600">
+                                        {formatFileSize(backup.size)}
+                                      </td>
+                                      <td className="px-4 py-3 text-right">
+                                        <a
+                                          href={backup.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          Download
+                                          <ExternalLink className="w-3 h-3 ml-1" />
+                                        </a>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {cloudBackups.length > 10 && (
+                              <p className="text-sm text-gray-500 text-center">
+                                Showing 10 of {cloudBackups.length} total backups
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
