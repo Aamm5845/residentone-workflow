@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
-import { MoreHorizontal, Edit, Trash2, MessageCircle } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -21,6 +21,8 @@ interface ChatMessage {
   updatedAt: string
   editedAt?: string
   isEdited: boolean
+  imageUrl?: string
+  imageFileName?: string
   author: {
     id: string
     name: string
@@ -45,6 +47,13 @@ interface TeamMember {
   image?: string
 }
 
+interface AssignedUser {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 interface PhaseChatProps {
   stageId: string
   stageName: string
@@ -55,13 +64,18 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   const { data: session } = useSession()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [assignedUser, setAssignedUser] = useState<AssignedUser | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [notifyAssignee, setNotifyAssignee] = useState(true)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -85,6 +99,7 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
       if (response.ok) {
         const data = await response.json()
         setMessages(data.messages || [])
+        setAssignedUser(data.stage?.assignedUser || null)
       } else {
         throw new Error('Failed to load messages')
       }
@@ -108,12 +123,48 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
     }
   }
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.')
+      return
+    }
+
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('Image too large. Maximum size is 5MB.')
+      return
+    }
+
+    setSelectedImage(file)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const sendMessage = async (content: string, mentions: string[]) => {
-    if (!content.trim() || sending) return
+    if ((!content.trim() && !selectedImage) || sending) return
 
     setSending(true)
     try {
-      // Map mention names to user IDs using the same matching logic as the mention validation
+      // Map mention names to user IDs
       const mentionIds = []
       for (const mention of mentions) {
         const matchingMember = teamMembers.find(member => {
@@ -142,28 +193,48 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
         }
       }
 
-      const response = await fetch(`/api/chat/${stageId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: content.trim(),
-          mentions: mentionIds
+      let response
+      
+      if (selectedImage) {
+        // Send with image using FormData
+        const formData = new FormData()
+        formData.append('content', content.trim())
+        formData.append('mentions', JSON.stringify(mentionIds))
+        formData.append('notifyAssignee', String(notifyAssignee))
+        formData.append('image', selectedImage)
+        
+        response = await fetch(`/api/chat/${stageId}`, {
+          method: 'POST',
+          body: formData
         })
-      })
+      } else {
+        // Send text-only message
+        response = await fetch(`/api/chat/${stageId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: content.trim(),
+            mentions: mentionIds,
+            notifyAssignee: notifyAssignee
+          })
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
         setMessages(prev => [...prev, data.message])
         setNewMessage('')
+        removeImage()
         toast.success('Message sent!')
       } else {
-        throw new Error('Failed to send message')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send message')
       }
     } catch (error) {
       console.error('Error sending message:', error)
-      toast.error('Failed to send message')
+      toast.error(error instanceof Error ? error.message : 'Failed to send message')
     } finally {
       setSending(false)
     }
@@ -277,32 +348,32 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   }
 
   return (
-    <Card className={cn("flex flex-col", className)}>
+    <Card className={cn("flex flex-col h-[calc(100vh-180px)] max-h-[800px] min-h-[500px]", className)}>
       {/* Chat Header */}
-      <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 flex-shrink-0">
         <MessageCircle className="w-5 h-5 text-gray-600" />
-        <h3 className="font-medium text-gray-900">
-          Team Chat - {stageName}
+        <h3 className="font-semibold text-gray-900 text-base">
+          {stageName}
         </h3>
-        <Badge variant="secondary" className="ml-auto">
-          {messages.length} messages
+        <Badge variant="secondary" className="ml-auto text-xs">
+          {messages.length}
         </Badge>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4" style={{ height: '400px' }}>
-        <div ref={chatContainerRef} className="space-y-4">
+      <ScrollArea className="flex-1 px-3 py-4 overflow-y-auto">
+        <div ref={chatContainerRef} className="space-y-3">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No messages yet.</p>
-              <p className="text-xs mt-1">Start the conversation!</p>
+            <div className="text-center text-gray-500 py-12">
+              <MessageCircle className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium">No messages yet</p>
+              <p className="text-xs mt-1 text-gray-400">Start the conversation</p>
             </div>
           ) : (
             messages.map((message) => (
-              <div key={message.id} className="group flex gap-3">
+              <div key={message.id} className="group flex gap-2.5 hover:bg-gray-50 -mx-3 px-3 py-2 rounded-md transition-colors">
                 {/* Avatar */}
-                <Avatar className="w-8 h-8 flex-shrink-0">
+                <Avatar className="w-7 h-7 flex-shrink-0 mt-0.5">
                   {message.author.image ? (
                     <img src={message.author.image} alt={message.author.name} className="w-full h-full object-cover" />
                   ) : (
@@ -315,15 +386,15 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                 {/* Message Content */}
                 <div className="flex-1 min-w-0">
                   {/* Author and Timestamp */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm text-gray-900">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="font-semibold text-sm text-gray-900">
                       {message.author.name}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {format(new Date(message.createdAt), 'MMM d, h:mm a')}
+                    <span className="text-[11px] text-gray-500">
+                      {format(new Date(message.createdAt), 'h:mm a')}
                     </span>
                     {message.isEdited && (
-                      <span className="text-xs text-gray-400">(edited)</span>
+                      <span className="text-[11px] text-gray-400">(edited)</span>
                     )}
                   </div>
 
@@ -356,19 +427,44 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-700 leading-relaxed">
-                      <MessageContent 
-                        content={message.content} 
-                        orgId={session?.user?.orgId || ''}
-                      />
-                    </div>
+                    <>
+                      {/* Message Text */}
+                      {message.content && message.content !== '(Image)' && (
+                        <div className="text-[13px] text-gray-700 leading-relaxed">
+                          <MessageContent 
+                            content={message.content} 
+                            orgId={session?.user?.orgId || ''}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Attached Image */}
+                      {message.imageUrl && (
+                        <div className="mt-1.5 relative inline-block group/image">
+                          <img 
+                            src={message.imageUrl} 
+                            alt={message.imageFileName || 'Attached image'}
+                            className="max-w-[320px] max-h-48 rounded-md border border-gray-200 cursor-pointer hover:opacity-95 transition-opacity"
+                            onClick={() => window.open(message.imageUrl, '_blank')}
+                          />
+                          <a
+                            href={message.imageUrl}
+                            download={message.imageFileName}
+                            className="absolute top-1.5 right-1.5 p-1.5 bg-white/95 hover:bg-white rounded-md shadow-sm opacity-0 group-hover/image:opacity-100 transition-opacity"
+                            title="Download image"
+                          >
+                            <Download className="w-3.5 h-3.5 text-gray-700" />
+                          </a>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* Mentions */}
                   {message.mentions.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <div className="mt-1.5 flex flex-wrap gap-1">
                       {message.mentions.map((mention) => (
-                        <Badge key={mention.id} variant="outline" className="text-xs">
+                        <Badge key={mention.id} variant="outline" className="text-[11px] px-1.5 py-0">
                           @{mention.mentionedUser.name}
                         </Badge>
                       ))}
@@ -378,11 +474,11 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
 
                 {/* Message Actions */}
                 {canModifyMessage(message) && editingMessageId !== message.id && (
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -410,18 +506,89 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
         </div>
       </ScrollArea>
 
+      {/* Assigned Team Member Notification */}
+      {assignedUser && assignedUser.id !== session?.user?.id && (
+        <div className="px-3 py-2 bg-blue-50 border-t border-blue-100 flex items-center justify-between text-xs flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {notifyAssignee ? (
+              <>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <span className="text-gray-700">
+                  <span className="font-medium">{assignedUser.name}</span> will be notified
+                </span>
+              </>
+            ) : (
+              <span className="text-gray-500">
+                <span className="font-medium">{assignedUser.name}</span> won't be notified
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setNotifyAssignee(!notifyAssignee)}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 hover:bg-blue-100 rounded"
+            title={notifyAssignee ? "Don't notify" : 'Notify'}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Message Input */}
-      <div className="p-4 border-t border-gray-200">
-        <MentionTextarea
-          value={newMessage}
-          onChange={setNewMessage}
-          onSubmit={sendMessage}
-          teamMembers={teamMembers}
-          placeholder={`Message the ${stageName} team...`}
-          disabled={sending}
-          submitLabel={sending ? "Sending..." : "Send"}
-          rows={2}
-        />
+      <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+        {/* Image Preview */}
+        {imagePreview && (
+          <div className="mb-2 relative inline-block">
+            <img 
+              src={imagePreview} 
+              alt="Preview" 
+              className="max-w-[200px] max-h-24 rounded-lg border border-gray-300"
+            />
+            <button
+              onClick={removeImage}
+              className="absolute -top-1.5 -right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md transition-colors"
+              title="Remove image"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+        
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <MentionTextarea
+              value={newMessage}
+              onChange={setNewMessage}
+              onSubmit={sendMessage}
+              teamMembers={teamMembers}
+              placeholder={`Message ${stageName}...`}
+              disabled={sending}
+              submitLabel={sending ? "Sending..." : "Send"}
+              rows={2}
+            />
+          </div>
+          
+          {/* Attach Image Button */}
+          <div className="pb-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || !!selectedImage}
+              title="Attach image"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </Card>
   )
