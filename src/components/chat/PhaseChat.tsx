@@ -3,16 +3,28 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
-import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download, Smile } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { MentionTextarea } from '@/components/ui/mention-textarea'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+
+interface Reaction {
+  emoji: string
+  count: number
+  users: Array<{
+    id: string
+    name: string
+    image?: string
+  }>
+  userHasReacted: boolean
+}
 
 interface ChatMessage {
   id: string
@@ -37,6 +49,7 @@ interface ChatMessage {
       role: string
     }
   }>
+  reactions: Reaction[]
 }
 
 interface TeamMember {
@@ -53,6 +66,9 @@ interface AssignedUser {
   email: string
   role: string
 }
+
+// Common emoji reactions
+const EMOJI_LIST = ['👍', '❤️', '😊', '🔥', '🎉']
 
 interface PhaseChatProps {
   stageId: string
@@ -73,6 +89,7 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   const [notifyAssignee, setNotifyAssignee] = useState(true)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -289,6 +306,49 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
     }
   }
 
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const response = await fetch(`/api/chat/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Update messages with new reaction data
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === messageId) {
+            // Fetch fresh reactions to get updated state
+            fetch(`/api/chat/messages/${messageId}/reactions`)
+              .then(res => res.json())
+              .then(reactionData => {
+                setMessages(current => current.map(m => 
+                  m.id === messageId 
+                    ? { ...m, reactions: reactionData.reactions || [] }
+                    : m
+                ))
+              })
+              .catch(err => console.error('Error fetching updated reactions:', err))
+          }
+          return msg
+        }))
+        
+        setShowEmojiPicker(null)
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Reaction API error:', response.status, errorData)
+        throw new Error(errorData.error || `Failed to add reaction (${response.status})`)
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to add reaction')
+    }
+  }
+
   const startEditing = (message: ChatMessage) => {
     setEditingMessageId(message.id)
     setEditingContent(message.content)
@@ -470,11 +530,76 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                       ))}
                     </div>
                   )}
+
+                  {/* Reactions */}
+                  {message.reactions && message.reactions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {message.reactions.map((reaction, index) => (
+                        <TooltipProvider key={index}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleReaction(message.id, reaction.emoji)}
+                                className={cn(
+                                  "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
+                                  reaction.userHasReacted
+                                    ? "bg-blue-100 hover:bg-blue-200 border border-blue-300"
+                                    : "bg-gray-100 hover:bg-gray-200 border border-gray-200"
+                                )}
+                              >
+                                <span>{reaction.emoji}</span>
+                                <span className="text-[11px] font-medium">{reaction.count}</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-xs">
+                                {reaction.users.map(u => u.name).join(', ')}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Emoji Picker */}
+                  {showEmojiPicker === message.id && (
+                    <div className="mt-2 relative">
+                      <div className="absolute left-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50">
+                        <div className="flex items-center gap-2">
+                          {EMOJI_LIST.map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleReaction(message.id, emoji)}
+                              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors text-xl"
+                              title={emoji}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Message Actions */}
-                {canModifyMessage(message) && editingMessageId !== message.id && (
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 flex items-start gap-1">
+                  {/* Add Reaction Button */}
+                  {editingMessageId !== message.id && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0"
+                      onClick={() => setShowEmojiPicker(showEmojiPicker === message.id ? null : message.id)}
+                      title="Add reaction"
+                    >
+                      <Smile className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  
+                  {/* Edit/Delete Menu */}
+                  {canModifyMessage(message) && editingMessageId !== message.id && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -497,8 +622,8 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))
           )}

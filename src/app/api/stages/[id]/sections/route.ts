@@ -144,6 +144,104 @@ export async function GET(
   }
 }
 
+// DELETE method to remove a section
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const resolvedParams = await params
+    const ipAddress = getIPAddress(request)
+    
+    if (!isValidAuthSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const data = await request.json()
+    const { sectionId } = data
+
+    if (!sectionId) {
+      return NextResponse.json({ error: 'Section ID is required' }, { status: 400 })
+    }
+
+    // Find the section with counts of related data
+    const section = await prisma.designSection.findFirst({
+      where: {
+        id: sectionId,
+        stageId: resolvedParams.id
+      },
+      include: {
+        _count: {
+          select: {
+            assets: true,
+            comments: true,
+            checklistItems: true
+          }
+        },
+        stage: {
+          include: {
+            room: {
+              include: {
+                project: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!section) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
+    // Store counts before deletion for response
+    const counts = {
+      assets: section._count.assets,
+      comments: section._count.comments,
+      checklistItems: section._count.checklistItems
+    }
+
+    // Delete the section (related data will cascade delete due to schema)
+    await prisma.designSection.delete({
+      where: { id: sectionId }
+    })
+
+    // Log the activity
+    await logActivity({
+      session,
+      action: ActivityActions.SECTION_DELETED,
+      entity: EntityTypes.DESIGN_SECTION,
+      entityId: sectionId,
+      details: {
+        sectionType: section.type,
+        stageName: `${section.stage.type} - ${section.stage.room?.name || section.stage.room?.type}`,
+        projectName: section.stage.room?.project.name,
+        hadContent: section.content && section.content.trim().length > 0,
+        deletedAssets: counts.assets,
+        deletedComments: counts.comments,
+        deletedChecklistItems: counts.checklistItems
+      },
+      ipAddress
+    })
+
+    return NextResponse.json({
+      success: true,
+      deleted: {
+        sectionId: sectionId,
+        sectionType: section.type,
+        counts: counts
+      }
+    })
+  } catch (error) {
+    console.error('Error deleting section:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

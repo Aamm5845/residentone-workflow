@@ -24,7 +24,9 @@ function isAuthorized(req: Request) {
 
 // Export all database tables to JSON
 async function exportDatabase() {
-  const prisma = new PrismaClient()
+  const prisma = new PrismaClient({
+    log: ['error'], // Only log errors to reduce console noise
+  })
   
   try {
     console.log('📊 Starting database export...')

@@ -1,7 +1,6 @@
-import { PrismaClient, RoomType, FFEItemState, FFEInstanceStatus } from '@prisma/client'
+import { RoomType, FFEItemState, FFEInstanceStatus } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { ffeTemplateService } from './ffe-template-service'
-
-const prisma = new PrismaClient()
 
 export interface CreateRoomFFEInstanceData {
   roomId: string

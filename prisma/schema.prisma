@@ -93,6 +93,7 @@ model User {
   assetTags                   AssetTag[]                  @relation("UserAssetTags")
   chatMentions                ChatMention[]
   chatMessages                ChatMessage[]
+  chatMessageReactions        ChatMessageReaction[]       @relation("ChatMessageReactions")
   completedChecklists         ChecklistItem[]             @relation("ChecklistCompletedBy")
   createdChecklists           ChecklistItem[]             @relation("ChecklistCreatedBy")
   clientAccessTokens          ClientAccessToken[]         @relation("ClientAccessTokenCreatedBy")
@@ -704,21 +705,22 @@ model Comment {
 }
 
 model ChatMessage {
-  id            String        @id @default(cuid())
+  id            String               @id @default(cuid())
   content       String
   authorId      String
   stageId       String
   imageUrl      String?
   imageFileName String?
   editedAt      DateTime?
-  isEdited      Boolean       @default(false)
+  isEdited      Boolean              @default(false)
   deletedAt     DateTime?
-  isDeleted     Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  isDeleted     Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   mentions      ChatMention[]
-  author        User          @relation(fields: [authorId], references: [id])
-  stage         Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  reactions     ChatMessageReaction[]
+  author        User                 @relation(fields: [authorId], references: [id])
+  stage         Stage                @relation(fields: [stageId], references: [id], onDelete: Cascade)
 
   @@index([stageId, createdAt])
   @@index([authorId])
@@ -733,6 +735,20 @@ model ChatMention {
   message       ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, mentionedId])
+}
+
+model ChatMessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation("ChatMessageReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }
 
 model Asset {
@@ -1881,6 +1897,7 @@ enum NotificationType {
   STAGE_COMPLETED
   MENTION
   CHAT_MESSAGE
+  MESSAGE_REACTION
   DUE_DATE_REMINDER
   PROJECT_UPDATE
 }

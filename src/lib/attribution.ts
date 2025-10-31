@@ -164,6 +164,7 @@ export const ActivityActions = {
   SECTION_CREATED: 'section_created',
   SECTION_UPDATED: 'section_updated',
   SECTION_COMPLETED: 'section_completed',
+  SECTION_DELETED: 'section_deleted',
 
   // Design template actions
   TEMPLATE_CREATED: 'template_created',

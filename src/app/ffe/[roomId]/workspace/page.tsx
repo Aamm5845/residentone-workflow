@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
+import { PhaseChat } from '@/components/chat/PhaseChat'
 
 interface FFEWorkspacePageProps {
   params: {
@@ -52,7 +53,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
     redirect('/auth/signin')
   }
 
-  // Get room information
+  // Get room information and FFE stage
   const room = await prisma.room.findUnique({
     where: { id: roomId },
     include: {
@@ -67,12 +68,30 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
             }
           }
         }
+      },
+      stages: {
+        where: {
+          type: 'FFE'
+        }
       }
     }
   })
   
   if (!room) {
     notFound()
+  }
+
+  // Get or create FFE stage
+  let ffeStage = room.stages[0]
+  if (!ffeStage) {
+    // Create FFE stage if it doesn't exist
+    ffeStage = await prisma.stage.create({
+      data: {
+        roomId: room.id,
+        type: 'FFE',
+        status: 'NOT_STARTED'
+      }
+    })
   }
 
   return (
@@ -113,17 +132,31 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
           </div>
         </div>
 
-        {/* FFE Content */}
-        <FFEDepartmentRouter
-          roomId={roomId}
-          roomName={room.name || 'Room'}
-          orgId={room.project?.orgId}
-          projectId={room.project?.id}
-          projectName={room.project?.name}
-          initialMode="workspace"
-          userRole={session.user.role}
-          showModeToggle={false}
-        />
+        {/* FFE Content with Chat Sidebar */}
+        <div className="flex h-[calc(100vh-180px)]">
+          {/* Main FFE Workspace */}
+          <div className="flex-1 overflow-auto">
+            <FFEDepartmentRouter
+              roomId={roomId}
+              roomName={room.name || 'Room'}
+              orgId={room.project?.orgId}
+              projectId={room.project?.id}
+              projectName={room.project?.name}
+              initialMode="workspace"
+              userRole={session.user.role}
+              showModeToggle={false}
+            />
+          </div>
+
+          {/* Chat Sidebar */}
+          <div className="w-96 border-l border-gray-200 bg-gray-50">
+            <PhaseChat
+              stageId={ffeStage.id}
+              stageName={`FFE - ${room.name || room.type}`}
+              className="h-full"
+            />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   )

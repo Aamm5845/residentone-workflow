@@ -106,6 +106,7 @@ export function SectionCard({
   const [contentText, setContentText] = useState(section?.content || '')
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [showAddChecklist, setShowAddChecklist] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const hasContent = section?.content && section.content.trim().length > 0
   const assetCount = section?.assets?.length || 0
@@ -235,6 +236,46 @@ export function SectionCard({
     }
   }
 
+  // Delete section
+  const handleDeleteSection = async () => {
+    if (!section?.id) return
+
+    // Build warning message based on content
+    let warningMessage = 'Are you sure you want to delete this section?'
+    const contentParts = []
+    
+    if (assetCount > 0) contentParts.push(`${assetCount} asset${assetCount > 1 ? 's' : ''}`)
+    if (commentCount > 0) contentParts.push(`${commentCount} comment${commentCount > 1 ? 's' : ''}`)
+    if (checklistItems > 0) contentParts.push(`${checklistItems} checklist item${checklistItems > 1 ? 's' : ''}`)
+    
+    if (contentParts.length > 0) {
+      warningMessage = `This section contains: ${contentParts.join(', ')}. All data will be permanently deleted. Are you sure you want to continue?`
+    }
+
+    if (!confirm(warningMessage)) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/stages/${stageId}/sections`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId: section.id })
+      })
+
+      if (response.ok) {
+        toast.success('Section deleted successfully')
+        onDataChange()
+      } else {
+        throw new Error('Failed to delete section')
+      }
+    } catch (error) {
+      toast.error('Failed to delete section')
+      console.error('Delete section error:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className={`border-2 rounded-xl transition-all duration-200 ${
       section?.completed 
@@ -316,7 +357,7 @@ export function SectionCard({
             </div>
           </div>
           
-          {/* Completion Toggle */}
+          {/* Completion Toggle & Delete Button */}
           <div className="flex items-center space-x-3">
             <button
               onClick={handleToggleCompletion}
@@ -337,6 +378,20 @@ export function SectionCard({
             }`}>
               {section?.completed ? 'Complete' : 'Pending'}
             </span>
+
+            {/* Delete Section Button */}
+            {section?.id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteSection}
+                disabled={isDeleting || isStageCompleted}
+                className="hover:bg-red-50 hover:text-red-600 ml-2"
+                title="Delete section"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

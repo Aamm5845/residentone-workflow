@@ -1,7 +1,6 @@
-import { PrismaClient, FFETemplate, FFETemplateStatus, RoomType, FFEItemState } from '@prisma/client'
+import { FFETemplate, FFETemplateStatus, RoomType, FFEItemState } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { FFEChangeLog } from '../types/ffe-types'
-
-const prisma = new PrismaClient()
 
 export interface CreateFFETemplateData {
   orgId: string

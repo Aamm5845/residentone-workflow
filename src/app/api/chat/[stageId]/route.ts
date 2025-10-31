@@ -56,7 +56,7 @@ export async function GET(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    // Get chat messages with author info and mentions
+    // Get chat messages with author info, mentions, and reactions
     const chatMessages = await prisma.chatMessage.findMany({
       where: {
         stageId: resolvedParams.stageId,
@@ -81,6 +81,17 @@ export async function GET(
               }
             }
           }
+        },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true
+              }
+            }
+          }
         }
       },
       orderBy: {
@@ -88,9 +99,34 @@ export async function GET(
       }
     })
 
+    // Group reactions by emoji for each message
+    const messagesWithGroupedReactions = chatMessages.map(msg => {
+      const groupedReactions = msg.reactions.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = {
+            emoji: reaction.emoji,
+            count: 0,
+            users: [],
+            userHasReacted: false
+          }
+        }
+        acc[reaction.emoji].count++
+        acc[reaction.emoji].users.push(reaction.user)
+        if (reaction.userId === session.user.id) {
+          acc[reaction.emoji].userHasReacted = true
+        }
+        return acc
+      }, {} as Record<string, any>)
+
+      return {
+        ...msg,
+        reactions: Object.values(groupedReactions)
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      messages: chatMessages,
+      messages: messagesWithGroupedReactions,
       stage: {
         id: stage.id,
         type: stage.type,
