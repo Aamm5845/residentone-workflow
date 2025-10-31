@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { sendEmail } from '@/lib/email/email-service'
+import { sendMentionSMS } from '@/lib/twilio'
 
 const reactionSchema = z.object({
   emoji: z.string().min(1).max(10)
@@ -93,6 +95,7 @@ export async function POST(
 
       // Notify message author if different from reactor
       if (message.authorId !== session.user.id) {
+        // Create in-app notification
         await prisma.notification.create({
           data: {
             userId: message.authorId,
@@ -103,6 +106,61 @@ export async function POST(
             relatedType: 'chat_message'
           }
         })
+
+        // Get message author details for email/SMS
+        const messageAuthor = await prisma.user.findUnique({
+          where: { id: message.authorId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phoneNumber: true,
+            emailNotificationsEnabled: true,
+            smsNotificationsEnabled: true
+          }
+        })
+
+        if (messageAuthor) {
+          const reactorName = session.user.name || 'Someone'
+          const messagePreview = message.content.substring(0, 50) + (message.content.length > 50 ? '...' : '')
+
+          // Send email notification if enabled
+          if (messageAuthor.emailNotificationsEnabled) {
+            try {
+              await sendEmail({
+                to: messageAuthor.email,
+                subject: `${emoji} ${reactorName} reacted to your message`,
+                html: generateReactionEmailHTML({
+                  recipientName: messageAuthor.name || 'Team Member',
+                  reactorName,
+                  emoji,
+                  messageContent: messagePreview
+                }),
+                text: `Hi ${messageAuthor.name},\n\n${reactorName} reacted to your message with ${emoji}\n\n"${messagePreview}"\n\nBest regards,\nThe Team`
+              })
+              console.log(`[Reaction Email] Sent to ${messageAuthor.name}`)
+            } catch (emailError) {
+              console.error('Failed to send reaction email:', emailError)
+            }
+          }
+
+          // Send SMS notification if enabled
+          if (messageAuthor.phoneNumber && messageAuthor.smsNotificationsEnabled) {
+            try {
+              await sendMentionSMS({
+                to: messageAuthor.phoneNumber,
+                mentionedBy: reactorName,
+                stageName: 'Chat',
+                projectName: '',
+                message: `reacted ${emoji} to your message: "${messagePreview}"`,
+                stageId: '' // Not needed for reaction SMS
+              })
+              console.log(`[Reaction SMS] Sent to ${messageAuthor.name}`)
+            } catch (smsError) {
+              console.error('Failed to send reaction SMS:', smsError)
+            }
+          }
+        }
       }
 
       // Get updated reaction count
@@ -213,4 +271,79 @@ export async function GET(
     console.error('Error fetching reactions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+/**
+ * Generate HTML email for reaction notification
+ */
+function generateReactionEmailHTML({
+  recipientName,
+  reactorName,
+  emoji,
+  messageContent
+}: {
+  recipientName: string
+  reactorName: string
+  emoji: string
+  messageContent: string
+}) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Reaction</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 40px 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+                 alt="Meisner Interiors" 
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
+                 draggable="false" 
+                 ondragstart="return false;" 
+                 oncontextmenu="return false;"/>
+            <div style="font-size: 48px; margin-bottom: 16px;">${emoji}</div>
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Message Reaction</h1>
+            <p style="margin: 8px 0 0 0; color: #ddd6fe; font-size: 16px; font-weight: 400;">${reactorName} reacted to your message</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${recipientName},</p>
+            
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${reactorName}</strong> reacted to your message with ${emoji}
+            </p>
+            
+            <div style="background: #f1f5f9; border-left: 4px solid #6366f1; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0; color: #1e293b; font-size: 15px; line-height: 1.6; font-style: italic;">"${messageContent}"</p>
+            </div>
+            
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                You're receiving this because someone reacted to your message.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #6366f1; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #6366f1; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
 }
