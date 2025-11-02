@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
-import { uploadFile, listFiles, deleteFile } from '@/lib/blob'
+import { dropboxService } from '@/lib/dropbox-service'
 import { gzip } from 'zlib'
 import { promisify } from 'util'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // 5 minutes for backup
 
 const gzipAsync = promisify(gzip)
 
@@ -36,29 +37,20 @@ async function exportDatabase() {
       metadata: {
         timestamp: new Date().toISOString(),
         version: '1.0',
-        description: 'ResidentOne daily backup'
+        description: 'Meisner Interiors Workflow daily backup'
       },
       data: {
         organizations: await prisma.organization.findMany(),
         users: await prisma.user.findMany(),
-        clients: await prisma.client.findMany(),
-        contractors: await prisma.contractor.findMany(),
         projects: await prisma.project.findMany(),
         rooms: await prisma.room.findMany(),
         stages: await prisma.stage.findMany(),
-        designSections: await prisma.designSection.findMany(),
-        ffeItems: await prisma.fFEItem.findMany(),
+        renderingVersions: await prisma.renderingVersion.findMany(),
         assets: await prisma.asset.findMany(),
-        clientApprovalVersions: await prisma.clientApprovalVersion.findMany(),
-        issues: await prisma.issue.findMany(),
+        activities: await prisma.activity.findMany(),
         notifications: await prisma.notification.findMany(),
-        activityLogs: await prisma.activityLog.findMany(),
-        userSessions: await prisma.userSession.findMany(),
-        tasks: await prisma.task.findMany(),
         comments: await prisma.comment.findMany(),
-        clientAccessTokens: await prisma.clientAccessToken.findMany(),
-        projectContractors: await prisma.projectContractor.findMany(),
-        tags: await prisma.tag.findMany()
+        messages: await prisma.message.findMany()
       }
     }
 
@@ -76,32 +68,8 @@ async function exportDatabase() {
   }
 }
 
-// Clean up old backups (keep only last 30)
-async function cleanupOldBackups() {
-  try {
-    const files = await listFiles('backups/database/')
-    
-    // Filter backup files and sort by name (contains date)
-    const backupFiles = files
-      .filter((file: any) => file.pathname.includes('backup-') && file.pathname.endsWith('.json.gz'))
-      .sort((a: any, b: any) => b.pathname.localeCompare(a.pathname)) // newest first
-    
-    // Keep only last 30 backups
-    if (backupFiles.length > 30) {
-      const filesToDelete = backupFiles.slice(30)
-      
-      for (const file of filesToDelete) {
-        await deleteFile(file.url)
-        console.log(`🗑️  Deleted old backup: ${file.pathname}`)
-      }
-      
-      console.log(`🧹 Cleaned up ${filesToDelete.length} old backups`)
-    }
-    
-  } catch (error) {
-    console.error('⚠️  Failed to cleanup old backups:', error)
-  }
-}
+// Note: Dropbox keeps all backups, one per day (overwritten if run multiple times same day)
+// Old backups can be manually deleted from Dropbox if needed
 
 export async function GET(req: Request) {
   // Check authorization
@@ -122,34 +90,37 @@ export async function GET(req: Request) {
     
     // 3. Generate filename with date
     const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-    const filename = `backup-${date}.json.gz`
-    const path = `backups/database/${filename}`
+    const filename = `database-backup-${date}.json.gz`
+    const dropboxPath = `/DATABASE-BACKUPS/${filename}`
     
-    // 4. Upload to Vercel Blob
-    const result = await uploadFile(compressed, path, {
-      contentType: 'application/gzip',
-      filename
-    })
+    // 4. Ensure backup folder exists in Dropbox
+    try {
+      await dropboxService.createFolder('/DATABASE-BACKUPS')
+    } catch (error) {
+      console.log('Backup folder may already exist')
+    }
     
-    // 5. Cleanup old backups
-    await cleanupOldBackups()
+    // 5. Upload to Dropbox (overwrite if same day backup exists)
+    await dropboxService.uploadFile(dropboxPath, compressed, { mode: 'overwrite' })
     
     const duration = Date.now() - startTime
     const sizeMB = (compressed.length / 1024 / 1024).toFixed(2)
+    const recordCount = Object.values(backup.data).reduce((total: number, table: any) => 
+      total + (Array.isArray(table) ? table.length : 0), 0
+    )
     
     console.log(`✅ Backup completed in ${duration}ms`)
     console.log(`📁 File: ${filename} (${sizeMB} MB)`)
-    console.log(`🔗 URL: ${result.url}`)
+    console.log(`📂 Path: ${dropboxPath}`)
+    console.log(`📊 Records: ${recordCount}`)
     
     return NextResponse.json({
       success: true,
       filename,
-      url: result.url,
+      path: dropboxPath,
       size: compressed.length,
       duration,
-      recordCount: Object.values(backup.data).reduce((total: number, table: any) => 
-        total + (Array.isArray(table) ? table.length : 0), 0
-      )
+      recordCount
     })
     
   } catch (error) {

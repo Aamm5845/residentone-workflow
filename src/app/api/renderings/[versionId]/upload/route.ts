@@ -93,44 +93,37 @@ export async function POST(
         const timestamp = Date.now()
         const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
-        // Check if Vercel Blob is available (preferred) or fallback to database
-        const useBlobStorage = isBlobConfigured()
+        // Convert file to buffer once
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        
         let fileUrl: string
         let storageProvider: string
         
-        if (useBlobStorage) {
-          // Upload to Vercel Blob storage
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          const filePath = generateFilePath(
-            renderingVersion.room.project.orgId, // Use the actual organization ID
-            renderingVersion.room.project.id,
-            renderingVersion.room.id,
-            undefined, // no section for rendering files
-            filename
-          )
+        // Upload to Dropbox as primary storage
+        if (renderingVersion.room.project.dropboxFolder) {
+          const roomName = renderingVersion.room.name || renderingVersion.room.type
+          const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+          const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
           
-          const contentType = getContentType(filename)
-          const blobResult = await uploadFile(buffer, filePath, {
-            contentType,
-            filename: filename
-          })
-          
-          fileUrl = blobResult.url
-          storageProvider = 'vercel-blob'
-          
-        } else {
-          // Fallback to database storage (development only)
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error('Blob storage not configured in production')
+          // Ensure the folder exists
+          try {
+            await dropboxService.createFolder(dropboxFolderPath)
+          } catch (folderError) {
+            console.log('[Dropbox] Folder may already exist:', dropboxFolderPath)
           }
           
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          const fileData = buffer.toString('base64')
-          fileUrl = `data:${file.type};base64,${fileData}`
-          storageProvider = 'database'
+          // Upload to Dropbox
+          const dropboxFilePath = `${dropboxFolderPath}/${filename}`
+          await dropboxService.uploadFile(dropboxFilePath, buffer)
           
+          fileUrl = dropboxFilePath
+          storageProvider = 'dropbox'
+          
+          console.log(`✅ File uploaded to Dropbox: ${dropboxFilePath}`)
+        } else {
+          // Fallback: Project must have Dropbox integration
+          throw new Error('Project does not have Dropbox integration enabled. Please configure Dropbox in project settings.')
         }
 
         // Determine asset type
@@ -155,7 +148,7 @@ export async function POST(
               originalName: file.name,
               uploadDate: new Date().toISOString(),
               uploadedToVersion: renderingVersion.version,
-              storageMethod: useBlobStorage ? 'vercel_blob' : 'postgres_base64',
+              storageMethod: 'dropbox',
               renderingWorkspace: true
             }),
             orgId: renderingVersion.room.project.orgId, // Use the actual organization ID from the project
@@ -168,37 +161,6 @@ export async function POST(
         })
 
         uploadedAssets.push(asset)
-
-        // Upload to Dropbox if project has dropboxFolder configured
-        if (renderingVersion.room.project.dropboxFolder) {
-          try {
-            const roomName = renderingVersion.room.name || renderingVersion.room.type
-            const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
-            
-            // Create folder path: /ProjectFolder/3-RENDERING/RoomName/Version
-            const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
-            
-            // Ensure the folder exists
-            try {
-              await dropboxService.createFolder(dropboxFolderPath)
-            } catch (folderError) {
-              // Folder might already exist, that's okay
-              console.log('[Dropbox] Folder may already exist:', dropboxFolderPath)
-            }
-            
-            // Upload the file to Dropbox
-            const bytes = await file.arrayBuffer()
-            const buffer = Buffer.from(bytes)
-            const dropboxFilePath = `${dropboxFolderPath}/${filename}`
-            
-            await dropboxService.uploadFile(dropboxFilePath, buffer)
-            
-            console.log(`✅ File uploaded to Dropbox: ${dropboxFilePath}`)
-          } catch (dropboxError) {
-            console.error('❌ Failed to upload to Dropbox:', dropboxError)
-            // Don't fail the entire upload if Dropbox fails
-          }
-        }
 
         // Log activity for each file
         await logActivity({
