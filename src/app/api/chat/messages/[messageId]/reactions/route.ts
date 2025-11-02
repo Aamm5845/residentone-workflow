@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { sendEmail } from '@/lib/email/email-service'
 import { sendMentionSMS } from '@/lib/twilio'
+import { getStageName } from '@/constants/workflow'
 
 const reactionSchema = z.object({
   emoji: z.string().min(1).max(10)
@@ -40,7 +41,24 @@ export async function POST(
       select: {
         id: true,
         authorId: true,
-        content: true
+        content: true,
+        stage: {
+          select: {
+            id: true,
+            type: true,
+            room: {
+              select: {
+                name: true,
+                type: true,
+                project: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     })
 
@@ -147,15 +165,31 @@ export async function POST(
           // Send SMS notification if enabled
           if (messageAuthor.phoneNumber && messageAuthor.smsNotificationsEnabled) {
             try {
-              await sendMentionSMS({
-                to: messageAuthor.phoneNumber,
-                mentionedBy: reactorName,
-                stageName: 'Chat',
-                projectName: '',
-                message: `reacted ${emoji} to your message: "${messagePreview}"`,
-                stageId: '' // Not needed for reaction SMS
-              })
-              console.log(`[Reaction SMS] Sent to ${messageAuthor.name}`)
+              const stageName = getStageName(message.stage.type)
+              const roomName = message.stage.room.name || message.stage.room.type.replace('_', ' ')
+              const projectName = message.stage.room.project.name
+              
+              // Use Twilio directly for reaction-specific SMS (not a mention)
+              const { default: twilio } = await import('twilio')
+              const accountSid = process.env.TWILIO_ACCOUNT_SID
+              const authToken = process.env.TWILIO_AUTH_TOKEN
+              const fromNumber = process.env.TWILIO_PHONE_NUMBER
+
+              if (accountSid && authToken && fromNumber) {
+                const client = twilio(accountSid, authToken)
+                
+                const smsBody = `${reactorName} reacted ${emoji} to your message in ${stageName} - ${roomName} (${projectName}): "${messagePreview}"`
+                
+                await client.messages.create({
+                  body: smsBody,
+                  to: messageAuthor.phoneNumber,
+                  from: fromNumber
+                })
+                
+                console.log(`[Reaction SMS] Sent to ${messageAuthor.name}`)
+              } else {
+                console.log('[Reaction SMS] Twilio not configured, skipping SMS')
+              }
             } catch (smsError) {
               console.error('Failed to send reaction SMS:', smsError)
             }

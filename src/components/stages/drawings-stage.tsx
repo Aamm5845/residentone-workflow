@@ -4,9 +4,11 @@ import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import FilePreviewModal from '@/components/ui/file-preview-modal'
 import { useDrawingsWorkspace } from '@/hooks/useDrawingsWorkspace'
-import { DrawingAsset, DrawingChecklistItem } from '@/types/drawings'
+import { DrawingAsset, DrawingChecklistItem, DropboxFileLink } from '@/types/drawings'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { DropboxFileBrowser } from '../spec-book/DropboxFileBrowser'
@@ -29,7 +31,10 @@ import {
   AlertTriangle,
   Clock,
   Plus,
-  HardDrive
+  HardDrive,
+  X,
+  Link2,
+  ExternalLink
 } from 'lucide-react'
 
 interface DrawingsWorkspaceProps {
@@ -80,6 +85,14 @@ export default function DrawingsWorkspace({
   const [draggedOver, setDraggedOver] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   
+  // Custom section dialog state
+  const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
+  const [customSectionName, setCustomSectionName] = useState('')
+  
+  // Dropbox linking dialog state
+  const [showDropboxDialog, setShowDropboxDialog] = useState<string | null>(null)
+  const [unlinkingFile, setUnlinkingFile] = useState<string | null>(null)
+  
   const {
     data,
     isLoading,
@@ -89,8 +102,12 @@ export default function DrawingsWorkspace({
     updateAssetDescription,
     deleteAsset,
     completeStage,
+    addCustomChecklistItem,
+    linkDropboxFiles,
+    unlinkDropboxFile,
     uploading,
     completing,
+    linking,
     getProgressPercentage,
     canComplete
   } = useDrawingsWorkspace(stage.id)
@@ -133,6 +150,51 @@ export default function DrawingsWorkspace({
   const handleDeleteAsset = async (assetId: string) => {
     if (window.confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
       await deleteAsset(assetId)
+    }
+  }
+
+  const handleAddCustomSection = async () => {
+    if (!customSectionName.trim()) return
+    
+    try {
+      await addCustomChecklistItem(customSectionName.trim())
+      setCustomSectionName('')
+      setShowAddSectionDialog(false)
+    } catch (error) {
+      console.error('Failed to add custom section:', error)
+    }
+  }
+
+  const handleDropboxFileSelected = async (file: any) => {
+    if (!showDropboxDialog) return
+    
+    try {
+      // Convert single file selection to array format expected by linkDropboxFiles
+      const files = [{
+        path: file.path,
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified,
+        id: file.id
+      }]
+      
+      await linkDropboxFiles(showDropboxDialog, files)
+      // Don't close dialog immediately - let user select more files if they want
+    } catch (error) {
+      console.error('Failed to link Dropbox file:', error)
+    }
+  }
+
+  const handleUnlinkDropboxFile = async (checklistItemId: string, dropboxPath: string) => {
+    if (!window.confirm('Are you sure you want to unlink this file?')) return
+    
+    setUnlinkingFile(dropboxPath)
+    try {
+      await unlinkDropboxFile(checklistItemId, dropboxPath)
+    } catch (error) {
+      console.error('Failed to unlink file:', error)
+    } finally {
+      setUnlinkingFile(null)
     }
   }
 
@@ -312,9 +374,14 @@ export default function DrawingsWorkspace({
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 className="text-lg font-semibold text-gray-900">Drawing Categories</h3>
-            <p className="text-sm text-gray-500">
-              Upload final drawings, ensure file names are descriptive
-            </p>
+            <Button
+              onClick={() => setShowAddSectionDialog(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Custom Section
+            </Button>
           </div>
 
           {data.checklistItems.map((item: DrawingChecklistItem) => (
@@ -348,15 +415,26 @@ export default function DrawingsWorkspace({
                   </div>
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRefs.current[item.id]?.click()}
-                  disabled={uploading}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploading ? 'Uploading...' : 'Add Files'}
-                </Button>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDropboxDialog(item.id)}
+                    disabled={linking}
+                  >
+                    <HardDrive className="w-4 h-4 mr-2" />
+                    {linking ? 'Linking...' : 'Link from Dropbox'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRefs.current[item.id]?.click()}
+                    disabled={uploading}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? 'Uploading...' : 'Upload Files'}
+                  </Button>
+                </div>
               </div>
 
               {/* Hidden file input */}
@@ -402,6 +480,59 @@ export default function DrawingsWorkspace({
                   PDF, JPG, PNG, WebP, DWG files - Max 10MB each
                 </p>
               </div>
+
+              {/* Linked Dropbox Files */}
+              {item.dropboxFiles && item.dropboxFiles.length > 0 && (
+                <div className="p-4 bg-blue-50 border-t border-blue-100">
+                  <h5 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Linked from Dropbox ({item.dropboxFiles.length})
+                  </h5>
+                  <div className="space-y-2">
+                    {item.dropboxFiles.map((file: DropboxFileLink) => (
+                      <div key={file.id} className="bg-white border border-blue-200 rounded-lg p-3 flex items-center justify-between hover:border-blue-300 transition-colors">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
+                            <HardDrive className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate" title={file.fileName}>
+                              {file.fileName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {file.fileSize ? formatFileSize(file.fileSize) : ''}
+                              {file.lastModified && ` • ${formatDate(file.lastModified.toString())}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={`https://www.dropbox.com/home${file.dropboxPath}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700"
+                            title="View in Dropbox"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => handleUnlinkDropboxFile(item.id, file.dropboxPath)}
+                            disabled={unlinkingFile === file.dropboxPath}
+                            className="text-gray-400 hover:text-red-600 disabled:opacity-50"
+                            title="Unlink file"
+                          >
+                            {unlinkingFile === file.dropboxPath ? (
+                              <div className="w-4 h-4 border-2 border-gray-300 border-t-red-600 rounded-full animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Files Grid */}
               {item.assets.length > 0 && (
@@ -604,6 +735,87 @@ export default function DrawingsWorkspace({
           onClose={() => setPreviewAsset(null)}
         />
       )}
+
+      {/* Add Custom Section Dialog */}
+      <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Custom Drawing Section</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label htmlFor="section-name" className="block text-sm font-medium text-gray-700 mb-2">
+              Section Name
+            </label>
+            <Input
+              id="section-name"
+              type="text"
+              placeholder="e.g., Custom Details, Specifications, etc."
+              value={customSectionName}
+              onChange={(e) => setCustomSectionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && customSectionName.trim()) {
+                  handleAddCustomSection()
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddSectionDialog(false)
+                setCustomSectionName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddCustomSection}
+              disabled={!customSectionName.trim()}
+            >
+              Add Section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dropbox File Browser Dialog */}
+      <Dialog 
+        open={showDropboxDialog !== null} 
+        onOpenChange={(open) => !open && setShowDropboxDialog(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              Link Files from Dropbox - {data?.checklistItems.find(item => item.id === showDropboxDialog)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {showDropboxDialog && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Click on files to link them to this section. You can select multiple files.
+              </p>
+              <DropboxFileBrowser
+                roomId={null}
+                projectId={project.id}
+                sectionType="DRAWINGS"
+                sectionName={data?.checklistItems.find(item => item.id === showDropboxDialog)?.name || 'Drawing Section'}
+                onFileSelected={handleDropboxFileSelected}
+                mode="select"
+                variant="settings"
+                allowMultiple={true}
+              />
+              <div className="flex justify-end pt-4 border-t">
+                <Button onClick={() => setShowDropboxDialog(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

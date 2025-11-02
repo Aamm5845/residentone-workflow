@@ -19,6 +19,24 @@ export interface DrawingAsset {
   drawingChecklistItemId: string | null
 }
 
+export interface DropboxFileLink {
+  id: string
+  sectionId?: string | null
+  drawingChecklistItemId?: string | null
+  dropboxPath: string
+  dropboxFileId?: string | null
+  fileName: string
+  fileSize?: number | null
+  lastModified?: Date | null
+  dropboxRevision?: string | null
+  cadToPdfCacheUrl?: string | null
+  uploadedPdfUrl?: string | null
+  cacheExpiry?: Date | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface DrawingChecklistItem {
   id: string
   stageId: string
@@ -31,6 +49,7 @@ export interface DrawingChecklistItem {
   updatedAt: string
   completedAt: string | null
   assets: DrawingAsset[]
+  dropboxFiles?: DropboxFileLink[]
 }
 
 export interface DrawingActivityLog {
@@ -104,6 +123,44 @@ export interface DrawingCompletionResponse {
   message: string
 }
 
+// API Request/Response types
+export interface AddCustomItemRequest {
+  name: string
+}
+
+export interface AddCustomItemResponse {
+  success: boolean
+  checklistItem: DrawingChecklistItem
+}
+
+export interface LinkFilesRequest {
+  dropboxFiles: Array<{
+    path: string
+    name: string
+    size?: number
+    lastModified?: Date | string
+    id?: string
+  }>
+}
+
+export interface LinkFilesResponse {
+  success: boolean
+  linkedFiles: DropboxFileLink[]
+  checklistItem: {
+    id: string
+    name: string
+  }
+}
+
+export interface UnlinkFileRequest {
+  dropboxPath: string
+}
+
+export interface UnlinkFileResponse {
+  success: boolean
+  unlinkedCount: number
+}
+
 // Hook types
 export interface UseDrawingsWorkspaceResult {
   // Data
@@ -117,10 +174,14 @@ export interface UseDrawingsWorkspaceResult {
   updateAssetDescription: (assetId: string, description: string) => Promise<void>
   deleteAsset: (assetId: string) => Promise<void>
   completeStage: () => Promise<void>
+  addCustomChecklistItem: (name: string) => Promise<void>
+  linkDropboxFiles: (checklistItemId: string, files: any[]) => Promise<void>
+  unlinkDropboxFile: (checklistItemId: string, dropboxPath: string) => Promise<void>
   
   // State
   uploading: boolean
   completing: boolean
+  linking: boolean
   
   // Utils
   getProgressPercentage: () => number

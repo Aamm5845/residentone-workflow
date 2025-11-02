@@ -19,6 +19,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResult {
   const [uploading, setUploading] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [linking, setLinking] = useState(false)
   
   // Fetch workspace data with SWR
   const { 
@@ -180,6 +181,114 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
   }
 
   /**
+   * Add a custom checklist item
+   */
+  const addCustomChecklistItem = async (name: string) => {
+    try {
+      const response = await fetch(`/api/drawings/${stageId}/checklist/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name })
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Failed to add custom section')
+      }
+
+      toast.success(`Custom section "${name}" added successfully`)
+      await mutate()
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add custom section'
+      toast.error(errorMessage)
+      console.error('Add custom checklist item error:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Link Dropbox files to a checklist item
+   */
+  const linkDropboxFiles = async (checklistItemId: string, files: any[]) => {
+    if (!files.length) return
+
+    setLinking(true)
+    try {
+      const response = await fetch(`/api/drawings/checklist/${checklistItemId}/link-files`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ dropboxFiles: files })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to link files')
+      }
+
+      const linkedCount = result.linkedFiles?.length || 0
+      const skippedCount = result.skippedFiles?.length || 0
+      
+      if (linkedCount > 0) {
+        toast.success(`${linkedCount} file(s) linked successfully`)
+      }
+      if (skippedCount > 0) {
+        toast.error(`${skippedCount} file(s) could not be linked`)
+      }
+
+      await mutate()
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to link files'
+      toast.error(errorMessage)
+      console.error('Link Dropbox files error:', error)
+      throw error
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  /**
+   * Unlink a Dropbox file from a checklist item
+   */
+  const unlinkDropboxFile = async (checklistItemId: string, dropboxPath: string) => {
+    try {
+      const response = await fetch(`/api/drawings/checklist/${checklistItemId}/link-files`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ dropboxPath })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to unlink file')
+      }
+
+      if (result.unlinkedCount > 0) {
+        toast.success('File unlinked successfully')
+      } else {
+        toast.error('File not found or already unlinked')
+      }
+
+      await mutate()
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to unlink file'
+      toast.error(errorMessage)
+      console.error('Unlink Dropbox file error:', error)
+      throw error
+    }
+  }
+
+  /**
    * Complete the drawings stage
    */
   const completeStage = async () => {
@@ -247,8 +356,12 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
     // All items must be completed
     const allCompleted = data.checklistItems.every(item => item.completed)
     
-    // Each item must have at least one file
-    const allHaveFiles = data.checklistItems.every(item => item.assets && item.assets.length > 0)
+    // Each item must have at least one file (uploaded or linked from Dropbox)
+    const allHaveFiles = data.checklistItems.every(item => {
+      const hasUploadedFiles = item.assets && item.assets.length > 0
+      const hasLinkedFiles = item.dropboxFiles && item.dropboxFiles.length > 0
+      return hasUploadedFiles || hasLinkedFiles
+    })
     
     return allCompleted && allHaveFiles && data.stage.status !== 'COMPLETED'
   }
@@ -265,10 +378,14 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
     updateAssetDescription,
     deleteAsset,
     completeStage,
+    addCustomChecklistItem,
+    linkDropboxFiles,
+    unlinkDropboxFile,
     
     // State
     uploading,
     completing,
+    linking,
     
     // Utils
     getProgressPercentage,

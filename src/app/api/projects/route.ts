@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { autoAssignPhasesToTeam } from '@/lib/utils/auto-assignment'
+import { dropboxService } from '@/lib/dropbox-service'
 import type { Session } from 'next-auth'
 import { ProjectType, RoomType, StageType, StageStatus } from '@prisma/client'
 
@@ -80,11 +81,17 @@ export async function POST(request: NextRequest) {
       clientEmail,
       clientPhone,
       projectAddress,
+      streetAddress,
+      city,
+      province,
+      postalCode,
       budget,
       dueDate,
       selectedRooms,
       coverImages,
-      contractors
+      contractors,
+      dropboxOption,
+      dropboxFolderPath
     } = data
 
     // Find or create client (handle unique constraint on orgId + email)
@@ -126,6 +133,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found or created' }, { status: 400 })
     }
 
+    // Handle Dropbox folder creation/linking
+    let dropboxFolderResult: string | null = null
+    let dropboxError: string | null = null
+    
+    if (dropboxOption === 'create') {
+      try {
+        console.log('📁 Creating Dropbox folder structure for project:', name)
+        dropboxFolderResult = await dropboxService.createProjectFolderStructure(name)
+        console.log('✅ Dropbox folder created:', dropboxFolderResult)
+      } catch (error) {
+        console.error('❌ Failed to create Dropbox folder structure:', error)
+        dropboxError = error instanceof Error ? error.message : 'Unknown error'
+        // Don't fail project creation if Dropbox fails
+      }
+    } else if (dropboxOption === 'link' && dropboxFolderPath) {
+      console.log('🔗 Linking project to existing Dropbox folder:', dropboxFolderPath)
+      dropboxFolderResult = dropboxFolderPath
+    } else if (dropboxOption === 'skip') {
+      console.log('⏭️ Skipping Dropbox integration for project:', name)
+    }
+
     // Create project with proper Prisma ORM (fixed to include coverImages)
     
     const projectData = {
@@ -137,7 +165,12 @@ export async function POST(request: NextRequest) {
       budget: budget ? parseFloat(budget) : null,
       dueDate: dueDate ? new Date(dueDate) : null,
       address: projectAddress || null,
+      streetAddress: streetAddress || null,
+      city: city || null,
+      province: province || null,
+      postalCode: postalCode || null,
       coverImages: coverImages && coverImages.length > 0 ? coverImages : null,
+      dropboxFolder: dropboxFolderResult,
       orgId: sharedOrg.id,
       createdById: session.user.id
     }
@@ -295,7 +328,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found after creation' }, { status: 500 })
     }
 
-    return NextResponse.json(fullProject, { status: 201 })
+    // Return project with Dropbox status
+    return NextResponse.json({
+      ...fullProject,
+      dropboxStatus: {
+        success: dropboxOption === 'skip' || !!dropboxFolderResult,
+        folderPath: dropboxFolderResult,
+        error: dropboxError,
+        option: dropboxOption
+      }
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating project:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

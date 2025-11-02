@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 import { 
   withUpdateAttribution,
   withCompletionAttribution,
@@ -236,6 +237,23 @@ export async function DELETE(
 
     // Note: We allow deletion of pushed versions, but with appropriate warnings in the UI
     // The delete confirmation should be more explicit for pushed versions
+
+    // Delete from Dropbox if project has dropboxFolder configured
+    if (renderingVersion.room.project.dropboxFolder) {
+      try {
+        const roomName = renderingVersion.room.name || renderingVersion.room.type
+        const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+        
+        // Delete folder path: /ProjectFolder/3-RENDERING/RoomName/Version
+        const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
+        
+        await dropboxService.deleteFolder(dropboxFolderPath)
+        console.log(`✅ Dropbox folder deleted: ${dropboxFolderPath}`)
+      } catch (dropboxError) {
+        console.error('❌ Failed to delete from Dropbox:', dropboxError)
+        // Don't fail the entire deletion if Dropbox fails
+      }
+    }
 
     // Delete the rendering version (will cascade to assets and notes)
     await prisma.renderingVersion.delete({

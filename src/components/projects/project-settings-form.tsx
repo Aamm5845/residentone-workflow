@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search } from 'lucide-react'
+import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search, FolderPlus, Link2, FolderX, ChevronDown, ChevronUp } from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 import RoomsManagementSection from './rooms-management-section'
@@ -67,6 +67,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     type: 'contractor' as 'contractor' | 'subcontractor',
     specialty: ''
   })
+  const [dropboxOption, setDropboxOption] = useState<'create' | 'link' | 'skip'>('skip')
+  const [dropboxFolderPath, setDropboxFolderPath] = useState('')
+  const [isDropboxExpanded, setIsDropboxExpanded] = useState(false)
+  const [isCreatingDropbox, setIsCreatingDropbox] = useState(false)
   const [clientFormData, setClientFormData] = useState({
     name: project.client?.name || '',
     email: project.client?.email || '',
@@ -1153,21 +1157,165 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         <div className="px-6 py-4">
           {editingSection === 'storage' ? (
             <div className="space-y-6">
+              {/* Dropbox Integration Options - Collapsible */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4">
-                  Select Dropbox Folder for Project Files
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Browse and select the Dropbox folder where this project's files will be stored.
-                </p>
-                <DropboxFolderBrowser
-                  currentPath={watch('dropboxFolder') || ''}
-                  onSelect={(path) => {
-                    setValue('dropboxFolder', path, { shouldDirty: true })
-                    // Auto-save when folder is selected
-                    updateSection('file storage', { dropboxFolder: path })
-                  }}
-                />
+                <div 
+                  className="flex items-center justify-between cursor-pointer p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  onClick={() => setIsDropboxExpanded(!isDropboxExpanded)}
+                >
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Dropbox Integration Options</h3>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {dropboxOption === 'skip' 
+                        ? 'Click to configure Dropbox folder'
+                        : dropboxOption === 'create'
+                        ? 'Create new project folder structure'
+                        : 'Link to existing Dropbox folder'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {dropboxOption !== 'skip' && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                        Configured
+                      </span>
+                    )}
+                    {isDropboxExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </div>
+                </div>
+                
+                {isDropboxExpanded && (
+                  <div className="mt-4 space-y-4 pl-4 border-l-2 border-gray-200">
+                    {/* Create new folder option */}
+                    <div 
+                      onClick={() => setDropboxOption('create')}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        dropboxOption === 'create' 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <FolderPlus className="w-5 h-5 text-purple-600" />
+                          </div>
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1">Create New Dropbox Folder</h4>
+                          <p className="text-sm text-gray-600">
+                            Automatically create a project folder with standard subfolders (1-CAD, 2-MAX, 3-RENDERING, etc.)
+                          </p>
+                        </div>
+                        <div className="ml-auto">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            dropboxOption === 'create' 
+                              ? 'border-purple-500 bg-purple-500' 
+                              : 'border-gray-300'
+                          }`}>
+                            {dropboxOption === 'create' && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Link to existing folder option */}
+                    <div 
+                      onClick={() => setDropboxOption('link')}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        dropboxOption === 'link' 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Link2 className="w-5 h-5 text-blue-600" />
+                          </div>
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1">Link to Existing Dropbox Folder</h4>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Browse or enter the path to an existing Dropbox folder
+                          </p>
+                          {dropboxOption === 'link' && (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={dropboxFolderPath}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  setDropboxFolderPath(e.target.value)
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                placeholder="/Meisner Interiors Team Folder/Project Name"
+                              />
+                              <p className="text-xs text-gray-500">Or browse below:</p>
+                              <DropboxFolderBrowser
+                                currentPath={dropboxFolderPath}
+                                onSelect={(path) => setDropboxFolderPath(path)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-auto">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            dropboxOption === 'link' 
+                              ? 'border-blue-500 bg-blue-500' 
+                              : 'border-gray-300'
+                          }`}>
+                            {dropboxOption === 'link' && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Skip integration option */}
+                    <div 
+                      onClick={() => setDropboxOption('skip')}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        dropboxOption === 'skip' 
+                          ? 'border-gray-500 bg-gray-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <FolderX className="w-5 h-5 text-gray-600" />
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1">No Dropbox Integration</h4>
+                          <p className="text-sm text-gray-600">
+                            Don't link this project to a Dropbox folder
+                          </p>
+                        </div>
+                        <div className="ml-auto">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            dropboxOption === 'skip' 
+                              ? 'border-gray-500 bg-gray-500' 
+                              : 'border-gray-300'
+                          }`}>
+                            {dropboxOption === 'skip' && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center space-x-3 pt-4 border-t">
@@ -1176,7 +1324,49 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   variant="outline"
                   onClick={() => setEditingSection(null)}
                 >
-                  Done
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    setIsCreatingDropbox(true)
+                    try {
+                      let folderPath = null
+                      
+                      if (dropboxOption === 'create') {
+                        // Call API to create Dropbox folder structure
+                        const response = await fetch(`/api/projects/${project.id}/dropbox-folder`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ projectName: project.name })
+                        })
+                        
+                        if (response.ok) {
+                          const data = await response.json()
+                          folderPath = data.folderPath
+                          alert(`Dropbox folder created successfully!\n\n${folderPath}`)
+                        } else {
+                          throw new Error('Failed to create Dropbox folder')
+                        }
+                      } else if (dropboxOption === 'link') {
+                        folderPath = dropboxFolderPath
+                      }
+                      
+                      // Update project with folder path
+                      await updateSection('file storage', { dropboxFolder: folderPath })
+                      setValue('dropboxFolder', folderPath || '', { shouldDirty: true })
+                      setEditingSection(null)
+                    } catch (error) {
+                      console.error('Error updating Dropbox folder:', error)
+                      alert('Failed to update Dropbox folder. Please try again.')
+                    } finally {
+                      setIsCreatingDropbox(false)
+                    }
+                  }}
+                  disabled={isCreatingDropbox || (dropboxOption === 'link' && !dropboxFolderPath)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {isCreatingDropbox ? 'Processing...' : 'Save Changes'}
                 </Button>
               </div>
             </div>

@@ -216,6 +216,18 @@ export const ActivityActions = {
   FFE_ITEM_UPDATED: 'ffe_item_updated',
   FFE_STATUS_CHANGED: 'ffe_status_changed',
 
+  // Rendering actions
+  RENDERING_VERSION_CREATED: 'rendering_version_created',
+  RENDERING_VERSION_UPDATED: 'rendering_version_updated',
+  RENDERING_VERSION_COMPLETED: 'rendering_version_completed',
+  RENDERING_VERSION_DELETED: 'rendering_version_deleted',
+
+  // Generic actions
+  CREATE: 'create',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  COMPLETE: 'complete',
+
   // Session actions
   LOGIN: 'login',
   LOGOUT: 'logout',

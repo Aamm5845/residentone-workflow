@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera, Building, Search } from 'lucide-react'
+import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera, Building, Search, FolderPlus, Link2, FolderX, ChevronDown, ChevronUp, MapPin } from 'lucide-react'
 import Image from 'next/image'
 
 interface NewProjectFormProps {
@@ -63,12 +63,18 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     clientName: '',
     clientEmail: '',
     clientPhone: '',
-    projectAddress: '',
+    projectAddress: '', // Legacy combined address
+    streetAddress: '',
+    city: '',
+    province: '',
+    postalCode: '',
     budget: '',
     dueDate: '',
     coverImages: [] as string[], // Support multiple images
     selectedRooms: [] as Array<{ type: string; name: string; customName?: string }>,
-    contractors: [] as Array<{ id?: string; businessName: string; contactName: string; email: string; phone: string; address: string; type: 'contractor' | 'subcontractor' }>
+    contractors: [] as Array<{ id?: string; businessName: string; contactName: string; email: string; phone: string; address: string; type: 'contractor' | 'subcontractor' }>,
+    dropboxOption: 'skip' as 'create' | 'link' | 'skip',
+    dropboxFolderPath: ''
   })
 
   const [showCustomRoomDialog, setShowCustomRoomDialog] = useState(false)
@@ -83,6 +89,12 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
   const [contractorForm, setContractorForm] = useState({ businessName: '', contactName: '', email: '', phone: '', address: '' })
   const [existingContractors, setExistingContractors] = useState<any[]>([])
   const [contractorSearchTerm, setContractorSearchTerm] = useState('')
+  const [isDropboxSectionExpanded, setIsDropboxSectionExpanded] = useState(false)
+  const [addressInputRef, setAddressInputRef] = useState<HTMLInputElement | null>(null)
+  const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null)
+  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null)
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
+  const [showPredictions, setShowPredictions] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -143,6 +155,150 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     }
     loadContractors()
   }, [])
+
+  // Initialize Google Places API
+  useEffect(() => {
+    const initGooglePlaces = () => {
+      if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        setAutocompleteService(new google.maps.places.AutocompleteService())
+        // Create a dummy div for PlacesService
+        const dummyMap = document.createElement('div')
+        setPlacesService(new google.maps.places.PlacesService(dummyMap))
+      }
+    }
+
+    // Check if Google Maps is already loaded
+    if (typeof google !== 'undefined') {
+      initGooglePlaces()
+    } else {
+      // Load Google Maps script
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&language=en`
+      script.async = true
+      script.defer = true
+      script.charset = 'utf-8'
+      script.onload = initGooglePlaces
+      document.head.appendChild(script)
+    }
+  }, [])
+
+  // Handle address autocomplete
+  const handleAddressSearch = (value: string) => {
+    handleInputChange('streetAddress', value)
+    
+    if (!autocompleteService || value.length < 3) {
+      setPredictions([])
+      setShowPredictions(false)
+      return
+    }
+
+    autocompleteService.getPlacePredictions(
+      {
+        input: value,
+        types: ['address'],
+        componentRestrictions: { country: 'ca' } // Restrict to Canada only
+      },
+      (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          setPredictions(results)
+          setShowPredictions(true)
+        } else {
+          setPredictions([])
+          setShowPredictions(false)
+        }
+      }
+    )
+  }
+
+  // Handle address selection
+  const handleAddressSelect = (placeId: string) => {
+    if (!placesService) return
+
+    placesService.getDetails(
+      {
+        placeId,
+        fields: ['address_components', 'formatted_address']
+      },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          let streetNumber = ''
+          let route = ''
+          let city = ''
+          let province = ''
+          let postalCode = ''
+
+          place.address_components?.forEach(component => {
+            const types = component.types
+            if (types.includes('street_number')) {
+              streetNumber = component.long_name
+            }
+            if (types.includes('route')) {
+              route = component.long_name
+            }
+            if (types.includes('locality')) {
+              city = component.long_name
+            }
+            if (types.includes('administrative_area_level_1')) {
+              province = component.short_name // Use short_name for province code (e.g., QC, ON)
+            }
+            if (types.includes('postal_code')) {
+              postalCode = component.long_name
+            }
+          })
+
+          const fullStreet = `${streetNumber} ${route}`.trim()
+          
+          // Decode HTML entities and fix UTF-8 encoding issues
+          const decodeText = (text: string) => {
+            if (!text) return text
+            
+            // First decode HTML entities
+            const textarea = document.createElement('textarea')
+            textarea.innerHTML = text
+            let decoded = textarea.value
+            
+            // Fix common UTF-8 encoding issues
+            const fixes: { [key: string]: string } = {
+              'Ã©': 'é',
+              'Ã¨': 'è',
+              'Ãª': 'ê',
+              'Ã ': 'à',
+              'Ã§': 'ç',
+              'Ã´': 'ô',
+              'Ã®': 'î',
+              'Ã¯': 'ï',
+              'Ã¹': 'ù',
+              'Ã»': 'û',
+              'Ã¼': 'ü',
+              'Ã«': 'ë',
+              'Ã': 'À',
+              'Ã‰': 'É',
+              'Ãˆ': 'È',
+              'ÃŠ': 'Ê'
+            }
+            
+            Object.keys(fixes).forEach(bad => {
+              decoded = decoded.replace(new RegExp(bad, 'g'), fixes[bad])
+            })
+            
+            return decoded
+          }
+          
+          setFormData(prev => ({
+            ...prev,
+            streetAddress: decodeText(fullStreet),
+            city: decodeText(city),
+            province: decodeText(province),
+            postalCode: decodeText(postalCode),
+            projectAddress: decodeText(place.formatted_address || fullStreet)
+          }))
+
+          setPredictions([])
+          setShowPredictions(false)
+        }
+      }
+    )
+  }
 
   const toggleRoom = (roomType: string) => {
     const roomInfo = ROOM_TYPES.find(r => r.value === roomType)
@@ -317,12 +473,32 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
           dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
           coverImages: formData.coverImages,
           contractors: formData.contractors,
+          dropboxOption: formData.dropboxOption,
+          dropboxFolderPath: formData.dropboxFolderPath,
+          streetAddress: formData.streetAddress,
+          city: formData.city,
+          province: formData.province,
+          postalCode: formData.postalCode
         })
       })
 
       if (response.ok) {
-        const project = await response.json()
-        router.push(`/projects/${project.id}`)
+        const result = await response.json()
+        
+        // Show success message with Dropbox status
+        if (result.dropboxStatus) {
+          if (result.dropboxStatus.option === 'create' && result.dropboxStatus.success) {
+            alert(`Project created successfully!\n\nDropbox folder structure created at:\n${result.dropboxStatus.folderPath}`)
+          } else if (result.dropboxStatus.option === 'link' && result.dropboxStatus.success) {
+            alert(`Project created successfully!\n\nLinked to Dropbox folder:\n${result.dropboxStatus.folderPath}`)
+          } else if (result.dropboxStatus.option === 'skip') {
+            alert('Project created successfully!')
+          } else if (result.dropboxStatus.error) {
+            alert(`Project created successfully!\n\nHowever, Dropbox folder creation failed:\n${result.dropboxStatus.error}`)
+          }
+        }
+        
+        router.push(`/projects/${result.id}`)
       } else {
         throw new Error('Failed to create project')
       }
@@ -540,16 +716,251 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Address</h3>
               
-              <div>
-                <input
-                  type="text"
-                  value={formData.projectAddress}
-                  onChange={(e) => handleInputChange('projectAddress', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="123 Main Street, City, State ZIP *"
-                  required
-                />
+              <div className="space-y-4">
+                {/* Street Address with Autocomplete */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Street Address *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      value={formData.streetAddress}
+                      onChange={(e) => handleAddressSearch(e.target.value)}
+                      onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                      onBlur={() => setTimeout(() => setShowPredictions(false), 200)}
+                      ref={(ref) => setAddressInputRef(ref)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Start typing address..."
+                      required
+                    />
+                  </div>
+                  
+                  {/* Autocomplete Predictions Dropdown */}
+                  {showPredictions && predictions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {predictions.map((prediction) => (
+                        <div
+                          key={prediction.place_id}
+                          onClick={() => handleAddressSelect(prediction.place_id)}
+                          className="px-4 py-3 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-start">
+                            <MapPin className="w-4 h-4 text-purple-600 mt-0.5 mr-2 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {prediction.structured_formatting.main_text}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {prediction.structured_formatting.secondary_text}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* City, Province, and Postal Code */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="City"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Province *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.province}
+                      onChange={(e) => handleInputChange('province', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="QC, ON, BC..."
+                      maxLength={2}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Postal Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.postalCode}
+                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="A1A 1A1"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Dropbox Integration - Collapsible */}
+            <div>
+              <div 
+                className="flex items-center justify-between cursor-pointer p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setIsDropboxSectionExpanded(!isDropboxSectionExpanded)}
+              >
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Dropbox Integration (Optional)</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {formData.dropboxOption === 'skip' 
+                      ? 'Click to configure Dropbox folder organization'
+                      : formData.dropboxOption === 'create'
+                      ? 'Auto-create project folder with standard structure'
+                      : 'Link to existing Dropbox folder'
+                    }
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {formData.dropboxOption !== 'skip' && (
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                      Enabled
+                    </span>
+                  )}
+                  {isDropboxSectionExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  )}
+                </div>
+              </div>
+              
+              {isDropboxSectionExpanded && (
+                <div className="mt-4 space-y-4 pl-4 border-l-2 border-gray-200">
+                {/* Create new folder option */}
+                <div 
+                  onClick={() => handleInputChange('dropboxOption', 'create')}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    formData.dropboxOption === 'create' 
+                      ? 'border-purple-500 bg-purple-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <FolderPlus className="w-5 h-5 text-purple-600" />
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Create New Dropbox Folder</h4>
+                      <p className="text-sm text-gray-600">
+                        Automatically create a project folder in Meisner Interiors Team Folder with standard subfolders
+                      </p>
+                    </div>
+                    <div className="ml-auto">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        formData.dropboxOption === 'create' 
+                          ? 'border-purple-500 bg-purple-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {formData.dropboxOption === 'create' && (
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Link to existing folder option */}
+                <div 
+                  onClick={() => handleInputChange('dropboxOption', 'link')}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    formData.dropboxOption === 'link' 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Link2 className="w-5 h-5 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Link to Existing Dropbox Folder</h4>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Connect this project to an existing Dropbox folder
+                      </p>
+                      {formData.dropboxOption === 'link' && (
+                        <input
+                          type="text"
+                          value={formData.dropboxFolderPath}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            handleInputChange('dropboxFolderPath', e.target.value)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="/Meisner Interiors Team Folder/Project Name"
+                        />
+                      )}
+                    </div>
+                    <div className="ml-auto">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        formData.dropboxOption === 'link' 
+                          ? 'border-blue-500 bg-blue-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {formData.dropboxOption === 'link' && (
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skip integration option */}
+                <div 
+                  onClick={() => handleInputChange('dropboxOption', 'skip')}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    formData.dropboxOption === 'skip' 
+                      ? 'border-gray-500 bg-gray-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <FolderX className="w-5 h-5 text-gray-600" />
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Skip Dropbox Integration</h4>
+                      <p className="text-sm text-gray-600">
+                        Create the project without Dropbox folder setup (you can add it later)
+                      </p>
+                    </div>
+                    <div className="ml-auto">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        formData.dropboxOption === 'skip' 
+                          ? 'border-gray-500 bg-gray-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {formData.dropboxOption === 'skip' && (
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              )}
             </div>
 
             {/* Contractors and Subcontractors */}

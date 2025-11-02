@@ -217,6 +217,7 @@ model Project {
   address                   String?
   streetAddress             String?
   city                      String?
+  province                  String?
   postalCode                String?
   hasFloorplanApproval      Boolean                    @default(false)
   hasSpecBook               Boolean                    @default(false)
@@ -945,19 +946,19 @@ model RenderingNote {
 }
 
 model DrawingChecklistItem {
-  id          String               @id @default(cuid())
-  stageId     String
-  type        DrawingChecklistType
-  name        String
-  description String?
-  completed   Boolean              @default(false)
-  order       Int                  @default(0)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  completedAt DateTime?
-  assets      Asset[]              @relation("DrawingChecklistAssets")
+  id           String            @id @default(cuid())
+  stageId      String
+  type         DrawingChecklistType
+  name         String
+  description  String?
+  completed    Boolean           @default(false)
+  order        Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  completedAt  DateTime?
+  assets       Asset[]           @relation("DrawingChecklistAssets")
+  dropboxFiles DropboxFileLink[] @relation("DrawingChecklistDropboxFiles")
 
-  @@unique([stageId, type])
   @@index([stageId])
   @@index([order])
 }
@@ -1603,24 +1604,26 @@ model SpecBookSection {
 }
 
 model DropboxFileLink {
-  id               String          @id @default(cuid())
-  sectionId        String
-  dropboxPath      String
-  dropboxFileId    String?
-  fileName         String
-  fileSize         Int?
-  lastModified     DateTime?
-  dropboxRevision  String?
-  cadToPdfCacheUrl String?
-  uploadedPdfUrl   String?
-  cacheExpiry      DateTime?
-  isActive         Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  section          SpecBookSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  id                     String                 @id @default(cuid())
+  sectionId              String?
+  drawingChecklistItemId String?
+  dropboxPath            String
+  dropboxFileId          String?
+  fileName               String
+  fileSize               Int?
+  lastModified           DateTime?
+  dropboxRevision        String?
+  cadToPdfCacheUrl       String?
+  uploadedPdfUrl         String?
+  cacheExpiry            DateTime?
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  section                SpecBookSection?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  drawingChecklistItem   DrawingChecklistItem?  @relation("DrawingChecklistDropboxFiles", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
 
-  @@unique([sectionId, dropboxPath])
   @@index([sectionId])
+  @@index([drawingChecklistItemId])
   @@index([dropboxPath])
   @@index([dropboxRevision])
 }

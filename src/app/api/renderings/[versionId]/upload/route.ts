@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { uploadFile, generateFilePath, getContentType, isBlobConfigured } from '@/lib/blob'
+import { dropboxService } from '@/lib/dropbox-service'
 import { 
   withCreateAttribution,
   logActivity,
@@ -167,6 +168,37 @@ export async function POST(
         })
 
         uploadedAssets.push(asset)
+
+        // Upload to Dropbox if project has dropboxFolder configured
+        if (renderingVersion.room.project.dropboxFolder) {
+          try {
+            const roomName = renderingVersion.room.name || renderingVersion.room.type
+            const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+            
+            // Create folder path: /ProjectFolder/3-RENDERING/RoomName/Version
+            const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
+            
+            // Ensure the folder exists
+            try {
+              await dropboxService.createFolder(dropboxFolderPath)
+            } catch (folderError) {
+              // Folder might already exist, that's okay
+              console.log('[Dropbox] Folder may already exist:', dropboxFolderPath)
+            }
+            
+            // Upload the file to Dropbox
+            const bytes = await file.arrayBuffer()
+            const buffer = Buffer.from(bytes)
+            const dropboxFilePath = `${dropboxFolderPath}/${filename}`
+            
+            await dropboxService.uploadFile(dropboxFilePath, buffer)
+            
+            console.log(`✅ File uploaded to Dropbox: ${dropboxFilePath}`)
+          } catch (dropboxError) {
+            console.error('❌ Failed to upload to Dropbox:', dropboxError)
+            // Don't fail the entire upload if Dropbox fails
+          }
+        }
 
         // Log activity for each file
         await logActivity({

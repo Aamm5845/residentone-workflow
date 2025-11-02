@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
     // Log activity
     await logActivity({
       session,
-      action: ActivityActions.CREATE,
+      action: ActivityActions.RENDERING_VERSION_CREATED,
       entity: 'RENDERING_VERSION',
       entityId: renderingVersion.id,
       details: {

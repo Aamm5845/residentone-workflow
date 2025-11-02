@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dropboxService } from '@/lib/dropbox-service-v2'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-
-const getSession = () => getServerSession(authOptions)
+import { getSession } from '@/auth'
 
 export async function GET(request: NextRequest) {
   try {

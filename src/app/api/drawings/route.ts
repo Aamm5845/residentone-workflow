@@ -59,6 +59,10 @@ export async function GET(request: NextRequest) {
             }
           },
           orderBy: { createdAt: 'desc' }
+        },
+        dropboxFiles: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' }
         }
       }
     })
@@ -92,6 +96,10 @@ export async function GET(request: NextRequest) {
                 select: { id: true, name: true, email: true }
               }
             },
+            orderBy: { createdAt: 'desc' }
+          },
+          dropboxFiles: {
+            where: { isActive: true },
             orderBy: { createdAt: 'desc' }
           }
         }
