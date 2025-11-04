@@ -90,11 +90,11 @@ export async function POST(request: NextRequest) {
     // Create filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const filename = `database-backup-${timestamp}.json`
-    const dropboxPath = `/DATABASE-BACKUPS/${filename}`
+    const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
 
     // Ensure backup folder exists
     try {
-      await dropboxService.createFolder('/DATABASE-BACKUPS')
+      await dropboxService.createFolder('/Meisner Interiors Team Folder/Software Backups')
     } catch (error) {
       console.log('Backup folder may already exist')
     }

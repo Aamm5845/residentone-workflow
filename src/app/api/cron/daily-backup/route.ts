@@ -91,11 +91,11 @@ export async function GET(req: Request) {
     // 3. Generate filename with date
     const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const filename = `database-backup-${date}.json.gz`
-    const dropboxPath = `/DATABASE-BACKUPS/${filename}`
+    const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
     
     // 4. Ensure backup folder exists in Dropbox
     try {
-      await dropboxService.createFolder('/DATABASE-BACKUPS')
+      await dropboxService.createFolder('/Meisner Interiors Team Folder/Software Backups')
     } catch (error) {
       console.log('Backup folder may already exist')
     }
