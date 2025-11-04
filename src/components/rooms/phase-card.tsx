@@ -13,7 +13,8 @@ import {
   RotateCcw,
   Calendar,
   AlertTriangle,
-  Clock
+  Clock,
+  X
 } from 'lucide-react'
 import { 
   getPhaseConfig, 
@@ -311,27 +312,42 @@ export default function PhaseCard({
             ) : (
               <div className="mt-2">
                 {phase.dueDate ? (
-                  <div className="flex items-center space-x-2">
-                    <div className={cn(
-                      "flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium",
-                      isOverdue ? "bg-red-100 text-red-800" :
-                      isDueSoon ? "bg-yellow-100 text-yellow-800" :
-                      "bg-gray-100 text-gray-700"
-                    )}>
-                      {isOverdue && <AlertTriangle className="w-3 h-3" />}
-                      {isDueSoon && <Clock className="w-3 h-3" />}
-                      <span>{new Date(phase.dueDate).toLocaleDateString()}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={cn(
+                        "flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium",
+                        isOverdue ? "bg-red-100 text-red-800" :
+                        isDueSoon ? "bg-yellow-100 text-yellow-800" :
+                        "bg-gray-100 text-gray-700"
+                      )}>
+                        {isOverdue && <AlertTriangle className="w-3 h-3" />}
+                        {isDueSoon && <Clock className="w-3 h-3" />}
+                        <span>{new Date(phase.dueDate).toLocaleDateString()}</span>
+                      </div>
+                      {isOverdue && (
+                        <span className="text-xs text-red-600 font-medium">
+                          Overdue
+                        </span>
+                      )}
+                      {isDueSoon && !isOverdue && (
+                        <span className="text-xs text-yellow-600 font-medium">
+                          Due Soon
+                        </span>
+                      )}
                     </div>
-                    {isOverdue && (
-                      <span className="text-xs text-red-600 font-medium">
-                        Overdue
-                      </span>
-                    )}
-                    {isDueSoon && !isOverdue && (
-                      <span className="text-xs text-yellow-600 font-medium">
-                        Due Soon
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (onDueDateChange) {
+                          onDueDateChange(null)
+                        }
+                      }}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      title="Remove due date"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-sm text-gray-500 italic">
