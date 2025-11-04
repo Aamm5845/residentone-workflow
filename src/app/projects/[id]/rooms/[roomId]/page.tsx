@@ -59,6 +59,7 @@ export default async function RoomWorkspace({ params }: Props) {
                   assignedTo: true,
                   completedAt: true,
                   startedAt: true,
+                  dueDate: true,
                   assignedUser: {
                     select: {
                       id: true,
@@ -143,6 +144,7 @@ export default async function RoomWorkspace({ params }: Props) {
         assignedUser: matchingStage?.assignedUser || null,
         completedAt: matchingStage?.completedAt || null,
         startedAt: matchingStage?.startedAt || null,
+        dueDate: matchingStage?.dueDate || null,
         stageId: matchingStage?.id || null
       }
     })
