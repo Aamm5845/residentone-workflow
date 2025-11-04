@@ -67,7 +67,29 @@ export async function GET(
       return NextResponse.json({ error: 'Rendering version not found' }, { status: 404 })
     }
 
-    return NextResponse.json(renderingVersion)
+    // Generate temporary Dropbox links for assets stored in Dropbox
+    const assetsWithLinks = await Promise.all(
+      renderingVersion.assets.map(async (asset) => {
+        if (asset.provider === 'dropbox' && asset.url) {
+          try {
+            const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+            return {
+              ...asset,
+              temporaryUrl: temporaryLink || asset.url
+            }
+          } catch (error) {
+            console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
+            return asset
+          }
+        }
+        return asset
+      })
+    )
+
+    return NextResponse.json({
+      ...renderingVersion,
+      assets: assetsWithLinks
+    })
   } catch (error) {
     console.error('Error fetching rendering version:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

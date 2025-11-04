@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 import { 
   withCreateAttribution, 
   withUpdateAttribution,
@@ -77,7 +78,34 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json({ renderingVersions })
+    // Generate temporary Dropbox links for assets stored in Dropbox
+    const versionsWithLinks = await Promise.all(
+      renderingVersions.map(async (version) => {
+        const assetsWithLinks = await Promise.all(
+          version.assets.map(async (asset) => {
+            if (asset.provider === 'dropbox' && asset.url) {
+              try {
+                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+                return {
+                  ...asset,
+                  temporaryUrl: temporaryLink || asset.url
+                }
+              } catch (error) {
+                console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
+                return asset
+              }
+            }
+            return asset
+          })
+        )
+        return {
+          ...version,
+          assets: assetsWithLinks
+        }
+      })
+    )
+
+    return NextResponse.json({ renderingVersions: versionsWithLinks })
   } catch (error) {
     console.error('Error fetching rendering versions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

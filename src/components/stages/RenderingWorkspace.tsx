@@ -684,7 +684,7 @@ export default function RenderingWorkspace({
                             <div className="aspect-video bg-gray-100 relative">
                               {(asset.type === 'RENDER' || asset.type === 'IMAGE') && (
                                 <img
-                                  src={`/api/assets/${asset.id}/view`}
+                                  src={asset.temporaryUrl || `/api/assets/${asset.id}/view`}
                                   alt={asset.title}
                                   className="w-full h-full object-cover"
                                 />
