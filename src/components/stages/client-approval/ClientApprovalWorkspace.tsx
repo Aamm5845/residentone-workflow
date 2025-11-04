@@ -693,7 +693,7 @@ export default function ClientApprovalWorkspace({
                                 {version.assets.map((asset: any) => (
                                   <div key={asset.id} className="w-16 h-12 bg-gray-100 rounded overflow-hidden">
                                     <img
-                                      src={asset.url}
+                                      src={asset.temporaryUrl || asset.url}
                                       alt={asset.title}
                                       className="w-full h-full object-cover"
                                     />
@@ -959,7 +959,7 @@ export default function ClientApprovalWorkspace({
                     <div key={assetItem.id} className="relative group">
                       <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                         <img
-                          src={assetItem.asset.url}
+                          src={assetItem.asset.temporaryUrl || assetItem.asset.url}
                           alt={assetItem.asset.title}
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
@@ -983,7 +983,7 @@ export default function ClientApprovalWorkspace({
                           <Button 
                             variant="outline" 
                             className="opacity-0 group-hover:opacity-100 transition-opacity bg-white"
-                            onClick={() => window.open(assetItem.asset.url, '_blank')}
+                            onClick={() => window.open(assetItem.asset.temporaryUrl || assetItem.asset.url, '_blank')}
                           >
                             View Full Size
                           </Button>

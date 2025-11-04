@@ -237,7 +237,7 @@ export async function DELETE(
 
     // Note: We allow deletion of pushed versions, but with appropriate warnings in the UI
     // The delete confirmation should be more explicit for pushed versions
-
+    
     // Delete from Dropbox if project has dropboxFolder configured
     if (renderingVersion.room.project.dropboxFolder) {
       try {
@@ -255,9 +255,37 @@ export async function DELETE(
       }
     }
 
-    // Delete the rendering version (will cascade to assets and notes)
-    await prisma.renderingVersion.delete({
-      where: { id: versionId }
+    // Use transaction to ensure cascade deletion
+    await prisma.$transaction(async (tx) => {
+      // Delete ClientApprovalVersion first if it exists (cascades to related records)
+      if (renderingVersion.clientApprovalVersion) {
+        await tx.clientApprovalVersion.delete({
+          where: { id: renderingVersion.clientApprovalVersion.id }
+        })
+        
+        console.log(`✅ ClientApprovalVersion deleted: ${renderingVersion.clientApprovalVersion.id}`)
+        
+        // Log activity for client approval deletion
+        await logActivity({
+          session,
+          action: ActivityActions.DELETE,
+          entity: EntityTypes.CLIENT_APPROVAL_VERSION,
+          entityId: renderingVersion.clientApprovalVersion.id,
+          details: {
+            version: renderingVersion.version,
+            renderingVersionId: versionId,
+            roomName: renderingVersion.room.name || renderingVersion.room.type,
+            projectName: renderingVersion.room.project.name,
+            message: `Client Approval version deleted (cascaded from rendering deletion)`
+          },
+          ipAddress
+        })
+      }
+
+      // Delete the rendering version (will cascade to assets and notes)
+      await tx.renderingVersion.delete({
+        where: { id: versionId }
+      })
     })
 
     // Log activity
@@ -271,7 +299,8 @@ export async function DELETE(
         customName: renderingVersion.customName,
         roomName: renderingVersion.room.name || renderingVersion.room.type,
         projectName: renderingVersion.room.project.name,
-        message: `Version ${renderingVersion.version} deleted`
+        hadClientApprovalVersion: !!renderingVersion.clientApprovalVersion,
+        message: `Version ${renderingVersion.version} deleted${renderingVersion.clientApprovalVersion ? ' (including Client Approval version)' : ''}`
       },
       ipAddress
     })

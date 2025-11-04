@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 
 // GET /api/client-approval/[stageId] - Get client approval data for a stage
 export async function GET(
@@ -59,7 +60,15 @@ export async function GET(
         assets: {
           include: {
             asset: {
-              include: {
+              select: {
+                id: true,
+                title: true,
+                filename: true,
+                url: true,
+                provider: true,
+                type: true,
+                size: true,
+                mimeType: true,
                 uploadedByUser: {
                   select: {
                     id: true,
@@ -158,8 +167,34 @@ export async function GET(
       }
     })
 
+    // Generate temporary Dropbox links for assets stored in Dropbox
+    const assetsWithLinks = await Promise.all(
+      currentVersion.assets.map(async (clientAsset) => {
+        const asset = clientAsset.asset
+        if (asset.provider === 'dropbox' && asset.url) {
+          try {
+            const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+            return {
+              ...clientAsset,
+              asset: {
+                ...asset,
+                temporaryUrl: temporaryLink || asset.url
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
+            return clientAsset
+          }
+        }
+        return clientAsset
+      })
+    )
+
     return NextResponse.json({
-      currentVersion: currentVersion,
+      currentVersion: {
+        ...currentVersion,
+        assets: assetsWithLinks
+      },
       clientApprovals
     })
 

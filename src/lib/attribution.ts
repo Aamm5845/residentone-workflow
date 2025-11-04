@@ -252,6 +252,8 @@ export const EntityTypes = {
   TAG: 'Tag',
   CHECKLIST_ITEM: 'ChecklistItem',
   NOTIFICATION: 'Notification',
+  RENDERING_VERSION: 'RenderingVersion',
+  CLIENT_APPROVAL_VERSION: 'ClientApprovalVersion',
 } as const
 
 /**
