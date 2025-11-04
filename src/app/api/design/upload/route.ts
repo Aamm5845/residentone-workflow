@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import path from 'path'
-import fs from 'fs'
+import { dropboxService } from '@/lib/dropbox-service'
 import { 
   withCreateAttribution,
   logActivity,
@@ -87,21 +86,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Section not found' }, { status: 404 })
     }
 
-    // For Vercel compatibility: Store files as base64 in database
-    // This works in serverless environments without file system access
+    // Upload to Dropbox in organized folder structure
     const buffer = Buffer.from(await file.arrayBuffer())
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const timestamp = Date.now()
+    const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
     
-    // Store file data directly in database as base64
-    const fileData = buffer.toString('base64')
-    const fileUrl = `data:${file.type};base64,${fileData}`
-    const provider = 'database'
+    let fileUrl: string
+    let provider: string
+    
+    // Check if project has Dropbox integration
+    if (section.stage.room.project.dropboxFolder) {
+      const roomName = section.stage.room.name || section.stage.room.type
+      const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+      
+      // Create path: /Project/7-SOURCES/Design Concept/{RoomName}/
+      const dropboxFolderPath = `${section.stage.room.project.dropboxFolder}/7-SOURCES/Design Concept/${sanitizedRoomName}`
+      
+      // Ensure the folder exists
+      try {
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7-SOURCES`)
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7-SOURCES/Design Concept`)
+        await dropboxService.createFolder(dropboxFolderPath)
+      } catch (folderError) {
+        console.log('[Dropbox] Folders may already exist:', dropboxFolderPath)
+      }
+      
+      // Upload to Dropbox
+      const dropboxFilePath = `${dropboxFolderPath}/${fileName}`
+      await dropboxService.uploadFile(dropboxFilePath, buffer)
+      
+      fileUrl = dropboxFilePath
+      provider = 'dropbox'
+      
+      console.log(`✅ Design image uploaded to Dropbox: ${dropboxFilePath}`)
+    } else {
+      // Fallback to database storage if no Dropbox integration
+      const fileData = buffer.toString('base64')
+      fileUrl = `data:${file.type};base64,${fileData}`
+      provider = 'database'
+      console.log('⚠️ No Dropbox integration - falling back to database storage')
+    }
+    
     const metadata = JSON.stringify({
       originalName: file.name,
       uploadDate: new Date().toISOString(),
       stageId: section.stageId,
       sectionType: section.type,
-      storageMethod: 'postgres_base64'
+      storageMethod: provider === 'dropbox' ? 'dropbox' : 'postgres_base64'
     })
 
     // Determine asset type
@@ -344,14 +375,13 @@ export async function DELETE(request: NextRequest) {
 
     // Attempt to delete the actual file from storage
     try {
-      if (asset.provider === 'local' && asset.filename) {
-        const filePath = path.join(process.cwd(), 'public/uploads/design', asset.filename)
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath)
-        }
+      if (asset.provider === 'dropbox' && asset.url.startsWith('/')) {
+        // Delete from Dropbox
+        await dropboxService.deleteFile(asset.url)
+        console.log(`✅ Deleted file from Dropbox: ${asset.url}`)
       }
     } catch (fileDeleteError) {
-      console.error('Error deleting file from storage:', fileDeleteError)
+      console.error('⚠️ Error deleting file from storage:', fileDeleteError)
       // Continue with database deletion even if file deletion fails
     }
     
