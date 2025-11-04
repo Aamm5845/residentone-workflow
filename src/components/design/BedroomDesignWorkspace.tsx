@@ -1171,11 +1171,11 @@ export default function BedroomDesignWorkspace({
                                         originalName: asset.title,
                                         type: asset.type === 'IMAGE' ? 'image' : asset.type === 'PDF' ? 'pdf' : 'document',
                                         url: `/api/assets/${asset.id}/view`,
-                                        size: 0,
+                                        size: asset.size || 0,
                                         uploadedAt: asset.createdAt,
-                                        uploadedBy: { name: 'User' },
+                                        uploadedBy: asset.uploadedByUser || { name: asset.uploadedBy ? 'Team Member' : 'Unknown' },
                                         metadata: {
-                                          sizeFormatted: '0 KB',
+                                          sizeFormatted: asset.size ? `${(asset.size / (1024 * 1024)).toFixed(2)} MB` : '0 KB',
                                           extension: asset.title.split('.').pop() || '',
                                           isImage: asset.type === 'IMAGE',
                                           isPDF: asset.type === 'PDF'

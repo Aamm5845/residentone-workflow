@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { autoAssignPhasesToTeam } from '@/lib/utils/auto-assignment'
 import { dropboxService } from '@/lib/dropbox-service'
+import { generateProjectFolderName, sanitizeDropboxFolderName } from '@/lib/generate-project-folder-name'
 import type { Session } from 'next-auth'
 import { ProjectType, RoomType, StageType, StageStatus } from '@prisma/client'
 
@@ -139,8 +140,21 @@ export async function POST(request: NextRequest) {
     
     if (dropboxOption === 'create') {
       try {
-        console.log('📁 Creating Dropbox folder structure for project:', name)
-        dropboxFolderResult = await dropboxService.createProjectFolderStructure(name)
+        // Generate formatted folder name: YYNNN - Address (Initial. LastName)
+        const fullAddress = [streetAddress, city, province]
+          .filter(Boolean)
+          .join(', ')
+        
+        const folderName = await generateProjectFolderName(
+          fullAddress || projectAddress || name,
+          clientName,
+          sharedOrg.id
+        )
+        
+        const sanitizedFolderName = sanitizeDropboxFolderName(folderName)
+        
+        console.log('📁 Creating Dropbox folder structure:', sanitizedFolderName)
+        dropboxFolderResult = await dropboxService.createProjectFolderStructure(sanitizedFolderName)
         console.log('✅ Dropbox folder created:', dropboxFolderResult)
       } catch (error) {
         console.error('❌ Failed to create Dropbox folder structure:', error)
