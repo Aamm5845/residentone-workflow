@@ -1170,20 +1170,20 @@ export default function BedroomDesignWorkspace({
                                         name: asset.title,
                                         originalName: asset.title,
                                         type: asset.type === 'IMAGE' ? 'image' : asset.type === 'PDF' ? 'pdf' : 'document',
-                                        url: asset.url,
+                                        url: `/api/assets/${asset.id}/view`,
                                         size: 0,
                                         uploadedAt: asset.createdAt,
                                         uploadedBy: { name: 'User' },
                                         metadata: {
                                           sizeFormatted: '0 KB',
-                                          extension: asset.url.split('.').pop() || '',
+                                          extension: asset.title.split('.').pop() || '',
                                           isImage: asset.type === 'IMAGE',
                                           isPDF: asset.type === 'PDF'
                                         }
                                       })}
                                     >
                                       <img 
-                                        src={asset.url} 
+                                        src={`/api/assets/${asset.id}/view`}
                                         alt={asset.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                       />

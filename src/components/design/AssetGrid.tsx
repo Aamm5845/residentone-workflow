@@ -202,7 +202,7 @@ const FileCard = memo(({
       <div className="aspect-video bg-gray-100 flex items-center justify-center relative overflow-hidden">
         {asset.type === 'IMAGE' ? (
           <img
-            src={asset.url}
+            src={`/api/assets/${asset.id}/view`}
             alt={asset.title}
             className="w-full h-full object-cover"
             loading="lazy"
@@ -223,7 +223,7 @@ const FileCard = memo(({
               size="sm"
               variant="secondary"
               className="bg-white bg-opacity-90 hover:bg-opacity-100"
-              onClick={() => window.open(asset.url, '_blank')}
+              onClick={() => window.open(`/api/assets/${asset.id}/view`, '_blank')}
             >
               <Eye className="w-4 h-4" />
             </Button>
@@ -233,7 +233,7 @@ const FileCard = memo(({
               className="bg-white bg-opacity-90 hover:bg-opacity-100"
               onClick={() => {
                 const link = document.createElement('a')
-                link.href = asset.url
+                link.href = `/api/assets/${asset.id}/view`
                 link.download = asset.filename || asset.title
                 document.body.appendChild(link)
                 link.click()

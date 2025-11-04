@@ -85,9 +85,9 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      console.log('📝 JWT callback - user:', !!user, 'token.sub:', token.sub)
+      // Only log on initial sign-in (when user object exists)
       if (user) {
-        console.log('✅ JWT: Adding user data to token')
+        console.log('✅ JWT: User signed in -', user.email)
         return {
           ...token,
           role: user.role,
@@ -98,7 +98,6 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      console.log('📝 Session callback - token.sub:', token.sub, 'role:', token.role)
       const enhancedSession = {
         ...session,
         user: {
@@ -109,7 +108,6 @@ export const authOptions: NextAuthOptions = {
           orgName: token.orgName as string,
         },
       }
-      console.log('✅ Session: Returning enhanced session')
       return enhancedSession
     },
   },
