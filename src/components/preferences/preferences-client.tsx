@@ -611,7 +611,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                           Cloud Backups
                         </CardTitle>
                         <CardDescription>
-                          View and download automatic daily backups stored in Vercel Blob Storage
+                          View and download automatic daily backups stored in Dropbox
                         </CardDescription>
                       </div>
                       <Button
@@ -642,7 +642,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                           <div>
                             <p className="text-yellow-700 font-medium">{cloudBackupsError}</p>
                             <p className="text-sm text-yellow-600 mt-1">
-                              Cloud backups are only available when the app is deployed to Vercel with Blob Storage configured.
+                              Cloud backups are stored in Dropbox at /Meisner Interiors Team Folder/Software Backups/
                             </p>
                           </div>
                         </div>
@@ -667,7 +667,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                                 <Info className="w-4 h-4 text-purple-600 mr-2 flex-shrink-0" />
                                 <p className="text-sm text-purple-700">
                                   Showing {Math.min(cloudBackups.length, 10)} most recent backups. 
-                                  Backups are compressed and stored securely in Vercel Blob Storage.
+                                  Backups are compressed and stored securely in Dropbox. Up to 20 backups are retained.
                                 </p>
                               </div>
                             </div>
