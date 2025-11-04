@@ -20,14 +20,11 @@ export async function generateProjectFolderName(
   const currentYear = new Date().getFullYear()
   const yearPrefix = currentYear.toString().slice(-2) // "25" for 2025
   
-  // 2. Count existing projects in this year to get next number
-  const startOfYear = new Date(currentYear, 0, 1) // January 1st of current year
+  // 2. Count ALL existing projects to get next sequential number
+  // This ensures continuous numbering (25010, 25011, 25012...)
   const projectCount = await prisma.project.count({
     where: {
-      orgId: orgId,
-      createdAt: {
-        gte: startOfYear
-      }
+      orgId: orgId
     }
   })
   
