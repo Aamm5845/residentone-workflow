@@ -99,16 +99,19 @@ export async function POST(request: NextRequest) {
       const roomName = section.stage.room.name || section.stage.room.type
       const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
       
-      // Create path: /Project/7-SOURCES/Design Concept/{RoomName}/
-      const dropboxFolderPath = `${section.stage.room.project.dropboxFolder}/7-SOURCES/Design Concept/${sanitizedRoomName}`
+      // Create path: /Project/7- SOURCES/Design Concept/{RoomName}/
+      const dropboxFolderPath = `${section.stage.room.project.dropboxFolder}/7- SOURCES/Design Concept/${sanitizedRoomName}`
       
       // Ensure the folder exists
       try {
-        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7-SOURCES`)
-        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7-SOURCES/Design Concept`)
+        console.log('[Dropbox] Creating folder structure...', dropboxFolderPath)
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- SOURCES`)
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- SOURCES/Design Concept`)
         await dropboxService.createFolder(dropboxFolderPath)
+        console.log('[Dropbox] ✅ Folder structure created successfully')
       } catch (folderError) {
-        console.log('[Dropbox] Folders may already exist:', dropboxFolderPath)
+        console.log('[Dropbox] Folders may already exist or error occurred:', folderError)
+        // Continue anyway - folders might already exist
       }
       
       // Upload to Dropbox

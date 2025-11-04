@@ -104,7 +104,7 @@ export async function POST(
         if (renderingVersion.room.project.dropboxFolder) {
           const roomName = renderingVersion.room.name || renderingVersion.room.type
           const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
-          const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
+          const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
           
           // Ensure the folder exists
           try {

@@ -576,15 +576,15 @@ class DropboxService {
       console.log('[DropboxService] Creating main project folder:', mainFolderPath)
       await this.createFolder(mainFolderPath)
       
-      // Define standard subfolders
+      // Define standard subfolders (with space after dash)
       const subfolders = [
-        '1-CAD',
-        '2-MAX',
-        '3-RENDERING',
-        '4-SENT',
-        '5-RECIEVED',
-        '6-SHOPPING',
-        '7-SOURCES'
+        '1- CAD',
+        '2- MAX',
+        '3- RENDERING',
+        '4- SENT',
+        '5- RECIEVED',
+        '6- SHOPPING',
+        '7- SOURCES'
       ]
       
       // Create each subfolder
