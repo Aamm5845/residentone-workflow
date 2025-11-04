@@ -68,8 +68,45 @@ async function exportDatabase() {
   }
 }
 
-// Note: Dropbox keeps all backups, one per day (overwritten if run multiple times same day)
-// Old backups can be manually deleted from Dropbox if needed
+// Cleanup old backups - keep only last 20
+async function cleanupOldBackups() {
+  try {
+    const backupFolderPath = '/Meisner Interiors Team Folder/Software Backups'
+    
+    // List all files in backup folder
+    const folderContents = await dropboxService.listFolder(backupFolderPath)
+    
+    // Filter backup files and sort by name (contains date YYYY-MM-DD)
+    const backupFiles = folderContents.files
+      .filter(file => file.name.startsWith('database-backup-') && file.name.endsWith('.json.gz'))
+      .sort((a, b) => b.name.localeCompare(a.name)) // Newest first (YYYY-MM-DD sorts correctly)
+    
+    console.log(`Found ${backupFiles.length} backup files`)
+    
+    // Keep only last 20 backups
+    if (backupFiles.length > 20) {
+      const filesToDelete = backupFiles.slice(20) // Delete everything after the first 20
+      
+      console.log(`Deleting ${filesToDelete.length} old backups...`)
+      
+      for (const file of filesToDelete) {
+        try {
+          await dropboxService.deleteFile(file.path)
+          console.log(`🗑️ Deleted old backup: ${file.name}`)
+        } catch (error) {
+          console.error(`⚠️ Failed to delete ${file.name}:`, error)
+        }
+      }
+      
+      console.log(`🧹 Cleaned up ${filesToDelete.length} old backups`)
+    } else {
+      console.log('No cleanup needed - less than 20 backups exist')
+    }
+  } catch (error) {
+    console.error('⚠️ Failed to cleanup old backups:', error)
+    // Don't fail the backup if cleanup fails
+  }
+}
 
 export async function GET(req: Request) {
   // Check authorization
@@ -88,9 +125,9 @@ export async function GET(req: Request) {
     const jsonData = JSON.stringify(backup, null, 0)
     const compressed = await gzipAsync(Buffer.from(jsonData))
     
-    // 3. Generate filename with date
-    const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-    const filename = `database-backup-${date}.json.gz`
+    // 3. Generate filename with date and time for unique backups
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) // YYYY-MM-DDTHH-MM-SS
+    const filename = `database-backup-${timestamp}.json.gz`
     const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
     
     // 4. Ensure backup folder exists in Dropbox
@@ -100,8 +137,11 @@ export async function GET(req: Request) {
       console.log('Backup folder may already exist')
     }
     
-    // 5. Upload to Dropbox (overwrite if same day backup exists)
-    await dropboxService.uploadFile(dropboxPath, compressed, { mode: 'overwrite' })
+    // 5. Upload to Dropbox (add mode - don't overwrite)
+    await dropboxService.uploadFile(dropboxPath, compressed, { mode: 'add' })
+    
+    // 6. Cleanup old backups (keep only last 20)
+    await cleanupOldBackups()
     
     const duration = Date.now() - startTime
     const sizeMB = (compressed.length / 1024 / 1024).toFixed(2)
