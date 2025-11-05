@@ -139,6 +139,10 @@ model User {
   completedStages             Stage[]                     @relation("CompletedByUserStage")
   createdStages               Stage[]                     @relation("CreatedByUserStage")
   updatedStages               Stage[]                     @relation("UpdatedByUserStage")
+  createdDesignReferences     DesignReference[]           @relation("DesignReferenceCreatedBy")
+  updatedDesignReferences     DesignReference[]           @relation("DesignReferenceUpdatedBy")
+  designReferenceTags         DesignReferenceTag[]        @relation("UserDesignReferenceTags")
+  designReactions             DesignReaction[]            @relation("UserDesignReactions")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -337,39 +341,41 @@ model SmsConversation {
 }
 
 model DesignSection {
-  id             String          @id @default(cuid())
-  stageId        String
-  type           String
-  content        String?
-  completed      Boolean         @default(false)
-  createdById    String?
-  updatedById    String?
-  completedById  String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  assets         Asset[]         @relation("SectionAssets")
-  checklistItems ChecklistItem[]
-  comments       Comment[]
-  completedBy    User?           @relation("CompletedByUserSection", fields: [completedById], references: [id])
-  createdBy      User?           @relation("CreatedByUserSection", fields: [createdById], references: [id])
-  stage          Stage           @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  updatedBy      User?           @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
+  id               String            @id @default(cuid())
+  stageId          String
+  type             String
+  content          String?
+  completed        Boolean           @default(false)
+  createdById      String?
+  updatedById      String?
+  completedById    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  assets           Asset[]           @relation("SectionAssets")
+  checklistItems   ChecklistItem[]
+  comments         Comment[]
+  designReferences DesignReference[] @relation("DesignSectionReferences")
+  completedBy      User?             @relation("CompletedByUserSection", fields: [completedById], references: [id])
+  createdBy        User?             @relation("CreatedByUserSection", fields: [createdById], references: [id])
+  stage            Stage             @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy        User?             @relation("UpdatedByUserSection", fields: [updatedById], references: [id])
 
   @@unique([stageId, type])
 }
 
 model Tag {
-  id           String       @id @default(cuid())
-  name         String
-  type         TagType      @default(CUSTOM)
-  color        String?
-  description  String?
-  orgId        String
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  assetTags    AssetTag[]
-  commentTags  CommentTag[]
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id                   String               @id @default(cuid())
+  name                 String
+  type                 TagType              @default(CUSTOM)
+  color                String?
+  description          String?
+  orgId                String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  assetTags            AssetTag[]
+  commentTags          CommentTag[]
+  designReferenceTags  DesignReferenceTag[] @relation("TagDesignReferences")
+  organization         Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, name])
   @@index([orgId])
@@ -774,6 +780,8 @@ model Asset {
   approvalId              String?
   commentId               String?
   renderingVersionId      String?
+  externalUrl             String?                  // For Pinterest/external links
+  displayOrder            Int?                     // For custom ordering
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   drawingChecklistItemId  String?
@@ -790,6 +798,7 @@ model Asset {
   assetTags               AssetTag[]
   clientApprovalAssets    ClientApprovalAsset[]
   floorplanApprovalAssets FloorplanApprovalAsset[]
+  designReferences        DesignReference[]        @relation("DesignReferenceAssets")
 }
 
 model Notification {
@@ -1101,6 +1110,66 @@ model IssueComment {
   issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@index([issueId])
+  @@index([createdAt])
+}
+
+// Design Reference System Models
+model DesignReference {
+  id              String                 @id @default(cuid())
+  sectionId       String
+  title           String
+  description     String?
+  referenceType   DesignReferenceType
+  url             String?                // For external/Pinterest links
+  assetId         String?                // For uploaded images
+  displayOrder    Int                    @default(0)
+  isFinalized     Boolean                @default(false)
+  createdById     String
+  updatedById     String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  asset           Asset?                 @relation("DesignReferenceAssets", fields: [assetId], references: [id], onDelete: SetNull)
+  createdBy       User                   @relation("DesignReferenceCreatedBy", fields: [createdById], references: [id])
+  section         DesignSection          @relation("DesignSectionReferences", fields: [sectionId], references: [id], onDelete: Cascade)
+  updatedBy       User?                  @relation("DesignReferenceUpdatedBy", fields: [updatedById], references: [id])
+  reactions       DesignReaction[]       @relation("DesignReferenceReactions")
+  tags            DesignReferenceTag[]   @relation("DesignReferenceTagRelation")
+
+  @@index([sectionId])
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([displayOrder])
+  @@index([isFinalized])
+}
+
+model DesignReferenceTag {
+  id          String          @id @default(cuid())
+  referenceId String
+  tagId       String
+  userId      String
+  createdAt   DateTime        @default(now())
+  reference   DesignReference @relation("DesignReferenceTagRelation", fields: [referenceId], references: [id], onDelete: Cascade)
+  tag         Tag             @relation("TagDesignReferences", fields: [tagId], references: [id], onDelete: Cascade)
+  user        User            @relation("UserDesignReferenceTags", fields: [userId], references: [id])
+
+  @@unique([referenceId, tagId])
+  @@index([referenceId])
+  @@index([tagId])
+  @@index([userId])
+}
+
+model DesignReaction {
+  id          String          @id @default(cuid())
+  referenceId String
+  userId      String
+  emoji       String
+  createdAt   DateTime        @default(now())
+  reference   DesignReference @relation("DesignReferenceReactions", fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User            @relation("UserDesignReactions", fields: [userId], references: [id])
+
+  @@unique([referenceId, userId, emoji])
+  @@index([referenceId])
+  @@index([userId])
   @@index([createdAt])
 }
 
@@ -1814,6 +1883,13 @@ enum TagType {
   OPTIONAL
   EXPLORE
   CUSTOM
+}
+
+enum DesignReferenceType {
+  IMAGE
+  PINTEREST_LINK
+  EXTERNAL_LINK
+  NOTE
 }
 
 enum FFEItemState {
