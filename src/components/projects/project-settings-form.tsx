@@ -182,6 +182,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         const formData = new FormData()
         formData.append('file', file)
         formData.append('imageType', 'project-cover')
+        formData.append('projectId', project.id)
+        if (project.dropboxFolder) {
+          formData.append('dropboxFolder', project.dropboxFolder)
+        }
 
         const response = await fetch('/api/upload-image', {
           method: 'POST',
@@ -232,6 +236,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       const formData = new FormData()
       formData.append('file', file)
       formData.append('imageType', 'project-cover')
+      formData.append('projectId', project.id)
+      if (project.dropboxFolder) {
+        formData.append('dropboxFolder', project.dropboxFolder)
+      }
 
       const response = await fetch('/api/upload-image', {
         method: 'POST',

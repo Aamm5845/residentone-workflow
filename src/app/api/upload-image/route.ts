@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     const imageTypeParam = formData.get('imageType') as string || 'general'
     const typeParam = formData.get('type') as string // 'rendering' for spec book
     const roomIdParam = formData.get('roomId') as string
+    const projectId = formData.get('projectId') as string
+    const projectDropboxFolder = formData.get('dropboxFolder') as string
 
     // Validate parameters
     const { imageType } = uploadSchema.parse({
@@ -79,9 +81,21 @@ export async function POST(request: NextRequest) {
       
       const subfolder = folderMap[imageType] || 'General Assets'
       
-      // Ensure the folder structure exists
-      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
-      const subfolderPath = `${basePath}/${subfolder}`
+      // Determine base path: use project's Dropbox folder if available, otherwise use team folder
+      let basePath: string
+      let subfolderPath: string
+      
+      if (projectDropboxFolder && imageType === 'project-cover') {
+        // For project covers, use the project's linked Dropbox folder
+        basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
+        subfolderPath = `${basePath}/${subfolder}`
+        
+        console.log('[upload-image] Using project Dropbox folder:', projectDropboxFolder)
+      } else {
+        // For avatars and general assets, use team folder
+        basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+        subfolderPath = `${basePath}/${subfolder}`
+      }
       
       // Create folders if they don't exist
       try {
