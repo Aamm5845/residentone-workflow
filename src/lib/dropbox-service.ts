@@ -441,55 +441,61 @@ class DropboxService {
     try {
       const client = this.getClient()
       
-      // First, try to get existing shared links
+      // Try to create a new shared link directly
       try {
-        const listResponse = await client.sharingListSharedLinks({ path })
-        if (listResponse?.result?.links && listResponse.result.links.length > 0) {
-          const link = listResponse.result.links[0]
-          // Convert to direct download link by replacing dl=0 with dl=1 or raw=1
-          const directLink = link.url.replace('dl=0', 'raw=1')
-          console.log('[DropboxService] Using existing shared link:', directLink)
+        const createResponse = await client.sharingCreateSharedLinkWithSettings({
+          path,
+          settings: {
+            requested_visibility: { '.tag': 'public' },
+            audience: { '.tag': 'public' },
+            access: { '.tag': 'viewer' }
+          }
+        })
+        
+        if (createResponse?.result?.url) {
+          // Convert to direct download link
+          const directLink = createResponse.result.url.replace('dl=0', 'raw=1')
+          console.log('[DropboxService] Created new shared link:', directLink)
           return directLink
         }
-      } catch (listError) {
-        // No existing links, will create new one
-        console.log('[DropboxService] No existing shared link found, creating new one')
-      }
-      
-      // Create a new shared link
-      const createResponse = await client.sharingCreateSharedLinkWithSettings({
-        path,
-        settings: {
-          requested_visibility: { '.tag': 'public' },
-          audience: { '.tag': 'public' },
-          access: { '.tag': 'viewer' }
+      } catch (createError: any) {
+        // If shared link already exists, retrieve it
+        if (createError?.error?.error?.['.tag'] === 'shared_link_already_exists') {
+          console.log('[DropboxService] Shared link already exists, retrieving it...')
+          
+          // Get the existing shared link for this specific file
+          try {
+            const listResponse = await client.sharingListSharedLinks({ 
+              path,
+              direct_only: true  // Only get links for this exact path, not parent folders
+            })
+            
+            if (listResponse?.result?.links && listResponse.result.links.length > 0) {
+              // Find the link that matches our exact path
+              for (const link of listResponse.result.links) {
+                if (link.path_lower === path.toLowerCase() || link.path_lower === path) {
+                  const directLink = link.url.replace('dl=0', 'raw=1')
+                  console.log('[DropboxService] Retrieved existing shared link:', directLink)
+                  return directLink
+                }
+              }
+              
+              // Fallback: use first link if no exact match
+              const directLink = listResponse.result.links[0].url.replace('dl=0', 'raw=1')
+              console.log('[DropboxService] Using first available shared link:', directLink)
+              return directLink
+            }
+          } catch (listError) {
+            console.error('[DropboxService] Failed to list existing shared links:', listError)
+          }
+        } else {
+          console.error('[DropboxService] Failed to create shared link:', createError)
         }
-      })
-      
-      if (createResponse?.result?.url) {
-        // Convert to direct download link
-        const directLink = createResponse.result.url.replace('dl=0', 'raw=1')
-        console.log('[DropboxService] Created new shared link:', directLink)
-        return directLink
       }
       
       return null
     } catch (error: any) {
-      // If shared link already exists, try to get it
-      if (error?.error?.error?.['.tag'] === 'shared_link_already_exists') {
-        try {
-          const listResponse = await client.sharingListSharedLinks({ path })
-          if (listResponse?.result?.links && listResponse.result.links.length > 0) {
-            const directLink = listResponse.result.links[0].url.replace('dl=0', 'raw=1')
-            console.log('[DropboxService] Retrieved existing shared link:', directLink)
-            return directLink
-          }
-        } catch (listError) {
-          console.error('Failed to list existing shared links:', listError)
-        }
-      }
-      
-      console.error('Dropbox shared link error:', error)
+      console.error('[DropboxService] Shared link error:', error)
       return null
     }
   }
