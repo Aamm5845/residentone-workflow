@@ -205,7 +205,18 @@ export async function POST(
           const uniqueFileName = `chat_${uuidv4()}.${fileExtension}`
           
           const dropboxService = new DropboxService()
-          const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/Chat Attachments/${uniqueFileName}`
+          
+          // Ensure folder structure exists
+          const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+          const chatFolder = `${basePath}/Chat Attachments`
+          try {
+            await dropboxService.createFolder(basePath)
+            await dropboxService.createFolder(chatFolder)
+          } catch (folderError) {
+            console.log('[chat] Folders already exist or created successfully')
+          }
+          
+          const dropboxPath = `${chatFolder}/${uniqueFileName}`
           
           const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
           const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)

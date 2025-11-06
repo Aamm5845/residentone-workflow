@@ -160,7 +160,18 @@ export async function POST(request: NextRequest) {
       
       // Upload to Dropbox
       const dropboxService = new DropboxService()
-      const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/General Assets/${fileName}`
+      
+      // Ensure folder structure exists
+      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const generalFolder = `${basePath}/General Assets`
+      try {
+        await dropboxService.createFolder(basePath)
+        await dropboxService.createFolder(generalFolder)
+      } catch (folderError) {
+        console.log('[upload] Folders already exist or created successfully')
+      }
+      
+      const dropboxPath = `${generalFolder}/${fileName}`
       
       const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
       const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)

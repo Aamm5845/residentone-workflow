@@ -39,9 +39,23 @@ export async function POST(request: NextRequest) {
       const { DropboxService } = await import('@/lib/dropbox-service')
       const dropboxService = new DropboxService()
       
+      // Ensure folder structure exists
+      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const specBooksFolder = `${basePath}/Spec Books`
+      const projectFolder = `${specBooksFolder}/${projectId}`
+      const sectionFolder = `${projectFolder}/${sectionType}`
+      try {
+        await dropboxService.createFolder(basePath)
+        await dropboxService.createFolder(specBooksFolder)
+        await dropboxService.createFolder(projectFolder)
+        await dropboxService.createFolder(sectionFolder)
+      } catch (folderError) {
+        console.log('[spec-books] Folders already exist or created successfully')
+      }
+      
       const timestamp = Date.now()
       const uniqueFileName = `${timestamp}-${file.name}`
-      const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/Spec Books/${projectId}/${sectionType}/${uniqueFileName}`
+      const dropboxPath = `${sectionFolder}/${uniqueFileName}`
       
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)

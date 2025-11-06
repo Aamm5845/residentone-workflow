@@ -79,9 +79,19 @@ export async function POST(request: NextRequest) {
       
       const subfolder = folderMap[imageType] || 'General Assets'
       
-      // Try to get project from session or context
-      // For now, use organization-level folder
-      dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/${subfolder}/${fileName}`
+      // Ensure the folder structure exists
+      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const subfolderPath = `${basePath}/${subfolder}`
+      
+      // Create folders if they don't exist
+      try {
+        await dropboxService.createFolder(basePath)
+        await dropboxService.createFolder(subfolderPath)
+      } catch (folderError) {
+        console.log('[upload-image] Folders already exist or created successfully')
+      }
+      
+      dropboxPath = `${subfolderPath}/${fileName}`
       
       console.log('[upload-image] Uploading to Dropbox:', dropboxPath)
       

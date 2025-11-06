@@ -34,7 +34,20 @@ export async function POST(request: NextRequest) {
     const uniqueFileName = `${timestamp}-${file.name}`
     
     const dropboxService = new DropboxService()
-    const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/PDFs/${type || 'general'}/${uniqueFileName}`
+    
+    // Ensure folder structure exists
+    const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+    const pdfFolder = `${basePath}/PDFs`
+    const typeFolder = `${pdfFolder}/${type || 'general'}`
+    try {
+      await dropboxService.createFolder(basePath)
+      await dropboxService.createFolder(pdfFolder)
+      await dropboxService.createFolder(typeFolder)
+    } catch (folderError) {
+      console.log('[upload-pdf] Folders already exist or created successfully')
+    }
+    
+    const dropboxPath = `${typeFolder}/${uniqueFileName}`
     
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
