@@ -63,6 +63,22 @@ export default async function ProjectSettings({ params }: Props) {
     project = results[0]
     clients = results[1]
     
+    // Ensure coverImages is properly serialized
+    if (project && project.coverImages) {
+      // Prisma returns Json fields as actual types, ensure it's an array
+      if (typeof project.coverImages === 'string') {
+        try {
+          project.coverImages = JSON.parse(project.coverImages)
+        } catch {
+          project.coverImages = [project.coverImages]
+        }
+      } else if (!Array.isArray(project.coverImages)) {
+        project.coverImages = []
+      }
+    } else if (project) {
+      project.coverImages = []
+    }
+    
   } catch (error) {
     console.error('Error fetching project or clients:', error)
     redirect('/projects')

@@ -48,9 +48,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [currentCoverImages, setCurrentCoverImages] = useState(
-    Array.isArray(project.coverImages) ? project.coverImages : project.coverImages ? [project.coverImages] : []
-  )
+  const [currentCoverImages, setCurrentCoverImages] = useState(() => {
+    // Handle different formats: array, stringified array, single string, or null
+    if (!project.coverImages) return []
+    if (Array.isArray(project.coverImages)) return project.coverImages
+    if (typeof project.coverImages === 'string') {
+      try {
+        const parsed = JSON.parse(project.coverImages)
+        return Array.isArray(parsed) ? parsed : [project.coverImages]
+      } catch {
+        return [project.coverImages]
+      }
+    }
+    return []
+  })
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [contractorsList, setContractorsList] = useState(project.contractors || [])
   const [showAddContractorDialog, setShowAddContractorDialog] = useState(false)
@@ -133,7 +144,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       streetAddress: project?.streetAddress || project?.address || '', // Fallback to legacy address if structured field is empty
       city: project?.city || '',
       postalCode: project?.postalCode || '',
-      coverImages: Array.isArray(project?.coverImages) ? project.coverImages : project?.coverImages ? [project.coverImages] : [],
+      coverImages: (() => {
+        // Handle different formats: array, stringified array, single string, or null
+        if (!project?.coverImages) return []
+        if (Array.isArray(project.coverImages)) return project.coverImages
+        if (typeof project.coverImages === 'string') {
+          try {
+            const parsed = JSON.parse(project.coverImages)
+            return Array.isArray(parsed) ? parsed : [project.coverImages]
+          } catch {
+            return [project.coverImages]
+          }
+        }
+        return []
+      })(),
       dropboxFolder: project?.dropboxFolder || '',
       hasFloorplanApproval: project?.hasFloorplanApproval || false,
       hasSpecBook: project?.hasSpecBook || false,
