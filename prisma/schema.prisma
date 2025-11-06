@@ -706,22 +706,22 @@ model Comment {
 }
 
 model ChatMessage {
-  id            String               @id @default(cuid())
+  id            String                @id @default(cuid())
   content       String
   authorId      String
   stageId       String
   imageUrl      String?
   imageFileName String?
   editedAt      DateTime?
-  isEdited      Boolean              @default(false)
+  isEdited      Boolean               @default(false)
   deletedAt     DateTime?
-  isDeleted     Boolean              @default(false)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  isDeleted     Boolean               @default(false)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
   mentions      ChatMention[]
+  author        User                  @relation(fields: [authorId], references: [id])
+  stage         Stage                 @relation(fields: [stageId], references: [id], onDelete: Cascade)
   reactions     ChatMessageReaction[]
-  author        User                 @relation(fields: [authorId], references: [id])
-  stage         Stage                @relation(fields: [stageId], references: [id], onDelete: Cascade)
 
   @@index([stageId, createdAt])
   @@index([authorId])
@@ -946,18 +946,18 @@ model RenderingNote {
 }
 
 model DrawingChecklistItem {
-  id           String            @id @default(cuid())
+  id           String               @id @default(cuid())
   stageId      String
   type         DrawingChecklistType
   name         String
   description  String?
-  completed    Boolean           @default(false)
-  order        Int               @default(0)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  completed    Boolean              @default(false)
+  order        Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   completedAt  DateTime?
-  assets       Asset[]           @relation("DrawingChecklistAssets")
-  dropboxFiles DropboxFileLink[] @relation("DrawingChecklistDropboxFiles")
+  assets       Asset[]              @relation("DrawingChecklistAssets")
+  dropboxFiles DropboxFileLink[]    @relation("DrawingChecklistDropboxFiles")
 
   @@index([stageId])
   @@index([order])
@@ -1604,7 +1604,7 @@ model SpecBookSection {
 }
 
 model DropboxFileLink {
-  id                     String                 @id @default(cuid())
+  id                     String                @id @default(cuid())
   sectionId              String?
   drawingChecklistItemId String?
   dropboxPath            String
@@ -1616,11 +1616,11 @@ model DropboxFileLink {
   cadToPdfCacheUrl       String?
   uploadedPdfUrl         String?
   cacheExpiry            DateTime?
-  isActive               Boolean                @default(true)
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  section                SpecBookSection?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  drawingChecklistItem   DrawingChecklistItem?  @relation("DrawingChecklistDropboxFiles", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
+  isActive               Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  drawingChecklistItem   DrawingChecklistItem? @relation("DrawingChecklistDropboxFiles", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
+  section                SpecBookSection?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([sectionId])
   @@index([drawingChecklistItemId])
