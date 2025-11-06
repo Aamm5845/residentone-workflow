@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
-import { put } from '@vercel/blob'
+import { DropboxService } from '@/lib/dropbox-service'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,18 +29,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size exceeds 50MB limit' }, { status: 400 })
     }
 
-    // Upload to Vercel Blob
+    // Upload to Dropbox
     const timestamp = Date.now()
-    const fileName = `${type}/${timestamp}-${file.name}`
+    const uniqueFileName = `${timestamp}-${file.name}`
     
-    const blob = await put(fileName, file, {
-      access: 'public',
-      contentType: 'application/pdf'
-    })
+    const dropboxService = new DropboxService()
+    const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/PDFs/${type || 'general'}/${uniqueFileName}`
+    
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+    const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
 
     return NextResponse.json({
       success: true,
-      url: blob.url,
+      url: tempLink.link,
       fileName: file.name,
       fileSize: file.size
     })

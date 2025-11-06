@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { v4 as uuidv4 } from 'uuid'
-import { uploadFile, generateFilePath, getContentType, isBlobConfigured, formatFileSize } from '@/lib/blob'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { DropboxService } from '@/lib/dropbox-service'
 import { 
   withCreateAttribution,
   logActivity,
@@ -28,7 +26,14 @@ const ALLOWED_TYPES = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
 }
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
+// Helper function to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -149,64 +154,19 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      let fileUrl: string
-      let storageType: 'cloud' | 'local'
-      
-      // Convert file to buffer once
+      // Convert file to buffer
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
       
-      // Check if Vercel Blob is configured and try it first
-      if (isBlobConfigured()) {
-        
-        try {
-
-          // Generate structured file path
-          const orgId = (session.user as any)?.orgId || 'default'
-          const filePath = generateFilePath(
-            orgId,
-            projectId || 'general',
-            roomId || undefined,
-            sectionId || undefined,
-            fileName
-          )
-          
-          // Upload to Vercel Blob with proper content type
-          const contentType = getContentType(fileName)
-          const uploadResult = await uploadFile(buffer, filePath, {
-            contentType,
-            filename: fileName
-          })
-
-          fileUrl = uploadResult.url
-          storageType = 'cloud'
-          
-        } catch (blobError) {
-          console.error('❌ Vercel Blob upload failed:', blobError)
-          
-          // Fall back to local storage
-          await mkdir(UPLOAD_DIR, { recursive: true })
-          const projectDir = path.join(UPLOAD_DIR, projectId || 'general')
-          await mkdir(projectDir, { recursive: true })
-          
-          const filePath = path.join(projectDir, fileName)
-          await writeFile(filePath, buffer)
-          fileUrl = `/uploads/${projectId || 'general'}/${fileName}`
-          storageType = 'local'
-        }
-        
-      } else {
-        
-        // Ensure upload directory exists
-        await mkdir(UPLOAD_DIR, { recursive: true })
-        const projectDir = path.join(UPLOAD_DIR, projectId || 'general')
-        await mkdir(projectDir, { recursive: true })
-        
-        const filePath = path.join(projectDir, fileName)
-        await writeFile(filePath, buffer)
-        fileUrl = `/uploads/${projectId || 'general'}/${fileName}`
-        storageType = 'local'
-      }
+      // Upload to Dropbox
+      const dropboxService = new DropboxService()
+      const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/General Assets/${fileName}`
+      
+      const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+      const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+      
+      const fileUrl = tempLink.link
+      const storageType: 'cloud' | 'local' = 'cloud'
       
       // Save to database if we have section info
       let asset = null
@@ -229,13 +189,13 @@ export async function POST(request: NextRequest) {
               type: assetType,
               size: file.size,
               mimeType: file.type,
-              provider: storageType === 'cloud' ? 'vercel' : 'local',
+              provider: 'dropbox',
               metadata: JSON.stringify({
                 originalName: file.name,
                 uploadDate: new Date().toISOString(),
                 stageId: section.stageId,
                 sectionType: section.type,
-                storageMethod: storageType === 'cloud' ? 'vercel_blob' : 'local_filesystem'
+                storageMethod: 'dropbox'
               }),
               userDescription: userDescription || null,
               uploadedBy: session.user.id,
@@ -293,7 +253,7 @@ export async function POST(request: NextRequest) {
         projectId,
         storage: {
           type: storageType,
-          location: storageType === 'cloud' ? 'Vercel Blob' : 'Local Filesystem'
+          location: 'Dropbox'
         },
         metadata: {
           sizeFormatted: formatFileSize(file.size),

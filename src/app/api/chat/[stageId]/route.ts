@@ -13,9 +13,9 @@ import {
 } from '@/lib/attribution'
 import { getStageName } from '@/constants/workflow'
 import { sendMentionSMS } from '@/lib/twilio'
-import { uploadFile, generateFilePath, getContentType, isBlobConfigured } from '@/lib/blob'
 import { v4 as uuidv4 } from 'uuid'
 import { sendEmail } from '@/lib/email/email-service'
+import { DropboxService } from '@/lib/dropbox-service'
 
 // GET /api/chat/[stageId] - Get all chat messages for a stage
 export async function GET(
@@ -197,32 +197,21 @@ export async function POST(
           }, { status: 400 })
         }
 
-        // Upload image
+        // Upload image to Dropbox
         try {
           const bytes = await imageFile.arrayBuffer()
           const buffer = Buffer.from(bytes)
           const fileExtension = imageFile.name.split('.').pop() || 'jpg'
           const uniqueFileName = `chat_${uuidv4()}.${fileExtension}`
           
-          if (isBlobConfigured()) {
-            const filePath = generateFilePath(
-              session.user.orgId,
-              'chat',
-              resolvedParams.stageId,
-              undefined,
-              uniqueFileName
-            )
-            const uploadResult = await uploadFile(buffer, filePath, {
-              contentType: getContentType(uniqueFileName),
-              filename: uniqueFileName
-            })
-            imageUrl = uploadResult.url
-            imageFileName = imageFile.name
-          } else {
-            return NextResponse.json({ 
-              error: 'Image upload is not configured' 
-            }, { status: 500 })
-          }
+          const dropboxService = new DropboxService()
+          const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/Chat Attachments/${uniqueFileName}`
+          
+          const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+          const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+          
+          imageUrl = tempLink.link
+          imageFileName = imageFile.name
         } catch (uploadError) {
           console.error('Image upload error:', uploadError)
           return NextResponse.json({ 

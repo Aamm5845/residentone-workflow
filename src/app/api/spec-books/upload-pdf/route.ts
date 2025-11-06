@@ -35,13 +35,20 @@ export async function POST(request: NextRequest) {
       fileName = file.name
       fileSize = file.size
 
-      // Upload to Vercel Blob
-      const { put } = await import('@vercel/blob')
-      const blob = await put(`spec-books/${projectId}/${sectionType}/${file.name}`, file, {
-        access: 'public',
-        addRandomSuffix: true, // Generate unique filename to avoid overwrites
-      })
-      uploadedPdfUrl = blob.url
+      // Upload to Dropbox
+      const { DropboxService } = await import('@/lib/dropbox-service')
+      const dropboxService = new DropboxService()
+      
+      const timestamp = Date.now()
+      const uniqueFileName = `${timestamp}-${file.name}`
+      const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/Spec Books/${projectId}/${sectionType}/${uniqueFileName}`
+      
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+      const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+      
+      uploadedPdfUrl = tempLink.link
 
       // Get page count from PDF
       try {
