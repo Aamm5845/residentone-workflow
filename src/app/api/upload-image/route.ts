@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
-import { uploadFile, generateUserFilePath, getContentType, isBlobConfigured } from '@/lib/blob'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { DropboxService } from '@/lib/dropbox-service'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // Validation schema
@@ -24,19 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if we should use Vercel Blob (preferred) or local storage
-    const useBlobStorage = isBlobConfigured()
-    
-    if (useBlobStorage) {
-      
-    } else {
-      if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json({ 
-          error: 'File storage not configured properly. Please contact support.' 
-        }, { status: 500 })
-      }
-      
-    }
+    // Initialize Dropbox service
+    const dropboxService = new DropboxService()
 
     // Parse form data
     
@@ -78,48 +66,42 @@ export async function POST(request: NextRequest) {
     const fileName = `${timestamp}_${Math.random().toString(36).substring(7)}.${fileExtension}`
 
     try {
-      let uploadResult
-      let storageUsed = 'unknown'
+      // Get project info if available (for project-specific uploads)
+      let projectFolder = null
+      let dropboxPath = ''
       
-      // Try Vercel Blob first if configured
-      if (useBlobStorage) {
-        try {
-          
-          // Generate structured path for the image
-          const orgId = session.user.orgId
-          const userId = session.user.id
-          const filePath = generateUserFilePath(orgId, userId, fileName, imageType)
-          
-          // Upload with proper content type
-          const contentType = getContentType(fileName)
-          const blobResult = await uploadFile(buffer, filePath, {
-            contentType,
-            filename: fileName
-          })
-          
-          uploadResult = { url: blobResult.url, path: blobResult.pathname }
-          storageUsed = 'vercel-blob'
-          
-        } catch (blobError) {
-          
-          console.error('Vercel Blob error:', blobError)
-          uploadResult = await uploadImageLocally(buffer, fileName, imageType)
-          storageUsed = 'local-fallback'
-        }
-      } else {
-        // Use local file storage when Vercel Blob not available
-        
-        uploadResult = await uploadImageLocally(buffer, fileName, imageType)
-        storageUsed = 'local'
+      // Determine Dropbox folder based on image type
+      const folderMap: Record<string, string> = {
+        'avatar': 'User Avatars',
+        'project-cover': 'Project Covers',
+        'general': 'General Assets'
       }
+      
+      const subfolder = folderMap[imageType] || 'General Assets'
+      
+      // Try to get project from session or context
+      // For now, use organization-level folder
+      dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/${subfolder}/${fileName}`
+      
+      console.log('[upload-image] Uploading to Dropbox:', dropboxPath)
+      
+      // Upload to Dropbox
+      const dropboxResult = await dropboxService.uploadFile(dropboxPath, buffer)
+      
+      // Get temporary link for immediate access
+      const temporaryLink = await dropboxService.getTemporaryLink(dropboxPath)
+      
+      const uploadResult = {
+        url: temporaryLink || dropboxPath, // Use temporary link or path
+        path: dropboxPath
+      }
+      
+      const storageUsed = 'dropbox'
 
       // If this is a rendering upload for spec book, update the database
       let renderingId = null
       if (typeParam === 'rendering' && roomIdParam) {
         try {
-          // Import prisma here to avoid circular dependencies
-          const { prisma } = await import('@/lib/prisma')
-          
           // Update or create spec book section with rendering URL
           const specBook = await prisma.specBook.findFirst({
             where: {
@@ -202,33 +184,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Local file storage function
-async function uploadImageLocally(
-  buffer: Buffer,
-  fileName: string,
-  imageType: 'avatar' | 'project-cover' | 'general'
-): Promise<{ url: string; path: string }> {
-  try {
-    // Create organized folder structure
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'images', imageType)
-    await mkdir(uploadDir, { recursive: true })
-    
-    // Save file
-    const filePath = path.join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
-    
-    // Generate public URL
-    const publicUrl = `/uploads/images/${imageType}/${fileName}`
-
-    return {
-      url: publicUrl,
-      path: filePath
-    }
-  } catch (error) {
-    console.error('Local upload error:', error)
-    throw new Error('Failed to save image locally')
-  }
-}
 
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
