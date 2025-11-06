@@ -675,5 +675,6 @@ class DropboxService {
   }
 }
 
+export { DropboxService }
 export const dropboxService = new DropboxService()
 export type { DropboxFile, DropboxFolder }
