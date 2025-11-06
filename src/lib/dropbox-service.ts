@@ -628,7 +628,7 @@ class DropboxService {
    */
   async createProjectFolderStructure(projectName: string): Promise<string> {
     try {
-      console.log('[DropboxService] Creating project folder structure for:', projectName)
+      console.log('[DropboxService] 📁 Creating project folder structure for:', projectName)
       
       // Sanitize project name for folder creation
       const sanitizedProjectName = this.sanitizeFolderName(projectName)
@@ -637,11 +637,13 @@ class DropboxService {
         throw new Error('Project name resulted in empty folder name after sanitization')
       }
       
+      console.log('[DropboxService] 📝 Sanitized project name:', sanitizedProjectName)
+      
       // Define the main project folder path
       const mainFolderPath = `/Meisner Interiors Team Folder/${sanitizedProjectName}`
       
       // Create main project folder
-      console.log('[DropboxService] Creating main project folder:', mainFolderPath)
+      console.log('[DropboxService] 📂 Creating main project folder:', mainFolderPath)
       await this.createFolder(mainFolderPath)
       
       // Define standard subfolders (with space after dash)
@@ -659,19 +661,27 @@ class DropboxService {
       ]
       
       // Create each subfolder
+      console.log(`[DropboxService] 📚 Creating ${subfolders.length} subfolders...`)
+      let successCount = 0
+      let failCount = 0
+      
       for (const subfolder of subfolders) {
         const subfolderPath = `${mainFolderPath}/${subfolder}`
-        console.log('[DropboxService] Creating subfolder:', subfolderPath)
+        console.log(`[DropboxService] 📁 Creating subfolder ${successCount + 1}/${subfolders.length}:`, subfolderPath)
         
         try {
           await this.createFolder(subfolderPath)
+          successCount++
+          console.log(`[DropboxService] ✅ Subfolder created: ${subfolder}`)
         } catch (error) {
+          failCount++
           // Log error but continue with other folders
           console.error(`[DropboxService] ⚠️ Failed to create subfolder ${subfolder}:`, error)
         }
       }
       
-      console.log('[DropboxService] ✅ Project folder structure created successfully:', mainFolderPath)
+      console.log(`[DropboxService] ✅ Project folder structure completed: ${successCount} folders created, ${failCount} failed`)
+      console.log('[DropboxService] 📍 Main folder path:', mainFolderPath)
       return mainFolderPath
       
     } catch (error) {
