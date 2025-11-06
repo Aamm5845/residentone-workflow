@@ -46,9 +46,15 @@ export async function POST(request: NextRequest) {
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
       const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-      const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+      const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
       
-      uploadedPdfUrl = tempLink.link
+      if (!sharedLink) {
+        return NextResponse.json({ 
+          error: 'Failed to create shared link for spec book PDF' 
+        }, { status: 500 })
+      }
+      
+      uploadedPdfUrl = sharedLink
 
       // Get page count from PDF
       try {

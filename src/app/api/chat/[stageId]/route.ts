@@ -208,9 +208,13 @@ export async function POST(
           const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/Chat Attachments/${uniqueFileName}`
           
           const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-          const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+          const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
           
-          imageUrl = tempLink.link
+          if (!sharedLink) {
+            throw new Error('Failed to create shared link for chat image')
+          }
+          
+          imageUrl = sharedLink
           imageFileName = imageFile.name
         } catch (uploadError) {
           console.error('Image upload error:', uploadError)

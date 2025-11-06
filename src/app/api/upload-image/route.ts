@@ -88,11 +88,15 @@ export async function POST(request: NextRequest) {
       // Upload to Dropbox
       const dropboxResult = await dropboxService.uploadFile(dropboxPath, buffer)
       
-      // Get temporary link for immediate access
-      const temporaryLink = await dropboxService.getTemporaryLink(dropboxPath)
+      // Create permanent shared link for the file
+      const sharedLink = await dropboxService.createSharedLink(dropboxPath)
+      
+      if (!sharedLink) {
+        throw new Error('Failed to create shared link for uploaded file')
+      }
       
       const uploadResult = {
-        url: temporaryLink || dropboxPath, // Use temporary link or path
+        url: sharedLink,
         path: dropboxPath
       }
       

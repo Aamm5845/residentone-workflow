@@ -163,9 +163,13 @@ export async function POST(request: NextRequest) {
       const dropboxPath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS/General Assets/${fileName}`
       
       const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-      const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+      const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
       
-      const fileUrl = tempLink.link
+      if (!sharedLink) {
+        throw new Error('Failed to create shared link for uploaded file')
+      }
+      
+      const fileUrl = sharedLink
       const storageType: 'cloud' | 'local' = 'cloud'
       
       // Save to database if we have section info

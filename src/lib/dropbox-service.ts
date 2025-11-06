@@ -420,6 +420,7 @@ class DropboxService {
 
   /**
    * Get a temporary download link for a file (for client access)
+   * Note: These links expire after 4 hours
    */
   async getTemporaryLink(path: string): Promise<string | null> {
     try {
@@ -428,6 +429,67 @@ class DropboxService {
       return response?.result?.link || null
     } catch (error) {
       console.error('Dropbox temporary link error:', error)
+      return null
+    }
+  }
+
+  /**
+   * Create or get a permanent shared link for a file
+   * These links don't expire and can be used with Next.js Image component
+   */
+  async createSharedLink(path: string): Promise<string | null> {
+    try {
+      const client = this.getClient()
+      
+      // First, try to get existing shared links
+      try {
+        const listResponse = await client.sharingListSharedLinks({ path })
+        if (listResponse?.result?.links && listResponse.result.links.length > 0) {
+          const link = listResponse.result.links[0]
+          // Convert to direct download link by replacing dl=0 with dl=1 or raw=1
+          const directLink = link.url.replace('dl=0', 'raw=1')
+          console.log('[DropboxService] Using existing shared link:', directLink)
+          return directLink
+        }
+      } catch (listError) {
+        // No existing links, will create new one
+        console.log('[DropboxService] No existing shared link found, creating new one')
+      }
+      
+      // Create a new shared link
+      const createResponse = await client.sharingCreateSharedLinkWithSettings({
+        path,
+        settings: {
+          requested_visibility: { '.tag': 'public' },
+          audience: { '.tag': 'public' },
+          access: { '.tag': 'viewer' }
+        }
+      })
+      
+      if (createResponse?.result?.url) {
+        // Convert to direct download link
+        const directLink = createResponse.result.url.replace('dl=0', 'raw=1')
+        console.log('[DropboxService] Created new shared link:', directLink)
+        return directLink
+      }
+      
+      return null
+    } catch (error: any) {
+      // If shared link already exists, try to get it
+      if (error?.error?.error?.['.tag'] === 'shared_link_already_exists') {
+        try {
+          const listResponse = await client.sharingListSharedLinks({ path })
+          if (listResponse?.result?.links && listResponse.result.links.length > 0) {
+            const directLink = listResponse.result.links[0].url.replace('dl=0', 'raw=1')
+            console.log('[DropboxService] Retrieved existing shared link:', directLink)
+            return directLink
+          }
+        } catch (listError) {
+          console.error('Failed to list existing shared links:', listError)
+        }
+      }
+      
+      console.error('Dropbox shared link error:', error)
       return null
     }
   }

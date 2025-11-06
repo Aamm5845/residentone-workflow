@@ -39,11 +39,17 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-    const tempLink = await dropboxService.getTemporaryLink(uploadResult.path_display!)
+    const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
+    
+    if (!sharedLink) {
+      return NextResponse.json({ 
+        error: 'Failed to create shared link for PDF' 
+      }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,
-      url: tempLink.link,
+      url: sharedLink,
       fileName: file.name,
       fileSize: file.size
     })
