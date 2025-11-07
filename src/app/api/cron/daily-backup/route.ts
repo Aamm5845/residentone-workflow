@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
 import { gzip } from 'zlib'
 import { promisify } from 'util'
@@ -25,43 +25,103 @@ function isAuthorized(req: Request) {
 
 // Export all database tables to JSON
 async function exportDatabase() {
-  const prisma = new PrismaClient({
-    log: ['error'], // Only log errors to reduce console noise
-  })
-  
   try {
     console.log('📊 Starting database export...')
     
-    // Dynamically get all Prisma models
-    const data: Record<string, any[]> = {}
-    
-    // Get all model names from Prisma client (excludes internal models like _prisma_migrations)
-    const modelNames = Object.keys(prisma).filter(key => {
-      const model = (prisma as any)[key]
-      return model && typeof model.findMany === 'function'
-    })
-    
-    console.log(`📋 Found ${modelNames.length} tables to backup`)
-    
-    // Fetch all data from each model
-    for (const modelName of modelNames) {
-      try {
-        const model = (prisma as any)[modelName]
-        data[modelName] = await model.findMany()
-        console.log(`✓ ${modelName}: ${data[modelName].length} records`)
-      } catch (error) {
-        console.error(`⚠️ Failed to backup ${modelName}:`, error instanceof Error ? error.message : error)
-        data[modelName] = [] // Store empty array on failure
-      }
+    // Explicitly list all tables based on your actual schema
+    // This ensures complete backup coverage
+    const data = {
+      organizations: await prisma.organization.findMany(),
+      users: await prisma.user.findMany(),
+      clients: await prisma.client.findMany(),
+      contractors: await prisma.contractor.findMany(),
+      projects: await prisma.project.findMany(),
+      rooms: await prisma.room.findMany(),
+      stages: await prisma.stage.findMany(),
+      designSections: await prisma.designSection.findMany(),
+      ffeItems: await prisma.fFEItem.findMany(),
+      assets: await prisma.asset.findMany(),
+      clientAccessTokens: await prisma.clientAccessToken.findMany(),
+      clientAccessLogs: await prisma.clientAccessLog.findMany(),
+      phaseAccessTokens: await prisma.phaseAccessToken.findMany(),
+      phaseAccessLogs: await prisma.phaseAccessLog.findMany(),
+      approvals: await prisma.approval.findMany(),
+      comments: await prisma.comment.findMany(),
+      chatMessages: await prisma.chatMessage.findMany(),
+      chatMentions: await prisma.chatMention.findMany(),
+      chatMessageReactions: await prisma.chatMessageReaction.findMany(),
+      smsConversations: await prisma.smsConversation.findMany(),
+      notifications: await prisma.notification.findMany(),
+      notificationSends: await prisma.notificationSend.findMany(),
+      activityLogs: await prisma.activityLog.findMany(),
+      activities: await prisma.activity.findMany(),
+      ffeAuditLogs: await prisma.fFEAuditLog.findMany(),
+      ffeChangeLogs: await prisma.fFEChangeLog.findMany(),
+      tasks: await prisma.task.findMany(),
+      projectContractors: await prisma.projectContractor.findMany(),
+      projectUpdates: await prisma.projectUpdate.findMany(),
+      projectUpdateTasks: await prisma.projectUpdateTask.findMany(),
+      projectUpdatePhotos: await prisma.projectUpdatePhoto.findMany(),
+      projectUpdateDocuments: await prisma.projectUpdateDocument.findMany(),
+      projectUpdateMessages: await prisma.projectUpdateMessage.findMany(),
+      projectUpdateActivities: await prisma.projectUpdateActivity.findMany(),
+      projectMilestones: await prisma.projectMilestone.findMany(),
+      contractorAssignments: await prisma.contractorAssignment.findMany(),
+      issues: await prisma.issue.findMany(),
+      issueComments: await prisma.issueComment.findMany(),
+      emailLogs: await prisma.emailLog.findMany(),
+      clientApprovalEmailLogs: await prisma.clientApprovalEmailLog.findMany(),
+      floorplanApprovalEmailLogs: await prisma.floorplanApprovalEmailLog.findMany(),
+      tags: await prisma.tag.findMany(),
+      assetTags: await prisma.assetTag.findMany(),
+      commentTags: await prisma.commentTag.findMany(),
+      assetPins: await prisma.assetPin.findMany(),
+      commentPins: await prisma.commentPin.findMany(),
+      commentLikes: await prisma.commentLike.findMany(),
+      checklistItems: await prisma.checklistItem.findMany(),
+      drawingChecklistItems: await prisma.drawingChecklistItem.findMany(),
+      clientApprovals: await prisma.clientApproval.findMany(),
+      clientApprovalActivities: await prisma.clientApprovalActivity.findMany(),
+      clientApprovalAssets: await prisma.clientApprovalAsset.findMany(),
+      clientApprovalVersions: await prisma.clientApprovalVersion.findMany(),
+      floorplanApprovalActivities: await prisma.floorplanApprovalActivity.findMany(),
+      floorplanApprovalAssets: await prisma.floorplanApprovalAsset.findMany(),
+      floorplanApprovalVersions: await prisma.floorplanApprovalVersion.findMany(),
+      ffeLibraryItems: await prisma.fFELibraryItem.findMany(),
+      ffeGeneralSettings: await prisma.fFEGeneralSettings.findMany(),
+      ffeBathroomStates: await prisma.fFEBathroomState.findMany(),
+      ffeTemplates: await prisma.fFETemplate.findMany(),
+      ffeTemplateSections: await prisma.fFETemplateSection.findMany(),
+      ffeTemplateItems: await prisma.fFETemplateItem.findMany(),
+      ffeItemStatuses: await prisma.fFEItemStatus.findMany(),
+      roomFfeInstances: await prisma.roomFFEInstance.findMany(),
+      roomFfeSections: await prisma.roomFFESection.findMany(),
+      roomFfeItems: await prisma.roomFFEItem.findMany(),
+      ffeSectionLibrary: await prisma.fFESectionLibrary.findMany(),
+      renderingVersions: await prisma.renderingVersion.findMany(),
+      renderingNotes: await prisma.renderingNote.findMany(),
+      specBooks: await prisma.specBook.findMany(),
+      specBookSections: await prisma.specBookSection.findMany(),
+      specBookGenerations: await prisma.specBookGeneration.findMany(),
+      dropboxFileLinks: await prisma.dropboxFileLink.findMany(),
+      cadPreferences: await prisma.cadPreferences.findMany(),
+      projectCadDefaults: await prisma.projectCadDefaults.findMany(),
+      cadLayoutCache: await prisma.cadLayoutCache.findMany(),
+      roomSections: await prisma.roomSection.findMany(),
+      roomPresets: await prisma.roomPreset.findMany(),
+      accounts: await prisma.account.findMany(),
+      sessions: await prisma.session.findMany(),
+      verificationTokens: await prisma.verificationToken.findMany(),
+      passwordResetTokens: await prisma.passwordResetToken.findMany(),
+      userSessions: await prisma.userSession.findMany(),
     }
     
-    // Get all data from your tables
     const backup = {
       metadata: {
         timestamp: new Date().toISOString(),
         version: '2.0',
-        description: 'Meisner Interiors Workflow daily backup (dynamic)',
-        tables: modelNames.length
+        description: 'Meisner Interiors Workflow daily backup (complete)',
+        tables: Object.keys(data).length
       },
       data
     }
@@ -75,8 +135,9 @@ async function exportDatabase() {
     
     return backup
     
-  } finally {
-    await prisma.$disconnect()
+  } catch (error) {
+    console.error('❌ Database export failed:', error)
+    throw error
   }
 }
 
@@ -172,7 +233,8 @@ export async function GET(req: Request) {
       path: dropboxPath,
       size: compressed.length,
       duration,
-      recordCount
+      recordCount,
+      tables: Object.keys(backup.data).length
     })
     
   } catch (error) {

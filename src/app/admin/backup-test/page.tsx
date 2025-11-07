@@ -76,13 +76,19 @@ export default function BackupTestPage() {
                   <div className="text-sm space-y-1">
                     <div>📁 File: {result.filename}</div>
                     <div>📂 Path: {result.path}</div>
-                    <div>💾 Size: {(result.size / 1024 / 1024).toFixed(2)} MB</div>
+                    <div>💾 Size: {(result.size / 1024 / 1024).toFixed(2)} MB ({(result.size / 1024).toFixed(0)} KB)</div>
                     <div>⏱️ Duration: {result.duration}ms</div>
                     <div>📊 Records: {result.recordCount}</div>
+                    {result.tables && <div>📋 Tables: {result.tables}</div>}
                   </div>
                   <div className="mt-3 text-sm font-medium">
                     ✅ Check Dropbox: /Meisner Interiors Team Folder/Software Backups/
                   </div>
+                  {result.size < 200000 && (
+                    <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-yellow-800">
+                      ⚠️ Warning: Backup size seems too small ({(result.size / 1024).toFixed(0)} KB). This may indicate most tables are empty or not being backed up correctly.
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
