@@ -17,7 +17,7 @@ export default function BackupTestPage() {
     setResult(null)
 
     try {
-      const response = await fetch('/api/cron/daily-backup')
+      const response = await fetch('/api/cron/daily-backup?secret=test123')
       const data = await response.json()
 
       if (response.ok) {
