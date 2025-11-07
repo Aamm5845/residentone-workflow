@@ -67,12 +67,21 @@ export async function POST(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Transform assets for the email service
-    const emailAssets = version.assets.map(assetItem => ({
-      id: assetItem.id,
-      url: assetItem.asset.url,
-      includeInEmail: assetItem.includeInEmail
-    }))
+    // Transform assets for the email service - prefer Blob URL
+    const emailAssets = version.assets.map(assetItem => {
+      // Use Blob URL if available (fast delivery), fallback to original asset URL
+      const viewableUrl = assetItem.blobUrl || assetItem.asset.url
+      
+      if (!assetItem.blobUrl) {
+        console.warn(`[test-email] ⚠️ Asset ${assetItem.id} has no Blob URL, using original URL`);
+      }
+      
+      return {
+        id: assetItem.id,
+        url: viewableUrl,
+        includeInEmail: assetItem.includeInEmail
+      }
+    })
 
     try {
       // Send test email (using test email address instead of client email)
