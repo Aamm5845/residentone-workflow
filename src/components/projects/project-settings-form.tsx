@@ -82,6 +82,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const [dropboxFolderPath, setDropboxFolderPath] = useState('')
   const [isDropboxExpanded, setIsDropboxExpanded] = useState(false)
   const [isCreatingDropbox, setIsCreatingDropbox] = useState(false)
+  const [showDropboxLinkModal, setShowDropboxLinkModal] = useState(false)
   const [clientFormData, setClientFormData] = useState({
     name: project.client?.name || '',
     email: project.client?.email || '',
@@ -199,6 +200,11 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
         const data = await response.json()
         uploadedUrls.push(data.url)
+        
+        // Check if we need to prompt for Dropbox linking
+        if (data.errorCode === 'NO_DROPBOX_LINK') {
+          setShowDropboxLinkModal(true)
+        }
       }
       
       const newCoverImages = [...currentCoverImages, ...uploadedUrls]
@@ -251,6 +257,11 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       }
 
       const data = await response.json()
+      
+      // Check if we need to prompt for Dropbox linking
+      if (data.errorCode === 'NO_DROPBOX_LINK') {
+        setShowDropboxLinkModal(true)
+      }
       
       const newCoverImages = [...currentCoverImages]
       newCoverImages[index] = data.url
@@ -1990,6 +2001,101 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 disabled={isDeleting || deleteConfirmation.trim() !== project.name.trim()}
               >
                 {isDeleting ? 'Deleting...' : 'Delete Project'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dropbox Link Required Modal */}
+      {showDropboxLinkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <Folder className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  No Dropbox Folder Linked
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Project cover images are uploaded, but not archived to Dropbox
+                </p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-700 mb-6">
+              To archive cover images in your project's Dropbox folder, please link or create a Dropbox folder structure.
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={async () => {
+                  setShowDropboxLinkModal(false)
+                  setDropboxOption('create')
+                  setIsDropboxExpanded(true)
+                  setEditingSection('storage')
+                  
+                  // Auto-create Dropbox folder
+                  try {
+                    setIsCreatingDropbox(true)
+                    const response = await fetch(`/api/projects/${project.id}/dropbox-folder`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'create' })
+                    })
+                    
+                    if (response.ok) {
+                      const data = await response.json()
+                      router.refresh()
+                      alert('Dropbox folder created successfully!')
+                    } else {
+                      throw new Error('Failed to create folder')
+                    }
+                  } catch (error) {
+                    console.error('Error creating Dropbox folder:', error)
+                    alert('Failed to create Dropbox folder. Please try again.')
+                  } finally {
+                    setIsCreatingDropbox(false)
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 border-2 border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <FolderPlus className="w-5 h-5 text-purple-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Create New Folder</p>
+                    <p className="text-xs text-gray-600">Auto-create with 10 standard subfolders</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowDropboxLinkModal(false)
+                  setDropboxOption('link')
+                  setIsDropboxExpanded(true)
+                  setEditingSection('storage')
+                }}
+                className="w-full flex items-center justify-between p-4 border-2 border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Link2 className="w-5 h-5 text-blue-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Link Existing Folder</p>
+                    <p className="text-xs text-gray-600">Connect to an existing Dropbox folder</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDropboxLinkModal(false)}
+              >
+                Skip for Now
               </Button>
             </div>
           </div>
