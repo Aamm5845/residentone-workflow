@@ -120,154 +120,55 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
+    // Dynamically discover all Prisma models for future-proof backup
+    console.log('🔍 Discovering Prisma models...')
+    const modelNames = Object.keys(prisma).filter(
+      key => !key.startsWith('_') && !key.startsWith('$') && typeof (prisma as any)[key] === 'object'
+    )
+    
+    console.log(`📋 Found ${modelNames.length} models to backup`)
+    
     // Extract all production data INCLUDING sensitive information
+    const data: Record<string, any[]> = {}
+    
+    for (const modelName of modelNames) {
+      try {
+        console.log(`⏳ Backing up ${modelName}...`)
+        // Use findMany to get all records with ALL fields (including passwords, tokens, etc.)
+        data[modelName] = await (prisma as any)[modelName].findMany()
+        console.log(`✅ ${modelName}: ${data[modelName].length} records`)
+      } catch (error) {
+        console.warn(`⚠️ Could not backup ${modelName}:`, error)
+        data[modelName] = []
+      }
+    }
+    
     const backup = {
       timestamp: new Date().toISOString(),
-      version: '2.0', // Updated version for complete backup
+      version: '3.0', // Updated version for auto-discovery
       type: 'complete',
       environment: 'vercel',
       includes_files: true,
       includes_passwords: true,
+      auto_discovered: true,
       created_by: {
         id: session.user.id,
         email: session.user.email,
         role: session.user.role
       },
-      data: {
-        organizations: await prisma.organization.findMany(),
-        
-        // Include COMPLETE user data with passwords
-        users: await prisma.user.findMany({
-          // Include ALL fields including password hashes
-          include: {
-            accounts: true,
-            sessions: true
-          }
-        }),
-        
-        clients: await fetchPaginated(prisma.client, 'clients', 50),
-        contractors: await fetchPaginated(prisma.contractor, 'contractors', 50),
-        projects: await fetchPaginated(prisma.project, 'projects', 50),
-        rooms: await fetchPaginated(prisma.room, 'rooms', 100),
-        stages: await fetchPaginated(prisma.stage, 'stages', 200),
-        designSections: await fetchPaginated(prisma.designSection, 'designSections', 100),
-        ffeItems: await fetchPaginated(prisma.fFEItem, 'ffeItems', 100),
-        
-        // Get assets with full metadata (paginated to avoid 5MB limit)
-        assets: await fetchAllAssetsPaginated(),
-        
-        // Include COMPLETE client access tokens with actual tokens
-        clientAccessTokens: await prisma.clientAccessToken.findMany(),
-        clientAccessLogs: await prisma.clientAccessLog.findMany(),
-        phaseAccessTokens: await prisma.phaseAccessToken.findMany(),
-        phaseAccessLogs: await prisma.phaseAccessLog.findMany(),
-        
-        // All other data
-        approvals: await prisma.approval.findMany(),
-        comments: await prisma.comment.findMany(),
-        
-        // Chat and messaging (COMPLETE)
-        chatMessages: await prisma.chatMessage.findMany(),
-        chatMentions: await prisma.chatMention.findMany(),
-        smsConversations: await prisma.smsConversation.findMany(),
-        
-        // Notifications (COMPLETE)
-        notifications: await prisma.notification.findMany(),
-        notificationSends: await prisma.notificationSend.findMany(),
-        
-        // Activity and Audit Logs (COMPLETE)
-        activityLogs: await prisma.activityLog.findMany(),
-        activities: await prisma.activity.findMany(),
-        ffeAuditLogs: await prisma.fFEAuditLog.findMany(),
-        ffeChangeLogs: await prisma.fFEChangeLog.findMany(),
-        
-        // Tasks and Project Updates (COMPLETE)
-        tasks: await prisma.task.findMany(),
-        projectContractors: await prisma.projectContractor.findMany(),
-        projectUpdates: await prisma.projectUpdate.findMany(),
-        projectUpdateTasks: await prisma.projectUpdateTask.findMany(),
-        projectUpdatePhotos: await prisma.projectUpdatePhoto.findMany(),
-        projectUpdateDocuments: await prisma.projectUpdateDocument.findMany(),
-        projectUpdateMessages: await prisma.projectUpdateMessage.findMany(),
-        projectUpdateActivities: await prisma.projectUpdateActivity.findMany(),
-        projectMilestones: await prisma.projectMilestone.findMany(),
-        contractorAssignments: await prisma.contractorAssignment.findMany(),
-        
-        // Issues (COMPLETE)
-        issues: await prisma.issue.findMany(),
-        issueComments: await prisma.issueComment.findMany(),
-        
-        // Email Logs (COMPLETE)
-        emailLogs: await prisma.emailLog.findMany(),
-        clientApprovalEmailLogs: await prisma.clientApprovalEmailLog.findMany(),
-        floorplanApprovalEmailLogs: await prisma.floorplanApprovalEmailLog.findMany(),
-        
-        // Tags and metadata (COMPLETE)
-        tags: await prisma.tag.findMany(),
-        assetTags: await prisma.assetTag.findMany(),
-        commentTags: await prisma.commentTag.findMany(),
-        assetPins: await prisma.assetPin.findMany(),
-        commentPins: await prisma.commentPin.findMany(),
-        commentLikes: await prisma.commentLike.findMany(),
-        checklistItems: await prisma.checklistItem.findMany(),
-        
-        // Client Approvals (COMPLETE)
-        clientApprovals: await prisma.clientApproval.findMany(),
-        clientApprovalActivities: await prisma.clientApprovalActivity.findMany(),
-        clientApprovalAssets: await prisma.clientApprovalAsset.findMany(),
-        floorplanApprovalActivities: await prisma.floorplanApprovalActivity.findMany(),
-        floorplanApprovalAssets: await prisma.floorplanApprovalAsset.findMany(),
-        floorplanApprovalVersions: await prisma.floorplanApprovalVersion.findMany(),
-        
-        // FFE System (COMPLETE)
-        ffeLibraryItems: await prisma.fFELibraryItem.findMany(),
-        ffeGeneralSettings: await prisma.fFEGeneralSettings.findMany(),
-        ffeBathroomStates: await prisma.fFEBathroomState.findMany(),
-        ffeTemplates: await prisma.fFETemplate.findMany(),
-        ffeTemplateSections: await prisma.fFETemplateSection.findMany(),
-        ffeTemplateItems: await prisma.fFETemplateItem.findMany(),
-        roomFfeInstances: await prisma.roomFFEInstance.findMany(),
-        roomFfeSections: await prisma.roomFFESection.findMany(),
-        roomFfeItems: await prisma.roomFFEItem.findMany(),
-        ffeSectionLibrary: await prisma.fFESectionLibrary.findMany(),
-        
-        // Rendering & Drawings (COMPLETE)
-        renderingVersions: await prisma.renderingVersion.findMany(),
-        renderingNotes: await prisma.renderingNote.findMany(),
-        drawingChecklistItems: await prisma.drawingChecklistItem.findMany(),
-        
-        // Spec Books (COMPLETE)
-        specBooks: await prisma.specBook.findMany(),
-        specBookSections: await prisma.specBookSection.findMany(),
-        specBookGenerations: await prisma.specBookGeneration.findMany(),
-        dropboxFileLinks: await prisma.dropboxFileLink.findMany(),
-        
-        // CAD Preferences (COMPLETE)
-        cadPreferences: await prisma.cadPreferences.findMany(),
-        projectCadDefaults: await prisma.projectCadDefaults.findMany(),
-        cadLayoutCache: await prisma.cadLayoutCache.findMany(),
-        
-        // Room sections and presets
-        roomSections: await prisma.roomSection.findMany(),
-        roomPresets: await prisma.roomPreset.findMany(),
-        
-        // Auth-related data (COMPLETE)
-        accounts: await prisma.account.findMany(),
-        sessions: await prisma.session.findMany(),
-        verificationTokens: await prisma.verificationToken.findMany(),
-        passwordResetTokens: await prisma.passwordResetToken.findMany(),
-        userSessions: await prisma.userSession.findMany(),
-      },
+      data,
       
       // File downloads will be added here
       files: {} as Record<string, string>
     }
 
     // Download actual files from URLs
-    const assets = backup.data.assets
+    const assets = backup.data.asset || [] // Dynamic key name
     const fileDownloadPromises: Promise<void>[] = []
     let downloadedCount = 0
     let failedCount = 0
+    
+    console.log(`💾 Starting file downloads for ${assets.length} assets...`)
 
     for (const asset of assets) {
       if (asset.url && asset.filename) {
