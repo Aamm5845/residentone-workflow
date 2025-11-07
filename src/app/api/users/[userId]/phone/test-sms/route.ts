@@ -60,7 +60,7 @@ export async function POST(
     try {
       const message = await sendMentionSMS({
         to: targetUser.phoneNumber,
-        mentionedBy: 'ResidentOne System',
+        mentionedBy: 'Studio Flow',
         stageName: 'Test Message',
         projectName: 'SMS Configuration',
         message: `This is a test SMS notification. Your SMS alerts are working correctly! You'll receive notifications when team members mention you in project chats.`,

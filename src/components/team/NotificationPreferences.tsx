@@ -46,6 +46,7 @@ export function NotificationPreferences({
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isSendingTest, setIsSendingTest] = useState(false)
+  const [isSendingEmailTest, setIsSendingEmailTest] = useState(false)
 
   // Format phone number as user types
   const formatPhoneInput = (value: string) => {
@@ -138,6 +139,35 @@ export function NotificationPreferences({
       toast.error(error instanceof Error ? error.message : 'Failed to send test SMS')
     } finally {
       setIsSendingTest(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!emailEnabled) {
+      toast.error('Please save Email settings first')
+      return
+    }
+
+    setIsSendingEmailTest(true)
+    try {
+      const response = await fetch(`/api/users/${userId}/email/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to send test email')
+      }
+
+      toast.success('Test email sent! Check your inbox.')
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send test email')
+    } finally {
+      setIsSendingEmailTest(false)
     }
   }
 
@@ -278,19 +308,33 @@ export function NotificationPreferences({
             </p>
           </div>
 
-          {/* Test SMS Button */}
-          {!isEditing && phoneNumber && smsEnabled && (
-            <div className="ml-11 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSendTestSMS}
-                disabled={isSendingTest}
-                className="w-full"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                {isSendingTest ? 'Sending...' : 'Send Test SMS'}
-              </Button>
+          {/* Test Actions */}
+          {!isEditing && (
+            <div className="ml-11 pt-2 space-y-2">
+              {phoneNumber && smsEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendTestSMS}
+                  disabled={isSendingTest}
+                  className="w-full"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {isSendingTest ? 'Sending...' : 'Send Test SMS'}
+                </Button>
+              )}
+              {emailEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingEmailTest}
+                  className="w-full"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isSendingEmailTest ? 'Sending...' : 'Send Test Email'}
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const testData = {
       from: emailFrom || 'noreply@resend.dev',
       to: 'test@example.com', // This won't actually send since it's a test email
-      subject: '🧪 Test Email from ResidentOne',
+      subject: '🧪 Test Email from Studio Flow',
       html: '<h1>Test Email</h1><p>This is a test email to verify Resend configuration.</p>'
     }
 

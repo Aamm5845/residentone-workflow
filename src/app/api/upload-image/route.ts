@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { DropboxService } from '@/lib/dropbox-service'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { put } from '@vercel/blob'
 
 // Validation schema
 const uploadSchema = z.object({
@@ -68,63 +69,109 @@ export async function POST(request: NextRequest) {
     const fileName = `${timestamp}_${Math.random().toString(36).substring(7)}.${fileExtension}`
 
     try {
-      // Get project info if available (for project-specific uploads)
-      let projectFolder = null
-      let dropboxPath = ''
-      
-      // Determine Dropbox folder based on image type
+      // Map for Dropbox subfolders when used
       const folderMap: Record<string, string> = {
         'avatar': 'User Avatars',
         'project-cover': 'Project Covers',
         'general': 'General Assets'
       }
-      
-      const subfolder = folderMap[imageType] || 'General Assets'
-      
-      // Determine base path: use project's Dropbox folder if available, otherwise use team folder
-      let basePath: string
-      let subfolderPath: string
-      
-      if (projectDropboxFolder && imageType === 'project-cover') {
-        // For project covers, use the project's linked Dropbox folder
-        basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
-        subfolderPath = `${basePath}/${subfolder}`
-        
-        console.log('[upload-image] Using project Dropbox folder:', projectDropboxFolder)
-      } else {
-        // For avatars and general assets, use team folder
-        basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
-        subfolderPath = `${basePath}/${subfolder}`
+
+      // HYBRID STORAGE
+      // 1) Avatars → Blob only
+      // 2) Project Covers → Blob primary + mirror to Dropbox (under project folder)
+      // 3) General → Dropbox (legacy behavior)
+
+      // Case 1: Team member avatar → Blob
+      if (imageType === 'avatar') {
+        const blobFileName = `avatars/${session.user.id}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
+        const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
+
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          path: blob.pathname || blob.url,
+          fileName,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          storage: 'blob',
+        })
       }
-      
-      // Create folders if they don't exist
+
+      // Case 2: Project cover → Blob + Dropbox mirror under the linked project folder
+      if (imageType === 'project-cover') {
+        // Upload to Blob first for instant UI
+        const blobFileName = `project-covers/${projectId || 'unknown'}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
+        const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
+
+        // Attempt Dropbox mirror if a project Dropbox folder is provided
+        let mirroredToDropbox = false
+        let dropboxMirrorPath: string | null = null
+        if (projectDropboxFolder) {
+          try {
+            const basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
+            const subfolderPath = `${basePath}/${folderMap['project-cover']}`
+            await dropboxService.createFolder(basePath)
+            await dropboxService.createFolder(subfolderPath)
+            const mirrorPath = `${subfolderPath}/${fileName}`
+            await dropboxService.uploadFile(mirrorPath, buffer)
+            mirroredToDropbox = true
+            dropboxMirrorPath = mirrorPath
+          } catch (mirrorErr) {
+            console.error('[upload-image] Failed to mirror cover to Dropbox:', mirrorErr)
+          }
+        }
+
+        // If no linked Dropbox folder, signal to client to prompt linking/creation
+        const needsDropboxLink = !projectDropboxFolder
+
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          path: blob.pathname || blob.url,
+          fileName,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          storage: 'blob',
+          mirroredToDropbox,
+          dropboxMirrorPath,
+          errorCode: needsDropboxLink ? 'NO_DROPBOX_LINK' : undefined
+        })
+      }
+
+      // Case 3: General/default → Dropbox (kept as-is)
+      const subfolder = folderMap[imageType] || 'General Assets'
+
+      // Use org-wide location for non-project files
+      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const subfolderPath = `${basePath}/${subfolder}`
+
+      // Ensure folders
       try {
         await dropboxService.createFolder(basePath)
         await dropboxService.createFolder(subfolderPath)
-      } catch (folderError) {
-        console.log('[upload-image] Folders already exist or created successfully')
-      }
-      
-      dropboxPath = `${subfolderPath}/${fileName}`
-      
+      } catch {}
+
+      const dropboxPath = `${subfolderPath}/${fileName}`
       console.log('[upload-image] Uploading to Dropbox:', dropboxPath)
-      
-      // Upload to Dropbox
-      const dropboxResult = await dropboxService.uploadFile(dropboxPath, buffer)
-      
-      // Create permanent shared link for the file
+      await dropboxService.uploadFile(dropboxPath, buffer)
+
       const sharedLink = await dropboxService.createSharedLink(dropboxPath)
-      
       if (!sharedLink) {
         throw new Error('Failed to create shared link for uploaded file')
       }
-      
-      const uploadResult = {
+
+      return NextResponse.json({
+        success: true,
         url: sharedLink,
-        path: dropboxPath
-      }
-      
-      const storageUsed = 'dropbox'
+        path: dropboxPath,
+        fileName,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+        storage: 'dropbox'
+      })
 
       // If this is a rendering upload for spec book, update the database
       let renderingId = null
