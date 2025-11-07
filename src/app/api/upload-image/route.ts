@@ -98,47 +98,39 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Case 2: Project cover → Dropbox only (Blob quota exceeded, switched to Dropbox)
+      // Case 2: Project cover → Blob (instant) + Dropbox mirror (archival)
       if (imageType === 'project-cover') {
-        // Check if project has linked Dropbox folder
-        if (!projectDropboxFolder) {
-          return NextResponse.json({
-            success: false,
-            error: 'No Dropbox folder linked',
-            errorCode: 'NO_DROPBOX_LINK',
-            message: 'Please link or create a Dropbox folder for this project first'
-          }, { status: 400 })
-        }
+        // Upload to Blob first (instant display)
+        const blobFileName = `project-covers/${projectId || 'temp'}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
+        const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
 
-        // Upload to project's Dropbox folder
-        try {
-          const basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
-          const subfolderPath = `${basePath}/${folderMap['project-cover']}`
-          await dropboxService.createFolder(basePath)
-          await dropboxService.createFolder(subfolderPath)
-          const dropboxPath = `${subfolderPath}/${fileName}`
-          
-          await dropboxService.uploadFile(dropboxPath, buffer)
-          const sharedLink = await dropboxService.createSharedLink(dropboxPath)
-          
-          if (!sharedLink) {
-            throw new Error('Failed to create shared link for project cover')
+        // Mirror to Dropbox if folder is linked (don't fail if no link)
+        if (projectDropboxFolder) {
+          try {
+            const basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
+            const subfolderPath = `${basePath}/${folderMap['project-cover']}`
+            await dropboxService.createFolder(basePath)
+            await dropboxService.createFolder(subfolderPath)
+            const dropboxPath = `${subfolderPath}/${fileName}`
+            
+            await dropboxService.uploadFile(dropboxPath, buffer)
+            console.log('[upload-image] Project cover mirrored to Dropbox:', dropboxPath)
+          } catch (error) {
+            console.error('[upload-image] Failed to mirror cover to Dropbox (non-fatal):', error)
+            // Don't fail the upload - Blob is the primary storage
           }
-
-          return NextResponse.json({
-            success: true,
-            url: sharedLink,
-            path: dropboxPath,
-            fileName,
-            originalName: file.name,
-            size: file.size,
-            type: file.type,
-            storage: 'dropbox'
-          })
-        } catch (error) {
-          console.error('[upload-image] Failed to upload cover to Dropbox:', error)
-          throw error
         }
+
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          path: blob.pathname || blob.url,
+          fileName,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          storage: 'blob',
+        })
       }
 
       // Case 3: General/default → Dropbox (kept as-is)
