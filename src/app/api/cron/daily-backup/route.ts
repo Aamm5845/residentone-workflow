@@ -42,15 +42,21 @@ async function exportDatabase() {
       data: {
         organizations: await prisma.organization.findMany(),
         users: await prisma.user.findMany(),
+        clients: await prisma.client.findMany(),
+        contractors: await prisma.contractor.findMany(),
         projects: await prisma.project.findMany(),
         rooms: await prisma.room.findMany(),
         stages: await prisma.stage.findMany(),
         renderingVersions: await prisma.renderingVersion.findMany(),
         assets: await prisma.asset.findMany(),
         activities: await prisma.activity.findMany(),
-        notifications: await prisma.notification.findMany(),
+        activityLogs: await prisma.activityLog.findMany(),
         comments: await prisma.comment.findMany(),
-        messages: await prisma.message.findMany()
+        chatMessages: await prisma.chatMessage.findMany(),
+        approvals: await prisma.approval.findMany(),
+        ffeItems: await prisma.fFEItem.findMany(),
+        designSections: await prisma.designSection.findMany(),
+        tags: await prisma.tag.findMany()
       }
     }
 
