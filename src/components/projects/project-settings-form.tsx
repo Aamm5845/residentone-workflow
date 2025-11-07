@@ -194,17 +194,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           credentials: 'include' // Ensure cookies are included
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to upload image')
-        }
-
         const data = await response.json()
-        uploadedUrls.push(data.url)
         
         // Check if we need to prompt for Dropbox linking
         if (data.errorCode === 'NO_DROPBOX_LINK') {
           setShowDropboxLinkModal(true)
+          setUploadingImage(false)
+          return // Stop upload process and show modal
         }
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to upload image')
+        }
+
+        uploadedUrls.push(data.url)
       }
       
       const newCoverImages = [...currentCoverImages, ...uploadedUrls]
@@ -252,15 +255,17 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         body: formData,
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to upload image')
-      }
-
       const data = await response.json()
       
       // Check if we need to prompt for Dropbox linking
       if (data.errorCode === 'NO_DROPBOX_LINK') {
         setShowDropboxLinkModal(true)
+        setUploadingImage(false)
+        return // Stop upload process and show modal
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload image')
       }
       
       const newCoverImages = [...currentCoverImages]
