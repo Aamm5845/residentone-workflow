@@ -27,11 +27,14 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
   const firstAsset = filteredAssets[0];
   const additionalAssets = filteredAssets.slice(1);
   
-  // Convert Dropbox raw links to download links for buttons
+  // Ensure URLs work for downloading
   const getDownloadUrl = (url: string) => {
+    // Dropbox: Convert raw=1 to dl=1 for download
     if (url.includes('dropbox.com') || url.includes('dl.dropboxusercontent.com')) {
       return url.replace('raw=1', 'dl=1')
     }
+    // Vercel Blob URLs work as-is for download
+    // The download attribute in the <a> tag will trigger download behavior
     return url
   }
   
