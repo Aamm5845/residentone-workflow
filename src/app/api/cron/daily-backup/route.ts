@@ -32,79 +32,38 @@ async function exportDatabase() {
   try {
     console.log('📊 Starting database export...')
     
+    // Dynamically get all Prisma models
+    const data: Record<string, any[]> = {}
+    
+    // Get all model names from Prisma client (excludes internal models like _prisma_migrations)
+    const modelNames = Object.keys(prisma).filter(key => {
+      const model = (prisma as any)[key]
+      return model && typeof model.findMany === 'function'
+    })
+    
+    console.log(`📋 Found ${modelNames.length} tables to backup`)
+    
+    // Fetch all data from each model
+    for (const modelName of modelNames) {
+      try {
+        const model = (prisma as any)[modelName]
+        data[modelName] = await model.findMany()
+        console.log(`✓ ${modelName}: ${data[modelName].length} records`)
+      } catch (error) {
+        console.error(`⚠️ Failed to backup ${modelName}:`, error instanceof Error ? error.message : error)
+        data[modelName] = [] // Store empty array on failure
+      }
+    }
+    
     // Get all data from your tables
     const backup = {
       metadata: {
         timestamp: new Date().toISOString(),
-        version: '1.0',
-        description: 'Meisner Interiors Workflow daily backup'
+        version: '2.0',
+        description: 'Meisner Interiors Workflow daily backup (dynamic)',
+        tables: modelNames.length
       },
-      data: {
-        organizations: await prisma.organization.findMany(),
-        users: await prisma.user.findMany(),
-        clients: await prisma.client.findMany(),
-        contractors: await prisma.contractor.findMany(),
-        projects: await prisma.project.findMany(),
-        rooms: await prisma.room.findMany(),
-        stages: await prisma.stage.findMany(),
-        designSections: await prisma.designSection.findMany(),
-        ffeItems: await prisma.fFEItem.findMany(),
-        assets: await prisma.asset.findMany(),
-        clientAccessTokens: await prisma.clientAccessToken.findMany(),
-        clientAccessLogs: await prisma.clientAccessLog.findMany(),
-        approvals: await prisma.approval.findMany(),
-        comments: await prisma.comment.findMany(),
-        chatMessages: await prisma.chatMessage.findMany(),
-        chatMentions: await prisma.chatMention.findMany(),
-        smsConversations: await prisma.smsConversation.findMany(),
-        notifications: await prisma.notification.findMany(),
-        notificationSends: await prisma.notificationSend.findMany(),
-        activityLogs: await prisma.activityLog.findMany(),
-        activities: await prisma.activity.findMany(),
-        ffeAuditLogs: await prisma.fFEAuditLog.findMany(),
-        ffeChangeLogs: await prisma.fFEChangeLog.findMany(),
-        tasks: await prisma.task.findMany(),
-        projectContractors: await prisma.projectContractor.findMany(),
-        projectUpdates: await prisma.projectUpdate.findMany(),
-        projectUpdateTasks: await prisma.projectUpdateTask.findMany(),
-        projectUpdatePhotos: await prisma.projectUpdatePhoto.findMany(),
-        projectUpdateDocuments: await prisma.projectUpdateDocument.findMany(),
-        projectUpdateMessages: await prisma.projectUpdateMessage.findMany(),
-        projectUpdateActivities: await prisma.projectUpdateActivity.findMany(),
-        projectMilestones: await prisma.projectMilestone.findMany(),
-        issues: await prisma.issue.findMany(),
-        issueComments: await prisma.issueComment.findMany(),
-        emailLogs: await prisma.emailLog.findMany(),
-        clientApprovalEmailLogs: await prisma.clientApprovalEmailLog.findMany(),
-        floorplanApprovalEmailLogs: await prisma.floorplanApprovalEmailLog.findMany(),
-        tags: await prisma.tag.findMany(),
-        assetTags: await prisma.assetTag.findMany(),
-        commentTags: await prisma.commentTag.findMany(),
-        assetPins: await prisma.assetPin.findMany(),
-        commentPins: await prisma.commentPin.findMany(),
-        commentLikes: await prisma.commentLike.findMany(),
-        checklistItems: await prisma.checklistItem.findMany(),
-        clientApprovals: await prisma.clientApproval.findMany(),
-        clientApprovalActivities: await prisma.clientApprovalActivity.findMany(),
-        clientApprovalAssets: await prisma.clientApprovalAsset.findMany(),
-        floorplanApprovalActivities: await prisma.floorplanApprovalActivity.findMany(),
-        floorplanApprovalAssets: await prisma.floorplanApprovalAsset.findMany(),
-        floorplanApprovalVersions: await prisma.floorplanApprovalVersion.findMany(),
-        ffeLibraryItems: await prisma.fFELibraryItem.findMany(),
-        ffeTemplates: await prisma.fFETemplate.findMany(),
-        ffeTemplateSections: await prisma.fFETemplateSection.findMany(),
-        ffeTemplateItems: await prisma.fFETemplateItem.findMany(),
-        roomFfeInstances: await prisma.roomFFEInstance.findMany(),
-        renderingVersions: await prisma.renderingVersion.findMany(),
-        renderingNotes: await prisma.renderingNote.findMany(),
-        drawingChecklistItems: await prisma.drawingChecklistItem.findMany(),
-        specBooks: await prisma.specBook.findMany(),
-        specBookSections: await prisma.specBookSection.findMany(),
-        specBookGenerations: await prisma.specBookGeneration.findMany(),
-        dropboxFileLinks: await prisma.dropboxFileLink.findMany(),
-        cadPreferences: await prisma.cadPreferences.findMany(),
-        projectCadDefaults: await prisma.projectCadDefaults.findMany()
-      }
+      data
     }
 
     // Count total records
