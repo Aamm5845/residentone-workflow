@@ -1598,7 +1598,7 @@ export default function ClientApprovalWorkspace({
             <div className="bg-gray-50 p-3 rounded-lg mb-4">
               <p className="text-sm text-gray-600">
                 <strong>To:</strong> {project.client?.email}<br/>
-                <strong>Subject:</strong> ✨ {room.name || room.type} Design Ready for Approval - {project.name}
+                <strong>Subject:</strong> Your {room.name || room.type} Renderings Are Ready | {project.name}
               </p>
             </div>
             <iframe

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendClientApprovalEmail } from '@/lib/email-service'
+import { dropboxService } from '@/lib/dropbox-service'
 
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
 export async function POST(
@@ -92,14 +93,23 @@ export async function POST(
       })
     }
 
-    // Get email assets for the email service
+    // Get email assets - use Blob URLs (fast, reliable) with Dropbox as fallback
     const emailAssets = currentVersion.assets
       .filter(asset => selectedAssetIds?.includes(asset.id) || false)
-      .map(assetItem => ({
-        id: assetItem.id,
-        url: assetItem.asset.url,
-        includeInEmail: true
-      }))
+      .map((assetItem) => {
+        // Prefer Blob URL (fast delivery), fallback to Dropbox path
+        const viewableUrl = assetItem.blobUrl || assetItem.asset.url
+        
+        if (!assetItem.blobUrl) {
+          console.warn(`[send-to-client] ⚠️ Asset ${assetItem.id} has no Blob URL, using Dropbox path (may not work in email)`);
+        }
+        
+        return {
+          id: assetItem.id,
+          url: viewableUrl,
+          includeInEmail: true
+        }
+      })
 
     // Send the actual email
     try {

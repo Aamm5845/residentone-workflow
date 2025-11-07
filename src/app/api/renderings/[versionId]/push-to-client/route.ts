@@ -14,6 +14,8 @@ import {
   handleWorkflowTransition,
   type WorkflowEvent
 } from '@/lib/phase-transitions'
+import { dropboxService } from '@/lib/dropbox-service'
+import { uploadFile as uploadToBlob, generateFilePath } from '@/lib/blob'
 
 // POST /api/renderings/[versionId]/push-to-client - Push rendering version to client approval
 export async function POST(
@@ -111,15 +113,49 @@ export async function POST(
       })
 
       // Create ClientApprovalAsset entries for each rendering asset
+      // Also copy assets from Dropbox to Blob for faster delivery
       const clientApprovalAssets = []
       for (let i = 0; i < renderingVersion.assets.length; i++) {
         const asset = renderingVersion.assets[i]
+        
+        // Copy asset from Dropbox to Blob for active use
+        let blobUrl = null
+        if (asset.provider === 'dropbox' && asset.url) {
+          try {
+            console.log(`[push-to-client] Copying asset ${asset.id} from Dropbox to Blob...`)
+            
+            // Download from Dropbox
+            const dropboxPath = asset.url.startsWith('/') ? asset.url : '/' + asset.url
+            const fileBuffer = await dropboxService.downloadFile(dropboxPath)
+            
+            // Upload to Blob with proper path structure
+            const blobPath = generateFilePath(
+              renderingVersion.room.project.orgId,
+              renderingVersion.room.project.id,
+              renderingVersion.roomId,
+              `client-approval-${clientApprovalVersion.id}`,
+              asset.filename
+            )
+            
+            const blobResult = await uploadToBlob(fileBuffer, blobPath, {
+              contentType: asset.mimeType || 'image/jpeg'
+            })
+            
+            blobUrl = blobResult.url
+            console.log(`[push-to-client] ✅ Copied to Blob: ${blobUrl}`)
+          } catch (copyError) {
+            console.error(`[push-to-client] ❌ Failed to copy asset ${asset.id} to Blob:`, copyError)
+            // Continue without Blob copy - will use Dropbox as fallback
+          }
+        }
+        
         const clientApprovalAsset = await tx.clientApprovalAsset.create({
           data: {
             versionId: clientApprovalVersion.id,
             assetId: asset.id,
             includeInEmail: true, // Include all assets by default
-            displayOrder: i
+            displayOrder: i,
+            blobUrl: blobUrl // Store Blob URL for fast access
           }
         })
         clientApprovalAssets.push(clientApprovalAsset)

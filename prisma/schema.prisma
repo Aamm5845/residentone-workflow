@@ -544,6 +544,7 @@ model ClientApprovalAsset {
   assetId        String
   includeInEmail Boolean               @default(true)
   displayOrder   Int                   @default(0)
+  blobUrl        String?               // Vercel Blob URL for fast delivery (active version)
   createdAt      DateTime              @default(now())
   asset          Asset                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
   version        ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)

@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { generateMeisnerDeliveryEmailTemplate } from '@/lib/email-templates'
 import { generateClientApprovalToken } from '@/lib/jwt'
+import { dropboxService } from '@/lib/dropbox-service'
 
 // GET /api/email/preview/[versionId] - Preview email for a client approval version
 export async function GET(
@@ -66,12 +67,21 @@ export async function GET(
 
     const approvalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/approve/${token}`
 
-    // Transform assets for the template
-    const templateAssets = version.assets.map(assetItem => ({
-      id: assetItem.id,
-      url: assetItem.asset.url,
-      includeInEmail: assetItem.includeInEmail
-    }))
+    // Transform assets for the template - use Blob URLs (fast, reliable)
+    const templateAssets = version.assets.map((assetItem) => {
+      // Prefer Blob URL (fast delivery), fallback to original asset URL
+      const viewableUrl = assetItem.blobUrl || assetItem.asset.url
+      
+      if (!assetItem.blobUrl) {
+        console.warn(`[Preview] ⚠️ Asset ${assetItem.id} has no Blob URL, using original URL`)
+      }
+      
+      return {
+        id: assetItem.id,
+        url: viewableUrl,
+        includeInEmail: assetItem.includeInEmail
+      }
+    })
 
     // Generate the email HTML
     const { subject, html } = generateMeisnerDeliveryEmailTemplate({

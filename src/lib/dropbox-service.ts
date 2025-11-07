@@ -435,10 +435,17 @@ class DropboxService {
 
   /**
    * Create or get a permanent shared link for a file
-   * These links don't expire and can be used with Next.js Image component
+   * These links don't expire and can be used for emails and downloads
    */
   async createSharedLink(path: string): Promise<string | null> {
     try {
+      // Ensure path starts with / for Dropbox API
+      if (!path.startsWith('/')) {
+        path = '/' + path
+      }
+      
+      console.log('[DropboxService] createSharedLink called with path:', path)
+      
       const client = this.getClient()
       
       // Try to create a new shared link directly
@@ -453,8 +460,17 @@ class DropboxService {
         })
         
         if (createResponse?.result?.url) {
-          // Convert to direct download link
-          const directLink = createResponse.result.url.replace('dl=0', 'raw=1')
+          // Return the URL with dl=0 (we'll convert it as needed in the caller)
+          // The URL format is: https://www.dropbox.com/scl/fi/.../file.jpg?rlkey=...&dl=0
+          let sharedLink = createResponse.result.url
+          
+          // Ensure it has the dl parameter
+          if (!sharedLink.includes('dl=')) {
+            sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
+          }
+          
+          // Convert to raw=1 for direct image embedding
+          const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
           console.log('[DropboxService] Created new shared link:', directLink)
           return directLink
         }
@@ -474,14 +490,26 @@ class DropboxService {
               // Find the link that matches our exact path
               for (const link of listResponse.result.links) {
                 if (link.path_lower === path.toLowerCase() || link.path_lower === path) {
-                  const directLink = link.url.replace('dl=0', 'raw=1')
+                  let sharedLink = link.url
+                  
+                  // Ensure it has the dl parameter
+                  if (!sharedLink.includes('dl=')) {
+                    sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
+                  }
+                  
+                  // Convert to raw=1 for direct image embedding
+                  const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
                   console.log('[DropboxService] Retrieved existing shared link:', directLink)
                   return directLink
                 }
               }
               
               // Fallback: use first link if no exact match
-              const directLink = listResponse.result.links[0].url.replace('dl=0', 'raw=1')
+              let sharedLink = listResponse.result.links[0].url
+              if (!sharedLink.includes('dl=')) {
+                sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
+              }
+              const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
               console.log('[DropboxService] Using first available shared link:', directLink)
               return directLink
             }
@@ -520,6 +548,11 @@ class DropboxService {
    */
   async createFolder(path: string): Promise<any> {
     try {
+      // Ensure path starts with / for Dropbox API
+      if (!path.startsWith('/')) {
+        path = '/' + path
+      }
+      
       console.log('[DropboxService] Creating folder:', path)
       const client = this.getClient()
       
@@ -548,6 +581,11 @@ class DropboxService {
    */
   async uploadFile(path: string, fileBuffer: Buffer, options?: { mode?: 'add' | 'overwrite' }): Promise<any> {
     try {
+      // Ensure path starts with / for Dropbox API
+      if (!path.startsWith('/')) {
+        path = '/' + path
+      }
+      
       console.log('[DropboxService] Uploading file:', path)
       const client = this.getClient()
       

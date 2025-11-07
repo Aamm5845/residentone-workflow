@@ -27,14 +27,23 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
   const firstAsset = filteredAssets[0];
   const additionalAssets = filteredAssets.slice(1);
   
+  // Convert Dropbox raw links to download links for buttons
+  const getDownloadUrl = (url: string) => {
+    if (url.includes('dropbox.com') || url.includes('dl.dropboxusercontent.com')) {
+      return url.replace('raw=1', 'dl=1')
+    }
+    return url
+  }
+  
   const firstImageHtml = firstAsset ? `
     <div style="text-align: center; margin: 24px 0;">
       <img src="${firstAsset.url}" 
            alt="Design Preview" 
            style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"/>
       <div style="margin-top: 12px;">
-        <a href="${firstAsset.url}" 
+        <a href="${getDownloadUrl(firstAsset.url)}" 
            style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-block;"
+           download
            target="_blank">Download High Resolution</a>
       </div>
     </div>` : '';
@@ -48,8 +57,9 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
             <h4 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 14px; font-weight: 600;">${cleanFileName}</h4>
             <p style="margin: 0; color: #64748b; font-size: 12px;">High Resolution Image</p>
           </div>
-          <a href="${asset.url}" 
+          <a href="${getDownloadUrl(asset.url)}" 
              style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 500; margin-left: 16px;"
+             download
              target="_blank">Download</a>
         </div>
       </div>`;
@@ -69,7 +79,7 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png"
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 
