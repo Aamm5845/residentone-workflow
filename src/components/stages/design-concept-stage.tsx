@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import BedroomDesignWorkspace from '@/components/design/BedroomDesignWorkspace'
-import DesignConceptWorkspace from '@/components/design/DesignConceptWorkspace'
+import DesignConceptWorkspaceV2 from '@/components/design/v2/DesignConceptWorkspaceV2'
 
 interface DesignConceptStageProps {
   stage: any
@@ -27,30 +26,13 @@ export default function DesignConceptStage({
   onUploadFile,
   onMarkSectionComplete
 }: DesignConceptStageProps) {
-  // Use the enhanced BedroomDesignWorkspace for the new experience
-  // This provides the full Pinterest-style reference board, threaded comments,
-  // and enhanced functionality as requested
+  // Use the V2 workspace with universal item library
+  // This provides 83 pre-loaded items, auto-notifications, and enhanced workflow
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto">
-        {/* Use the enhanced workspace */}
-        <BedroomDesignWorkspace
-          stageId={stage.id}
-          roomId={room?.id || stage.roomId}
-          projectId={project?.id || stage.projectId || room?.projectId}
-          className="shadow-xl"
-        />
-      </div>
-    </div>
+    <DesignConceptWorkspaceV2 
+      stageId={stage.id}
+      roomId={room?.id}
+      projectId={project?.id}
+    />
   )
-
-  // Fallback to original workspace if needed
-  // return (
-  //   <DesignConceptWorkspace
-  //     roomId={room?.id || stage.roomId}
-  //     projectId={project?.id || stage.projectId || room?.projectId}
-  //     stageId={stage.id}
-  //     className="shadow-sm"
-  //   />
-  // )
 }

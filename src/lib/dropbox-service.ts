@@ -464,13 +464,16 @@ class DropboxService {
           // The URL format is: https://www.dropbox.com/scl/fi/.../file.jpg?rlkey=...&dl=0
           let sharedLink = createResponse.result.url
           
-          // Ensure it has the dl parameter
-          if (!sharedLink.includes('dl=')) {
-            sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
-          }
-          
           // Convert to raw=1 for direct image embedding
-          const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
+          // Replace dl=0 with raw=1, or add raw=1 if no dl parameter exists
+          let directLink = sharedLink
+          if (directLink.includes('dl=0')) {
+            directLink = directLink.replace('dl=0', 'raw=1')
+          } else if (directLink.includes('dl=1')) {
+            directLink = directLink.replace('dl=1', 'raw=1')
+          } else {
+            directLink += (directLink.includes('?') ? '&' : '?') + 'raw=1'
+          }
           console.log('[DropboxService] Created new shared link:', directLink)
           return directLink
         }
@@ -492,13 +495,15 @@ class DropboxService {
                 if (link.path_lower === path.toLowerCase() || link.path_lower === path) {
                   let sharedLink = link.url
                   
-                  // Ensure it has the dl parameter
-                  if (!sharedLink.includes('dl=')) {
-                    sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
-                  }
-                  
                   // Convert to raw=1 for direct image embedding
-                  const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
+                  let directLink = sharedLink
+                  if (directLink.includes('dl=0')) {
+                    directLink = directLink.replace('dl=0', 'raw=1')
+                  } else if (directLink.includes('dl=1')) {
+                    directLink = directLink.replace('dl=1', 'raw=1')
+                  } else {
+                    directLink += (directLink.includes('?') ? '&' : '?') + 'raw=1'
+                  }
                   console.log('[DropboxService] Retrieved existing shared link:', directLink)
                   return directLink
                 }
@@ -506,10 +511,14 @@ class DropboxService {
               
               // Fallback: use first link if no exact match
               let sharedLink = listResponse.result.links[0].url
-              if (!sharedLink.includes('dl=')) {
-                sharedLink += (sharedLink.includes('?') ? '&' : '?') + 'dl=0'
+              let directLink = sharedLink
+              if (directLink.includes('dl=0')) {
+                directLink = directLink.replace('dl=0', 'raw=1')
+              } else if (directLink.includes('dl=1')) {
+                directLink = directLink.replace('dl=1', 'raw=1')
+              } else {
+                directLink += (directLink.includes('?') ? '&' : '?') + 'raw=1'
               }
-              const directLink = sharedLink.replace(/[?&]dl=0/, '?raw=1')
               console.log('[DropboxService] Using first available shared link:', directLink)
               return directLink
             }

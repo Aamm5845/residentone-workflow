@@ -1,0 +1,589 @@
+'use client'
+
+import React, { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  MoreVertical,
+  Trash2,
+  CheckCircle2,
+  Circle,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Plus,
+  X,
+  ExternalLink,
+  Maximize2,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { formatDistanceToNow } from 'date-fns'
+import { cn } from '@/lib/utils'
+import DynamicIcon from './DynamicIcon'
+
+interface Props {
+  item: any
+  onUpdate: () => void
+  viewMode: 'grid' | 'list'
+  expanded: boolean
+  onToggleExpanded: () => void
+}
+
+export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onToggleExpanded }: Props) {
+  const [notes, setNotes] = useState(item.notes || '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showLinkDialog, setShowLinkDialog] = useState(false)
+  const [showImageViewer, setShowImageViewer] = useState(false)
+  const [viewingImageIndex, setViewingImageIndex] = useState(0)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkTitle, setLinkTitle] = useState('')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+
+  // Debug: Log item data
+  React.useEffect(() => {
+    console.log('[AddedItemCard] Rendering item:', {
+      id: item.id,
+      name: item.libraryItem?.name,
+      imageCount: item.images?.length || 0,
+      linkCount: item.links?.length || 0,
+      images: item.images
+    })
+  }, [item])
+
+  const libraryItem = item.libraryItem
+  const isCompleted = item.completedByRenderer
+  const images = item.images || []
+  const links = item.links || []
+
+  // Auto-save notes (debounced)
+  const saveNotes = async () => {
+    if (notes === (item.notes || '')) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/design-items/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      })
+
+      if (!response.ok) throw new Error('Failed to save notes')
+      
+      onUpdate()
+      toast.success('Notes saved')
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      toast.error('Failed to save notes')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Toggle completion (Vitor's action)
+  const toggleComplete = async () => {
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !isCompleted })
+      })
+
+      if (!response.ok) throw new Error('Failed to toggle completion')
+      
+      onUpdate()
+      toast.success(isCompleted ? 'Marked as pending' : 'Marked as complete')
+    } catch (error) {
+      console.error('Error toggling completion:', error)
+      toast.error('Failed to update status')
+    }
+  }
+
+  // Delete item
+  const deleteItem = async () => {
+    if (!confirm(`Remove ${libraryItem.name} from design concept?`)) return
+
+    try {
+      const response = await fetch(`/api/design-items/${item.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete item')
+      
+      onUpdate()
+      toast.success('Item removed')
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      toast.error('Failed to remove item')
+    }
+  }
+
+  // Delete image
+  const deleteImage = async (imageId: string) => {
+    if (!confirm('Remove this image?')) return
+
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/images/${imageId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete image')
+      
+      onUpdate()
+      toast.success('Image removed')
+    } catch (error) {
+      console.error('Error deleting image:', error)
+      toast.error('Failed to remove image')
+    }
+  }
+
+  // Delete link
+  const deleteLink = async (linkId: string) => {
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/links/${linkId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete link')
+      
+      onUpdate()
+      toast.success('Link removed')
+    } catch (error) {
+      console.error('Error deleting link:', error)
+      toast.error('Failed to remove link')
+    }
+  }
+
+  // Add link
+  const addLink = async () => {
+    if (!linkUrl) {
+      toast.error('Please enter a URL')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl, title: linkTitle })
+      })
+
+      if (!response.ok) throw new Error('Failed to add link')
+      
+      setLinkUrl('')
+      setLinkTitle('')
+      setShowLinkDialog(false)
+      onUpdate()
+      toast.success('Link added')
+    } catch (error) {
+      console.error('Error adding link:', error)
+      toast.error('Failed to add link')
+    }
+  }
+
+  // Upload image
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB')
+      return
+    }
+
+    setIsUploadingImage(true)
+    const toastId = toast.loading('Uploading image to Dropbox...')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`/api/design-items/${item.id}/images`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to upload image')
+      }
+
+      console.log('[AddedItemCard] Image uploaded successfully, calling onUpdate()')
+      toast.success('Image uploaded successfully', { id: toastId })
+      
+      // Force refresh of the items list
+      await onUpdate()
+      
+      // Clear the input
+      event.target.value = ''
+      console.log('[AddedItemCard] Update complete')
+    } catch (error: any) {
+      console.error('Error uploading image:', error)
+      toast.error(error.message || 'Failed to upload image', { id: toastId })
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  return (
+    <div className={cn(
+      "rounded-lg border transition-all duration-300",
+      isCompleted 
+        ? "opacity-60 bg-gray-50 border-gray-200" 
+        : "bg-white border-gray-200 hover:shadow-md"
+    )}>
+      {/* Collapsed Header */}
+      <div className="flex items-center justify-between p-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Completion Checkbox */}
+          <button
+            onClick={toggleComplete}
+            className="flex-shrink-0 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded"
+            aria-label={isCompleted ? 'Mark as pending' : 'Mark as complete'}
+            aria-checked={isCompleted}
+          >
+            {isCompleted ? (
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            ) : (
+              <Circle className="w-5 h-5 text-gray-300 hover:text-gray-400" />
+            )}
+          </button>
+
+          {/* Item Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">
+                <DynamicIcon 
+                  name={libraryItem.icon || 'Package'} 
+                  className={cn(
+                    "w-5 h-5",
+                    isCompleted ? "text-gray-400" : "text-gray-700"
+                  )} 
+                />
+              </div>
+              <h3 className={cn(
+                "font-semibold text-base truncate",
+                isCompleted ? "line-through text-gray-500" : "text-gray-900"
+              )}>
+                {libraryItem.name}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              {libraryItem.category && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded border border-gray-300 bg-gray-50">
+                  {libraryItem.category}
+                </span>
+              )}
+              <span>Images ({images.length})</span>
+              <span>•</span>
+              <span>Links ({links.length})</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* More Menu */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMenu(!showMenu)}
+              className="h-8 w-8 p-0"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+
+            {showMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowMenu(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                  <button
+                    onClick={() => {
+                      deleteItem()
+                      setShowMenu(false)
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Remove Item</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Expand/Collapse Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleExpanded}
+            className="h-8 w-8 p-0 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Collapse details' : 'Expand details'}
+          >
+            {expanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Expanded Content */}
+      {expanded && (
+        <div className="border-t border-gray-100 p-4 space-y-4 transition-all duration-300">
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notes for Renderer
+            {isSaving && <span className="text-xs text-gray-500 ml-2">(saving...)</span>}
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={saveNotes}
+            placeholder="Add notes, specifications, or details for the 3D renderer..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            rows={3}
+          />
+        </div>
+
+        {/* Images */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
+              <ImageIcon className="w-4 h-4" />
+              <span>Images</span>
+              <span className="text-gray-500">({item.images?.length || 0})</span>
+            </label>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-xs"
+              disabled={isUploadingImage}
+              onClick={() => document.getElementById(`image-upload-${item.id}`)?.click()}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              {isUploadingImage ? 'Uploading...' : 'Upload'}
+            </Button>
+            <input
+              id={`image-upload-${item.id}`}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+              disabled={isUploadingImage}
+            />
+          </div>
+
+          {item.images && item.images.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {item.images.map((image: any, idx: number) => (
+                <div key={image.id} className="relative aspect-square group">
+                  <img
+                    src={image.thumbnailUrl || image.url}
+                    alt={image.fileName}
+                    className="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer"
+                    onClick={() => {
+                      setViewingImageIndex(idx)
+                      setShowImageViewer(true)
+                    }}
+                  />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteImage(image.id)
+                    }}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <div className="absolute bottom-1 right-1 p-1 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 className="w-3 h-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">No images yet</p>
+              <p className="text-xs text-gray-400">Drag & drop or click to upload</p>
+            </div>
+          )}
+        </div>
+
+        {/* Links */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
+              <LinkIcon className="w-4 h-4" />
+              <span>Product Links</span>
+              <span className="text-gray-500">({item.links?.length || 0})</span>
+            </label>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-xs"
+              onClick={() => setShowLinkDialog(true)}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Link
+            </Button>
+          </div>
+
+          {item.links && item.links.length > 0 ? (
+            <div className="space-y-2">
+              {item.links.map((link: any) => (
+                <div 
+                  key={link.id}
+                  className="flex items-center space-x-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 group"
+                >
+                  <LinkIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-sm text-indigo-600 hover:text-indigo-700 truncate"
+                  >
+                    {link.title || link.url}
+                  </a>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 p-1 text-gray-400 hover:text-indigo-500"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <button 
+                    onClick={() => deleteLink(link.id)}
+                    className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <p className="text-xs text-gray-500">No links yet</p>
+              <p className="text-xs text-gray-400">Add product URLs or references</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer - Activity Log */}
+        <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+            <div>
+              <span className="text-gray-600 font-medium">Added:</span>
+              {' '}
+              {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+              {item.createdBy && (
+                <span className="text-gray-700">
+                  {' '}by {item.createdBy.name}
+                </span>
+              )}
+            </div>
+            {isCompleted && item.completedAt && (
+              <div>
+                <span className="text-green-600 font-medium">Completed:</span>
+                {' '}
+                {formatDistanceToNow(new Date(item.completedAt), { addSuffix: true })}
+                {item.completedBy && (
+                  <span className="text-gray-700">
+                    {' '}by {item.completedBy.name}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Link Dialog */}
+      {showLinkDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowLinkDialog(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Add Product Link</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL *</label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title (optional)</label>
+                <input
+                  type="text"
+                  value={linkTitle}
+                  onChange={(e) => setLinkTitle(e.target.value)}
+                  placeholder="Product name or description"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button onClick={addLink} className="flex-1">
+                Add Link
+              </Button>
+              <Button variant="outline" onClick={() => setShowLinkDialog(false)} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Viewer Lightbox */}
+      {showImageViewer && item.images && item.images.length > 0 && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50" onClick={() => setShowImageViewer(false)}>
+          <div className="relative max-w-6xl max-h-screen p-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowImageViewer(false)}
+              className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={item.images[viewingImageIndex].url}
+              alt={item.images[viewingImageIndex].fileName}
+              className="max-w-full max-h-screen object-contain"
+            />
+            {item.images.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
+                {item.images.map((_: any, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setViewingImageIndex(idx)}
+                    className={`w-2 h-2 rounded-full ${
+                      idx === viewingImageIndex ? 'bg-white' : 'bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
