@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logActivity, ActivityActions, EntityTypes, type AuthSession } from '@/lib/attribution';
 
 // PATCH /api/design-items/[itemId]/complete - Toggle completion status
 export async function PATCH(
@@ -43,6 +44,19 @@ export async function PATCH(
           }
         }
       }
+    });
+
+    // Log activity
+    await logActivity({
+      session: session as AuthSession,
+      action: ActivityActions.COMPLETE,
+      entity: EntityTypes.DESIGN_CONCEPT_ITEM,
+      entityId: itemId,
+      details: {
+        stageId: item.stageId,
+        itemName: item.libraryItem.name,
+        completed,
+      },
     });
 
     return NextResponse.json(item);

@@ -142,6 +142,7 @@ model User {
   createdDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemCreatedBy")
   updatedDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemUpdatedBy")
   completedDesignConceptItems DesignConceptItem[]         @relation("DesignConceptItemCompletedBy")
+  designConceptItemNotes      DesignConceptItemNote[]     @relation("DesignConceptItemNoteAuthor")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -2088,7 +2089,7 @@ model DesignConceptItem {
   stageId             String
   libraryItemId       String
   order               Int                      @default(0)
-  notes               String?
+  notes               String?                  // @deprecated - use itemNotes relation instead for multi-note support
   completedByRenderer Boolean                  @default(false)
   completedAt         DateTime?
   completedById       String?
@@ -2103,6 +2104,7 @@ model DesignConceptItem {
   updatedBy           User?                    @relation("DesignConceptItemUpdatedBy", fields: [updatedById], references: [id])
   images              DesignConceptItemImage[]
   links               DesignConceptItemLink[]
+  itemNotes           DesignConceptItemNote[]  // New multi-note system
 
   @@index([stageId])
   @@index([stageId, order])
@@ -2141,4 +2143,18 @@ model DesignConceptItemLink {
 
   @@index([itemId])
   @@index([itemId, order])
+}
+
+model DesignConceptItemNote {
+  id        String            @id @default(cuid())
+  itemId    String
+  content   String
+  authorId  String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  item      DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  author    User              @relation("DesignConceptItemNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([itemId])
+  @@index([itemId, createdAt])
 }

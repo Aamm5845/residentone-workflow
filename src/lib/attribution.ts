@@ -254,6 +254,7 @@ export const EntityTypes = {
   NOTIFICATION: 'Notification',
   RENDERING_VERSION: 'RenderingVersion',
   CLIENT_APPROVAL_VERSION: 'ClientApprovalVersion',
+  DESIGN_CONCEPT_ITEM: 'DesignConceptItem',
 } as const
 
 /**

@@ -16,6 +16,7 @@ import { PhaseChat } from '@/components/chat/PhaseChat'
 import ItemLibrarySidebar from './ItemLibrarySidebar'
 import AddedItemCard from './AddedItemCard'
 import AISummaryCard from '@/components/design-concept/AISummaryCard'
+import ActivityLogPanel from './ActivityLogPanel'
 
 interface Props {
   stageId: string
@@ -328,11 +329,16 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
           </div>
         </div>
 
-        {/* Right Sidebar - AI Summary & Chat */}
+        {/* Right Sidebar - AI Summary, Activity Log & Chat */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
           {/* AI Summary */}
-          <div className="border-b border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: '50%' }}>
+          <div className="border-b border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: '30%' }}>
             <AISummaryCard stageId={stageId} />
+          </div>
+          
+          {/* Activity Log */}
+          <div className="border-b border-gray-200 h-64 overflow-hidden">
+            <ActivityLogPanel stageId={stageId} />
           </div>
           
           {/* Chat */}

@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Maximize2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Loader2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -25,13 +26,23 @@ interface Props {
   item: any
   onUpdate: () => void
   viewMode: 'grid' | 'list'
-  expanded: boolean
-  onToggleExpanded: () => void
+  expanded: boolean  // Controlled by parent DesignConceptWorkspaceV2
+  onToggleExpanded: () => void  // Calls parent's toggle function
 }
 
+/**
+ * AddedItemCard - Display and manage a design concept item
+ * 
+ * Features:
+ * - Controlled expand/collapse state via props (prevents all items expanding together)
+ * - Multi-note system with explicit save button and timestamps
+ * - Consistent card sizing (fixed height when collapsed, flexible when expanded)
+ * - Image and link management
+ * - Completion toggle for renderer workflow
+ */
 export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onToggleExpanded }: Props) {
-  const [notes, setNotes] = useState(item.notes || '')
-  const [isSaving, setIsSaving] = useState(false)
+  const [newNoteContent, setNewNoteContent] = useState('')
+  const [isSavingNote, setIsSavingNote] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showImageViewer, setShowImageViewer] = useState(false)
@@ -55,28 +66,33 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const isCompleted = item.completedByRenderer
   const images = item.images || []
   const links = item.links || []
+  const itemNotes = item.itemNotes || []
 
-  // Auto-save notes (debounced)
-  const saveNotes = async () => {
-    if (notes === (item.notes || '')) return
+  // Save new note
+  const saveNote = async () => {
+    if (!newNoteContent.trim()) {
+      toast.error('Note cannot be empty')
+      return
+    }
 
-    setIsSaving(true)
+    setIsSavingNote(true)
     try {
-      const response = await fetch(`/api/design-items/${item.id}`, {
-        method: 'PUT',
+      const response = await fetch(`/api/design-items/${item.id}/notes`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes })
+        body: JSON.stringify({ content: newNoteContent })
       })
 
-      if (!response.ok) throw new Error('Failed to save notes')
+      if (!response.ok) throw new Error('Failed to save note')
       
-      onUpdate()
-      toast.success('Notes saved')
+      setNewNoteContent('')
+      await onUpdate()
+      toast.success('Note saved')
     } catch (error) {
-      console.error('Error saving notes:', error)
-      toast.error('Failed to save notes')
+      console.error('Error saving note:', error)
+      toast.error('Failed to save note')
     } finally {
-      setIsSaving(false)
+      setIsSavingNote(false)
     }
   }
 
@@ -234,7 +250,9 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
 
   return (
     <div className={cn(
-      "rounded-lg border transition-all duration-300",
+      "rounded-lg border transition-all duration-300 w-full",
+      !expanded && "h-24 min-h-24",  // Fixed height when collapsed
+      expanded && "min-h-24",  // Flexible height when expanded
       isCompleted 
         ? "opacity-60 bg-gray-50 border-gray-200" 
         : "bg-white border-gray-200 hover:shadow-md"
@@ -347,17 +365,50 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
         {/* Notes */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Notes for Renderer
-            {isSaving && <span className="text-xs text-gray-500 ml-2">(saving...)</span>}
+            Notes for Renderer ({itemNotes.length})
           </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={saveNotes}
-            placeholder="Add notes, specifications, or details for the 3D renderer..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            rows={3}
-          />
+          
+          {/* Existing Notes List */}
+          {itemNotes.length > 0 && (
+            <div className="mb-3 space-y-2 max-h-64 overflow-y-auto">
+              {itemNotes.map((note: any) => (
+                <div key={note.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
+                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                    <span className="font-medium">{note.author.name || note.author.email}</span>
+                    <span className="mx-1">•</span>
+                    <span>{formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Add New Note */}
+          <div className="space-y-2">
+            <textarea
+              value={newNoteContent}
+              onChange={(e) => setNewNoteContent(e.target.value)}
+              placeholder="Add a new note, specification, or detail for the 3D renderer..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              rows={3}
+            />
+            <Button
+              onClick={saveNote}
+              disabled={isSavingNote || !newNoteContent.trim()}
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {isSavingNote ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Note'
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Images */}

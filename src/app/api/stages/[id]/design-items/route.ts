@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { logActivity, ActivityActions, EntityTypes, type AuthSession } from '@/lib/attribution';
 
 // GET /api/stages/[id]/design-items - Get all design items for a stage
 export async function GET(
@@ -23,6 +24,12 @@ export async function GET(
         libraryItem: true,
         images: { orderBy: { order: 'asc' } },
         links: { orderBy: { order: 'asc' } },
+        itemNotes: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true, email: true } },
         updatedBy: { select: { id: true, name: true, email: true } },
         completedBy: { select: { id: true, name: true, email: true } },
@@ -155,23 +162,28 @@ export async function POST(
         libraryItem: true,
         images: { orderBy: { order: 'asc' } },
         links: { orderBy: { order: 'asc' } },
+        itemNotes: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true, email: true } },
         completedBy: { select: { id: true, name: true, email: true } },
       },
     });
 
     // Log activity
-    await prisma.activityLog.create({
-      data: {
-        action: 'DESIGN_CONCEPT_ITEM_ADDED',
-        entity: 'STAGE',
-        entityId: stageId,
-        actorId: user.id,
-        details: {
-          itemName: libraryItem.name,
-          category: libraryItem.category,
-          roomName: stage.room.name || stage.room.type,
-        },
+    await logActivity({
+      session: session as AuthSession,
+      action: ActivityActions.CREATE,
+      entity: EntityTypes.DESIGN_CONCEPT_ITEM,
+      entityId: item.id,
+      details: {
+        stageId,
+        itemName: libraryItem.name,
+        libraryItemId: data.libraryItemId,
+        category: libraryItem.category,
       },
     });
 
