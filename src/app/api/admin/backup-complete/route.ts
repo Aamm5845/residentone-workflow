@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // Helper function to fetch all assets in batches to avoid 5MB Prisma limit
 async function fetchAllAssetsPaginated() {
   try {

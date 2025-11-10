@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // POST /api/admin/restore-complete - Restore complete backup with files
 export async function POST(request: NextRequest) {
   try {
