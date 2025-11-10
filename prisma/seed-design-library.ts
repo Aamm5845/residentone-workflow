@@ -5,29 +5,108 @@ const prisma = new PrismaClient()
 // Universal Design Concept Item Library
 // This library applies to ALL room types - Aaron can pick and choose what's relevant per room
 const DESIGN_LIBRARY = [
+  // FLOORING CATEGORY
+  {
+    category: 'flooring',
+    categoryName: 'Flooring',
+    items: [
+      { name: 'Hardwood Flooring', icon: 'Layers', description: 'Wood plank flooring' },
+      { name: 'Engineered Wood', icon: 'Layers', description: 'Engineered wood planks' },
+      { name: 'Laminate Flooring', icon: 'Layers', description: 'Laminate floor covering' },
+      { name: 'Vinyl Flooring', icon: 'Layers', description: 'Vinyl plank or sheet' },
+      { name: 'Tile Flooring', icon: 'Grid3x3', description: 'Ceramic or porcelain tile' },
+      { name: 'Stone Flooring', icon: 'Mountain', description: 'Natural stone tiles' },
+      { name: 'Carpet', icon: 'Square', description: 'Wall-to-wall carpeting' },
+      { name: 'Area Rug', icon: 'Square', description: 'Accent or area rug' },
+      { name: 'Cork Flooring', icon: 'Layers', description: 'Cork floor tiles' },
+      { name: 'Bamboo Flooring', icon: 'Layers', description: 'Bamboo planks' },
+    ]
+  },
+  
+  // WALL TREATMENTS CATEGORY
+  {
+    category: 'wall-treatments',
+    categoryName: 'Wall Treatments',
+    items: [
+      { name: 'Paint Color', icon: 'Paintbrush', description: 'Wall paint selection' },
+      { name: 'Accent Wall Paint', icon: 'Paintbrush', description: 'Feature wall color' },
+      { name: 'Wallpaper', icon: 'FileImage', description: 'Wall covering' },
+      { name: 'Accent Wallpaper', icon: 'FileImage', description: 'Feature wall wallpaper' },
+      { name: 'Wall Tile', icon: 'Grid3x3', description: 'Ceramic/porcelain wall tile' },
+      { name: 'Wall Paneling', icon: 'Columns', description: 'Wood or decorative paneling' },
+      { name: 'Wainscoting', icon: 'Rows', description: 'Lower wall paneling' },
+      { name: 'Shiplap', icon: 'Rows', description: 'Horizontal board siding' },
+      { name: 'Board & Batten', icon: 'Rows', description: 'Vertical wall treatment' },
+      { name: 'Stone Veneer', icon: 'Mountain', description: 'Stone wall cladding' },
+      { name: 'Brick Veneer', icon: 'Box', description: 'Brick wall facing' },
+    ]
+  },
+  
+  // CEILING CATEGORY
+  {
+    category: 'ceiling',
+    categoryName: 'Ceiling',
+    items: [
+      { name: 'Ceiling Paint', icon: 'Paintbrush', description: 'Ceiling color' },
+      { name: 'Crown Molding', icon: 'Frame', description: 'Decorative ceiling trim' },
+      { name: 'Ceiling Medallion', icon: 'Circle', description: 'Decorative ceiling accent' },
+      { name: 'Coffered Ceiling', icon: 'Grid3x3', description: 'Recessed panel ceiling' },
+      { name: 'Tray Ceiling', icon: 'Square', description: 'Recessed ceiling design' },
+      { name: 'Ceiling Beams', icon: 'Minus', description: 'Exposed or decorative beams' },
+      { name: 'Ceiling Texture', icon: 'Sparkles', description: 'Textured finish' },
+    ]
+  },
+  
   // FURNITURE CATEGORY
   {
     category: 'furniture',
     categoryName: 'Furniture',
     items: [
       { name: 'Sofa', icon: 'Sofa', description: 'Living room seating' },
-      { name: 'Chair', icon: 'Armchair', description: 'Accent or dining chairs' },
-      { name: 'Armchair', icon: 'Armchair', description: 'Comfortable seating' },
+      { name: 'Sectional Sofa', icon: 'Sofa', description: 'L-shaped or modular seating' },
+      { name: 'Loveseat', icon: 'Sofa', description: 'Two-seat sofa' },
+      { name: 'Armchair', icon: 'Armchair', description: 'Accent chair' },
+      { name: 'Recliner', icon: 'Armchair', description: 'Reclining chair' },
+      { name: 'Wingback Chair', icon: 'Armchair', description: 'High-back accent chair' },
+      { name: 'Chaise Lounge', icon: 'Sofa', description: 'Lounging chair' },
       { name: 'Coffee Table', icon: 'Coffee', description: 'Center table' },
-      { name: 'Side Table', icon: 'Table', description: 'End or side tables' },
-      { name: 'Console Table', icon: 'LayoutDashboard', description: 'Entry or hallway' },
+      { name: 'End Table', icon: 'Table', description: 'Side table' },
+      { name: 'Side Table', icon: 'Table', description: 'Accent table' },
+      { name: 'Console Table', icon: 'LayoutDashboard', description: 'Entry or hallway table' },
+      { name: 'Sofa Table', icon: 'Table', description: 'Behind-sofa table' },
       { name: 'Dining Table', icon: 'Table', description: 'Main dining surface' },
       { name: 'Dining Chairs', icon: 'Armchair', description: 'Dining seating' },
-      { name: 'Bed', icon: 'Bed', description: 'Bedroom bed frame' },
+      { name: 'Dining Bench', icon: 'RectangleHorizontal', description: 'Dining bench seating' },
+      { name: 'Bar Stool', icon: 'Armchair', description: 'Counter height seating' },
+      { name: 'Counter Stool', icon: 'Armchair', description: 'Kitchen counter seating' },
+      { name: 'Bed Frame', icon: 'Bed', description: 'Bedroom bed' },
+      { name: 'Headboard', icon: 'RectangleVertical', description: 'Bed headboard' },
       { name: 'Nightstand', icon: 'Table', description: 'Bedside table' },
       { name: 'Dresser', icon: 'Box', description: 'Clothing storage' },
+      { name: 'Chest of Drawers', icon: 'Box', description: 'Tall dresser' },
+      { name: 'Wardrobe', icon: 'Box', description: 'Clothing armoire' },
       { name: 'Desk', icon: 'Laptop', description: 'Work surface' },
       { name: 'Office Chair', icon: 'Armchair', description: 'Desk chair' },
       { name: 'Bookshelf', icon: 'BookOpen', description: 'Book storage' },
+      { name: 'Bookcase', icon: 'BookOpen', description: 'Tall book storage' },
+      { name: 'Shelving Unit', icon: 'Rows', description: 'Open shelving' },
       { name: 'TV Stand', icon: 'Tv', description: 'Media console' },
+      { name: 'Entertainment Center', icon: 'Tv', description: 'Media storage unit' },
+      { name: 'Credenza', icon: 'LayoutDashboard', description: 'Low cabinet' },
+      { name: 'Sideboard', icon: 'LayoutDashboard', description: 'Dining room storage' },
+      { name: 'Buffet', icon: 'LayoutDashboard', description: 'Serving cabinet' },
+      { name: 'China Cabinet', icon: 'Box', description: 'Display cabinet' },
       { name: 'Bench', icon: 'RectangleHorizontal', description: 'Seating bench' },
       { name: 'Ottoman', icon: 'Square', description: 'Footrest or seating' },
-      { name: 'Bar Stool', icon: 'Armchair', description: 'Counter seating' },
+      { name: 'Pouf', icon: 'Circle', description: 'Soft ottoman' },
+      { name: 'Storage Ottoman', icon: 'Square', description: 'Ottoman with storage' },
+      { name: 'Vanity', icon: 'Box', description: 'Bathroom or dressing vanity' },
+      { name: 'Vanity Stool', icon: 'Circle', description: 'Vanity seating' },
+      { name: 'Kitchen Island', icon: 'Square', description: 'Center kitchen island' },
+      { name: 'Kitchen Cart', icon: 'ShoppingCart', description: 'Mobile kitchen storage' },
+      { name: 'Bar Cart', icon: 'ShoppingCart', description: 'Beverage cart' },
+      { name: 'Coat Rack', icon: 'Columns', description: 'Standing coat storage' },
+      { name: 'Hall Tree', icon: 'Columns', description: 'Entryway organizer' },
     ]
   },
   
