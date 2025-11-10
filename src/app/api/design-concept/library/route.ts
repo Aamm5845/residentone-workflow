@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/auth'
 
+// Disable caching for this API route
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/design-concept/library
  * Fetch universal design concept item library
