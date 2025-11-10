@@ -4,6 +4,7 @@ import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { logActivity, ActivityActions, EntityTypes, type AuthSession } from '@/lib/attribution';
+import { notifyItemAdded } from '@/lib/notifications/design-concept-notification-service';
 
 // GET /api/stages/[id]/design-items - Get all design items for a stage
 export async function GET(
@@ -201,6 +202,18 @@ export async function POST(
         },
       });
     }
+
+    // Send email notification to Vitor (renderer)
+    await notifyItemAdded({
+      itemName: libraryItem.name,
+      projectName: stage.room.project.name,
+      roomName: stage.room.name || stage.room.type,
+      addedBy: {
+        name: user.name || '',
+        email: user.email,
+      },
+      stageId,
+    });
 
     return NextResponse.json(item);
   } catch (error) {
