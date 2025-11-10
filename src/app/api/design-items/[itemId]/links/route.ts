@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { fetchLinkPreview } from '@/lib/link-preview';
 
 // POST /api/design-items/[itemId]/links - Add link
 const linkSchema = z.object({
@@ -26,6 +27,11 @@ export async function POST(
     const body = await req.json();
     const data = linkSchema.parse(body);
 
+    // Fetch preview metadata for the URL
+    console.log(`[Design Item Links] Fetching preview for URL: ${data.url}`);
+    const preview = await fetchLinkPreview(data.url);
+    console.log(`[Design Item Links] Preview fetched:`, preview);
+
     // Get the current max order for this item
     const maxOrder = await prisma.designConceptItemLink.aggregate({
       where: { itemId },
@@ -34,7 +40,12 @@ export async function POST(
 
     const link = await prisma.designConceptItemLink.create({
       data: {
-        ...data,
+        url: data.url,
+        title: data.title || preview.title || data.url,
+        description: data.description || preview.description,
+        imageUrl: preview.imageUrl,
+        siteName: preview.siteName,
+        favicon: preview.favicon,
         itemId,
         order: (maxOrder._max.order ?? -1) + 1,
       },

@@ -496,36 +496,87 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
           </div>
 
           {item.links && item.links.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {item.links.map((link: any) => (
-                <div 
+                <a
                   key={link.id}
-                  className="flex items-center space-x-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 group"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition-all group overflow-hidden"
                 >
-                  <LinkIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-sm text-indigo-600 hover:text-indigo-700 truncate"
-                  >
-                    {link.title || link.url}
-                  </a>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0 p-1 text-gray-400 hover:text-indigo-500"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <button 
-                    onClick={() => deleteLink(link.id)}
-                    className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+                  <div className="flex gap-3 p-3">
+                    {/* Preview Image */}
+                    {link.imageUrl ? (
+                      <div className="flex-shrink-0 w-24 h-24 bg-gray-100 rounded overflow-hidden">
+                        <img
+                          src={link.imageUrl}
+                          alt={link.title || 'Link preview'}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Hide image on error
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    ) : link.favicon ? (
+                      <div className="flex-shrink-0 w-12 h-12 bg-gray-50 rounded flex items-center justify-center">
+                        <img
+                          src={link.favicon}
+                          alt=""
+                          className="w-6 h-6"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                        <LinkIcon className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    
+                    {/* Link Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600">
+                            {link.title || link.url}
+                          </h4>
+                          {link.description && (
+                            <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+                              {link.description}
+                            </p>
+                          )}
+                          {link.siteName && (
+                            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                              {link.favicon && (
+                                <img src={link.favicon} alt="" className="w-3 h-3" onError={(e) => e.currentTarget.style.display = 'none'} />
+                              )}
+                              {link.siteName}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="p-1 text-gray-400 group-hover:text-indigo-500">
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteLink(link.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </a>
               ))}
             </div>
           ) : (

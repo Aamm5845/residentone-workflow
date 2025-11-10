@@ -2136,6 +2136,9 @@ model DesignConceptItemLink {
   url         String
   title       String?
   description String?
+  imageUrl    String?           // Preview image from Open Graph or other metadata
+  siteName    String?           // Site name from metadata
+  favicon     String?           // Site favicon URL
   order       Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
