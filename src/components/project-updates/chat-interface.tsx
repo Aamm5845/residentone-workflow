@@ -512,7 +512,7 @@ export default function ChatInterface({
   }
 
   return (
-    <Card className="flex flex-col h-full">
+    <Card className={`flex flex-col ${height}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Messages</CardTitle>
@@ -561,9 +561,9 @@ export default function ChatInterface({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
         {/* Messages area */}
-        <ScrollArea className={`flex-1 p-4 ${height}`}>
+        <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
             <AnimatePresence>
               {filteredMessages.map((message) => (

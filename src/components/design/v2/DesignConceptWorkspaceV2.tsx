@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { 
   CheckCircle2, 
   Loader2,
-  ChevronLeft,
   LayoutGrid,
   List,
   Settings
@@ -176,22 +175,12 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.history.back()}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Design Concept</h1>
-              <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                <span>{projectName}</span>
-                <span>•</span>
-                <span>{roomName}</span>
-              </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Design Concept</h1>
+            <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+              <span>{projectName}</span>
+              <span>•</span>
+              <span>{roomName}</span>
             </div>
           </div>
 

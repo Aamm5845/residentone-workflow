@@ -40,9 +40,8 @@ const CATEGORY_NAMES: Record<string, string> = {
 
 export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds }: Props) {
   const [search, setSearch] = useState('')
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(Object.keys(CATEGORY_NAMES))
-  )
+  // Start with all categories collapsed by default
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [addingItemId, setAddingItemId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
