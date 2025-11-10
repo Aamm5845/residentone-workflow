@@ -29,18 +29,44 @@ export default function ActivityLogPanel({ stageId }: Props) {
 
   const formatLogMessage = (log: any) => {
     const actorName = log.actor?.name || log.actor?.email || 'Someone'
-    const details = log.details || {}
+    let details = log.details || {}
+    
+    // Parse details if it's a string
+    if (typeof details === 'string') {
+      try {
+        details = JSON.parse(details)
+      } catch (e) {
+        console.error('Failed to parse log details:', e)
+      }
+    }
+    
     const itemName = details.itemName || 'an item'
 
     switch (log.action) {
       case 'create':
-        return `${actorName} added ${itemName}`
+        return {
+          icon: '➕',
+          color: 'text-blue-600',
+          message: `${actorName} added ${itemName}`
+        }
       case 'complete':
         return details.completed
-          ? `${actorName} completed ${itemName}`
-          : `${actorName} marked ${itemName} as pending`
+          ? {
+              icon: '✅',
+              color: 'text-green-600',
+              message: `${actorName} completed ${itemName}`
+            }
+          : {
+              icon: '↩️',
+              color: 'text-orange-600',
+              message: `${actorName} marked ${itemName} as pending`
+            }
       default:
-        return `${actorName} performed ${log.action} on ${itemName}`
+        return {
+          icon: '📝',
+          color: 'text-gray-600',
+          message: `${actorName} performed ${log.action} on ${itemName}`
+        }
     }
   }
 
@@ -79,14 +105,24 @@ export default function ActivityLogPanel({ stageId }: Props) {
           </div>
         ) : (
           <div className="space-y-3">
-            {logs.map((log: any) => (
-              <div key={log.id} className="text-sm">
-                <p className="text-gray-900">{formatLogMessage(log)}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {format(new Date(log.createdAt), 'MMM d, yyyy h:mm a')}
-                </p>
-              </div>
-            ))}
+            {logs.map((log: any) => {
+              const formatted = formatLogMessage(log)
+              return (
+                <div key={log.id} className="flex gap-2">
+                  <div className="flex-shrink-0 text-lg leading-none">
+                    {formatted.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${formatted.color}`}>
+                      {formatted.message}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {format(new Date(log.createdAt), 'MMM d, h:mm a')}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

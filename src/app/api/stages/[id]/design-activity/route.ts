@@ -38,17 +38,30 @@ export async function GET(
       orderBy: {
         createdAt: 'desc',
       },
-      take: limit,
+      take: 200, // Fetch more initially, then filter
     });
 
-    // Filter by stageId in details (since details is JSON)
+    console.log(`[Design Activity] Found ${logs.length} total design concept logs`);
+
+    // Filter by stageId in details (since details is JSON or string)
     const filteredLogs = logs.filter((log) => {
-      if (log.details && typeof log.details === 'object') {
-        const details = log.details as any;
-        return details.stageId === stageId;
+      if (!log.details) return false;
+      
+      try {
+        // Parse details if it's a string
+        let details = log.details;
+        if (typeof details === 'string') {
+          details = JSON.parse(details);
+        }
+        
+        return details && (details as any).stageId === stageId;
+      } catch (error) {
+        console.error('[Design Activity] Error parsing log details:', error);
+        return false;
       }
-      return false;
-    });
+    }).slice(0, limit); // Limit after filtering
+
+    console.log(`[Design Activity] Filtered to ${filteredLogs.length} logs for stage ${stageId}`);
 
     return NextResponse.json({ logs: filteredLogs });
   } catch (error) {
