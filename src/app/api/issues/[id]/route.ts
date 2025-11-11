@@ -159,7 +159,13 @@ export async function PATCH(
     if (type !== undefined) updateData.type = type
     if (priority !== undefined) updateData.priority = priority
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo
-    if (metadata !== undefined) updateData.metadata = metadata
+    // Safely merge metadata to preserve existing fields like imageUrl and consoleLog
+    if (metadata !== undefined) {
+      updateData.metadata = {
+        ...(currentIssue.metadata as object || {}),
+        ...metadata
+      }
+    }
 
     // Handle status changes
     if (status !== undefined) {

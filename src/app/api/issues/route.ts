@@ -11,6 +11,7 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { put } from '@vercel/blob'
 
 // Get all issues for the organization
 export async function GET(request: NextRequest) {
@@ -144,17 +145,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const data = await request.json()
-    const { 
-      title, 
-      description, 
-      type = 'GENERAL',
-      priority = 'MEDIUM',
-      projectId,
-      roomId,
-      stageId,
-      metadata
-    } = data
+    // Check if request is FormData (contains image) or JSON
+    const contentType = request.headers.get('content-type') || ''
+    const isFormData = contentType.includes('multipart/form-data')
+
+    let title: string
+    let description: string
+    let type: string = 'GENERAL'
+    let priority: string = 'MEDIUM'
+    let projectId: string | null = null
+    let roomId: string | null = null
+    let stageId: string | null = null
+    let consoleLog: string | undefined
+    let imageFile: File | null = null
+
+    if (isFormData) {
+      // Parse FormData
+      const formData = await request.formData()
+      title = formData.get('title') as string
+      description = formData.get('description') as string
+      type = (formData.get('type') as string) || 'GENERAL'
+      priority = (formData.get('priority') as string) || 'MEDIUM'
+      projectId = formData.get('projectId') as string | null
+      roomId = formData.get('roomId') as string | null
+      stageId = formData.get('stageId') as string | null
+      consoleLog = formData.get('consoleLog') as string | undefined
+      imageFile = formData.get('image') as File | null
+
+      // Validate image if present
+      if (imageFile) {
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        const maxSize = 4 * 1024 * 1024 // 4MB
+
+        if (!allowedTypes.includes(imageFile.type)) {
+          return NextResponse.json({ 
+            error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' 
+          }, { status: 400 })
+        }
+
+        if (imageFile.size > maxSize) {
+          return NextResponse.json({ 
+            error: 'File too large. Maximum size is 4MB' 
+          }, { status: 400 })
+        }
+      }
+    } else {
+      // Parse JSON (legacy support)
+      const data = await request.json()
+      title = data.title
+      description = data.description
+      type = data.type || 'GENERAL'
+      priority = data.priority || 'MEDIUM'
+      projectId = data.projectId || null
+      roomId = data.roomId || null
+      stageId = data.stageId || null
+      consoleLog = data.metadata?.consoleLog
+    }
 
     // Validate required fields
     if (!title || !description) {
@@ -166,6 +212,13 @@ export async function POST(request: NextRequest) {
     // Get organization (using first org for shared workspace)
     const organization = await prisma.organization.findFirst()
 
+    // Build metadata object
+    const metadata: any = {}
+    if (consoleLog) {
+      metadata.consoleLog = consoleLog
+    }
+
+    // Create the issue first
     const issue = await prisma.issue.create({
       data: {
         title: title.trim(),
@@ -178,7 +231,7 @@ export async function POST(request: NextRequest) {
         projectId: projectId || null,
         roomId: roomId || null,
         stageId: stageId || null,
-        metadata: metadata || null
+        metadata: Object.keys(metadata).length > 0 ? metadata : null
       },
       include: {
         reporter: {
@@ -212,11 +265,94 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Log the activity
+    // Upload image to Vercel Blob if provided
+    if (imageFile) {
+      try {
+        const timestamp = Date.now()
+        const fileExtension = imageFile.name.split('.').pop() || 'jpg'
+        const sanitizedFilename = `${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`
+        const blobPath = `issues/${issue.id}/${sanitizedFilename}`
+
+        console.log('[Issues API] Uploading image to Blob:', blobPath)
+        
+        const blob = await put(blobPath, imageFile, {
+          access: 'public',
+          contentType: imageFile.type
+        })
+
+        console.log('[Issues API] Image uploaded successfully:', blob.url)
+
+        // Update issue with image URL
+        const updatedIssue = await prisma.issue.update({
+          where: { id: issue.id },
+          data: {
+            metadata: {
+              ...(issue.metadata as object || {}),
+              imageUrl: blob.url
+            }
+          },
+          include: {
+            reporter: {
+              select: { 
+                id: true, 
+                name: true, 
+                email: true,
+                role: true,
+                image: true
+              }
+            },
+            project: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            room: {
+              select: {
+                id: true,
+                name: true,
+                type: true
+              }
+            },
+            stage: {
+              select: {
+                id: true,
+                type: true
+              }
+            }
+          }
+        })
+
+        // Log the activity
+        await logActivity({
+          session,
+          action: 'ISSUE_CREATED',
+          entity: EntityTypes.PROJECT,
+          entityId: updatedIssue.id,
+          details: {
+            title: updatedIssue.title,
+            type: updatedIssue.type,
+            priority: updatedIssue.priority,
+            projectId: updatedIssue.projectId,
+            roomId: updatedIssue.roomId,
+            stageId: updatedIssue.stageId,
+            hasImage: true
+          },
+          ipAddress
+        })
+
+        return NextResponse.json(updatedIssue, { status: 201 })
+      } catch (blobError) {
+        console.error('[Issues API] Failed to upload image to Blob (non-fatal):', blobError)
+        // Return issue without image - don't fail the entire request
+      }
+    }
+
+    // Log the activity (without image)
     await logActivity({
       session,
       action: 'ISSUE_CREATED',
-      entity: EntityTypes.PROJECT, // Using project as fallback entity type
+      entity: EntityTypes.PROJECT,
       entityId: issue.id,
       details: {
         title: issue.title,

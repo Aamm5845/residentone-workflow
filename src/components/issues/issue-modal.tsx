@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon } from 'lucide-react'
 
 interface Issue {
   id: string
@@ -33,6 +33,7 @@ interface Issue {
   }
   metadata?: {
     consoleLog?: string
+    imageUrl?: string
   }
 }
 
@@ -61,6 +62,9 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
   const [status, setStatus] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'>('OPEN')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
 
   const isEditing = !!editingIssue
   const canEdit = isEditing && (
@@ -78,6 +82,14 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setType(editingIssue.type)
       setPriority(editingIssue.priority)
       setStatus(editingIssue.status)
+      // Set existing image if available
+      if (editingIssue.metadata?.imageUrl) {
+        setImagePreview(editingIssue.metadata.imageUrl)
+      } else {
+        setImagePreview(null)
+      }
+      setImageFile(null)
+      setImageError(null)
     } else {
       // Reset form for new issue
       setTitle('')
@@ -86,8 +98,63 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setType('GENERAL')
       setPriority('MEDIUM')
       setStatus('OPEN')
+      setImageFile(null)
+      setImagePreview(null)
+      setImageError(null)
     }
   }, [editingIssue, isOpen])
+
+  // Cleanup image preview URL on unmount or when imageFile changes
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
+
+  // Handle image file selection with validation
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setImageError('Invalid file type. Only JPEG, PNG, and WebP images are allowed.')
+      return
+    }
+
+    // Validate file size (4MB max)
+    const maxSize = 4 * 1024 * 1024 // 4MB
+    if (file.size > maxSize) {
+      setImageError('File is too large. Maximum size is 4MB.')
+      return
+    }
+
+    // Clear any previous error
+    setImageError(null)
+
+    // Clean up previous preview URL if it was a blob
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file)
+    setImageFile(file)
+    setImagePreview(previewUrl)
+  }
+
+  // Remove selected image
+  const handleRemoveImage = () => {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setImageFile(null)
+    setImagePreview(null)
+    setImageError(null)
+  }
 
   // Reset form when modal opens/closes
   const handleClose = () => {
@@ -99,6 +166,13 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setPriority('MEDIUM')
       setStatus('OPEN')
     }
+    // Clean up image preview
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setImageFile(null)
+    setImagePreview(null)
+    setImageError(null)
     onClose()
   }
 
@@ -109,7 +183,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     setIsSubmitting(true)
     try {
       if (isEditing && editingIssue) {
-        // Update existing issue
+        // Update existing issue (no image replacement for now)
         const response = await fetch(`/api/issues/${editingIssue.id}`, {
           method: 'PATCH',
           headers: {
@@ -134,28 +208,32 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           throw new Error('Failed to update issue')
         }
       } else {
-        // Create new issue
+        // Create new issue with FormData to support image upload
+        const formData = new FormData()
+        formData.append('title', title.trim())
+        formData.append('description', description.trim())
+        formData.append('type', type)
+        formData.append('priority', priority)
+        
+        if (consoleLog) {
+          formData.append('consoleLog', consoleLog)
+        }
+        
+        if (imageFile) {
+          formData.append('image', imageFile)
+        }
+        
         const response = await fetch('/api/issues', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title,
-            description,
-            type,
-            priority,
-            metadata: {
-              consoleLog: consoleLog || undefined
-            }
-          }),
+          body: formData,
         })
 
         if (response.ok) {
           onIssueCreated?.()
           handleClose()
         } else {
-          throw new Error('Failed to create issue')
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to create issue')
         }
       }
     } catch (error) {
@@ -315,6 +393,30 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               </div>
             )}
 
+            {editingIssue?.metadata?.imageUrl && (
+              <div>
+                <Label className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Attached Screenshot
+                </Label>
+                <div className="mt-2">
+                  <a
+                    href={editingIssue.metadata.imageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={editingIssue.metadata.imageUrl}
+                      alt="Issue attachment"
+                      className="w-full max-h-96 object-contain border border-gray-200 rounded-md bg-gray-50 hover:border-blue-400 transition-colors"
+                    />
+                  </a>
+                  <p className="text-xs text-gray-500 mt-1">Click to view full size</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex space-x-3 pt-4">
               <Button type="button" onClick={handleClose} className="flex-1">
                 Close
@@ -428,6 +530,51 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               rows={6}
               className="font-mono text-sm"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="issueImage" className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" />
+              Attach Screenshot (Optional)
+            </Label>
+            <div className="mt-2">
+              {!imagePreview ? (
+                <label
+                  htmlFor="issueImage"
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-600">Click to upload an image</span>
+                  <span className="text-xs text-gray-500 mt-1">PNG, JPG, WebP (Max 4MB)</span>
+                  <input
+                    id="issueImage"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Issue preview"
+                    className="w-full h-48 object-contain border border-gray-200 rounded-lg bg-gray-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                    aria-label="Remove image"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              {imageError && (
+                <p className="text-sm text-red-600 mt-2">{imageError}</p>
+              )}
+            </div>
           </div>
 
           <div className="flex space-x-3 pt-4">

@@ -72,6 +72,7 @@ interface Issue {
   }>
   metadata?: {
     consoleLog?: string
+    imageUrl?: string
   }
 }
 
@@ -371,7 +372,16 @@ export default function IssueList({ currentUser }: IssueListProps) {
             return (
               <div
                 key={issue.id}
-                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200"
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                onClick={() => handleViewIssue(issue)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleViewIssue(issue)
+                  }
+                }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
