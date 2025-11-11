@@ -89,21 +89,37 @@ export interface FFERoomData {
   updatedAt: Date;
 }
 
+// Custom fields for FFE items (parent-child relationships)
+export interface FFEItemCustomFields {
+  // Parent item fields
+  hasChildren?: boolean
+  linkedItems?: string[] // Array of child item names
+  
+  // Child item fields
+  isLinkedItem?: boolean
+  parentName?: string // Name of the parent item
+  
+  // Other custom fields (extendable)
+  [key: string]: any
+}
+
 // FFE Room Item (actual item state in a room)
 export interface FFERoomItem {
-  id: string;
-  roomDataId: string;
-  templateItemId?: string; // null for custom items
-  sectionId: string;
-  name: string;
-  description?: string;
-  state: FFEItemState;
-  notes?: string;
-  completedAt?: Date;
-  order: number;
-  isCustom: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  id: string
+  roomDataId: string
+  templateItemId?: string // null for custom items
+  sectionId: string
+  name: string
+  description?: string
+  state: FFEItemState
+  notes?: string
+  completedAt?: Date
+  order: number
+  isCustom: boolean
+  customFields?: FFEItemCustomFields
+  visibility?: 'VISIBLE' | 'HIDDEN'
+  createdAt: Date
+  updatedAt: Date
 }
 
 // Template Creation/Update Data
