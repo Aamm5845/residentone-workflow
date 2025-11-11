@@ -24,7 +24,8 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
-  Move
+  Move,
+  Link
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRoomFFEInstance, useRoomFFEMutations, useFFEItemMutations, useFFETemplates } from '@/hooks/ffe/useFFEApi'
@@ -162,6 +163,10 @@ export default function FFESettingsPageClient({
   const [showMoveItemDialog, setShowMoveItemDialog] = useState(false)
   const [movingItem, setMovingItem] = useState<RoomFFEItem | null>(null)
   const [moveTargetSectionId, setMoveTargetSectionId] = useState('')
+  const [showAddLinkedItemDialog, setShowAddLinkedItemDialog] = useState(false)
+  const [linkedItemParent, setLinkedItemParent] = useState<RoomFFEItem | null>(null)
+  const [newLinkedItemName, setNewLinkedItemName] = useState('')
+  const [isAddingLinkedItem, setIsAddingLinkedItem] = useState(false)
   
   // Flatten all items from all sections with section info
   const allItems: RoomFFEItem[] = React.useMemo(() => {
@@ -327,6 +332,87 @@ export default function FFESettingsPageClient({
     } catch (error) {
       console.error('Failed to duplicate item:', error)
       toast.error('Failed to duplicate item')
+    }
+  }
+  
+  // Handle add linked item
+  const handleAddLinkedItem = (parentItem: RoomFFEItem) => {
+    setLinkedItemParent(parentItem)
+    setNewLinkedItemName('')
+    setShowAddLinkedItemDialog(true)
+  }
+  
+  // Handle add linked item confirm
+  const handleAddLinkedItemConfirm = async () => {
+    if (!linkedItemParent || !newLinkedItemName.trim()) {
+      toast.error('Linked item name is required')
+      return
+    }
+    
+    setIsAddingLinkedItem(true)
+    
+    try {
+      const response = await fetch(
+        `/api/ffe/v2/rooms/${roomId}/items/${linkedItemParent.id}/linked-items`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add',
+            name: newLinkedItemName.trim()
+          })
+        }
+      )
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add linked item')
+      }
+      
+      await revalidate()
+      setShowAddLinkedItemDialog(false)
+      setLinkedItemParent(null)
+      setNewLinkedItemName('')
+      toast.success('Linked item added successfully')
+    } catch (error) {
+      console.error('Failed to add linked item:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to add linked item')
+    } finally {
+      setIsAddingLinkedItem(false)
+    }
+  }
+  
+  // Handle remove linked item
+  const handleRemoveLinkedItem = async (parentItem: RoomFFEItem, childItemId: string, childName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to remove "${childName}" from "${parentItem.name}"? This action cannot be undone.`
+    )
+    
+    if (!confirmed) return
+    
+    try {
+      const response = await fetch(
+        `/api/ffe/v2/rooms/${roomId}/items/${parentItem.id}/linked-items`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'remove',
+            childItemId
+          })
+        }
+      )
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove linked item')
+      }
+      
+      await revalidate()
+      toast.success('Linked item removed successfully')
+    } catch (error) {
+      console.error('Failed to remove linked item:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to remove linked item')
     }
   }
 
