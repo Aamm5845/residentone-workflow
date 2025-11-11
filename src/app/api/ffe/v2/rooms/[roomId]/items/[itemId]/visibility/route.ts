@@ -123,6 +123,30 @@ export async function PATCH(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // Check if this is a linked child item
+    const isLinkedChild = item.customFields && 
+      (item.customFields as any).isLinkedItem === true
+    
+    // If attempting to make a child visible independently, prevent it
+    if (isLinkedChild && visibility === 'VISIBLE') {
+      const parentName = (item.customFields as any).parentName
+      
+      // Find the parent item
+      const parentItem = await prisma.roomFFEItem.findFirst({
+        where: {
+          sectionId: item.sectionId,
+          name: parentName
+        }
+      })
+      
+      if (parentItem && parentItem.visibility === 'HIDDEN') {
+        return NextResponse.json(
+          { error: 'Cannot make a linked item visible when its parent is hidden. Please show the parent item first.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Check if this is a parent item with linked children
     const hasLinkedChildren = item.customFields && 
       (item.customFields as any).hasChildren === true
