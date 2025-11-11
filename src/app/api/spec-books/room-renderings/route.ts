@@ -16,7 +16,90 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'roomId is required' }, { status: 400 })
     }
 
-    // Get spec book section for this room
+    // Verify room belongs to user's org
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        project: {
+          orgId: session.user.orgId
+        }
+      },
+      include: {
+        project: true
+      }
+    })
+
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+
+    // Find the latest client-approved rendering version for this room
+    const approvedVersion = await prisma.renderingVersion.findFirst({
+      where: {
+        roomId: roomId,
+        clientApprovalVersion: {
+          clientDecision: 'APPROVED'
+        }
+      },
+      include: {
+        clientApprovalVersion: {
+          select: {
+            clientDecidedAt: true,
+            clientDecision: true
+          }
+        },
+        assets: {
+          orderBy: {
+            createdAt: 'asc'
+          },
+          select: {
+            id: true,
+            url: true,
+            title: true,
+            filename: true,
+            mimeType: true,
+            size: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: {
+        clientApprovalVersion: {
+          clientDecidedAt: 'desc'
+        }
+      }
+    })
+
+    // If we have an approved version with assets, return them
+    if (approvedVersion && approvedVersion.assets.length > 0) {
+      const approvedAssets = approvedVersion.assets.map((asset) => {
+        const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
+        return {
+          id: asset.id,
+          url: asset.url,
+          filename: filename,
+          mimeType: asset.mimeType,
+          fileSize: asset.size || 0,
+          source: 'APPROVED' as const
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        roomId: roomId,
+        source: 'APPROVED',
+        approved: {
+          versionId: approvedVersion.id,
+          version: approvedVersion.version,
+          clientDecidedAt: approvedVersion.clientApprovalVersion?.clientDecidedAt,
+          assets: approvedAssets
+        },
+        // Legacy format for backward compatibility
+        renderings: approvedAssets
+      })
+    }
+
+    // Fallback: check if there are manually uploaded renderings in spec book section
     const section = await prisma.specBookSection.findFirst({
       where: {
         roomId: roomId,
@@ -27,29 +110,31 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const renderings = []
+    const manualRenderings = []
     if (section) {
-      // Support both new renderingUrls array and legacy single renderingUrl
       const urls = section.renderingUrls && section.renderingUrls.length > 0 
         ? section.renderingUrls 
         : section.renderingUrl ? [section.renderingUrl] : []
       
       urls.forEach((url, index) => {
-        // Use the URL as ID for stability - extract filename from URL
         const filename = url.split('/').pop()?.split('?')[0] || `rendering-${index + 1}.jpg`
-        renderings.push({
-          id: url, // Use URL as stable ID
-          sectionId: section.id, // Include section ID for deletion
-          imageUrl: url,
+        manualRenderings.push({
+          id: url,
+          url: url,
           filename: filename,
-          fileSize: 0 // We don't store file size currently
+          fileSize: 0,
+          source: 'MANUAL' as const
         })
       })
     }
 
+    // Return manual renderings if any, otherwise empty
     return NextResponse.json({
       success: true,
-      renderings
+      roomId: roomId,
+      source: manualRenderings.length > 0 ? 'MANUAL' : 'NONE',
+      approved: null,
+      renderings: manualRenderings
     })
 
   } catch (error) {
