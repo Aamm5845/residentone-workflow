@@ -267,28 +267,18 @@ export default function FFEPhaseWorkspace({
     )
   }
   
-  // No instance - show professional empty state
+  // No instance - show empty state
   if (!currentInstance) {
     return (
-      <div className="card-elevated-strong">
-        <div className="text-center py-16 px-8">
-          <div className="max-w-md mx-auto">
-            {/* Animated Empty State Icon */}
-            <div className="mb-6">
-              <div className="animate-bounce-in">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Package className="h-10 w-10 text-blue-600" />
-                </div>
-              </div>
-            </div>
-            
-            <h3 className="text-xl font-bold text-gray-900 mb-3">
-              Ready to Setup FFE Items
-            </h3>
-            <p className="text-gray-600 leading-relaxed">
-              This room doesn't have any FFE items yet. Get started by importing a template or adding custom sections through the <span className="font-medium text-blue-600">Settings</span> page.
-            </p>
-          </div>
+      <div className="bg-white min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No FFE Items Yet
+          </h3>
+          <p className="text-sm text-gray-600 max-w-md">
+            Get started by adding sections and items through the Settings page.
+          </p>
         </div>
       </div>
     )
@@ -300,175 +290,123 @@ export default function FFEPhaseWorkspace({
   const allNotes = getAllNotes()
   
   return (
-    <div className="bg-gray-50">
-      {/* Compact Header Section - Like Other Phases */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              {roomName || currentInstance?.room?.name || currentInstance?.room?.type || 'Room'} - FFE Phase
-            </h2>
-            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
-              {projectName && (
-                <>
-                  <span>{projectName}</span>
-                  <span>•</span>
-                </>
-              )}
-              <div className="flex items-center gap-1">
-                <Package className="h-4 w-4" />
-                <span className="font-medium text-gray-900">{stats.total}</span>
-                <span>items</span>
+    <div className="bg-gray-50 -mx-6 -my-6">
+      {/* Stats and Filters Bar */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4 space-y-4">
+          {/* Stats Cards Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6 flex-1">
+              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+                <Clock className="h-4 w-4 text-blue-600" />
+                <div className="text-left">
+                  <div className="text-lg font-bold text-blue-900">{stats.pending || 0}</div>
+                  <div className="text-xs text-blue-600">Pending</div>
+                </div>
               </div>
-              <span>•</span>
-              <span>{Math.ceil(progress)}% complete</span>
+              
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-lg border border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <div className="text-left">
+                  <div className="text-lg font-bold text-amber-900">{stats.undecided || 0}</div>
+                  <div className="text-xs text-amber-600">Undecided</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <div className="text-left">
+                  <div className="text-lg font-bold text-green-900">{stats.completed}</div>
+                  <div className="text-xs text-green-600">Completed</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
+            
+            {/* Notes Button */}
             <button
               onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 showNotesDrawer 
                   ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <StickyNote className="h-4 w-4" />
               <span>Notes</span>
               {allNotes.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                <span className="ml-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
                   {allNotes.length}
                 </span>
               )}
             </button>
           </div>
-        </div>
-        
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm font-medium text-gray-700 mr-2">Filter:</span>
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          
+          {/* Progress Bar Row */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-gray-400" />
+              <div className="text-sm text-gray-600 whitespace-nowrap">{stats.total} Total Items</div>
+            </div>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="h-2.5 bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500" 
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold text-gray-900 whitespace-nowrap min-w-[3rem] text-right">{Math.ceil(progress)}%</span>
+            </div>
+          </div>
+          
+          {/* Filter Buttons Row */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 mr-1">Filter:</span>
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 statusFilter === 'all' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gray-900 text-white shadow-sm' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
               }`}
             >
-              All ({stats.total})
+              All
             </button>
             <button
               onClick={() => setStatusFilter('pending')}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 statusFilter === 'pending' 
-                  ? 'bg-white text-blue-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
               }`}
             >
-              Pending ({stats.pending || 0})
+              Pending
             </button>
             <button
               onClick={() => setStatusFilter('undecided')}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 statusFilter === 'undecided' 
-                  ? 'bg-white text-amber-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-amber-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-amber-300'
               }`}
             >
-              Undecided ({stats.undecided || 0})
+              Undecided
             </button>
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 statusFilter === 'completed' 
-                  ? 'bg-white text-emerald-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-green-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-green-300'
               }`}
             >
-              Completed ({stats.completed})
+              Completed
             </button>
-          </div>
-        </div>
-
-        {/* Stats Grid - New Workflow: Pending → Undecided → Completed */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-200 rounded-lg">
-                <Clock className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-blue-900">
-                  {stats.pending || 0}
-                </div>
-                <div className="text-xs text-blue-700 font-medium">Pending</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-200 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-amber-900">
-                  {stats.undecided || 0}
-                </div>
-                <div className="text-xs text-amber-700 font-medium">Undecided</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-200 rounded-lg">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-emerald-900">{stats.completed}</div>
-                <div className="text-xs text-emerald-700 font-medium">Completed</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Progress Bar - Similar to FFE Settings */}
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-            <span className="text-sm font-medium text-gray-900">{Math.ceil(progress)}% Complete</span>
-          </div>
-          
-          <div className="relative">
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-700 ease-out" 
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            
-            {progress > 0 && (
-              <div 
-                className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full shadow-sm transition-all duration-700 ease-out"
-                style={{ left: `calc(${Math.min(progress, 100)}% - 6px)` }}
-              />
-            )}
-          </div>
-          
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            <span>0%</span>
-            <span>25%</span>
-            <span>50%</span>
-            <span>75%</span>
-            <span>100%</span>
           </div>
         </div>
       </div>
       
       {/* Content Area */}
-      <div className="flex gap-6">
+      <div className="flex gap-4 px-6 py-6">
         {/* Main Content Area */}
         <div className="flex-1">
           <FFESectionAccordion
@@ -481,7 +419,7 @@ export default function FFEPhaseWorkspace({
         
         {/* Notes Sidebar - Only show when notes drawer is open */}
         {showNotesDrawer && (
-          <div className="w-80">
+          <div className="w-80 flex-shrink-0">
             <NotesDrawer 
               notes={allNotes}
               onClose={() => setShowNotesDrawer(false)}
@@ -492,15 +430,12 @@ export default function FFEPhaseWorkspace({
       
       {/* Completion Status */}
       {progress === 100 && stats.total > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
+        <div className="mx-4 mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
             <div>
-              <h3 className="text-xl font-bold text-green-800">FFE Phase Complete! 🎉</h3>
-              <p className="text-green-700 mt-1">
-                All {stats.total} items have been processed. Ready to move to the next phase.
+              <p className="text-sm font-medium text-green-900">
+                FFE Phase Complete - All {stats.total} items processed
               </p>
             </div>
           </div>
