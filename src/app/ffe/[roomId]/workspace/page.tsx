@@ -96,46 +96,50 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
 
   return (
     <DashboardLayout session={session}>
-      <div className="p-6 space-y-6">
-        {/* Header - matching other stages */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button asChild variant="ghost" size="icon">
-              <Link href={`/projects/${room.project?.id}`}>
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                FFE Phase
-              </h1>
-              <p className="text-gray-600">
-                {room.name || room.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {room.project?.name} • {room.project?.client?.name}
-              </p>
+      <div className="min-h-screen">
+        {/* Page Header - matching settings page */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button asChild variant="ghost" size="icon">
+                  <Link href={`/projects/${room.project?.id}`}>
+                    <ArrowLeft className="w-5 h-5" />
+                  </Link>
+                </Button>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    FFE Phase
+                  </h1>
+                  <p className="text-gray-600">
+                    {room.name || room.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {room.project?.name} • {room.project?.client?.name}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline">
+                  <Link href="/preferences?tab=ffe" className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+                    FFE Management
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/ffe/${roomId}/settings`} className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Settings
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline">
-              <Link href="/preferences?tab=ffe" className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-                FFE Management
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/ffe/${roomId}/settings`} className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                Settings
-              </Link>
-            </Button>
           </div>
         </div>
 
         {/* FFE Content with Chat Sidebar */}
-        <div className="flex h-[calc(100vh-180px)]">
+        <div className="flex h-[calc(100vh-64px)]">
           {/* Main FFE Workspace */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto px-6 py-6">
             <FFEDepartmentRouter
               roomId={roomId}
               roomName={room.name || 'Room'}
@@ -149,7 +153,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
           </div>
 
           {/* Chat Sidebar */}
-          <div className="w-96 border-l border-gray-200 bg-gray-50">
+          <div className="w-96 border-l border-gray-200/60 bg-gradient-to-b from-gray-50 to-white">
             <PhaseChat
               stageId={ffeStage.id}
               stageName={`FFE - ${room.name || room.type}`}

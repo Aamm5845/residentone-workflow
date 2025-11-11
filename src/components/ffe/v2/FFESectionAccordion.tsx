@@ -19,7 +19,8 @@ import {
   Save,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  StickyNote
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FFEItemState } from '@prisma/client'
@@ -43,7 +44,8 @@ interface FFEItem {
     parentItemId?: string
     isLinkedItem?: boolean
     parentName?: string
-    [key: string]: any
+    hasChildren?: boolean
+    [key: string]: unknown
   }
 }
 
@@ -82,13 +84,11 @@ interface ItemCardProps {
   onStateChange: (newState: FFEItemState, notes?: string) => void
   onToggleExpanded?: () => void
   onChildStateChange?: (itemId: string, newState: FFEItemState, notes?: string) => void
-  onVisibilityChange?: (itemId: string, newVisibility: 'VISIBLE' | 'HIDDEN') => void
 }
 
-function ItemCard({ item, children = [], isChild = false, isExpanded = false, onStateChange, onToggleExpanded, onChildStateChange, onVisibilityChange }: ItemCardProps) {
+function ItemCard({ item, children = [], isChild = false, isExpanded = false, onStateChange, onToggleExpanded, onChildStateChange }: ItemCardProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notesDraft, setNotesDraft] = useState(item.notes || '')
-  const [isToggling, setIsToggling] = useState(false)
   
   const config = STATE_CONFIG[item.state] || STATE_CONFIG.PENDING
   const IconComponent = config.icon
@@ -105,205 +105,163 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
     setIsEditingNotes(false)
   }
   
-  const handleVisibilityToggle = async () => {
-    if (!onVisibilityChange || isToggling) return
-    
-    setIsToggling(true)
-    const currentVisibility = item.visibility || 'VISIBLE'
-    const newVisibility = currentVisibility === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE'
-    
-    try {
-      await onVisibilityChange(item.id, newVisibility)
-    } catch (error) {
-      console.error('Failed to toggle visibility:', error)
-    } finally {
-      setIsToggling(false)
-    }
-  }
-  
   // Don't show auto-generated notes for linked items
   const shouldShowNotes = !isLinkedItem || (item.notes && !item.notes.includes('Imported from'))
   
+  const statusColors = {
+    PENDING: { bg: 'bg-blue-50', border: 'border-blue-200', accent: 'border-l-blue-500', icon: 'text-blue-600' },
+    UNDECIDED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
+    COMPLETED: { bg: 'bg-green-50', border: 'border-green-200', accent: 'border-l-green-500', icon: 'text-green-600' },
+    SELECTED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
+    CONFIRMED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
+    NOT_NEEDED: { bg: 'bg-gray-50', border: 'border-gray-200', accent: 'border-l-gray-400', icon: 'text-gray-600' },
+  }
+  const statusColor = statusColors[item.state] || statusColors.PENDING
+  
   return (
-    <div className={cn("space-y-2")}>
-      <Card className={cn(
-        "border transition-colors relative",
-        isChild ? (
-          "ml-6 border-gray-100 bg-gray-50/50 border-l-2 border-l-blue-300"
-        ) : (
-          "border-gray-200 hover:border-gray-300"
-        ),
-        isLinkedItem && "bg-blue-50/30"
-      )}>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                {/* Expand/collapse button for parent items */}
-                {hasChildren && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onToggleExpanded}
-                    className="h-6 w-6 p-0 hover:bg-blue-50 hover:text-blue-600 rounded-full mr-1"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-blue-600" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </Button>
-                )}
-                
-                {/* Tree connector for child items */}
-                {isChild && (
-                  <div className="absolute -left-6 top-4 bottom-0">
-                    <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 rounded-bl-md"></div>
-                  </div>
-                )}
-                
-                <h4 className="font-medium text-gray-900">{item.name}</h4>
-                
+    <div className="mb-2">
+      <div className={`bg-white rounded-lg border ${statusColor.border} border-l-4 ${statusColor.accent} p-3 hover:shadow-md transition-all`}>
+        <div className="flex items-start gap-3">
+          {/* Item Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {hasChildren && (
+                <button
+                  onClick={onToggleExpanded}
+                  className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+              
+              <IconComponent className={`h-4 w-4 ${statusColor.icon} flex-shrink-0`} />
+              
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-sm font-semibold text-gray-900">{item.name}</span>
                 {item.isRequired && (
-                  <Badge variant="destructive" className="h-5 text-xs">Required</Badge>
+                  <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">Required</span>
                 )}
-                {item.isCustom && (
-                  <Badge variant="outline" className="h-5 text-xs">Custom</Badge>
+                {item.quantity && item.quantity > 1 && (
+                  <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded font-medium">{item.quantity}x</span>
                 )}
                 {hasChildren && (
-                  <Badge variant="secondary" className="h-5 text-xs">
-                    {children.length} item{children.length > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {isLinkedItem && (
-                  <Badge variant="outline" className="h-5 text-xs border-blue-200 text-blue-700">
-                    Linked
-                  </Badge>
+                  <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">{children.length} items</span>
                 )}
               </div>
-              {item.description && (
-                <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-              )}
             </div>
-            
-            <div className={cn("flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium", config.bg)}>
-              <IconComponent className={cn("h-3 w-3", config.color)} />
-              <span className={config.color}>{config.label}</span>
-            </div>
+            {item.description && (
+              <p className="text-xs text-gray-600 ml-10 mt-1">{item.description}</p>
+            )}
           </div>
           
-          {/* Action Buttons - Workspace Flow: Pending → Undecided → Completed */}
-          <div className="flex gap-2 mb-3 flex-wrap">
-            <Button
-              size="sm" 
-              variant={item.state === 'PENDING' ? 'default' : 'outline'}
-              onClick={() => onStateChange('PENDING')}
-              className="h-8"
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              Pending
-            </Button>
-            <Button
-              size="sm" 
-              variant={item.state === 'UNDECIDED' ? 'default' : 'outline'}
-              onClick={() => onStateChange('UNDECIDED')}
-              className="h-8"
-            >
-              <AlertCircle className="h-4 w-4 mr-1" />
-              Undecided
-            </Button>
-            <Button
-              size="sm" 
-              variant={item.state === 'COMPLETED' ? 'default' : 'outline'}
-              onClick={() => onStateChange('COMPLETED')}
-              className="h-8"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              Completed
-            </Button>
-            
-            <Button
-              size="sm" 
-              variant="ghost"
-              onClick={() => setIsEditingNotes(true)}
-              className="h-8"
-            >
-              <Edit3 className="h-4 w-4 mr-1" />
-              Add Note
-            </Button>
-          </div>
-          
-          {/* Notes Section */}
-          {shouldShowNotes && (
-            <div className="border-t border-gray-100 pt-3">
-              {!isEditingNotes ? (
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {item.notes ? (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-sm text-gray-700">
-                        {item.notes}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500 italic">No notes added</div>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsEditingNotes(true)}
-                    className="ml-2 h-7 px-2"
-                  >
-                    <Edit3 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Textarea
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    placeholder="Add notes about this item..."
-                    className="min-h-[60px] text-sm"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={handleCancelNotes}>
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={handleSaveNotes}>
-                      <Save className="h-3 w-3 mr-1" />
-                      Save
-                    </Button>
-                  </div>
-                </div>
-              )}
+          {/* Status and Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Quick Action Buttons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onStateChange('PENDING')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                  item.state === 'PENDING'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
+                )}
+                title="Mark as Pending"
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => onStateChange('UNDECIDED')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                  item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-amber-300'
+                )}
+                title="Mark as Undecided"
+              >
+                Undecided
+              </button>
+              <button
+                onClick={() => onStateChange('COMPLETED')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                  item.state === 'COMPLETED'
+                    ? 'bg-green-600 text-white shadow-sm'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-green-300'
+                )}
+                title="Mark as Completed"
+              >
+                Completed
+              </button>
+              <button
+                onClick={() => setIsEditingNotes(true)}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                title="Add Note"
+              >
+                <Edit3 className="h-4 w-4" />
+              </button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+        
+        {/* Notes */}
+        {shouldShowNotes && item.notes && !isEditingNotes && (
+          <div className="mt-3 ml-10 px-3 py-2 bg-amber-50 border-l-2 border-amber-400 rounded text-xs text-gray-700">
+            <div className="flex items-start gap-2">
+              <StickyNote className="h-3 w-3 text-amber-600 mt-0.5 flex-shrink-0" />
+              <span>{item.notes}</span>
+            </div>
+          </div>
+        )}
+        
+        {isEditingNotes && (
+          <div className="mt-3 ml-10 space-y-2">
+            <Textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              placeholder="Add notes about this item..."
+              className="min-h-[60px] text-sm"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleCancelNotes}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNotes}
+                className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-md shadow-sm transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
       
       {/* Child Items */}
       {hasChildren && isExpanded && (
-        <div className="relative">
-          {/* Parent connector line */}
-          <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-          
-          <div className="space-y-3 pt-2">
-            {children
-              .sort((a, b) => (a.order || 0) - (b.order || 0))
-              .map((childItem, index) => (
-                <div key={childItem.id} className="relative">
-                  <ItemCard
-                    item={childItem}
-                    isChild={true}
-                    onStateChange={(state, notes) => {
-                      if (onChildStateChange) {
-                        onChildStateChange(childItem.id, state, notes)
-                      }
-                    }}
-                  />
-                </div>
-              ))}
-          </div>
+        <div className="mt-2 ml-8 pl-4 border-l-2 border-gray-300 space-y-2">
+          {children
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((childItem) => (
+              <ItemCard
+                key={childItem.id}
+                item={childItem}
+                isChild={true}
+                onStateChange={(state, notes) => {
+                  if (onChildStateChange) {
+                    onChildStateChange(childItem.id, state, notes)
+                  }
+                }}
+              />
+            ))}
         </div>
       )}
     </div>
@@ -332,7 +290,16 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
     } catch (error) {
       console.warn('Failed to load expanded state from sessionStorage:', error)
     }
-    return new Set()
+    // Default: expand all parent items on first load
+    const parentIds = new Set<string>()
+    sections.forEach(section => {
+      section.items?.forEach(item => {
+        if (item.customFields?.hasChildren === true) {
+          parentIds.add(item.id)
+        }
+      })
+    })
+    return parentIds
   }
   
   // State to track expanded parent items with sessionStorage persistence
@@ -386,29 +353,18 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
   
   if (sections.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-        <div className="max-w-md mx-auto">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Settings className="h-10 w-10 text-blue-600" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-3">No Sections Yet</h3>
-          <p className="text-gray-600 text-lg leading-relaxed mb-6">
-            This FFE workspace doesn't have any sections yet. Add sections and items through the Settings page to get started.
-          </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
-              <Plus className="h-4 w-4" />
-              <span className="font-medium">Tip:</span>
-              <span>Use the Settings page to import templates or add custom sections</span>
-            </div>
-          </div>
-        </div>
+      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+        <Settings className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+        <h3 className="text-sm font-medium text-gray-900 mb-1">No Sections Yet</h3>
+        <p className="text-xs text-gray-500">
+          Add sections and items through the Settings page to get started.
+        </p>
       </div>
     )
   }
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {sections
         .sort((a, b) => a.order - b.order)
         .filter((section) => {
@@ -421,90 +377,54 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
           const progress = getSectionProgress(section.id)
           
           return (
-            <div key={section.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
-              {/* Premium Section Header */}
+            <div key={section.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+              {/* Section Header - Clean with good hierarchy */}
               <div 
-                className={`flex items-center justify-between p-6 cursor-pointer transition-all duration-300 ${
-                  isExpanded 
-                    ? 'bg-gradient-to-r from-blue-50 via-blue-50/50 to-transparent border-b border-blue-100' 
-                    : 'hover:bg-gray-50'
+                className={`flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-gray-50 transition-all group ${
+                  isExpanded ? 'bg-gray-50 border-b border-gray-200' : ''
                 }`}
                 onClick={() => toggleSectionExpanded(section.id)}
+                role="button"
+                aria-expanded={isExpanded}
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && toggleSectionExpanded(section.id)}
               >
-                <div className="flex items-center space-x-4">
-                  <button className={`p-2 rounded-xl transition-all duration-300 ${
-                    isExpanded 
-                      ? 'bg-blue-100 text-blue-600 shadow-sm' 
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                <div className="flex items-center gap-4 flex-1">
+                  <div className={`transition-transform ${
+                    isExpanded ? 'rotate-0' : '-rotate-90'
                   }`}>
-                    {isExpanded ? (
-                      <ChevronDown className="h-5 w-5" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5" />
-                    )}
-                  </button>
+                    <ChevronDown className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                  </div>
                   
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{section.name}</h3>
-                    {section.description && (
-                      <p className="text-gray-600">{section.description}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-6">
-                  {/* Premium Progress Ring */}
-                  <div className="relative w-16 h-16">
-                    <svg className="transform -rotate-90 w-16 h-16">
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke="rgb(229 231 235)"
-                        strokeWidth="4"
-                        fill="transparent"
-                      />
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke={progress.percentage === 100 ? "rgb(34 197 94)" : "rgb(59 130 246)"}
-                        strokeWidth="4"
-                        fill="transparent"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 28}`}
-                        strokeDashoffset={`${2 * Math.PI * 28 * (1 - progress.percentage / 100)}`}
-                        className="transition-all duration-700 ease-out"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className={`text-sm font-bold ${
-                        progress.percentage === 100 ? 'text-green-600' : 'text-blue-600'
-                      }`}>
-                        {Math.ceil(progress.percentage)}%
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                        {progress.completed}/{progress.total}
                       </span>
                     </div>
-                  </div>
-                  
-                  {/* Item Count Badge */}
-                  <div className="text-right">
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      progress.percentage === 100 
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {progress.completed}/{progress.total} items
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {progress.total - progress.completed} remaining
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            progress.percentage === 100 
+                              ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                              : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                          }`}
+                          style={{ width: `${progress.percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 w-10 text-right">
+                        {Math.ceil(progress.percentage)}%
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Premium Section Content */}
+              {/* Section Content */}
               {isExpanded && (
-                <div className="bg-gradient-to-b from-gray-50/30 to-white p-6">
+                <div className="p-4 bg-gray-50">
                   {(() => {
                     // Filter items by visibility first
                     const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
@@ -521,12 +441,8 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                     
                     if (visibleItems.length === 0) {
                       return (
-                        <div className="text-center py-12">
-                          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <Minus className="h-8 w-8 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500 text-lg mb-1">No items in this section yet</p>
-                          <p className="text-gray-400 text-sm">Add items through the Settings page</p>
+                        <div className="text-center py-6">
+                          <p className="text-xs text-gray-500">No items in this section</p>
                         </div>
                       )
                     }
@@ -538,18 +454,14 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                         completed: 'completed'
                       }
                       return (
-                        <div className="text-center py-12">
-                          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <AlertCircle className="h-8 w-8 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500 text-lg mb-1">No {statusLabels[statusFilter as keyof typeof statusLabels]} items</p>
-                          <p className="text-gray-400 text-sm">Switch to 'All' to see other items</p>
+                        <div className="text-center py-6">
+                          <p className="text-xs text-gray-500">No {statusLabels[statusFilter as keyof typeof statusLabels]} items</p>
                         </div>
                       )
                     }
                     
                     return (
-                      <div className="space-y-4">
+                      <div className="divide-y divide-gray-100">
                         {filteredParentItems
                           .sort((a, b) => (a.order || 0) - (b.order || 0))
                           .map((item) => {
@@ -561,12 +473,11 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                               <ItemCard
                                 key={item.id}
                                 item={item}
-                                children={children}
+                                children={children} // eslint-disable-line react/no-children-prop
                                 isExpanded={isItemExpanded}
                                 onStateChange={(state, notes) => onItemStateChange(item.id, state, notes)}
                                 onToggleExpanded={() => toggleItemExpanded(item.id)}
                                 onChildStateChange={onItemStateChange}
-                                onVisibilityChange={onItemVisibilityChange}
                               />
                             )
                           })}

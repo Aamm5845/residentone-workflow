@@ -26,7 +26,8 @@ import {
   Trash2,
   Package,
   Edit3,
-  Copy
+  Copy,
+  Link
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
@@ -99,9 +100,20 @@ export default function FFESettingsDepartment({
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
+  const [newItemLinkedItems, setNewItemLinkedItems] = useState<string[]>([])
+  const [linkedItemInputValue, setLinkedItemInputValue] = useState('')
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
+  
+  // Linked items dialog state
+  const [showAddLinkedItemDialog, setShowAddLinkedItemDialog] = useState(false)
+  const [linkedItemDialogState, setLinkedItemDialogState] = useState<{
+    parentId: string
+    parentName: string
+    existingLinkedItems: string[]
+  } | null>(null)
+  const [newLinkedItemName, setNewLinkedItemName] = useState('')
 
   // Stats
   const [stats, setStats] = useState({
@@ -389,14 +401,45 @@ export default function FFESettingsDepartment({
 
       const result = await response.json()
       if (result.success) {
+        const createdItems = result.data
+        const parentItem = createdItems[0]
+        
+        // If there are linked items, add them
+        if (newItemLinkedItems.length > 0) {
+          for (const linkedItemName of newItemLinkedItems) {
+            try {
+              const linkResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${parentItem.id}/linked-items`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'add',
+                  name: linkedItemName
+                })
+              })
+              
+              if (!linkResponse.ok) {
+                console.error(`Failed to add linked item: ${linkedItemName}`)
+              }
+            } catch (error) {
+              console.error(`Error adding linked item: ${linkedItemName}`, error)
+            }
+          }
+        }
+        
         // Reload data to get the new item
         await loadFFEData()
         setShowAddItemDialog(false)
         setNewItemName('')
         setNewItemDescription('')
         setNewItemQuantity(1)
+        setNewItemLinkedItems([])
+        setLinkedItemInputValue('')
         setSelectedSectionId('')
-        toast.success('Item added successfully')
+        
+        const linkedMsg = newItemLinkedItems.length > 0 
+          ? ` with ${newItemLinkedItems.length} linked item${newItemLinkedItems.length > 1 ? 's' : ''}` 
+          : ''
+        toast.success(`Item added successfully${linkedMsg}`)
       }
 
     } catch (error) {
@@ -415,6 +458,88 @@ export default function FFESettingsDepartment({
           : section
       )
     )
+  }
+  
+  // Linked items handlers
+  const addLinkedItemToForm = () => {
+    const trimmed = linkedItemInputValue.trim()
+    if (!trimmed) {
+      toast.error('Please enter a linked item name')
+      return
+    }
+    
+    if (trimmed.length > 200) {
+      toast.error('Linked item name must be 200 characters or less')
+      return
+    }
+    
+    if (newItemLinkedItems.includes(trimmed)) {
+      toast.error('This linked item already exists')
+      return
+    }
+    
+    setNewItemLinkedItems(prev => [...prev, trimmed])
+    setLinkedItemInputValue('')
+  }
+  
+  const removeLinkedItemFromForm = (index: number) => {
+    setNewItemLinkedItems(prev => prev.filter((_, i) => i !== index))
+  }
+  
+  const handleOpenLinkedItemDialog = (item: FFEItem) => {
+    const existingLinkedItems = (item as any).customFields?.linkedItems || []
+    setLinkedItemDialogState({
+      parentId: item.id,
+      parentName: item.name,
+      existingLinkedItems
+    })
+    setNewLinkedItemName('')
+    setShowAddLinkedItemDialog(true)
+  }
+  
+  const handleAddLinkedItem = async () => {
+    if (!linkedItemDialogState || !newLinkedItemName.trim()) {
+      toast.error('Please enter a linked item name')
+      return
+    }
+    
+    if (newLinkedItemName.length > 200) {
+      toast.error('Linked item name must be 200 characters or less')
+      return
+    }
+    
+    if (linkedItemDialogState.existingLinkedItems.includes(newLinkedItemName.trim())) {
+      toast.error('This linked item already exists')
+      return
+    }
+    
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${linkedItemDialogState.parentId}/linked-items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          name: newLinkedItemName.trim()
+        })
+      })
+      
+      if (response.ok) {
+        toast.success(`Added linked item "${newLinkedItemName.trim()}"`)
+        setNewLinkedItemName('')
+        await loadFFEData()
+        setShowAddLinkedItemDialog(false)
+        setLinkedItemDialogState(null)
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to add linked item')
+      }
+    } catch (error: any) {
+      console.error('Add linked item error:', error)
+      toast.error(error.message || 'Failed to add linked item')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const toggleAllVisibility = async (makeVisible: boolean) => {
@@ -1105,6 +1230,56 @@ export default function FFESettingsDepartment({
                   onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
                 />
               </div>
+              
+              {/* Linked Items Section */}
+              <div>
+                <Label htmlFor="linked-items">Linked Items (Optional)</Label>
+                <p className="text-xs text-gray-500 mb-2">Add child items that will be grouped under this parent item</p>
+                
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    id="linked-items"
+                    value={linkedItemInputValue}
+                    onChange={(e) => setLinkedItemInputValue(e.target.value)}
+                    placeholder="Enter linked item name..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addLinkedItemToForm()
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addLinkedItemToForm}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {newItemLinkedItems.length > 0 && (
+                  <div className="space-y-1 p-2 bg-gray-50 rounded border">
+                    <div className="text-xs text-gray-600 mb-1">Linked items ({newItemLinkedItems.length}):</div>
+                    {newItemLinkedItems.map((linkedItem, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-white rounded text-sm">
+                        <span>{linkedItem}</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeLinkedItemFromForm(index)}
+                          className="h-6 w-6 p-0 text-red-500"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
@@ -1113,6 +1288,8 @@ export default function FFESettingsDepartment({
                     setNewItemName('')
                     setNewItemDescription('')
                     setNewItemQuantity(1)
+                    setNewItemLinkedItems([])
+                    setLinkedItemInputValue('')
                     setSelectedSectionId('')
                   }}
                 >
@@ -1130,6 +1307,87 @@ export default function FFESettingsDepartment({
             </div>
           </DialogContent>
         </Dialog>
+        
+      {/* Add Linked Item Dialog */}
+      <Dialog open={showAddLinkedItemDialog} onOpenChange={(open) => {
+        setShowAddLinkedItemDialog(open)
+        if (!open) {
+          setLinkedItemDialogState(null)
+          setNewLinkedItemName('')
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="h-5 w-5" />
+              Add Linked Item
+            </DialogTitle>
+          </DialogHeader>
+          
+          {linkedItemDialogState && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm text-gray-600">Parent Item</Label>
+                <div className="font-medium text-gray-900">{linkedItemDialogState.parentName}</div>
+              </div>
+              
+              {linkedItemDialogState.existingLinkedItems.length > 0 && (
+                <div>
+                  <Label className="text-sm text-gray-600">Existing Linked Items ({linkedItemDialogState.existingLinkedItems.length})</Label>
+                  <div className="space-y-1 mt-2 p-2 bg-gray-50 rounded border max-h-32 overflow-y-auto">
+                    {linkedItemDialogState.existingLinkedItems.map((name, index) => (
+                      <div key={index} className="text-sm p-2 bg-white rounded">
+                        {name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <Label htmlFor="new-linked-item">New Linked Item Name *</Label>
+                <Input
+                  id="new-linked-item"
+                  value={newLinkedItemName}
+                  onChange={(e) => setNewLinkedItemName(e.target.value)}
+                  placeholder="e.g., Pendant Light Shade, Tile Grout"
+                  maxLength={200}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddLinkedItem()
+                    }
+                  }}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {newLinkedItemName.length}/200 characters
+                </p>
+              </div>
+              
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowAddLinkedItemDialog(false)
+                    setLinkedItemDialogState(null)
+                    setNewLinkedItemName('')
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleAddLinkedItem} disabled={saving}>
+                  {saving ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
+                  Add Linked Item
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modern Sections Display */}
       <div className="space-y-4">
@@ -1338,6 +1596,7 @@ export default function FFESettingsDepartment({
                                 onNotesChange={handleNotesChange}
                                 onDelete={handleDeleteItem}
                                 onQuantityInclude={handleQuantityInclude}
+                                onAddLinkedItem={handleOpenLinkedItemDialog}
                               />
                             )
                           })}
@@ -1403,6 +1662,18 @@ export default function FFESettingsDepartment({
                             </div>
                             
                             <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenLinkedItemDialog(item)}
+                                disabled={disabled || saving}
+                                className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                title="Add linked item"
+                              >
+                                <Link className="h-3 w-3 mr-1" />
+                                Link
+                              </Button>
+                              
                               <Button
                                 size="sm"
                                 variant="outline"

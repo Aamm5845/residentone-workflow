@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -59,6 +59,7 @@ interface FFEItemCardProps {
   onNotesChange?: (itemId: string, notes: string) => Promise<void>
   onDelete?: (itemId: string) => Promise<void>
   onQuantityInclude?: (itemId: string, quantity: number, customName?: string) => Promise<void>
+  onAddLinkedItem?: (item: { id: string; name: string; customFields?: any }) => void
 }
 
 const STATE_CONFIGS = {
@@ -101,7 +102,8 @@ export default function FFEItemCard({
   onVisibilityChange,
   onNotesChange,
   onDelete,
-  onQuantityInclude
+  onQuantityInclude,
+  onAddLinkedItem
 }: FFEItemCardProps) {
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false)
   const [notesText, setNotesText] = useState(notes || '')
@@ -110,10 +112,17 @@ export default function FFEItemCard({
   const [pendingQuantity, setPendingQuantity] = useState(1)
   const [itemNames, setItemNames] = useState<string[]>([])
   const [selectedItems, setSelectedItems] = useState<boolean[]>([])
-  const [isExpanded, setIsExpanded] = useState(false)
   
   const hasLinkedChildren = customFields?.hasChildren === true && linkedChildren.length > 0
   const allChildrenVisible = linkedChildren.every(child => child.visibility === 'VISIBLE')
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Auto-expand parent items by default
+  useEffect(() => {
+    if (hasLinkedChildren) {
+      setIsExpanded(true)
+    }
+  }, [hasLinkedChildren])
 
   const stateConfig = STATE_CONFIGS[state]
   const StateIcon = stateConfig.icon
@@ -898,6 +907,19 @@ export default function FFEItemCard({
             </div>
           </div>
         ))}
+        
+        {/* Add More Linked Items Button */}
+        {onAddLinkedItem && (
+          <button
+            onClick={() => onAddLinkedItem({ id, name, customFields })}
+            disabled={disabled}
+            className="flex items-center gap-2 p-3 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 transition-colors text-blue-700 font-medium text-sm w-full justify-center"
+          >
+            <Plus className="h-4 w-4" />
+            Add More Linked Items
+          </button>
+        )}
+        
         <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-xs text-blue-700">
             <strong>Note:</strong> Adding the parent item to workspace will automatically include all {linkedChildren.length} linked item{linkedChildren.length !== 1 ? 's' : ''}.

@@ -59,6 +59,13 @@ interface RoomFFEItem {
   sectionId: string
   sectionName: string
   order: number
+  customFields?: {
+    hasChildren?: boolean
+    linkedItems?: string[]
+    isLinkedItem?: boolean
+    parentName?: string
+    [key: string]: any
+  }
 }
 
 export default function FFESettingsPageClient({
@@ -121,6 +128,17 @@ export default function FFESettingsPageClient({
   useEffect(() => {
     if (instance?.sections) {
       setExpandedSections(new Set(instance.sections.map(s => s.id)))
+      
+      // Also auto-expand all parent items
+      const parentIds = new Set<string>()
+      instance.sections.forEach(section => {
+        section.items?.forEach(item => {
+          if (item.customFields?.hasChildren === true) {
+            parentIds.add(item.id)
+          }
+        })
+      })
+      setExpandedItems(parentIds)
     }
   }, [instance])
 
@@ -150,12 +168,15 @@ export default function FFESettingsPageClient({
   const [newItemSectionId, setNewItemSectionId] = useState('')
   const [newItemName, setNewItemName] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
+  const [newItemLinkedItems, setNewItemLinkedItems] = useState<string[]>([])
+  const [newItemLinkedItemInput, setNewItemLinkedItemInput] = useState('')
   const [showEditItemDialog, setShowEditItemDialog] = useState(false)
   const [editingItem, setEditingItem] = useState<RoomFFEItem | null>(null)
   const [editItemName, setEditItemName] = useState('')
   const [editItemQuantity, setEditItemQuantity] = useState(1)
   const [editItemDescription, setEditItemDescription] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false)
   const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null)
@@ -499,16 +520,62 @@ export default function FFESettingsPageClient({
       return
     }
     
-    await handleItemAdded(newItemSectionId, {
-      name: newItemName,
-      description: '',
-      quantity: newItemQuantity
-    })
-    
-    setNewItemSectionId('')
-    setNewItemName('')
-    setNewItemQuantity(1)
-    setShowAddItemDialog(false)
+    try {
+      // Create the main item first
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sectionId: newItemSectionId, 
+          name: newItemName,
+          description: '',
+          quantity: newItemQuantity
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add item')
+      }
+      
+      const result = await response.json()
+      const createdItemId = result.item?.id
+      
+      // If there are linked items, add them to the parent
+      if (createdItemId && newItemLinkedItems.length > 0) {
+        for (const linkedItemName of newItemLinkedItems) {
+          try {
+            await fetch(
+              `/api/ffe/v2/rooms/${roomId}/items/${createdItemId}/linked-items`,
+              {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'add',
+                  name: linkedItemName
+                })
+              }
+            )
+          } catch (error) {
+            console.error(`Failed to add linked item "${linkedItemName}":`, error)
+            // Continue adding other linked items even if one fails
+          }
+        }
+      }
+      
+      await revalidate()
+      toast.success(`Item added${newItemLinkedItems.length > 0 ? ` with ${newItemLinkedItems.length} linked item(s)` : ''}`)
+      
+      // Reset form
+      setNewItemSectionId('')
+      setNewItemName('')
+      setNewItemQuantity(1)
+      setNewItemLinkedItems([])
+      setNewItemLinkedItemInput('')
+      setShowAddItemDialog(false)
+    } catch (error) {
+      console.error('Failed to add item:', error)
+      toast.error('Failed to add item')
+    }
   }
 
   // Handle edit item
@@ -863,8 +930,84 @@ export default function FFESettingsPageClient({
               />
             </div>
             
+            {/* Linked Items Section */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Link className="h-4 w-4 text-blue-600" />
+                <label className="text-sm font-medium">Linked Items (Optional)</label>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Add items that will be automatically included/excluded with this item
+              </p>
+              
+              {/* Linked items list */}
+              {newItemLinkedItems.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {newItemLinkedItems.map((linkedItem, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Link className="h-3 w-3 text-blue-500" />
+                        <span className="text-sm text-gray-900">{linkedItem}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNewItemLinkedItems(prev => prev.filter((_, i) => i !== index))
+                        }}
+                        className="h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add linked item input */}
+              <div className="flex gap-2">
+                <Input
+                  value={newItemLinkedItemInput}
+                  onChange={(e) => setNewItemLinkedItemInput(e.target.value)}
+                  placeholder="e.g., Flush Plate"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newItemLinkedItemInput.trim()) {
+                      e.preventDefault()
+                      if (!newItemLinkedItems.includes(newItemLinkedItemInput.trim())) {
+                        setNewItemLinkedItems(prev => [...prev, newItemLinkedItemInput.trim()])
+                        setNewItemLinkedItemInput('')
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (newItemLinkedItemInput.trim() && !newItemLinkedItems.includes(newItemLinkedItemInput.trim())) {
+                      setNewItemLinkedItems(prev => [...prev, newItemLinkedItemInput.trim()])
+                      setNewItemLinkedItemInput('')
+                    }
+                  }}
+                  disabled={!newItemLinkedItemInput.trim()}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
+            
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowAddItemDialog(false)
+                setNewItemLinkedItems([])
+                setNewItemLinkedItemInput('')
+              }}>
                 Cancel
               </Button>
               <Button onClick={handleAddItemConfirm}>
@@ -1012,6 +1155,70 @@ export default function FFESettingsPageClient({
               <Button onClick={handleMoveItemConfirm} disabled={!moveTargetSectionId}>
                 <ArrowRight className="h-4 w-4 mr-2" />
                 Move Item
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Linked Item Dialog */}
+      <Dialog open={showAddLinkedItemDialog} onOpenChange={setShowAddLinkedItemDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="h-5 w-5" />
+              Add Linked Item
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {linkedItemParent && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  Adding linked item to: <span className="font-medium">{linkedItemParent.name}</span>
+                </p>
+                <p className="text-xs text-gray-600 mt-2">
+                  ℹ️ Linked items appear only in this room and are connected to the parent item.
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <label className="text-sm font-medium">Linked Item Name</label>
+              <Input
+                value={newLinkedItemName}
+                onChange={(e) => setNewLinkedItemName(e.target.value)}
+                placeholder="e.g., Flush Plate, Carrier System"
+                disabled={isAddingLinkedItem}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This item will be automatically included/excluded when the parent is toggled.
+              </p>
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAddLinkedItemDialog(false)}
+                disabled={isAddingLinkedItem}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddLinkedItemConfirm}
+                disabled={isAddingLinkedItem || !newLinkedItemName.trim()}
+              >
+                {isAddingLinkedItem ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Link className="h-4 w-4 mr-2" />
+                    Add Linked Item
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -1177,8 +1384,24 @@ export default function FFESettingsPageClient({
                 {instance?.sections && instance.sections.length > 0 ? (
                   instance.sections.map((section) => {
                     
-                    const sectionItems = filteredItems.filter(item => item.sectionId === section.id)
+                    // Filter out linked children - they'll be rendered under their parents
+                    const sectionItems = filteredItems.filter(item => 
+                      item.sectionId === section.id && !item.customFields?.isLinkedItem
+                    )
                     if (sectionItems.length === 0 && searchQuery.trim()) return null // Hide empty sections when filtering
+                    
+                    // Build map of children for quick lookup
+                    const allSectionItems = filteredItems.filter(item => item.sectionId === section.id)
+                    const childrenByParentName = new Map<string, RoomFFEItem[]>()
+                    allSectionItems.forEach(item => {
+                      if (item.customFields?.isLinkedItem && item.customFields?.parentName) {
+                        const parentName = item.customFields.parentName
+                        if (!childrenByParentName.has(parentName)) {
+                          childrenByParentName.set(parentName, [])
+                        }
+                        childrenByParentName.get(parentName)!.push(item)
+                      }
+                    })
                     
                     return (
                       <Card key={section.id}>
@@ -1254,27 +1477,60 @@ export default function FFESettingsPageClient({
                                 {sectionItems.map((item) => {
                                   const stateInfo = getStateInfo(item.state)
                                   const StateIcon = stateInfo.icon
+                                  const hasChildren = item.customFields?.hasChildren === true
+                                  const children = childrenByParentName.get(item.name) || []
+                                  const isExpanded = expandedItems.has(item.id)
                                   
                                   return (
-                                    <div
-                                      key={item.id}
-                                      className={cn(
-                                        "flex items-center space-x-3 p-3 rounded-lg border",
-                                        selectedItems.includes(item.id)
-                                          ? "border-blue-300 bg-blue-50"
-                                          : "border-gray-200 hover:bg-gray-50"
-                                      )}
-                                    >
-                                      <Checkbox
-                                        checked={selectedItems.includes(item.id)}
-                                        onCheckedChange={() => toggleItemSelection(item.id)}
-                                      />
-                                      
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <h4 className="text-sm font-medium text-gray-900 truncate">
-                                            {item.name}
-                                          </h4>
+                                    <div key={item.id}>
+                                      {/* Parent Item */}
+                                      <div
+                                        className={cn(
+                                          "flex items-center space-x-3 p-3 rounded-lg border",
+                                          selectedItems.includes(item.id)
+                                            ? "border-blue-300 bg-blue-50"
+                                            : "border-gray-200 hover:bg-gray-50"
+                                        )}
+                                      >
+                                        <Checkbox
+                                          checked={selectedItems.includes(item.id)}
+                                          onCheckedChange={() => toggleItemSelection(item.id)}
+                                        />
+                                        
+                                        {/* Expand/collapse for parent items */}
+                                        {hasChildren && (
+                                          <button
+                                            onClick={() => {
+                                              setExpandedItems(prev => {
+                                                const newSet = new Set(prev)
+                                                if (newSet.has(item.id)) {
+                                                  newSet.delete(item.id)
+                                                } else {
+                                                  newSet.add(item.id)
+                                                }
+                                                return newSet
+                                              })
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronDown className="h-4 w-4 text-blue-600" />
+                                            ) : (
+                                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                                            )}
+                                          </button>
+                                        )}
+                                        
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="text-sm font-medium text-gray-900 truncate">
+                                              {item.name}
+                                            </h4>
+                                            {hasChildren && (
+                                              <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+                                                {children.length} linked
+                                              </Badge>
+                                            )}
                                           <Badge
                                             variant="secondary"
                                             className={cn(
@@ -1313,6 +1569,14 @@ export default function FFESettingsPageClient({
                                         <Button
                                           variant="ghost"
                                           size="sm"
+                                          onClick={() => handleAddLinkedItem(item)}
+                                          title="Add linked item"
+                                        >
+                                          <Link className="h-4 w-4 text-blue-500" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
                                           onClick={() => handleEditItem(item)}
                                           title="Edit item"
                                         >
@@ -1345,6 +1609,40 @@ export default function FFESettingsPageClient({
                                         </Button>
                                       </div>
                                     </div>
+                                    
+                                    {/* Linked Children */}
+                                    {hasChildren && isExpanded && children.length > 0 && (
+                                      <div className="ml-12 mt-2 space-y-2 border-l-2 border-blue-200 pl-4">
+                                        <div className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                                          <Link className="h-3 w-3" />
+                                          Linked Items (affects only this room)
+                                        </div>
+                                        {children.map((child) => (
+                                          <div
+                                            key={child.id}
+                                            className="flex items-center justify-between p-2 rounded bg-blue-50 border border-blue-200"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Link className="h-3 w-3 text-blue-500" />
+                                              <span className="text-sm text-gray-900">{child.name}</span>
+                                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                                                Linked
+                                              </Badge>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRemoveLinkedItem(item, child.id, child.name)}
+                                              title="Remove linked item"
+                                              className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                   )
                                 })}
                               </div>
