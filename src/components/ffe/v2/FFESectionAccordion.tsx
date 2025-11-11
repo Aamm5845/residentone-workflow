@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -317,8 +317,36 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
     getSectionProgress 
   } = useFFERoomStore()
   
-  // State to track expanded parent items
-  const [expandedItems, setExpandedItems] = useState(new Set<string>())
+  // Get roomId from sections for sessionStorage key
+  const roomId = sections[0]?.instance?.roomId || sections[0]?.items?.[0]?.section?.instance?.roomId || 'unknown'
+  const storageKey = `ffe:workspace:expanded:${roomId}`
+  
+  // Load expanded state from sessionStorage on mount
+  const loadExpandedState = (): Set<string> => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = sessionStorage.getItem(storageKey)
+      if (stored) {
+        return new Set(JSON.parse(stored))
+      }
+    } catch (error) {
+      console.warn('Failed to load expanded state from sessionStorage:', error)
+    }
+    return new Set()
+  }
+  
+  // State to track expanded parent items with sessionStorage persistence
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(loadExpandedState)
+  
+  // Save expanded state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(Array.from(expandedItems)))
+    } catch (error) {
+      console.warn('Failed to save expanded state to sessionStorage:', error)
+    }
+  }, [expandedItems, storageKey])
   
   const toggleItemExpanded = (itemId: string) => {
     setExpandedItems(prev => {
@@ -332,22 +360,23 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
     })
   }
   
-  // Helper function to build item hierarchy
+  // Helper function to build item hierarchy based on customFields
   const buildItemHierarchy = (items: FFEItem[]) => {
     const parentItems: FFEItem[] = []
     const childItemsMap = new Map<string, FFEItem[]>()
     
-    // First pass: separate parent and child items
+    // First pass: separate parent and child items using customFields
     items.forEach(item => {
-      const parentItemId = item.customFields?.parentItemId
-      if (parentItemId) {
-        // This is a child item
-        if (!childItemsMap.has(parentItemId)) {
-          childItemsMap.set(parentItemId, [])
+      // Check if this is a linked child item
+      if (item.customFields?.isLinkedItem === true && item.customFields?.parentName) {
+        // This is a child item - group by parent name
+        const parentName = item.customFields.parentName
+        if (!childItemsMap.has(parentName)) {
+          childItemsMap.set(parentName, [])
         }
-        childItemsMap.get(parentItemId)!.push(item)
+        childItemsMap.get(parentName)!.push(item)
       } else {
-        // This is a parent item
+        // This is a parent item (or standalone item)
         parentItems.push(item)
       }
     })
@@ -524,7 +553,8 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                         {filteredParentItems
                           .sort((a, b) => (a.order || 0) - (b.order || 0))
                           .map((item) => {
-                            const children = childItemsMap.get(item.id) || []
+                            // Get children by parent name (not ID)
+                            const children = childItemsMap.get(item.name) || []
                             const isItemExpanded = expandedItems.has(item.id)
                             
                             return (
