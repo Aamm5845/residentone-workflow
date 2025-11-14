@@ -13,39 +13,81 @@ const gzipAsync = promisify(gzip)
 // Helper function to download files and convert to base64
 async function downloadFile(url: string, assetId: string): Promise<string | null> {
   try {
-    // Add timeout to prevent hanging
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'ResidentOne-Backup-System/3.0'
+    let buffer: Buffer
+    let mimeType = 'application/octet-stream'
+    
+    // Check if this is a Dropbox path or an HTTP URL
+    const isDropboxPath = url.startsWith('/') || url.toLowerCase().includes('dropbox')
+    
+    if (isDropboxPath) {
+      // Download from Dropbox using dropboxService
+      console.log(`📥 Downloading from Dropbox: ${url.substring(0, 50)}...`)
+      
+      try {
+        buffer = await dropboxService.downloadFile(url)
+        
+        // Infer MIME type from file extension
+        const extension = url.split('.').pop()?.toLowerCase()
+        const mimeTypes: Record<string, string> = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp',
+          'pdf': 'application/pdf',
+          'svg': 'image/svg+xml'
+        }
+        mimeType = mimeTypes[extension || ''] || 'application/octet-stream'
+      } catch (dropboxError) {
+        console.error(`Failed to download from Dropbox ${url}:`, dropboxError)
+        throw dropboxError
       }
-    })
+    } else {
+      // Download from HTTP URL using fetch
+      console.log(`📥 Downloading from URL: ${url.substring(0, 50)}...`)
+      
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-    clearTimeout(timeoutId)
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'ResidentOne-Backup-System/3.0'
+        }
+      })
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      // Check file size (limit to 50MB per file)
+      const contentLength = response.headers.get('content-length')
+      if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+        throw new Error('File too large (>50MB)')
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      buffer = Buffer.from(arrayBuffer)
+      mimeType = response.headers.get('content-type') || 'application/octet-stream'
     }
-
-    // Check file size (limit to 50MB per file)
-    const contentLength = response.headers.get('content-length')
-    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+    
+    // Check buffer size (limit to 50MB)
+    if (buffer.length > 50 * 1024 * 1024) {
       throw new Error('File too large (>50MB)')
     }
-
-    const arrayBuffer = await response.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    
+    // Convert to base64
+    const base64 = buffer.toString('base64')
     
     // Store with metadata for easier restoration
     const fileData = {
       content: base64,
       originalUrl: url,
-      mimeType: response.headers.get('content-type') || 'application/octet-stream',
-      size: arrayBuffer.byteLength,
+      mimeType,
+      size: buffer.length,
       downloadedAt: new Date().toISOString()
     }
 
@@ -158,7 +200,8 @@ async function exportDatabase() {
 // Cleanup old backups - keep only last 20
 async function cleanupOldBackups() {
   try {
-    const backupFolderPath = '/Meisner Interiors Team Folder/Software Backups'
+    // Use relative path for read operations (with shared link)
+    const backupFolderPath = '/Software Backups'
     
     // List all files in backup folder
     const folderContents = await dropboxService.listFolder(backupFolderPath)
@@ -215,6 +258,7 @@ export async function GET(req: Request) {
     // 3. Generate filename with date and time for unique backups
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) // YYYY-MM-DDTHH-MM-SS
     const filename = `database-backup-${timestamp}.json.gz`
+    // Use full path for write operations
     const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
     
     // 4. Ensure backup folder exists in Dropbox

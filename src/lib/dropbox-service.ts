@@ -58,6 +58,27 @@ class DropboxService {
     return teamMemberId
   }
 
+  /**
+   * Check if Dropbox service is properly configured
+   */
+  isConfigured(): boolean {
+    try {
+      // Check for authentication credentials
+      const hasRefreshToken = !!(process.env.DROPBOX_REFRESH_TOKEN && 
+                                 process.env.DROPBOX_APP_KEY && 
+                                 process.env.DROPBOX_APP_SECRET)
+      const hasAccessToken = !!process.env.DROPBOX_ACCESS_TOKEN
+      
+      // Check for team member ID
+      const hasTeamMember = !!(process.env.DROPBOX_TEAM_MEMBER_ID || 
+                               process.env.DROPBOX_API_SELECT_USER)
+      
+      return (hasRefreshToken || hasAccessToken) && hasTeamMember
+    } catch (error) {
+      return false
+    }
+  }
+
   private getClient() {
     if (!this.dropbox) {
       const teamMemberId = this.getTeamMemberId()
@@ -236,13 +257,20 @@ class DropboxService {
       const client = this.getClient()
       const sharedLinkUrl = 'https://www.dropbox.com/scl/fo/7dk9gbqev0k04gw0ifm7t/AJH6jgqztvAlHM4DKJbtEL0?rlkey=xt236i59o7tevsfozuvd2zo2o&st=gjz3rjtp&dl=0'
       
-      console.log('[DropboxService] Downloading file via shared link:', path)
+      // Strip the team folder prefix if present (shared link already points to team folder root)
+      const teamFolderPrefix = '/meisner interiors team folder'
+      let relativePath = path
+      if (path.toLowerCase().startsWith(teamFolderPrefix.toLowerCase())) {
+        relativePath = path.substring(teamFolderPrefix.length)
+      }
+      
+      console.log('[DropboxService] Downloading file via shared link:', relativePath)
       
       try {
         // Method 1: Try sharingGetSharedLinkFile
         const response = await client.sharingGetSharedLinkFile({
           url: sharedLinkUrl,
-          path: path
+          path: relativePath
         })
         
         console.log('[DropboxService] Shared link response keys:', Object.keys(response || {}))
@@ -265,9 +293,9 @@ class DropboxService {
       } catch (sharedError) {
         console.warn('[DropboxService] Shared link download failed, trying regular download:', sharedError)
         
-        // Method 2: Fallback to regular filesDownload (might work if file path is accessible)
+        // Method 2: Fallback to regular filesDownload (uses pathRoot config, so also needs relative path)
         try {
-          const response = await client.filesDownload({ path })
+          const response = await client.filesDownload({ path: relativePath })
           
           if (!response?.result?.fileBinary) {
             throw new Error('No file data received from regular download')
@@ -573,14 +601,19 @@ class DropboxService {
       console.log('[DropboxService] ✅ Folder created successfully:', path)
       return response.result.metadata
     } catch (error: any) {
-      // If folder already exists, that's okay
-      if (error?.error?.error?.['.tag'] === 'path' && 
-          error?.error?.error?.path?.['.tag'] === 'conflict') {
+      // If folder already exists, that's okay (check multiple error structures)
+      const isConflict = 
+        (error?.error?.error?.['.tag'] === 'path' && error?.error?.error?.path?.['.tag'] === 'conflict') ||
+        error?.status === 409 ||
+        (error instanceof Error && error.message?.includes('409'))
+      
+      if (isConflict) {
         console.log('[DropboxService] ℹ️ Folder already exists:', path)
         return { path, exists: true }
       }
       
       console.error('[DropboxService] ❌ Failed to create folder:', path, error)
+      console.error('[DropboxService] Error details:', JSON.stringify(error, null, 2))
       throw new Error(`Failed to create Dropbox folder: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -610,6 +643,17 @@ class DropboxService {
       return response.result
     } catch (error: any) {
       console.error('[DropboxService] ❌ Failed to upload file:', path, error)
+      console.error('[DropboxService] Error details:', JSON.stringify(error, null, 2))
+      
+      // Check if it's a path conflict (file already exists with autorename=true)
+      const isConflict = 
+        error?.status === 409 ||
+        (error instanceof Error && error.message?.includes('409'))
+      
+      if (isConflict) {
+        console.warn('[DropboxService] File upload conflict (409), file may already exist or autorename failed')
+      }
+      
       throw new Error(`Failed to upload file to Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
