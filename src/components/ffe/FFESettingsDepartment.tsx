@@ -460,6 +460,15 @@ export default function FFESettingsDepartment({
     )
   }
   
+  // Helper function to get linked children IDs for a parent item
+  const getLinkedChildrenIds = (parentItemName: string, sectionItems: any[]): string[] => {
+    const children = sectionItems.filter(child =>
+      child.customFields?.isLinkedItem && 
+      child.customFields?.parentName === parentItemName
+    )
+    return children.map(child => child.id)
+  }
+  
   // Linked items handlers
   const addLinkedItemToForm = () => {
     const trimmed = linkedItemInputValue.trim()
@@ -1508,8 +1517,14 @@ export default function FFESettingsDepartment({
                               section.items.forEach(item => {
                                 if (checked) {
                                   newSet.add(item.id)
+                                  // Also select linked children
+                                  const childIds = getLinkedChildrenIds(item.name, section.items)
+                                  childIds.forEach(childId => newSet.add(childId))
                                 } else {
                                   newSet.delete(item.id)
+                                  // Also deselect linked children
+                                  const childIds = getLinkedChildrenIds(item.name, section.items)
+                                  childIds.forEach(childId => newSet.delete(childId))
                                 }
                               })
                               return newSet
@@ -1585,8 +1600,14 @@ export default function FFESettingsDepartment({
                                     const newSet = new Set(prev)
                                     if (selected) {
                                       newSet.add(itemId)
+                                      // Also select all linked children
+                                      const childIds = getLinkedChildrenIds(item.name, section.items)
+                                      childIds.forEach(childId => newSet.add(childId))
                                     } else {
                                       newSet.delete(itemId)
+                                      // Also deselect all linked children
+                                      const childIds = getLinkedChildrenIds(item.name, section.items)
+                                      childIds.forEach(childId => newSet.delete(childId))
                                     }
                                     return newSet
                                   })

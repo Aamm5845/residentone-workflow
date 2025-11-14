@@ -850,6 +850,18 @@ export default function FFEItemCard({
             </Dialog>
           </>
         )}
+        
+        {/* Add Linked Item Button (for items without children yet) */}
+        {mode === 'settings' && !isChildItem && !hasLinkedChildren && onAddLinkedItem && (
+          <button
+            onClick={() => onAddLinkedItem({ id, name, customFields })}
+            disabled={disabled}
+            className="btn-ghost p-2 rounded-lg text-blue-600 hover:bg-blue-50"
+            title="Add linked item"
+          >
+            <Link2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
     

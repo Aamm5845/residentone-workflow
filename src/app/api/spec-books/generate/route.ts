@@ -278,10 +278,71 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get all rendering URLs (support both new array and legacy single URL)
-      const renderingUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
-        ? roomSection.renderingUrls
-        : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
+      // Get rendering URLs from approved versions first (3D render phase), fallback to manual uploads
+      let renderingUrls: string[] = []
+      
+      // First, check for client-approved rendering assets
+      const approvedVersion = await prisma.renderingVersion.findFirst({
+        where: {
+          roomId: roomId,
+          clientApprovalVersion: {
+            clientDecision: 'APPROVED'
+          }
+        },
+        include: {
+          clientApprovalVersion: {
+            select: {
+              clientDecidedAt: true
+            }
+          },
+          assets: {
+            where: {
+              type: 'RENDER'
+            },
+            orderBy: {
+              createdAt: 'asc'
+            },
+            select: {
+              url: true,
+              provider: true
+            }
+          }
+        },
+        orderBy: {
+          clientApprovalVersion: {
+            clientDecidedAt: 'desc'
+          }
+        }
+      })
+      
+      if (approvedVersion && approvedVersion.assets.length > 0) {
+        // Use approved rendering assets from 3D render phase
+        console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
+        // Convert Dropbox paths to public URLs if needed
+        for (const asset of approvedVersion.assets) {
+          if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
+            // Generate temporary link for Dropbox files
+            try {
+              const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+              if (temporaryLink) {
+                renderingUrls.push(temporaryLink)
+              } else {
+                console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
+              }
+            } catch (error) {
+              console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
+            }
+          } else {
+            renderingUrls.push(asset.url)
+          }
+        }
+      } else {
+        // Fallback to manually uploaded renderings in spec book section
+        renderingUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
+          ? roomSection.renderingUrls
+          : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
+        console.log(`[DEBUG] Using ${renderingUrls.length} manual rendering URL(s) for room ${room.name}`)
+      }
       
       // Only add room if it has content (CAD files or rendering)
       if (cadFiles.length > 0 || renderingUrls.length > 0) {

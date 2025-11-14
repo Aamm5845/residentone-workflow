@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,17 +73,34 @@ export async function GET(request: NextRequest) {
 
     // If we have an approved version with assets, return them
     if (approvedVersion && approvedVersion.assets.length > 0) {
-      const approvedAssets = approvedVersion.assets.map((asset) => {
-        const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
-        return {
-          id: asset.id,
-          url: asset.url,
-          filename: filename,
-          mimeType: asset.mimeType,
-          fileSize: asset.size || 0,
-          source: 'APPROVED' as const
-        }
-      })
+      const approvedAssets = await Promise.all(
+        approvedVersion.assets.map(async (asset) => {
+          const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
+          
+          // Convert Dropbox paths to temporary download links
+          let displayUrl = asset.url
+          if (asset.url && !asset.url.startsWith('http')) {
+            // This is a Dropbox path, get temporary link
+            try {
+              const tempLink = await dropboxService.getTemporaryLink(asset.url)
+              if (tempLink) {
+                displayUrl = tempLink
+              }
+            } catch (error) {
+              console.error(`Failed to get temporary link for ${asset.url}:`, error)
+            }
+          }
+          
+          return {
+            id: asset.id,
+            url: displayUrl,
+            filename: filename,
+            mimeType: asset.mimeType,
+            fileSize: asset.size || 0,
+            source: 'APPROVED' as const
+          }
+        })
+      )
 
       return NextResponse.json({
         success: true,

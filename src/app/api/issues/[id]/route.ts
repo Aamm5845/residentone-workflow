@@ -146,7 +146,7 @@ export async function PATCH(
 
     if (title !== undefined) updateData.title = title.trim()
     if (description !== undefined) updateData.description = description.trim()
-    if (type !== undefined) updateData.type = type
+    if (type !== undefined && type !== '') updateData.type = type
     if (priority !== undefined) updateData.priority = priority
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo
     // Safely merge metadata to preserve existing fields like imageUrl and consoleLog
