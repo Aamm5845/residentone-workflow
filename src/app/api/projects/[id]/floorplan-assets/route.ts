@@ -135,6 +135,9 @@ export async function POST(
         metadata: metadata,
         description: description || null,
         userDescription: description || null,
+        uploadedBy: session.user.id,
+        orgId: session.user.orgId,
+        projectId: resolvedParams.id,
         uploader: {
           connect: { id: session.user.id }
         },
