@@ -2,6 +2,7 @@ import { PDFDocument, PDFPage, StandardFonts, rgb, PageSizes } from 'pdf-lib'
 import { put } from '@vercel/blob'
 import fs from 'fs/promises'
 import path from 'path'
+import { DropboxService } from './dropbox-service'
 
 interface CoverPageData {
   clientName: string
@@ -48,11 +49,14 @@ interface GenerationOptions {
     }>
   }>
   generatedById: string
+  projectDropboxFolder?: string // Optional: for Dropbox mirroring
 }
 
 interface GenerationResult {
   success: boolean
   pdfUrl?: string
+  dropboxUrl?: string // Mirrored URL in Dropbox
+  dropboxPath?: string // Path in Dropbox
   fileSize?: number
   pageCount?: number
   error?: string
@@ -130,7 +134,7 @@ class PDFGenerationService {
       // Convert to bytes
       const pdfBytes = await pdfDoc.save()
       
-      // Upload to Vercel Blob
+      // Upload to Vercel Blob (primary storage)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const fileName = `spec-book-${options.projectId}-${timestamp}.pdf`
       
@@ -139,9 +143,49 @@ class PDFGenerationService {
         contentType: 'application/pdf'
       })
       
+      // Mirror to Dropbox (archival/backup - non-fatal if fails)
+      let dropboxUrl: string | undefined
+      let dropboxPath: string | undefined
+      
+      if (options.projectDropboxFolder) {
+        try {
+          console.log('[PDF-Generation] Mirroring spec book to Dropbox...')
+          const dropboxService = new DropboxService()
+          
+          // Ensure folder structure
+          const basePath = `${options.projectDropboxFolder}/11- SOFTWARE UPLOADS`
+          const specBooksPath = `${basePath}/Spec Books`
+          const generatedPath = `${specBooksPath}/Generated`
+          
+          try {
+            await dropboxService.createFolder(basePath)
+            await dropboxService.createFolder(specBooksPath)
+            await dropboxService.createFolder(generatedPath)
+          } catch (folderError) {
+            console.log('[PDF-Generation] Dropbox folders already exist')
+          }
+          
+          // Upload to Dropbox
+          dropboxPath = `${generatedPath}/${fileName}`
+          await dropboxService.uploadFile(dropboxPath, Buffer.from(pdfBytes))
+          
+          // Get shared link
+          const sharedLink = await dropboxService.createSharedLink(dropboxPath)
+          if (sharedLink) {
+            dropboxUrl = sharedLink
+            console.log('[PDF-Generation] ✅ Spec book mirrored to Dropbox:', dropboxPath)
+          }
+        } catch (dropboxError) {
+          console.error('[PDF-Generation] ⚠️ Failed to mirror to Dropbox (non-fatal):', dropboxError)
+          // Don't fail the generation - Blob is the primary storage
+        }
+      }
+      
       return {
         success: true,
         pdfUrl: blob.url,
+        dropboxUrl,
+        dropboxPath,
         fileSize: pdfBytes.length,
         pageCount: pdfDoc.getPageCount()
       }

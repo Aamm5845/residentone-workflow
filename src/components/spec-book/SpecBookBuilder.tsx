@@ -537,23 +537,26 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                 <Accordion type="multiple" value={projectSectionsOpen ? PROJECT_LEVEL_SECTIONS.map(s => s.type) : undefined} className="space-y-3">
                   {PROJECT_LEVEL_SECTIONS.map((section) => (
                     <AccordionItem key={section.type} value={section.type} className="border border-gray-200/70 rounded-xl overflow-hidden">
-                      <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50/50">
-                        <div className="flex items-center space-x-3 flex-1 text-left">
+                      <div className="flex items-center">
+                        <div className="px-3 py-3 flex items-center">
                           <Checkbox
                             id={section.type}
                             checked={selectedSections[section.type] || false}
                             onCheckedChange={(checked) => 
                               handleSectionToggle(section.type, checked as boolean)
                             }
-                            onClick={(e) => e.stopPropagation()}
                             className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                           />
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">{section.name}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">{section.description}</div>
-                          </div>
                         </div>
-                      </AccordionTrigger>
+                        <AccordionTrigger className="hover:no-underline flex-1 px-4 py-3 hover:bg-gray-50/50">
+                          <div className="flex items-center space-x-3 flex-1 text-left">
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{section.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">{section.description}</div>
+                            </div>
+                          </div>
+                        </AccordionTrigger>
+                      </div>
                       <AccordionContent className="px-4 pb-4 bg-gray-50/30">
                         {selectedSections[section.type] && (
                           <div className="space-y-3 pt-2">

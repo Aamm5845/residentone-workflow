@@ -2,15 +2,19 @@
 
 ## Changes Made
 
-Updated the Dropbox project folder structure from **7 folders to 10 folders**.
+Updated the Dropbox project folder structure from **10 folders to 11 folders**.
 
-### File Modified:
+### Files Modified:
 - `src/lib/dropbox-service.ts`
+- `src/app/api/upload-image/route.ts`
+- `src/app/api/spec-books/upload-pdf/route.ts`
+- `src/app/api/upload/route.ts`
+- `src/app/api/upload-pdf/route.ts`
+- `src/app/api/chat/[stageId]/route.ts`
 
-### New Folders Added:
-1. **8- DRAWINGS**
-2. **9- SKP**
-3. **10- SOFTWARE UPLOADS**
+### Changes:
+1. **10- SOFTWARE UPLOADS** → **10- REFERENCE MOOD**
+2. **Added 11- SOFTWARE UPLOADS** (new folder for all software-generated assets)
 
 ---
 
@@ -27,9 +31,17 @@ When creating a new project or configuring Dropbox integration, the following fo
 ├── 5- RECIEVED
 ├── 6- SHOPPING
 ├── 7- SOURCES
-├── 8- DRAWINGS          ← NEW
-├── 9- SKP               ← NEW
-└── 10- SOFTWARE UPLOADS ← NEW
+├── 8- DRAWINGS
+├── 9- SKP
+├── 10- REFERENCE MOOD    ← UPDATED (was SOFTWARE UPLOADS)
+└── 11- SOFTWARE UPLOADS  ← NEW
+    ├── Project Covers
+    ├── Spec Books
+    │   ├── Generated
+    │   └── Uploaded
+    ├── Floorplan Approvals
+    ├── Chat Attachments
+    └── General Assets
 ```
 
 ---
@@ -81,17 +93,27 @@ When enabling Dropbox integration in existing project settings:
 
 ## Usage Examples
 
-### DRAWINGS Folder
+### DRAWINGS Folder (8-)
 - Purpose: Store architectural drawings, plans, elevations
 - Typical files: PDF drawings, DWG exports, construction documents
 
-### SKP Folder
+### SKP Folder (9-)
 - Purpose: SketchUp files (.skp)
 - Typical files: 3D models, design iterations, component files
 
-### SOFTWARE UPLOADS Folder
-- Purpose: General software-generated files and uploads
-- Typical files: Exports from various design software, batch uploads
+### REFERENCE MOOD Folder (10-)
+- Purpose: Reference images, mood boards, inspiration materials
+- Typical files: Images, PDFs, design references
+
+### SOFTWARE UPLOADS Folder (11-)
+- Purpose: All software-generated files and uploads from ResidentOne
+- Subfolders:
+  - **Project Covers**: Project cover images
+  - **Spec Books/Generated**: Auto-generated spec book PDFs
+  - **Spec Books/Uploaded**: User-uploaded spec book PDFs
+  - **Floorplan Approvals**: Floorplan approval assets
+  - **Chat Attachments**: Images shared in project chat
+  - **General Assets**: General uploads
 
 ---
 
@@ -148,11 +170,11 @@ async createProjectFolderStructure(projectName: string): Promise<string>
 
 | Item | Before | After |
 |------|--------|-------|
-| Total Folders | 7 | **10** ✅ |
-| New: DRAWINGS | ❌ | ✅ |
-| New: SKP | ❌ | ✅ |
-| New: SOFTWARE UPLOADS | ❌ | ✅ |
-| Existing Folders | Unchanged | Unchanged |
-| File Modified | - | `dropbox-service.ts` |
+| Total Folders | 10 | **11** ✅ |
+| 10- SOFTWARE UPLOADS | ✅ | Renamed to **10- REFERENCE MOOD** |
+| 11- SOFTWARE UPLOADS | ❌ | **NEW** ✅ |
+| Subfolders in 11- | ❌ | 7 subfolders created ✅ |
+| Asset Upload Routing | Mixed | All to 11- SOFTWARE UPLOADS ✅ |
+| Files Modified | 1 | 6 files |
 
 **Status:** Ready to test! 🚀

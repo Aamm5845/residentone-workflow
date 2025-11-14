@@ -40,13 +40,15 @@ export async function POST(request: NextRequest) {
       const dropboxService = new DropboxService()
       
       // Ensure folder structure exists
-      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const basePath = `/Meisner Interiors Team Folder/11- SOFTWARE UPLOADS`
       const specBooksFolder = `${basePath}/Spec Books`
-      const projectFolder = `${specBooksFolder}/${projectId}`
+      const uploadedFolder = `${specBooksFolder}/Uploaded`
+      const projectFolder = `${uploadedFolder}/${projectId}`
       const sectionFolder = `${projectFolder}/${sectionType}`
       try {
         await dropboxService.createFolder(basePath)
         await dropboxService.createFolder(specBooksFolder)
+        await dropboxService.createFolder(uploadedFolder)
         await dropboxService.createFolder(projectFolder)
         await dropboxService.createFolder(sectionFolder)
       } catch (folderError) {

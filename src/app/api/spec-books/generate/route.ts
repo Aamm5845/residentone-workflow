@@ -393,7 +393,8 @@ export async function POST(request: NextRequest) {
         coverPageData,
         selectedSections: processedSections,
         selectedRooms: processedRooms,
-        generatedById: session.user.id
+        generatedById: session.user.id,
+        projectDropboxFolder: project.dropboxFolder || undefined
       })
 
       if (generationResult.success) {
@@ -415,6 +416,8 @@ export async function POST(request: NextRequest) {
             id: generation.id,
             version,
             pdfUrl: generationResult.pdfUrl,
+            dropboxUrl: generationResult.dropboxUrl,
+            dropboxPath: generationResult.dropboxPath,
             fileSize: generationResult.fileSize,
             pageCount: generationResult.pageCount
           }

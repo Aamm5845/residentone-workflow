@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         // Mirror to Dropbox if folder is linked (don't fail if no link)
         if (projectDropboxFolder) {
           try {
-            const basePath = `${projectDropboxFolder}/10- SOFTWARE UPLOADS`
+            const basePath = `${projectDropboxFolder}/11- SOFTWARE UPLOADS`
             const subfolderPath = `${basePath}/${folderMap['project-cover']}`
             await dropboxService.createFolder(basePath)
             await dropboxService.createFolder(subfolderPath)
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       const subfolder = folderMap[imageType] || 'General Assets'
 
       // Use org-wide location for non-project files
-      const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+      const basePath = `/Meisner Interiors Team Folder/11- SOFTWARE UPLOADS`
       const subfolderPath = `${basePath}/${subfolder}`
 
       // Ensure folders

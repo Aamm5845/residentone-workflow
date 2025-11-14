@@ -715,7 +715,7 @@ class DropboxService {
   /**
    * Create project folder structure in Dropbox
    * Creates: /Meisner Interiors Team Folder/{projectName}/
-   * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-SOURCES, 8-DRAWINGS, 9-SKP, 10-SOFTWARE UPLOADS
+   * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-SOURCES, 8-DRAWINGS, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
    */
   async createProjectFolderStructure(projectName: string): Promise<string> {
     try {
@@ -748,7 +748,8 @@ class DropboxService {
         '7- SOURCES',
         '8- DRAWINGS',
         '9- SKP',
-        '10- SOFTWARE UPLOADS'
+        '10- REFERENCE MOOD',
+        '11- SOFTWARE UPLOADS'
       ]
       
       // Create each subfolder
@@ -768,6 +769,31 @@ class DropboxService {
           failCount++
           // Log error but continue with other folders
           console.error(`[DropboxService] ⚠️ Failed to create subfolder ${subfolder}:`, error)
+        }
+      }
+      
+      // Create common subfolders inside 11- SOFTWARE UPLOADS
+      const softwareUploadsPath = `${mainFolderPath}/11- SOFTWARE UPLOADS`
+      const softwareSubfolders = [
+        'Project Covers',
+        'Spec Books',
+        'Spec Books/Generated',
+        'Spec Books/Uploaded',
+        'Floorplan Approvals',
+        'Chat Attachments',
+        'General Assets'
+      ]
+      
+      console.log(`[DropboxService] 📚 Creating ${softwareSubfolders.length} subfolders in SOFTWARE UPLOADS...`)
+      for (const subfolder of softwareSubfolders) {
+        const subfolderPath = `${softwareUploadsPath}/${subfolder}`
+        try {
+          await this.createFolder(subfolderPath)
+          successCount++
+          console.log(`[DropboxService] ✅ SOFTWARE UPLOADS subfolder created: ${subfolder}`)
+        } catch (error) {
+          failCount++
+          console.error(`[DropboxService] ⚠️ Failed to create SOFTWARE UPLOADS subfolder ${subfolder}:`, error)
         }
       }
       

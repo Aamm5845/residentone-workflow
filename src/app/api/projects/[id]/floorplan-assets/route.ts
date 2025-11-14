@@ -113,13 +113,52 @@ export async function POST(
     const fileData = buffer.toString('base64')
     const fileUrl = `data:${file.type};base64,${fileData}`
     
+    // Mirror to Dropbox (archival/backup - non-fatal if fails)
+    let dropboxUrl: string | undefined
+    let dropboxPath: string | undefined
+    
+    if (project.dropboxFolder) {
+      try {
+        console.log('[Floorplan-Assets] Mirroring to Dropbox...')
+        const { DropboxService } = await import('@/lib/dropbox-service')
+        const dropboxService = new DropboxService()
+        
+        // Ensure folder structure
+        const basePath = `${project.dropboxFolder}/11- SOFTWARE UPLOADS`
+        const floorplanPath = `${basePath}/Floorplan Approvals`
+        
+        try {
+          await dropboxService.createFolder(basePath)
+          await dropboxService.createFolder(floorplanPath)
+        } catch (folderError) {
+          console.log('[Floorplan-Assets] Dropbox folders already exist')
+        }
+        
+        // Upload to Dropbox
+        dropboxPath = `${floorplanPath}/${fileName}`
+        await dropboxService.uploadFile(dropboxPath, buffer)
+        
+        // Get shared link
+        const sharedLink = await dropboxService.createSharedLink(dropboxPath)
+        if (sharedLink) {
+          dropboxUrl = sharedLink
+          console.log('[Floorplan-Assets] ✅ Asset mirrored to Dropbox:', dropboxPath)
+        }
+      } catch (dropboxError) {
+        console.error('[Floorplan-Assets] ⚠️ Failed to mirror to Dropbox (non-fatal):', dropboxError)
+        // Don't fail the upload - database is the primary storage
+      }
+    }
+    
     const metadata = JSON.stringify({
       originalName: file.name,
       uploadDate: new Date().toISOString(),
       projectId: resolvedParams.id,
       versionId: versionId,
       storageMethod: 'postgres_base64',
-      category: fileConfig.assetType
+      category: fileConfig.assetType,
+      dropboxUrl: dropboxUrl || null,
+      dropboxPath: dropboxPath || null
     })
 
     // Create asset record
@@ -137,16 +176,7 @@ export async function POST(
         userDescription: description || null,
         uploadedBy: session.user.id,
         orgId: session.user.orgId,
-        projectId: resolvedParams.id,
-        uploader: {
-          connect: { id: session.user.id }
-        },
-        organization: {
-          connect: { id: session.user.orgId }
-        },
-        project: {
-          connect: { id: resolvedParams.id }
-        }
+        projectId: resolvedParams.id
       }
     })
 

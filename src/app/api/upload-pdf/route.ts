@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const dropboxService = new DropboxService()
     
     // Ensure folder structure exists
-    const basePath = `/Meisner Interiors Team Folder/10- SOFTWARE UPLOADS`
+    const basePath = `/Meisner Interiors Team Folder/11- SOFTWARE UPLOADS`
     const pdfFolder = `${basePath}/PDFs`
     const typeFolder = `${pdfFolder}/${type || 'general'}`
     try {
