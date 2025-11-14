@@ -468,78 +468,57 @@ export default function IssueList({ currentUser }: IssueListProps) {
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                     
-                    {openDropdown === issue.id && (() => {
-                      // Check permissions
-                      const canUpdate = 
-                        issue.reporter.id === user.id ||
-                        ['ADMIN', 'OWNER'].includes(user.role)
-                      
-                      const canDelete = 
-                        issue.reporter.id === user.id ||
-                        ['ADMIN', 'OWNER'].includes(user.role)
-                      
-                      return (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                          <div className="py-1">
+                    {openDropdown === issue.id && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                        <div className="py-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewIssue(issue)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                          >
+                            <Eye className="w-4 h-4 mr-3" />
+                            View Details
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditIssue(issue)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Edit3 className="w-4 h-4 mr-3" />
+                            Edit
+                          </button>
+                          
+                          {issue.status !== 'RESOLVED' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleViewIssue(issue)
+                                handleResolveIssue(issue)
                               }}
-                              className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                              className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
                             >
-                              <Eye className="w-4 h-4 mr-3" />
-                              View Details
+                              <CheckCircle className="w-4 h-4 mr-3" />
+                              Mark Resolved
                             </button>
-                            
-                            {canUpdate && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleEditIssue(issue)
-                                }}
-                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                <Edit3 className="w-4 h-4 mr-3" />
-                                Edit
-                              </button>
-                            )}
-                            
-                            {canUpdate && issue.status !== 'RESOLVED' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleResolveIssue(issue)
-                                }}
-                                className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-3" />
-                                Mark Resolved
-                              </button>
-                            )}
-                            
-                            {canDelete && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteIssue(issue)
-                                }}
-                                className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4 mr-3" />
-                                Delete
-                              </button>
-                            )}
-                            
-                            {!canUpdate && !canDelete && (
-                              <div className="px-4 py-2 text-sm text-gray-500 italic">
-                                Limited actions
-                              </div>
-                            )}
-                          </div>
+                          )}
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteIssue(issue)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            Delete
+                          </button>
                         </div>
-                      )
-                    })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

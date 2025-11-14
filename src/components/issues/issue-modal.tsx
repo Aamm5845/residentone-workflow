@@ -67,11 +67,8 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [imageError, setImageError] = useState<string | null>(null)
 
   const isEditing = !!editingIssue
-  const canEdit = isEditing && (
-    editingIssue.reporter.id === session?.user?.id ||
-    ['ADMIN', 'OWNER'].includes(session?.user?.role || '')
-  )
-  const canDelete = canEdit
+  const canEdit = true // Everyone can edit
+  const canDelete = true // Everyone can delete
 
   // Initialize form when editing issue changes
   useEffect(() => {
@@ -196,7 +193,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             priority,
             status,
             metadata: {
-              consoleLog: consoleLog || undefined
+              consoleLog: consoleLog.trim() || null
             }
           }),
         })
@@ -205,7 +202,9 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           onIssueUpdated?.()
           handleClose()
         } else {
-          throw new Error('Failed to update issue')
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.error || `Failed to update issue (${response.status})`
+          throw new Error(errorMessage)
         }
       } else {
         // Create new issue with FormData to support image upload
@@ -238,7 +237,8 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       }
     } catch (error) {
       console.error('Error submitting issue:', error)
-      alert(`Failed to ${isEditing ? 'update' : 'create'} issue. Please try again.`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Error submitting issue: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -260,11 +260,14 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
         onIssueUpdated?.()
         handleClose()
       } else {
-        throw new Error('Failed to delete issue')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `Failed to delete issue (${response.status})`
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error deleting issue:', error)
-      alert('Failed to delete issue. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Error deleting issue: ${errorMessage}`)
     }
   }
 
@@ -287,11 +290,14 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
         onIssueUpdated?.()
         handleClose()
       } else {
-        throw new Error('Failed to resolve issue')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `Failed to resolve issue (${response.status})`
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error resolving issue:', error)
-      alert('Failed to resolve issue. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Error resolving issue: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }

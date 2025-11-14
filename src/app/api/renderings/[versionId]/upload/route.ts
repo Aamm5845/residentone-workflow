@@ -102,24 +102,51 @@ export async function POST(
         
         // Upload to Dropbox as primary storage
         if (renderingVersion.room.project.dropboxFolder) {
-          const roomName = renderingVersion.room.name || renderingVersion.room.type
-          const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
-          const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
-          
-          // Ensure the folder exists
-          try {
-            await dropboxService.createFolder(dropboxFolderPath)
-          } catch (folderError) {
-            console.log('[Dropbox] Folder may already exist:', dropboxFolderPath)
+          // Use custom room name if provided, otherwise use room type (converted to readable format)
+          let roomName = renderingVersion.room.name && renderingVersion.room.name.trim()
+          if (!roomName) {
+            // Convert enum value to readable format: LIVING_ROOM -> Living Room
+            roomName = renderingVersion.room.type
+              .split('_')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ')
           }
           
+          // Sanitize folder name: remove invalid characters, collapse spaces, trim
+          const sanitizedRoomName = roomName
+            .replace(/[<>:\"\/\\|?*]/g, ' ') // replace invalid chars with space
+            .replace(/\s+/g, ' ')               // collapse multiple spaces
+            .replace(/\.$/, '')                 // remove trailing period
+            .trim()
+
+          const baseFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING`
+          const roomFolderPath = `${baseFolderPath}/${sanitizedRoomName}`
+          const versionFolderPath = `${roomFolderPath}/${renderingVersion.version}`
+
+          // Ensure each parent folder exists, in order
+          try {
+            await dropboxService.createFolder(baseFolderPath)
+          } catch (err) {
+            console.warn('[Dropbox] Could not create base folder (may exist):', baseFolderPath)
+          }
+          try {
+            await dropboxService.createFolder(roomFolderPath)
+          } catch (err) {
+            console.warn('[Dropbox] Could not create room folder (may exist):', roomFolderPath)
+          }
+          try {
+            await dropboxService.createFolder(versionFolderPath)
+          } catch (err) {
+            console.warn('[Dropbox] Could not create version folder (may exist):', versionFolderPath)
+          }
+
           // Upload to Dropbox
-          const dropboxFilePath = `${dropboxFolderPath}/${filename}`
+          const dropboxFilePath = `${versionFolderPath}/${filename}`
           await dropboxService.uploadFile(dropboxFilePath, buffer)
-          
+
           fileUrl = dropboxFilePath
           storageProvider = 'dropbox'
-          
+
           console.log(`✅ File uploaded to Dropbox: ${dropboxFilePath}`)
         } else {
           // Fallback: Project must have Dropbox integration

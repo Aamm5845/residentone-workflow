@@ -130,23 +130,13 @@ export async function PATCH(
       metadata
     } = data
 
-    // Get the current issue to check permissions and log changes
+    // Get the current issue to log changes
     const currentIssue = await prisma.issue.findFirst({
       where: { id: resolvedParams.id }
     })
 
     if (!currentIssue) {
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
-    }
-
-    // Check permissions - only reporter, assignee, or admins can update
-    const canUpdate = 
-      currentIssue.reportedBy === session.user.id ||
-      currentIssue.assignedTo === session.user.id ||
-      ['ADMIN', 'OWNER'].includes(session.user.role)
-
-    if (!canUpdate) {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
 
     // Prepare update data
@@ -274,7 +264,11 @@ export async function PATCH(
     return NextResponse.json(updatedIssue)
   } catch (error) {
     console.error('Error updating issue:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({ 
+      error: 'Failed to update issue', 
+      details: errorMessage 
+    }, { status: 500 })
   }
 }
 
@@ -292,22 +286,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get the issue to check permissions
+    // Get the issue
     const issue = await prisma.issue.findFirst({
       where: { id: resolvedParams.id }
     })
 
     if (!issue) {
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
-    }
-
-    // Check permissions - only reporter or admins can delete
-    const canDelete = 
-      issue.reportedBy === session.user.id ||
-      ['ADMIN', 'OWNER'].includes(session.user.role)
-
-    if (!canDelete) {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
 
     // Delete the issue (cascade will delete comments)
