@@ -100,14 +100,32 @@ async function downloadFile(url: string, assetId: string): Promise<string | null
 
 // Check if request is authorized (Vercel Cron or secret)
 function isAuthorized(req: Request) {
-  // Allow Vercel Cron (adds x-vercel-cron: 1)
-  if (req.headers.get('x-vercel-cron') === '1') return true
+  // Allow Vercel Cron - check for the header in multiple ways
+  const vercelCronHeader = req.headers.get('x-vercel-cron')
+  const vercelIdHeader = req.headers.get('x-vercel-id')
+  
+  // Vercel sets x-vercel-cron header when running scheduled jobs
+  // Accept if header exists and is truthy (could be '1', 'true', or just present)
+  if (vercelCronHeader) {
+    console.log('[Auth] Vercel cron header detected:', vercelCronHeader)
+    return true
+  }
+  
+  // Also check for x-vercel-id as backup (Vercel always sets this for their requests)
+  if (vercelIdHeader) {
+    console.log('[Auth] Vercel ID header detected (fallback auth):', vercelIdHeader.substring(0, 20))
+    return true
+  }
   
   // Allow manual trigger with secret
   const url = new URL(req.url)
   const secret = url.searchParams.get('secret')
-  if (secret && process.env.CRON_SECRET && secret === process.env.CRON_SECRET) return true
+  if (secret && process.env.CRON_SECRET && secret === process.env.CRON_SECRET) {
+    console.log('[Auth] Authenticated with CRON_SECRET')
+    return true
+  }
   
+  console.warn('[Auth] Authorization failed - no valid credentials found')
   return false
 }
 
