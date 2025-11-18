@@ -764,10 +764,10 @@ export function formatDescription(activity: {
       return `${actorName} sent a message${details.channelName ? ` in ${details.channelName}` : ''}${messagePreview}`
 
     case 'RENDERING_VERSION_CREATED':
-      return `${actorName} created rendering version ${details.version || ''}${parts.length ? ' ' + parts.join(' ') : ''}`
+      return `${actorName} created rendering version ${details.version || ''}${context}`
 
     case 'RENDERING_PUSHED_TO_CLIENT':
-      return `${actorName} pushed rendering ${details.version || ''} to client approval${parts.length ? ' ' + parts.join(' ') : ''}`
+      return `${actorName} pushed rendering ${details.version || ''} to client approval${context}`
 
     case 'FFE_ITEM_CREATED':
       return `${actorName} created FFE item "${details.itemName || 'Untitled'}"${context}`
