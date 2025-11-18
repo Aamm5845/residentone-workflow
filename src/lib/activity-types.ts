@@ -700,6 +700,22 @@ export function getTypeMeta(type: string): ActivityTypeMeta {
   return meta
 }
 
+// Helper to format stage display names
+function getStageDisplayName(stageType?: string): string {
+  if (!stageType) return 'stage'
+  
+  const stageNames: Record<string, string> = {
+    'DESIGN_CONCEPT': 'Design Concept',
+    'THREE_D': '3D Rendering',
+    'CLIENT_APPROVAL': 'Client Approval',
+    'DRAWINGS': 'Drawings',
+    'FFE': 'FFE',
+    'Design': 'Design Concept' // Legacy support
+  }
+  
+  return stageNames[stageType] || stageType
+}
+
 export function formatDescription(activity: {
   action: string
   entity: string
@@ -721,7 +737,8 @@ export function formatDescription(activity: {
 
   // Add stage context if available
   if (details.stageName) {
-    contextParts.push(`${details.stageName} stage`)
+    const displayName = getStageDisplayName(details.stageName)
+    contextParts.push(`${displayName} stage`)
   }
 
   // Add project context if available (always last)
@@ -757,7 +774,8 @@ export function formatDescription(activity: {
       return `${actorName} changed issue status from ${details.previousStatus || 'unknown'} to ${details.newStatus || 'unknown'}`
 
     case 'STAGE_COMPLETED':
-      return `${actorName} completed ${details.stageName || activity.entity} stage${context}`
+      const completedStageName = getStageDisplayName(details.stageName)
+      return `${actorName} completed ${completedStageName} stage${context}`
 
     case 'CHAT_MESSAGE_SENT':
       const messagePreview = details.messagePreview ? `: "${details.messagePreview}"` : ''
@@ -792,13 +810,16 @@ export function formatDescription(activity: {
       return `${actorName} updated room "${details.roomName || 'Untitled'}"${details.projectName ? ` in project "${details.projectName}"` : ''}`
 
     case 'STAGE_STARTED':
-      return `${actorName} started ${details.stageName || 'stage'}${context}`
+      const startedStageName = getStageDisplayName(details.stageName)
+      return `${actorName} started ${startedStageName} stage${context}`
 
     case 'STAGE_ASSIGNED':
-      return `${actorName} was assigned to ${details.stageName || 'stage'}${context}`
+      const assignedStageName = getStageDisplayName(details.stageName)
+      return `${actorName} was assigned to ${assignedStageName} stage${context}`
 
     case 'STAGE_UPDATED':
-      return `${actorName} updated ${details.stageName || 'stage'}${context}`
+      const updatedStageName = getStageDisplayName(details.stageName)
+      return `${actorName} updated ${updatedStageName} stage${context}`
 
     case 'ASSET_DELETED':
       return `${actorName} deleted ${details.assetName || 'a file'}${context}`
