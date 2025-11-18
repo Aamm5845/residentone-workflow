@@ -173,12 +173,7 @@ export default function DrawingsWorkspace({
   }
 
   const handleDeleteSection = async (item: DrawingChecklistItem) => {
-    // Only allow deletion of custom sections that have no files
-    if (item.type !== 'CUSTOM') {
-      toast.error('Only custom sections can be deleted')
-      return
-    }
-    
+    // Check if section has files
     if (item.assets.length > 0 || (item.dropboxFiles && item.dropboxFiles.length > 0)) {
       toast.error('Cannot delete section with files. Please remove all files first.')
       return
@@ -462,16 +457,14 @@ export default function DrawingsWorkspace({
                     <Upload className="w-4 h-4 mr-2" />
                     {uploading ? 'Uploading...' : 'Upload Files'}
                   </Button>
-                  {item.type === 'CUSTOM' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteSection(item)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteSection(item)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 

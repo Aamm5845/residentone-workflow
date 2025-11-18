@@ -49,13 +49,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Checklist item not found or access denied' }, { status: 404 })
     }
 
-    // Only allow deletion of CUSTOM type items
-    if (checklistItem.type !== 'CUSTOM') {
-      return NextResponse.json({ 
-        error: 'Only custom checklist items can be deleted' 
-      }, { status: 400 })
-    }
-
     // Prevent deletion if there are files (uploaded or linked)
     if (checklistItem.assets.length > 0 || checklistItem.dropboxFiles.length > 0) {
       return NextResponse.json({ 
