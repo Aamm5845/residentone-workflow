@@ -405,7 +405,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}`
           
           const emailPromises = usersForEmail.map(async (user) => {
             try {
@@ -420,10 +420,10 @@ export async function POST(
                   roomName,
                   projectName,
                   messageContent: messagePreview,
-                  projectUrl,
+                  projectUrl: roomUrl,
                   hasImage: !!imageUrl
                 }),
-                text: `Hi ${user.name},\n\n${authorName} mentioned you in ${stageName} for ${roomName} (${projectName}):\n\n"${messagePreview}"\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+                text: `Hi ${user.name},\n\n${authorName} mentioned you in ${stageName} for ${roomName} (${projectName}):\n\n"${messagePreview}"\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
               })
               console.log(`[Email] ✅ Successfully sent mention email to ${user.name} at ${user.email}`)
             } catch (error) {
@@ -482,7 +482,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}`
 
           // Send email notification if enabled
           if (assignedUserDetails.emailNotificationsEnabled) {
@@ -497,10 +497,10 @@ export async function POST(
                   roomName,
                   projectName,
                   messageContent: messagePreview,
-                  projectUrl,
+                  projectUrl: roomUrl,
                   hasImage: !!imageUrl
                 }),
-                text: `Hi ${assignedUserDetails.name},\n\n${authorName} sent a message in ${stageName} for ${roomName} (${projectName}):\n\n"${messagePreview}"\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+                text: `Hi ${assignedUserDetails.name},\n\n${authorName} sent a message in ${stageName} for ${roomName} (${projectName}):\n\n"${messagePreview}"\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
               })
               console.log(`[Chat Notification] Email sent to ${assignedUserDetails.name}`)
             } catch (emailError) {
@@ -632,7 +632,7 @@ function generateChatNotificationEmail({
             <div style="text-align: center; margin: 32px 0;">
                 <a href="${projectUrl}" 
                    style="background: #3b82f6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);"
-                   target="_blank">View Project</a>
+                   target="_blank">View Room</a>
             </div>
             
             <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
