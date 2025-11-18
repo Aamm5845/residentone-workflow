@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/auth'
 
 // DELETE /api/drawings/checklist/{checklistItemId}
-// Delete a custom checklist item (only CUSTOM type items can be deleted)
+// Delete a checklist item (must have no files)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { checklistItemId: string } }
+  { params }: { params: Promise<{ checklistItemId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { checklistItemId } = params
+    const resolvedParams = await params
+    const { checklistItemId } = resolvedParams
 
     if (!checklistItemId) {
       return NextResponse.json({ 
@@ -26,27 +27,38 @@ export async function DELETE(
     // Verify user has access to this checklist item
     const checklistItem = await prisma.drawingChecklistItem.findUnique({
       where: { id: checklistItemId },
-      include: {
-        stage: {
-          include: {
-            room: {
-              include: {
-                project: {
-                  include: {
-                    organization: true
-                  }
-                }
-              }
-            }
-          }
-        },
+      select: {
+        id: true,
+        stageId: true,
+        type: true,
+        name: true,
         assets: true,
         dropboxFiles: true
       }
     })
 
-    if (!checklistItem || checklistItem.stage.room.project.organization.id !== session.user.orgId) {
-      return NextResponse.json({ error: 'Checklist item not found or access denied' }, { status: 404 })
+    if (!checklistItem) {
+      return NextResponse.json({ error: 'Checklist item not found' }, { status: 404 })
+    }
+
+    // Verify access through stage
+    const stage = await prisma.stage.findUnique({
+      where: { id: checklistItem.stageId },
+      include: {
+        room: {
+          include: {
+            project: {
+              include: {
+                organization: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!stage || stage.room.project.organization.id !== session.user.orgId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 404 })
     }
 
     // Prevent deletion if there are files (uploaded or linked)
