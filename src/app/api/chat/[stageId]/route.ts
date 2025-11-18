@@ -488,11 +488,14 @@ export async function POST(
       entityId: resolvedParams.stageId,
       details: {
         messageId: chatMessage.id,
-        content: content.substring(0, 100),
+        messagePreview: content.substring(0, 100),
         mentionsCount: mentionRecords.length,
         notifiedAssignee: notifyAssignee && stage.assignedUser && stage.assignedUser.id !== session.user.id,
-        stageName: `${stage.type} - ${stage.room.name}`,
-        projectName: stage.room.project.name
+        stageName: stage.type,
+        roomName: stage.room.name || stage.room.type,
+        projectName: stage.room.project.name,
+        projectId: stage.room.project.id,
+        entityUrl: `/projects/${stage.room.project.id}`
       },
       ipAddress
     })

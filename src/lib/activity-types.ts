@@ -761,7 +761,7 @@ export function formatDescription(activity: {
 
     case 'CHAT_MESSAGE_SENT':
       const messagePreview = details.messagePreview ? `: "${details.messagePreview}"` : ''
-      return `${actorName} sent a message${details.channelName ? ` in ${details.channelName}` : ''}${messagePreview}`
+      return `${actorName} sent a message${context}${messagePreview}`
 
     case 'RENDERING_VERSION_CREATED':
       return `${actorName} created rendering version ${details.version || ''}${context}`
