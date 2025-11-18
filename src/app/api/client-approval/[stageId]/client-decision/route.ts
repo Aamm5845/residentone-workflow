@@ -189,7 +189,8 @@ export async function POST(
           const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
           const projectName = currentVersion.stage.room.project.name
           const clientName = currentVersion.stage.room.project.client?.name || 'The client'
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}`
+          const renderingStageId = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'THREE_D' }, select: { id: true } }).then(s => s?.id)
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${renderingStageId || currentVersion.stageId}`
 
           console.log(`[Email] Sending revision notification to Vitor for ${roomName} (${projectName})...`)
           
@@ -311,7 +312,12 @@ export async function POST(
       const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
       const projectName = currentVersion.stage.room.project.name
       const clientName = currentVersion.stage.room.project.client?.name || 'The client'
-      const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}`
+      
+      // Get stage IDs for Drawings and FFE phases
+      const drawingsStage = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'DRAWINGS' }, select: { id: true } })
+      const ffeStage = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'FFE' }, select: { id: true } })
+      const drawingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${drawingsStage?.id || currentVersion.stageId}`
+      const ffeUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${ffeStage?.id || currentVersion.stageId}`
 
       // Notify Sami for Drawings phase
       try {
@@ -368,7 +374,7 @@ export async function POST(
             </p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="${roomUrl}" 
+                <a href="${drawingsUrl}" 
                    style="background: #f97316; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);"
                    target="_blank">View Room</a>
             </div>
@@ -388,7 +394,7 @@ export async function POST(
     </div>
 </body>
 </html>`,
-            text: `Hi ${sami.name},\n\n${clientName} has approved the design in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThe Drawings phase is now open and ready for you to start working on the technical drawings and specifications.\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
+            text: `Hi ${sami.name},\n\n${clientName} has approved the design in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThe Drawings phase is now open and ready for you to start working on the technical drawings and specifications.\n\nView the room: ${drawingsUrl}\n\nBest regards,\nThe Team`
           })
           
           console.log(`[Email] Drawings phase notification sent to Sami`)
@@ -457,7 +463,7 @@ export async function POST(
             </p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="${roomUrl}" 
+                <a href="${ffeUrl}" 
                    style="background: #10b981; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);"
                    target="_blank">View Room</a>
             </div>
@@ -477,7 +483,7 @@ export async function POST(
     </div>
 </body>
 </html>`,
-            text: `Hi ${shaya.name},\n\n${clientName} has approved the design in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThe FFE phase is now open and ready for you to start working on furniture, fixtures, and equipment sourcing.\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
+            text: `Hi ${shaya.name},\n\n${clientName} has approved the design in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThe FFE phase is now open and ready for you to start working on furniture, fixtures, and equipment sourcing.\n\nView the room: ${ffeUrl}\n\nBest regards,\nThe Team`
           })
           
           console.log(`[Email] FFE phase notification sent to Shaya`)

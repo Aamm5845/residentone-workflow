@@ -93,7 +93,7 @@ export async function POST(
         if (shaya && shaya.emailNotificationsEnabled) {
           const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
           const projectName = currentVersion.stage.room.project.name
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${currentVersion.stageId}`
           const approverName = session.user.name || 'Aaron'
 
           console.log(`[Email] Sending Aaron approval notification to Shaya for ${roomName} (${projectName})...`)

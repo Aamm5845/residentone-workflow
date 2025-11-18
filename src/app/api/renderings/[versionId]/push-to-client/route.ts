@@ -256,7 +256,7 @@ export async function POST(
       if (shaya && shaya.emailNotificationsEnabled) {
         const roomName = renderingVersion.room.name || renderingVersion.room.type.replace('_', ' ').toLowerCase()
         const projectName = renderingVersion.room.project.name
-        const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}/rooms/${renderingVersion.roomId}`
+        const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}/rooms/${renderingVersion.roomId}?stage=${clientApprovalStage.id}`
         const pushedByName = session.user.name || 'A team member'
 
         console.log(`[Email] Sending Client Approval notification to Shaya for ${roomName} (${projectName})...`)

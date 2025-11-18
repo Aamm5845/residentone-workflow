@@ -405,7 +405,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
           
           const emailPromises = usersForEmail.map(async (user) => {
             try {
@@ -482,7 +482,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
 
           // Send email notification if enabled
           if (assignedUserDetails.emailNotificationsEnabled) {
