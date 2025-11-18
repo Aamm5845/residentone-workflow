@@ -189,7 +189,7 @@ export async function POST(
           const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
           const projectName = currentVersion.stage.room.project.name
           const clientName = currentVersion.stage.room.project.client?.name || 'The client'
-          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}`
 
           console.log(`[Email] Sending revision notification to Vitor for ${roomName} (${projectName})...`)
           
@@ -236,9 +236,9 @@ export async function POST(
             </p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="${projectUrl}" 
+                <a href="${roomUrl}" 
                    style="background: #f59e0b; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);"
-                   target="_blank">View Project</a>
+                   target="_blank">View Room</a>
             </div>
         </div>
         
@@ -256,7 +256,7 @@ export async function POST(
     </div>
 </body>
 </html>`,
-            text: `Hi ${vitor.name},\n\n${clientName} has requested revisions for the 3D renderings.\n\nProject: ${projectName}\nRoom: ${roomName}${notes ? `\n\nClient's Feedback: ${notes}` : ''}\n\nThe 3D Rendering stage has been reopened. Please review the feedback and make the necessary updates.\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+            text: `Hi ${vitor.name},\n\n${clientName} has requested revisions for the 3D renderings.\n\nProject: ${projectName}\nRoom: ${roomName}${notes ? `\n\nClient's Feedback: ${notes}` : ''}\n\nThe 3D Rendering stage has been reopened. Please review the feedback and make the necessary updates.\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
           })
           
           console.log(`[Email] Revision notification sent to Vitor`)

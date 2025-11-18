@@ -256,7 +256,7 @@ export async function POST(
       if (shaya && shaya.emailNotificationsEnabled) {
         const roomName = renderingVersion.room.name || renderingVersion.room.type.replace('_', ' ').toLowerCase()
         const projectName = renderingVersion.room.project.name
-        const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}`
+        const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}/rooms/${renderingVersion.roomId}`
         const pushedByName = session.user.name || 'A team member'
 
         console.log(`[Email] Sending Client Approval notification to Shaya for ${roomName} (${projectName})...`)
@@ -299,9 +299,9 @@ export async function POST(
             </p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="${projectUrl}" 
+                <a href="${roomUrl}" 
                    style="background: #3b82f6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);"
-                   target="_blank">View Project</a>
+                   target="_blank">View Room</a>
             </div>
         </div>
         
@@ -319,7 +319,7 @@ export async function POST(
     </div>
 </body>
 </html>`,
-          text: `Hi ${shaya.name},\n\n${pushedByName} has pushed a 3D rendering version to Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThis room is now ready for you to start working on in the Client Approval phase.\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+          text: `Hi ${shaya.name},\n\n${pushedByName} has pushed a 3D rendering version to Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThis room is now ready for you to start working on in the Client Approval phase.\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
         })
         
         console.log(`[Email] Client Approval notification sent to Shaya`)

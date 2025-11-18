@@ -93,7 +93,7 @@ export async function POST(
         if (shaya && shaya.emailNotificationsEnabled) {
           const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
           const projectName = currentVersion.stage.room.project.name
-          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}`
+          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}`
           const approverName = session.user.name || 'Aaron'
 
           console.log(`[Email] Sending Aaron approval notification to Shaya for ${roomName} (${projectName})...`)
@@ -141,9 +141,9 @@ export async function POST(
             </p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="${projectUrl}" 
+                <a href="${roomUrl}" 
                    style="background: #10b981; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);"
-                   target="_blank">View Project</a>
+                   target="_blank">View Room</a>
             </div>
         </div>
         
@@ -161,7 +161,7 @@ export async function POST(
     </div>
 </body>
 </html>`,
-            text: `Hi ${shaya.name},\n\n${approverName} has approved the renderings in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}${notes ? `\n\nNotes from Aaron: ${notes}` : ''}\n\nThis room is now approved and ready for the next steps.\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+            text: `Hi ${shaya.name},\n\n${approverName} has approved the renderings in Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}${notes ? `\n\nNotes from Aaron: ${notes}` : ''}\n\nThis room is now approved and ready for the next steps.\n\nView the room: ${roomUrl}\n\nBest regards,\nThe Team`
           })
           
           console.log(`[Email] Aaron approval notification sent to Shaya`)
