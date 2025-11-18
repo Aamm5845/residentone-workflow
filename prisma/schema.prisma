@@ -223,9 +223,9 @@ model Project {
   city                      String?
   province                  String?
   postalCode                String?
-  hasFloorplanApproval      Boolean                    @default(false)
-  hasSpecBook               Boolean                    @default(false)
-  hasProjectUpdates         Boolean                    @default(false)
+  hasFloorplanApproval      Boolean                    @default(true)
+  hasSpecBook               Boolean                    @default(true)
+  hasProjectUpdates         Boolean                    @default(true)
   approvals                 Approval[]
   assets                    Asset[]                    @relation("ProjectAssets")
   clientAccessTokens        ClientAccessToken[]        @relation("ClientAccessTokenProject")

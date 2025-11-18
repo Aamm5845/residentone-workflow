@@ -295,6 +295,7 @@ export const EntityTypes = {
   DESIGN_SECTION: 'DesignSection',
   DESIGN_TEMPLATE: 'DesignTemplate',
   DESIGN_ITEM: 'DesignItem',
+  DESIGN_CONCEPT_ITEM: 'DesignConceptItem',
   DESIGN_NOTE: 'DesignNote',
   RENDERING_VERSION: 'RenderingVersion',
   RENDERING_NOTE: 'RenderingNote',

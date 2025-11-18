@@ -186,6 +186,10 @@ export async function POST(request: NextRequest) {
       postalCode: postalCode || null,
       coverImages: coverImages && coverImages.length > 0 ? coverImages : null,
       dropboxFolder: dropboxFolderResult,
+      // Enable project features by default (can be disabled in project settings)
+      hasFloorplanApproval: true,
+      hasSpecBook: true,
+      hasProjectUpdates: true,
       orgId: sharedOrg.id,
       createdById: session.user.id
     }
