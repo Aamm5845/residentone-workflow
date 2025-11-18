@@ -16,6 +16,7 @@ import {
 } from '@/lib/phase-transitions'
 import { dropboxService } from '@/lib/dropbox-service'
 import { uploadFile as uploadToBlob, generateFilePath } from '@/lib/blob'
+import { sendEmail } from '@/lib/email/email-service'
 
 // POST /api/renderings/[versionId]/push-to-client - Push rendering version to client approval
 export async function POST(
@@ -236,6 +237,100 @@ export async function POST(
     } catch (stageCompletionError) {
       console.error('Error auto-completing 3D rendering stage:', stageCompletionError)
       // Don't fail the main operation if stage completion fails
+    }
+
+    // Send email notification to Shaya that the room is ready for Client Approval
+    try {
+      const shaya = await prisma.user.findFirst({
+        where: {
+          email: 'shaya@meisnerinteriors.com'
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          emailNotificationsEnabled: true
+        }
+      })
+
+      if (shaya && shaya.emailNotificationsEnabled) {
+        const roomName = renderingVersion.room.name || renderingVersion.room.type.replace('_', ' ').toLowerCase()
+        const projectName = renderingVersion.room.project.name
+        const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}`
+        const pushedByName = session.user.name || 'A team member'
+
+        console.log(`[Email] Sending Client Approval notification to Shaya for ${roomName} (${projectName})...`)
+        
+        await sendEmail({
+          to: shaya.email,
+          subject: `${roomName} (${projectName}) is ready for Client Approval`,
+          html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ready for Client Approval</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+                 alt="Meisner Interiors" 
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Ready for Client Approval</h1>
+            <p style="margin: 8px 0 0 0; color: #bfdbfe; font-size: 16px; font-weight: 400;">${projectName}</p>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${shaya.name},</p>
+            
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${pushedByName}</strong> has pushed a 3D rendering version to <strong>Client Approval</strong>.
+            </p>
+            
+            <div style="background: #f1f5f9; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Project Details</p>
+                <p style="margin: 0 0 8px 0; color: #1e293b; font-size: 15px;"><strong>Project:</strong> ${projectName}</p>
+                <p style="margin: 0; color: #1e293b; font-size: 15px;"><strong>Room:</strong> ${roomName}</p>
+            </div>
+            
+            <p style="margin: 24px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                This room is now ready for you to start working on in the Client Approval phase.
+            </p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}" 
+                   style="background: #3b82f6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);"
+                   target="_blank">View Project</a>
+            </div>
+        </div>
+        
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+          text: `Hi ${shaya.name},\n\n${pushedByName} has pushed a 3D rendering version to Client Approval.\n\nProject: ${projectName}\nRoom: ${roomName}\n\nThis room is now ready for you to start working on in the Client Approval phase.\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+        })
+        
+        console.log(`[Email] Client Approval notification sent to Shaya`)
+      } else if (shaya && !shaya.emailNotificationsEnabled) {
+        console.log(`[Email] Skipping notification to Shaya (email notifications disabled)`)
+      } else {
+        console.log(`[Email] Shaya user not found in database`)
+      }
+    } catch (emailError) {
+      console.error('[Email] Failed to send Client Approval notification to Shaya:', emailError)
+      // Don't fail the main operation if email notification fails
     }
 
     // Handle automatic phase transition after successful push to client
