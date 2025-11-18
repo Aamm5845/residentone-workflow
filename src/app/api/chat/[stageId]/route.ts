@@ -306,6 +306,8 @@ export async function POST(
         select: { 
           id: true, 
           name: true,
+          email: true,
+          emailNotificationsEnabled: true,
           phoneNumber: true,
           smsNotificationsEnabled: true
         }
@@ -386,6 +388,57 @@ export async function POST(
         Promise.all(smsPromises).catch(err => 
           console.error('[SMS] Some SMS notifications failed:', err)
         )
+
+        // Send email notifications to mentioned users with email enabled
+        const usersForEmail = validUsers.filter(user => 
+          user.email && 
+          user.emailNotificationsEnabled &&
+          user.id !== session.user.id // Don't email yourself
+        )
+        
+        if (usersForEmail.length > 0) {
+          console.log(`[Email] Found ${usersForEmail.length} user(s) eligible for mention email:`, 
+            usersForEmail.map(u => ({ name: u.name, email: u.email })))
+          
+          const roomName = stage.room.name || stage.room.type.replace('_', ' ').toLowerCase()
+          const projectName = stage.room.project.name
+          const stageName = getStageName(stage.type)
+          const authorName = session.user.name || 'A team member'
+          const messagePreview = content.trim() || '(Image attached)'
+          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}`
+          
+          const emailPromises = usersForEmail.map(async (user) => {
+            try {
+              console.log(`[Email] Attempting to send mention email to ${user.name} at ${user.email}...`)
+              await sendEmail({
+                to: user.email,
+                subject: `💬 ${authorName} mentioned you in ${stageName} - ${projectName}`,
+                html: generateChatNotificationEmail({
+                  recipientName: user.name,
+                  authorName,
+                  stageName,
+                  roomName,
+                  projectName,
+                  messageContent: messagePreview,
+                  projectUrl,
+                  hasImage: !!imageUrl
+                }),
+                text: `Hi ${user.name},\n\n${authorName} mentioned you in ${stageName} for ${roomName} (${projectName}):\n\n"${messagePreview}"\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+              })
+              console.log(`[Email] ✅ Successfully sent mention email to ${user.name} at ${user.email}`)
+            } catch (error) {
+              console.error(`[Email] ❌ Failed to send mention email to ${user.name}:`, error)
+              // Don't fail the whole request if email fails
+            }
+          })
+          
+          // Send all emails in parallel but don't wait for them
+          Promise.all(emailPromises).catch(err => 
+            console.error('[Email] Some mention email notifications failed:', err)
+          )
+        } else {
+          console.log('[Email] No users eligible for mention email notifications')
+        }
 
         // Get the created mentions for response
         const fullMentions = await prisma.chatMention.findMany({
