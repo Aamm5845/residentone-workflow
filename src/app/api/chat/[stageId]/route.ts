@@ -412,7 +412,7 @@ export async function POST(
               console.log(`[Email] Attempting to send mention email to ${user.name} at ${user.email}...`)
               await sendEmail({
                 to: user.email,
-                subject: `💬 ${authorName} mentioned you in ${stageName} - ${projectName}`,
+                subject: `${authorName} mentioned you in ${stageName} - ${roomName} (${projectName})`,
                 html: generateChatNotificationEmail({
                   recipientName: user.name,
                   authorName,
@@ -489,7 +489,7 @@ export async function POST(
             try {
               await sendEmail({
                 to: assignedUserDetails.email,
-                subject: `💬 New message in ${stageName} - ${projectName}`,
+                subject: `New message in ${stageName} - ${roomName} (${projectName})`,
                 html: generateChatNotificationEmail({
                   recipientName: assignedUserDetails.name,
                   authorName,
