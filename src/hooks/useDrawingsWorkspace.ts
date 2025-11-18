@@ -210,6 +210,31 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
   }
 
   /**
+   * Delete a custom checklist item
+   */
+  const deleteChecklistItem = async (checklistItemId: string) => {
+    try {
+      const response = await fetch(`/api/drawings/checklist/${checklistItemId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Failed to delete section')
+      }
+
+      toast.success('Section deleted successfully')
+      await mutate()
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete section'
+      toast.error(errorMessage)
+      console.error('Delete checklist item error:', error)
+      throw error
+    }
+  }
+
+  /**
    * Link Dropbox files to a checklist item
    */
   const linkDropboxFiles = async (checklistItemId: string, files: any[]) => {
@@ -387,6 +412,7 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
     deleteAsset,
     completeStage,
     addCustomChecklistItem,
+    deleteChecklistItem,
     linkDropboxFiles,
     unlinkDropboxFile,
     

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -103,6 +104,7 @@ export default function DrawingsWorkspace({
     deleteAsset,
     completeStage,
     addCustomChecklistItem,
+    deleteChecklistItem,
     linkDropboxFiles,
     unlinkDropboxFile,
     uploading,
@@ -153,15 +155,41 @@ export default function DrawingsWorkspace({
     }
   }
 
+  const [isAddingSection, setIsAddingSection] = useState(false)
+
   const handleAddCustomSection = async () => {
-    if (!customSectionName.trim()) return
+    if (!customSectionName.trim() || isAddingSection) return
     
+    setIsAddingSection(true)
     try {
       await addCustomChecklistItem(customSectionName.trim())
       setCustomSectionName('')
       setShowAddSectionDialog(false)
     } catch (error) {
       console.error('Failed to add custom section:', error)
+    } finally {
+      setIsAddingSection(false)
+    }
+  }
+
+  const handleDeleteSection = async (item: DrawingChecklistItem) => {
+    // Only allow deletion of custom sections that have no files
+    if (item.type !== 'CUSTOM') {
+      toast.error('Only custom sections can be deleted')
+      return
+    }
+    
+    if (item.assets.length > 0 || (item.dropboxFiles && item.dropboxFiles.length > 0)) {
+      toast.error('Cannot delete section with files. Please remove all files first.')
+      return
+    }
+
+    if (!window.confirm(`Are you sure you want to delete "${item.name}"?`)) return
+    
+    try {
+      await deleteChecklistItem(item.id)
+    } catch (error) {
+      console.error('Failed to delete section:', error)
     }
   }
 
@@ -434,6 +462,16 @@ export default function DrawingsWorkspace({
                     <Upload className="w-4 h-4 mr-2" />
                     {uploading ? 'Uploading...' : 'Upload Files'}
                   </Button>
+                  {item.type === 'CUSTOM' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteSection(item)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -760,9 +798,9 @@ export default function DrawingsWorkspace({
             </Button>
             <Button
               onClick={handleAddCustomSection}
-              disabled={!customSectionName.trim()}
+              disabled={!customSectionName.trim() || isAddingSection}
             >
-              Add Section
+              {isAddingSection ? 'Adding...' : 'Add Section'}
             </Button>
           </DialogFooter>
         </DialogContent>

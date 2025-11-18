@@ -175,6 +175,7 @@ export interface UseDrawingsWorkspaceResult {
   deleteAsset: (assetId: string) => Promise<void>
   completeStage: () => Promise<void>
   addCustomChecklistItem: (name: string) => Promise<void>
+  deleteChecklistItem: (checklistItemId: string) => Promise<void>
   linkDropboxFiles: (checklistItemId: string, files: any[]) => Promise<void>
   unlinkDropboxFile: (checklistItemId: string, dropboxPath: string) => Promise<void>
   
