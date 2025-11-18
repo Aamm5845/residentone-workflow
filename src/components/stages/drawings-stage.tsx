@@ -697,18 +697,6 @@ export default function DrawingsWorkspace({
           </div>
         )}
 
-        {/* Instructions */}
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mt-6">
-          <h4 className="font-semibold text-orange-900 mb-2">📐 How to Use</h4>
-          <ul className="text-sm text-orange-800 space-y-1">
-            <li>• Link CAD files from Dropbox that are relevant to this room's drawings</li>
-            <li>• Upload technical drawings for each category (Lighting, Elevation, Millwork, Floor Plans)</li>
-            <li>• Add descriptions to your files for better organization and context</li>
-            <li>• Mark categories as complete once all required drawings are uploaded</li>
-            <li>• Complete the workspace when all categories are finished to move to the next stage</li>
-            <li>• Supported formats: PDF, JPG, PNG, WebP, DWG (max 10MB each)</li>
-          </ul>
-        </div>
         </div>
 
         {/* Chat Sidebar */}
