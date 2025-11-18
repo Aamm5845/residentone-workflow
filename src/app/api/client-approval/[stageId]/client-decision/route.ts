@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { handleWorkflowTransition, type WorkflowEvent } from '@/lib/phase-transitions'
 import { getIPAddress } from '@/lib/attribution'
+import { sendEmail } from '@/lib/email/email-service'
 
 // POST /api/client-approval/[stageId]/client-decision - Record client's approval decision
 export async function POST(
@@ -168,6 +169,107 @@ export async function POST(
         comments: notes || null
       }
     })
+
+    // Send email notification to Vitor when revision is requested
+    if (decision === 'REVISION_REQUESTED') {
+      try {
+        const vitor = await prisma.user.findFirst({
+          where: {
+            email: 'euvi.3d@gmail.com'
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailNotificationsEnabled: true
+          }
+        })
+
+        if (vitor && vitor.emailNotificationsEnabled) {
+          const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
+          const projectName = currentVersion.stage.room.project.name
+          const clientName = currentVersion.stage.room.project.client?.name || 'The client'
+          const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}`
+
+          console.log(`[Email] Sending revision notification to Vitor for ${roomName} (${projectName})...`)
+          
+          await sendEmail({
+            to: vitor.email,
+            subject: `Client Requested Changes - ${roomName} (${projectName})`,
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Requested Changes</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+                 alt="Meisner Interiors" 
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Client Requested Changes</h1>
+            <p style="margin: 8px 0 0 0; color: #fef3c7; font-size: 16px; font-weight: 400;">${projectName}</p>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${vitor.name},</p>
+            
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${clientName}</strong> has requested revisions for the 3D renderings.
+            </p>
+            
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0 0 8px 0; color: #92400e; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Revision Requested</p>
+                <p style="margin: 0 0 8px 0; color: #1e293b; font-size: 15px;"><strong>Project:</strong> ${projectName}</p>
+                <p style="margin: 0; color: #1e293b; font-size: 15px;"><strong>Room:</strong> ${roomName}</p>
+            </div>
+            ${notes ? `
+            <div style="background: #f8fafc; border-left: 4px solid #64748b; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0 0 8px 0; color: #475569; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Client's Feedback</p>
+                <p style="margin: 0; color: #1e293b; font-size: 14px; line-height: 1.6;">${notes}</p>
+            </div>` : ''}
+            
+            <p style="margin: 24px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                The 3D Rendering stage has been reopened. Please review the feedback and make the necessary updates.
+            </p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}" 
+                   style="background: #f59e0b; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);"
+                   target="_blank">View Project</a>
+            </div>
+        </div>
+        
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #d97706; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #d97706; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+            text: `Hi ${vitor.name},\n\n${clientName} has requested revisions for the 3D renderings.\n\nProject: ${projectName}\nRoom: ${roomName}${notes ? `\n\nClient's Feedback: ${notes}` : ''}\n\nThe 3D Rendering stage has been reopened. Please review the feedback and make the necessary updates.\n\nView the project: ${projectUrl}\n\nBest regards,\nThe Team`
+          })
+          
+          console.log(`[Email] Revision notification sent to Vitor`)
+        } else if (vitor && !vitor.emailNotificationsEnabled) {
+          console.log(`[Email] Skipping notification to Vitor (email notifications disabled)`)
+        } else {
+          console.log(`[Email] Vitor user not found in database`)
+        }
+      } catch (emailError) {
+        console.error('[Email] Failed to send revision notification to Vitor:', emailError)
+        // Don't fail the main operation if email notification fails
+      }
+    }
 
     // Trigger workflow transitions
     try {
