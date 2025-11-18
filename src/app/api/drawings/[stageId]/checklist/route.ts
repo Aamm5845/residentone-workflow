@@ -84,7 +84,7 @@ export async function PATCH(
       include: {
         assets: {
           include: {
-            uploader: {
+            uploadedByUser: {
               select: { id: true, name: true, email: true }
             }
           },

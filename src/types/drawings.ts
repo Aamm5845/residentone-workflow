@@ -11,7 +11,7 @@ export interface DrawingAsset {
   uploadedBy: string
   createdAt: string
   updatedAt: string
-  uploader: {
+  uploadedByUser: {
     id: string
     name: string
     email: string
