@@ -21,6 +21,7 @@ export interface ActivityLogData {
   entityId: string
   details?: Record<string, any>
   ipAddress?: string
+  userAgent?: string
 }
 
 /**
@@ -88,7 +89,8 @@ export async function logActivity({
   entity,
   entityId,
   details,
-  ipAddress
+  ipAddress,
+  userAgent
 }: ActivityLogData): Promise<void> {
   try {
     await prisma.activityLog.create({
@@ -97,7 +99,7 @@ export async function logActivity({
         action,
         entity,
         entityId,
-        details: details ? JSON.stringify(details) : null,
+        details: details || undefined, // Store as JSON, not stringified
         ipAddress,
         orgId: session.user.orgId,
       }
@@ -119,13 +121,14 @@ export async function logActivities(activities: ActivityLogData[]): Promise<void
       entity,
       entityId,
       details,
-      ipAddress
+      ipAddress,
+      userAgent
     }) => ({
       actorId: session.user.id,
       action,
       entity,
       entityId,
-      details: details ? JSON.stringify(details) : null,
+      details: details || undefined, // Store as JSON, not stringified
       ipAddress,
       orgId: session.user.orgId,
     }))
@@ -140,121 +143,171 @@ export async function logActivities(activities: ActivityLogData[]): Promise<void
 
 /**
  * Common activity action types
+ * Using SCREAMING_SNAKE_CASE for consistency
  */
 export const ActivityActions = {
   // Project actions
-  PROJECT_CREATED: 'project_created',
-  PROJECT_UPDATED: 'project_updated',
-  PROJECT_STATUS_CHANGED: 'project_status_changed',
-  PROJECT_DELETED: 'project_deleted',
+  PROJECT_CREATED: 'PROJECT_CREATED',
+  PROJECT_UPDATED: 'PROJECT_UPDATED',
+  PROJECT_STATUS_CHANGED: 'PROJECT_STATUS_CHANGED',
+  PROJECT_DELETED: 'PROJECT_DELETED',
 
   // Room actions
-  ROOM_CREATED: 'room_created',
-  ROOM_UPDATED: 'room_updated',
-  ROOM_STATUS_CHANGED: 'room_status_changed',
+  ROOM_CREATED: 'ROOM_CREATED',
+  ROOM_UPDATED: 'ROOM_UPDATED',
+  ROOM_STATUS_CHANGED: 'ROOM_STATUS_CHANGED',
+  ROOM_DELETED: 'ROOM_DELETED',
 
   // Stage actions
-  STAGE_STARTED: 'stage_started',
-  STAGE_COMPLETED: 'stage_completed',
-  STAGE_REOPENED: 'stage_reopened',
-  STAGE_ASSIGNED: 'stage_assigned',
-  STAGE_STATUS_CHANGED: 'stage_status_changed',
-
-  // Design section actions
-  SECTION_CREATED: 'section_created',
-  SECTION_UPDATED: 'section_updated',
-  SECTION_COMPLETED: 'section_completed',
-  SECTION_DELETED: 'section_deleted',
-
-  // Design template actions
-  TEMPLATE_CREATED: 'template_created',
-  TEMPLATE_UPDATED: 'template_updated',
-  TEMPLATE_DELETED: 'template_deleted',
-  TEMPLATE_REORDERED: 'template_reordered',
+  STAGE_STARTED: 'STAGE_STARTED',
+  STAGE_COMPLETED: 'STAGE_COMPLETED',
+  STAGE_REOPENED: 'STAGE_REOPENED',
+  STAGE_ASSIGNED: 'STAGE_ASSIGNED',
+  STAGE_STATUS_CHANGED: 'STAGE_STATUS_CHANGED',
+  STAGE_UPDATED: 'STAGE_UPDATED',
 
   // Asset actions
-  ASSET_UPLOADED: 'asset_uploaded',
-  ASSET_DELETED: 'asset_deleted',
-  ASSET_TAGGED: 'asset_tagged',
-  ASSET_UNTAGGED: 'asset_untagged',
-  ASSET_PINNED: 'asset_pinned',
-  ASSET_UNPINNED: 'asset_unpinned',
+  ASSET_UPLOADED: 'ASSET_UPLOADED',
+  ASSET_DELETED: 'ASSET_DELETED',
+  ASSET_TAGGED: 'ASSET_TAGGED',
+  ASSET_UNTAGGED: 'ASSET_UNTAGGED',
+  ASSET_PINNED: 'ASSET_PINNED',
+  ASSET_UNPINNED: 'ASSET_UNPINNED',
+  ASSET_DESCRIPTION_UPDATED: 'ASSET_DESCRIPTION_UPDATED',
 
   // Comment actions
-  COMMENT_CREATED: 'comment_created',
-  COMMENT_UPDATED: 'comment_updated',
-  COMMENT_DELETED: 'comment_deleted',
-  COMMENT_TAGGED: 'comment_tagged',
-  COMMENT_UNTAGGED: 'comment_untagged',
-  COMMENT_PINNED: 'comment_pinned',
-  COMMENT_UNPINNED: 'comment_unpinned',
+  COMMENT_CREATED: 'COMMENT_CREATED',
+  COMMENT_UPDATED: 'COMMENT_UPDATED',
+  COMMENT_DELETED: 'COMMENT_DELETED',
+  COMMENT_TAGGED: 'COMMENT_TAGGED',
+  COMMENT_UNTAGGED: 'COMMENT_UNTAGGED',
+  COMMENT_PINNED: 'COMMENT_PINNED',
+  COMMENT_UNPINNED: 'COMMENT_UNPINNED',
+  COMMENT_LIKED: 'COMMENT_LIKED',
 
-  // Tag actions
-  TAG_CREATED: 'tag_created',
-  TAG_DELETED: 'tag_deleted',
+  // Issue actions
+  ISSUE_CREATED: 'ISSUE_CREATED',
+  ISSUE_UPDATED: 'ISSUE_UPDATED',
+  ISSUE_ASSIGNED: 'ISSUE_ASSIGNED',
+  ISSUE_STATUS_CHANGED: 'ISSUE_STATUS_CHANGED',
+  ISSUE_RESOLVED: 'ISSUE_RESOLVED',
+  ISSUE_REOPENED: 'ISSUE_REOPENED',
+  ISSUE_COMMENT_ADDED: 'ISSUE_COMMENT_ADDED',
 
-  // Checklist actions
-  CHECKLIST_ITEM_CREATED: 'checklist_item_created',
-  CHECKLIST_ITEM_UPDATED: 'checklist_item_updated',
-  CHECKLIST_ITEM_COMPLETED: 'checklist_item_completed',
-  CHECKLIST_ITEM_REOPENED: 'checklist_item_reopened',
-  CHECKLIST_ITEM_DELETED: 'checklist_item_deleted',
+  // Chat actions
+  CHAT_MESSAGE_SENT: 'CHAT_MESSAGE_SENT',
+  CHAT_MESSAGE_EDITED: 'CHAT_MESSAGE_EDITED',
+  CHAT_MESSAGE_DELETED: 'CHAT_MESSAGE_DELETED',
+  CHAT_MENTION: 'CHAT_MENTION',
 
-  // Notification actions
-  NOTIFICATION_CREATED: 'notification_created',
+  // Design section actions
+  DESIGN_SECTION_CREATED: 'DESIGN_SECTION_CREATED',
+  DESIGN_SECTION_UPDATED: 'DESIGN_SECTION_UPDATED',
+  DESIGN_SECTION_COMPLETED: 'DESIGN_SECTION_COMPLETED',
+  DESIGN_SECTION_DELETED: 'DESIGN_SECTION_DELETED',
 
-  // Team management actions
-  USER_CREATED: 'user_created',
-  USER_UPDATED: 'user_updated',
-  USER_ROLE_CHANGED: 'user_role_changed',
-  PASSWORD_RESET_REQUESTED: 'password_reset_requested',
-  PASSWORD_RESET_COMPLETED: 'password_reset_completed',
-  PASSWORD_CHANGED: 'password_changed',
+  // Design template actions
+  DESIGN_TEMPLATE_CREATED: 'DESIGN_TEMPLATE_CREATED',
+  DESIGN_TEMPLATE_UPDATED: 'DESIGN_TEMPLATE_UPDATED',
+  DESIGN_TEMPLATE_DELETED: 'DESIGN_TEMPLATE_DELETED',
+  DESIGN_TEMPLATE_REORDERED: 'DESIGN_TEMPLATE_REORDERED',
 
-  // FFE actions
-  FFE_ITEM_CREATED: 'ffe_item_created',
-  FFE_ITEM_UPDATED: 'ffe_item_updated',
-  FFE_STATUS_CHANGED: 'ffe_status_changed',
+  // Design item actions
+  DESIGN_ITEM_CREATED: 'DESIGN_ITEM_CREATED',
+  DESIGN_ITEM_COMPLETED: 'DESIGN_ITEM_COMPLETED',
+  DESIGN_ITEM_UPDATED: 'DESIGN_ITEM_UPDATED',
+  DESIGN_NOTE_CREATED: 'DESIGN_NOTE_CREATED',
 
   // Rendering actions
-  RENDERING_VERSION_CREATED: 'rendering_version_created',
-  RENDERING_VERSION_UPDATED: 'rendering_version_updated',
-  RENDERING_VERSION_COMPLETED: 'rendering_version_completed',
-  RENDERING_VERSION_DELETED: 'rendering_version_deleted',
+  RENDERING_VERSION_CREATED: 'RENDERING_VERSION_CREATED',
+  RENDERING_VERSION_UPDATED: 'RENDERING_VERSION_UPDATED',
+  RENDERING_VERSION_COMPLETED: 'RENDERING_VERSION_COMPLETED',
+  RENDERING_VERSION_DELETED: 'RENDERING_VERSION_DELETED',
+  RENDERING_PUSHED_TO_CLIENT: 'RENDERING_PUSHED_TO_CLIENT',
+  RENDERING_NOTE_CREATED: 'RENDERING_NOTE_CREATED',
 
-  // Generic actions
-  CREATE: 'create',
-  UPDATE: 'update',
-  DELETE: 'delete',
-  COMPLETE: 'complete',
+  // Drawing actions
+  DRAWING_UPLOADED: 'DRAWING_UPLOADED',
+  DRAWING_CHECKLIST_CREATED: 'DRAWING_CHECKLIST_CREATED',
+  DRAWING_CHECKLIST_COMPLETED: 'DRAWING_CHECKLIST_COMPLETED',
+  DRAWING_STAGE_COMPLETED: 'DRAWING_STAGE_COMPLETED',
+
+  // FFE actions
+  FFE_ITEM_CREATED: 'FFE_ITEM_CREATED',
+  FFE_ITEM_UPDATED: 'FFE_ITEM_UPDATED',
+  FFE_STATUS_CHANGED: 'FFE_STATUS_CHANGED',
+  FFE_ITEM_DELETED: 'FFE_ITEM_DELETED',
+
+  // Approval actions
+  CLIENT_APPROVAL_SENT: 'CLIENT_APPROVAL_SENT',
+  CLIENT_APPROVAL_RECEIVED: 'CLIENT_APPROVAL_RECEIVED',
+  AARON_APPROVED: 'AARON_APPROVED',
+  FLOORPLAN_APPROVAL_SENT: 'FLOORPLAN_APPROVAL_SENT',
+  FLOORPLAN_APPROVED: 'FLOORPLAN_APPROVED',
+
+  // Checklist actions
+  CHECKLIST_ITEM_CREATED: 'CHECKLIST_ITEM_CREATED',
+  CHECKLIST_ITEM_UPDATED: 'CHECKLIST_ITEM_UPDATED',
+  CHECKLIST_ITEM_COMPLETED: 'CHECKLIST_ITEM_COMPLETED',
+  CHECKLIST_ITEM_REOPENED: 'CHECKLIST_ITEM_REOPENED',
+  CHECKLIST_ITEM_DELETED: 'CHECKLIST_ITEM_DELETED',
+
+  // Tag actions
+  TAG_CREATED: 'TAG_CREATED',
+  TAG_DELETED: 'TAG_DELETED',
+
+  // Team management actions
+  USER_CREATED: 'USER_CREATED',
+  USER_UPDATED: 'USER_UPDATED',
+  USER_ROLE_CHANGED: 'USER_ROLE_CHANGED',
+  PASSWORD_RESET_REQUESTED: 'PASSWORD_RESET_REQUESTED',
+  PASSWORD_RESET_COMPLETED: 'PASSWORD_RESET_COMPLETED',
+  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
 
   // Session actions
-  LOGIN: 'login',
-  LOGOUT: 'logout',
-  SESSION_CREATED: 'session_created',
-  SESSION_EXPIRED: 'session_expired',
+  SESSION_CREATED: 'SESSION_CREATED',
+  LOGIN: 'LOGIN',
+  LOGOUT: 'LOGOUT',
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
+
+  // Notification actions (internal)
+  NOTIFICATION_CREATED: 'NOTIFICATION_CREATED',
+
+  // Generic actions (legacy support)
+  CREATE: 'CREATE',
+  UPDATE: 'UPDATE',
+  DELETE: 'DELETE',
+  COMPLETE: 'COMPLETE',
 } as const
 
 /**
  * Entity types for activity logging
+ * Using PascalCase for consistency
  */
 export const EntityTypes = {
   PROJECT: 'Project',
   ROOM: 'Room',
   STAGE: 'Stage',
-  DESIGN_SECTION: 'DesignSection',
-  DESIGN_SECTION_TEMPLATE: 'DesignSectionTemplate',
   ASSET: 'Asset',
   COMMENT: 'Comment',
-  USER: 'User',
-  FFE_ITEM: 'FFEItem',
-  SESSION: 'Session',
-  TAG: 'Tag',
-  CHECKLIST_ITEM: 'ChecklistItem',
-  NOTIFICATION: 'Notification',
+  ISSUE: 'Issue',
+  CHAT_MESSAGE: 'ChatMessage',
+  DESIGN_SECTION: 'DesignSection',
+  DESIGN_TEMPLATE: 'DesignTemplate',
+  DESIGN_ITEM: 'DesignItem',
+  DESIGN_NOTE: 'DesignNote',
   RENDERING_VERSION: 'RenderingVersion',
+  RENDERING_NOTE: 'RenderingNote',
+  DRAWING: 'Drawing',
+  DRAWING_CHECKLIST: 'DrawingChecklist',
+  FFE_ITEM: 'FFEItem',
   CLIENT_APPROVAL_VERSION: 'ClientApprovalVersion',
-  DESIGN_CONCEPT_ITEM: 'DesignConceptItem',
+  FLOORPLAN_APPROVAL: 'FloorplanApproval',
+  CHECKLIST_ITEM: 'ChecklistItem',
+  TAG: 'Tag',
+  USER: 'User',
+  SESSION: 'Session',
+  NOTIFICATION: 'Notification',
 } as const
 
 /**

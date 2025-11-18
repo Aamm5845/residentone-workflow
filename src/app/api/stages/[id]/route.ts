@@ -204,7 +204,23 @@ export async function PATCH(
       }
     })
 
-    // Log the activity
+    // Fetch project information for activity logging
+    const roomWithProject = stage.room ? await prisma.room.findUnique({
+      where: { id: stage.room.id },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    }) : null
+
+    // Log the activity with full context
     await logActivity({
       session,
       action: activityAction,
@@ -212,10 +228,14 @@ export async function PATCH(
       entityId: resolvedParams.id,
       details: {
         action,
-        stageName: `${stage.type} - ${stage.room?.name || stage.room?.type}`,
+        stageName: stage.type,
+        roomName: stage.room?.name || stage.room?.type,
+        projectName: roomWithProject?.project?.name,
+        projectId: roomWithProject?.project?.id,
         previousStatus: stage.status,
         newStatus: updateData.status,
-        assignedTo
+        assignedTo,
+        entityUrl: roomWithProject?.project?.id ? `/projects/${roomWithProject.project.id}` : undefined
       },
       ipAddress
     })

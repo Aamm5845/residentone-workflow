@@ -2,18 +2,22 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import useSWR from 'swr'
 import { useNotifications } from '@/hooks/useNotifications'
 import { cn } from '@/lib/utils'
 import { 
   Home, 
   FolderOpen, 
   Users, 
-  Inbox
+  Inbox,
+  Activity
 } from 'lucide-react'
 
 interface NavigationMenuProps {
   sidebarCollapsed: boolean
 }
+
+const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { unreadCount: 0 })
 
 export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const pathname = usePathname()
@@ -21,6 +25,32 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   
   const mentionNotifications = getNotificationsByType('MENTION')
   const unreadMentionCount = mentionNotifications.filter(n => !n.read).length
+  
+  // Get lastViewed from localStorage
+  const getLastViewed = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('activities-last-viewed')
+    }
+    return null
+  }
+  
+  // Build URL with lastViewed parameter
+  const activitiesUrl = () => {
+    const lastViewed = getLastViewed()
+    return lastViewed ? `/api/activities/unread?lastViewed=${lastViewed}` : '/api/activities/unread'
+  }
+  
+  // Fetch unread activities count with auto-refresh
+  const { data: activitiesData } = useSWR(
+    activitiesUrl(),
+    fetcher,
+    {
+      refreshInterval: 30000, // Auto-refresh every 30 seconds
+      revalidateOnFocus: true
+    }
+  )
+  
+  const unreadActivitiesCount = activitiesData?.unreadCount || 0
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
@@ -30,6 +60,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
 
   const messagesNavigation = [
     { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount },
+    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-indigo-600', badgeCount: unreadActivitiesCount },
   ]
 
   const isActive = (href: string) => pathname.startsWith(href)

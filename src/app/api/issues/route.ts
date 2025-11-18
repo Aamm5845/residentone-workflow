@@ -4,13 +4,11 @@ import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
 import { 
   withUpdateAttribution,
-  logActivity,
-  ActivityActions,
-  EntityTypes,
   getIPAddress,
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { logIssueActivity, ActivityActions } from '@/lib/activity-logger'
 import { put } from '@vercel/blob'
 
 // Get all issues for the organization
@@ -323,21 +321,18 @@ export async function POST(request: NextRequest) {
           }
         })
 
-        // Log the activity
-        await logActivity({
-          session,
-          action: 'ISSUE_CREATED',
-          entity: EntityTypes.PROJECT,
-          entityId: updatedIssue.id,
-          details: {
-            title: updatedIssue.title,
-            type: updatedIssue.type,
-            priority: updatedIssue.priority,
-            projectId: updatedIssue.projectId,
-            roomId: updatedIssue.roomId,
-            stageId: updatedIssue.stageId,
-            hasImage: true
-          },
+        // Log the activity with enhanced context
+        await logIssueActivity(session, ActivityActions.ISSUE_CREATED, {
+          issueId: updatedIssue.id,
+          title: updatedIssue.title,
+          projectId: updatedIssue.projectId || undefined,
+          projectName: updatedIssue.project?.name,
+          roomId: updatedIssue.roomId || undefined,
+          roomName: updatedIssue.room?.name || updatedIssue.room?.type,
+          stageId: updatedIssue.stageId || undefined,
+          stageName: updatedIssue.stage?.type,
+          priority: updatedIssue.priority,
+          entityUrl: updatedIssue.projectId ? `/projects/${updatedIssue.projectId}` : '/issues',
           ipAddress
         })
 
@@ -348,20 +343,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Log the activity (without image)
-    await logActivity({
-      session,
-      action: 'ISSUE_CREATED',
-      entity: EntityTypes.PROJECT,
-      entityId: issue.id,
-      details: {
-        title: issue.title,
-        type: issue.type,
-        priority: issue.priority,
-        projectId: issue.projectId,
-        roomId: issue.roomId,
-        stageId: issue.stageId
-      },
+    // Log the activity (without image) with enhanced context
+    await logIssueActivity(session, ActivityActions.ISSUE_CREATED, {
+      issueId: issue.id,
+      title: issue.title,
+      projectId: issue.projectId || undefined,
+      projectName: issue.project?.name,
+      roomId: issue.roomId || undefined,
+      roomName: issue.room?.name || issue.room?.type,
+      stageId: issue.stageId || undefined,
+      stageName: issue.stage?.type,
+      priority: issue.priority,
+      entityUrl: issue.projectId ? `/projects/${issue.projectId}` : '/issues',
       ipAddress
     })
 

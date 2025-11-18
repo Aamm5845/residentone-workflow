@@ -6,6 +6,7 @@ import { dropboxService } from '@/lib/dropbox-service'
 import { generateProjectFolderName, sanitizeDropboxFolderName } from '@/lib/generate-project-folder-name'
 import type { Session } from 'next-auth'
 import { ProjectType, RoomType, StageType, StageStatus } from '@prisma/client'
+import { logProjectActivity, ActivityActions, getIPAddress } from '@/lib/activity-logger'
 
 export async function GET(request: NextRequest) {
   try {
@@ -340,6 +341,20 @@ export async function POST(request: NextRequest) {
     
     if (!fullProject) {
       return NextResponse.json({ error: 'Project not found after creation' }, { status: 500 })
+    }
+
+    // Log project creation activity
+    try {
+      await logProjectActivity(session, ActivityActions.PROJECT_CREATED, {
+        projectId: fullProject.id,
+        projectName: fullProject.name,
+        clientName: client.name,
+        entityUrl: `/projects/${fullProject.id}`,
+        ipAddress: getIPAddress(request)
+      })
+    } catch (logError) {
+      console.error('Failed to log project creation activity:', logError)
+      // Don't fail the request if logging fails
     }
 
     // Return project with Dropbox status

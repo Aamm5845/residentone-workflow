@@ -5,13 +5,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { DropboxService } from '@/lib/dropbox-service'
 import { 
   withCreateAttribution,
-  logActivity,
-  ActivityActions,
-  EntityTypes,
   getIPAddress,
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { logAssetUpload } from '@/lib/activity-logger'
 
 // File upload configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -222,23 +220,20 @@ export async function POST(request: NextRequest) {
             }
           })
 
-          // Log the activity
-          await logActivity({
-            session,
-            action: ActivityActions.ASSET_UPLOADED,
-            entity: EntityTypes.ASSET,
-            entityId: asset.id,
-            details: {
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-              sectionType: section.type,
-              sectionName: section.type,
-              stageName: `${section.stage.type} - ${section.stage.room.name || section.stage.room.type}`,
-              projectName: section.stage.room.project.name,
-              hasDescription: !!userDescription,
-              storageType: storageType
-            },
+          // Log the activity with enhanced context
+          await logAssetUpload(session, {
+            assetId: asset.id,
+            assetName: file.name,
+            fileName: file.name,
+            projectId: section.stage.room.project.id,
+            projectName: section.stage.room.project.name,
+            roomId: section.stage.room.id,
+            roomName: section.stage.room.name || section.stage.room.type,
+            stageId: section.stage.id,
+            stageName: section.stage.type,
+            size: file.size,
+            mimeType: file.type,
+            entityUrl: `/projects/${section.stage.room.project.id}`,
             ipAddress
           })
         } catch (dbError) {
