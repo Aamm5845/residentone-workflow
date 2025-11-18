@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import { Folder, File, Plus, X, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -63,6 +64,12 @@ export function DropboxFileBrowser({
   maxSelections
 }: DropboxFileBrowserProps) {
   
+  // Fetch project data to get dropboxFolder path
+  const { data: projectData } = useSWR(
+    projectId ? `/api/projects/${projectId}` : null,
+    (url) => fetch(url).then(r => r.json()).catch(() => null)
+  )
+  
   const [isOpen, setIsOpen] = useState(false)
   const [currentPath, setCurrentPath] = useState('')
   const [currentFolder, setCurrentFolder] = useState<DropboxFolder | null>(null)
@@ -70,11 +77,26 @@ export function DropboxFileBrowser({
   const [selectedFiles, setSelectedFiles] = useState<DropboxFile[]>([])
   const [linkedFiles, setLinkedFiles] = useState<DropboxFile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [hasInitialized, setHasInitialized] = useState(false)
 
   // Load existing linked files on mount
   useEffect(() => {
     fetchLinkedFiles()
   }, [roomId, projectId, sectionType])
+
+  // Auto-initialize with project folder when project data is loaded
+  useEffect(() => {
+    if (projectData && projectData.dropboxFolder && !hasInitialized) {
+      console.log('[DropboxFileBrowser] Auto-initializing with project folder:', projectData.dropboxFolder)
+      setCurrentPath(projectData.dropboxFolder)
+      fetchFolderContents(projectData.dropboxFolder)
+      setHasInitialized(true)
+    } else if (projectData && !projectData.dropboxFolder && !hasInitialized) {
+      // Project exists but has no dropboxFolder set, start at root
+      console.log('[DropboxFileBrowser] No dropboxFolder set, starting at root')
+      setHasInitialized(true)
+    }
+  }, [projectData, hasInitialized])
 
   const fetchLinkedFiles = async () => {
     try {

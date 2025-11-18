@@ -3,6 +3,18 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/auth'
 
+// Helper function to safely serialize Prisma results with dates
+function sanitizeForJson(obj: any): any {
+  return JSON.parse(
+    JSON.stringify(obj, (_key, value) => {
+      if (typeof value === 'bigint') {
+        return Number(value)
+      }
+      return value
+    })
+  )
+}
+
 // PATCH /api/drawings/{stageId}/checklist
 // Toggle checklist item completion status
 export async function PATCH(
@@ -16,9 +28,13 @@ export async function PATCH(
     }
 
     const { stageId } = params
-    const { checklistItemId, completed } = await request.json()
+    const body = await request.json()
+    const { checklistItemId, completed } = body
+
+    console.log('[DRAWINGS-CHECKLIST-PATCH] Request:', { stageId, checklistItemId, completed })
 
     if (!stageId || !checklistItemId || typeof completed !== 'boolean') {
+      console.error('[DRAWINGS-CHECKLIST-PATCH] Invalid payload:', { stageId, checklistItemId, completed })
       return NextResponse.json({ 
         error: 'Stage ID, checklist item ID, and completed status are required' 
       }, { status: 400 })
@@ -73,9 +89,15 @@ export async function PATCH(
             }
           },
           orderBy: { createdAt: 'desc' }
+        },
+        dropboxFiles: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' }
         }
       }
     })
+
+    console.log('[DRAWINGS-CHECKLIST-PATCH] Successfully updated item:', checklistItemId)
 
     // Log activity
     await prisma.activityLog.create({
@@ -94,15 +116,18 @@ export async function PATCH(
       }
     })
 
+    // Sanitize the response to avoid serialization issues
+    const sanitized = sanitizeForJson(updatedItem)
+
     return NextResponse.json({
       success: true,
-      checklistItem: updatedItem
+      checklistItem: sanitized
     })
 
   } catch (error) {
-    console.error('Error updating checklist item:', error)
+    console.error('[DRAWINGS-CHECKLIST-PATCH] Error updating checklist item:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

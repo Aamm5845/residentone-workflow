@@ -30,7 +30,9 @@ import {
   Upload,
   FileImage,
   Edit2,
-  MessageSquare
+  MessageSquare,
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { PhaseChat } from '../chat/PhaseChat'
@@ -118,6 +120,7 @@ export default function FloorplanApprovalWorkspace({
   const [activeTab, setActiveTab] = useState<'assets' | 'email' | 'activity'>('assets')
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null)
   
   // PDF preview modal state
   const [selectedFile, setSelectedFile] = useState<{
@@ -343,8 +346,69 @@ export default function FloorplanApprovalWorkspace({
     }
   }
 
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!confirm('Are you sure you want to delete this file? This cannot be undone.')) {
+      return
+    }
+
+    setDeletingAssetId(assetId)
+    try {
+      const response = await fetch(`/api/projects/${project.id}/floorplan-assets?assetId=${assetId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const data = await response.json().catch(() => ({}))
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to delete asset')
+      }
+
+      // Refresh the current version data
+      const updatedResponse = await fetch(`/api/projects/${project.id}/floorplan-approvals`)
+      if (updatedResponse.ok) {
+        const updatedData = await updatedResponse.json()
+        setCurrentVersion(updatedData.currentVersion || null)
+        setVersions(updatedData.versions || [])
+      }
+
+      toast.success('File deleted successfully', {
+        duration: 3000,
+        position: 'top-right'
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete file'
+      console.error('Error deleting asset:', error)
+      toast.error(message, {
+        duration: 5000,
+        position: 'top-right'
+      })
+    } finally {
+      setDeletingAssetId(null)
+    }
+  }
+
   const handleSendToClient = async () => {
     if (!currentVersion) return
+
+    // Pre-flight validation
+    if (!currentVersion.approvedByAaron) {
+      toast.error('Version must be approved by Aaron before sending to client', {
+        duration: 5000,
+        position: 'top-right'
+      })
+      return
+    }
+
+    if (selectedAssets.length === 0) {
+      toast.error('Please select at least one file to include in the email', {
+        duration: 5000,
+        position: 'top-right'
+      })
+      return
+    }
 
     setLoading(true)
     try {
@@ -358,8 +422,9 @@ export default function FloorplanApprovalWorkspace({
         body: JSON.stringify({ selectedAssetIds })
       })
 
+      const data = await response.json().catch(() => ({}))
+
       if (response.ok) {
-        const data = await response.json()
         setCurrentVersion(data.version)
 
         // Fetch email analytics after sending
@@ -367,21 +432,24 @@ export default function FloorplanApprovalWorkspace({
           fetchEmailAnalytics(data.version.id)
         }
 
-        alert('Email sent to client successfully!')
+        toast.success('Email sent to client successfully!', {
+          duration: 4000,
+          position: 'top-right'
+        })
       } else {
-        const errorText = await response.text()
-        let error
-        try {
-          error = JSON.parse(errorText)
-        } catch {
-          error = { error: errorText }
-        }
-        console.error('Failed to send email:', error)
-        alert(`Failed to send email: ${error.error || error.message || 'Unknown error'}`)
+        const message = data.error || data.details || 'Failed to send email'
+        console.error('Failed to send email:', data)
+        toast.error(message, {
+          duration: 5000,
+          position: 'top-right'
+        })
       }
     } catch (error) {
       console.error('Error sending email:', error)
-      alert('Failed to send email. Please try again.')
+      toast.error('Failed to send email. Please try again.', {
+        duration: 5000,
+        position: 'top-right'
+      })
     } finally {
       setLoading(false)
     }
@@ -893,6 +961,21 @@ export default function FloorplanApprovalWorkspace({
                               
                               return (
                                 <div key={assetItem.id} className="relative border border-gray-200 rounded-lg p-4">
+                                  {/* Delete Button */}
+                                  <button
+                                    onClick={() => handleDeleteAsset(assetItem.asset.id)}
+                                    disabled={deletingAssetId === assetItem.asset.id}
+                                    className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete file"
+                                    aria-label="Delete file"
+                                  >
+                                    {deletingAssetId === assetItem.asset.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                  
                                   <div className="flex items-start space-x-3">
                                     <input
                                       type="checkbox"
@@ -1192,17 +1275,48 @@ export default function FloorplanApprovalWorkspace({
                     </Button>
 
                     {/* 2. Send to Client */}
-                    <Button
-                      onClick={handleSendToClient}
-                      disabled={loading || selectedAssets.length === 0 || currentVersion.status === 'DRAFT'}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      {currentVersion.sentToClientAt ? 
-                        `Sent to Client (${new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` 
-                        : (loading ? 'Sending...' : 'Send to Client')
-                      }
-                    </Button>
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handleSendToClient}
+                        disabled={
+                          loading || 
+                          !currentVersion.approvedByAaron || 
+                          selectedAssets.length === 0 || 
+                          currentVersion.sentToClientAt !== null
+                        }
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        title={
+                          !currentVersion.approvedByAaron 
+                            ? 'Version must be approved internally first' 
+                            : selectedAssets.length === 0 
+                            ? 'Select at least one file to send' 
+                            : currentVersion.sentToClientAt 
+                            ? 'Already sent to client' 
+                            : 'Send floorplan approval email to client'
+                        }
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {currentVersion.sentToClientAt ? 
+                          `Sent to Client (${new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` 
+                          : loading ? 'Sending...' 
+                          : !currentVersion.approvedByAaron ? 'Requires Internal Approval First'
+                          : selectedAssets.length === 0 ? 'Select Files to Send'
+                          : 'Send to Client'
+                        }
+                      </Button>
+                      {!currentVersion.sentToClientAt && !currentVersion.approvedByAaron && (
+                        <p className="text-xs text-amber-600 flex items-center">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Mark as "Ready for Client" above before sending
+                        </p>
+                      )}
+                      {!currentVersion.sentToClientAt && currentVersion.approvedByAaron && selectedAssets.length === 0 && (
+                        <p className="text-xs text-amber-600 flex items-center">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Select at least one file from the Assets tab
+                        </p>
+                      )}
+                    </div>
 
                     {/* 3. Client Approved Section */}
                     <div className="bg-green-50 rounded-lg p-3 border border-green-200">

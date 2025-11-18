@@ -217,6 +217,8 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
 
     setLinking(true)
     try {
+      console.log('[useDrawingsWorkspace] Linking files:', { checklistItemId, fileCount: files.length })
+      
       const response = await fetch(`/api/drawings/checklist/${checklistItemId}/link-files`, {
         method: 'POST',
         headers: {
@@ -228,11 +230,14 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
       const result = await response.json()
 
       if (!response.ok) {
+        console.error('[useDrawingsWorkspace] Link files failed:', result)
         throw new Error(result.error || 'Failed to link files')
       }
 
       const linkedCount = result.linkedFiles?.length || 0
       const skippedCount = result.skippedFiles?.length || 0
+      
+      console.log('[useDrawingsWorkspace] Link files result:', { linkedCount, skippedCount })
       
       if (linkedCount > 0) {
         toast.success(`${linkedCount} file(s) linked successfully`)
@@ -241,12 +246,15 @@ export function useDrawingsWorkspace(stageId: string): UseDrawingsWorkspaceResul
         toast.error(`${skippedCount} file(s) could not be linked`)
       }
 
+      // Force a full revalidation to ensure dropboxFiles are loaded
       await mutate()
+      
+      return result
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to link files'
       toast.error(errorMessage)
-      console.error('Link Dropbox files error:', error)
+      console.error('[useDrawingsWorkspace] Link Dropbox files error:', error)
       throw error
     } finally {
       setLinking(false)

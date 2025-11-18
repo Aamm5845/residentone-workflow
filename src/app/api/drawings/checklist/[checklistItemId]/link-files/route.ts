@@ -4,6 +4,18 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/auth'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 
+// Helper function to safely serialize Prisma results
+function sanitizeForJson(obj: any): any {
+  return JSON.parse(
+    JSON.stringify(obj, (_key, value) => {
+      if (typeof value === 'bigint') {
+        return Number(value)
+      }
+      return value
+    })
+  )
+}
+
 // POST /api/drawings/checklist/{checklistItemId}/link-files
 // Link Dropbox files to a drawing checklist item
 export async function POST(
@@ -135,7 +147,8 @@ export async function POST(
       }
     })
 
-    return NextResponse.json({
+    // Sanitize the response to avoid serialization issues
+    const sanitized = sanitizeForJson({
       success: true,
       linkedFiles,
       skippedFiles,
@@ -144,6 +157,8 @@ export async function POST(
         name: checklistItem.name
       }
     })
+
+    return NextResponse.json(sanitized)
 
   } catch (error) {
     console.error('Link files API error:', error)
