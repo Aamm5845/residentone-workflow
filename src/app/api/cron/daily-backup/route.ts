@@ -151,8 +151,8 @@ async function buildBackupForCron() {
 // Cleanup old backups - keep only last 20
 async function cleanupOldBackups() {
   try {
-    // Use relative path for read operations (with shared link)
-    const backupFolderPath = '/Software Backups'
+    // Use full team folder path
+    const backupFolderPath = '/Meisner Interiors Team Folder/Software Backups'
     
     // List all files in backup folder
     const folderContents = await dropboxService.listFolder(backupFolderPath)
@@ -209,12 +209,12 @@ export async function GET(req: Request) {
     // 3. Generate filename with date and time for unique backups
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) // YYYY-MM-DDTHH-MM-SS
     const filename = `database-backup-${timestamp}.json.gz`
-    // Use consistent relative path for write operations (pathRoot configured)
-    const dropboxPath = `/Software Backups/${filename}`
+    // Use full team folder path for write operations
+    const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
     
     // 4. Ensure backup folder exists in Dropbox
     try {
-      await dropboxService.createFolder('/Software Backups')
+      await dropboxService.createFolder('/Meisner Interiors Team Folder/Software Backups')
     } catch (error) {
       console.log('Backup folder may already exist')
     }

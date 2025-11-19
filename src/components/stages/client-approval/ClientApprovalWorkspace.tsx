@@ -360,11 +360,6 @@ export default function ClientApprovalWorkspace({
   }
 
   const handleResendToClient = async () => {
-    const clientEmail = project.client?.email
-    if (!confirm(`Resend email to ${clientEmail}? This will send another copy of the approval email with the currently selected assets.`)) {
-      return
-    }
-    
     setLoading(true)
     try {
       // Use the selected assets from state
@@ -414,10 +409,6 @@ export default function ClientApprovalWorkspace({
   }
 
   const handleMarkAsSent = async () => {
-    if (!confirm('Mark as already sent to client? This will skip the automated email sending step.')) {
-      return
-    }
-
     setLoading(true)
     try {
       const response = await fetch(`/api/client-approval/${stage.id}/mark-as-sent`, {
@@ -792,17 +783,15 @@ export default function ClientApprovalWorkspace({
                       {stage.status !== 'NOT_APPLICABLE' && (
                         <button
                           onClick={async () => {
-                            if (confirm('Reset Client Approval phase? This will permanently delete all data and progress.')) {
-                              try {
-                                const response = await fetch(`/api/stages/${stage.id}/reset`, { method: 'POST' })
-                                if (response.ok) {
-                                  window.location.reload()
-                                } else {
-                                  alert('Failed to reset phase')
-                                }
-                              } catch (error) {
+                            try {
+                              const response = await fetch(`/api/stages/${stage.id}/reset`, { method: 'POST' })
+                              if (response.ok) {
+                                window.location.reload()
+                              } else {
                                 alert('Failed to reset phase')
                               }
+                            } catch (error) {
+                              alert('Failed to reset phase')
                             }
                             setShowSettingsMenu(false)
                           }}
@@ -816,21 +805,19 @@ export default function ClientApprovalWorkspace({
                       {stage.status !== 'NOT_APPLICABLE' ? (
                         <button
                           onClick={async () => {
-                            if (confirm('Mark Client Approval phase as not applicable? This will hide it from the workflow.')) {
-                              try {
-                                const response = await fetch(`/api/stages/${stage.id}`, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ action: 'mark_not_applicable' })
-                                })
-                                if (response.ok) {
-                                  window.location.reload()
-                                } else {
-                                  alert('Failed to mark as not applicable')
-                                }
-                              } catch (error) {
+                            try {
+                              const response = await fetch(`/api/stages/${stage.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'mark_not_applicable' })
+                              })
+                              if (response.ok) {
+                                window.location.reload()
+                              } else {
                                 alert('Failed to mark as not applicable')
                               }
+                            } catch (error) {
+                              alert('Failed to mark as not applicable')
                             }
                             setShowSettingsMenu(false)
                           }}

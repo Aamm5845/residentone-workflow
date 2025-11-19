@@ -43,7 +43,7 @@ export async function GET() {
     }
     
     // List backup files from Dropbox
-    const backupFolderPath = '/Software Backups' // Relative to shared link root
+    const backupFolderPath = '/Meisner Interiors Team Folder/Software Backups'
     console.log(`[CloudBackups] Listing backups from: ${backupFolderPath}`)
     
     let folderContents

@@ -301,10 +301,6 @@ export default function RenderingWorkspace({
 
   // Push version to client approval
   const pushToClient = async (versionId: string) => {
-    if (!window.confirm('Push this version to Client Approval? This action cannot be undone.')) {
-      return
-    }
-
     try {
       const response = await fetch(`/api/renderings/${versionId}/push-to-client`, {
         method: 'POST'
