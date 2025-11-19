@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { buildFullBackup, BackupLogger } from '@/lib/backup/buildBackup'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,157 +111,47 @@ async function fetchPaginated(model: any, modelName: string, batchSize = 100) {
   return allRecords
 }
 
-// GET /api/admin/backup-complete - Create complete backup with files and users
+// GET /api/admin/backup-complete - Create complete backup with files and users (uncompressed JSON)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
-    // Only allow OWNER to create complete backups (includes passwords)
+
     if (!session?.user || session.user.role !== 'OWNER') {
-      return NextResponse.json({ 
-        error: 'Unauthorized - OWNER access required for complete backup' 
-      }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized - OWNER access required for complete backup' }, { status: 401 })
     }
 
-    // Dynamically discover all Prisma models for future-proof backup
-    console.log('🔍 Discovering Prisma models...')
-    const modelNames = Object.keys(prisma).filter(
-      key => !key.startsWith('_') && !key.startsWith('$') && typeof (prisma as any)[key] === 'object'
-    )
-    
-    console.log(`📋 Found ${modelNames.length} models to backup`)
-    
-    // Extract all production data INCLUDING sensitive information
-    const data: Record<string, any[]> = {}
-    
-    for (const modelName of modelNames) {
-      try {
-        console.log(`⏳ Backing up ${modelName}...`)
-        // Use findMany to get all records with ALL fields (including passwords, tokens, etc.)
-        data[modelName] = await (prisma as any)[modelName].findMany()
-        console.log(`✅ ${modelName}: ${data[modelName].length} records`)
-      } catch (error) {
-        console.warn(`⚠️ Could not backup ${modelName}:`, error)
-        data[modelName] = []
-      }
-    }
-    
-    const backup = {
-      timestamp: new Date().toISOString(),
-      version: '3.0', // Updated version for auto-discovery
-      type: 'complete',
-      environment: 'vercel',
-      includes_files: true,
-      includes_passwords: true,
-      auto_discovered: true,
-      created_by: {
-        id: session.user.id,
-        email: session.user.email,
-        role: session.user.role
-      },
-      data,
-      
-      // File downloads will be added here
-      files: {} as Record<string, string>
-    }
-
-    // Download actual files from URLs
-    const assets = backup.data.asset || [] // Dynamic key name
-    const fileDownloadPromises: Promise<void>[] = []
-    let downloadedCount = 0
-    let failedCount = 0
-    
-    console.log(`💾 Starting file downloads for ${assets.length} assets...`)
-
-    for (const asset of assets) {
-      if (asset.url && asset.filename) {
-        const downloadPromise = downloadFile(asset.url, asset.id)
-          .then((base64Content) => {
-            if (base64Content) {
-              backup.files[asset.id] = base64Content
-              downloadedCount++
-              if (downloadedCount % 10 === 0) {
-                
-              }
-            } else {
-              failedCount++
-            }
-          })
-          .catch((error) => {
-            console.error(`❌ Failed to download ${asset.filename}:`, error.message)
-            failedCount++
-          })
-
-        fileDownloadPromises.push(downloadPromise)
-        
-        // Limit concurrent downloads to avoid overwhelming the system
-        if (fileDownloadPromises.length >= 5) {
-          await Promise.allSettled(fileDownloadPromises.splice(0, 5))
-        }
+    const logger: BackupLogger = {
+      log: (m) => console.log(m),
+      onStart: ({ totalAssets, totalTables }) => console.log(`📋 Models: ${totalTables}, Assets: ${totalAssets}`),
+      onProgress: ({ completed, total, percentage }) => {
+        if (completed % 10 === 0 || completed === total) console.log(`Progress: ${completed}/${total} (${percentage}%)`)
       }
     }
 
-    // Wait for remaining downloads
-    if (fileDownloadPromises.length > 0) {
-      await Promise.allSettled(fileDownloadPromises)
-    }
+    const result = await buildFullBackup({ mode: 'preferences', logger, concurrency: 20 })
 
-    // Calculate statistics
-    const stats = Object.entries(backup.data).map(([table, records]) => ({
-      table,
-      count: Array.isArray(records) ? records.length : 0
-    }))
-    
-    const totalRecords = stats.reduce((sum, stat) => sum + stat.count, 0)
-    const totalFiles = Object.keys(backup.files).length
-
-    // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
     const filename = `residentone-complete-backup-${timestamp}.json`
-    
-    // Add metadata to backup
-    backup.statistics = {
-      total_records: totalRecords,
-      total_files: totalFiles,
-      files_downloaded: downloadedCount,
-      files_failed: failedCount,
-      tables: stats,
-      backup_size_estimate: `${Math.round(JSON.stringify(backup).length / 1024 / 1024)} MB`,
-      includes_sensitive_data: true,
-      includes_file_contents: true
-    }
-    
-    // Return complete backup as downloadable file
-    const backupJson = JSON.stringify(backup, null, 2)
-    
-    // Add warning headers
+    const backupJson = JSON.stringify(result, null, 2)
+
     return new NextResponse(backupJson, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Backup-Type': 'complete-with-files-and-passwords',
-        'X-Security-Warning': 'Contains sensitive data - store securely',
+        'X-Backup-Id': result.summary.backupId,
+        'X-Total-Files': String(result.summary.totalAssets),
+        'X-Success-Files': String(result.summary.successCount),
+        'X-Failed-Files': String(result.summary.failedCount),
       },
     })
 
   } catch (error) {
     console.error('❌ Complete backup failed:', error)
-    
-    // Log specific error details
-    if (error instanceof Error) {
-      console.error('❌ Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      })
-    }
-    
     return NextResponse.json({ 
       error: 'Complete backup failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      errorType: error instanceof Error ? error.name : 'UnknownError'
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

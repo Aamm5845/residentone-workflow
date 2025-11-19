@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
+import { buildFullBackup, BackupLogger } from '@/lib/backup/buildBackup'
 import { gzip } from 'zlib'
 import { promisify } from 'util'
 
@@ -129,90 +129,23 @@ function isAuthorized(req: Request) {
   return false
 }
 
-// Dynamically export ALL database tables from Prisma
-// This automatically includes any new tables added to schema.prisma
-async function exportDatabase() {
-  try {
-    console.log('📊 Starting database export...')
-    
-    // Get all Prisma model names dynamically
-    const modelNames = Object.keys(prisma).filter(
-      key => !key.startsWith('_') && !key.startsWith('$') && typeof (prisma as any)[key] === 'object'
-    )
-    
-    console.log(`📋 Discovered ${modelNames.length} Prisma models`)
-    
-    // Dynamically fetch all tables - includes passwords, tokens, and ALL data
-    const data: Record<string, any[]> = {}
-    
-    for (const modelName of modelNames) {
-      try {
-        // Use findMany to get all records from each table
-        data[modelName] = await (prisma as any)[modelName].findMany()
-        console.log(`✅ ${modelName}: ${data[modelName].length} records`)
-      } catch (error) {
-        console.warn(`⚠️ Could not backup ${modelName}:`, error)
-        data[modelName] = []
-      }
-    }
-    
-    // Download file content from assets (same as complete backup)
-    const assets = data.asset || []
-    const files: Record<string, string> = {}
-    let downloadedCount = 0
-    let failedCount = 0
-    
-    console.log(`💾 Starting file downloads for ${assets.length} assets...`)
-    
-    for (const asset of assets) {
-      if (asset.url && asset.filename) {
-        try {
-          const fileData = await downloadFile(asset.url, asset.id)
-          if (fileData) {
-            files[asset.id] = fileData
-            downloadedCount++
-            if (downloadedCount % 10 === 0) {
-              console.log(`💾 Downloaded ${downloadedCount}/${assets.length} files`)
-            }
-          } else {
-            failedCount++
-          }
-        } catch (error) {
-          console.error(`❌ Failed to download ${asset.filename}:`, error)
-          failedCount++
-        }
-      }
-    }
-    
-    const backup = {
-      metadata: {
-        timestamp: new Date().toISOString(),
-        version: '3.0',
-        description: 'Meisner Interiors Workflow daily backup (COMPLETE with passwords and files)',
-        tables: Object.keys(data).length,
-        includes_passwords: true,
-        includes_files: true,
-        includes_tokens: true,
-        auto_discovered: true
-      },
-      data,
-      files
-    }
-
-    // Count total records
-    const totalRecords = Object.values(backup.data).reduce((total, table) => {
-      return total + (Array.isArray(table) ? table.length : 0)
-    }, 0)
-    
-    console.log(`📊 Exported ${totalRecords} records from ${Object.keys(backup.data).length} tables`)
-    console.log(`💾 Downloaded ${downloadedCount} files (${failedCount} failed)`)
-    
-    return backup
-    
-  } catch (error) {
-    console.error('❌ Database export failed:', error)
-    throw error
+// Use the shared backup builder for consistency and robustness
+async function buildBackupForCron() {
+  const logger: BackupLogger = {
+    log: (m) => console.log(m),
+    onStart: ({ totalAssets, totalTables }) => console.log(`📋 Models: ${totalTables}, Assets: ${totalAssets}`),
+    onFileStart: ({ path }) => console.log(`⬇️  ${path.substring(0, 80)}`),
+    onFileSuccess: ({ path, size, attempt, durationMs }) => console.log(`✅ ${path.substring(0, 60)}... ${Math.round(size/1024)}KB (attempt ${attempt}, ${durationMs}ms)`),
+    onFileFail: ({ path, attempt, error }) => console.warn(`⚠️ ${path.substring(0, 60)}... (attempt ${attempt}) ${error}`),
+    onFileSkip: ({ path, reason }) => console.warn(`⏭️  ${path.substring(0, 60)}... skipped: ${reason}`),
+    onProgress: ({ completed, total, percentage }) => {
+      if (completed % 10 === 0 || completed === total) console.log(`Progress: ${completed}/${total} (${percentage}%)`)
+    },
+    onComplete: (summary) => console.log(`Summary: ${summary.successCount}/${summary.totalAssets} ok, failed=${summary.failedCount}, skipped=${summary.skippedCount}`)
   }
+
+  const result = await buildFullBackup({ mode: 'cron', logger, concurrency: 20 })
+  return result
 }
 
 // Cleanup old backups - keep only last 20
@@ -266,22 +199,22 @@ export async function GET(req: Request) {
     console.log('🔄 Starting daily backup...')
     const startTime = Date.now()
     
-    // 1. Export database
-    const backup = await exportDatabase()
-    
+    // 1. Build backup using shared builder (includes DB and files)
+    const backupResult = await buildBackupForCron()
+
     // 2. Compress backup
-    const jsonData = JSON.stringify(backup, null, 0)
+    const jsonData = JSON.stringify(backupResult, null, 0)
     const compressed = await gzipAsync(Buffer.from(jsonData))
     
     // 3. Generate filename with date and time for unique backups
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) // YYYY-MM-DDTHH-MM-SS
     const filename = `database-backup-${timestamp}.json.gz`
-    // Use full path for write operations
-    const dropboxPath = `/Meisner Interiors Team Folder/Software Backups/${filename}`
+    // Use consistent relative path for write operations (pathRoot configured)
+    const dropboxPath = `/Software Backups/${filename}`
     
     // 4. Ensure backup folder exists in Dropbox
     try {
-      await dropboxService.createFolder('/Meisner Interiors Team Folder/Software Backups')
+      await dropboxService.createFolder('/Software Backups')
     } catch (error) {
       console.log('Backup folder may already exist')
     }
@@ -294,7 +227,7 @@ export async function GET(req: Request) {
     
     const duration = Date.now() - startTime
     const sizeMB = (compressed.length / 1024 / 1024).toFixed(2)
-    const recordCount = Object.values(backup.data).reduce((total: number, table: any) => 
+    const recordCount = Object.values(backupResult.data).reduce((total: number, table: any) => 
       total + (Array.isArray(table) ? table.length : 0), 0
     )
     
@@ -310,7 +243,7 @@ export async function GET(req: Request) {
       size: compressed.length,
       duration,
       recordCount,
-      tables: Object.keys(backup.data).length
+      tables: Object.keys(backupResult.data).length
     })
     
   } catch (error) {

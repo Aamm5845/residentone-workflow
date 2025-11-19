@@ -23,10 +23,16 @@
       "maxDuration": 300
     },
     "app/api/backup/**/*.ts": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "memory": 1024
+    },
+    "app/api/admin/backup-complete/*.ts": {
+      "maxDuration": 300,
+      "memory": 1024
     },
     "app/api/cron/**/*.ts": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "memory": 1024
     }
   },
   "crons": [
