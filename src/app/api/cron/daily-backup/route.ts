@@ -222,8 +222,8 @@ export async function GET(req: Request) {
     // 5. Upload to Dropbox (add mode - don't overwrite)
     await dropboxService.uploadFile(dropboxPath, compressed, { mode: 'add' })
     
-    // 6. Cleanup old backups (keep only last 20)
-    await cleanupOldBackups()
+    // 6. Cleanup disabled for now (can manually delete old backups from Dropbox if needed)
+    // await cleanupOldBackups()
     
     const duration = Date.now() - startTime
     const sizeMB = (compressed.length / 1024 / 1024).toFixed(2)
