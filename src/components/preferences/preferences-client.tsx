@@ -194,13 +194,18 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
     }
   }
 
-  const createBackup = async (type: 'safe' | 'complete') => {
-    if (type === 'complete' && !canCompleteBackup) {
+  const createBackup = async (type: 'safe' | 'complete' | 'cloud') => {
+    if ((type === 'complete' || type === 'cloud') && !canCompleteBackup) {
       setError('Only owners can create complete backups')
       return
     }
 
-    const endpoint = type === 'complete' ? '/api/admin/backup-complete' : '/api/admin/backup'
+    // Cloud backup uses the cron endpoint to save directly to Dropbox
+    const endpoint = type === 'cloud' 
+      ? '/api/cron/daily-backup?source=manual'
+      : type === 'complete' 
+      ? '/api/admin/backup-complete' 
+      : '/api/admin/backup'
     
     if (type === 'complete') {
       const confirmed = window.confirm(
@@ -210,6 +215,18 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
         '• All uploaded files embedded in backup\n' +
         '• Full system state for disaster recovery\n\n' +
         'This backup will be VERY LARGE and contain sensitive data.\n\n' +
+        'Continue?'
+      )
+      if (!confirmed) return
+    }
+
+    if (type === 'cloud') {
+      const confirmed = window.confirm(
+        'Save complete backup to Dropbox?\n\n' +
+        'This will:\n' +
+        '• Create a full backup with all data and files\n' +
+        '• Save directly to Dropbox /Software Backups/ folder\n' +
+        '• Take a few minutes to complete\n\n' +
         'Continue?'
       )
       if (!confirmed) return
@@ -226,34 +243,48 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
         throw new Error(errorData.error || `Failed to create ${type} backup`)
       }
       
-      // Download the backup file
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      
-      // Get filename from Content-Disposition header or generate one
-      const contentDisposition = response.headers.get('content-disposition')
-      const filename = contentDisposition 
-        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
-        : `residentone-${type}-backup-${new Date().toISOString().split('T')[0]}.json`
-      
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      // For cloud backup, it returns JSON status instead of a file
+      if (type === 'cloud') {
+        const result = await response.json()
+        alert(
+          `✅ Backup saved to Dropbox successfully!\n\n` +
+          `File: ${result.filename}\n` +
+          `Location: /Software Backups/${result.filename}\n` +
+          `Size: ${(result.size / 1024 / 1024).toFixed(2)} MB\n` +
+          `Files: ${result.recordCount} records\n\n` +
+          `Check the Cloud Backups section below to download it.`
+        )
+        // Refresh cloud backups list
+        await loadCloudBackups()
+      } else {
+        // Download the backup file for safe/complete
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        
+        // Get filename from Content-Disposition header or generate one
+        const contentDisposition = response.headers.get('content-disposition')
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+          : `residentone-${type}-backup-${new Date().toISOString().split('T')[0]}.json`
+        
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        if (type === 'complete') {
+          alert(`Complete backup created successfully!\n\nFile: ${filename}\nSize: ${Math.round(blob.size / 1024 / 1024 * 100) / 100} MB\n\nThis backup contains sensitive data - store securely!`)
+        } else {
+          alert(`Safe backup created successfully!\n\nFile: ${filename}`)
+        }
+      }
       
       // Update local backup info
       localStorage.setItem('last_backup_date', new Date().toISOString())
       localStorage.setItem('last_backup_type', type)
-      localStorage.setItem('last_backup_size', blob.size.toString())
-      
-      if (type === 'complete') {
-        alert(`Complete backup created successfully!\n\nFile: ${filename}\nSize: ${Math.round(blob.size / 1024 / 1024 * 100) / 100} MB\n\nThis backup contains sensitive data - store securely!`)
-      } else {
-        alert(`Safe backup created successfully!\n\nFile: ${filename}`)
-      }
       
       // Refresh backup info
       await loadBackupInfo()
@@ -484,7 +515,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                       )}
 
                       {/* Backup Actions */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Safe Backup */}
                         <div className="border border-blue-200 rounded-lg p-4">
                           <div className="flex items-center mb-3">
@@ -492,7 +523,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                             <h4 className="font-medium text-gray-900">Safe Backup</h4>
                           </div>
                           <p className="text-sm text-gray-600 mb-4">
-                            Includes all project data without passwords or file content. Safe for regular backups.
+                            Download backup without passwords or files.
                           </p>
                           <Button
                             onClick={() => createBackup('safe')}
@@ -507,7 +538,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                             ) : (
                               <>
                                 <Download className="w-4 h-4 mr-2" />
-                                Backup Now
+                                Download
                               </>
                             )}
                           </Button>
@@ -520,7 +551,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                             <h4 className="font-medium text-gray-900">Complete Backup</h4>
                           </div>
                           <p className="text-sm text-gray-600 mb-4">
-                            Full system backup with passwords and files. For disaster recovery only.
+                            Download full backup with all data and files.
                           </p>
                           <Button
                             onClick={() => createBackup('complete')}
@@ -535,7 +566,35 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                             ) : (
                               <>
                                 <Shield className="w-4 h-4 mr-2" />
-                                {canCompleteBackup ? 'Complete Backup' : 'Owner Only'}
+                                {canCompleteBackup ? 'Download' : 'Owner Only'}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* Backup to Cloud */}
+                        <div className="border border-purple-200 rounded-lg p-4">
+                          <div className="flex items-center mb-3">
+                            <Cloud className="w-5 h-5 text-purple-600 mr-2" />
+                            <h4 className="font-medium text-gray-900">Backup to Cloud</h4>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Save full backup directly to Dropbox.
+                          </p>
+                          <Button
+                            onClick={() => createBackup('cloud')}
+                            disabled={loading || !canCompleteBackup}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            {loading ? (
+                              <>
+                                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Cloud className="w-4 h-4 mr-2" />
+                                {canCompleteBackup ? 'Save to Dropbox' : 'Owner Only'}
                               </>
                             )}
                           </Button>
