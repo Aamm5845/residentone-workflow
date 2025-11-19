@@ -200,15 +200,11 @@ export async function listAllAssets(): Promise<Array<{ id: string; filename: str
       url: true,
       size: true
     },
-    where: {
-      url: {
-        not: null
-      }
-    },
     orderBy: { createdAt: 'asc' }
   })
   
-  return assets.filter(a => a.url) as Array<{ id: string; filename: string; url: string; size: number | null }>
+  // Filter out assets without URLs
+  return assets.filter(a => a.url !== null && a.url !== undefined) as Array<{ id: string; filename: string; url: string; size: number | null }>
 }
 
 // Main backup builder
