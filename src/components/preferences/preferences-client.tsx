@@ -200,9 +200,9 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
       return
     }
 
-    // Cloud backup uses the cron endpoint to save directly to Dropbox
+    // Cloud backup uses dedicated endpoint with session auth
     const endpoint = type === 'cloud' 
-      ? '/api/cron/daily-backup?source=manual'
+      ? '/api/admin/backup-to-cloud'
       : type === 'complete' 
       ? '/api/admin/backup-complete' 
       : '/api/admin/backup'
