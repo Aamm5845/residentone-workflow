@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,10 +33,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate backup format
-    if (backup_data.version !== '2.0' || backup_data.type !== 'complete') {
+    // Validate backup format - support both v2.0 and v3.0
+    const isValidVersion = backup_data.version === '2.0' || backup_data.version === '3.0'
+    const isValidType = backup_data.type === 'complete' || backup_data.metadata?.includes_files === true
+    
+    if (!isValidVersion && !isValidType) {
       return NextResponse.json({ 
-        error: 'Invalid backup format - expected complete backup v2.0' 
+        error: 'Invalid backup format - expected complete backup v2.0 or v3.0' 
       }, { status: 400 })
     }
 
@@ -253,27 +257,49 @@ export async function POST(request: NextRequest) {
 
     // Restore files if requested and available
     if (restore_files && files && Object.keys(files).length > 0) {
+      console.log(`💾 Starting file restoration for ${Object.keys(files).length} files...`)
       
       for (const [assetId, fileDataStr] of Object.entries(files)) {
         try {
           const fileData = JSON.parse(fileDataStr as string)
           
-          // Here you would typically upload the file back to your storage
-          // For this example, we'll just validate that we have the file content
           if (fileData.content && fileData.originalUrl) {
-            // In a real implementation, you might:
-            // 1. Upload file content back to Dropbox
-            // 2. Update asset URL in database
-            // 3. Verify file integrity
-
-            restoredFiles++
+            // Decode base64 content back to buffer
+            const buffer = Buffer.from(fileData.content, 'base64')
+            
+            // Re-upload to Dropbox at original path
+            try {
+              await dropboxService.uploadFile(fileData.originalUrl, buffer, { mode: 'overwrite' })
+              
+              // Update asset URL in database to confirm it's restored
+              await prisma.asset.update({
+                where: { id: assetId },
+                data: { 
+                  url: fileData.originalUrl,
+                  size: fileData.size,
+                  mimeType: fileData.mimeType
+                }
+              })
+              
+              restoredFiles++
+              if (restoredFiles % 10 === 0) {
+                console.log(`💾 Restored ${restoredFiles}/${Object.keys(files).length} files`)
+              }
+            } catch (uploadError) {
+              console.error(`❌ Failed to upload file ${assetId} to Dropbox:`, uploadError)
+              failedFiles++
+            }
+          } else {
+            console.warn(`⚠️ File ${assetId} missing content or URL`)
+            failedFiles++
           }
         } catch (error) {
           console.error(`❌ Failed to restore file ${assetId}:`, error)
           failedFiles++
         }
       }
-
+      
+      console.log(`✅ File restoration complete: ${restoredFiles} succeeded, ${failedFiles} failed`)
     }
 
     return NextResponse.json({
