@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Plus, X, User, Calendar, DollarSign, Home, Bed, UtensilsCrossed, Bath, Briefcase, Sofa, Coffee, Flower, Car, Settings, Users, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Upload, Camera, Building, Search, FolderPlus, Link2, FolderX, ChevronDown, ChevronUp, MapPin } from 'lucide-react'
 import Image from 'next/image'
+import { DropboxFolderBrowser } from './DropboxFolderBrowser'
 
 interface NewProjectFormProps {
   session: any
@@ -171,14 +172,22 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     if (typeof google !== 'undefined') {
       initGooglePlaces()
     } else {
-      // Load Google Maps script
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&language=en`
-      script.async = true
-      script.defer = true
-      script.charset = 'utf-8'
-      script.onload = initGooglePlaces
-      document.head.appendChild(script)
+      // Check if script is already being loaded
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
+      if (!existingScript) {
+        // Load Google Maps script only if it doesn't exist
+        const script = document.createElement('script')
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&language=en`
+        script.async = true
+        script.defer = true
+        script.charset = 'utf-8'
+        script.id = 'google-maps-script'
+        script.onload = initGooglePlaces
+        document.head.appendChild(script)
+      } else {
+        // Wait for existing script to load
+        existingScript.addEventListener('load', initGooglePlaces)
+      }
     }
   }, [])
 
@@ -898,17 +907,12 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                         Connect this project to an existing Dropbox folder
                       </p>
                       {formData.dropboxOption === 'link' && (
-                        <input
-                          type="text"
-                          value={formData.dropboxFolderPath}
-                          onChange={(e) => {
-                            e.stopPropagation()
-                            handleInputChange('dropboxFolderPath', e.target.value)
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="/Meisner Interiors Team Folder/Project Name"
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropboxFolderBrowser
+                            onSelect={(path) => handleInputChange('dropboxFolderPath', path)}
+                            currentPath={formData.dropboxFolderPath}
+                          />
+                        </div>
                       )}
                     </div>
                     <div className="ml-auto">

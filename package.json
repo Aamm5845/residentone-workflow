@@ -37,7 +37,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "pwa:icons": "node scripts/generate-pwa-icons.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

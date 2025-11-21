@@ -73,6 +73,23 @@ export async function GET(
                   orderBy: {
                     createdAt: 'asc'
                   }
+                },
+                ffeInstance: {
+                  include: {
+                    sections: {
+                      include: {
+                        items: {
+                          where: {
+                            visibility: 'VISIBLE'
+                          },
+                          select: {
+                            id: true,
+                            state: true
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               },
               orderBy: {
@@ -189,6 +206,22 @@ function processRoomData(room: any) {
       startedAt: dbStage?.startedAt || null
     }
   })
+  
+  // Calculate FFE completion stats
+  let ffeStats = null
+  if (room.ffeInstance) {
+    const allFfeItems = room.ffeInstance.sections.flatMap((section: any) => section.items)
+    const totalItems = allFfeItems.length
+    const completedItems = allFfeItems.filter((item: any) => item.state === 'COMPLETED').length
+    
+    if (totalItems > 0) {
+      ffeStats = {
+        totalItems,
+        completedItems,
+        percentage: Math.round((completedItems / totalItems) * 100)
+      }
+    }
+  }
 
   return {
     id: room.id,
@@ -197,6 +230,7 @@ function processRoomData(room: any) {
     status: room.status,
     progress,
     phases,
+    ffeStats,
     approvedRenderings: approvedRenderings.map((version: any) => ({
       id: version.id,
       version: version.version,

@@ -832,8 +832,20 @@ export function formatDescription(activity: {
 
     default:
       // Generic fallback - include as much context as possible
-      const action = meta.label.toLowerCase()
-      let description = `${actorName} ${action}`
+      // Convert action type to readable format (e.g., "FFE_ITEM_UPDATED" -> "updated FFE item")
+      let actionDescription = ''
+      if (meta.label && meta.label !== 'Activity') {
+        actionDescription = meta.label.toLowerCase()
+      } else {
+        // Convert the raw action type to readable format
+        const readable = activity.action
+          .toLowerCase()
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase())
+        actionDescription = readable
+      }
+      
+      let description = `${actorName} - ${actionDescription}`
       
       // Add item/file name if available
       if (details.itemName) {
@@ -842,6 +854,10 @@ export function formatDescription(activity: {
         description += ` "${details.fileName}"`
       } else if (details.title) {
         description += ` "${details.title}"`
+      } else if (details.message) {
+        // Include message preview if available
+        const messagePreview = details.message.substring(0, 50)
+        description += `: "${messagePreview}${details.message.length > 50 ? '...' : ''}"` 
       }
       
       return description + context

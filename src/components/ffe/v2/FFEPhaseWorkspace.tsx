@@ -169,18 +169,48 @@ export default function FFEPhaseWorkspace({
   const handleItemStateChange = async (itemId: string, newState: FFEItemState, notes?: string) => {
     if (!currentInstance) return
     
+    // Optimistic update - update local state immediately without showing loading screen
+    const updatedInstance = {
+      ...currentInstance,
+      sections: currentInstance.sections.map(section => ({
+        ...section,
+        items: section.items.map(item => 
+          item.id === itemId ? { ...item, state: newState, notes: notes || item.notes } : item
+        )
+      }))
+    }
+    
+    setCurrentInstance(updatedInstance)
+    setInstance(updatedInstance)
+    
     try {
       await updateItemState(currentInstance.roomId, itemId, newState, notes)
-      await revalidate() // Refresh data
+      // Don't call revalidate() - we've already updated the UI optimistically
     } catch (error) {
       console.error('Failed to update item state:', error)
       toast.error('Failed to update item state')
+      // Revert optimistic update on error by revalidating
+      await revalidate()
     }
   }
 
   // Handle enhanced item state changes (with enhanced states)
   const handleEnhancedItemStateChange = async (itemId: string, newState: string, notes?: string) => {
     if (!currentInstance) return
+    
+    // Optimistic update - update local state immediately without showing loading screen
+    const updatedInstance = {
+      ...currentInstance,
+      sections: currentInstance.sections.map(section => ({
+        ...section,
+        items: section.items.map(item => 
+          item.id === itemId ? { ...item, state: newState as FFEItemState, notes: notes || item.notes } : item
+        )
+      }))
+    }
+    
+    setCurrentInstance(updatedInstance)
+    setInstance(updatedInstance)
     
     try {
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
@@ -190,14 +220,16 @@ export default function FFEPhaseWorkspace({
       })
 
       if (response.ok) {
-        await revalidate()
         toast.success('Item updated successfully')
+        // Don't call revalidate() - we've already updated the UI optimistically
       } else {
         throw new Error('Failed to update item')
       }
     } catch (error) {
       console.error('Failed to update item state:', error)
       toast.error('Failed to update item state')
+      // Revert optimistic update on error by revalidating
+      await revalidate()
     }
   }
 

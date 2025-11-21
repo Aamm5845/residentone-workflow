@@ -134,6 +134,9 @@ export default function FFEWorkspaceDepartment({
 
   const handleStateChange = async (itemId: string, newState: FFEItemState) => {
     try {
+      // Store scroll position before update
+      const scrollPosition = window.scrollY
+      
       setSaving(true)
 
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
@@ -149,9 +152,9 @@ export default function FFEWorkspaceDepartment({
         throw new Error('Failed to update item state')
       }
 
-      // Update local state
-      setSections(prevSections => 
-        prevSections.map(section => ({
+      // Update local state and recalculate stats
+      setSections(prevSections => {
+        const updatedSections = prevSections.map(section => ({
           ...section,
           items: section.items.map(item => 
             item.id === itemId 
@@ -159,18 +162,17 @@ export default function FFEWorkspaceDepartment({
               : item
           )
         }))
-      )
-
-      // Recalculate stats
-      const updatedSections = sections.map(section => ({
-        ...section,
-        items: section.items.map(item => 
-          item.id === itemId 
-            ? { ...item, state: newState }
-            : item
-        )
-      }))
-      calculateStats(updatedSections)
+        calculateStats(updatedSections)
+        return updatedSections
+      })
+      
+      // Restore scroll position after state update
+      // Use double requestAnimationFrame to ensure all DOM updates and layout calculations are complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollPosition)
+        })
+      })
 
     } catch (error) {
       console.error('Error updating item state:', error)
@@ -182,6 +184,9 @@ export default function FFEWorkspaceDepartment({
 
   const handleNotesChange = async (itemId: string, notes: string) => {
     try {
+      // Store scroll position before update
+      const scrollPosition = window.scrollY
+      
       setSaving(true)
 
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
@@ -208,6 +213,14 @@ export default function FFEWorkspaceDepartment({
           )
         }))
       )
+      
+      // Restore scroll position after state update
+      // Use double requestAnimationFrame to ensure all DOM updates and layout calculations are complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollPosition)
+        })
+      })
 
     } catch (error) {
       console.error('Error updating item notes:', error)

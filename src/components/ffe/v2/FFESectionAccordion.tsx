@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -275,6 +275,30 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
     getSectionProgress 
   } = useFFERoomStore()
   
+  // Scroll position management
+  const scrollPositionRef = useRef<number>(0)
+  const isUpdatingRef = useRef<boolean>(false)
+  
+  // Restore scroll position after sections update
+  useLayoutEffect(() => {
+    if (isUpdatingRef.current) {
+      // Use double requestAnimationFrame to ensure all DOM updates and layout calculations are complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollPositionRef.current)
+          isUpdatingRef.current = false
+        })
+      })
+    }
+  }, [sections])
+  
+  // Wrap onItemStateChange to save scroll position
+  const handleItemStateChange = (itemId: string, newState: FFEItemState, notes?: string) => {
+    scrollPositionRef.current = window.scrollY
+    isUpdatingRef.current = true
+    onItemStateChange(itemId, newState, notes)
+  }
+  
   // Get roomId from sections for sessionStorage key
   const roomId = sections[0]?.instance?.roomId || sections[0]?.items?.[0]?.section?.instance?.roomId || 'unknown'
   const storageKey = `ffe:workspace:expanded:${roomId}`
@@ -475,9 +499,9 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
                                 item={item}
                                 children={children} // eslint-disable-line react/no-children-prop
                                 isExpanded={isItemExpanded}
-                                onStateChange={(state, notes) => onItemStateChange(item.id, state, notes)}
+                                onStateChange={(state, notes) => handleItemStateChange(item.id, state, notes)}
                                 onToggleExpanded={() => toggleItemExpanded(item.id)}
-                                onChildStateChange={onItemStateChange}
+                                onChildStateChange={handleItemStateChange}
                               />
                             )
                           })}

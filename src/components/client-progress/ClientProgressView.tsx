@@ -54,6 +54,11 @@ interface Room {
   status: string
   progress: number
   phases: Phase[]
+  ffeStats?: {
+    totalItems: number
+    completedItems: number
+    percentage: number
+  } | null
   approvedRenderings: ApprovedRendering[]
 }
 
@@ -349,7 +354,7 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Project Rooms</h3>
                 {projectData.rooms.map((room) => (
                   <div key={room.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    <RoomCard room={room} downloadingAsset={downloadingAsset} handleDownload={handleDownload} formatRoomName={formatRoomName} getPhaseIcon={getPhaseIcon} getPhaseStatusColor={getPhaseStatusColor} />
+                    <RoomCard room={room} token={token} downloadingAsset={downloadingAsset} handleDownload={handleDownload} formatRoomName={formatRoomName} getPhaseIcon={getPhaseIcon} getPhaseStatusColor={getPhaseStatusColor} />
                   </div>
                 ))}
               </>
@@ -497,6 +502,7 @@ export default function ClientProgressView({ token }: ClientProgressViewProps) {
 // RoomCard component for individual room display
 interface RoomCardProps {
   room: Room
+  token: string
   downloadingAsset: string | null
   handleDownload: (assetId: string, assetTitle: string) => void
   formatRoomName: (room: Room) => string
@@ -504,7 +510,7 @@ interface RoomCardProps {
   getPhaseStatusColor: (status: string) => string
 }
 
-function RoomCard({ room, downloadingAsset, handleDownload, formatRoomName, getPhaseIcon, getPhaseStatusColor }: RoomCardProps) {
+function RoomCard({ room, token, downloadingAsset, handleDownload, formatRoomName, getPhaseIcon, getPhaseStatusColor }: RoomCardProps) {
   // Get room type configuration for icons and colors
   const getRoomTypeConfig = (roomType: string) => {
     const ROOM_CATEGORIES = {
@@ -600,10 +606,26 @@ function RoomCard({ room, downloadingAsset, handleDownload, formatRoomName, getP
                   <span className={`text-sm font-medium ${phase.status === 'COMPLETED' ? 'text-gray-900' : 'text-gray-600'}`}>
                     {phase.name}
                   </span>
-                  <Badge className={`text-xs ${getPhaseStatusColor(phase.status)}`}>
-                    {phase.status === 'COMPLETED' ? 'Complete' : 
-                     phase.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending'}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {/* FFE Phase Progress Bar */}
+                    {phase.name === 'FFE' && room.ffeStats && room.ffeStats.totalItems > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300"
+                            style={{ width: `${room.ffeStats.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-gray-600 min-w-[3rem]">
+                          {room.ffeStats.completedItems}/{room.ffeStats.totalItems}
+                        </span>
+                      </div>
+                    )}
+                    <Badge className={`text-xs ${getPhaseStatusColor(phase.status)}`}>
+                      {phase.status === 'COMPLETED' ? 'Complete' : 
+                       phase.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending'}
+                    </Badge>
+                  </div>
                 </div>
                 {phase.completedAt && (
                   <p className="text-xs text-gray-500 mt-1">
@@ -645,16 +667,25 @@ function RoomCard({ room, downloadingAsset, handleDownload, formatRoomName, getP
                         <div key={asset.id} className="bg-white rounded border border-gray-200 overflow-hidden">
                           <div className="aspect-video bg-gray-100 relative">
                             <img
-                              src={asset.url}
+                              src={`/api/client-progress/${token}/view/${asset.id}`}
                               alt={asset.title}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // If image fails to load, show a placeholder
+                                const img = e.target as HTMLImageElement
+                                img.style.display = 'none'
+                                const parent = img.parentElement
+                                if (parent) {
+                                  parent.innerHTML = `<div class="flex items-center justify-center h-full text-gray-500"><div class="text-center"><svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p class="text-sm">Image unavailable</p></div></div>`
+                                }
+                              }}
                             />
                             <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 hover:opacity-100">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="bg-white hover:bg-gray-100 text-xs"
-                                onClick={() => window.open(asset.url, '_blank')}
+                                onClick={() => window.open(`/api/client-progress/${token}/view/${asset.id}`, '_blank')}
                               >
                                 <Eye className="w-3 h-3 mr-1" />
                                 View

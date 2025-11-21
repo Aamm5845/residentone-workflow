@@ -1,0 +1,771 @@
+"filename", "language", "JSON with Comments", "JavaScript", "Markdown", "Shell Script", "TypeScript", "PowerShell", "JSON", "XML", "TypeScript JSX", "PostCSS", "HTML", "comment", "blank", "total"
+"c:\Users\ADMIN\Desktop\residentone-workflow\.eslintrc.json", "JSON with Comments", 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7
+"c:\Users\ADMIN\Desktop\residentone-workflow\ACTIVITIES_TESTING_GUIDE.md", "Markdown", 0, 0, 173, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 214
+"c:\Users\ADMIN\Desktop\residentone-workflow\AI-SUMMARY-DOCS.md", "Markdown", 0, 0, 273, 0, 0, 0, 0, 0, 0, 0, 0, 0, 105, 378
+"c:\Users\ADMIN\Desktop\residentone-workflow\AI-SUMMARY-IMPLEMENTATION.md", "Markdown", 0, 0, 267, 0, 0, 0, 0, 0, 0, 0, 0, 0, 89, 356
+"c:\Users\ADMIN\Desktop\residentone-workflow\BACKUP_COVERAGE.md", "Markdown", 0, 0, 172, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53, 225
+"c:\Users\ADMIN\Desktop\residentone-workflow\BACKUP_DOWNLOAD_FIX.md", "Markdown", 0, 0, 143, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 199
+"c:\Users\ADMIN\Desktop\residentone-workflow\BACKUP_TESTING_GUIDE.md", "Markdown", 0, 0, 244, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 310
+"c:\Users\ADMIN\Desktop\residentone-workflow\BACKUP_VERIFICATION_REPORT.md", "Markdown", 0, 0, 217, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 283
+"c:\Users\ADMIN\Desktop\residentone-workflow\BLOB_TO_DROPBOX_MIGRATION.md", "Markdown", 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 106
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHANGELOG.md", "Markdown", 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 103
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHAT_IMAGE_ATTACHMENTS_GUIDE.md", "Markdown", 0, 0, 175, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 215
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHAT_IMAGE_FLOW.md", "Markdown", 0, 0, 315, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 344
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHAT_IMAGE_TEST.md", "Markdown", 0, 0, 139, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 175
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHAT_NOTIFICATIONS.md", "Markdown", 0, 0, 157, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 195
+"c:\Users\ADMIN\Desktop\residentone-workflow\CHAT_UI_IMPROVEMENTS.md", "Markdown", 0, 0, 141, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 178
+"c:\Users\ADMIN\Desktop\residentone-workflow\CLIENT_PROGRESS_SETUP.md", "Markdown", 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 126
+"c:\Users\ADMIN\Desktop\residentone-workflow\CLOUD_BACKUPS_FIX_SUMMARY.md", "Markdown", 0, 0, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 192
+"c:\Users\ADMIN\Desktop\residentone-workflow\DATABASE-PROTECTION.md", "Markdown", 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\DATABASE_COMPARISON_REPORT.md", "Markdown", 0, 0, 194, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66, 260
+"c:\Users\ADMIN\Desktop\residentone-workflow\DATABASE_ERROR_RESOLVED.md", "Markdown", 0, 0, 113, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 147
+"c:\Users\ADMIN\Desktop\residentone-workflow\DATABASE_SYNCED_TO_PRODUCTION.md", "Markdown", 0, 0, 133, 0, 0, 0, 0, 0, 0, 0, 0, 0, 54, 187
+"c:\Users\ADMIN\Desktop\residentone-workflow\DATABASE_UPDATE_SUMMARY.md", "Markdown", 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 33
+"c:\Users\ADMIN\Desktop\residentone-workflow\DEPLOYMENT.md", "Markdown", 0, 0, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\DEPLOYMENT_CHECKLIST.md", "Markdown", 0, 0, 143, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 179
+"c:\Users\ADMIN\Desktop\residentone-workflow\DEPLOYMENT_READY.md", "Markdown", 0, 0, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\DEPLOYMENT_SUMMARY.md", "Markdown", 0, 0, 171, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 214
+"c:\Users\ADMIN\Desktop\residentone-workflow\DEPLOY_NEW_FFE_SYSTEM.md", "Markdown", 0, 0, 189, 0, 0, 0, 0, 0, 0, 0, 0, 0, 71, 260
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESIGN-CONCEPT-V2-COMPLETE.md", "Markdown", 0, 0, 243, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 299
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESIGN-CONCEPT-V2-IMPLEMENTATION.md", "Markdown", 0, 0, 227, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 284
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESIGN-CONCEPT-V2-TESTING.md", "Markdown", 0, 0, 146, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 192
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESIGN-CONCEPT-V2-UPDATES.md", "Markdown", 0, 0, 135, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 169
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESIGN_CONCEPT_FUNCTIONALITY.md", "Markdown", 0, 0, 134, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 175
+"c:\Users\ADMIN\Desktop\residentone-workflow\DESKTOP_NOTIFICATIONS.md", "Markdown", 0, 0, 136, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 187
+"c:\Users\ADMIN\Desktop\residentone-workflow\DRAWING_PHASE_ENHANCEMENTS.md", "Markdown", 0, 0, 233, 0, 0, 0, 0, 0, 0, 0, 0, 0, 75, 308
+"c:\Users\ADMIN\Desktop\residentone-workflow\DROPBOX_11_FOLDERS_UPDATE_SUMMARY.md", "Markdown", 0, 0, 155, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53, 208
+"c:\Users\ADMIN\Desktop\residentone-workflow\DROPBOX_FOLDERS_UPDATED.md", "Markdown", 0, 0, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\DROPBOX_SETUP.example.md", "Markdown", 0, 0, 82, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 116
+"c:\Users\ADMIN\Desktop\residentone-workflow\DROPBOX_SETUP.md", "Markdown", 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\EMAIL_SETUP.md", "Markdown", 0, 0, 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\EMAIL_SYSTEM_README.md", "Markdown", 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 188
+"c:\Users\ADMIN\Desktop\residentone-workflow\EMAIL_TROUBLESHOOTING.md", "Markdown", 0, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 87
+"c:\Users\ADMIN\Desktop\residentone-workflow\EMERGENCY_RESTORE.js", "JavaScript", 0, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 17, 149
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_ANALYSIS.md", "Markdown", 0, 0, 252, 0, 0, 0, 0, 0, 0, 0, 0, 0, 74, 326
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_BATHROOM_PRESET_LIBRARY_FIXES.md", "Markdown", 0, 0, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 159
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_ENHANCED_FEATURES.md", "Markdown", 0, 0, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 124
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_ENHANCEMENTS_GUIDE.md", "Markdown", 0, 0, 357, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99, 456
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_FEATURES_SUMMARY.md", "Markdown", 0, 0, 181, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 236
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_LINKED_ITEMS_FIXES.md", "Markdown", 0, 0, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 187
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_LINKED_ITEMS_IMPLEMENTATION.md", "Markdown", 0, 0, 244, 0, 0, 0, 0, 0, 0, 0, 0, 0, 65, 309
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_LINKED_ITEMS_TEST.md", "Markdown", 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 178
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_PRESET_ITEMS_IMPLEMENTATION.md", "Markdown", 0, 0, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 115
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_ROOM_TYPE_MAPPING_FIX.md", "Markdown", 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_SYSTEM_COMPLETE.md", "Markdown", 0, 0, 243, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 307
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_SYSTEM_REDESIGN_COMPLETE.md", "Markdown", 0, 0, 251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 77, 328
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_TEST_WORKFLOW.md", "Markdown", 0, 0, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 127
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_TREE_STRUCTURE_TEST.md", "Markdown", 0, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\FFE_VISUAL_GUIDE.md", "Markdown", 0, 0, 481, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 564
+"c:\Users\ADMIN\Desktop\residentone-workflow\FINAL_DIAGNOSIS.md", "Markdown", 0, 0, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 261
+"c:\Users\ADMIN\Desktop\residentone-workflow\FIX_ALL_RELATIONS.md", "Markdown", 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 110
+"c:\Users\ADMIN\Desktop\residentone-workflow\FIX_PRISMA_CLIENT.md", "Markdown", 0, 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 128
+"c:\Users\ADMIN\Desktop\residentone-workflow\FIX_UPLOAD_SYNC.md", "Markdown", 0, 0, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 83
+"c:\Users\ADMIN\Desktop\residentone-workflow\HARDCODED_DEFAULTS_REMOVAL_COMPLETE.md", "Markdown", 0, 0, 134, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 168
+"c:\Users\ADMIN\Desktop\residentone-workflow\ICON-SYSTEM-LUCIDE.md", "Markdown", 0, 0, 160, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 203
+"c:\Users\ADMIN\Desktop\residentone-workflow\IMPLEMENTATION_SUMMARY.md", "Markdown", 0, 0, 140, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 175
+"c:\Users\ADMIN\Desktop\residentone-workflow\INBOX_MENTIONS_GUIDE.md", "Markdown", 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 125
+"c:\Users\ADMIN\Desktop\residentone-workflow\ISSUE_FIXED.md", "Markdown", 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 92
+"c:\Users\ADMIN\Desktop\residentone-workflow\LOGIC_ITEMS_COMPLETION_IMPLEMENTATION.md", "Markdown", 0, 0, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 141
+"c:\Users\ADMIN\Desktop\residentone-workflow\LOGIC_OPTIONS_MANAGEMENT_UPDATE.md", "Markdown", 0, 0, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 100
+"c:\Users\ADMIN\Desktop\residentone-workflow\MIGRATION-COMPLETE.md", "Markdown", 0, 0, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\MIGRATION_INSTRUCTIONS.md", "Markdown", 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\NEW_FFE_SYSTEM_IMPLEMENTATION_STATUS.md", "Markdown", 0, 0, 171, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 215
+"c:\Users\ADMIN\Desktop\residentone-workflow\NOTIFICATION_PREFERENCES_SETUP.md", "Markdown", 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 200
+"c:\Users\ADMIN\Desktop\residentone-workflow\PDF_EMBEDDING_DELETION_FIX.md", "Markdown", 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 111
+"c:\Users\ADMIN\Desktop\residentone-workflow\PHASE_NOTIFICATION_SYSTEM.md", "Markdown", 0, 0, 290, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92, 382
+"c:\Users\ADMIN\Desktop\residentone-workflow\PHASE_NOT_APPLICABLE_FEATURE.md", "Markdown", 0, 0, 129, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 165
+"c:\Users\ADMIN\Desktop\residentone-workflow\PHASE_WORKFLOW_ENHANCEMENTS.md", "Markdown", 0, 0, 188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 244
+"c:\Users\ADMIN\Desktop\residentone-workflow\PHONE_NUMBER_SETUP.md", "Markdown", 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 115
+"c:\Users\ADMIN\Desktop\residentone-workflow\PRISMA-PROTECTION.md", "Markdown", 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 85
+"c:\Users\ADMIN\Desktop\residentone-workflow\PROJECT_UPDATES_IMPLEMENTATION_GUIDE.md", "Markdown", 0, 0, 240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 71, 311
+"c:\Users\ADMIN\Desktop\residentone-workflow\README.md", "Markdown", 0, 0, 269, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 348
+"c:\Users\ADMIN\Desktop\residentone-workflow\README_FFE_REDESIGN.md", "Markdown", 0, 0, 168, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 217
+"c:\Users\ADMIN\Desktop\residentone-workflow\RENDERING_IMAGES_FIX.md", "Markdown", 0, 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 63
+"c:\Users\ADMIN\Desktop\residentone-workflow\RENDERING_WORKSPACE_IMPLEMENTATION.md", "Markdown", 0, 0, 182, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 237
+"c:\Users\ADMIN\Desktop\residentone-workflow\RESEND_EMAIL_SETUP.md", "Markdown", 0, 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 96
+"c:\Users\ADMIN\Desktop\residentone-workflow\RESET_COMPLETE.md", "Markdown", 0, 0, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\RESTORATION_COMPLETE.md", "Markdown", 0, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 90
+"c:\Users\ADMIN\Desktop\residentone-workflow\RESTORATION_REPORT.md", "Markdown", 0, 0, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 124
+"c:\Users\ADMIN\Desktop\residentone-workflow\SCHEMA_COMPARISON_RESULT.md", "Markdown", 0, 0, 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 158
+"c:\Users\ADMIN\Desktop\residentone-workflow\SECURITY.md", "Markdown", 0, 0, 87, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 115
+"c:\Users\ADMIN\Desktop\residentone-workflow\SELECTIVE_TEMPLATE_IMPORT_TEST.md", "Markdown", 0, 0, 122, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 154
+"c:\Users\ADMIN\Desktop\residentone-workflow\SIMPLIFIED_FFE_WORKSPACE.md", "Markdown", 0, 0, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 76
+"c:\Users\ADMIN\Desktop\residentone-workflow\SMS_SETUP_COMPLETE.md", "Markdown", 0, 0, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 162
+"c:\Users\ADMIN\Desktop\residentone-workflow\SMS_SETUP_GUIDE.md", "Markdown", 0, 0, 147, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 203
+"c:\Users\ADMIN\Desktop\residentone-workflow\SMS_TROUBLESHOOTING.md", "Markdown", 0, 0, 177, 0, 0, 0, 0, 0, 0, 0, 0, 0, 60, 237
+"c:\Users\ADMIN\Desktop\residentone-workflow\SPEC_BOOK_REDESIGN.md", "Markdown", 0, 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 111
+"c:\Users\ADMIN\Desktop\residentone-workflow\SPEC_BOOK_REDESIGN_IMPLEMENTATION.md", "Markdown", 0, 0, 207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 253
+"c:\Users\ADMIN\Desktop\residentone-workflow\STORAGE_ANALYSIS_REPORT.md", "Markdown", 0, 0, 251, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 315
+"c:\Users\ADMIN\Desktop\residentone-workflow\STORAGE_USAGE_ANALYSIS.md", "Markdown", 0, 0, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 152
+"c:\Users\ADMIN\Desktop\residentone-workflow\TESTING_GUIDE.md", "Markdown", 0, 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 120
+"c:\Users\ADMIN\Desktop\residentone-workflow\UI_IMPROVEMENTS.md", "Markdown", 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 88
+"c:\Users\ADMIN\Desktop\residentone-workflow\VERCEL_DEPLOYMENT.md", "Markdown", 0, 0, 130, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 168
+"c:\Users\ADMIN\Desktop\residentone-workflow\VERCEL_ENV_SETUP.example.md", "Markdown", 0, 0, 87, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\WARP.md", "Markdown", 0, 0, 162, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 210
+"c:\Users\ADMIN\Desktop\residentone-workflow\WHATS-BUILT-NOW.md", "Markdown", 0, 0, 276, 0, 0, 0, 0, 0, 0, 0, 0, 0, 75, 351
+"c:\Users\ADMIN\Desktop\residentone-workflow\WORKFLOW_README.md", "Markdown", 0, 0, 169, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 218
+"c:\Users\ADMIN\Desktop\residentone-workflow\WORKSPACE_VERSIONS_EXPLAINED.md", "Markdown", 0, 0, 66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 84
+"c:\Users\ADMIN\Desktop\residentone-workflow\__tests__\api\projects.test.ts", "TypeScript", 0, 0, 0, 0, 164, 0, 0, 0, 0, 0, 0, 4, 29, 197
+"c:\Users\ADMIN\Desktop\residentone-workflow\__tests__\api\team\validation.test.ts", "TypeScript", 0, 0, 0, 0, 149, 0, 0, 0, 0, 0, 0, 5, 27, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\__tests__\components\project-updates.test.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 267, 0, 0, 12, 38, 317
+"c:\Users\ADMIN\Desktop\residentone-workflow\__tests__\ffe\api\templates.integration.test.ts", "TypeScript", 0, 0, 0, 0, 415, 0, 0, 0, 0, 0, 0, 11, 77, 503
+"c:\Users\ADMIN\Desktop\residentone-workflow\__tests__\ffe\services\ffe-template-service.test.ts", "TypeScript", 0, 0, 0, 0, 562, 0, 0, 0, 0, 0, 0, 8, 78, 648
+"c:\Users\ADMIN\Desktop\residentone-workflow\analyze-backup.js", "JavaScript", 0, 99, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 23, 131
+"c:\Users\ADMIN\Desktop\residentone-workflow\backfill-blob-urls.js", "JavaScript", 0, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 21, 106
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-all-tables.js", "JavaScript", 0, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 15, 63
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-all.js", "JavaScript", 0, 56, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-assets.js", "JavaScript", 0, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 12, 93
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-backup-assets.js", "JavaScript", 0, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 29
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-backup.js", "JavaScript", 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 10
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-db-counts.js", "JavaScript", 0, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 26
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-db.js", "JavaScript", 0, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 30
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-exact-content.js", "JavaScript", 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-ffe-items.ts", "TypeScript", 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 1, 8, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-ffe.js", "JavaScript", 0, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 27
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-project-covers.js", "JavaScript", 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 16, 120
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-projects-quick.js", "JavaScript", 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 28
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-rendering-assets.js", "JavaScript", 0, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 13, 92
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-sections.js", "JavaScript", 0, 46, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 53
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-stage-data.js", "JavaScript", 0, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 14, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\check-user.js", "JavaScript", 0, 37, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 43
+"c:\Users\ADMIN\Desktop\residentone-workflow\cleanup-all-old-users.ts", "TypeScript", 0, 0, 0, 0, 135, 0, 0, 0, 0, 0, 0, 7, 20, 162
+"c:\Users\ADMIN\Desktop\residentone-workflow\cleanup-debug-statements.js", "JavaScript", 0, 198, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 8, 220
+"c:\Users\ADMIN\Desktop\residentone-workflow\cleanup-hardcoded-ffe-data.js", "JavaScript", 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 12, 94
+"c:\Users\ADMIN\Desktop\residentone-workflow\complete-user-cleanup.ts", "TypeScript", 0, 0, 0, 0, 176, 0, 0, 0, 0, 0, 0, 17, 28, 221
+"c:\Users\ADMIN\Desktop\residentone-workflow\create-your-admin.js", "JavaScript", 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 15, 82
+"c:\Users\ADMIN\Desktop\residentone-workflow\cypress\e2e\ffe\two-department-workflow.cy.ts", "TypeScript", 0, 0, 0, 0, 315, 0, 0, 0, 0, 0, 0, 76, 96, 487
+"c:\Users\ADMIN\Desktop\residentone-workflow\deploy.sh", "Shell Script", 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 6, 8, 37
+"c:\Users\ADMIN\Desktop\residentone-workflow\direct_restore.ts", "TypeScript", 0, 0, 0, 0, 116, 0, 0, 0, 0, 0, 0, 15, 22, 153
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\CAD_CONVERSION_PARAMETERS.md", "Markdown", 0, 0, 166, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 198
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\CAD_PREFERENCES_SYSTEM.md", "Markdown", 0, 0, 248, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 327
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\DRAWINGS_WORKSPACE.md", "Markdown", 0, 0, 156, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 197
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\FFE_API_ROUTES.md", "Markdown", 0, 0, 137, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\FFE_SYSTEM_USER_GUIDE.md", "Markdown", 0, 0, 354, 0, 0, 0, 0, 0, 0, 0, 0, 0, 112, 466
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\FFE_TWO_DEPARTMENT_DEPLOYMENT_GUIDE.md", "Markdown", 0, 0, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 325
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\FLOORPLAN_APPROVAL_SYSTEM.md", "Markdown", 0, 0, 266, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63, 329
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\STORAGE-AND-BACKUP.md", "Markdown", 0, 0, 185, 0, 0, 0, 0, 0, 0, 0, 0, 0, 68, 253
+"c:\Users\ADMIN\Desktop\residentone-workflow\docs\storage.md", "Markdown", 0, 0, 135, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 190
+"c:\Users\ADMIN\Desktop\residentone-workflow\final-check.js", "JavaScript", 0, 86, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 16, 104
+"c:\Users\ADMIN\Desktop\residentone-workflow\final-cleanup.js", "JavaScript", 0, 43, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 11, 57
+"c:\Users\ADMIN\Desktop\residentone-workflow\find-all-design-data.js", "JavaScript", 0, 75, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 9, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\find-master-bedroom.js", "JavaScript", 0, 67, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 11, 81
+"c:\Users\ADMIN\Desktop\residentone-workflow\find-orphaned-data.js", "JavaScript", 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 14, 81
+"c:\Users\ADMIN\Desktop\residentone-workflow\find-relation-errors.ps1", "PowerShell", 0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 2, 5, 34
+"c:\Users\ADMIN\Desktop\residentone-workflow\fix-assets.js", "JavaScript", 0, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 17, 83
+"c:\Users\ADMIN\Desktop\residentone-workflow\fix-client-approval-and-cleanup.ts", "TypeScript", 0, 0, 0, 0, 191, 0, 0, 0, 0, 0, 0, 13, 28, 232
+"c:\Users\ADMIN\Desktop\residentone-workflow\fix-team-setup.ts", "TypeScript", 0, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 8, 23, 223
+"c:\Users\ADMIN\Desktop\residentone-workflow\jest.config.js", "JavaScript", 0, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 21, 147
+"c:\Users\ADMIN\Desktop\residentone-workflow\jest.setup.js", "JavaScript", 0, 119, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 131
+"c:\Users\ADMIN\Desktop\residentone-workflow\link-assets-to-renderings.js", "JavaScript", 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 19, 126
+"c:\Users\ADMIN\Desktop\residentone-workflow\link-remaining-assets.js", "JavaScript", 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 13, 81
+"c:\Users\ADMIN\Desktop\residentone-workflow\next-env.d.ts", "TypeScript", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 2, 7
+"c:\Users\ADMIN\Desktop\residentone-workflow\next.config.ts", "TypeScript", 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 2, 3, 29
+"c:\Users\ADMIN\Desktop\residentone-workflow\nuclear-cleanup.js", "JavaScript", 0, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 11, 56
+"c:\Users\ADMIN\Desktop\residentone-workflow\package-lock.json", "JSON", 0, 0, 0, 0, 0, 0, 17002, 0, 0, 0, 0, 0, 1, 17003
+"c:\Users\ADMIN\Desktop\residentone-workflow\package.json", "JSON", 0, 0, 0, 0, 0, 0, 134, 0, 0, 0, 0, 0, 1, 135
+"c:\Users\ADMIN\Desktop\residentone-workflow\postcss.config.mjs", "JavaScript", 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 10
+"c:\Users\ADMIN\Desktop\residentone-workflow\prisma\seed-design-library.ts", "TypeScript", 0, 0, 0, 0, 286, 0, 0, 0, 0, 0, 0, 15, 22, 323
+"c:\Users\ADMIN\Desktop\residentone-workflow\prisma\seed.ts", "TypeScript", 0, 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 4, 11, 46
+"c:\Users\ADMIN\Desktop\residentone-workflow\prisma\seeds\ffe-system-seed.ts", "TypeScript", 0, 0, 0, 0, 291, 0, 0, 0, 0, 0, 0, 12, 25, 328
+"c:\Users\ADMIN\Desktop\residentone-workflow\public\meisner-logo.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 6, 2, 17
+"c:\Users\ADMIN\Desktop\residentone-workflow\quick-db-check.js", "JavaScript", 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 53
+"c:\Users\ADMIN\Desktop\residentone-workflow\reassign-stages.ts", "TypeScript", 0, 0, 0, 0, 102, 0, 0, 0, 0, 0, 0, 6, 16, 124
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-all-remaining.js", "JavaScript", 0, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 16, 91
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-complete-all.js", "JavaScript", 0, 82, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 17, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-complete.js", "JavaScript", 0, 172, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 36, 236
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-database.js", "JavaScript", 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 18, 101
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-final.js", "JavaScript", 0, 216, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 26, 250
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-missing-ffe.js", "JavaScript", 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 12, 91
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-nov4-complete.js", "JavaScript", 0, 330, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 53, 426
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-now.js", "JavaScript", 0, 66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 17, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-problematic-tables.js", "JavaScript", 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 26, 179
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore-smart.js", "JavaScript", 0, 158, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 27, 193
+"c:\Users\ADMIN\Desktop\residentone-workflow\restore_backup.ts", "TypeScript", 0, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 2, 8, 51
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\add-dynamic-to-routes.ts", "TypeScript", 0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 7, 24, 103
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\add-last-activity-viewed-column.ts", "TypeScript", 0, 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 2, 9, 42
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\add-missing-stages.ts", "TypeScript", 0, 0, 0, 0, 62, 0, 0, 0, 0, 0, 0, 4, 19, 85
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\analyze-blob-storage.ts", "TypeScript", 0, 0, 0, 0, 119, 0, 0, 0, 0, 0, 0, 8, 23, 150
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\assign-lucide-icons-by-name.ts", "TypeScript", 0, 0, 0, 0, 141, 0, 0, 0, 0, 0, 0, 11, 19, 171
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\backup-commands.json", "JSON", 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 10
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\backup-database.js", "JavaScript", 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 22, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\backup-db.js", "JavaScript", 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 14, 74
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\backup-prisma.js", "JavaScript", 0, 82, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 15, 108
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\check-column.ts", "TypeScript", 0, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 10, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\check-ffe-activities.ts", "TypeScript", 0, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 8, 38
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\check-icons.ts", "TypeScript", 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 6, 23
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\check-templates.js", "JavaScript", 0, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 33
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\cleanup-blob-storage.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 8, 27, 136
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\cleanup-legacy-ffe-system.js", "JavaScript", 0, 318, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 64, 419
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\create-admin.ts", "TypeScript", 0, 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 3, 6, 40
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\create-notification-send-migration.ts", "TypeScript", 0, 0, 0, 0, 35, 0, 0, 0, 0, 0, 0, 8, 2, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\create-sample-ffe-templates.js", "JavaScript", 0, 274, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 9, 289
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\daily-backup.ps1", "PowerShell", 0, 0, 0, 0, 0, 87, 0, 0, 0, 0, 0, 20, 23, 130
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\db-protect.js", "JavaScript", 0, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\deploy-ffe-system.ps1", "PowerShell", 0, 0, 0, 0, 0, 296, 0, 0, 0, 0, 0, 43, 69, 408
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\examine-backup-files.js", "JavaScript", 0, 54, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 11, 69
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\extract-fried-data.js", "JavaScript", 0, 69, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 15, 92
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\fix-icons-diagnostic.ts", "TypeScript", 0, 0, 0, 0, 159, 0, 0, 0, 0, 0, 0, 8, 16, 183
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\list-vercel-blob-files.ts", "TypeScript", 0, 0, 0, 0, 44, 0, 0, 0, 0, 0, 0, 2, 13, 59
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\migrate-design-concept-workspace.ts", "TypeScript", 0, 0, 0, 0, 116, 0, 0, 0, 0, 0, 0, 8, 21, 145
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\migrate-ffe-data.ts", "TypeScript", 0, 0, 0, 0, 434, 0, 0, 0, 0, 0, 0, 60, 85, 579
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\migrate-ffe-visibility.js", "JavaScript", 0, 130, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 37, 192
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\migrate-icons-to-lucide.ts", "TypeScript", 0, 0, 0, 0, 147, 0, 0, 0, 0, 0, 0, 7, 14, 168
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\prisma-backup.js", "JavaScript", 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 51, 150
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\prisma-guard.js", "JavaScript", 0, 35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 10, 56
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\read-pdf-size.ts", "TypeScript", 0, 0, 0, 0, 22, 0, 0, 0, 0, 0, 0, 0, 5, 27
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\restore-cover-images.js", "JavaScript", 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 46, 288
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\restore-database.js", "JavaScript", 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 36, 141
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\restore-prisma.js", "JavaScript", 0, 139, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 60, 206
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\setup-backup-schedule.ps1", "PowerShell", 0, 0, 0, 0, 0, 56, 0, 0, 0, 0, 0, 12, 15, 83
+"c:\Users\ADMIN\Desktop\residentone-workflow\scripts\simple-backup.js", "JavaScript", 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 13, 89
+"c:\Users\ADMIN\Desktop\residentone-workflow\search-backup.js", "JavaScript", 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 20, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\setup-team-http.js", "JavaScript", 0, 136, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 25, 171
+"c:\Users\ADMIN\Desktop\residentone-workflow\setup-team-members.ts", "TypeScript", 0, 0, 0, 0, 130, 0, 0, 0, 0, 0, 0, 11, 16, 157
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\__tests__\integration\ffe\notes-persistence.test.ts", "TypeScript", 0, 0, 0, 0, 356, 0, 0, 0, 0, 0, 0, 42, 77, 475
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\__tests__\lib\ffe\visibility.test.ts", "TypeScript", 0, 0, 0, 0, 241, 0, 0, 0, 0, 0, 0, 35, 42, 318
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\__tests__\phase-workflow-enhancements.test.ts", "TypeScript", 0, 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 34, 30, 209
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\activities\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 177, 0, 0, 10, 21, 208
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\admin\backup-test\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 145, 0, 0, 0, 13, 158
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\admin\cleanup\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 9, 94
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\activities\mark-read\route.ts", "TypeScript", 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 8, 6, 37
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\activities\route.ts", "TypeScript", 0, 0, 0, 0, 115, 0, 0, 0, 0, 0, 0, 18, 22, 155
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\activities\unread\route.ts", "TypeScript", 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 7, 10, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\auto-assign\route.ts", "TypeScript", 0, 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 3, 13, 66
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\backup-complete\route.ts", "TypeScript", 0, 0, 0, 0, 210, 0, 0, 0, 0, 0, 0, 14, 42, 266
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\backup-to-cloud\route.ts", "TypeScript", 0, 0, 0, 0, 52, 0, 0, 0, 0, 0, 0, 4, 13, 69
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\backup\route.ts", "TypeScript", 0, 0, 0, 0, 178, 0, 0, 0, 0, 0, 0, 20, 25, 223
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\cleanup-blob\route.ts", "TypeScript", 0, 0, 0, 0, 98, 0, 0, 0, 0, 0, 0, 2, 20, 120
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\cloud-backups\route.ts", "TypeScript", 0, 0, 0, 0, 97, 0, 0, 0, 0, 0, 0, 12, 20, 129
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\database-stats\route.ts", "TypeScript", 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 6, 13, 104
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\restore-complete\route.ts", "TypeScript", 0, 0, 0, 0, 264, 0, 0, 0, 0, 0, 0, 17, 47, 328
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\admin\restore\route.ts", "TypeScript", 0, 0, 0, 0, 167, 0, 0, 0, 0, 0, 0, 13, 50, 230
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\assets\[assetId]\description\route.ts", "TypeScript", 0, 0, 0, 0, 75, 0, 0, 0, 0, 0, 0, 7, 9, 91
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\assets\[assetId]\route.ts", "TypeScript", 0, 0, 0, 0, 74, 0, 0, 0, 0, 0, 0, 7, 10, 91
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\assets\[assetId]\view\route.ts", "TypeScript", 0, 0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 9, 16, 95
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\auth\[...nextauth]\route.ts", "TypeScript", 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 3, 7
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\auth\check-user\route.ts", "TypeScript", 0, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 7, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\auth\forgot-password\route.ts", "TypeScript", 0, 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 10, 11, 71
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\auth\reset-password\route.ts", "TypeScript", 0, 0, 0, 0, 122, 0, 0, 0, 0, 0, 0, 16, 24, 162
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\auth\signup\route.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 11, 18, 130
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\backup\database\route.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 7, 15, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cad-conversion\route.ts", "TypeScript", 0, 0, 0, 0, 152, 0, 0, 0, 0, 0, 0, 10, 26, 188
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cad\convert\route.ts", "TypeScript", 0, 0, 0, 0, 240, 0, 0, 0, 0, 0, 0, 22, 24, 286
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cad\layouts\route.ts", "TypeScript", 0, 0, 0, 0, 158, 0, 0, 0, 0, 0, 0, 18, 32, 208
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cad\preferences\route.ts", "TypeScript", 0, 0, 0, 0, 253, 0, 0, 0, 0, 0, 0, 17, 30, 300
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cad\project-defaults\route.ts", "TypeScript", 0, 0, 0, 0, 226, 0, 0, 0, 0, 0, 0, 23, 36, 285
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\chat\[stageId]\route.ts", "TypeScript", 0, 0, 0, 0, 575, 0, 0, 0, 0, 0, 0, 31, 55, 661
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\chat\messages\[messageId]\reactions\route.ts", "TypeScript", 0, 0, 0, 0, 328, 0, 0, 0, 0, 0, 0, 21, 35, 384
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\chat\messages\[messageId]\route.ts", "TypeScript", 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 10, 21, 221
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\chat\team-members\route.ts", "TypeScript", 0, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 2, 6, 44
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-access\route.ts", "TypeScript", 0, 0, 0, 0, 184, 0, 0, 0, 0, 0, 0, 14, 28, 226
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\aaron-approve\route.ts", "TypeScript", 0, 0, 0, 0, 166, 0, 0, 0, 0, 0, 0, 8, 14, 188
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\client-decision\route.ts", "TypeScript", 0, 0, 0, 0, 462, 0, 0, 0, 0, 0, 0, 20, 35, 517
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\mark-as-sent\route.ts", "TypeScript", 0, 0, 0, 0, 130, 0, 0, 0, 0, 0, 0, 5, 10, 145
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\mark-followup\route.ts", "TypeScript", 0, 0, 0, 0, 106, 0, 0, 0, 0, 0, 0, 6, 8, 120
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\resend-to-client\route.ts", "TypeScript", 0, 0, 0, 0, 156, 0, 0, 0, 0, 0, 0, 10, 15, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\route.ts", "TypeScript", 0, 0, 0, 0, 317, 0, 0, 0, 0, 0, 0, 18, 28, 363
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\[stageId]\send-to-client\route.ts", "TypeScript", 0, 0, 0, 0, 162, 0, 0, 0, 0, 0, 0, 10, 16, 188
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\decide\route.ts", "TypeScript", 0, 0, 0, 0, 111, 0, 0, 0, 0, 0, 0, 9, 17, 137
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-approval\public\[token]\route.ts", "TypeScript", 0, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 7, 10, 127
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-progress\[token]\download\[assetId]\route.ts", "TypeScript", 0, 0, 0, 0, 104, 0, 0, 0, 0, 0, 0, 8, 9, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\client-progress\[token]\route.ts", "TypeScript", 0, 0, 0, 0, 202, 0, 0, 0, 0, 0, 0, 13, 16, 231
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\clients\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 138, 0, 0, 0, 0, 0, 0, 8, 24, 170
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\comments\[id]\like\route.ts", "TypeScript", 0, 0, 0, 0, 87, 0, 0, 0, 0, 0, 0, 6, 10, 103
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\comments\[id]\pin\route.ts", "TypeScript", 0, 0, 0, 0, 76, 0, 0, 0, 0, 0, 0, 5, 9, 90
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\comments\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 196, 0, 0, 0, 0, 0, 0, 7, 21, 224
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\contractors\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 137, 0, 0, 0, 0, 0, 0, 6, 23, 166
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\contractors\route.ts", "TypeScript", 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 1, 12, 73
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cron\daily-backup\route.ts", "TypeScript", 0, 0, 0, 0, 181, 0, 0, 0, 0, 0, 0, 31, 45, 257
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cron\follow-up-reminders\route.ts", "TypeScript", 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 9, 11, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\cron\overdue-notifications\route.ts", "TypeScript", 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 9, 12, 60
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dashboard\last-completed-phase\route.ts", "TypeScript", 0, 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 3, 10, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dashboard\pending-approvals\route.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 1, 8, 110
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dashboard\recent-completions\route.ts", "TypeScript", 0, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 3, 9, 119
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dashboard\stats\route.ts", "TypeScript", 0, 0, 0, 0, 131, 0, 0, 0, 0, 0, 0, 9, 5, 145
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dashboard\tasks\route.ts", "TypeScript", 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 2, 7, 69
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\all-projects\route.ts", "TypeScript", 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 1, 6, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\cleanup-files\route.ts", "TypeScript", 0, 0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 3, 13, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\dropbox-env\route.ts", "TypeScript", 0, 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 1, 6, 46
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\due-date\route.ts", "TypeScript", 0, 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 1, 7, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\linked-files\route.ts", "TypeScript", 0, 0, 0, 0, 73, 0, 0, 0, 0, 0, 0, 2, 9, 84
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\session-info\route.ts", "TypeScript", 0, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 7, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\sms-check\route.ts", "TypeScript", 0, 0, 0, 0, 119, 0, 0, 0, 0, 0, 0, 9, 20, 148
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\stage-test\route.ts", "TypeScript", 0, 0, 0, 0, 94, 0, 0, 0, 0, 0, 0, 5, 17, 116
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\debug\test-dropbox\route.ts", "TypeScript", 0, 0, 0, 0, 120, 0, 0, 0, 0, 0, 0, 5, 11, 136
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-concept\library\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 109, 0, 0, 0, 0, 0, 0, 14, 20, 143
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-concept\library\route.ts", "TypeScript", 0, 0, 0, 0, 124, 0, 0, 0, 0, 0, 0, 15, 23, 162
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\complete\route.ts", "TypeScript", 0, 0, 0, 0, 93, 0, 0, 0, 0, 0, 0, 6, 11, 110
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\images\[imageId]\route.ts", "TypeScript", 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 1, 5, 32
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\images\route.ts", "TypeScript", 0, 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 15, 29, 189
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\links\[linkId]\route.ts", "TypeScript", 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 1, 5, 32
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\links\route.ts", "TypeScript", 0, 0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 4, 12, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\notes\route.ts", "TypeScript", 0, 0, 0, 0, 97, 0, 0, 0, 0, 0, 0, 4, 17, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design-items\[itemId]\route.ts", "TypeScript", 0, 0, 0, 0, 147, 0, 0, 0, 0, 0, 0, 6, 25, 178
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\assets\[assetId]\note\route.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 3, 11, 115
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\checklist\route.ts", "TypeScript", 0, 0, 0, 0, 414, 0, 0, 0, 0, 0, 0, 22, 49, 485
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\comments\route.ts", "TypeScript", 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 5, 13, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\complete\route.ts", "TypeScript", 0, 0, 0, 0, 273, 0, 0, 0, 0, 0, 0, 24, 34, 331
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\notes\route.ts", "TypeScript", 0, 0, 0, 0, 437, 0, 0, 0, 0, 0, 0, 16, 44, 497
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\notifications\route.ts", "TypeScript", 0, 0, 0, 0, 106, 0, 0, 0, 0, 0, 0, 7, 13, 126
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\pins\route.ts", "TypeScript", 0, 0, 0, 0, 277, 0, 0, 0, 0, 0, 0, 9, 28, 314
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\route.ts", "TypeScript", 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 1, 4, 22
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\sections\[sectionId]\complete\route.ts", "TypeScript", 0, 0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 4, 14, 146
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\sections\route.ts", "TypeScript", 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 5, 16, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\tags\route.ts", "TypeScript", 0, 0, 0, 0, 338, 0, 0, 0, 0, 0, 0, 16, 45, 399
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\design\upload\route.ts", "TypeScript", 0, 0, 0, 0, 357, 0, 0, 0, 0, 0, 0, 22, 45, 424
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\direct-ns-test\route.ts", "TypeScript", 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 2, 11, 77
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\[stageId]\checklist\add\route.ts", "TypeScript", 0, 0, 0, 0, 95, 0, 0, 0, 0, 0, 0, 7, 13, 115
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\[stageId]\checklist\route.ts", "TypeScript", 0, 0, 0, 0, 109, 0, 0, 0, 0, 0, 0, 9, 17, 135
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\[stageId]\complete\route.ts", "TypeScript", 0, 0, 0, 0, 152, 0, 0, 0, 0, 0, 0, 15, 20, 187
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\[stageId]\upload\route.ts", "TypeScript", 0, 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 11, 22, 178
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\checklist\[checklistItemId]\link-files\route.ts", "TypeScript", 0, 0, 0, 0, 219, 0, 0, 0, 0, 0, 0, 17, 29, 265
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\checklist\[checklistItemId]\linked-files\route.ts", "TypeScript", 0, 0, 0, 0, 77, 0, 0, 0, 0, 0, 0, 4, 9, 90
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\checklist\[checklistItemId]\route.ts", "TypeScript", 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 7, 13, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\drawings\route.ts", "TypeScript", 0, 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 9, 16, 170
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dropbox\browse\route.ts", "TypeScript", 0, 0, 0, 0, 58, 0, 0, 0, 0, 0, 0, 0, 14, 72
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dropbox\debug\route.ts", "TypeScript", 0, 0, 0, 0, 62, 0, 0, 0, 0, 0, 0, 2, 7, 71
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dropbox\test-auth\route.ts", "TypeScript", 0, 0, 0, 0, 127, 0, 0, 0, 0, 0, 0, 9, 18, 154
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dropbox\test-member-access\route.ts", "TypeScript", 0, 0, 0, 0, 147, 0, 0, 0, 0, 0, 0, 10, 17, 174
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\dropbox\test-team\route.ts", "TypeScript", 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 9, 13, 90
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email-tracking\[trackingId]\pixel.png\route.ts", "TypeScript", 0, 0, 0, 0, 84, 0, 0, 0, 0, 0, 0, 7, 9, 100
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\analytics\[versionId]\route.ts", "TypeScript", 0, 0, 0, 0, 162, 0, 0, 0, 0, 0, 0, 3, 16, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\click\[emailId]\route.ts", "TypeScript", 0, 0, 0, 0, 67, 0, 0, 0, 0, 0, 0, 7, 12, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\download\[emailId]\route.ts", "TypeScript", 0, 0, 0, 0, 69, 0, 0, 0, 0, 0, 0, 7, 12, 88
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\preview\[versionId]\route.ts", "TypeScript", 0, 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 8, 15, 128
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\test\[versionId]\route.ts", "TypeScript", 0, 0, 0, 0, 113, 0, 0, 0, 0, 0, 0, 8, 16, 137
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\email\track\[emailId]\route.ts", "TypeScript", 0, 0, 0, 0, 75, 0, 0, 0, 0, 0, 0, 6, 11, 92
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\explore-folders\route.ts", "TypeScript", 0, 0, 0, 0, 73, 0, 0, 0, 0, 0, 0, 3, 12, 88
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\categories\route.ts", "TypeScript", 0, 0, 0, 0, 186, 0, 0, 0, 0, 0, 0, 17, 29, 232
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\debug\route.ts", "TypeScript", 0, 0, 0, 0, 54, 0, 0, 0, 0, 0, 0, 3, 7, 64
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\instances\route.ts", "TypeScript", 0, 0, 0, 0, 94, 0, 0, 0, 0, 0, 0, 4, 22, 120
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\items\route.ts", "TypeScript", 0, 0, 0, 0, 266, 0, 0, 0, 0, 0, 0, 21, 38, 325
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\library\[itemId]\route.ts", "TypeScript", 0, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 2, 12, 70
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\library\route.ts", "TypeScript", 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 2, 13, 79
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\management\items\route.ts", "TypeScript", 0, 0, 0, 0, 284, 0, 0, 0, 0, 0, 0, 31, 42, 357
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room-libraries\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 9, 25, 179
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room-libraries\route.ts", "TypeScript", 0, 0, 0, 0, 127, 0, 0, 0, 0, 0, 0, 13, 25, 165
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room-types\clear\route.ts", "TypeScript", 0, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 2, 5, 37
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room-types\route.ts", "TypeScript", 0, 0, 0, 0, 181, 0, 0, 0, 0, 0, 0, 17, 29, 227
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room\[roomId]\items\[itemId]\route.ts", "TypeScript", 0, 0, 0, 0, 239, 0, 0, 0, 0, 0, 0, 10, 30, 279
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room\[roomId]\items\route.ts", "TypeScript", 0, 0, 0, 0, 149, 0, 0, 0, 0, 0, 0, 14, 26, 189
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\room\[roomId]\status\route.ts", "TypeScript", 0, 0, 0, 0, 99, 0, 0, 0, 0, 0, 0, 8, 19, 126
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\route.ts", "TypeScript", 0, 0, 0, 0, 228, 0, 0, 0, 0, 0, 0, 17, 30, 275
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\sections\[sectionId]\route.ts", "TypeScript", 0, 0, 0, 0, 157, 0, 0, 0, 0, 0, 0, 6, 21, 184
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\sections\route.ts", "TypeScript", 0, 0, 0, 0, 123, 0, 0, 0, 0, 0, 0, 6, 19, 148
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\settings\route.ts", "TypeScript", 0, 0, 0, 0, 75, 0, 0, 0, 0, 0, 0, 4, 15, 94
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\import-template\route.ts", "TypeScript", 0, 0, 0, 0, 207, 0, 0, 0, 0, 0, 0, 15, 35, 257
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\[itemId]\duplicate\route.ts", "TypeScript", 0, 0, 0, 0, 106, 0, 0, 0, 0, 0, 0, 5, 16, 127
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\[itemId]\linked-items\route.ts", "TypeScript", 0, 0, 0, 0, 274, 0, 0, 0, 0, 0, 0, 27, 33, 334
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\[itemId]\quantity-include\route.ts", "TypeScript", 0, 0, 0, 0, 130, 0, 0, 0, 0, 0, 0, 7, 18, 155
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\[itemId]\route.ts", "TypeScript", 0, 0, 0, 0, 249, 0, 0, 0, 0, 0, 0, 13, 42, 304
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\[itemId]\visibility\route.ts", "TypeScript", 0, 0, 0, 0, 219, 0, 0, 0, 0, 0, 0, 15, 25, 259
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\items\route.ts", "TypeScript", 0, 0, 0, 0, 351, 0, 0, 0, 0, 0, 0, 21, 51, 423
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\route.ts", "TypeScript", 0, 0, 0, 0, 312, 0, 0, 0, 0, 0, 0, 17, 52, 381
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\route_fixed.ts", "TypeScript", 0, 0, 0, 0, 312, 0, 0, 0, 0, 0, 0, 17, 52, 381
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\rooms\[roomId]\sections\route.ts", "TypeScript", 0, 0, 0, 0, 258, 0, 0, 0, 0, 0, 0, 20, 38, 316
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\sections\route.ts", "TypeScript", 0, 0, 0, 0, 109, 0, 0, 0, 0, 0, 0, 6, 20, 135
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\templates\[id]\copy\route.ts", "TypeScript", 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 1, 15, 76
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\templates\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 172, 0, 0, 0, 0, 0, 0, 9, 26, 207
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\v2\templates\route.ts", "TypeScript", 0, 0, 0, 0, 191, 0, 0, 0, 0, 0, 0, 11, 29, 231
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\ffe\version-history\route.ts", "TypeScript", 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 11, 22, 223
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\final-test\route.ts", "TypeScript", 0, 0, 0, 0, 104, 0, 0, 0, 0, 0, 0, 3, 23, 130
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\floorplan-approvals\[versionId]\preview\route.ts", "TypeScript", 0, 0, 0, 0, 191, 0, 0, 0, 0, 0, 0, 6, 13, 210
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\floorplan-approvals\[versionId]\send-email\route.ts", "TypeScript", 0, 0, 0, 0, 341, 0, 0, 0, 0, 0, 0, 15, 27, 383
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\health\route.ts", "TypeScript", 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 2, 19
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\issues\[id]\comments\route.ts", "TypeScript", 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 4, 9, 81
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\issues\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 285, 0, 0, 0, 0, 0, 0, 12, 25, 322
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\issues\route.ts", "TypeScript", 0, 0, 0, 0, 320, 0, 0, 0, 0, 0, 0, 16, 31, 367
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\issues\unresolved-count\route.ts", "TypeScript", 0, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 2, 6, 44
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\mentions\team-members\route.ts", "TypeScript", 0, 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 1, 10, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\mentions\users-by-names\route.ts", "TypeScript", 0, 0, 0, 0, 58, 0, 0, 0, 0, 0, 0, 1, 10, 69
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\messages\route.ts", "TypeScript", 0, 0, 0, 0, 219, 0, 0, 0, 0, 0, 0, 8, 24, 251
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\notifications\phase-email\route.ts", "TypeScript", 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 11, 23, 224
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\notifications\route.ts", "TypeScript", 0, 0, 0, 0, 265, 0, 0, 0, 0, 0, 0, 13, 39, 317
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\phase-access\route.ts", "TypeScript", 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 16, 30, 301
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\activity\route.ts", "TypeScript", 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 13, 22, 225
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\contractors\[contractorId]\route.ts", "TypeScript", 0, 0, 0, 0, 46, 0, 0, 0, 0, 0, 0, 4, 10, 60
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\contractors\route.ts", "TypeScript", 0, 0, 0, 0, 122, 0, 0, 0, 0, 0, 0, 9, 20, 151
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\design-templates\[templateId]\route.ts", "TypeScript", 0, 0, 0, 0, 211, 0, 0, 0, 0, 0, 0, 13, 32, 256
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\design-templates\route.ts", "TypeScript", 0, 0, 0, 0, 199, 0, 0, 0, 0, 0, 0, 15, 30, 244
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\dropbox-folder\route.ts", "TypeScript", 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 2, 9, 64
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\export\route.ts", "TypeScript", 0, 0, 0, 0, 456, 0, 0, 0, 0, 0, 0, 15, 31, 502
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\floorplan-approvals\route.ts", "TypeScript", 0, 0, 0, 0, 417, 0, 0, 0, 0, 0, 0, 13, 40, 470
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\floorplan-assets\route.ts", "TypeScript", 0, 0, 0, 0, 351, 0, 0, 0, 0, 0, 0, 21, 48, 420
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\floors\[floorId]\route.ts", "TypeScript", 0, 0, 0, 0, 69, 0, 0, 0, 0, 0, 0, 3, 11, 83
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\floors\route.ts", "TypeScript", 0, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 6, 9, 51
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\messages\[messageId]\reactions\route.ts", "TypeScript", 0, 0, 0, 0, 178, 0, 0, 0, 0, 0, 0, 16, 27, 221
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\messages\[messageId]\route.ts", "TypeScript", 0, 0, 0, 0, 351, 0, 0, 0, 0, 0, 0, 20, 37, 408
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\messages\route.ts", "TypeScript", 0, 0, 0, 0, 406, 0, 0, 0, 0, 0, 0, 15, 37, 458
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\rooms\route.ts", "TypeScript", 0, 0, 0, 0, 133, 0, 0, 0, 0, 0, 0, 15, 18, 166
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 414, 0, 0, 0, 0, 0, 0, 38, 83, 535
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\search\route.ts", "TypeScript", 0, 0, 0, 0, 381, 0, 0, 0, 0, 0, 0, 14, 33, 428
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\sections\[sectionId]\route.ts", "TypeScript", 0, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 3, 13, 84
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\sections\route.ts", "TypeScript", 0, 0, 0, 0, 71, 0, 0, 0, 0, 0, 0, 3, 12, 86
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\tasks\[taskId]\route.ts", "TypeScript", 0, 0, 0, 0, 483, 0, 0, 0, 0, 0, 0, 35, 50, 568
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\tasks\route.ts", "TypeScript", 0, 0, 0, 0, 417, 0, 0, 0, 0, 0, 0, 20, 35, 472
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\updates\[updateId]\photos\route.ts", "TypeScript", 0, 0, 0, 0, 438, 0, 0, 0, 0, 0, 0, 42, 49, 529
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\updates\[updateId]\route.ts", "TypeScript", 0, 0, 0, 0, 417, 0, 0, 0, 0, 0, 0, 19, 33, 469
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\[id]\updates\route.ts", "TypeScript", 0, 0, 0, 0, 326, 0, 0, 0, 0, 0, 0, 15, 25, 366
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\projects\route.ts", "TypeScript", 0, 0, 0, 0, 302, 0, 0, 0, 0, 0, 0, 36, 48, 386
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\[versionId]\notes\route.ts", "TypeScript", 0, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 6, 15, 131
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\[versionId]\push-to-client\route.ts", "TypeScript", 0, 0, 0, 0, 307, 0, 0, 0, 0, 0, 0, 26, 37, 370
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\[versionId]\route.ts", "TypeScript", 0, 0, 0, 0, 285, 0, 0, 0, 0, 0, 0, 18, 32, 335
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\[versionId]\upload\route.ts", "TypeScript", 0, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 20, 30, 242
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\download\route.ts", "TypeScript", 0, 0, 0, 0, 66, 0, 0, 0, 0, 0, 0, 6, 15, 87
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\notes\[noteId]\route.ts", "TypeScript", 0, 0, 0, 0, 162, 0, 0, 0, 0, 0, 0, 10, 20, 192
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\renderings\route.ts", "TypeScript", 0, 0, 0, 0, 180, 0, 0, 0, 0, 0, 0, 8, 21, 209
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\rooms\[roomId]\phases\bulk\route.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 2, 14, 117
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\rooms\[roomId]\route.ts", "TypeScript", 0, 0, 0, 0, 159, 0, 0, 0, 0, 0, 0, 10, 25, 194
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\search\route.ts", "TypeScript", 0, 0, 0, 0, 198, 0, 0, 0, 0, 0, 0, 6, 14, 218
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\sessions\route.ts", "TypeScript", 0, 0, 0, 0, 84, 0, 0, 0, 0, 0, 0, 7, 15, 106
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\sms\status\route.ts", "TypeScript", 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 6, 7, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\sms\webhook\route.ts", "TypeScript", 0, 0, 0, 0, 154, 0, 0, 0, 0, 0, 0, 20, 26, 200
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\[projectId]\history\route.ts", "TypeScript", 0, 0, 0, 0, 111, 0, 0, 0, 0, 0, 0, 5, 15, 131
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\generate\route.ts", "TypeScript", 0, 0, 0, 0, 494, 0, 0, 0, 0, 0, 0, 42, 53, 589
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\link-files\route.ts", "TypeScript", 0, 0, 0, 0, 273, 0, 0, 0, 0, 0, 0, 14, 38, 325
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\linked-files\route.ts", "TypeScript", 0, 0, 0, 0, 126, 0, 0, 0, 0, 0, 0, 5, 17, 148
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\room-renderings\route.ts", "TypeScript", 0, 0, 0, 0, 267, 0, 0, 0, 0, 0, 0, 17, 39, 323
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\unlink-files\route.ts", "TypeScript", 0, 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 2, 9, 62
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\upload-pdf\[fileId]\route.ts", "TypeScript", 0, 0, 0, 0, 46, 0, 0, 0, 0, 0, 0, 2, 8, 56
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\spec-books\upload-pdf\route.ts", "TypeScript", 0, 0, 0, 0, 163, 0, 0, 0, 0, 0, 0, 11, 26, 200
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\activity\route.ts", "TypeScript", 0, 0, 0, 0, 124, 0, 0, 0, 0, 0, 0, 13, 14, 151
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\ai-summary\route.ts", "TypeScript", 0, 0, 0, 0, 234, 0, 0, 0, 0, 0, 0, 26, 33, 293
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\comments\route.ts", "TypeScript", 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 5, 12, 117
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\custom-summary\route.ts", "TypeScript", 0, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 5, 7, 50
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\design-activity\route.ts", "TypeScript", 0, 0, 0, 0, 59, 0, 0, 0, 0, 0, 0, 5, 11, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\design-items\route.ts", "TypeScript", 0, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 11, 23, 226
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\due-date\route.ts", "TypeScript", 0, 0, 0, 0, 157, 0, 0, 0, 0, 0, 0, 8, 17, 182
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\next-assignees\route.ts", "TypeScript", 0, 0, 0, 0, 58, 0, 0, 0, 0, 0, 0, 1, 9, 68
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\notifications\route.ts", "TypeScript", 0, 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 5, 16, 126
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\reset\route.ts", "TypeScript", 0, 0, 0, 0, 169, 0, 0, 0, 0, 0, 0, 24, 28, 221
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\route.ts", "TypeScript", 0, 0, 0, 0, 346, 0, 0, 0, 0, 0, 0, 26, 47, 419
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\sections\route.ts", "TypeScript", 0, 0, 0, 0, 402, 0, 0, 0, 0, 0, 0, 22, 41, 465
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\[id]\upload\route.ts", "TypeScript", 0, 0, 0, 0, 211, 0, 0, 0, 0, 0, 0, 38, 25, 274
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\stages\route.ts", "TypeScript", 0, 0, 0, 0, 61, 0, 0, 0, 0, 0, 0, 1, 5, 67
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\team\[userId]\reset-password\route.ts", "TypeScript", 0, 0, 0, 0, 93, 0, 0, 0, 0, 0, 0, 10, 15, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\team\[userId]\route.ts", "TypeScript", 0, 0, 0, 0, 262, 0, 0, 0, 0, 0, 0, 23, 39, 324
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\team\[userId]\set-password\route.ts", "TypeScript", 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 9, 16, 125
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\team\mentions\route.ts", "TypeScript", 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 1, 7, 31
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\team\route.ts", "TypeScript", 0, 0, 0, 0, 173, 0, 0, 0, 0, 0, 0, 14, 24, 211
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-backup-config\route.ts", "TypeScript", 0, 0, 0, 0, 118, 0, 0, 0, 0, 0, 0, 4, 22, 144
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-basic-member\route.ts", "TypeScript", 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 1, 6, 31
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-cloudconvert\route.ts", "TypeScript", 0, 0, 0, 0, 62, 0, 0, 0, 0, 0, 0, 1, 12, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-dropbox\download\route.ts", "TypeScript", 0, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 1, 8, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-dropbox\route.ts", "TypeScript", 0, 0, 0, 0, 113, 0, 0, 0, 0, 0, 0, 4, 14, 131
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-email\route.ts", "TypeScript", 0, 0, 0, 0, 78, 0, 0, 0, 0, 0, 0, 4, 13, 95
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-member-client\route.ts", "TypeScript", 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 0, 2, 6, 35
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-namespace-approach\route.ts", "TypeScript", 0, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 3, 13, 79
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-namespace\route.ts", "TypeScript", 0, 0, 0, 0, 103, 0, 0, 0, 0, 0, 0, 5, 20, 128
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-sharing-api\route.ts", "TypeScript", 0, 0, 0, 0, 78, 0, 0, 0, 0, 0, 0, 3, 12, 93
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-sharing-debug\route.ts", "TypeScript", 0, 0, 0, 0, 57, 0, 0, 0, 0, 0, 0, 3, 10, 70
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-sharing-path\route.ts", "TypeScript", 0, 0, 0, 0, 79, 0, 0, 0, 0, 0, 0, 3, 13, 95
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\test-tracking\route.ts", "TypeScript", 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 1, 4, 24
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\upload-image\route.ts", "TypeScript", 0, 0, 0, 0, 205, 0, 0, 0, 0, 0, 0, 26, 36, 267
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\upload-pdf\route.ts", "TypeScript", 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 4, 14, 78
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\upload\route.ts", "TypeScript", 0, 0, 0, 0, 317, 0, 0, 0, 0, 0, 0, 20, 37, 374
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\users\[userId]\email\test\route.ts", "TypeScript", 0, 0, 0, 0, 117, 0, 0, 0, 0, 0, 0, 4, 17, 138
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\users\[userId]\notifications\route.ts", "TypeScript", 0, 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 7, 20, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\users\[userId]\personal-info\route.ts", "TypeScript", 0, 0, 0, 0, 94, 0, 0, 0, 0, 0, 0, 5, 13, 112
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\users\[userId]\phone\route.ts", "TypeScript", 0, 0, 0, 0, 103, 0, 0, 0, 0, 0, 0, 12, 17, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\api\users\[userId]\phone\test-sms\route.ts", "TypeScript", 0, 0, 0, 0, 87, 0, 0, 0, 0, 0, 0, 5, 16, 108
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\approvals\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 253, 0, 0, 12, 20, 285
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\approve\[token]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 254, 0, 0, 1, 22, 277
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\auth\forgot-password\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 103, 0, 0, 2, 16, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\auth\reset-password\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 235, 0, 0, 5, 26, 266
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\auth\signin\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 178, 0, 0, 5, 27, 210
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\auth\signup\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 201, 0, 0, 4, 23, 228
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\client-progress\[token]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 18, 0, 0, 2, 6, 26
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\dashboard-simple\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 160, 0, 0, 7, 14, 181
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\dashboard\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 4, 27
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\debug\email\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 98, 0, 0, 0, 14, 112
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\email-demo\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 170, 0, 0, 1, 12, 183
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\ffe\[roomId]\settings\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 115, 0, 0, 6, 11, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\ffe\[roomId]\workspace\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 9, 13, 168
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\ffe\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 367, 0, 0, 17, 28, 412
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\globals.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 0, 0, 230, 0, 16, 50, 296
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\inbox\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 29, 0, 0, 0, 5, 34
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\layout.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 31, 0, 0, 0, 4, 35
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 3, 13
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\phase-progress\[token]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 434, 0, 0, 22, 32, 488
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\preferences\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 36, 0, 0, 0, 5, 41
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\floorplan-approval\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 58, 0, 0, 4, 9, 71
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 700, 0, 0, 48, 80, 828
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\project-updates\enhanced-page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 458, 0, 0, 15, 37, 510
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\project-updates\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 160, 0, 0, 11, 17, 188
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\rooms\[roomId]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 200, 0, 0, 8, 19, 227
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\settings\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 114, 0, 0, 7, 15, 136
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\spec-book\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0, 3, 10, 93
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\[id]\test-settings\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 1, 29
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\new\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 2, 5, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\projects\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 153, 0, 0, 7, 10, 170
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\rooms\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 289, 0, 0, 16, 25, 330
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\stages\[id]\design-concept\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 1, 6, 55
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\stages\[id]\ffe-settings\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 71, 0, 0, 4, 9, 84
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\stages\[id]\ffe-workspace\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 71, 0, 0, 4, 10, 85
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\stages\[id]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 167, 0, 0, 7, 15, 189
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\stages\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 84, 0, 0, 5, 12, 101
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\tasks\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 424, 0, 0, 18, 24, 466
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\team\[memberId]\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 283, 0, 0, 11, 29, 323
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\team\[memberId]\preferences\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 179, 0, 0, 10, 18, 207
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\team\invite\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 0, 1, 6, 42
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\team\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 135, 0, 0, 5, 10, 150
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-auth\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 4, 20, 170
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-cad-interface\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 56, 0, 0, 3, 8, 67
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-design-board\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 68, 0, 0, 4, 10, 82
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-dropbox\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 174, 0, 0, 7, 22, 203
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-icons\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 36, 0, 0, 0, 6, 42
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\app\test-project-settings\page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 250, 0, 0, 5, 28, 283
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\auth.ts", "TypeScript", 0, 0, 0, 0, 164, 0, 0, 0, 0, 0, 0, 3, 16, 183
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\activities\ActivityFilters.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 157, 0, 0, 4, 15, 176
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\activities\ActivityItem.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 86, 0, 0, 8, 14, 108
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\ProductionBackup.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 473, 0, 0, 17, 59, 549
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\template-management\BulkActions.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 6, 60
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\template-management\TemplateCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 134, 0, 0, 2, 11, 147
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\template-management\TemplateEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 630, 0, 0, 25, 62, 717
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\template-management\TemplateFilters.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 1, 5, 49
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\admin\template-management\TemplateManagementPage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 226, 0, 0, 18, 44, 288
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\calendar\calendar-view.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 401, 0, 0, 18, 39, 458
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\chat\PhaseChat.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 622, 0, 0, 36, 65, 723
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\client-progress\ClientProgressView.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 627, 0, 0, 23, 51, 701
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\dashboard\ffe-library-management.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 694, 0, 0, 17, 58, 769
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\dashboard\interactive-dashboard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 828, 0, 0, 41, 75, 944
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design-concept\AISummaryCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 275, 0, 0, 8, 26, 309
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\ActionBar.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 352, 0, 0, 12, 41, 405
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\ActivityTimeline.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 416, 0, 0, 20, 57, 493
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\AssetGrid.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 393, 0, 0, 15, 29, 437
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\Checklist.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 410, 0, 0, 19, 48, 477
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\DesignConceptWorkspace.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 619, 0, 0, 29, 52, 700
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\DesignNotificationIndicator.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 242, 0, 0, 11, 30, 283
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\MessagePanel.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 603, 0, 0, 29, 63, 695
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\NotesFeed.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 409, 0, 0, 18, 34, 461
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\ReferenceBoard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 532, 0, 0, 35, 45, 612
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\SectionCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 626, 0, 0, 27, 51, 704
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\TagSelector.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 391, 0, 0, 19, 38, 448
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\UploadZone.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 339, 0, 0, 29, 54, 422
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\integration-example.md", "Markdown", 0, 0, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 104
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\ActivityLogPanel.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 117, 0, 0, 3, 12, 132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\AddedItemCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 597, 0, 0, 40, 55, 692
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\DesignConceptWorkspaceV2.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 298, 0, 0, 18, 30, 346
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\DynamicIcon.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 5, 7, 32
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\IconSelector.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 139, 0, 0, 7, 13, 159
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\design\v2\ItemLibrarySidebar.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 521, 0, 0, 20, 48, 589
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFEDepartmentRouter.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 188, 0, 0, 6, 17, 211
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFEItemForm.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 427, 0, 0, 9, 43, 479
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFEPagination.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 129, 0, 0, 5, 18, 152
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFEQAChecklist.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 371, 0, 0, 11, 43, 425
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFESettingsDepartment.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1609, 0, 0, 54, 170, 1833
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\FFEWorkspaceDepartment.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 412, 0, 0, 14, 43, 469
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\ItemCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 293, 0, 0, 7, 30, 330
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\ToiletSelectionLogic.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 284, 0, 0, 8, 31, 323
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\common\FFEItemCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 855, 0, 0, 34, 57, 946
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\interactive-ffe-phase.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 574, 0, 0, 13, 61, 648
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\FFEItemCard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 291, 0, 0, 13, 27, 331
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\FFEPhaseWorkspace.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 379, 0, 0, 28, 40, 447
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\FFESectionAccordion.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 434, 0, 0, 23, 39, 496
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\FFEWorkspaceEnhanced.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 219, 0, 0, 15, 15, 249
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\LoadingState.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 7, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\NotesDrawer.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 94, 0, 0, 1, 8, 103
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ffe\v2\TemplateSelector.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 205, 0, 0, 10, 18, 233
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\inbox\InboxButton.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 193, 0, 0, 7, 25, 225
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\inbox\InboxContent.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 284, 0, 0, 8, 32, 324
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\issues\issue-list.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 483, 0, 0, 9, 50, 542
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\issues\issue-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 533, 0, 0, 18, 51, 602
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\issues\issue-notification.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 61, 0, 0, 3, 11, 75
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\layout\GlobalSearch.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 167, 0, 0, 3, 15, 185
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\layout\NavigationMenu.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 164, 0, 0, 9, 17, 190
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\layout\dashboard-layout.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, 12, 20, 247
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\modals\ClientApprovalModal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 188, 0, 0, 5, 17, 210
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\modals\CreateVersionModal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 124, 0, 0, 5, 15, 144
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\modals\SendPhaseEmailPrompt.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 244, 0, 0, 7, 19, 270
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\notifications\NotificationBell.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 206, 0, 0, 7, 25, 238
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\notifications\team-notification-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 296, 0, 0, 11, 38, 345
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\contractors-management.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 484, 0, 0, 5, 38, 527
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\ffe-management-enhanced.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 742, 0, 0, 25, 60, 827
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\ffe-management-redesigned.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1319, 0, 0, 30, 86, 1435
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\ffe-management-v2.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 3, 7, 63
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\preferences-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 997, 0, 0, 40, 83, 1120
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\preferences\room-based-ffe-management.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 2, 25
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\chat-interface.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 671, 0, 0, 25, 54, 750
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\create-task-dialog.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 295, 0, 0, 13, 28, 336
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\empty-state.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 0, 5, 55
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\photo-gallery.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 729, 0, 0, 19, 38, 786
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\project-updates-tabs.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 338, 0, 0, 14, 38, 390
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\task-board.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 761, 0, 0, 27, 56, 844
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\task-calendar.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 225, 0, 0, 16, 25, 266
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\project-updates\timeline.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 677, 0, 0, 19, 59, 755
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\ClientAccessManagement.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 371, 0, 0, 4, 33, 408
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\DropboxFolderBrowser.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 175, 0, 0, 12, 20, 207
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\add-room-dialog.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 150, 0, 0, 0, 14, 164
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\floor-management.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 375, 0, 0, 6, 35, 416
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\interactive-projects-page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 427, 0, 0, 36, 42, 505
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\new-project-form.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1471, 0, 0, 56, 123, 1650
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\project-contractor-selector.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 363, 0, 0, 7, 32, 402
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\project-detail-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 355, 0, 0, 13, 36, 404
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\project-save-success.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 30, 0, 0, 1, 7, 38
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\project-settings-form.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1914, 0, 0, 52, 146, 2112
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\room-grid-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 3, 9, 66
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\room-management.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 437, 0, 0, 18, 39, 494
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\rooms-management-section.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 640, 0, 0, 14, 64, 718
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\projects\workflow-progress.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 178, 0, 0, 8, 14, 200
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\providers.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 4, 17
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\design-board.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 373, 0, 0, 16, 50, 439
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\phase-assignment-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 397, 0, 0, 10, 31, 438
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\phase-card.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 500, 0, 0, 11, 31, 542
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\phase-complete-dialog.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 132, 0, 0, 2, 11, 145
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\phase-settings-menu.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 143, 0, 0, 7, 15, 165
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\room-actions.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 106, 0, 0, 8, 15, 129
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\room-phase-board.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 393, 0, 0, 29, 67, 489
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\rooms-search.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 105, 0, 0, 3, 13, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\rooms\workflow-progress.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 307, 0, 0, 8, 27, 342
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\settings\NotificationSettings.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 107, 0, 0, 3, 11, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\shared\AccessTokenManagement.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 180, 0, 0, 2, 22, 204
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\DropboxFileBrowser.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 574, 0, 0, 33, 62, 669
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\PDFUpload.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 189, 0, 0, 8, 25, 222
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\PlanPdfUpload.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 172, 0, 0, 3, 23, 198
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\RenderingSelector.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 298, 0, 0, 20, 29, 347
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\RenderingUpload.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 178, 0, 0, 6, 25, 209
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\RoomFilesUpload.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 148, 0, 0, 4, 20, 172
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\SpecBookBuilder.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 678, 0, 0, 23, 50, 751
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\SpecBookHistory.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 279, 0, 0, 11, 24, 314
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\SpecBookSettings.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 985, 0, 0, 42, 77, 1104
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\spec-book\constants.ts", "TypeScript", 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 2, 15
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\PhaseSettingsMenu.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 256, 0, 0, 10, 26, 292
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\RenderingWorkspace.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1015, 0, 0, 47, 70, 1132
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\client-approval-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 3, 24
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\client-approval\ClientApprovalWorkspace.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1510, 0, 0, 66, 90, 1666
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\design-concept-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 2, 4, 39
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\design-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 693, 0, 0, 31, 53, 777
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\drawings-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 750, 0, 0, 30, 61, 841
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\ffe-settings-page-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1471, 0, 0, 63, 140, 1674
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\ffe-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 163, 0, 0, 8, 15, 186
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\interactive-stages-page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 7, 20, 339
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\stage-controls.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 322, 0, 0, 13, 27, 362
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\stage-detail-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 218, 0, 0, 5, 26, 249
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\stages\three-d-stage.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 0, 4, 30
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\NotificationPreferences.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 326, 0, 0, 8, 33, 367
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\PersonalInformationForm.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 178, 0, 0, 2, 18, 198
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\PhoneNumberSettings.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 246, 0, 0, 8, 25, 279
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\invite-team-member-form.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 237, 0, 0, 4, 23, 264
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\project-organized-tasks.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 306, 0, 0, 8, 33, 347
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\team\team-management-client.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 659, 0, 0, 12, 72, 743
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\InstructionsTooltip.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 84, 0, 0, 7, 14, 105
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\accordion.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 0, 9, 59
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\alert.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 6, 59
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\avatar.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 7, 51
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\badge.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 31, 0, 0, 0, 6, 37
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\button.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 52, 0, 0, 0, 5, 57
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\card.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 71, 0, 0, 0, 8, 79
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\checkbox.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 0, 5, 31
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\dialog.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 143, 0, 0, 3, 26, 172
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\dropdown-menu.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 194, 0, 0, 1, 20, 215
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\enhanced-file-preview-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 285, 0, 0, 18, 31, 334
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\file-preview-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 186, 0, 0, 7, 18, 211
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\input.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 4, 25
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\label.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 6, 27
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\mention-textarea.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 188, 0, 0, 12, 26, 226
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\progress.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 5, 29
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\radio-group.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 6, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\scroll-area.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 0, 6, 49
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\select.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 15, 161
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\separator.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 5, 32
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\switch.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 5, 30
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\tabs.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 0, 7, 55
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\textarea.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 4, 24
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\toast.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 107, 0, 0, 1, 21, 129
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\ui\tooltip.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 8, 31
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\components\workspaces\FloorplanApprovalWorkspace.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 1413, 0, 0, 59, 114, 1586
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\constants\workflow.ts", "TypeScript", 0, 0, 0, 0, 147, 0, 0, 0, 0, 0, 0, 7, 13, 167
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\ffe\useFFEApi.ts", "TypeScript", 0, 0, 0, 0, 386, 0, 0, 0, 0, 0, 0, 22, 71, 479
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useDesignWorkspace.ts", "TypeScript", 0, 0, 0, 0, 524, 0, 0, 0, 0, 0, 0, 13, 73, 610
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useDrawingsWorkspace.ts", "TypeScript", 0, 0, 0, 0, 307, 0, 0, 0, 0, 0, 0, 53, 70, 430
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useNotifications.ts", "TypeScript", 0, 0, 0, 0, 198, 0, 0, 0, 0, 0, 0, 19, 39, 256
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useTasks.ts", "TypeScript", 0, 0, 0, 0, 74, 0, 0, 0, 0, 0, 0, 4, 19, 97
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useWebSocket.ts", "TypeScript", 0, 0, 0, 0, 286, 0, 0, 0, 0, 0, 0, 13, 57, 356
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\hooks\useWorkflow.ts", "TypeScript", 0, 0, 0, 0, 154, 0, 0, 0, 0, 0, 0, 10, 29, 193
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\activity-logger.ts", "TypeScript", 0, 0, 0, 0, 468, 0, 0, 0, 0, 0, 0, 70, 55, 593
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\activity-types.ts", "TypeScript", 0, 0, 0, 0, 762, 0, 0, 0, 0, 0, 0, 56, 63, 881
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\api\tasks.ts", "TypeScript", 0, 0, 0, 0, 133, 0, 0, 0, 0, 0, 0, 1, 23, 157
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\attribution.ts", "TypeScript", 0, 0, 0, 0, 242, 0, 0, 0, 0, 0, 0, 61, 37, 340
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\auth.ts", "TypeScript", 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 6, 27
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\backup\buildBackup.ts", "TypeScript", 0, 0, 0, 0, 297, 0, 0, 0, 0, 0, 0, 24, 51, 372
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\blob.ts", "TypeScript", 0, 0, 0, 0, 153, 0, 0, 0, 0, 0, 0, 32, 33, 218
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\cad-conversion-enhanced.ts", "TypeScript", 0, 0, 0, 0, 372, 0, 0, 0, 0, 0, 0, 75, 85, 532
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\cad-conversion.ts", "TypeScript", 0, 0, 0, 0, 198, 0, 0, 0, 0, 0, 0, 31, 44, 273
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\cloud-storage.ts", "TypeScript", 0, 0, 0, 0, 89, 0, 0, 0, 0, 0, 0, 18, 16, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\constants\ffe-section-presets.ts", "TypeScript", 0, 0, 0, 0, 406, 0, 0, 0, 0, 0, 0, 26, 42, 474
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\constants\room-ffe-config.ts", "TypeScript", 0, 0, 0, 0, 58, 0, 0, 0, 0, 0, 0, 12, 13, 83
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\constants\room-phases.ts", "TypeScript", 0, 0, 0, 0, 185, 0, 0, 0, 0, 0, 0, 14, 15, 214
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\design-icons.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 0, 18, 22, 260
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\dropbox-service-v2.ts", "TypeScript", 0, 0, 0, 0, 272, 0, 0, 0, 0, 0, 0, 57, 59, 388
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\dropbox-service.ts", "TypeScript", 0, 0, 0, 0, 595, 0, 0, 0, 0, 0, 0, 105, 114, 814
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\dropbox-utils.ts", "TypeScript", 0, 0, 0, 0, 134, 0, 0, 0, 0, 0, 0, 37, 32, 203
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\email-service.ts", "TypeScript", 0, 0, 0, 0, 377, 0, 0, 0, 0, 0, 0, 46, 78, 501
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\email-templates.ts", "TypeScript", 0, 0, 0, 0, 350, 0, 0, 0, 0, 0, 0, 5, 16, 371
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\email.ts", "TypeScript", 0, 0, 0, 0, 220, 0, 0, 0, 0, 0, 0, 4, 24, 248
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\email\email-service.ts", "TypeScript", 0, 0, 0, 0, 69, 0, 0, 0, 0, 0, 0, 21, 17, 107
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\feature-flags\ffe-feature-flags.ts", "TypeScript", 0, 0, 0, 0, 302, 0, 0, 0, 0, 0, 0, 54, 48, 404
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\bathroom-template-clean.ts", "TypeScript", 0, 0, 0, 0, 95, 0, 0, 0, 0, 0, 0, 8, 20, 123
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\bathroom-template.ts", "TypeScript", 0, 0, 0, 0, 159, 0, 0, 0, 0, 0, 0, 23, 38, 220
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\completion-validator.ts", "TypeScript", 0, 0, 0, 0, 286, 0, 0, 0, 0, 0, 0, 34, 36, 356
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\ffe-management-backend.ts", "TypeScript", 0, 0, 0, 0, 455, 0, 0, 0, 0, 0, 0, 21, 101, 577
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\global-settings.ts", "TypeScript", 0, 0, 0, 0, 532, 0, 0, 0, 0, 0, 0, 28, 48, 608
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\index.ts", "TypeScript", 0, 0, 0, 0, 102, 0, 0, 0, 0, 0, 0, 67, 17, 186
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\integration.ts", "TypeScript", 0, 0, 0, 0, 390, 0, 0, 0, 0, 0, 0, 40, 43, 473
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\learning-system.ts", "TypeScript", 0, 0, 0, 0, 463, 0, 0, 0, 0, 0, 0, 34, 48, 545
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\library-manager.ts", "TypeScript", 0, 0, 0, 0, 345, 0, 0, 0, 0, 0, 0, 41, 37, 423
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\room-library-system.ts", "TypeScript", 0, 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 5, 15, 71
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\room-templates.ts", "TypeScript", 0, 0, 0, 0, 347, 0, 0, 0, 0, 0, 0, 31, 54, 432
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\two-phase-workflow.ts", "TypeScript", 0, 0, 0, 0, 446, 0, 0, 0, 0, 0, 0, 27, 51, 524
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\ffe\workspace-utils.ts", "TypeScript", 0, 0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 27, 11, 108
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\file-upload.ts", "TypeScript", 0, 0, 0, 0, 356, 0, 0, 0, 0, 0, 0, 35, 53, 444
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\generate-project-folder-name.ts", "TypeScript", 0, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 32, 13, 110
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\hebrew-holidays.ts", "TypeScript", 0, 0, 0, 0, 325, 0, 0, 0, 0, 0, 0, 37, 38, 400
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\jwt.ts", "TypeScript", 0, 0, 0, 0, 34, 0, 0, 0, 0, 0, 0, 0, 6, 40
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\link-preview.ts", "TypeScript", 0, 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 27, 22, 150
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\mentionUtils.ts", "TypeScript", 0, 0, 0, 0, 188, 0, 0, 0, 0, 0, 0, 57, 52, 297
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notificationUtils.ts", "TypeScript", 0, 0, 0, 0, 209, 0, 0, 0, 0, 0, 0, 15, 19, 243
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notifications.ts", "TypeScript", 0, 0, 0, 0, 44, 0, 0, 0, 0, 0, 0, 5, 11, 60
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notifications\__tests__\phase-notification-service.test.ts", "TypeScript", 0, 0, 0, 0, 115, 0, 0, 0, 0, 0, 0, 41, 40, 196
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notifications\design-concept-notification-service.ts", "TypeScript", 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 0, 14, 16, 220
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notifications\overdue-notifications.ts", "TypeScript", 0, 0, 0, 0, 200, 0, 0, 0, 0, 0, 0, 21, 25, 246
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\notifications\phase-notification-service.ts", "TypeScript", 0, 0, 0, 0, 560, 0, 0, 0, 0, 0, 0, 56, 47, 663
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\pdf-generation.ts", "TypeScript", 0, 0, 0, 0, 752, 0, 0, 0, 0, 0, 0, 123, 136, 1011
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\phase-transitions.ts", "TypeScript", 0, 0, 0, 0, 224, 0, 0, 0, 0, 0, 0, 35, 29, 288
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\prisma.ts", "TypeScript", 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 4, 19
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\real-time.ts", "TypeScript", 0, 0, 0, 0, 375, 0, 0, 0, 0, 0, 0, 36, 64, 475
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\selectSafe.ts", "TypeScript", 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 27, 6, 59
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\server\aiSummaryPrompt.ts", "TypeScript", 0, 0, 0, 0, 189, 0, 0, 0, 0, 0, 0, 33, 28, 250
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\server\openai.ts", "TypeScript", 0, 0, 0, 0, 22, 0, 0, 0, 0, 0, 0, 14, 8, 44
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\services\ffe-room-service.ts", "TypeScript", 0, 0, 0, 0, 514, 0, 0, 0, 0, 0, 0, 56, 54, 624
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\services\ffe-template-service.ts", "TypeScript", 0, 0, 0, 0, 416, 0, 0, 0, 0, 0, 0, 44, 40, 500
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\services\team-notification-service.ts", "TypeScript", 0, 0, 0, 0, 417, 0, 0, 0, 0, 0, 0, 35, 47, 499
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\session-management.ts", "TypeScript", 0, 0, 0, 0, 234, 0, 0, 0, 0, 0, 0, 45, 40, 319
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\sharing-utils.ts", "TypeScript", 0, 0, 0, 0, 76, 0, 0, 0, 0, 0, 0, 28, 17, 121
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\stage\ffe-stage-manager.ts", "TypeScript", 0, 0, 0, 0, 488, 0, 0, 0, 0, 0, 0, 44, 64, 596
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\twilio.ts", "TypeScript", 0, 0, 0, 0, 99, 0, 0, 0, 0, 0, 0, 20, 24, 143
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\utils.ts", "TypeScript", 0, 0, 0, 0, 76, 0, 0, 0, 0, 0, 0, 2, 18, 96
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\utils\auto-assignment.ts", "TypeScript", 0, 0, 0, 0, 254, 0, 0, 0, 0, 0, 0, 35, 57, 346
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\utils\phase-email.ts", "TypeScript", 0, 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 3, 4, 57
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\utils\phase-utils.ts", "TypeScript", 0, 0, 0, 0, 281, 0, 0, 0, 0, 0, 0, 48, 43, 372
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\validation\due-date-validation.ts", "TypeScript", 0, 0, 0, 0, 123, 0, 0, 0, 0, 0, 0, 12, 29, 164
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\lib\websocket-server.ts", "TypeScript", 0, 0, 0, 0, 266, 0, 0, 0, 0, 0, 0, 29, 62, 357
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\stores\ffe-room-store.ts", "TypeScript", 0, 0, 0, 0, 381, 0, 0, 0, 0, 0, 0, 23, 62, 466
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\stores\ffe-template-store.ts", "TypeScript", 0, 0, 0, 0, 337, 0, 0, 0, 0, 0, 0, 16, 36, 389
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\styles\mentions.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 0, 0, 94, 0, 6, 18, 118
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\types\cad-preferences.ts", "TypeScript", 0, 0, 0, 0, 230, 0, 0, 0, 0, 0, 0, 13, 26, 269
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\types\drawings.ts", "TypeScript", 0, 0, 0, 0, 168, 0, 0, 0, 0, 0, 0, 6, 18, 192
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\types\ffe-management.ts", "TypeScript", 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 31, 47, 333
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\types\ffe-v2.ts", "TypeScript", 0, 0, 0, 0, 229, 0, 0, 0, 0, 0, 0, 20, 25, 274
+"c:\Users\ADMIN\Desktop\residentone-workflow\src\types\next-auth.d.ts", "TypeScript", 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 4, 28
+"c:\Users\ADMIN\Desktop\residentone-workflow\tailwind.config.ts", "TypeScript", 0, 0, 0, 0, 143, 0, 0, 0, 0, 0, 0, 1, 3, 147
+"c:\Users\ADMIN\Desktop\residentone-workflow\team-setup-summary.ts", "TypeScript", 0, 0, 0, 0, 148, 0, 0, 0, 0, 0, 0, 9, 20, 177
+"c:\Users\ADMIN\Desktop\residentone-workflow\test-email.html", "HTML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 2, 3, 18
+"c:\Users\ADMIN\Desktop\residentone-workflow\test-ffe-connection.md", "Markdown", 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 47
+"c:\Users\ADMIN\Desktop\residentone-workflow\test-ffe-workflow.md", "Markdown", 0, 0, 69, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 87
+"c:\Users\ADMIN\Desktop\residentone-workflow\thorough-backup-search.js", "JavaScript", 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 17, 82
+"c:\Users\ADMIN\Desktop\residentone-workflow\tsconfig.json", "JSON with Comments", 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 51
+"c:\Users\ADMIN\Desktop\residentone-workflow\vercel.json", "JSON", 0, 0, 0, 0, 0, 0, 63, 0, 0, 0, 0, 0, 1, 64
+"c:\Users\ADMIN\Desktop\residentone-workflow\verify-clean-system.js", "JavaScript", 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 15, 100
+"c:\Users\ADMIN\Desktop\residentone-workflow\verify-login.js", "JavaScript", 0, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 45
+"c:\Users\ADMIN\Desktop\residentone-workflow\verify-team-setup.ts", "TypeScript", 0, 0, 0, 0, 83, 0, 0, 0, 0, 0, 0, 4, 14, 101
+"Total", "-", 56, 5735, 17353, 23, 64065, 466, 17209, 9, 63149, 324, 13, 8362, 21611, 198375

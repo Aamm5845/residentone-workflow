@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { headers } from 'next/headers'
+import { dropboxService } from '@/lib/dropbox-service'
 
-// GET /api/client-progress/[token]/download/[assetId] - Secure rendering download
+// GET /api/client-progress/[token]/view/[assetId] - Serve image for inline viewing
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string; assetId: string }> }
 ) {
   try {
     const { token, assetId } = await params
-    const headersList = await headers()
-    const userAgent = headersList.get('user-agent') || 'Unknown'
-    const forwarded = headersList.get('x-forwarded-for')
-    const ipAddress = forwarded ? forwarded.split(',')[0] : headersList.get('x-real-ip') || 'Unknown'
 
     // Verify the token exists and is active
     const clientAccessToken = await prisma.clientAccessToken.findFirst({
@@ -59,7 +55,6 @@ export async function GET(
 
     // Find the requested asset in approved renderings
     let targetAsset = null
-    let renderingVersion = null
 
     for (const room of clientAccessToken.project.rooms) {
       for (const stage of room.stages) {
@@ -67,7 +62,6 @@ export async function GET(
           const asset = version.assets.find(a => a.id === assetId)
           if (asset && (asset.type === 'RENDER' || asset.type === 'IMAGE')) {
             targetAsset = asset
-            renderingVersion = version
             break
           }
         }
@@ -78,57 +72,37 @@ export async function GET(
 
     if (!targetAsset) {
       return NextResponse.json({ 
-        error: 'Asset not found or not available for download' 
+        error: 'Asset not found or not available' 
       }, { status: 404 })
     }
 
-    // Log the download
-    await prisma.clientAccessLog.create({
-      data: {
-        tokenId: clientAccessToken.id,
-        ipAddress,
-        userAgent,
-        action: 'DOWNLOAD_RENDERING',
-        metadata: {
-          assetId: targetAsset.id,
-          assetTitle: targetAsset.title,
-          renderingVersion: renderingVersion?.version,
-          timestamp: new Date().toISOString()
-        }
-      }
-    })
-
     // If it's already a public URL (http/https), redirect to it
     if (targetAsset.url.startsWith('http')) {
-      const response = NextResponse.redirect(targetAsset.url)
-      response.headers.set('Content-Disposition', `attachment; filename="${targetAsset.title || 'rendering'}")`)
-      return response
+      return NextResponse.redirect(targetAsset.url)
     }
 
     // If it's a Dropbox path, fetch and serve the file
     if (targetAsset.provider === 'dropbox' || targetAsset.url.startsWith('/')) {
       try {
-        const { dropboxService } = await import('@/lib/dropbox-service')
         const dropboxPath = targetAsset.url.startsWith('/') ? targetAsset.url : '/' + targetAsset.url
         const fileBuffer = await dropboxService.downloadFile(dropboxPath)
         
-        // Determine content type and filename
+        // Determine content type
         const contentType = targetAsset.mimeType || 'image/jpeg'
-        const filename = targetAsset.title || targetAsset.filename || 'rendering'
         
-        // Return the file with download headers
+        // Return the file with appropriate headers
         return new NextResponse(fileBuffer, {
           status: 200,
           headers: {
             'Content-Type': contentType,
-            'Content-Disposition': `attachment; filename="${filename}"`,
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Content-Disposition': 'inline'
           }
         })
       } catch (error) {
-        console.error('Error downloading asset from Dropbox:', error)
+        console.error('Error fetching asset from Dropbox:', error)
         return NextResponse.json({ 
-          error: 'Failed to download file from storage' 
+          error: 'Failed to load image from storage' 
         }, { status: 500 })
       }
     }
@@ -138,9 +112,9 @@ export async function GET(
     }, { status: 400 })
 
   } catch (error) {
-    console.error('Error downloading asset:', error)
+    console.error('Error viewing asset:', error)
     return NextResponse.json({ 
-      error: 'Download failed' 
+      error: 'Failed to load image' 
     }, { status: 500 })
   }
 }
