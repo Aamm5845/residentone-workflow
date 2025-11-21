@@ -3,14 +3,16 @@ const path = require('path');
 const fs = require('fs');
 
 const sizes = [192, 256, 384, 512];
-const inputPath = path.join(__dirname, '..', 'public', 'meisnerinteriorlogo.png');
+// Use favicon-32x32.png as source (it's the same icon as favicon.ico)
+const inputPath = path.join(__dirname, '..', 'public', 'favicon-32x32.png');
 const outputDir = path.join(__dirname, '..', 'public');
 
 async function generateIcons() {
-  console.log('🎨 Generating PWA icons...\n');
+  console.log('🎨 Generating PWA icons from favicon...\n');
 
   if (!fs.existsSync(inputPath)) {
-    console.error('❌ Error: meisnerinteriorlogo.png not found in public folder');
+    console.error('❌ Error: favicon-32x32.png not found in public folder');
+    console.error('   Make sure your favicon files exist in the public directory.');
     process.exit(1);
   }
 
