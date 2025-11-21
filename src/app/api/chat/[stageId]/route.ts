@@ -56,7 +56,7 @@ export async function GET(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    // Get chat messages with author info, mentions, and reactions
+    // Get chat messages with author info, mentions, reactions, and parent message
     const chatMessages = await prisma.chatMessage.findMany({
       where: {
         stageId: resolvedParams.stageId,
@@ -69,6 +69,18 @@ export async function GET(
             name: true,
             role: true,
             image: true
+          }
+        },
+        parentMessage: {
+          select: {
+            id: true,
+            content: true,
+            author: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         mentions: {
@@ -166,10 +178,12 @@ export async function POST(
     let content = ''
     let mentions: string[] = []
     let notifyAssignee = true // Default to notify
+    let parentMessageId: string | null = null
     let imageUrl: string | null = null
     let imageFileName: string | null = null
+    let attachments: any[] = []
 
-    // Handle multipart form data (with image) or JSON (text only)
+    // Handle multipart form data (with files) or JSON (text only)
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData()
       content = (formData.get('content') as string) || ''
@@ -177,33 +191,60 @@ export async function POST(
       mentions = mentionsStr ? JSON.parse(mentionsStr) : []
       const notifyStr = formData.get('notifyAssignee') as string
       notifyAssignee = notifyStr !== null ? notifyStr === 'true' : true
+      const parentIdStr = formData.get('parentMessageId') as string
+      parentMessageId = parentIdStr || null
       
+      // Get all uploaded files
+      const files: File[] = []
+      const fileKeys = Array.from(formData.keys()).filter(key => key.startsWith('file'))
+      for (const key of fileKeys) {
+        const file = formData.get(key) as File | null
+        if (file) files.push(file)
+      }
+      
+      // Also check for legacy 'image' field
       const imageFile = formData.get('image') as File | null
+      if (imageFile) files.push(imageFile)
       
-      if (imageFile) {
-        // Validate image
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-        const maxSize = 5 * 1024 * 1024 // 5MB
+      if (files.length > 0) {
+        // Validate files
+        const allowedTypes = [
+          'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ]
+        const maxFileSize = 10 * 1024 * 1024 // 10MB per file
+        const maxTotalSize = 50 * 1024 * 1024 // 50MB total
         
-        if (!allowedTypes.includes(imageFile.type)) {
-          return NextResponse.json({ 
-            error: 'Invalid image type. Only JPEG, PNG, WebP, and GIF are allowed.' 
-          }, { status: 400 })
+        // Validate each file
+        let totalSize = 0
+        for (const file of files) {
+          if (!allowedTypes.includes(file.type)) {
+            return NextResponse.json({ 
+              error: `Invalid file type: ${file.name}. Allowed types: images, PDFs, Word, Excel` 
+            }, { status: 400 })
+          }
+          
+          if (file.size > maxFileSize) {
+            return NextResponse.json({ 
+              error: `File too large: ${file.name}. Maximum size is 10MB per file.` 
+            }, { status: 400 })
+          }
+          
+          totalSize += file.size
         }
         
-        if (imageFile.size > maxSize) {
+        if (totalSize > maxTotalSize) {
           return NextResponse.json({ 
-            error: 'Image too large. Maximum size is 5MB.' 
+            error: 'Total file size exceeds 50MB limit.' 
           }, { status: 400 })
         }
 
-        // Upload image to Dropbox
+        // Upload files to Dropbox
         try {
-          const bytes = await imageFile.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          const fileExtension = imageFile.name.split('.').pop() || 'jpg'
-          const uniqueFileName = `chat_${uuidv4()}.${fileExtension}`
-          
           const dropboxService = new DropboxService()
           
           // Ensure folder structure exists
@@ -216,21 +257,42 @@ export async function POST(
             console.log('[chat] Folders already exist or created successfully')
           }
           
-          const dropboxPath = `${chatFolder}/${uniqueFileName}`
-          
-          const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-          const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
-          
-          if (!sharedLink) {
-            throw new Error('Failed to create shared link for chat image')
+          // Upload each file
+          for (const file of files) {
+            const bytes = await file.arrayBuffer()
+            const buffer = Buffer.from(bytes)
+            const fileExtension = file.name.split('.').pop() || 'file'
+            const uniqueFileName = `chat_${uuidv4()}.${fileExtension}`
+            const dropboxPath = `${chatFolder}/${uniqueFileName}`
+            
+            const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+            const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
+            
+            if (!sharedLink) {
+              throw new Error(`Failed to create shared link for ${file.name}`)
+            }
+            
+            // Store file metadata
+            const attachment = {
+              id: uuidv4(),
+              name: file.name,
+              url: sharedLink,
+              type: file.type,
+              size: file.size
+            }
+            
+            attachments.push(attachment)
+            
+            // For backward compatibility, set first image as imageUrl
+            if (!imageUrl && file.type.startsWith('image/')) {
+              imageUrl = sharedLink
+              imageFileName = file.name
+            }
           }
-          
-          imageUrl = sharedLink
-          imageFileName = imageFile.name
         } catch (uploadError) {
-          console.error('Image upload error:', uploadError)
+          console.error('File upload error:', uploadError)
           return NextResponse.json({ 
-            error: 'Failed to upload image' 
+            error: 'Failed to upload files' 
           }, { status: 500 })
         }
       }
@@ -239,11 +301,12 @@ export async function POST(
       content = data.content || ''
       mentions = data.mentions || []
       notifyAssignee = data.notifyAssignee !== undefined ? data.notifyAssignee : true
+      parentMessageId = data.parentMessageId || null
     }
 
-    if (!content.trim() && !imageUrl) {
+    if (!content.trim() && attachments.length === 0) {
       return NextResponse.json({ 
-        error: 'Message content or image is required' 
+        error: 'Message content or attachments are required' 
       }, { status: 400 })
     }
 
@@ -273,14 +336,33 @@ export async function POST(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
     }
 
+    // Verify parent message exists if replying
+    if (parentMessageId) {
+      const parentMessage = await prisma.chatMessage.findFirst({
+        where: {
+          id: parentMessageId,
+          stageId: resolvedParams.stageId,
+          isDeleted: false
+        }
+      })
+      
+      if (!parentMessage) {
+        return NextResponse.json({ 
+          error: 'Parent message not found' 
+        }, { status: 400 })
+      }
+    }
+
     // Create the chat message
     const chatMessage = await prisma.chatMessage.create({
       data: {
-        content: content.trim() || '(Image)',
+        content: content.trim() || (attachments.length > 0 ? '(Attachment)' : ''),
         authorId: session.user.id,
         stageId: resolvedParams.stageId,
+        parentMessageId,
         imageUrl,
-        imageFileName
+        imageFileName,
+        attachments: attachments.length > 0 ? attachments : null
       },
       include: {
         author: {
@@ -289,6 +371,18 @@ export async function POST(
             name: true,
             role: true,
             image: true
+          }
+        },
+        parentMessage: {
+          select: {
+            id: true,
+            content: true,
+            author: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }

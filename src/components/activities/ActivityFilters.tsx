@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Filter } from 'lucide-react'
 import { ACTIVITY_TYPE_META } from '@/lib/activity-types'
@@ -20,6 +20,27 @@ export interface ActivityFilterState {
 export function ActivityFilters({ onFilterChange, currentFilters }: ActivityFiltersProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [localFilters, setLocalFilters] = useState<ActivityFilterState>(currentFilters)
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  
+  // Fetch team members when component mounts
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      setLoadingMembers(true)
+      try {
+        const response = await fetch('/api/users')
+        if (response.ok) {
+          const users = await response.json()
+          setTeamMembers(users)
+        }
+      } catch (error) {
+        console.error('Failed to fetch team members:', error)
+      } finally {
+        setLoadingMembers(false)
+      }
+    }
+    fetchTeamMembers()
+  }, [])
 
   // Group activity types by category
   const categorizedTypes = Object.entries(ACTIVITY_TYPE_META).reduce((acc, [type, meta]) => {
@@ -37,6 +58,15 @@ export function ActivityFilters({ onFilterChange, currentFilters }: ActivityFilt
       types: prev.types.includes(type)
         ? prev.types.filter(t => t !== type)
         : [...prev.types, type]
+    }))
+  }
+  
+  const handleUserToggle = (userId: string) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      users: prev.users.includes(userId)
+        ? prev.users.filter(u => u !== userId)
+        : [...prev.users, userId]
     }))
   }
 
@@ -94,6 +124,35 @@ export function ActivityFilters({ onFilterChange, currentFilters }: ActivityFilt
         </Button>
       </div>
 
+      {/* Team Member Filter */}
+      <div className="mb-4 pb-4 border-b border-gray-200">
+        <h4 className="text-xs font-semibold text-gray-700 uppercase mb-2">Team Members</h4>
+        {loadingMembers ? (
+          <div className="text-xs text-gray-500 py-2">Loading team members...</div>
+        ) : teamMembers.length === 0 ? (
+          <div className="text-xs text-gray-500 py-2">No team members found</div>
+        ) : (
+          <div className="space-y-1">
+            {teamMembers.map((member) => (
+              <label key={member.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
+                <input
+                  type="checkbox"
+                  checked={localFilters.users.includes(member.id)}
+                  onChange={() => handleUserToggle(member.id)}
+                  className="mr-2 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                />
+                <div className="flex-1">
+                  <span className="text-sm text-gray-700 font-medium">{member.name || member.email}</span>
+                  {member.name && member.email && (
+                    <span className="text-xs text-gray-500 block">{member.email}</span>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      
       {/* Date Range Filter */}
       <div className="mb-4 pb-4 border-b border-gray-200">
         <h4 className="text-xs font-semibold text-gray-700 uppercase mb-2">Date Range</h4>

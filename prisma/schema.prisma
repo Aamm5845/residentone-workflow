@@ -104,6 +104,10 @@ model User {
   commentLikes                CommentLike[]               @relation("UserCommentLikes")
   commentPins                 CommentPin[]                @relation("UserCommentPins")
   commentTags                 CommentTag[]                @relation("UserCommentTags")
+  completedDesignConceptItems DesignConceptItem[]         @relation("DesignConceptItemCompletedBy")
+  createdDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemCreatedBy")
+  updatedDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemUpdatedBy")
+  designConceptItemNotes      DesignConceptItemNote[]     @relation("DesignConceptItemNoteAuthor")
   completedSections           DesignSection[]             @relation("CompletedByUserSection")
   createdSections             DesignSection[]             @relation("CreatedByUserSection")
   updatedSections             DesignSection[]             @relation("UpdatedByUserSection")
@@ -139,10 +143,6 @@ model User {
   completedStages             Stage[]                     @relation("CompletedByUserStage")
   createdStages               Stage[]                     @relation("CreatedByUserStage")
   updatedStages               Stage[]                     @relation("UpdatedByUserStage")
-  createdDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemCreatedBy")
-  updatedDesignConceptItems   DesignConceptItem[]         @relation("DesignConceptItemUpdatedBy")
-  completedDesignConceptItems DesignConceptItem[]         @relation("DesignConceptItemCompletedBy")
-  designConceptItemNotes      DesignConceptItemNote[]     @relation("DesignConceptItemNoteAuthor")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -309,8 +309,8 @@ model Stage {
   chatMessages           ChatMessage[]
   clientApprovalVersions ClientApprovalVersion[]
   comments               Comment[]
-  designSections         DesignSection[]
   designConceptItems     DesignConceptItem[]
+  designSections         DesignSection[]
   issues                 Issue[]                 @relation("IssueStage")
   renderingVersions      RenderingVersion[]      @relation("StageRenderingVersions")
   smsConversations       SmsConversation[]       @relation("StageSmsConversations")
@@ -549,7 +549,7 @@ model ClientApprovalAsset {
   assetId        String
   includeInEmail Boolean               @default(true)
   displayOrder   Int                   @default(0)
-  blobUrl        String? // Vercel Blob URL for fast delivery (active version)
+  blobUrl        String?
   createdAt      DateTime              @default(now())
   asset          Asset                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
   version        ClientApprovalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
@@ -712,25 +712,30 @@ model Comment {
 }
 
 model ChatMessage {
-  id            String                @id @default(cuid())
-  content       String
-  authorId      String
-  stageId       String
-  imageUrl      String?
-  imageFileName String?
-  editedAt      DateTime?
-  isEdited      Boolean               @default(false)
-  deletedAt     DateTime?
-  isDeleted     Boolean               @default(false)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  mentions      ChatMention[]
-  author        User                  @relation(fields: [authorId], references: [id])
-  stage         Stage                 @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  reactions     ChatMessageReaction[]
+  id              String                @id @default(cuid())
+  content         String
+  authorId        String
+  stageId         String
+  parentMessageId String?
+  imageUrl        String?
+  imageFileName   String?
+  attachments     Json?
+  editedAt        DateTime?
+  isEdited        Boolean               @default(false)
+  deletedAt       DateTime?
+  isDeleted       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  mentions        ChatMention[]
+  author          User                  @relation(fields: [authorId], references: [id])
+  parentMessage   ChatMessage?          @relation("MessageReplies", fields: [parentMessageId], references: [id])
+  replies         ChatMessage[]         @relation("MessageReplies")
+  stage           Stage                 @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  reactions       ChatMessageReaction[]
 
   @@index([stageId, createdAt])
   @@index([authorId])
+  @@index([parentMessageId])
 }
 
 model ChatMention {
@@ -1718,6 +1723,102 @@ model CadLayoutCache {
   @@index([expiresAt])
 }
 
+model DesignConceptItemLibrary {
+  id          String              @id @default(cuid())
+  name        String
+  category    String
+  description String?
+  icon        String?
+  order       Int                 @default(0)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  items       DesignConceptItem[]
+
+  @@unique([name, category])
+  @@index([category])
+  @@index([isActive])
+  @@index([category, order])
+}
+
+model DesignConceptItem {
+  id                  String                   @id @default(cuid())
+  stageId             String
+  libraryItemId       String
+  order               Int                      @default(0)
+  notes               String?
+  completedByRenderer Boolean                  @default(false)
+  completedAt         DateTime?
+  completedById       String?
+  createdById         String
+  updatedById         String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  completedBy         User?                    @relation("DesignConceptItemCompletedBy", fields: [completedById], references: [id])
+  createdBy           User                     @relation("DesignConceptItemCreatedBy", fields: [createdById], references: [id])
+  libraryItem         DesignConceptItemLibrary @relation(fields: [libraryItemId], references: [id])
+  stage               Stage                    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy           User?                    @relation("DesignConceptItemUpdatedBy", fields: [updatedById], references: [id])
+  images              DesignConceptItemImage[]
+  links               DesignConceptItemLink[]
+  itemNotes           DesignConceptItemNote[]
+
+  @@index([stageId])
+  @@index([stageId, order])
+  @@index([libraryItemId])
+  @@index([completedByRenderer])
+}
+
+model DesignConceptItemImage {
+  id           String            @id @default(cuid())
+  itemId       String
+  url          String
+  dropboxPath  String
+  fileName     String
+  fileSize     Int?
+  thumbnailUrl String?
+  description  String?
+  order        Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  item         DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, order])
+}
+
+model DesignConceptItemLink {
+  id          String            @id @default(cuid())
+  itemId      String
+  url         String
+  title       String?
+  description String?
+  imageUrl    String?
+  siteName    String?
+  favicon     String?
+  order       Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  item        DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, order])
+}
+
+model DesignConceptItemNote {
+  id        String            @id @default(cuid())
+  itemId    String
+  content   String
+  authorId  String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  author    User              @relation("DesignConceptItemNoteAuthor", fields: [authorId], references: [id])
+  item      DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, createdAt])
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -2060,104 +2161,4 @@ enum SpecBookGenStatus {
   COMPLETED
   FAILED
   CANCELLED
-}
-
-// ============================================================================
-// DESIGN CONCEPT V2 - Universal Item Library System
-// ============================================================================
-
-model DesignConceptItemLibrary {
-  id          String              @id @default(cuid())
-  name        String
-  category    String
-  description String?
-  icon        String?
-  order       Int                 @default(0)
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  items       DesignConceptItem[]
-
-  @@unique([name, category])
-  @@index([category])
-  @@index([isActive])
-  @@index([category, order])
-}
-
-model DesignConceptItem {
-  id                  String                   @id @default(cuid())
-  stageId             String
-  libraryItemId       String
-  order               Int                      @default(0)
-  notes               String?                  // @deprecated - use itemNotes relation instead for multi-note support
-  completedByRenderer Boolean                  @default(false)
-  completedAt         DateTime?
-  completedById       String?
-  createdById         String
-  updatedById         String?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  completedBy         User?                    @relation("DesignConceptItemCompletedBy", fields: [completedById], references: [id])
-  createdBy           User                     @relation("DesignConceptItemCreatedBy", fields: [createdById], references: [id])
-  libraryItem         DesignConceptItemLibrary @relation(fields: [libraryItemId], references: [id])
-  stage               Stage                    @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  updatedBy           User?                    @relation("DesignConceptItemUpdatedBy", fields: [updatedById], references: [id])
-  images              DesignConceptItemImage[]
-  links               DesignConceptItemLink[]
-  itemNotes           DesignConceptItemNote[]  // New multi-note system
-
-  @@index([stageId])
-  @@index([stageId, order])
-  @@index([libraryItemId])
-  @@index([completedByRenderer])
-}
-
-model DesignConceptItemImage {
-  id           String            @id @default(cuid())
-  itemId       String
-  url          String
-  dropboxPath  String
-  fileName     String
-  fileSize     Int?
-  thumbnailUrl String?
-  description  String?
-  order        Int               @default(0)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  item         DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  @@index([itemId])
-  @@index([itemId, order])
-}
-
-model DesignConceptItemLink {
-  id          String            @id @default(cuid())
-  itemId      String
-  url         String
-  title       String?
-  description String?
-  imageUrl    String?           // Preview image from Open Graph or other metadata
-  siteName    String?           // Site name from metadata
-  favicon     String?           // Site favicon URL
-  order       Int               @default(0)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  item        DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  @@index([itemId])
-  @@index([itemId, order])
-}
-
-model DesignConceptItemNote {
-  id        String            @id @default(cuid())
-  itemId    String
-  content   String
-  authorId  String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  item      DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  author    User              @relation("DesignConceptItemNoteAuthor", fields: [authorId], references: [id])
-
-  @@index([itemId])
-  @@index([itemId, createdAt])
 }

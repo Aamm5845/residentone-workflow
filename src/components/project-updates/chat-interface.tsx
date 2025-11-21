@@ -47,31 +47,39 @@ interface Message {
   author: {
     id: string
     name: string
-    email: string
+    email?: string
     image?: string
   }
-  messageType: 'MESSAGE' | 'SYSTEM' | 'NOTIFICATION' | 'URGENT' | 'REMINDER'
-  priority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NORMAL'
+  messageType?: 'MESSAGE' | 'SYSTEM' | 'NOTIFICATION' | 'URGENT' | 'REMINDER'
+  priority?: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NORMAL'
   parentMessageId?: string
-  mentions: string[]
-  attachments: Array<{
+  parentMessage?: {
+    id: string
+    content: string
+    author: {
+      id: string
+      name: string
+    }
+  }
+  mentions?: any[]
+  attachments?: Array<{
     id: string
     name: string
     url: string
     type: string
     size: number
   }>
-  reactions: Array<{
+  reactions?: Array<{
     emoji: string
     users: Array<{ id: string; name: string }>
   }>
-  readBy: Array<{
+  readBy?: Array<{
     userId: string
     userName: string
     readAt: string
   }>
-  isUrgent: boolean
-  isEdited: boolean
+  isUrgent?: boolean
+  isEdited?: boolean
   editedAt?: string
   createdAt: string
   updatedAt: string
@@ -253,8 +261,9 @@ export default function ChatInterface({
   }
 
   const MessageBubble = ({ message, isOwn }: { message: Message; isOwn: boolean }) => {
-    const parentMessage = message.parentMessageId ? 
-      messages.find(m => m.id === message.parentMessageId) : null
+    // Use parentMessage from message object if available, otherwise search in messages array
+    const parentMessage = message.parentMessage || 
+      (message.parentMessageId ? messages.find(m => m.id === message.parentMessageId) : null)
 
     return (
       <motion.div
@@ -309,43 +318,54 @@ export default function ChatInterface({
                 )}
 
                 {/* Attachments */}
-                {message.attachments.length > 0 && (
+                {message.attachments && message.attachments.length > 0 && (
                   <div className="space-y-2 mt-2">
-                    {message.attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className={`flex items-center gap-2 p-2 rounded-lg ${
-                          isOwn ? 'bg-purple-500' : 'bg-gray-50'
-                        }`}
-                      >
-                        {attachment.type.startsWith('image/') ? (
-                          <Image className="w-4 h-4" />
-                        ) : (
-                          <File className="w-4 h-4" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {attachment.name}
-                          </div>
-                          <div className="text-xs opacity-70">
-                            {(attachment.size / 1024).toFixed(1)} KB
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0"
-                          onClick={() => window.open(attachment.url, '_blank')}
+                    {message.attachments.map((attachment) => {
+                      // Determine icon based on file type
+                      let FileIcon = File
+                      if (attachment.type.startsWith('image/')) {
+                        FileIcon = Image
+                      } else if (attachment.type === 'application/pdf') {
+                        FileIcon = File
+                      }
+                      
+                      return (
+                        <div
+                          key={attachment.id}
+                          className={`flex items-center gap-2 p-2 rounded-lg ${
+                            isOwn ? 'bg-purple-500' : 'bg-gray-50'
+                          }`}
                         >
-                          <Download className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+                          <FileIcon className="w-4 h-4 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {attachment.name}
+                            </div>
+                            <div className="text-xs opacity-70">
+                              {attachment.size < 1024 
+                                ? `${attachment.size} B`
+                                : attachment.size < 1024 * 1024
+                                ? `${(attachment.size / 1024).toFixed(1)} KB`
+                                : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`
+                              }
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 flex-shrink-0"
+                            onClick={() => window.open(attachment.url, '_blank')}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
                 {/* Reactions */}
-                {message.reactions.length > 0 && (
+                {message.reactions && message.reactions.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {message.reactions.map((reaction, index) => (
                       <button
@@ -700,7 +720,7 @@ export default function ChatInterface({
                 multiple
                 onChange={handleFileSelect}
                 className="hidden"
-                accept="image/*,application/pdf,.doc,.docx"
+                accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx"
               />
               <Button
                 size="sm"

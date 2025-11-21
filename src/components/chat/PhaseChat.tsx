@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
-import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download, Smile } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download, Smile, Reply, Image, File } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -33,8 +33,24 @@ interface ChatMessage {
   updatedAt: string
   editedAt?: string
   isEdited: boolean
+  parentMessageId?: string
+  parentMessage?: {
+    id: string
+    content: string
+    author: {
+      id: string
+      name: string
+    }
+  }
   imageUrl?: string
   imageFileName?: string
+  attachments?: Array<{
+    id: string
+    name: string
+    url: string
+    type: string
+    size: number
+  }>
   author: {
     id: string
     name: string
@@ -87,9 +103,9 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notifyAssignee, setNotifyAssignee] = useState(true)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -140,44 +156,58 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
     }
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.')
-      return
-    }
-
-    // Validate file size (5MB)
-    const maxSize = 5 * 1024 * 1024
-    if (file.size > maxSize) {
-      toast.error('Image too large. Maximum size is 5MB.')
-      return
-    }
-
-    setSelectedImage(file)
+    // Validate file types
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ]
     
-    // Create preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`Invalid file type: ${file.name}. Allowed: images, PDFs, Word, Excel`)
+        return
+      }
+
+      // Validate file size (10MB per file)
+      const maxSize = 10 * 1024 * 1024
+      if (file.size > maxSize) {
+        toast.error(`File too large: ${file.name}. Maximum size is 10MB per file.`)
+        return
+      }
     }
-    reader.readAsDataURL(file)
+
+    // Check total size (50MB)
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0)
+    const maxTotalSize = 50 * 1024 * 1024
+    if (totalSize > maxTotalSize) {
+      toast.error('Total file size exceeds 50MB limit.')
+      return
+    }
+
+    setSelectedFiles(files)
   }
 
-  const removeImage = () => {
-    setSelectedImage(null)
-    setImagePreview(null)
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const clearFiles = () => {
+    setSelectedFiles([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
   const sendMessage = async (content: string, mentions: string[]) => {
-    if ((!content.trim() && !selectedImage) || sending) return
+    if ((!content.trim() && selectedFiles.length === 0) || sending) return
 
     setSending(true)
     try {
@@ -212,13 +242,20 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
 
       let response
       
-      if (selectedImage) {
-        // Send with image using FormData
+      if (selectedFiles.length > 0) {
+        // Send with files using FormData
         const formData = new FormData()
         formData.append('content', content.trim())
         formData.append('mentions', JSON.stringify(mentionIds))
         formData.append('notifyAssignee', String(notifyAssignee))
-        formData.append('image', selectedImage)
+        if (replyingTo) {
+          formData.append('parentMessageId', replyingTo.id)
+        }
+        
+        // Append all files
+        selectedFiles.forEach((file, index) => {
+          formData.append(`file${index}`, file)
+        })
         
         response = await fetch(`/api/chat/${stageId}`, {
           method: 'POST',
@@ -234,7 +271,8 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
           body: JSON.stringify({
             content: content.trim(),
             mentions: mentionIds,
-            notifyAssignee: notifyAssignee
+            notifyAssignee: notifyAssignee,
+            parentMessageId: replyingTo?.id
           })
         })
       }
@@ -243,7 +281,8 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
         const data = await response.json()
         setMessages(prev => [...prev, data.message])
         setNewMessage('')
-        removeImage()
+        clearFiles()
+        setReplyingTo(null)
         toast.success('Message sent!')
       } else {
         const errorData = await response.json()
@@ -458,6 +497,19 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                     )}
                   </div>
 
+                  {/* Reply indicator */}
+                  {message.parentMessage && (
+                    <div className="mt-1 mb-2 pl-3 border-l-2 border-gray-300 bg-gray-50 py-1 px-2 rounded text-xs">
+                      <div className="flex items-center gap-1 text-gray-500 mb-0.5">
+                        <Reply className="w-3 h-3" />
+                        <span>Replying to {message.parentMessage.author.name}</span>
+                      </div>
+                      <div className="text-gray-600 truncate">
+                        {message.parentMessage.content}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Message Text or Edit Form */}
                   {editingMessageId === message.id ? (
                     <div className="mt-2">
@@ -498,8 +550,39 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
                         </div>
                       )}
                       
-                      {/* Attached Image */}
-                      {message.imageUrl && (
+                      {/* Attachments */}
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-1.5 space-y-1.5">
+                          {message.attachments.map((attachment: any) => {
+                            const FileIcon = attachment.type.startsWith('image/') ? Image : File
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors group/attachment cursor-pointer"
+                                onClick={() => window.open(attachment.url, '_blank')}
+                              >
+                                <FileIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-700 truncate">
+                                    {attachment.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {attachment.size < 1024
+                                      ? `${attachment.size} B`
+                                      : attachment.size < 1024 * 1024
+                                      ? `${(attachment.size / 1024).toFixed(1)} KB`
+                                      : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`}
+                                  </div>
+                                </div>
+                                <Download className="w-4 h-4 text-gray-400 opacity-0 group-hover/attachment:opacity-100 transition-opacity flex-shrink-0" />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Legacy image support */}
+                      {message.imageUrl && (!message.attachments || message.attachments.length === 0) && (
                         <div className="mt-1.5 relative inline-block group/image">
                           <img 
                             src={message.imageUrl} 
@@ -585,6 +668,19 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
 
                 {/* Message Actions */}
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 flex items-start gap-1">
+                  {/* Reply Button */}
+                  {editingMessageId !== message.id && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0"
+                      onClick={() => setReplyingTo(message)}
+                      title="Reply"
+                    >
+                      <Reply className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  
                   {/* Add Reaction Button */}
                   {editingMessageId !== message.id && (
                     <Button 
@@ -660,21 +756,56 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
 
       {/* Message Input */}
       <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
-        {/* Image Preview */}
-        {imagePreview && (
-          <div className="mb-2 relative inline-block">
-            <img 
-              src={imagePreview} 
-              alt="Preview" 
-              className="max-w-[200px] max-h-24 rounded-lg border border-gray-300"
-            />
-            <button
-              onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md transition-colors"
-              title="Remove image"
-            >
-              <X className="w-3 h-3" />
-            </button>
+        {/* Reply Indicator */}
+        {replyingTo && (
+          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Reply className="w-3 h-3 text-blue-600" />
+                <span className="text-xs text-gray-700">
+                  Replying to <span className="font-medium">{replyingTo.author.name}</span>
+                </span>
+              </div>
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="p-0.5 hover:bg-blue-100 rounded transition-colors"
+                title="Cancel reply"
+              >
+                <X className="w-3 h-3 text-gray-500" />
+              </button>
+            </div>
+            <div className="text-xs text-gray-600 truncate mt-1 pl-5">
+              {replyingTo.content || '(Attachment)'}
+            </div>
+          </div>
+        )}
+        
+        {/* File Attachments Preview */}
+        {selectedFiles.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {selectedFiles.map((file, index) => {
+              const FileIcon = file.type.startsWith('image/') ? Image : File
+              return (
+                <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                  <FileIcon className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs text-gray-700 flex-1 truncate">{file.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {file.size < 1024
+                      ? `${file.size} B`
+                      : file.size < 1024 * 1024
+                      ? `${(file.size / 1024).toFixed(1)} KB`
+                      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
+                  </span>
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                    title="Remove file"
+                  >
+                    <X className="w-3 h-3 text-gray-500" />
+                  </button>
+                </div>
+              )
+            })}
           </div>
         )}
         
@@ -692,13 +823,14 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
             />
           </div>
           
-          {/* Attach Image Button */}
+          {/* Attach Files Button */}
           <div className="pb-2">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleImageSelect}
+              multiple
+              accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx"
+              onChange={handleFileSelect}
               className="hidden"
             />
             <Button
@@ -707,8 +839,8 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
               size="icon"
               className="h-9 w-9"
               onClick={() => fileInputRef.current?.click()}
-              disabled={sending || !!selectedImage}
-              title="Attach image"
+              disabled={sending}
+              title="Attach files"
             >
               <Paperclip className="w-4 h-4" />
             </Button>
