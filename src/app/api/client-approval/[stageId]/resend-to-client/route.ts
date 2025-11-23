@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { sendClientApprovalEmail } from '@/lib/email-service'
+import { sendClientApprovalEmail, sendEmail } from '@/lib/email-service'
 
 // POST /api/client-approval/[stageId]/resend-to-client - Resend approval email to client
 export async function POST(
@@ -16,7 +16,7 @@ export async function POST(
 
     const { stageId } = params
     const body = await request.json()
-    const { selectedAssetIds } = body
+    const { selectedAssetIds, customSubject, customHtmlContent } = body
 
     // Get the current version
     const currentVersion = await prisma.clientApprovalVersion.findFirst({
@@ -112,13 +112,39 @@ export async function POST(
         return NextResponse.json({ error: 'Client email or name not found' }, { status: 400 })
       }
 
-      await sendClientApprovalEmail({
-        versionId: currentVersion.id,
-        clientEmail: client.email,
-        clientName: client.name,
-        projectName: currentVersion.stage.room.project.name,
-        assets: emailAssets
-      })
+      if (typeof customHtmlContent === 'string' && customHtmlContent.trim() !== '') {
+        const computedSubject = (typeof customSubject === 'string' && customSubject.trim() !== '')
+          ? customSubject.trim()
+          : `Your ${currentVersion.stage.room.name || currentVersion.stage.room.type || 'Design'} Renderings Are Ready | ${currentVersion.stage.room.project.name}`
+
+        const emailResult = await sendEmail({
+          to: client.email,
+          subject: computedSubject,
+          html: customHtmlContent
+        })
+
+        await prisma.emailLog.create({
+          data: {
+            versionId: currentVersion.id,
+            to: client.email,
+            subject: computedSubject,
+            html: customHtmlContent,
+            sentAt: new Date(),
+            type: 'DELIVERY',
+            deliveryStatus: 'SENT',
+            providerId: emailResult.messageId,
+            provider: emailResult.provider
+          }
+        })
+      } else {
+        await sendClientApprovalEmail({
+          versionId: currentVersion.id,
+          clientEmail: client.email,
+          clientName: client.name,
+          projectName: currentVersion.stage.room.project.name,
+          assets: emailAssets
+        })
+      }
     } catch (emailError) {
       console.error('Failed to resend email:', emailError)
       return NextResponse.json({ error: 'Failed to resend email to client' }, { status: 500 })

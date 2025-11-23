@@ -41,6 +41,7 @@ import EnhancedFilePreviewModal from '@/components/ui/enhanced-file-preview-moda
 import CreateVersionModal from '@/components/modals/CreateVersionModal'
 import ClientApprovalModal from '@/components/modals/ClientApprovalModal'
 import { toast } from 'react-hot-toast'
+import EmailPreviewModal, { EmailPreviewData } from '@/components/modals/EmailPreviewModal'
 
 interface FloorplanApprovalWorkspaceProps {
   project: any
@@ -149,6 +150,10 @@ export default function FloorplanApprovalWorkspace({
   
   // Client approval modal state
   const [showClientApprovalModal, setShowClientApprovalModal] = useState(false)
+  
+  // Email preview modal state
+  const [showEmailPreviewModal, setShowEmailPreviewModal] = useState(false)
+  const [emailPreviewData, setEmailPreviewData] = useState<EmailPreviewData | null>(null)
 
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -412,46 +417,66 @@ export default function FloorplanApprovalWorkspace({
 
     setLoading(true)
     try {
+      // Fetch email preview first
       const selectedAssetIds = selectedAssets
-
-      const response = await fetch(`/api/floorplan-approvals/${currentVersion.id}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ selectedAssetIds })
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (response.ok) {
-        setCurrentVersion(data.version)
-
-        // Fetch email analytics after sending
-        if (data.version?.id) {
-          fetchEmailAnalytics(data.version.id)
-        }
-
-        toast.success('Email sent to client successfully!', {
-          duration: 4000,
-          position: 'top-right'
+      const previewResponse = await fetch(
+        `/api/floorplan-approvals/${currentVersion.id}/email-preview?selectedAssetIds=${selectedAssetIds.join(',')}`
+      )
+      
+      if (previewResponse.ok) {
+        const previewData = await previewResponse.json()
+        setEmailPreviewData({
+          to: previewData.to,
+          subject: previewData.subject,
+          htmlContent: previewData.htmlContent
         })
+        setShowEmailPreviewModal(true)
       } else {
-        const message = data.error || data.details || 'Failed to send email'
-        console.error('Failed to send email:', data)
-        toast.error(message, {
+        const error = await previewResponse.json()
+        toast.error(`Failed to generate email preview: ${error.error}`, {
           duration: 5000,
           position: 'top-right'
         })
       }
     } catch (error) {
-      console.error('Error sending email:', error)
-      toast.error('Failed to send email. Please try again.', {
+      console.error('Failed to fetch email preview:', error)
+      toast.error('Failed to generate email preview. Please try again.', {
         duration: 5000,
         position: 'top-right'
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleConfirmSendEmail = async (emailData: EmailPreviewData) => {
+    const selectedAssetIds = selectedAssets
+
+    const response = await fetch(`/api/floorplan-approvals/${currentVersion!.id}/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        selectedAssetIds,
+        customSubject: emailData.subject,
+        customHtmlContent: emailData.htmlContent
+      })
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.ok) {
+      setCurrentVersion(data.version)
+
+      // Fetch email analytics after sending
+      if (data.version?.id) {
+        fetchEmailAnalytics(data.version.id)
+      }
+    } else {
+      const message = data.error || data.details || 'Failed to send email'
+      console.error('Failed to send email:', data)
+      throw new Error(message)
     }
   }
 
@@ -1579,6 +1604,15 @@ export default function FloorplanApprovalWorkspace({
         onConfirm={handleClientApproval}
         loading={loading}
         versionNumber={currentVersion?.version || ''}
+      />
+      
+      {/* Email Preview Modal */}
+      <EmailPreviewModal
+        open={showEmailPreviewModal}
+        onOpenChange={setShowEmailPreviewModal}
+        emailData={emailPreviewData}
+        onSend={handleConfirmSendEmail}
+        title="Review Email Before Sending"
       />
     </>
   )

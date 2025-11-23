@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { sendClientApprovalEmail } from '@/lib/email-service'
+import { sendClientApprovalEmail, sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service'
 
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
@@ -17,7 +17,7 @@ export async function POST(
 
     const { stageId } = await params
     const body = await request.json()
-    const { selectedAssetIds } = body
+    const { selectedAssetIds, customSubject, customHtmlContent } = body
 
     // Get the current version
     const currentVersion = await prisma.clientApprovalVersion.findFirst({
@@ -118,13 +118,42 @@ export async function POST(
         return NextResponse.json({ error: 'Client email or name not found' }, { status: 400 })
       }
 
-      await sendClientApprovalEmail({
-        versionId: currentVersion.id,
-        clientEmail: client.email,
-        clientName: client.name,
-        projectName: currentVersion.stage.room.project.name,
-        assets: emailAssets
-      })
+      // Prefer edited content when provided
+      if (typeof customHtmlContent === 'string' && customHtmlContent.trim() !== '') {
+        const computedSubject = (typeof customSubject === 'string' && customSubject.trim() !== '')
+          ? customSubject.trim()
+          : `Your ${currentVersion.stage.room.name || currentVersion.stage.room.type || 'Design'} Renderings Are Ready | ${currentVersion.stage.room.project.name}`
+
+        const emailResult = await sendEmail({
+          to: client.email,
+          subject: computedSubject,
+          html: customHtmlContent
+        })
+
+        // Log the send so analytics and history still work
+        await prisma.emailLog.create({
+          data: {
+            versionId: currentVersion.id,
+            to: client.email,
+            subject: computedSubject,
+            html: customHtmlContent,
+            sentAt: new Date(),
+            type: 'DELIVERY',
+            deliveryStatus: 'SENT',
+            providerId: emailResult.messageId,
+            provider: emailResult.provider
+          }
+        })
+      } else {
+        // Use default template
+        await sendClientApprovalEmail({
+          versionId: currentVersion.id,
+          clientEmail: client.email,
+          clientName: client.name,
+          projectName: currentVersion.stage.room.project.name,
+          assets: emailAssets
+        })
+      }
     } catch (emailError) {
       console.error('Failed to send email:', emailError)
       return NextResponse.json({ error: 'Failed to send email to client' }, { status: 500 })

@@ -1,32 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { sendEmail } from '@/lib/email-service'
-import { 
-  withUpdateAttribution,
-  logActivity,
-  ActivityActions,
-  EntityTypes,
-  getIPAddress,
-  isValidAuthSession,
-  type AuthSession
-} from '@/lib/attribution'
+import { isValidAuthSession } from '@/lib/attribution'
 
-export async function POST(
+// GET /api/floorplan-approvals/[versionId]/email-preview - Get email preview before sending
+export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ versionId: string }> }
 ) {
   try {
     const session = await getSession()
-    const ipAddress = getIPAddress(request)
     const resolvedParams = await params
     
     if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const data = await request.json()
-    const { selectedAssetIds, testEmail, customSubject, customHtmlContent } = data
+    const { searchParams } = new URL(request.url)
+    const selectedAssetIdsParam = searchParams.get('selectedAssetIds')
+    const selectedAssetIds = selectedAssetIdsParam ? selectedAssetIdsParam.split(',') : []
 
     // Find the version and verify access
     const version = await prisma.floorplanApprovalVersion.findFirst({
@@ -54,12 +46,6 @@ export async function POST(
       return NextResponse.json({ error: 'Version not found' }, { status: 404 })
     }
 
-    if (!version.approvedByAaron) {
-      return NextResponse.json({
-        error: 'Cannot send to client: Version must be approved by Aaron first'
-      }, { status: 400 })
-    }
-
     // Get selected assets or default to all email-included assets
     let assetsToInclude = version.assets.filter(a => a.includeInEmail)
     if (selectedAssetIds && selectedAssetIds.length > 0) {
@@ -68,174 +54,55 @@ export async function POST(
       )
     }
 
-    if (assetsToInclude.length === 0) {
-      return NextResponse.json({
-        error: 'No assets selected for email. Please select at least one floorplan to include.'
-      }, { status: 400 })
-    }
-
-    // Get client email
-    const clientEmail = testEmail || version.project.client?.email
+    // Generate email content
+    const emailSubject = `${version.project.name} - Floorplan Ready for Approval`
+    const clientEmail = version.project.client?.email || ''
     
     if (!clientEmail) {
       return NextResponse.json({
-        error: 'No client email available. Please add client email to project or provide test email.'
+        error: 'No client email available. Please add client email to project.'
       }, { status: 400 })
     }
 
-    // Use custom email content if provided, otherwise generate default template
-    let emailSubject: string
-    let emailHtml: string
-    
-    if (customSubject && customHtmlContent) {
-      // Use custom content
-      emailSubject = customSubject
-      emailHtml = customHtmlContent
-    } else {
-      // Generate default email content
-      emailSubject = `${version.project.name} - Floorplan Ready for Approval`
-      
-      emailHtml = generateFloorplanApprovalEmailHtml({
-        clientName: version.project.client?.name || 'Valued Client',
-        projectName: version.project.name,
-        versionName: version.version,
-        floorplanCount: assetsToInclude.length,
-        assets: assetsToInclude.map(a => ({
-          id: a.asset.id,
-          title: a.asset.title,
-          url: a.asset.url,
-          type: a.asset.type,
-          size: a.asset.size
-        })),
-        approvalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/floorplan-approval/${version.id}`,
-        companyName: process.env.COMPANY_NAME || 'Your Interior Design Studio'
-      })
-    }
-
-    // Generate tracking pixel ID
-    const trackingPixelId = `floorplan_${version.id}_${Date.now()}`
-    
-    // Replace tracking pixel placeholder in HTML
-    const finalEmailHtml = emailHtml.replace('{{TRACKING_PIXEL_ID}}', trackingPixelId)
-
-    // Send actual email using Resend service
-    const emailResult = await sendEmail({
-      to: clientEmail,
-      subject: emailSubject,
-      html: finalEmailHtml,
-      tags: ['floorplan-approval', testEmail ? 'test' : 'client']
+    // Generate HTML email content
+    const emailHtml = generateFloorplanApprovalEmailHtml({
+      clientName: version.project.client?.name || 'Valued Client',
+      projectName: version.project.name,
+      versionName: version.version,
+      floorplanCount: assetsToInclude.length,
+      assets: assetsToInclude.map(a => ({
+        id: a.asset.id,
+        title: a.asset.title,
+        url: a.asset.url,
+        type: a.asset.type,
+        size: a.asset.size
+      })),
+      approvalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/floorplan-approval/${version.id}`,
+      companyName: process.env.COMPANY_NAME || 'Your Interior Design Studio'
     })
 
-    if (emailResult.messageId) {
-      // Create email log
-      const emailLog = await prisma.floorplanApprovalEmailLog.create({
-        data: {
-          versionId: version.id,
-          to: clientEmail,
-          subject: emailSubject,
-          htmlContent: finalEmailHtml,
-          trackingPixelId: trackingPixelId,
-          sentAt: new Date()
-        }
-      })
-
-      // Update version status if not a test email
-      if (!testEmail) {
-        await prisma.floorplanApprovalVersion.update({
-          where: { id: version.id },
-          data: {
-            sentToClientAt: new Date(),
-            status: 'SENT_TO_CLIENT',
-            sentById: session.user.id
-          }
-        })
-
-        // Create activity log
-        await prisma.floorplanApprovalActivity.create({
-          data: {
-            versionId: version.id,
-            type: 'email_sent',
-            message: `Floorplan approval email sent to ${clientEmail}`,
-            userId: session.user.id,
-            metadata: JSON.stringify({
-              emailId: emailLog.id,
-              recipientEmail: clientEmail,
-              assetCount: assetsToInclude.length,
-              trackingPixelId
-            })
-          }
-        })
-      } else {
-        // Test email activity
-        await prisma.floorplanApprovalActivity.create({
-          data: {
-            versionId: version.id,
-            type: 'test_email_sent',
-            message: `Test floorplan approval email sent to ${clientEmail}`,
-            userId: session.user.id,
-            metadata: JSON.stringify({
-              emailId: emailLog.id,
-              testEmail: clientEmail,
-              assetCount: assetsToInclude.length
-            })
-          }
-        })
+    return NextResponse.json({
+      to: clientEmail,
+      subject: emailSubject,
+      htmlContent: emailHtml,
+      previewData: {
+        clientName: version.project.client?.name,
+        projectName: version.project.name,
+        versionName: version.version,
+        assetCount: assetsToInclude.length
       }
-
-      // Log to main activity log
-      await logActivity({
-        session,
-        action: ActivityActions.PROJECT_UPDATE,
-        entity: EntityTypes.PROJECT,
-        entityId: version.projectId,
-        details: {
-          action: testEmail ? 'floorplan_test_email_sent' : 'floorplan_email_sent',
-          versionId: version.id,
-          version: version.version,
-          projectName: version.project.name,
-          clientName: version.project.client?.name,
-          recipientEmail: clientEmail,
-          assetCount: assetsToInclude.length,
-          isTest: !!testEmail
-        },
-        ipAddress
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: testEmail 
-          ? `Test email sent successfully to ${clientEmail}`
-          : `Floorplan approval email sent successfully to ${clientEmail}`,
-        emailLog: {
-          id: emailLog.id,
-          to: emailLog.to,
-          subject: emailLog.subject,
-          sentAt: emailLog.sentAt,
-          trackingPixelId: emailLog.trackingPixelId
-        },
-        version: !testEmail ? {
-          status: 'SENT_TO_CLIENT',
-          sentToClientAt: new Date()
-        } : undefined
-      })
-
-    } else {
-      return NextResponse.json({
-        error: 'Failed to send email',
-        details: 'Email service error occurred'
-      }, { status: 500 })
-    }
+    })
 
   } catch (error) {
-    console.error('Error sending floorplan approval email:', error)
+    console.error('Error generating floorplan email preview:', error)
     return NextResponse.json({
-      error: 'Failed to send email',
+      error: 'Failed to generate email preview',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
 
-// Helper function to generate HTML email content
+// Helper function to generate HTML email content (copied from send-email route)
 function generateFloorplanApprovalEmailHtml(data: {
   clientName: string
   projectName: string
@@ -262,12 +129,6 @@ function generateFloorplanApprovalEmailHtml(data: {
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
-            <!-- <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/logo.png" 
-                 alt="Interior Design Studio" 
-                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
-                 draggable="false" 
-                 ondragstart="return false;" 
-                 oncontextmenu="return false;"/> -->
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Approval</h1>
             <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 16px; font-weight: 400;">${projectName}</p>
         </div>
@@ -343,36 +204,4 @@ function generateFloorplanApprovalEmailHtml(data: {
     </div>
 </body>
 </html>`
-}
-
-// Helper function to generate plain text email content
-function generateFloorplanApprovalEmailText(data: {
-  clientName: string
-  projectName: string
-  versionName: string
-  floorplanCount: number
-  approvalUrl: string
-}) {
-  const { clientName, projectName, versionName, floorplanCount, approvalUrl } = data
-
-  return `
-Dear ${clientName},
-
-This is the latest floor design for your project. We've included ${floorplanCount} floorplan document${floorplanCount !== 1 ? 's' : ''} for your review.
-
-Project Details:
-- Project: ${projectName}
-- Version: ${versionName}
-- Floorplans: ${floorplanCount} document${floorplanCount !== 1 ? 's' : ''} included
-
-Floorplan Information:
-These floorplan documents show the layout and design details for your project. Each PDF contains detailed information about room layouts, dimensions, and design elements.
-
-You can download and save these files for your records. The PDF files are attached to this email or can be accessed through our project portal.
-
-Questions about the design? Please reply to this email to discuss any aspects of the floorplans.
-
-Best regards,
-Your Interior Design Team
-`
 }

@@ -30,6 +30,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { PhaseChat } from '../../chat/PhaseChat'
 import Link from 'next/link'
+import EmailPreviewModal, { EmailPreviewData } from '@/components/modals/EmailPreviewModal'
 
 interface ClientApprovalWorkspaceProps {
   stage: any
@@ -111,6 +112,8 @@ export default function ClientApprovalWorkspace({
   const [showEmailDetails, setShowEmailDetails] = useState(false)
   const [activeTab, setActiveTab] = useState<'approval' | 'chat'>('approval')
   const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+  const [showEmailPreviewModal, setShowEmailPreviewModal] = useState(false)
+  const [emailPreviewData, setEmailPreviewData] = useState<EmailPreviewData | null>(null)
   // Fetcher function for SWR
   const fetcher = (url: string) => fetch(url).then(res => res.json())
 
@@ -313,98 +316,142 @@ export default function ClientApprovalWorkspace({
   const handleSendToClient = async () => {
     setLoading(true)
     try {
-      // Use the selected assets from state
+      // Fetch email preview first
       const selectedAssetIds = selectedAssets
-
-      const response = await fetch(`/api/client-approval/${stage.id}/send-to-client`, { 
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ selectedAssetIds })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        setCurrentVersion(data.version)
-        
-        // Fetch email analytics after sending
-        if (data.version?.id) {
-          fetchEmailAnalytics(data.version.id)
-        }
-        
-        // Refresh activity log
-        mutateActivity()
-        
-        alert('Email sent to client successfully!')
+      const previewResponse = await fetch(
+        `/api/client-approval/${stage.id}/email-preview?selectedAssetIds=${selectedAssetIds.join(',')}`
+      )
+      
+      if (previewResponse.ok) {
+        const previewData = await previewResponse.json()
+        setEmailPreviewData({
+          to: previewData.to,
+          subject: previewData.subject,
+          htmlContent: previewData.htmlContent
+        })
+        setShowEmailPreviewModal(true)
       } else {
-        const errorText = await response.text()
-        let error;
-        try {
-          error = JSON.parse(errorText)
-        } catch {
-          error = { error: errorText }
-        }
-        console.error('❌ SEND TO CLIENT - Failed with status:', response.status);
-        console.error('❌ SEND TO CLIENT - Error details:', error);
-        console.error('❌ SEND TO CLIENT - Raw response:', errorText);
-        alert(`Failed to send email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
+        const error = await previewResponse.json()
+        alert(`Failed to generate email preview: ${error.error}`)
       }
     } catch (error) {
-      console.error('💥 SEND TO CLIENT - Exception:', error)
-      alert('Failed to send email. Please try again.')
+      console.error('Failed to fetch email preview:', error)
+      alert('Failed to generate email preview. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleConfirmSendEmail = async (emailData: EmailPreviewData) => {
+    const selectedAssetIds = selectedAssets
+
+    const response = await fetch(`/api/client-approval/${stage.id}/send-to-client`, { 
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        selectedAssetIds,
+        customSubject: emailData.subject,
+        customHtmlContent: emailData.htmlContent
+      })
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      
+      setCurrentVersion(data.version)
+      
+      // Fetch email analytics after sending
+      if (data.version?.id) {
+        fetchEmailAnalytics(data.version.id)
+      }
+      
+      // Refresh activity log
+      mutateActivity()
+    } else {
+      const errorText = await response.text()
+      let error;
+      try {
+        error = JSON.parse(errorText)
+      } catch {
+        error = { error: errorText }
+      }
+      console.error('❌ SEND TO CLIENT - Failed with status:', response.status);
+      console.error('❌ SEND TO CLIENT - Error details:', error);
+      console.error('❌ SEND TO CLIENT - Raw response:', errorText);
+      throw new Error(`Failed to send email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
     }
   }
 
   const handleResendToClient = async () => {
     setLoading(true)
     try {
-      // Use the selected assets from state
+      // Fetch email preview first
       const selectedAssetIds = selectedAssets
-
-      const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ selectedAssetIds })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        setCurrentVersion(data.version)
-        
-        // Fetch email analytics after resending
-        if (data.version?.id) {
-          fetchEmailAnalytics(data.version.id)
-        }
-        
-        // Refresh activity log
-        mutateActivity()
-        
-        alert('Email resent to client successfully!')
+      const previewResponse = await fetch(
+        `/api/client-approval/${stage.id}/email-preview?selectedAssetIds=${selectedAssetIds.join(',')}`
+      )
+      
+      if (previewResponse.ok) {
+        const previewData = await previewResponse.json()
+        setEmailPreviewData({
+          to: previewData.to,
+          subject: previewData.subject,
+          htmlContent: previewData.htmlContent
+        })
+        setShowEmailPreviewModal(true)
       } else {
-        const errorText = await response.text()
-        let error;
-        try {
-          error = JSON.parse(errorText)
-        } catch {
-          error = { error: errorText }
-        }
-        console.error('❌ RESEND EMAIL - Failed with status:', response.status);
-        console.error('❌ RESEND EMAIL - Error details:', error);
-        console.error('❌ RESEND EMAIL - Raw response:', errorText);
-        alert(`Failed to resend email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
+        const error = await previewResponse.json()
+        alert(`Failed to generate email preview: ${error.error}`)
       }
     } catch (error) {
-      console.error('💥 RESEND EMAIL - Exception:', error)
-      alert('Failed to resend email. Please try again.')
+      console.error('Failed to fetch email preview:', error)
+      alert('Failed to generate email preview. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleConfirmResendEmail = async (emailData: EmailPreviewData) => {
+    const selectedAssetIds = selectedAssets
+
+    const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        selectedAssetIds,
+        customSubject: emailData.subject,
+        customHtmlContent: emailData.htmlContent
+      })
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      
+      setCurrentVersion(data.version)
+      
+      // Fetch email analytics after resending
+      if (data.version?.id) {
+        fetchEmailAnalytics(data.version.id)
+      }
+      
+      // Refresh activity log
+      mutateActivity()
+    } else {
+      const errorText = await response.text()
+      let error;
+      try {
+        error = JSON.parse(errorText)
+      } catch {
+        error = { error: errorText }
+      }
+      console.error('❌ RESEND EMAIL - Failed with status:', response.status);
+      console.error('❌ RESEND EMAIL - Error details:', error);
+      console.error('❌ RESEND EMAIL - Raw response:', errorText);
+      throw new Error(`Failed to resend email (${response.status}): ${error.error || error.message || 'Unknown error'}`)
     }
   }
 
@@ -1660,6 +1707,15 @@ export default function ClientApprovalWorkspace({
         </div>
       </div>
     )}
+
+    {/* Email Preview Modal */}
+    <EmailPreviewModal
+      open={showEmailPreviewModal}
+      onOpenChange={setShowEmailPreviewModal}
+      emailData={emailPreviewData}
+      onSend={handleConfirmSendEmail}
+      title="Review Email Before Sending"
+    />
     </>
   )
 }
