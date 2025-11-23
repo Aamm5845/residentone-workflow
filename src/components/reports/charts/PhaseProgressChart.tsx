@@ -1,0 +1,85 @@
+'use client'
+
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+
+interface PhaseData {
+  name: string
+  completed: number
+  inProgress: number
+  pending: number
+  total: number
+  percentage: number
+}
+
+interface Props {
+  phases: PhaseData[]
+}
+
+const COLORS = {
+  completed: '#10B981', // green
+  inProgress: '#3B82F6', // blue
+  pending: '#F59E0B', // orange
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-xl border border-gray-200">
+        <p className="font-semibold text-gray-900 mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm" style={{ color: entry.color }}>
+            {entry.name}: {entry.value}
+          </p>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
+export function PhaseProgressChart({ phases }: Props) {
+  const data = phases.map(phase => ({
+    name: phase.name,
+    Completed: phase.completed,
+    'In Progress': phase.inProgress,
+    Pending: phase.pending,
+  }))
+
+  return (
+    <div className="w-full h-[260px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
+        >
+          <defs>
+            <linearGradient id="completedGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#34D399" stopOpacity={1} />
+            </linearGradient>
+            <linearGradient id="inProgressGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#60A5FA" stopOpacity={1} />
+            </linearGradient>
+            <linearGradient id="pendingGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#FBBF24" stopOpacity={1} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <XAxis type="number" stroke="#6B7280" />
+          <YAxis dataKey="name" type="category" stroke="#6B7280" width={70} style={{ fontSize: '12px' }} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+          <Legend 
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="circle"
+          />
+          <Bar dataKey="Completed" stackId="a" fill="url(#completedGradient)" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="In Progress" stackId="a" fill="url(#inProgressGradient)" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="Pending" stackId="a" fill="url(#pendingGradient)" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
