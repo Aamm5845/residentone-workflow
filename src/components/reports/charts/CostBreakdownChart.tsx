@@ -20,11 +20,11 @@ const CustomTooltip = ({ active, payload }: any) => {
     return (
       <div className="bg-white p-4 rounded-lg shadow-xl border border-gray-200">
         <p className="font-semibold text-gray-900 mb-2">{data.room}</p>
-        <p className="text-2xl font-bold text-indigo-600 mb-1">
-          ${data.cost.toLocaleString()}
+        <p className="text-3xl font-bold text-indigo-600 mb-1">
+          {data.items}
         </p>
         <p className="text-sm text-gray-600">
-          {data.items} {data.items === 1 ? 'item' : 'items'}
+          {data.items === 1 ? 'item' : 'items'}
         </p>
       </div>
     )
@@ -33,8 +33,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 }
 
 export function CostBreakdownChart({ data }: Props) {
-  // Sort by cost descending
-  const sortedData = [...data].sort((a, b) => b.cost - a.cost)
+  // Sort by item count descending
+  const sortedData = [...data].sort((a, b) => b.items - a.items)
 
   return (
     <div className="w-full h-[320px]">
@@ -62,10 +62,10 @@ export function CostBreakdownChart({ data }: Props) {
           />
           <YAxis 
             stroke="#6B7280"
-            tickFormatter={(value) => `$${value.toLocaleString()}`}
+            allowDecimals={false}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-          <Bar dataKey="cost" radius={[8, 8, 0, 0]} maxBarSize={60}>
+          <Bar dataKey="items" radius={[8, 8, 0, 0]} maxBarSize={60}>
             {sortedData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={`url(#colorGradient${index % COLORS.length})`} />
             ))}
