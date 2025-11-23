@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { DollarSign, Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
+import { Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
 import { CostBreakdownChart } from '@/components/reports/charts/CostBreakdownChart'
 import { motion } from 'framer-motion'
 
@@ -58,7 +58,7 @@ interface Props {
   phases: Record<string, PhaseStats>
 }
 
-type SortField = 'name' | 'room' | 'status' | 'vendor' | 'cost'
+type SortField = 'name' | 'room' | 'status'
 type SortDirection = 'asc' | 'desc'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -119,12 +119,6 @@ export function FFEAnalyticsView({ phases }: Props) {
         case 'status':
           comparison = a.status.localeCompare(b.status)
           break
-        case 'vendor':
-          comparison = (a.vendor || '').localeCompare(b.vendor || '')
-          break
-        case 'cost':
-          comparison = (a.cost || 0) - (b.cost || 0)
-          break
       }
       
       return sortDirection === 'asc' ? comparison : -comparison
@@ -140,7 +134,6 @@ export function FFEAnalyticsView({ phases }: Props) {
       i.status === 'COMPLETED' || i.status === 'ORDERED' || i.status === 'DELIVERED'
     ).length
     const pendingItems = allFFEItems.filter(i => i.status === 'PENDING').length
-    const totalCost = allFFEItems.reduce((sum, item) => sum + (item.cost || 0), 0)
     
     // Group by room for item breakdown (completed vs pending)
     const itemsByRoom = allFFEItems.reduce((acc, item) => {
@@ -171,7 +164,6 @@ export function FFEAnalyticsView({ phases }: Props) {
       totalItems,
       completedItems,
       pendingItems,
-      totalCost,
       completionRate: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
       costBreakdownData
     }
@@ -278,21 +270,19 @@ export function FFEAnalyticsView({ phases }: Props) {
           transition={{ duration: 0.3, delay: 0.3 }}
           className="relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 opacity-5" />
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-5" />
           <div className="relative p-5">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">Total Budget</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  ${stats.totalCost.toLocaleString()}
-                </p>
+                <p className="text-sm font-medium text-gray-600 mb-1">Completed Items</p>
+                <p className="text-2xl font-bold text-green-600">{stats.completedItems}</p>
               </div>
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
-                <DollarSign className="w-6 h-6 text-white" />
+              <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-br from-blue-500 to-cyan-600" />
+          <div className="h-1 bg-gradient-to-br from-green-500 to-emerald-600" />
         </motion.div>
       </div>
 
@@ -366,24 +356,6 @@ export function FFEAnalyticsView({ phases }: Props) {
                     <SortIcon field="status" />
                   </div>
                 </th>
-                <th
-                  onClick={() => handleSort('vendor')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    Vendor
-                    <SortIcon field="vendor" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('cost')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    Cost
-                    <SortIcon field="cost" />
-                  </div>
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Notes
                 </th>
@@ -402,12 +374,6 @@ export function FFEAnalyticsView({ phases }: Props) {
                     <span className={`inline-flex px-3 py-1.5 text-xs font-semibold rounded-full ${STATUS_COLORS[item.status] || STATUS_COLORS.NOT_STARTED} shadow-sm`}>
                       {item.status.replace('_', ' ')}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {item.vendor || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
-                    {item.cost ? `$${item.cost.toLocaleString()}` : '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
                     {item.notes || '-'}
