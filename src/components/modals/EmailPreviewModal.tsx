@@ -368,7 +368,18 @@ export default function EmailPreviewModal({
               {editMode && (
                 <Button
                   variant="outline"
-                  onClick={() => setEditMode(false)}
+                  onClick={() => {
+                    // Update HTML with edited text before switching to preview
+                    if (!showAdvancedEdit) {
+                      const updatedHtml = updateHTMLWithEditedContent(
+                        editedData.htmlContent,
+                        editableGreeting,
+                        editableParagraphs
+                      )
+                      setEditedData({ ...editedData, htmlContent: updatedHtml })
+                    }
+                    setEditMode(false)
+                  }}
                   disabled={sending}
                 >
                   <Eye className="w-4 h-4 mr-2" />
