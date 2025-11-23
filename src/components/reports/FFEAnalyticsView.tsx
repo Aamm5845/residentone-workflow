@@ -142,20 +142,29 @@ export function FFEAnalyticsView({ phases }: Props) {
     const pendingItems = allFFEItems.filter(i => i.status === 'PENDING').length
     const totalCost = allFFEItems.reduce((sum, item) => sum + (item.cost || 0), 0)
     
-    // Group by room for cost breakdown
-    const costByRoom = allFFEItems.reduce((acc, item) => {
+    // Group by room for item breakdown (completed vs pending)
+    const itemsByRoom = allFFEItems.reduce((acc, item) => {
       if (!acc[item.roomName]) {
-        acc[item.roomName] = { cost: 0, items: 0 }
+        acc[item.roomName] = { completed: 0, pending: 0, total: 0 }
       }
-      acc[item.roomName].cost += item.cost || 0
-      acc[item.roomName].items += 1
+      
+      const isCompleted = item.status === 'COMPLETED' || item.status === 'ORDERED' || item.status === 'DELIVERED'
+      
+      if (isCompleted) {
+        acc[item.roomName].completed += 1
+      } else {
+        acc[item.roomName].pending += 1
+      }
+      acc[item.roomName].total += 1
+      
       return acc
-    }, {} as Record<string, { cost: number; items: number }>)
+    }, {} as Record<string, { completed: number; pending: number; total: number }>)
     
-    const costBreakdownData = Object.entries(costByRoom).map(([room, data]) => ({
+    const costBreakdownData = Object.entries(itemsByRoom).map(([room, data]) => ({
       room,
-      cost: data.cost,
-      items: data.items
+      completed: data.completed,
+      pending: data.pending,
+      items: data.total
     }))
     
     return {
