@@ -11,6 +11,7 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { autoUpdateProjectStatus } from '@/lib/utils/project-status-updater'
 
 export async function PATCH(
   request: NextRequest,
@@ -34,6 +35,11 @@ export async function PATCH(
         id: resolvedParams.roomId
       },
       include: {
+        project: {
+          select: {
+            id: true
+          }
+        },
         stages: {
           select: {
             id: true,
@@ -103,6 +109,11 @@ export async function PATCH(
         newStatus: update.status,
         success: true
       })
+    }
+    
+    // Auto-update project status after bulk updates
+    if (room.project?.id) {
+      await autoUpdateProjectStatus(room.project.id)
     }
     
     return NextResponse.json({

@@ -399,14 +399,6 @@ export default function FloorplanApprovalWorkspace({
     if (!currentVersion) return
 
     // Pre-flight validation
-    if (!currentVersion.approvedByAaron) {
-      toast.error('Version must be approved by Aaron before sending to client', {
-        duration: 5000,
-        position: 'top-right'
-      })
-      return
-    }
-
     if (selectedAssets.length === 0) {
       toast.error('Please select at least one file to include in the email', {
         duration: 5000,
@@ -425,10 +417,22 @@ export default function FloorplanApprovalWorkspace({
       
       if (previewResponse.ok) {
         const previewData = await previewResponse.json()
+        
+        // Build attachments list from current version assets
+        const attachments = currentVersion?.assets.map(asset => ({
+          id: asset.id,
+          title: asset.asset.title,
+          url: asset.asset.url,
+          type: asset.asset.type,
+          size: asset.asset.size,
+          selected: selectedAssetIds.includes(asset.id)
+        })) || []
+        
         setEmailPreviewData({
           to: previewData.to,
           subject: previewData.subject,
-          htmlContent: previewData.htmlContent
+          htmlContent: previewData.htmlContent,
+          attachments
         })
         setShowEmailPreviewModal(true)
       } else {
@@ -449,16 +453,14 @@ export default function FloorplanApprovalWorkspace({
     }
   }
 
-  const handleConfirmSendEmail = async (emailData: EmailPreviewData) => {
-    const selectedAssetIds = selectedAssets
-
+  const handleConfirmSendEmail = async (emailData: EmailPreviewData, selectedAttachmentIds: string[]) => {
     const response = await fetch(`/api/floorplan-approvals/${currentVersion!.id}/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        selectedAssetIds,
+        selectedAssetIds: selectedAttachmentIds,
         customSubject: emailData.subject,
         customHtmlContent: emailData.htmlContent
       })
@@ -468,6 +470,9 @@ export default function FloorplanApprovalWorkspace({
 
     if (response.ok) {
       setCurrentVersion(data.version)
+      
+      // Update selected assets to reflect what was sent
+      setSelectedAssets(selectedAttachmentIds)
 
       // Fetch email analytics after sending
       if (data.version?.id) {

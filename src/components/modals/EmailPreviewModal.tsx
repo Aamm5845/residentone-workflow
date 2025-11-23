@@ -5,59 +5,68 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Mail, CheckCircle, Edit2, Eye } from 'lucide-react'
+import { Loader2, Mail, CheckCircle, Edit2, Eye, Paperclip, X } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 
-// Helper function to extract editable text content from HTML
-function extractEditableContent(html: string): { greeting: string; mainParagraphs: string[] } {
+// Helper function to extract main body content from HTML (between greeting and footer)
+function extractEmailBody(html: string): { greeting: string; body: string; footer: string } {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
   
-  // Find all paragraphs in the main content
   const allParagraphs = Array.from(doc.querySelectorAll('p'))
   
   let greeting = ''
-  const mainParagraphs: string[] = []
+  let bodyParts: string[] = []
+  let footer = ''
   
   // Extract greeting (usually starts with "Dear")
   const greetingPara = allParagraphs.find(p => p.textContent?.trim().startsWith('Dear'))
   if (greetingPara) {
     greeting = greetingPara.textContent?.trim() || ''
-    
-    // Get index to find paragraphs after greeting
     const greetingIndex = allParagraphs.indexOf(greetingPara)
     
-    // Extract main content paragraphs (after greeting, before footer)
+    // Extract body paragraphs (after greeting, before footer)
     for (let i = greetingIndex + 1; i < allParagraphs.length; i++) {
       const text = allParagraphs[i].textContent?.trim()
-      // Skip empty paragraphs and footer text
-      if (text && 
-          !text.includes('Interior Design Studio') && 
-          !text.includes('Professional Interior Design Services') &&
-          text.length > 10) {
-        mainParagraphs.push(text)
+      if (text) {
+        // Footer detection
+        if (text.includes('Interior Design Studio') || 
+            text.includes('Professional Interior Design Services') ||
+            text.includes('Questions?')) {
+          // Collect remaining as footer
+          for (let j = i; j < allParagraphs.length; j++) {
+            const footerText = allParagraphs[j].textContent?.trim()
+            if (footerText) footer += footerText + '\n'
+          }
+          break
+        }
+        bodyParts.push(text)
       }
     }
   }
   
-  return { greeting, mainParagraphs }
+  return { 
+    greeting, 
+    body: bodyParts.join('\n\n'),
+    footer: footer.trim()
+  }
 }
 
-// Helper function to update HTML with edited text content
+// Helper function to update HTML with edited content
 function updateHTMLWithEditedContent(
   originalHTML: string, 
   greeting: string, 
-  mainParagraphs: string[]
+  body: string
 ): string {
   let updatedHTML = originalHTML
   
   // Replace greeting
   const greetingRegex = /(<p[^>]*>\s*)(Dear[^<]*)(<\/p>)/i
-  const greetingMatch = updatedHTML.match(greetingRegex)
-  if (greetingMatch) {
+  if (updatedHTML.match(greetingRegex)) {
     updatedHTML = updatedHTML.replace(greetingRegex, `$1${greeting}$3`)
   }
   
-  // Replace main paragraphs - find and replace each one
+  // Replace body paragraphs
   const parser = new DOMParser()
   const doc = parser.parseFromString(originalHTML, 'text/html')
   const allParagraphs = Array.from(doc.querySelectorAll('p'))
@@ -65,27 +74,45 @@ function updateHTMLWithEditedContent(
   const greetingPara = allParagraphs.find(p => p.textContent?.trim().startsWith('Dear'))
   if (greetingPara) {
     const greetingIndex = allParagraphs.indexOf(greetingPara)
-    let paraIndex = 0
     
-    for (let i = greetingIndex + 1; i < allParagraphs.length && paraIndex < mainParagraphs.length; i++) {
-      const originalText = allParagraphs[i].textContent?.trim()
-      if (originalText && 
-          !originalText.includes('Interior Design Studio') && 
-          !originalText.includes('Professional Interior Design Services') &&
-          originalText.length > 10) {
-        // Replace this paragraph's text
-        const paragraphHTML = allParagraphs[i].outerHTML
-        const newParagraphHTML = paragraphHTML.replace(
-          originalText,
-          mainParagraphs[paraIndex]
-        )
-        updatedHTML = updatedHTML.replace(paragraphHTML, newParagraphHTML)
-        paraIndex++
+    // Find body paragraphs
+    const bodyParagraphs: HTMLParagraphElement[] = []
+    for (let i = greetingIndex + 1; i < allParagraphs.length; i++) {
+      const text = allParagraphs[i].textContent?.trim()
+      if (text && !text.includes('Interior Design Studio') && 
+          !text.includes('Professional Interior Design Services') &&
+          !text.includes('Questions?')) {
+        bodyParagraphs.push(allParagraphs[i])
+      } else {
+        break
       }
     }
+    
+    // Split edited body into paragraphs and replace
+    const newBodyParagraphs = body.split('\n\n').filter(p => p.trim())
+    
+    // Replace existing body paragraphs
+    bodyParagraphs.forEach((para, index) => {
+      if (index < newBodyParagraphs.length) {
+        const newText = newBodyParagraphs[index]
+        const oldHTML = para.outerHTML
+        const oldText = para.textContent?.trim() || ''
+        const newHTML = oldHTML.replace(oldText, newText)
+        updatedHTML = updatedHTML.replace(oldHTML, newHTML)
+      }
+    })
   }
   
   return updatedHTML
+}
+
+export interface EmailAttachment {
+  id: string
+  title: string
+  url?: string
+  type?: string
+  size?: number
+  selected: boolean
 }
 
 export interface EmailPreviewData {
@@ -93,13 +120,14 @@ export interface EmailPreviewData {
   subject: string
   htmlContent: string
   textContent?: string
+  attachments?: EmailAttachment[]
 }
 
 interface EmailPreviewModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   emailData: EmailPreviewData | null
-  onSend: (emailData: EmailPreviewData) => Promise<void>
+  onSend: (emailData: EmailPreviewData, selectedAttachmentIds: string[]) => Promise<void>
   title?: string
   allowEditRecipient?: boolean
 }
@@ -120,7 +148,8 @@ export default function EmailPreviewModal({
   
   // Editable text fields
   const [editableGreeting, setEditableGreeting] = useState('')
-  const [editableParagraphs, setEditableParagraphs] = useState<string[]>([])
+  const [editableBody, setEditableBody] = useState('')
+  const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set())
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -132,9 +161,15 @@ export default function EmailPreviewModal({
       setShowAdvancedEdit(false)
       
       // Extract editable content
-      const { greeting, mainParagraphs } = extractEditableContent(emailData.htmlContent)
+      const { greeting, body } = extractEmailBody(emailData.htmlContent)
       setEditableGreeting(greeting)
-      setEditableParagraphs(mainParagraphs)
+      setEditableBody(body)
+      
+      // Initialize selected attachments
+      if (emailData.attachments) {
+        const selected = new Set(emailData.attachments.filter(a => a.selected).map(a => a.id))
+        setSelectedAttachments(selected)
+      }
     }
   }, [open, emailData])
 
@@ -150,14 +185,17 @@ export default function EmailPreviewModal({
         finalHtmlContent = updateHTMLWithEditedContent(
           editedData.htmlContent,
           editableGreeting,
-          editableParagraphs
+          editableBody
         )
       }
       
-      await onSend({
-        ...editedData,
-        htmlContent: finalHtmlContent
-      })
+      await onSend(
+        {
+          ...editedData,
+          htmlContent: finalHtmlContent
+        },
+        Array.from(selectedAttachments)
+      )
       setSent(true)
       // Auto close after 2 seconds
       setTimeout(() => {
@@ -239,6 +277,49 @@ export default function EmailPreviewModal({
                 </p>
               </div>
 
+              {/* Attachments Section */}
+              {editedData.attachments && editedData.attachments.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Paperclip className="w-4 h-4 inline mr-1" />
+                    Attachments ({selectedAttachments.size} selected)
+                  </label>
+                  <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {editedData.attachments.map((attachment) => (
+                      <div key={attachment.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
+                        <Checkbox
+                          checked={selectedAttachments.has(attachment.id)}
+                          onCheckedChange={(checked) => {
+                            const newSelected = new Set(selectedAttachments)
+                            if (checked) {
+                              newSelected.add(attachment.id)
+                            } else {
+                              newSelected.delete(attachment.id)
+                            }
+                            setSelectedAttachments(newSelected)
+                          }}
+                          id={`attachment-${attachment.id}`}
+                        />
+                        <label 
+                          htmlFor={`attachment-${attachment.id}`}
+                          className="flex-1 text-sm cursor-pointer"
+                        >
+                          <div className="font-medium text-gray-900">{attachment.title}</div>
+                          {attachment.type && (
+                            <div className="text-xs text-gray-500">
+                              {attachment.type} {attachment.size && `• ${Math.round(attachment.size / 1024 / 1024 * 100) / 100} MB`}
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select which files to include in the email
+                  </p>
+                </div>
+              )}
+
               {/* Email Content Editor */}
               {editMode ? (
                 <div className="space-y-4">
@@ -263,30 +344,21 @@ export default function EmailPreviewModal({
                           />
                         </div>
                         
-                        {/* Main Content Paragraphs */}
+                        {/* Main Body Content */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Email Message
                           </label>
-                          <div className="space-y-3">
-                            {editableParagraphs.map((paragraph, index) => (
-                              <div key={index}>
-                                <label className="block text-xs text-gray-500 mb-1">
-                                  Paragraph {index + 1}
-                                </label>
-                                <Textarea
-                                  value={paragraph}
-                                  onChange={(e) => {
-                                    const newParagraphs = [...editableParagraphs]
-                                    newParagraphs[index] = e.target.value
-                                    setEditableParagraphs(newParagraphs)
-                                  }}
-                                  className="min-h-[80px]"
-                                  rows={3}
-                                />
-                              </div>
-                            ))}
-                          </div>
+                          <Textarea
+                            value={editableBody}
+                            onChange={(e) => setEditableBody(e.target.value)}
+                            className="min-h-[200px]"
+                            placeholder="Enter email body text. Use double line breaks for new paragraphs."
+                            rows={8}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Separate paragraphs with double line breaks (Enter twice)
+                          </p>
                         </div>
                       </div>
                       
@@ -374,7 +446,7 @@ export default function EmailPreviewModal({
                       const updatedHtml = updateHTMLWithEditedContent(
                         editedData.htmlContent,
                         editableGreeting,
-                        editableParagraphs
+                        editableBody
                       )
                       setEditedData({ ...editedData, htmlContent: updatedHtml })
                     }

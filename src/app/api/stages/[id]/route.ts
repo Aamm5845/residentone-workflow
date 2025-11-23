@@ -18,6 +18,7 @@ import {
   type WorkflowEvent
 } from '@/lib/phase-transitions'
 import { phaseNotificationService } from '@/lib/notifications/phase-notification-service'
+import { autoUpdateProjectStatus } from '@/lib/utils/project-status-updater'
 
 export async function PATCH(
   request: NextRequest,
@@ -239,6 +240,11 @@ export async function PATCH(
       },
       ipAddress
     })
+    
+    // Auto-update project status based on phase progress
+    if (roomWithProject?.project?.id) {
+      await autoUpdateProjectStatus(roomWithProject.project.id)
+    }
     
     // Handle automatic phase transitions and notifications when stages are completed
     if (action === 'complete' && updatedStage.room) {

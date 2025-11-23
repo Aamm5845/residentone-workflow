@@ -316,7 +316,7 @@ export default function ClientApprovalWorkspace({
   const handleSendToClient = async () => {
     setLoading(true)
     try {
-      // Fetch email preview first
+      // Fetch email preview first (initially with all selected assets)
       const selectedAssetIds = selectedAssets
       const previewResponse = await fetch(
         `/api/client-approval/${stage.id}/email-preview?selectedAssetIds=${selectedAssetIds.join(',')}`
@@ -324,10 +324,22 @@ export default function ClientApprovalWorkspace({
       
       if (previewResponse.ok) {
         const previewData = await previewResponse.json()
+        
+        // Build attachments list from current version assets
+        const attachments = currentVersion?.assets.map(asset => ({
+          id: asset.id,
+          title: asset.asset.title,
+          url: asset.asset.url,
+          type: asset.asset.type,
+          size: 0, // Size not available in current data
+          selected: selectedAssetIds.includes(asset.id)
+        })) || []
+        
         setEmailPreviewData({
           to: previewData.to,
           subject: previewData.subject,
-          htmlContent: previewData.htmlContent
+          htmlContent: previewData.htmlContent,
+          attachments
         })
         setShowEmailPreviewModal(true)
       } else {
@@ -342,16 +354,14 @@ export default function ClientApprovalWorkspace({
     }
   }
 
-  const handleConfirmSendEmail = async (emailData: EmailPreviewData) => {
-    const selectedAssetIds = selectedAssets
-
+  const handleConfirmSendEmail = async (emailData: EmailPreviewData, selectedAttachmentIds: string[]) => {
     const response = await fetch(`/api/client-approval/${stage.id}/send-to-client`, { 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        selectedAssetIds,
+        selectedAssetIds: selectedAttachmentIds,
         customSubject: emailData.subject,
         customHtmlContent: emailData.htmlContent
       })
@@ -361,6 +371,9 @@ export default function ClientApprovalWorkspace({
       const data = await response.json()
       
       setCurrentVersion(data.version)
+      
+      // Update selected assets to reflect what was sent
+      setSelectedAssets(selectedAttachmentIds)
       
       // Fetch email analytics after sending
       if (data.version?.id) {
@@ -395,10 +408,22 @@ export default function ClientApprovalWorkspace({
       
       if (previewResponse.ok) {
         const previewData = await previewResponse.json()
+        
+        // Build attachments list from current version assets
+        const attachments = currentVersion?.assets.map(asset => ({
+          id: asset.id,
+          title: asset.asset.title,
+          url: asset.asset.url,
+          type: asset.asset.type,
+          size: 0,
+          selected: selectedAssetIds.includes(asset.id)
+        })) || []
+        
         setEmailPreviewData({
           to: previewData.to,
           subject: previewData.subject,
-          htmlContent: previewData.htmlContent
+          htmlContent: previewData.htmlContent,
+          attachments
         })
         setShowEmailPreviewModal(true)
       } else {
@@ -413,16 +438,14 @@ export default function ClientApprovalWorkspace({
     }
   }
 
-  const handleConfirmResendEmail = async (emailData: EmailPreviewData) => {
-    const selectedAssetIds = selectedAssets
-
+  const handleConfirmResendEmail = async (emailData: EmailPreviewData, selectedAttachmentIds: string[]) => {
     const response = await fetch(`/api/client-approval/${stage.id}/resend-to-client`, { 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        selectedAssetIds,
+        selectedAssetIds: selectedAttachmentIds,
         customSubject: emailData.subject,
         customHtmlContent: emailData.htmlContent
       })
@@ -432,6 +455,9 @@ export default function ClientApprovalWorkspace({
       const data = await response.json()
       
       setCurrentVersion(data.version)
+      
+      // Update selected assets
+      setSelectedAssets(selectedAttachmentIds)
       
       // Fetch email analytics after resending
       if (data.version?.id) {

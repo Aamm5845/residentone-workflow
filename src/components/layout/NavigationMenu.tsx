@@ -10,7 +10,8 @@ import {
   FolderOpen, 
   Users, 
   Inbox,
-  Activity
+  Activity,
+  BarChart3
 } from 'lucide-react'
 
 interface NavigationMenuProps {
@@ -61,6 +62,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const messagesNavigation = [
     { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount },
     { name: 'Activities', href: '/activities', icon: Activity, color: 'text-indigo-600', badgeCount: unreadActivitiesCount },
+    { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
   ]
 
   const isActive = (href: string) => pathname.startsWith(href)
