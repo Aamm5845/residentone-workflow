@@ -170,7 +170,7 @@ export function RoomBreakdownView({ phases, filters }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {tasksByRoom.map(room => {
         const stats = getRoomStats(room.tasks)
         const completionPercentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
@@ -184,92 +184,80 @@ export function RoomBreakdownView({ phases, filters }: Props) {
             className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden"
           >
             {/* Room Header */}
-            <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const RoomIcon = getRoomIcon(room.roomType)
-                    return <RoomIcon className="w-5 h-5 text-indigo-600" />
-                  })()}
-                  <h3 className="font-bold text-gray-900">{room.roomName}</h3>
-                </div>
+            <div className="p-3">
+              <div className="flex items-center gap-2 mb-3">
+                {(() => {
+                  const RoomIcon = getRoomIcon(room.roomType)
+                  return <RoomIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                })()}
+                <h3 className="font-semibold text-sm text-gray-900 truncate">{room.roomName}</h3>
+              </div>
+              
+              {/* Progress Ring - Center */}
+              <div className="flex justify-center mb-3">
                 <ProgressRing 
                   percentage={completionPercentage}
-                  size={50}
-                  strokeWidth={4}
+                  size={70}
+                  strokeWidth={5}
                   color="auto"
-                  showLabel={false}
+                  showLabel={true}
                 />
               </div>
               
-              {/* Stats Row */}
-              <div className="flex items-center justify-between text-xs">
+              {/* Stats Row - Compact */}
+              <div className="flex items-center justify-center gap-3 text-xs">
                 <div className="flex items-center gap-1 text-green-700">
-                  <CheckCircle className="w-3.5 h-3.5" />
+                  <CheckCircle className="w-3 h-3" />
                   <span className="font-semibold">{stats.completed}</span>
                 </div>
                 <div className="flex items-center gap-1 text-blue-700">
-                  <Clock className="w-3.5 h-3.5" />
+                  <Clock className="w-3 h-3" />
                   <span className="font-semibold">{stats.inProgress}</span>
                 </div>
                 <div className="flex items-center gap-1 text-orange-700">
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <AlertCircle className="w-3 h-3" />
                   <span className="font-semibold">{stats.pending}</span>
                 </div>
-                <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{completionPercentage}%</span>
               </div>
             </div>
 
-            {/* Phase Status Grid */}
-            <div className="p-4 space-y-2">
-              {['DESIGN_CONCEPT', 'THREE_D', 'DRAWINGS', 'FFE'].map(phaseKey => {
-                const config = PHASE_CONFIG[phaseKey]
-                const phaseStatus = getPhaseStatus(room.tasks, phaseKey)
-                
-                if (!phaseStatus) return null
-                
-                const PhaseIcon = config.icon
-                
-                return (
-                  <div key={phaseKey} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className={`p-1.5 ${config.bgColor} rounded`}>
-                        <PhaseIcon className={`w-4 h-4 ${config.color}`} />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">{config.shortLabel}</span>
+            {/* Phase Icons - Compact Grid */}
+            <div className="px-3 pb-3">
+              <div className="grid grid-cols-4 gap-1.5">
+                {['DESIGN_CONCEPT', 'THREE_D', 'DRAWINGS', 'FFE'].map(phaseKey => {
+                  const config = PHASE_CONFIG[phaseKey]
+                  const phaseStatus = getPhaseStatus(room.tasks, phaseKey)
+                  
+                  if (!phaseStatus) return (
+                    <div key={phaseKey} className="aspect-square rounded bg-gray-100 flex items-center justify-center opacity-30">
+                      <config.icon className="w-3 h-3 text-gray-400" />
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {phaseStatus.completed > 0 && (
-                        <div className="flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-green-600" />
-                          <span className="text-xs font-semibold text-green-700">{phaseStatus.completed}</span>
+                  )
+                  
+                  const PhaseIcon = config.icon
+                  const isComplete = phaseStatus.percentage === 100
+                  const isInProgress = phaseStatus.inProgress > 0
+                  
+                  return (
+                    <div 
+                      key={phaseKey} 
+                      className={`aspect-square rounded flex items-center justify-center relative ${
+                        isComplete ? 'bg-green-100' : isInProgress ? 'bg-blue-100' : 'bg-orange-100'
+                      }`}
+                      title={`${config.label}: ${phaseStatus.percentage}%`}
+                    >
+                      <PhaseIcon className={`w-3.5 h-3.5 ${
+                        isComplete ? 'text-green-700' : isInProgress ? 'text-blue-700' : 'text-orange-700'
+                      }`} />
+                      {isComplete && (
+                        <div className="absolute -top-0.5 -right-0.5 bg-green-600 rounded-full p-0.5">
+                          <CheckCircle className="w-2 h-2 text-white" />
                         </div>
                       )}
-                      {phaseStatus.inProgress > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-blue-600" />
-                          <span className="text-xs font-semibold text-blue-700">{phaseStatus.inProgress}</span>
-                        </div>
-                      )}
-                      {phaseStatus.pending > 0 && (
-                        <div className="flex items-center gap-1">
-                          <XCircle className="w-3.5 h-3.5 text-orange-600" />
-                          <span className="text-xs font-semibold text-orange-700">{phaseStatus.pending}</span>
-                        </div>
-                      )}
-                      
-                      {/* Progress indicator */}
-                      <div className="w-12 bg-gray-200 rounded-full h-1.5 ml-2">
-                        <div 
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${phaseStatus.percentage}%` }}
-                        />
-                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </motion.div>
         )
