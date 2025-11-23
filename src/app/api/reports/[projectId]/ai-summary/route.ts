@@ -67,10 +67,10 @@ export async function GET(
                   }
                 },
                 clientApprovalVersions: {
-                  where: {
-                    status: 'PENDING_APPROVAL'
-                  },
-                  take: 1
+                  take: 1,
+                  orderBy: {
+                    createdAt: 'desc'
+                  }
                 }
               }
             }
