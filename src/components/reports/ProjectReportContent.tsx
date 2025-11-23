@@ -255,15 +255,23 @@ export function ProjectReportContent({ projectId }: Props) {
                         let percentage = phase.percentage
                         
                         // Special handling for FFE
+                        let inProgress = phase.inProgress
+                        let pending = phase.pending
+                        
                         if (key === 'FFE') {
                           const allItems = phase.tasks.flatMap((t: any) => t.ffeItems || [])
                           const completedItems = allItems.filter((i: any) => 
                             i.status === 'COMPLETED' || i.status === 'ORDERED' || i.status === 'DELIVERED'
                           ).length
+                          const pendingItems = allItems.filter((i: any) => 
+                            i.status === 'PENDING' || i.status === 'UNDECIDED' || i.status === 'NOT_STARTED'
+                          ).length
                           const totalItems = allItems.length
                           
                           if (totalItems > 0) {
                             completed = completedItems
+                            inProgress = 0 // FFE items don't have "in progress" status
+                            pending = pendingItems
                             total = totalItems
                             percentage = Math.round((completedItems / totalItems) * 100)
                           }
@@ -272,8 +280,8 @@ export function ProjectReportContent({ projectId }: Props) {
                         return {
                           name: phaseLabels[key],
                           completed,
-                          inProgress: phase.inProgress,
-                          pending: phase.pending,
+                          inProgress,
+                          pending,
                           total,
                           percentage
                         }
