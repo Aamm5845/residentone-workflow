@@ -589,4 +589,4 @@ export async function logUserActivity(
 }
 
 // Re-export attribution helpers for convenience
-export { ActivityActions, EntityTypes, logActivity } from './attribution'
+export { ActivityActions, EntityTypes, logActivity, getIPAddress, getUserAgent } from './attribution'
