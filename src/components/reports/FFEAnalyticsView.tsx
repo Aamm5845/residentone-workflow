@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { DollarSign, Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3 } from 'lucide-react'
+import { DollarSign, Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
 import { CostBreakdownChart } from '@/components/reports/charts/CostBreakdownChart'
 import { motion } from 'framer-motion'
 
@@ -20,6 +20,34 @@ interface TaskDetail {
   roomName: string
   roomType: string
   ffeItems?: FFEItem[]
+}
+
+const ROOM_ICONS: Record<string, any> = {
+  ENTRANCE: DoorOpen,
+  FOYER: Home,
+  STAIRCASE: Navigation,
+  LIVING_ROOM: Home,
+  DINING_ROOM: Home,
+  KITCHEN: Home,
+  STUDY_ROOM: Settings,
+  OFFICE: Settings,
+  PLAYROOM: Gamepad2,
+  MASTER_BEDROOM: Bed,
+  GIRLS_ROOM: Bed,
+  BOYS_ROOM: Bed,
+  GUEST_BEDROOM: Bed,
+  POWDER_ROOM: Bath,
+  MASTER_BATHROOM: Bath,
+  FAMILY_BATHROOM: Bath,
+  GIRLS_BATHROOM: Bath,
+  BOYS_BATHROOM: Bath,
+  GUEST_BATHROOM: Bath,
+  LAUNDRY_ROOM: Settings,
+  SUKKAH: Home,
+}
+
+const getRoomIcon = (roomType: string) => {
+  return ROOM_ICONS[roomType] || Home
 }
 
 interface PhaseStats {
@@ -185,8 +213,8 @@ export function FFEAnalyticsView({ phases }: Props) {
                 <p className="text-sm font-medium text-gray-600 mb-1">Total Items</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalItems}</p>
               </div>
-              <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 bg-opacity-10 rounded-lg">
-                <Package className="w-6 h-6 text-indigo-600" />
+              <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
@@ -206,8 +234,8 @@ export function FFEAnalyticsView({ phases }: Props) {
                 <p className="text-sm font-medium text-gray-600 mb-1">Completion Rate</p>
                 <p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p>
               </div>
-              <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 bg-opacity-10 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-green-600" />
+              <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
@@ -227,8 +255,8 @@ export function FFEAnalyticsView({ phases }: Props) {
                 <p className="text-sm font-medium text-gray-600 mb-1">Pending Items</p>
                 <p className="text-2xl font-bold text-orange-600">{stats.pendingItems}</p>
               </div>
-              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-600 bg-opacity-10 rounded-lg">
-                <Package className="w-6 h-6 text-orange-600" />
+              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
@@ -250,8 +278,8 @@ export function FFEAnalyticsView({ phases }: Props) {
                   ${stats.totalCost.toLocaleString()}
                 </p>
               </div>
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-cyan-600 bg-opacity-10 rounded-lg">
-                <DollarSign className="w-6 h-6 text-blue-600" />
+              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
+                <DollarSign className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
@@ -259,11 +287,11 @@ export function FFEAnalyticsView({ phases }: Props) {
         </motion.div>
       </div>
 
-      {/* Cost Breakdown Chart */}
+      {/* Items per Room Chart */}
       {stats.costBreakdownData.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900">Cost Breakdown by Room</h3>
+            <h3 className="text-xl font-bold text-gray-900">Items per Room</h3>
             <BarChart3 className="w-5 h-5 text-indigo-600" />
           </div>
           <CostBreakdownChart data={stats.costBreakdownData} />

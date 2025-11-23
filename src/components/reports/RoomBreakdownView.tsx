@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { CheckCircle, Clock, AlertCircle, XCircle, Home, Palette, FileImage, FileText, Sofa } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, XCircle, Home, Palette, FileImage, FileText, Sofa, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings } from 'lucide-react'
 import { ProgressRing } from '@/components/reports/ui/ProgressRing'
 import { motion } from 'framer-motion'
 
@@ -14,6 +14,34 @@ interface TaskDetail {
   stageType: string
   status: string
   updatedAt: string
+}
+
+const ROOM_ICONS: Record<string, any> = {
+  ENTRANCE: DoorOpen,
+  FOYER: Home,
+  STAIRCASE: Navigation,
+  LIVING_ROOM: Home,
+  DINING_ROOM: Home,
+  KITCHEN: Home,
+  STUDY_ROOM: Settings,
+  OFFICE: Settings,
+  PLAYROOM: Gamepad2,
+  MASTER_BEDROOM: Bed,
+  GIRLS_ROOM: Bed,
+  BOYS_ROOM: Bed,
+  GUEST_BEDROOM: Bed,
+  POWDER_ROOM: Bath,
+  MASTER_BATHROOM: Bath,
+  FAMILY_BATHROOM: Bath,
+  GIRLS_BATHROOM: Bath,
+  BOYS_BATHROOM: Bath,
+  GUEST_BATHROOM: Bath,
+  LAUNDRY_ROOM: Settings,
+  SUKKAH: Home,
+}
+
+const getRoomIcon = (roomType: string) => {
+  return ROOM_ICONS[roomType] || Home
 }
 
 interface PhaseStats {
@@ -81,6 +109,7 @@ export function RoomBreakdownView({ phases, filters }: Props) {
     const grouped: Record<string, { 
       roomId: string
       roomName: string
+      roomType: string
       tasks: Array<TaskDetail & { phaseKey: string }>
     }> = {}
 
@@ -92,6 +121,7 @@ export function RoomBreakdownView({ phases, filters }: Props) {
           grouped[task.roomId] = {
             roomId: task.roomId,
             roomName: task.roomName,
+            roomType: task.roomType,
             tasks: []
           }
         }
@@ -157,7 +187,10 @@ export function RoomBreakdownView({ phases, filters }: Props) {
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Home className="w-5 h-5 text-gray-400" />
+                  {(() => {
+                    const RoomIcon = getRoomIcon(room.roomType)
+                    return <RoomIcon className="w-5 h-5 text-indigo-600" />
+                  })()}
                   <h3 className="font-bold text-gray-900">{room.roomName}</h3>
                 </div>
                 <ProgressRing 
@@ -183,7 +216,7 @@ export function RoomBreakdownView({ phases, filters }: Props) {
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span className="font-semibold">{stats.pending}</span>
                 </div>
-                <span className="text-gray-500 font-medium">{completionPercentage}%</span>
+                <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{completionPercentage}%</span>
               </div>
             </div>
 
