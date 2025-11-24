@@ -1518,6 +1518,55 @@ export default function FloorplanApprovalWorkspace({
                 </div>
               )}
 
+              {/* Recent Activity Log */}
+              {currentVersion && currentVersion.activityLogs && currentVersion.activityLogs.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-4">Recent Activity</h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {currentVersion.activityLogs.slice(0, 8).map((log) => (
+                      <div key={log.id} className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {log.user ? (
+                            <User className="w-4 h-4 text-gray-600" />
+                          ) : (
+                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            {log.user && (
+                              <span className="text-xs font-medium text-gray-900">{log.user.name}</span>
+                            )}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                              {log.type.split('_').join(' ').toLowerCase()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-900 mb-1">{log.message}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(log.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {currentVersion.activityLogs.length > 8 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                      <button
+                        onClick={() => setActiveTab('activity')}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        View All Activity ({currentVersion.activityLogs.length} total)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Revision Notes Input */}
               {currentVersion && showRevisionNotes && (
                 <div className="bg-white rounded-lg border border-gray-200 p-4">

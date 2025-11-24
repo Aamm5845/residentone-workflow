@@ -310,9 +310,9 @@ function generateFloorplanApprovalEmailHtml(data: {
             </div>
             ` : ''}
 
-            <!-- Approval buttons removed - now just an informational email -->
+            <!-- Download Instructions -->
             <div style="text-align: center; margin: 32px 0;">
-                <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">Please review the floorplan documents above. You can download each PDF by clicking the download button next to each file.</p>
+                <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">Please download the floorplan documents above by clicking the download button next to each file.</p>
             </div>
 
             <!-- Information Section -->
