@@ -39,7 +39,7 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get all floorplan approval versions for this project
+    // Get all versions but optimize what we fetch
     const versions = await prisma.floorplanApprovalVersion.findMany({
       where: {
         projectId: resolvedParams.id
@@ -47,17 +47,7 @@ export async function GET(
       include: {
         assets: {
           include: {
-            asset: {
-              include: {
-                uploadedByUser: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true
-                  }
-                }
-              }
-            }
+            asset: true // Removed uploadedByUser - not needed in UI
           },
           orderBy: [
             { displayOrder: 'asc' },
@@ -76,12 +66,17 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           },
-          take: 10 // Latest 10 activities per version
+          take: 15 // Limit activities per version - UI shows max 8 in sidebar
         },
         emailLogs: {
+          select: {
+            id: true,
+            sentAt: true // Only need these fields for count
+          },
           orderBy: {
             sentAt: 'desc'
-          }
+          },
+          take: 5 // Only need count anyway
         },
         aaronApprovedBy: {
           select: {
@@ -98,7 +93,8 @@ export async function GET(
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      take: 5 // Only fetch last 5 versions - rarely need more
     })
 
     const mappedVersions = versions.map(v => ({
