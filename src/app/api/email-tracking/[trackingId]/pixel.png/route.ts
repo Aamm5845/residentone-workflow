@@ -9,51 +9,105 @@ export async function GET(
   try {
     const { trackingId } = await params
 
-    // Find and update the email log
-    const emailLog = await prisma.clientApprovalEmailLog.findFirst({
-      where: {
-        trackingPixelId: trackingId
-      }
-    })
+    // Check if it's a floorplan approval email (trackingId starts with 'floorplan_')
+    const isFloorplanEmail = trackingId.startsWith('floorplan_')
 
-    if (emailLog && !emailLog.openedAt) {
-      // Update email as opened and update the version status if needed
-      await prisma.$transaction(async (tx) => {
-        // Update email log
-        await tx.clientApprovalEmailLog.update({
-          where: {
-            id: emailLog.id
-          },
-          data: {
-            openedAt: new Date()
-          }
-        })
-
-        // Update version status and add activity log
-        const version = await tx.clientApprovalVersion.findUnique({
-          where: {
-            id: emailLog.versionId
-          }
-        })
-
-        if (version && version.status === 'SENT_TO_CLIENT') {
-          await tx.clientApprovalVersion.update({
-            where: {
-              id: version.id
-            },
-            data: {
-              emailOpenedAt: new Date(),
-              status: 'CLIENT_REVIEWING',
-              activityLogs: {
-                create: {
-                  type: 'email_opened',
-                  message: 'Client opened email'
-                }
-              }
-            }
-          })
+    if (isFloorplanEmail) {
+      // Handle floorplan approval email tracking
+      const emailLog = await prisma.floorplanApprovalEmailLog.findFirst({
+        where: {
+          trackingPixelId: trackingId
         }
       })
+
+      if (emailLog && !emailLog.openedAt) {
+        await prisma.$transaction(async (tx) => {
+          // Update email log
+          await tx.floorplanApprovalEmailLog.update({
+            where: {
+              id: emailLog.id
+            },
+            data: {
+              openedAt: new Date()
+            }
+          })
+
+          // Update version status and add activity log
+          const version = await tx.floorplanApprovalVersion.findUnique({
+            where: {
+              id: emailLog.versionId
+            }
+          })
+
+          if (version && version.status === 'SENT_TO_CLIENT' && !version.emailOpenedAt) {
+            await tx.floorplanApprovalVersion.update({
+              where: {
+                id: version.id
+              },
+              data: {
+                emailOpenedAt: new Date(),
+                status: 'CLIENT_REVIEWING'
+              }
+            })
+
+            // Create activity log
+            await tx.floorplanApprovalActivity.create({
+              data: {
+                versionId: version.id,
+                type: 'email_opened',
+                message: 'Client opened floorplan approval email'
+              }
+            })
+          }
+        })
+      }
+    } else {
+      // Handle client approval email tracking (existing code)
+      const emailLog = await prisma.clientApprovalEmailLog.findFirst({
+        where: {
+          trackingPixelId: trackingId
+        }
+      })
+
+      if (emailLog && !emailLog.openedAt) {
+        // Update email as opened and update the version status if needed
+        await prisma.$transaction(async (tx) => {
+          // Update email log
+          await tx.clientApprovalEmailLog.update({
+            where: {
+              id: emailLog.id
+            },
+            data: {
+              openedAt: new Date()
+            }
+          })
+
+          // Update version status and add activity log
+          const version = await tx.clientApprovalVersion.findUnique({
+            where: {
+              id: emailLog.versionId
+            }
+          })
+
+          if (version && version.status === 'SENT_TO_CLIENT') {
+            await tx.clientApprovalVersion.update({
+              where: {
+                id: version.id
+              },
+              data: {
+                emailOpenedAt: new Date(),
+                status: 'CLIENT_REVIEWING',
+                activityLogs: {
+                  create: {
+                    type: 'email_opened',
+                    message: 'Client opened email'
+                  }
+                }
+              }
+            })
+          }
+        })
+      }
     }
 
     // Return a 1x1 transparent PNG

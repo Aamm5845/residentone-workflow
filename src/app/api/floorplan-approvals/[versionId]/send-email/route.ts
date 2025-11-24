@@ -112,18 +112,46 @@ export async function POST(
       })
     }
 
-    // Generate tracking pixel ID
+    // Generate tracking pixel ID and URL
     const trackingPixelId = `floorplan_${version.id}_${Date.now()}`
+    const trackingPixelUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email-tracking/${trackingPixelId}/pixel.png`
     
-    // Replace tracking pixel placeholder in HTML
-    const finalEmailHtml = emailHtml.replace('{{TRACKING_PIXEL_ID}}', trackingPixelId)
+    // Replace tracking pixel placeholder in HTML with actual tracking URL
+    const finalEmailHtml = emailHtml.replace(
+      'src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"',
+      `src="${trackingPixelUrl}"`
+    )
 
-    // Send actual email using Resend service
+    // Fetch PDF files and prepare as base64 attachments
+    const attachments = []
+    for (const assetItem of assetsToInclude) {
+      if (assetItem.asset.type === 'FLOORPLAN_PDF' && assetItem.asset.url) {
+        try {
+          // Fetch the PDF from the URL
+          const response = await fetch(assetItem.asset.url)
+          if (response.ok) {
+            const buffer = await response.arrayBuffer()
+            const base64Content = Buffer.from(buffer).toString('base64')
+            
+            attachments.push({
+              filename: assetItem.asset.title.endsWith('.pdf') ? assetItem.asset.title : `${assetItem.asset.title}.pdf`,
+              content: base64Content
+            })
+          }
+        } catch (error) {
+          console.error(`Failed to fetch PDF for attachment: ${assetItem.asset.title}`, error)
+          // Continue with other attachments even if one fails
+        }
+      }
+    }
+
+    // Send actual email using Resend service with attachments
     const emailResult = await sendEmail({
       to: clientEmail,
       subject: emailSubject,
       html: finalEmailHtml,
-      tags: ['floorplan-approval', testEmail ? 'test' : 'client']
+      tags: ['floorplan-approval', testEmail ? 'test' : 'client'],
+      attachments: attachments.length > 0 ? attachments : undefined
     })
 
     if (emailResult.messageId) {
