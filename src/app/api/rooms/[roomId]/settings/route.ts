@@ -45,14 +45,15 @@ export async function PATCH(
       }
     })
 
-    // If dueDate is set, update all phase due dates
-    if (dueDate && room.stages.length > 0) {
+    // Update all phase dates to match room dates
+    if (room.stages.length > 0) {
       await Promise.all(
         room.stages.map(stage =>
           prisma.stage.update({
             where: { id: stage.id },
             data: {
-              dueDate: new Date(dueDate),
+              startDate: startDate ? new Date(startDate) : null,
+              dueDate: dueDate ? new Date(dueDate) : null,
               updatedAt: new Date()
             }
           })
