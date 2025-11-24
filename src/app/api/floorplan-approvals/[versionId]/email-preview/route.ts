@@ -153,18 +153,22 @@ function generateFloorplanApprovalEmailHtml(data: {
                 <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.7;">All floorplan documents are attached to this email. You can open them directly from your email attachments.</p>
             </div>
 
-            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Questions? Just reply to this email or give us a call.</p>
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Please review the attached floorplans and let us know if you have any questions.</p>
         </div>
         
         <!-- Footer -->
         <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Interior Design Studio</div>
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors</div>
             
             <div style="margin-bottom: 12px;">
-                <span style="color: #64748b; font-size: 13px;">Professional Interior Design Services</span>
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
             </div>
             
-            <p style="margin: 0; color: #94a3b8; font-size: 11px;">Questions? Please reply to this email to discuss any changes or concerns.</p>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
             
             <!-- Tracking Pixel -->
             <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="1" height="1" style="display:none;" alt="" />

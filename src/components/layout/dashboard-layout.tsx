@@ -36,8 +36,14 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, session }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [issueModalOpen, setIssueModalOpen] = useState(false)
   const pathname = usePathname()
+
+  // Close mobile menu when route changes
+  const handleNavClick = () => {
+    setMobileMenuOpen(false)
+  }
 
 
   const workNavigation = {
@@ -63,16 +69,26 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
       <div className="min-h-screen bg-gray-50">
         {/* Asana-style Header */}
         <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
-          <div className="flex items-center justify-between px-6 py-3">
-            {/* Left: Logo and Search */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3">
+            {/* Left: Mobile Menu + Logo */}
+            <div className="flex items-center space-x-3 md:space-x-6">
+              {/* Mobile Hamburger Menu */}
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden touch-target"
+                aria-label="Open menu"
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
+              <Link href="/dashboard" className="flex items-center space-x-2 md:space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <Building className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-gray-900">StudioFlow</span>
-                <span className="text-xs text-gray-500 ml-2">by Meisner Interiors</span>
-              </div>
+                <span className="text-lg md:text-xl font-bold text-gray-900">StudioFlow</span>
+                <span className="hidden lg:inline-block text-xs text-gray-500">by Meisner Interiors</span>
+              </Link>
               
               {/* Global Search */}
               <div className="hidden md:block">
@@ -81,34 +97,38 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
             </div>
 
             {/* Right: Actions and Profile */}
-            <div className="flex items-center space-x-4">
-              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
-                <Link href="/projects/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Project
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* New Project Button - Icon only on mobile */}
+              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white touch-target">
+                <Link href="/projects/new" className="flex items-center">
+                  <Plus className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">New Project</span>
                 </Link>
               </Button>
               
+              {/* Report Issue - Hide on small mobile */}
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => setIssueModalOpen(true)}
-                className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+                className="hidden sm:flex border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 touch-target"
               >
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Report Issue
+                <AlertCircle className="w-4 h-4 sm:mr-2" />
+                <span className="hidden lg:inline">Report Issue</span>
               </Button>
               
               <IssueNotification />
               <NotificationBell />
               
-              <Button variant="ghost" size="icon" asChild>
+              {/* Settings - Hide on mobile */}
+              <Button variant="ghost" size="icon" asChild className="hidden sm:flex touch-target">
                 <Link href="/preferences">
                   <Settings className="h-5 w-5" />
                 </Link>
               </Button>
               
-              <div className="flex items-center space-x-3">
+              {/* User Profile */}
+              <div className="flex items-center space-x-2 md:space-x-3">
                 {session?.user?.image ? (
                   <img 
                     src={session.user.image} 
@@ -131,6 +151,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                   size="icon"
                   onClick={() => signOut()}
                   title="Sign out"
+                  className="hidden md:flex touch-target"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -139,28 +160,55 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
           </div>
         </header>
 
+        {/* Mobile Menu Backdrop */}
+        {mobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-enter"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Main Layout */}
         <div className="pt-16 flex">
-          {/* Sidebar */}
+          {/* Sidebar - Hidden on mobile, overlay when menu open */}
           <div className={cn(
             "bg-white border-r border-gray-200 transition-all duration-200",
-            sidebarCollapsed ? "w-16" : "w-64"
+            // Desktop behavior
+            "hidden md:block",
+            sidebarCollapsed ? "md:w-16" : "md:w-64",
+            // Mobile overlay
+            mobileMenuOpen && "fixed inset-y-0 left-0 z-50 w-72 block mobile-menu-enter"
           )}>
-            <div className="p-4 space-y-6">
-              {/* Collapse Button */}
-              <div className="flex justify-end mb-3">
+            <div className="p-4 space-y-6 h-full overflow-y-auto">
+              {/* Mobile: Close button / Desktop: Collapse button */}
+              <div className="flex justify-between items-center mb-3">
+                {/* Mobile close button */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="md:hidden touch-target"
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+                
+                {/* Desktop collapse button */}
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="h-6 w-6"
+                  className="hidden md:flex h-6 w-6 ml-auto"
                 >
                   <Menu className="h-3 w-3" />
                 </Button>
               </div>
               
               {/* Navigation Menu */}
-              <NavigationMenu sidebarCollapsed={sidebarCollapsed} />
+              <div onClick={handleNavClick}>
+                <NavigationMenu sidebarCollapsed={sidebarCollapsed} />
+              </div>
 
               {/* Work Navigation */}
               {userWorkNavigation.length > 0 && !sidebarCollapsed && (
@@ -173,6 +221,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                         <Link
                           key={item.name}
                           href={item.href}
+                          onClick={handleNavClick}
                           className={cn(
                             'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             isActive(item.href)
@@ -205,6 +254,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                       <Link
                         key={item.name}
                         href={item.href}
+                        onClick={handleNavClick}
                         className={cn(
                           'group flex items-center justify-center p-2 text-sm font-medium rounded-md transition-colors relative',
                           isActive(item.href)

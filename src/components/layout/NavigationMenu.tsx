@@ -24,6 +24,9 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const pathname = usePathname()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
   
+  // On mobile, always show expanded menu (sidebarCollapsed only applies to desktop)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  
   const mentionNotifications = getNotificationsByType('MENTION')
   const unreadMentionCount = mentionNotifications.filter(n => !n.read).length
   
@@ -67,7 +70,8 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
 
   const isActive = (href: string) => pathname.startsWith(href)
 
-  if (sidebarCollapsed) {
+  // Show collapsed version only on desktop when collapsed
+  if (sidebarCollapsed && !isMobile) {
     // Collapsed version
     return (
       <div className="space-y-4">

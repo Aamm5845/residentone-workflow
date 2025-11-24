@@ -136,6 +136,103 @@
     }
   }
   
+  /* Mobile-specific utilities */
+  .touch-target {
+    @apply min-w-[44px] min-h-[44px];
+  }
+  
+  @media (max-width: 768px) {
+    .container-mobile {
+      @apply px-4;
+    }
+    
+    .hide-mobile {
+      @apply hidden;
+    }
+    
+    .show-mobile {
+      @apply block;
+    }
+    
+    /* Prevent iOS zoom on input focus */
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
+  
+  /* Safe area insets for notched devices (iPhone X+) */
+  @supports (padding: max(0px)) {
+    .safe-area-inset {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+    
+    .safe-area-inset-top {
+      padding-top: max(0px, env(safe-area-inset-top));
+    }
+    
+    .safe-area-inset-bottom {
+      padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+  }
+  
+  /* Mobile menu animations */
+  @keyframes slideInFromLeft {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOutToLeft {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  
+  .mobile-menu-enter {
+    animation: slideInFromLeft 0.3s ease-out;
+  }
+  
+  .mobile-menu-exit {
+    animation: slideOutToLeft 0.3s ease-in;
+  }
+  
+  .backdrop-enter {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .backdrop-exit {
+    animation: fadeOut 0.3s ease-in;
+  }
+  
   /* Progress Tracks */
   .progress-track {
     @apply w-full h-2 bg-gray-200 rounded-full overflow-hidden;
