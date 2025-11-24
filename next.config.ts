@@ -15,11 +15,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Disable TypeScript build errors for faster deployment
+  // TODO: Fix Next.js 15 route handler type errors (see KNOWN_ISSUES.md)
+  // Temporarily ignoring to allow deployment while we fix route parameter types
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Disable ESLint during build for faster deployment
   eslint: {
     ignoreDuringBuilds: true,
   },
