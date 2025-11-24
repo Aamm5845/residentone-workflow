@@ -127,6 +127,9 @@ export async function POST(
     })
 
     if (emailResult.messageId) {
+      // Check if this is a resend (before any DB updates)
+      const isResend = !testEmail && !!version.sentToClientAt
+      
       // Create email log
       const emailLog = await prisma.floorplanApprovalEmailLog.create({
         data: {
@@ -141,7 +144,6 @@ export async function POST(
 
       // Update version status if not a test email
       if (!testEmail) {
-        const isResend = !!version.sentToClientAt
         
         await prisma.floorplanApprovalVersion.update({
           where: { id: version.id },
@@ -188,7 +190,6 @@ export async function POST(
       }
 
       // Log to main activity log
-      const isResend = !testEmail && !!version.sentToClientAt
       await logActivity({
         session,
         action: ActivityActions.PROJECT_UPDATE,
@@ -208,7 +209,6 @@ export async function POST(
         ipAddress
       })
 
-      const isResend = !testEmail && !!version.sentToClientAt
       return NextResponse.json({
         success: true,
         message: testEmail 
