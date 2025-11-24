@@ -568,8 +568,18 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       )}
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {member.name || 'No name'}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-gray-900">
+                          {member.name || 'No name'}
+                        </div>
+                        {member.id === currentUser.id && (
+                          <Link 
+                            href={`/team/${member.id}/preferences`}
+                            className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                          >
+                            (My Preferences →)
+                          </Link>
+                        )}
                       </div>
                       <div className="text-sm text-gray-500">
                         {member.email}
