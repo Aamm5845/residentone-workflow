@@ -626,17 +626,17 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                     
                     {/* Show admin menu only for admins/owners */}
                     {canManageTeam && (
-                      <Button
-                        onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-2"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    )}
-                      
-                      {openDropdown === member.id && (
+                      <>
+                        <Button
+                          onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                        
+                        {openDropdown === member.id && (
                         <>
                           {/* Invisible backdrop to close dropdown */}
                           <div 
@@ -710,7 +710,8 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                             </div>
                           </div>
                         </>
-                      )}
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
