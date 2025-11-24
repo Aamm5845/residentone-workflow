@@ -31,15 +31,6 @@ export default async function TeamMemberPreferences({ params }: PageProps) {
     redirect('/auth/signin')
   }
 
-  // Check if user is trying to access their own preferences or if they're admin/owner
-  const isOwnPreferences = session.user.id === resolvedParams.memberId
-  const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(session.user.role)
-  
-  if (!isOwnPreferences && !isAdminOrOwner) {
-    // Regular team members can only access their own preferences
-    redirect(`/team/${session.user.id}/preferences`)
-  }
-
   let member: any = null
   
   try {
