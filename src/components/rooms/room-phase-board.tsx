@@ -67,6 +67,8 @@ export default function RoomPhaseBoard({
   const canManageAssignments = true
 
   const handleStartPhase = async (phase: Phase) => {
+    console.log('handleStartPhase called:', { phaseId: phase.id, status: phase.status, stageId: phase.stageId })
+    
     // Check if room has a start date and if it's in the future
     if (roomStartDate) {
       const startDate = new Date(roomStartDate)
@@ -84,6 +86,8 @@ export default function RoomPhaseBoard({
           })}.\n\nWork has not yet started. Do you want to continue anyway?`
         )
         
+        console.log('User confirmed start:', confirmed)
+        
         if (!confirmed) {
           return // User cancelled
         }
@@ -94,29 +98,31 @@ export default function RoomPhaseBoard({
       // Start the phase
       setLoading(phase.id)
       try {
-        if (phase.stageId) {
-          const response = await fetch(`/api/stages/${phase.stageId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'start' })
-          })
-          
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to start phase')
-          }
-          
-          // Force a hard refresh to ensure all phase statuses are updated
-          // This is important because starting one phase might trigger other phase transitions
-          window.location.reload()
+        if (!phase.stageId) {
+          throw new Error('Phase is not initialized. Please refresh the page and try again.')
         }
+        
+        const response = await fetch(`/api/stages/${phase.stageId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'start' })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to start phase')
+        }
+        
+        // Force a hard refresh to ensure all phase statuses are updated
+        // This is important because starting one phase might trigger other phase transitions
+        window.location.reload()
       } catch (error) {
         console.error('Error starting phase:', error)
         alert(`Failed to start phase: ${error instanceof Error ? error.message : 'Unknown error'}`)
       } finally {
         setLoading(null)
       }
-    } else if (phase.status === 'IN_PROGRESS' || phase.status === 'COMPLETE') {
+    }
       // Navigate to stage workspace (for both active and completed phases)
       if (phase.stageId) {
         // For FFE phases, go directly to the FFE workspace
