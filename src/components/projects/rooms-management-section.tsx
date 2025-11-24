@@ -43,6 +43,7 @@ interface Room {
   projectId: string
   sectionId?: string | null
   order: number
+  createdAt?: string
   section?: {
     id: string
     name: string
@@ -135,8 +136,6 @@ function SortableRoomItem({ room, sections, isSubmitting, onMoveToSection, onDel
 export default function RoomsManagementSection({ projectId }: RoomsManagementSectionProps) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [sections, setSections] = useState<Section[]>([])
-  const [roomSections, setRoomSections] = useState<Record<string, string>>({}) // roomId -> sectionId
-  const [roomOrder, setRoomOrder] = useState<Record<string, string[]>>({}) // sectionId -> [roomIds in order]
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -155,6 +154,43 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
     })
   )
 
+  // Helper function to check and fix duplicate order values
+  const checkAndFixDuplicateOrders = (rooms: Room[]) => {
+    let needsFix = false
+    
+    // Group rooms by section
+    const roomsBySection = rooms.reduce((acc, room) => {
+      const key = room.sectionId || 'unassigned'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(room)
+      return acc
+    }, {} as Record<string, Room[]>)
+    
+    // Check each section for duplicate orders
+    Object.values(roomsBySection).forEach(sectionRooms => {
+      const orders = sectionRooms.map(r => r.order || 0)
+      const hasDuplicates = orders.length !== new Set(orders).size
+      
+      if (hasDuplicates || orders.some(o => o === undefined)) {
+        needsFix = true
+        // Reindex rooms in this section
+        sectionRooms
+          .sort((a, b) => {
+            // Sort by existing order first, then by creation date as tiebreaker
+            if (a.order === b.order) {
+              return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+            }
+            return (a.order || 0) - (b.order || 0)
+          })
+          .forEach((room, index) => {
+            room.order = index
+          })
+      }
+    })
+    
+    return needsFix
+  }
+
   useEffect(() => {
     fetchData()
   }, [projectId])
@@ -172,11 +208,24 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
       
       const projectData = await projectResponse.json()
       
-      if (projectData.rooms && Array.isArray(projectData.rooms)) {
-        setRooms(projectData.rooms)
-      } else {
-        setRooms([])
+      let roomsData = projectData.rooms && Array.isArray(projectData.rooms) ? projectData.rooms : []
+      
+      // Check for duplicate orders and fix them if needed
+      const needsReindexing = checkAndFixDuplicateOrders(roomsData)
+      if (needsReindexing) {
+        // Save the fixed orders to database
+        await Promise.all(
+          roomsData.map(room =>
+            fetch(`/api/rooms/${room.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order: room.order })
+            }).catch(err => console.error('Error updating room order:', err))
+          )
+        )
       }
+      
+      setRooms(roomsData)
       
       // Load sections from database API
       if (projectData.roomSections && Array.isArray(projectData.roomSections)) {
@@ -295,10 +344,19 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
   const handleMoveRoomToSection = async (roomId: string, sectionId: string | null) => {
     setIsSubmitting(true)
     try {
+      // Calculate the new order for the room (place it at the end of the target section)
+      const roomsInTargetSection = rooms.filter(r => 
+        r.id !== roomId && (sectionId === null ? !r.sectionId : r.sectionId === sectionId)
+      )
+      const maxOrder = roomsInTargetSection.length > 0 
+        ? Math.max(...roomsInTargetSection.map(r => r.order || 0))
+        : -1
+      const newOrder = maxOrder + 1
+
       const response = await fetch(`/api/rooms/${roomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sectionId })
+        body: JSON.stringify({ sectionId, order: newOrder })
       })
 
       if (response.ok) {
@@ -384,10 +442,6 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
 
       if (response.ok) {
         setRooms(prev => prev.filter(r => r.id !== roomId))
-        // Clean up section assignment
-        const newRoomSections = { ...roomSections }
-        delete newRoomSections[roomId]
-        saveRoomSections(newRoomSections)
       } else {
         const errorData = await response.json().catch(() => null)
         throw new Error(errorData?.error || 'Failed to delete room')

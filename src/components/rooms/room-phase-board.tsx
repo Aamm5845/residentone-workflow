@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Settings } from 'lucide-react'
 import PhaseCard from './phase-card'
-import PhaseAssignmentModal, { BulkPhaseAssignmentModal } from './phase-assignment-modal'
+import PhaseAssignmentModal from './phase-assignment-modal'
+import { RoomSettingsModal } from './room-settings-modal'
 import TeamNotificationModal from '@/components/notifications/team-notification-modal'
 import { sendPhaseEmail } from '@/lib/utils/phase-email'
 import { 
@@ -31,6 +32,7 @@ interface Phase {
   assignedUser?: TeamMember | null
   completedAt?: Date | null
   startedAt?: Date | null
+  startDate?: Date | null
   dueDate?: Date | null
   stageId?: string | null
 }
@@ -41,6 +43,8 @@ interface RoomPhaseBoardProps {
   roomId: string
   projectId: string
   currentUser: any
+  roomStartDate?: Date | null
+  roomDueDate?: Date | null
 }
 
 export default function RoomPhaseBoard({
@@ -48,11 +52,13 @@ export default function RoomPhaseBoard({
   teamMembers,
   roomId,
   projectId,
-  currentUser
+  currentUser,
+  roomStartDate,
+  roomDueDate
 }: RoomPhaseBoardProps) {
   const router = useRouter()
   const [selectedPhaseForAssignment, setSelectedPhaseForAssignment] = useState<PhaseId | null>(null)
-  const [showBulkAssignmentModal, setShowBulkAssignmentModal] = useState(false)
+  const [showRoomSettingsModal, setShowRoomSettingsModal] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [completedStageId, setCompletedStageId] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
@@ -61,6 +67,29 @@ export default function RoomPhaseBoard({
   const canManageAssignments = true
 
   const handleStartPhase = async (phase: Phase) => {
+    // Check if room has a start date and if it's in the future
+    if (roomStartDate) {
+      const startDate = new Date(roomStartDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      startDate.setHours(0, 0, 0, 0)
+      
+      if (startDate > today) {
+        const confirmed = window.confirm(
+          `⚠️ This room is scheduled to start on ${startDate.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}.\n\nWork has not yet started. Do you want to continue anyway?`
+        )
+        
+        if (!confirmed) {
+          return // User cancelled
+        }
+      }
+    }
+    
     if (phase.status === 'PENDING') {
       // Start the phase
       setLoading(phase.id)
@@ -331,10 +360,30 @@ export default function RoomPhaseBoard({
     }
   }
 
-  const handleBulkAssign = async (assignments: Record<PhaseId, string | null>) => {
+  const handleRoomSettings = async (settings: {
+    assignments: Record<PhaseId, string | null>
+    startDate: Date | null
+    dueDate: Date | null
+  }) => {
     setLoading('bulk')
     try {
-      const updatePromises = Object.entries(assignments).map(async ([phaseId, memberId]) => {
+      // Update room settings (dates)
+      const roomResponse = await fetch(`/api/rooms/${roomId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: settings.startDate ? settings.startDate.toISOString() : null,
+          dueDate: settings.dueDate ? settings.dueDate.toISOString() : null
+        })
+      })
+      
+      if (!roomResponse.ok) {
+        const errorData = await roomResponse.json()
+        throw new Error(errorData.error || 'Failed to update room settings')
+      }
+      
+      // Update phase assignments
+      const updatePromises = Object.entries(settings.assignments).map(async ([phaseId, memberId]) => {
         const phase = phases.find(p => p.id === phaseId)
         if (!phase?.stageId) return
         
@@ -355,11 +404,40 @@ export default function RoomPhaseBoard({
       await Promise.all(updatePromises)
       router.refresh()
     } catch (error) {
-      console.error('Error bulk assigning phases:', error)
-      alert(`Failed to save assignments: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error saving room settings:', error)
+      alert(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(null)
-      setShowBulkAssignmentModal(false)
+      setShowRoomSettingsModal(false)
+    }
+  }
+
+  const handleStartDateChange = async (phaseId: PhaseId, startDate: Date | null) => {
+    const phase = phases.find(p => p.id === phaseId)
+    if (!phase?.stageId) return
+    
+    setLoading(phaseId)
+    try {
+      const response = await fetch(`/api/stages/${phase.stageId}/start-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          startDate: startDate ? startDate.toISOString() : null 
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update start date')
+      }
+      
+      // Refresh to show updated start date
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating start date:', error)
+      alert(`Failed to update start date: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setLoading(null)
     }
   }
 
@@ -421,7 +499,7 @@ export default function RoomPhaseBoard({
         <div className="flex items-center space-x-3">
           <Button 
             variant="outline" 
-            onClick={() => setShowBulkAssignmentModal(true)}
+            onClick={() => setShowRoomSettingsModal(true)}
           >
             <Settings className="w-4 h-4 mr-2" />
             Room Settings
@@ -441,6 +519,7 @@ export default function RoomPhaseBoard({
               onStart={() => handleStartPhase(phase)}
               onAssign={() => canManageAssignments && setSelectedPhaseForAssignment(phase.id)}
               onStatusChange={(status) => handleStatusChange(phase.id, status)}
+              onStartDateChange={(startDate) => handleStartDateChange(phase.id, startDate)}
               onDueDateChange={(dueDate) => handleDueDateChange(phase.id, dueDate)}
               disabled={isDisabled}
               showSettings={canManageAssignments}
@@ -463,13 +542,16 @@ export default function RoomPhaseBoard({
         />
       )}
 
-      {/* Bulk Assignment Modal */}
-      <BulkPhaseAssignmentModal
-        isOpen={showBulkAssignmentModal}
-        onClose={() => setShowBulkAssignmentModal(false)}
+      {/* Room Settings Modal */}
+      <RoomSettingsModal
+        isOpen={showRoomSettingsModal}
+        onClose={() => setShowRoomSettingsModal(false)}
+        roomId={roomId}
         phases={phases}
         teamMembers={teamMembers}
-        onBulkAssign={handleBulkAssign}
+        currentStartDate={roomStartDate}
+        currentDueDate={roomDueDate}
+        onSave={handleRoomSettings}
         loading={loading === 'bulk'}
       />
 

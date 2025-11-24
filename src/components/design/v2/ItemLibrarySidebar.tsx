@@ -9,7 +9,8 @@ import {
   ChevronRight,
   Loader2,
   Check,
-  Pencil
+  Pencil,
+  Trash2
 } from 'lucide-react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
@@ -27,7 +28,8 @@ const fetcher = (url: string) => fetch(url).then(res => {
   return res.json()
 })
 
-const CATEGORY_NAMES: Record<string, string> = {
+// Default category names (fallback if API fails)
+const DEFAULT_CATEGORY_NAMES: Record<string, string> = {
   furniture: 'Furniture',
   plumbing: 'Plumbing Fixtures',
   lighting: 'Lighting',
@@ -46,7 +48,8 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showIconSelector, setShowIconSelector] = useState(false)
-  const [iconSelectorFor, setIconSelectorFor] = useState<'create' | 'edit'>('create')
+  const [showCreateCategoryDialog, setShowCreateCategoryDialog] = useState(false)
+  const [iconSelectorFor, setIconSelectorFor] = useState<'create' | 'edit' | 'category'>('create')
   const [editingItem, setEditingItem] = useState<any>(null)
   const [newItem, setNewItem] = useState({
     name: '',
@@ -54,8 +57,14 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
     description: '',
     icon: 'Package'
   })
+  const [newCategory, setNewCategory] = useState({
+    key: '',
+    name: '',
+    icon: 'Package'
+  })
   const [isCreating, setIsCreating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
 
   // Fetch library
   const { data, error, isLoading, mutate: refreshLibrary } = useSWR('/api/design-concept/library', fetcher, {
@@ -64,8 +73,16 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
     dedupingInterval: 0 // Disable cache to get fresh data
   })
 
+  // Fetch categories from database
+  const { data: categoriesData, mutate: refreshCategories } = useSWR('/api/design-concept/categories', fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false
+  })
+
   const categories = data?.categories || {}
   const items = data?.items || []
+  const categoryMap = categoriesData?.categoryMap || DEFAULT_CATEGORY_NAMES
+  const availableCategories = categoriesData?.categories || []
 
   // Filter items by search
   const filteredCategories = useMemo(() => {
@@ -93,6 +110,44 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
       newExpanded.add(category)
     }
     setExpandedCategories(newExpanded)
+  }
+
+  // Create new category
+  const createCategory = async () => {
+    if (!newCategory.key || !newCategory.name) {
+      toast.error('Key and name are required')
+      return
+    }
+
+    setIsCreatingCategory(true)
+    try {
+      const response = await fetch('/api/design-concept/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCategory)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create category')
+      }
+
+      const createdCategory = await response.json()
+      toast.success(`Category "${createdCategory.name}" created successfully`)
+      
+      // Reset form and close dialog
+      setNewCategory({ key: '', name: '', icon: 'Package' })
+      setShowCreateCategoryDialog(false)
+      
+      // Refresh categories and library
+      await refreshCategories()
+      await refreshLibrary()
+    } catch (error) {
+      console.error('Error creating category:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to create category')
+    } finally {
+      setIsCreatingCategory(false)
+    }
   }
 
   // Create new library item
@@ -177,6 +232,36 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
     setShowEditDialog(true)
   }
 
+  // Delete library item
+  const deleteLibraryItem = async (item: any) => {
+    const confirmMsg = `Are you sure you want to permanently delete "${item.name}"?\n\nThis will remove it from the library for ALL future rooms and projects.\n\nThis action cannot be undone.`
+    
+    if (!confirm(confirmMsg)) return
+
+    try {
+      const response = await fetch(`/api/design-concept/library/${item.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.usageCount) {
+          toast.error(`Cannot delete: This item is currently being used in ${data.usageCount} design concept(s)`)
+        } else {
+          throw new Error(data.error || 'Failed to delete item')
+        }
+        return
+      }
+
+      toast.success(`"${item.name}" permanently deleted`)
+      await refreshLibrary()
+    } catch (error) {
+      console.error('Error deleting library item:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete item')
+    }
+  }
+
   // Add item to stage
   const addItem = async (libraryItemId: string, itemName: string) => {
     setAddingItemId(libraryItemId)
@@ -256,7 +341,8 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
           <div className="py-2">
             {Object.entries(filteredCategories).map(([category, categoryItems]: [string, any]) => {
               const isExpanded = expandedCategories.has(category)
-              const categoryName = CATEGORY_NAMES[category] || category
+              const categoryInfo = availableCategories.find((c: any) => c.key === category)
+              const categoryName = categoryInfo?.name || categoryMap[category] || category
 
               return (
                 <div key={category} className="border-b border-gray-100 last:border-0">
@@ -318,6 +404,18 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
                             </div>
 
                             <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteLibraryItem(item)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0 hover:bg-red-50"
+                                title="Delete permanently"
+                              >
+                                <Trash2 className="w-3 h-3 text-red-600" />
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -396,8 +494,8 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
                   onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  {Object.entries(CATEGORY_NAMES).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
+                  {availableCategories.map((cat: any) => (
+                    <option key={cat.key} value={cat.key}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -490,15 +588,26 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <select
-                  value={newItem.category}
-                  onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  {Object.entries(CATEGORY_NAMES).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={newItem.category}
+                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    {availableCategories.map((cat: any) => (
+                      <option key={cat.key} value={cat.key}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateCategoryDialog(true)}
+                    className="px-3"
+                    title="Add new category"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
               <div>
@@ -569,15 +678,108 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
         </div>
       )}
 
+      {/* Create Category Dialog */}
+      {showCreateCategoryDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateCategoryDialog(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Create New Category</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category Key *</label>
+                <input
+                  type="text"
+                  value={newCategory.key}
+                  onChange={(e) => setNewCategory({ ...newCategory, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
+                  placeholder="e.g., custom_category"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and underscores only</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                  placeholder="e.g., Custom Category"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIconSelectorFor('category')
+                    setShowIconSelector(true)
+                  }}
+                  className="w-full justify-start h-auto py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                      <DynamicIcon name={newCategory.icon || 'Package'} className="w-6 h-6 text-gray-700" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900">
+                        {newCategory.icon || 'Select Icon'}
+                      </div>
+                      <div className="text-xs text-gray-500">Click to browse 1000+ icons</div>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <Button 
+                onClick={createCategory} 
+                disabled={isCreatingCategory || !newCategory.key || !newCategory.name}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {isCreatingCategory ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Category'
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCreateCategoryDialog(false)
+                  setNewCategory({ key: '', name: '', icon: 'Package' })
+                }}
+                className="flex-1"
+                disabled={isCreatingCategory}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Icon Selector */}
       {showIconSelector && (
         <IconSelector
-          value={iconSelectorFor === 'create' ? newItem.icon : (editingItem?.icon || '')}
+          value={
+            iconSelectorFor === 'create' ? newItem.icon : 
+            iconSelectorFor === 'edit' ? (editingItem?.icon || '') :
+            newCategory.icon
+          }
           onChange={(iconName) => {
             if (iconSelectorFor === 'create') {
               setNewItem({ ...newItem, icon: iconName })
-            } else {
+            } else if (iconSelectorFor === 'edit') {
               setEditingItem({ ...editingItem, icon: iconName })
+            } else {
+              setNewCategory({ ...newCategory, icon: iconName })
             }
           }}
           onClose={() => setShowIconSelector(false)}

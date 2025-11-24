@@ -19,6 +19,7 @@ const projectSettingsSchema = z.object({
   name: z.string().min(1, "Project name is required").max(200),
   description: z.string().optional(),
   type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'HOSPITALITY']),
+  status: z.enum(['DRAFT', 'IN_PROGRESS', 'PENDING_APPROVAL', 'APPROVED', 'COMPLETED']),
   budget: z.string().optional(),
   dueDate: z.string().optional(),
   address: z.string().optional(), // Legacy field
@@ -139,6 +140,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       name: project?.name || '',
       description: project?.description || '',
       type: project?.type || 'RESIDENTIAL',
+      status: project?.status || 'DRAFT',
       budget: project?.budget ? project.budget.toString() : '',
       dueDate: project?.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : '',
       address: project?.address || '', // Legacy field
@@ -545,6 +547,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               updateSection('project information', {
                 name: data.name,
                 type: data.type,
+                status: data.status,
                 description: data.description,
                 streetAddress: data.streetAddress,
                 city: data.city,
@@ -581,6 +584,22 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                     <option value="HOSPITALITY">Hospitality</option>
                   </select>
                 </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Status
+                </label>
+                <select
+                  {...register('status')}
+                  className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="DRAFT">Draft</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="PENDING_APPROVAL">Pending Approval</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
               </div>
               
               <div className="space-y-4">
@@ -685,6 +704,26 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 <div>
                   <p className="text-sm font-medium text-gray-500">Type</p>
                   <p className="text-gray-900 mt-1">{project.type}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <div className="mt-1">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    project.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                    project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                    project.status === 'PENDING_APPROVAL' ? 'bg-yellow-100 text-yellow-800' :
+                    project.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                    project.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {project.status === 'DRAFT' ? 'Draft' :
+                     project.status === 'IN_PROGRESS' ? 'In Progress' :
+                     project.status === 'PENDING_APPROVAL' ? 'Pending Approval' :
+                     project.status === 'APPROVED' ? 'Approved' :
+                     project.status === 'COMPLETED' ? 'Completed' :
+                     project.status}
+                  </span>
                 </div>
               </div>
               <div>

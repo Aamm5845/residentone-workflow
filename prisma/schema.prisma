@@ -266,6 +266,8 @@ model Room {
   status             RoomStatus          @default(NOT_STARTED)
   currentStage       String?
   progressFFE        Int                 @default(0)
+  startDate          DateTime?
+  dueDate            DateTime?
   createdById        String?
   updatedById        String?
   createdAt          DateTime            @default(now())
@@ -297,6 +299,7 @@ model Stage {
   type                   StageType
   status                 StageStatus             @default(NOT_STARTED)
   assignedTo             String?
+  startDate              DateTime?
   dueDate                DateTime?
   startedAt              DateTime?
   completedAt            DateTime?
@@ -1762,6 +1765,7 @@ model DesignConceptItem {
   images              DesignConceptItemImage[]
   links               DesignConceptItemLink[]
   itemNotes           DesignConceptItemNote[]
+  attachments         DesignConceptItemAttachment[]
 
   @@index([stageId])
   @@index([stageId, order])
@@ -1817,6 +1821,40 @@ model DesignConceptItemNote {
 
   @@index([itemId])
   @@index([itemId, createdAt])
+}
+
+model DesignConceptItemAttachment {
+  id          String            @id @default(cuid())
+  itemId      String
+  url         String
+  dropboxPath String
+  fileName    String
+  fileSize    Int?
+  fileType    String            // MIME type
+  description String?
+  order       Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  item        DesignConceptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, order])
+}
+
+model DesignConceptCategory {
+  id          String   @id @default(cuid())
+  key         String   @unique  // e.g., "furniture", "plumbing"
+  name        String                // e.g., "Furniture", "Plumbing Fixtures"
+  icon        String?              // Lucide icon name
+  order       Int      @default(0)
+  isDefault   Boolean  @default(false) // Default categories vs custom
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([order])
+  @@index([isDefault])
 }
 
 enum UserRole {

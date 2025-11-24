@@ -25,6 +25,7 @@ export async function GET(
         libraryItem: true,
         images: { orderBy: { order: 'asc' } },
         links: { orderBy: { order: 'asc' } },
+        attachments: { orderBy: { order: 'asc' } },
         itemNotes: {
           orderBy: { createdAt: 'desc' },
           include: {
@@ -163,6 +164,7 @@ export async function POST(
         libraryItem: true,
         images: { orderBy: { order: 'asc' } },
         links: { orderBy: { order: 'asc' } },
+        attachments: { orderBy: { order: 'asc' } },
         itemNotes: {
           orderBy: { createdAt: 'desc' },
           include: {

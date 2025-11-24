@@ -15,7 +15,11 @@ import {
   Maximize2,
   ChevronDown,
   ChevronUp,
-  Loader2
+  Loader2,
+  FileText,
+  FileSpreadsheet,
+  FileArchive,
+  Download
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -50,6 +54,7 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
 
   // Debug: Log item data
   React.useEffect(() => {
@@ -67,6 +72,7 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const images = item.images || []
   const links = item.links || []
   const itemNotes = item.itemNotes || []
+  const attachments = item.attachments || []
 
   // Save new note
   const saveNote = async () => {
@@ -248,6 +254,82 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
     }
   }
 
+  // Upload attachment (PDF, docs, etc)
+  const handleAttachmentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File size must be less than 50MB')
+      return
+    }
+
+    setIsUploadingAttachment(true)
+    const toastId = toast.loading('Uploading file to Dropbox...')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`/api/design-items/${item.id}/attachments`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to upload file')
+      }
+
+      console.log('[AddedItemCard] Attachment uploaded successfully')
+      toast.success('File uploaded successfully', { id: toastId })
+      
+      await onUpdate()
+      event.target.value = ''
+    } catch (error: any) {
+      console.error('Error uploading attachment:', error)
+      toast.error(error.message || 'Failed to upload file', { id: toastId })
+    } finally {
+      setIsUploadingAttachment(false)
+    }
+  }
+
+  // Delete attachment
+  const deleteAttachment = async (attachmentId: string) => {
+    if (!confirm('Remove this file?')) return
+
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/attachments/${attachmentId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete attachment')
+      
+      onUpdate()
+      toast.success('File removed')
+    } catch (error) {
+      console.error('Error deleting attachment:', error)
+      toast.error('Failed to remove file')
+    }
+  }
+
+  // Get file icon based on MIME type
+  const getFileIcon = (fileType: string) => {
+    if (fileType.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />
+    if (fileType.includes('spreadsheet') || fileType.includes('excel')) return <FileSpreadsheet className="w-5 h-5 text-green-500" />
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText className="w-5 h-5 text-blue-500" />
+    if (fileType.includes('zip') || fileType.includes('compressed')) return <FileArchive className="w-5 h-5 text-orange-500" />
+    return <FileText className="w-5 h-5 text-gray-500" />
+  }
+
+  // Format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
   return (
     <div className={cn(
       "rounded-lg border transition-all duration-300 w-full",
@@ -302,6 +384,8 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
               <span>Images ({images.length})</span>
               <span>•</span>
               <span>Links ({links.length})</span>
+              <span>•</span>
+              <span>Files ({attachments.length})</span>
             </div>
           </div>
         </div>
@@ -472,6 +556,84 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
               <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <p className="text-xs text-gray-500">No images yet</p>
               <p className="text-xs text-gray-400">Drag & drop or click to upload</p>
+            </div>
+          )}
+        </div>
+
+        {/* Attachments (PDFs, Docs, etc) */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
+              <FileText className="w-4 h-4" />
+              <span>File Attachments</span>
+              <span className="text-gray-500">({attachments.length})</span>
+            </label>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-xs"
+              disabled={isUploadingAttachment}
+              onClick={() => document.getElementById(`attachment-upload-${item.id}`)?.click()}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              {isUploadingAttachment ? 'Uploading...' : 'Upload'}
+            </Button>
+            <input
+              id={`attachment-upload-${item.id}`}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              className="hidden"
+              onChange={handleAttachmentUpload}
+              disabled={isUploadingAttachment}
+            />
+          </div>
+
+          {attachments.length > 0 ? (
+            <div className="space-y-2">
+              {attachments.map((attachment: any) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition-all group"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex-shrink-0">
+                      {getFileIcon(attachment.fileType)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {attachment.fileName.replace(/^\d+_/, '')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(attachment.fileSize || 0)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-gray-400 hover:text-indigo-500 transition-colors"
+                      title="Download file"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                    <button
+                      onClick={() => deleteAttachment(attachment.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">No attachments yet</p>
+              <p className="text-xs text-gray-400">Upload PDFs, documents, or other files</p>
             </div>
           )}
         </div>

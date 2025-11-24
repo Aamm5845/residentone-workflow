@@ -44,13 +44,23 @@ export async function POST(
       console.warn('Floor assignment skipped - Floor model not implemented in schema')
     }
 
+    // Calculate the next order value for this project
+    // Get the maximum order value from all rooms in this project
+    const maxOrderRoom = await prisma.room.findFirst({
+      where: { projectId: project.id },
+      orderBy: { order: 'desc' },
+      select: { order: true }
+    })
+    const nextOrder = maxOrderRoom ? maxOrderRoom.order + 1 : 0
+
     // Create new room (floorId set to null since Floor model doesn't exist)
     const room = await prisma.room.create({
       data: {
         projectId: project.id,
         type: type as RoomType,
         name: customName || name,
-        status: 'NOT_STARTED'
+        status: 'NOT_STARTED',
+        order: nextOrder
       }
     })
 

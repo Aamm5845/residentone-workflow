@@ -9,8 +9,10 @@ import { authOptions } from '@/auth'
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -28,8 +30,6 @@ export async function PUT(
         { status: 403 }
       )
     }
-
-    const { id } = params
     const body = await request.json()
     const { name, category, description, icon, order, isActive } = body
 
@@ -94,12 +94,15 @@ export async function PUT(
 
 /**
  * DELETE /api/design-concept/library/[id]
- * Delete a library item (soft delete by setting isActive = false)
+ * Permanently delete a library item
+ * This will remove it from all future rooms and projects
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -118,18 +121,41 @@ export async function DELETE(
       )
     }
 
-    const { id } = params
-
-    // Soft delete by marking as inactive
-    const updatedItem = await prisma.designConceptItemLibrary.update({
+    // Check if item exists
+    const item = await prisma.designConceptItemLibrary.findUnique({
       where: { id },
-      data: { isActive: false }
+      include: {
+        items: true // Check if used in any design concepts
+      }
+    })
+
+    if (!item) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if item is currently being used
+    if (item.items.length > 0) {
+      return NextResponse.json(
+        { 
+          error: 'Cannot delete item that is currently being used in design concepts',
+          usageCount: item.items.length
+        },
+        { status: 400 }
+      )
+    }
+
+    // Permanently delete the item
+    await prisma.designConceptItemLibrary.delete({
+      where: { id }
     })
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Item deactivated successfully',
-      item: updatedItem 
+      message: 'Item permanently deleted',
+      itemName: item.name
     })
 
   } catch (error) {

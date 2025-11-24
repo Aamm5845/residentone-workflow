@@ -31,10 +31,13 @@ interface Project {
     id: string
     type: string
     name?: string
+    startDate?: Date
+    dueDate?: Date
     stages?: {
       id: string
       type: string
       status: string
+      startDate?: Date
       dueDate?: Date
     }[]
   }[]
@@ -126,10 +129,30 @@ export default function InteractiveProjectsPage({
     projects.forEach(project => {
       project.rooms?.forEach(room => {
         room.stages?.forEach(stage => {
+          const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' : 
+                            stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+          
+          // Add start date entry if exists
+          if (stage.startDate && stage.status !== 'COMPLETED') {
+            tasks.push({
+              id: `${stage.id}-start`,
+              title: `🚀 ${phaseTitle} Start - ${room.name || room.type.replace('_', ' ')}`,
+              projectName: project.name,
+              clientName: project.client.name,
+              dueDate: stage.startDate.toISOString(),
+              status: stage.status,
+              type: 'stage' as const,
+              stageType: stage.type,
+              isStartDate: true,
+              assignedUser: (stage as any).assignedUser ? {
+                id: (stage as any).assignedUser.id,
+                name: (stage as any).assignedUser.name
+              } : undefined
+            })
+          }
+          
+          // Add due date entry if exists
           if (stage.dueDate && stage.status !== 'COMPLETED') {
-            const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' : 
-                              stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-            
             tasks.push({
               id: stage.id,
               title: `${phaseTitle} - ${room.name || room.type.replace('_', ' ')}`,
@@ -140,6 +163,7 @@ export default function InteractiveProjectsPage({
               type: 'stage' as const,
               stageType: stage.type,
               urgencyLevel: getPhaseUrgency(stage.dueDate, stage.status) as 'critical' | 'high' | 'medium' | 'low',
+              isStartDate: false,
               assignedUser: (stage as any).assignedUser ? {
                 id: (stage as any).assignedUser.id,
                 name: (stage as any).assignedUser.name
@@ -147,6 +171,33 @@ export default function InteractiveProjectsPage({
             })
           }
         })
+        
+        // Add room-level start/due dates if they exist
+        if (room.startDate) {
+          tasks.push({
+            id: `${room.id}-room-start`,
+            title: `🏠 Room Start: ${room.name || room.type.replace('_', ' ')}`,
+            projectName: project.name,
+            clientName: project.client.name,
+            dueDate: room.startDate.toISOString(),
+            status: 'PENDING',
+            type: 'stage' as const,
+            stageType: 'ROOM_START',
+            isStartDate: true
+          })
+        }
+        if (room.dueDate) {
+          tasks.push({
+            id: `${room.id}-room-due`,
+            title: `🏠 Room Due: ${room.name || room.type.replace('_', ' ')}`,
+            projectName: project.name,
+            clientName: project.client.name,
+            dueDate: room.dueDate.toISOString(),
+            status: 'PENDING',
+            type: 'stage' as const,
+            stageType: 'ROOM_DUE'
+          })
+        }
       })
     })
     

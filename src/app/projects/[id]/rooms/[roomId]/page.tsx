@@ -3,7 +3,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Settings, Users, BarChart3 } from 'lucide-react'
+import { ArrowLeft, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { formatRoomType } from '@/lib/utils'
@@ -51,6 +51,8 @@ export default async function RoomWorkspace({ params }: Props) {
               type: true,
               name: true,
               status: true,
+              startDate: true,
+              dueDate: true,
               stages: {
                 select: {
                   id: true,
@@ -59,6 +61,7 @@ export default async function RoomWorkspace({ params }: Props) {
                   assignedTo: true,
                   completedAt: true,
                   startedAt: true,
+                  startDate: true,
                   dueDate: true,
                   assignedUser: {
                     select: {
@@ -144,6 +147,7 @@ export default async function RoomWorkspace({ params }: Props) {
         assignedUser: matchingStage?.assignedUser || null,
         completedAt: matchingStage?.completedAt || null,
         startedAt: matchingStage?.startedAt || null,
+        startDate: matchingStage?.startDate || null,
         dueDate: matchingStage?.dueDate || null,
         stageId: matchingStage?.id || null
       }
@@ -186,14 +190,6 @@ export default async function RoomWorkspace({ params }: Props) {
                   <BarChart3 className="w-4 h-4" />
                   <span className="font-medium">{roomProgress}% Complete</span>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Users className="w-4 h-4 mr-2" />
-                  Team
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
               </div>
             </div>
             
@@ -217,6 +213,8 @@ export default async function RoomWorkspace({ params }: Props) {
             roomId={roomId}
             projectId={id}
             currentUser={session.user}
+            roomStartDate={room.startDate}
+            roomDueDate={room.dueDate}
           />
         </div>
       </div>

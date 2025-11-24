@@ -34,21 +34,52 @@ export default function IconSelector({ value, onChange, onClose }: Props) {
 
   // Get all available icons from lucide-react
   const allIconNames = useMemo(() => {
-    return Object.keys(LucideIcons).filter(
-      name => name !== 'createLucideIcon' && 
-              name !== 'default' &&
-              typeof (LucideIcons as any)[name] === 'function'
+    const names = Object.keys(LucideIcons).filter(
+      name => {
+        // Filter out non-icon exports
+        if (name === 'createLucideIcon' || name === 'default' || name === 'icons') {
+          return false
+        }
+        const value = (LucideIcons as any)[name]
+        // Check if it's a React component (function with displayName or prototype)
+        return typeof value === 'function' || typeof value === 'object'
+      }
     )
+    console.log('[IconSelector] Found', names.length, 'icons')
+    return names
   }, [])
+
+  // Helper function to convert kebab-case to PascalCase
+  const kebabToPascal = (str: string) => {
+    return str
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('')
+  }
 
   // Filter icons based on search
   const filteredIcons = useMemo(() => {
     if (!search) {
-      return COMMON_ICONS.filter(name => allIconNames.includes(name))
+      // Show common icons by default, but validate they exist
+      const validCommonIcons = COMMON_ICONS.filter(name => {
+        const exists = allIconNames.includes(name)
+        if (!exists) console.log('[IconSelector] Common icon not found:', name)
+        return exists
+      })
+      console.log('[IconSelector] Showing', validCommonIcons.length, 'common icons')
+      return validCommonIcons
     }
-    return allIconNames.filter(name =>
-      name.toLowerCase().includes(search.toLowerCase())
+    
+    // Convert kebab-case to PascalCase for better search (e.g., "notebook-pen" -> "NotebookPen")
+    const searchPascal = search.includes('-') ? kebabToPascal(search) : search
+    
+    const filtered = allIconNames.filter(name =>
+      name.toLowerCase().includes(search.toLowerCase()) ||
+      name.toLowerCase().includes(searchPascal.toLowerCase()) ||
+      (search.includes('-') && name === searchPascal) // Exact match for converted kebab-case
     )
+    console.log('[IconSelector] Search "' + search + '" (converted: "' + searchPascal + '") found', filtered.length, 'icons')
+    return filtered
   }, [search, allIconNames])
 
   const renderIcon = (iconName: string) => {
@@ -85,16 +116,20 @@ export default function IconSelector({ value, onChange, onClose }: Props) {
             />
           </div>
 
-          <div className="mt-2 text-xs text-gray-500">
-            {filteredIcons.length} icons • Browse all at{' '}
-            <a 
-              href="https://lucide.dev/icons" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-indigo-600 hover:underline"
-            >
-              lucide.dev
-            </a>
+          <div className="mt-2 text-xs text-gray-500 space-y-1">
+            <div>{filteredIcons.length} icons • Browse all at{' '}
+              <a 
+                href="https://lucide.dev/icons" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:underline"
+              >
+                lucide.dev
+              </a>
+            </div>
+            <div className="text-green-600">
+              ✅ Works with both formats: "NotebookPen" or "notebook-pen"
+            </div>
           </div>
         </div>
 
@@ -104,6 +139,9 @@ export default function IconSelector({ value, onChange, onClose }: Props) {
             <div className="text-center py-12 text-gray-500">
               <p>No icons found matching "{search}"</p>
               <p className="text-sm mt-2">Try searching for: sofa, lamp, bed, table, etc.</p>
+              <p className="text-xs mt-3 text-green-600">
+                ✅ You can search using "NotebookPen" or "notebook-pen" - both work!
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">

@@ -39,12 +39,14 @@ interface PhaseCardProps {
     assignedUser?: AssignedUser | null
     completedAt?: Date | null
     startedAt?: Date | null
+    startDate?: Date | null
     dueDate?: Date | null
     stageId?: string | null
   }
   onStart: () => void
   onAssign: () => void
   onStatusChange: (status: PhaseStatus) => void
+  onStartDateChange?: (startDate: Date | null) => void
   onDueDateChange?: (dueDate: Date | null) => void
   className?: string
   disabled?: boolean
@@ -57,6 +59,7 @@ export default function PhaseCard({
   onStart, 
   onAssign, 
   onStatusChange,
+  onStartDateChange,
   onDueDateChange,
   className,
   disabled = false,
@@ -79,11 +82,29 @@ export default function PhaseCard({
     new Date() < new Date(phase.dueDate) && 
     (new Date(phase.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
   
+  const [showStartDateInput, setShowStartDateInput] = useState(false)
+  const [tempStartDate, setTempStartDate] = useState(
+    phase.startDate ? new Date(phase.startDate).toISOString().split('T')[0] : ''
+  )
+  
   const [showDueDateInput, setShowDueDateInput] = useState(false)
   const [tempDueDate, setTempDueDate] = useState(
     phase.dueDate ? new Date(phase.dueDate).toISOString().split('T')[0] : ''
   )
 
+  const handleStartDateSave = () => {
+    if (onStartDateChange) {
+      const newStartDate = tempStartDate ? new Date(tempStartDate) : null
+      onStartDateChange(newStartDate)
+    }
+    setShowStartDateInput(false)
+  }
+  
+  const handleStartDateCancel = () => {
+    setTempStartDate(phase.startDate ? new Date(phase.startDate).toISOString().split('T')[0] : '')
+    setShowStartDateInput(false)
+  }
+  
   const handleDueDateSave = () => {
     if (onDueDateChange) {
       const newDueDate = tempDueDate ? new Date(tempDueDate) : null
@@ -199,161 +220,196 @@ export default function PhaseCard({
 
         {/* Assignee Section */}
         <div className="mb-4">
-          <div className="flex items-center justify-between">
-            <div className={cn(
-              "flex items-center space-x-2.5",
-              isNotApplicable && "opacity-60"
-            )}>
-              {phase.assignedUser ? (
-                <>
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={phase.assignedUser.image || undefined} />
-                    <AvatarFallback className="text-xs bg-gray-100">
-                      {getInitials(phase.assignedUser.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className={cn(
-                      "text-sm font-medium",
-                      isNotApplicable ? "text-slate-600" : "text-gray-800"
-                    )}>
-                      {phase.assignedUser.name}
-                    </p>
-                    <p className={cn(
-                      "text-xs",
-                      isNotApplicable ? "text-slate-500" : "text-gray-500"
-                    )}>
-                      {phase.assignedUser.role}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className={cn(
-                    "h-7 w-7 rounded-full border border-dashed flex items-center justify-center",
-                    isNotApplicable ? "border-slate-300" : "border-gray-300"
+          <div className={cn(
+            "flex items-center space-x-2.5",
+            isNotApplicable && "opacity-60"
+          )}>
+            {phase.assignedUser ? (
+              <>
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={phase.assignedUser.image || undefined} />
+                  <AvatarFallback className="text-xs bg-gray-100">
+                    {getInitials(phase.assignedUser.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className={cn(
+                    "text-sm font-medium",
+                    isNotApplicable ? "text-slate-600" : "text-gray-800"
                   )}>
-                    <UserX className={cn(
-                      "h-3 w-3",
-                      isNotApplicable ? "text-slate-400" : "text-gray-400"
-                    )} />
-                  </div>
-                  <div>
-                    <p className={cn(
-                      "text-sm",
-                      isNotApplicable ? "text-slate-500" : "text-gray-500"
-                    )}>Unassigned</p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Assignment Button */}
-            {!isNotApplicable && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onAssign}
-                className="p-1 h-7 w-7 text-gray-400 hover:text-gray-600 rounded-md"
-              >
-                <Settings className="h-3 h-3" />
-              </Button>
+                    {phase.assignedUser.name}
+                  </p>
+                  <p className={cn(
+                    "text-xs",
+                    isNotApplicable ? "text-slate-500" : "text-gray-500"
+                  )}>
+                    {phase.assignedUser.role}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={cn(
+                  "h-7 w-7 rounded-full border border-dashed flex items-center justify-center",
+                  isNotApplicable ? "border-slate-300" : "border-gray-300"
+                )}>
+                  <UserX className={cn(
+                    "h-3 w-3",
+                    isNotApplicable ? "text-slate-400" : "text-gray-400"
+                  )} />
+                </div>
+                <div>
+                  <p className={cn(
+                    "text-sm",
+                    isNotApplicable ? "text-slate-500" : "text-gray-500"
+                  )}>Unassigned</p>
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Due Date Section */}
+        {/* Dates Section - Combined Start & Due */}
         {!isNotApplicable && (
           <div className="mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Due Date</span>
-              </div>
-              {!showDueDateInput && (
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Schedule</span>
+              {!showStartDateInput && !showDueDateInput && (
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={() => setShowDueDateInput(true)}
-                  className="p-1 h-7 w-7 text-gray-400 hover:text-gray-600 rounded-md"
+                  onClick={() => setShowStartDateInput(true)}
+                  className="p-1 h-6 w-6 text-gray-400 hover:text-gray-600 rounded-md"
+                  title="Edit dates"
                 >
                   <Settings className="h-3 w-3" />
                 </Button>
               )}
             </div>
             
-            {showDueDateInput ? (
-              <div className="mt-2 space-y-2">
-                <Input
-                  type="date"
-                  value={tempDueDate}
-                  onChange={(e) => setTempDueDate(e.target.value)}
-                  className="text-sm"
-                  placeholder="Set due date"
-                />
+            {showStartDateInput || showDueDateInput ? (
+              <div className="space-y-2">
+                {/* Start Date Input */}
+                <div>
+                  <label className="text-xs text-gray-600 flex items-center space-x-1 mb-1">
+                    <Clock className="w-3 h-3 text-blue-500" />
+                    <span>Start</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={tempStartDate}
+                    onChange={(e) => setTempStartDate(e.target.value)}
+                    className="text-sm h-8"
+                  />
+                </div>
+                
+                {/* Due Date Input */}
+                <div>
+                  <label className="text-xs text-gray-600 flex items-center space-x-1 mb-1">
+                    <Calendar className="w-3 h-3 text-purple-500" />
+                    <span>Due</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={tempDueDate}
+                    onChange={(e) => setTempDueDate(e.target.value)}
+                    className="text-sm h-8"
+                    min={tempStartDate || undefined}
+                  />
+                </div>
+                
                 <div className="flex space-x-2">
                   <Button 
                     size="sm" 
-                    onClick={handleDueDateSave}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    onClick={() => {
+                      handleStartDateSave()
+                      handleDueDateSave()
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
                   >
                     Save
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    onClick={handleDueDateCancel}
-                    className="text-xs"
+                    onClick={() => {
+                      handleStartDateCancel()
+                      handleDueDateCancel()
+                    }}
+                    className="text-xs h-7"
                   >
                     Cancel
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="mt-2">
-                {phase.dueDate ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className={cn(
-                        "flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium",
-                        isOverdue ? "bg-red-100 text-red-800" :
-                        isDueSoon ? "bg-yellow-100 text-yellow-800" :
-                        "bg-gray-100 text-gray-700"
-                      )}>
-                        {isOverdue && <AlertTriangle className="w-3 h-3" />}
-                        {isDueSoon && <Clock className="w-3 h-3" />}
-                        <span>{new Date(phase.dueDate).toLocaleDateString()}</span>
-                      </div>
-                      {isOverdue && (
-                        <span className="text-xs text-red-600 font-medium">
-                          Overdue
-                        </span>
-                      )}
-                      {isDueSoon && !isOverdue && (
-                        <span className="text-xs text-yellow-600 font-medium">
-                          Due Soon
-                        </span>
-                      )}
+              <div className="space-y-1.5">
+                {/* Start Date Display */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-xs">
+                    <Clock className="w-3 h-3 text-blue-500" />
+                    <span className="text-gray-600">Start:</span>
+                  </div>
+                  {phase.startDate ? (
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs font-medium text-blue-700">
+                        {new Date(phase.startDate).toLocaleDateString()}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (onStartDateChange) {
+                            onStartDateChange(null)
+                          }
+                        }}
+                        className="h-5 w-5 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        title="Remove start date"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (onDueDateChange) {
-                          onDueDateChange(null)
-                        }
-                      }}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                      title="Remove due date"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Not set</span>
+                  )}
+                </div>
+                
+                {/* Due Date Display */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-xs">
+                    <Calendar className="w-3 h-3 text-purple-500" />
+                    <span className="text-gray-600">Due:</span>
                   </div>
-                ) : (
-                  <div className="text-sm text-gray-500 italic">
-                    No due date set
-                  </div>
-                )}
+                  {phase.dueDate ? (
+                    <div className="flex items-center space-x-1">
+                      <span className={cn(
+                        "text-xs font-medium",
+                        isOverdue ? "text-red-700" :
+                        isDueSoon ? "text-yellow-700" :
+                        "text-purple-700"
+                      )}>
+                        {new Date(phase.dueDate).toLocaleDateString()}
+                      </span>
+                      {isOverdue && <AlertTriangle className="w-3 h-3 text-red-600" />}
+                      {isDueSoon && !isOverdue && <Clock className="w-3 h-3 text-yellow-600" />}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (onDueDateChange) {
+                            onDueDateChange(null)
+                          }
+                        }}
+                        className="h-5 w-5 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        title="Remove due date"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Not set</span>
+                  )}
+                </div>
               </div>
             )}
           </div>

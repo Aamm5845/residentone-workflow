@@ -21,6 +21,7 @@ interface CalendarTask {
   type: 'stage' | 'approval' | 'task'
   stageType?: string
   urgencyLevel?: 'critical' | 'high' | 'medium' | 'low'
+  isStartDate?: boolean
   assignedUser?: {
     id: string
     name: string
@@ -163,6 +164,15 @@ export default function CalendarView({
     const today = new Date()
     const isOverdue = dueDate < today
     const isDueSoon = !isOverdue && (dueDate.getTime() - today.getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
+    
+    // Start dates get a lighter, distinct color
+    if (task.isStartDate) {
+      if (task.stageType === 'ROOM_START') return 'bg-teal-400'
+      return 'bg-blue-400'
+    }
+    
+    // Room due dates
+    if (task.stageType === 'ROOM_DUE') return 'bg-indigo-500'
     
     // Use urgency-based colors for overdue/critical tasks
     if (isOverdue || task.urgencyLevel === 'critical') return 'bg-red-600'
