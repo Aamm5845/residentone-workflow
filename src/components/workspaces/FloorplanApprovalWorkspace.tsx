@@ -1311,8 +1311,7 @@ export default function FloorplanApprovalWorkspace({
                         disabled={
                           loading || 
                           !currentVersion.approvedByAaron || 
-                          selectedAssets.length === 0 || 
-                          currentVersion.sentToClientAt !== null
+                          selectedAssets.length === 0
                         }
                         className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
                         title={
@@ -1321,29 +1320,34 @@ export default function FloorplanApprovalWorkspace({
                             : selectedAssets.length === 0 
                             ? 'Select at least one file to send' 
                             : currentVersion.sentToClientAt 
-                            ? 'Already sent to client' 
+                            ? `Resend floorplan approval email to client (last sent ${new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` 
                             : 'Send floorplan approval email to client'
                         }
                       >
                         <Send className="w-4 h-4 mr-2" />
-                        {currentVersion.sentToClientAt ? 
-                          `Sent to Client (${new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` 
-                          : loading ? 'Sending...' 
+                        {loading ? 'Sending...' 
                           : !currentVersion.approvedByAaron ? 'Requires Internal Approval First'
                           : selectedAssets.length === 0 ? 'Select Files to Send'
+                          : currentVersion.sentToClientAt ? 'Resend to Client'
                           : 'Send to Client'
                         }
                       </Button>
-                      {!currentVersion.sentToClientAt && !currentVersion.approvedByAaron && (
+                      {!currentVersion.approvedByAaron && (
                         <p className="text-xs text-amber-600 flex items-center">
                           <AlertCircle className="w-3 h-3 mr-1" />
                           Mark as "Ready for Client" above before sending
                         </p>
                       )}
-                      {!currentVersion.sentToClientAt && currentVersion.approvedByAaron && selectedAssets.length === 0 && (
+                      {currentVersion.approvedByAaron && selectedAssets.length === 0 && (
                         <p className="text-xs text-amber-600 flex items-center">
                           <AlertCircle className="w-3 h-3 mr-1" />
                           Select at least one file from the Assets tab
+                        </p>
+                      )}
+                      {currentVersion.sentToClientAt && currentVersion.approvedByAaron && selectedAssets.length > 0 && (
+                        <p className="text-xs text-gray-600 flex items-center">
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Last sent: {new Date(currentVersion.sentToClientAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       )}
                     </div>

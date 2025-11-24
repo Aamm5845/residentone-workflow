@@ -141,6 +141,8 @@ export async function POST(
 
       // Update version status if not a test email
       if (!testEmail) {
+        const isResend = !!version.sentToClientAt
+        
         await prisma.floorplanApprovalVersion.update({
           where: { id: version.id },
           data: {
@@ -154,14 +156,17 @@ export async function POST(
         await prisma.floorplanApprovalActivity.create({
           data: {
             versionId: version.id,
-            type: 'email_sent',
-            message: `Floorplan approval email sent to ${clientEmail}`,
+            type: isResend ? 'email_resent' : 'email_sent',
+            message: isResend 
+              ? `Floorplan approval email resent to ${clientEmail}`
+              : `Floorplan approval email sent to ${clientEmail}`,
             userId: session.user.id,
             metadata: JSON.stringify({
               emailId: emailLog.id,
               recipientEmail: clientEmail,
               assetCount: assetsToInclude.length,
-              trackingPixelId
+              trackingPixelId,
+              isResend
             })
           }
         })
@@ -183,28 +188,33 @@ export async function POST(
       }
 
       // Log to main activity log
+      const isResend = !testEmail && !!version.sentToClientAt
       await logActivity({
         session,
         action: ActivityActions.PROJECT_UPDATE,
         entity: EntityTypes.PROJECT,
         entityId: version.projectId,
         details: {
-          action: testEmail ? 'floorplan_test_email_sent' : 'floorplan_email_sent',
+          action: testEmail ? 'floorplan_test_email_sent' : (isResend ? 'floorplan_email_resent' : 'floorplan_email_sent'),
           versionId: version.id,
           version: version.version,
           projectName: version.project.name,
           clientName: version.project.client?.name,
           recipientEmail: clientEmail,
           assetCount: assetsToInclude.length,
-          isTest: !!testEmail
+          isTest: !!testEmail,
+          isResend
         },
         ipAddress
       })
 
+      const isResend = !testEmail && !!version.sentToClientAt
       return NextResponse.json({
         success: true,
         message: testEmail 
           ? `Test email sent successfully to ${clientEmail}`
+          : isResend 
+          ? `Floorplan approval email resent successfully to ${clientEmail}`
           : `Floorplan approval email sent successfully to ${clientEmail}`,
         emailLog: {
           id: emailLog.id,
