@@ -122,7 +122,7 @@ export default function RoomPhaseBoard({
       } finally {
         setLoading(null)
       }
-    }
+    } else if (phase.status === 'IN_PROGRESS' || phase.status === 'COMPLETE') {
       // Navigate to stage workspace (for both active and completed phases)
       if (phase.stageId) {
         // For FFE phases, go directly to the FFE workspace

@@ -27,6 +27,7 @@ export async function GET(
         links: { orderBy: { order: 'asc' } },
         attachments: { orderBy: { order: 'asc' } },
         itemNotes: {
+          take: 3, // Only fetch 3 most recent notes initially
           orderBy: { createdAt: 'desc' },
           include: {
             author: { select: { id: true, name: true, email: true } },
@@ -166,6 +167,7 @@ export async function POST(
         links: { orderBy: { order: 'asc' } },
         attachments: { orderBy: { order: 'asc' } },
         itemNotes: {
+          take: 3, // Only fetch 3 most recent notes initially
           orderBy: { createdAt: 'desc' },
           include: {
             author: { select: { id: true, name: true, email: true } },
