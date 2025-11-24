@@ -388,10 +388,17 @@ export default function RoomPhaseBoard({
         throw new Error(errorData.error || 'Failed to update room settings')
       }
       
-      // Update phase assignments
+      // Update phase assignments - only if they changed
       const updatePromises = Object.entries(settings.assignments).map(async ([phaseId, memberId]) => {
         const phase = phases.find(p => p.id === phaseId)
         if (!phase?.stageId) return
+        
+        // Check if assignment actually changed
+        const currentAssigneeId = phase.assignedUser?.id || null
+        if (currentAssigneeId === memberId) {
+          // No change, skip API call
+          return
+        }
         
         const response = await fetch(`/api/stages/${phase.stageId}`, {
           method: 'PATCH',
