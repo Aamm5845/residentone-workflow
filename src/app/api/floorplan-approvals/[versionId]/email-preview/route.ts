@@ -152,28 +152,34 @@ function generateFloorplanApprovalEmailHtml(data: {
                 <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Included Floorplans</h3>
                 <div style="margin: 16px 0;">
                     ${assets.map(asset => `
-                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 12px 0; background: #ffffff;">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 16px; color: #1e293b; margin: 0 0 8px 0; font-weight: 600;">${asset.title}</div>
-                                <div style="font-size: 13px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">${asset.type === 'FLOORPLAN_PDF' ? 'PDF Floorplan' : 'CAD File'}</div>
-                                <div style="font-size: 12px; color: #94a3b8;">${asset.size ? Math.round(asset.size / 1024 / 1024 * 100) / 100 + ' MB' : 'File size not available'}</div>
-                            </div>
-                            <div style="margin-left: 16px;">
-                                <a href="${asset.url}" 
-                                   style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;"
-                                   target="_blank" rel="noopener noreferrer">Download PDF</a>
-                            </div>
-                        </div>
-                    </div>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #e2e8f0; border-radius: 8px; margin: 12px 0; background: #ffffff;">
+                        <tr>
+                            <td style="padding: 20px;">
+                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                    <tr>
+                                        <td style="vertical-align: top;">
+                                            <div style="font-size: 16px; color: #1e293b; margin: 0 0 8px 0; font-weight: 600;">${asset.title}</div>
+                                            <div style="font-size: 13px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">${asset.type === 'FLOORPLAN_PDF' ? 'PDF Floorplan' : 'CAD File'}</div>
+                                            <div style="font-size: 12px; color: #94a3b8;">${asset.size ? Math.round(asset.size / 1024 / 1024 * 100) / 100 + ' MB' : 'File size not available'}</div>
+                                        </td>
+                                        <td style="vertical-align: middle; text-align: right; padding-left: 16px;">
+                                            <a href="${asset.url}" 
+                                               style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; white-space: nowrap;"
+                                               target="_blank" rel="noopener noreferrer">Download PDF</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                     `).join('')}
                 </div>
             </div>
             ` : ''}
 
-            <!-- Approval buttons removed - now just an informational email -->
+            <!-- Download Instructions -->
             <div style="text-align: center; margin: 32px 0;">
-                <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">Please review the floorplan documents above. You can download each PDF by clicking the download button next to each file.</p>
+                <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">Please download the floorplan documents above by clicking the download button next to each file.</p>
             </div>
 
             <!-- Information Section -->
