@@ -213,54 +213,61 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       </div>
 
       {/* My Tasks Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">My Tasks</h2>
-          <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-500">
-              {tasksData?.tasks?.length || 0} active tasks
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTasksCollapsed(!tasksCollapsed)}
-              className="p-1 h-8 w-8"
-            >
-              {tasksCollapsed ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronUp className="h-4 w-4" />
-              )}
-            </Button>
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
+        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">My Tasks</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {tasksData?.tasks?.length || 0} active {tasksData?.tasks?.length === 1 ? 'task' : 'tasks'} assigned
+              </p>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTasksCollapsed(!tasksCollapsed)}
+            className="h-9 px-3 hover:bg-purple-50 transition-colors"
+          >
+            {tasksCollapsed ? (
+              <>
+                <span className="text-sm font-medium mr-2">Show</span>
+                <ChevronDown className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium mr-2">Hide</span>
+                <ChevronUp className="h-4 w-4" />
+              </>
+            )}
+          </Button>
         </div>
         <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-          tasksCollapsed ? 'max-h-0' : 'max-h-[1000px]'
+          tasksCollapsed ? 'max-h-0' : 'max-h-[2000px]'
         }`}>
           <div className="p-6">
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse">
-                  <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="w-16 h-6 bg-gray-200 rounded"></div>
-                  </div>
+                  <div className="h-32 bg-gray-200 rounded-2xl"></div>
                 </div>
               ))}
             </div>
           ) : !tasksData?.tasks || tasksData.tasks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No pending tasks assigned to you</p>
-              <p className="text-sm mt-1">Great job staying on top of your work!</p>
+            <div className="text-center py-16 px-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
+              <p className="text-gray-600">No pending tasks assigned to you</p>
+              <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work! 🎉</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {tasksData.tasks.map((task) => (
                 <TaskItem key={task.id} task={task} />
               ))}
@@ -343,20 +350,22 @@ function TaskItem({ task }: { task: Task }) {
   const isDueSoon = task.dueDate && !isOverdue && 
     (new Date(task.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
   
-  const priorityColors = {
-    high: 'bg-red-100 text-red-800 border-red-200',
-    medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    low: 'bg-green-100 text-green-800 border-green-200'
-  }
-
-  const statusIcons = {
-    NOT_STARTED: '⏳',
-    IN_PROGRESS: '🔄',
-    COMPLETED: '✅',
-    NEEDS_ATTENTION: '🔴',
-    ON_HOLD: '⏸️',
-    PENDING_APPROVAL: '⏰',
-    REVISION_REQUESTED: '🔄'
+  const priorityConfig = {
+    high: {
+      badge: 'bg-gradient-to-r from-red-500 to-red-600 text-white',
+      icon: '🔴',
+      label: 'High Priority'
+    },
+    medium: {
+      badge: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+      icon: '🟡',
+      label: 'Medium Priority'
+    },
+    low: {
+      badge: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white',
+      icon: '🟢',
+      label: 'Low Priority'
+    }
   }
 
   const handleTaskClick = () => {
@@ -369,56 +378,71 @@ function TaskItem({ task }: { task: Task }) {
     const phaseName = stageType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
     // Format room type properly
     const formattedRoom = roomType.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-    return `${phaseName} - ${formattedRoom}`
+    return { phase: phaseName, room: formattedRoom }
   }
+
+  const { phase, room } = formatTaskTitle(task.title, task.stageType, task.roomType)
+  const priorityInfo = priorityConfig[task.priority]
 
   return (
     <div 
-      className={`flex items-center justify-between p-5 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
+      className={`group relative overflow-hidden rounded-lg cursor-pointer transition-all duration-200 ${
         isOverdue 
-          ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300 shadow-md' 
+          ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-500' 
           : isDueSoon
-          ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100 hover:border-yellow-300' 
-          : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
-      }`}
+          ? 'bg-amber-50 hover:bg-amber-100 border-l-4 border-amber-500' 
+          : 'bg-white hover:bg-gray-50 border-l-4 border-gray-300 hover:border-purple-400'
+      } border border-gray-200 hover:border-gray-300 hover:shadow-md`}
       onClick={handleTaskClick}
     >
-      <div className="flex items-center space-x-4 flex-1 min-w-0">
-        <div>
-          <div className="flex items-center space-x-2 mb-1">
-            <h3 className={`font-semibold text-base ${
-              isOverdue ? 'text-red-900' : isDueSoon ? 'text-yellow-900' : 'text-gray-900'
-            }`}>{formatTaskTitle(task.title, task.stageType, task.roomType)}</h3>
+      <div className="px-4 py-3">
+        {/* Single row layout */}
+        <div className="flex items-center gap-3">
+          {/* Main content - takes most space */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`font-semibold text-sm truncate ${
+                isOverdue ? 'text-red-900' : isDueSoon ? 'text-amber-900' : 'text-gray-900'
+              }`}>{phase}</h3>
+              <span className="text-xs text-gray-500">•</span>
+              <span className="text-xs text-gray-600 truncate">{room}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <span className="font-medium truncate">{task.project}</span>
+              <span className="text-gray-400">•</span>
+              <span className="truncate">{task.client}</span>
+              {task.dueDate && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className={`font-medium ${
+                    isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-600'
+                  }`}>{formatDueDate(task.dueDate)}</span>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Right side badges - compact */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isOverdue && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
                 OVERDUE
               </span>
             )}
-            {isDueSoon && (
-              <span className="bg-yellow-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+            {isDueSoon && !isOverdue && (
+              <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded">
                 DUE SOON
               </span>
             )}
-          </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <span className="font-medium">{task.project}</span>
-            <span className="text-gray-400">•</span>
-            <span>{task.client}</span>
-            {task.dueDate && (
-              <>
-                <span className="text-gray-400">•</span>
-                <span className={`font-medium ${
-                  isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-gray-600'
-                }`}>{formatDueDate(task.dueDate)}</span>
-              </>
-            )}
+            
+            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded ${priorityInfo.badge}`}>
+              <span className="text-xs">{priorityInfo.icon}</span>
+            </span>
+            
+            <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg] opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
-      </div>
-      <div className="flex items-center space-x-3 flex-shrink-0">
-        <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg border-2 ${priorityColors[task.priority]}`}>
-          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-        </span>
       </div>
     </div>
   )

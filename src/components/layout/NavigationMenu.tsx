@@ -60,12 +60,12 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'My Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
+    { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
   ]
 
-  const messagesNavigation = [
+  const updatesNavigation = [
     { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount },
-    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-indigo-600', badgeCount: unreadActivitiesCount },
-    { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
+    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-orange-600', badgeCount: unreadActivitiesCount },
   ]
 
   const isActive = (href: string) => pathname.startsWith(href)
@@ -97,9 +97,9 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
           })}
         </div>
 
-        {/* Messages Navigation */}
+        {/* Updates Navigation */}
         <div className="space-y-1 border-t border-gray-200 pt-4">
-          {messagesNavigation.map((item) => {
+          {updatesNavigation.map((item) => {
             const Icon = item.icon
             const showBadge = item.badgeCount && item.badgeCount > 0
             return (
@@ -158,11 +158,11 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
         </nav>
       </div>
 
-      {/* Messages Section */}
+      {/* Updates Section */}
       <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Messages</h3>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Updates</h3>
         <nav className="space-y-1">
-          {messagesNavigation.map((item) => {
+          {updatesNavigation.map((item) => {
             const Icon = item.icon
             const showBadge = item.badgeCount && item.badgeCount > 0
             return (

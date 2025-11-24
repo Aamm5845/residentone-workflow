@@ -801,6 +801,19 @@ export function formatDescription(activity: {
       return `${actorName} changed FFE item${itemInfo} status${statusChange}${context}`
 
     case 'PROJECT_UPDATED':
+      // Check if this is actually a floorplan email that was logged with wrong action
+      if (details.action === 'floorplan_test_email_sent' || details.action === 'floorplan_email_sent' || details.action === 'floorplan_email_resent') {
+        const isTestEmail = details.isTest || details.action === 'floorplan_test_email_sent'
+        const isResendEmail = details.isResend || details.action === 'floorplan_email_resent'
+        
+        if (isTestEmail) {
+          return `${actorName} sent a test floorplan email to ${details.recipientEmail}${context}`
+        } else if (isResendEmail) {
+          return `${actorName} resent floorplan ${details.version || 'approval'} email to ${details.recipientEmail || 'client'}${context}`
+        } else {
+          return `${actorName} sent floorplan ${details.version || 'approval'} email to ${details.recipientEmail || 'client'}${context}`
+        }
+      }
       return `${actorName} updated project "${details.projectName || 'Untitled'}"`
 
     case 'ROOM_CREATED':
@@ -829,6 +842,18 @@ export function formatDescription(activity: {
 
     case 'AARON_APPROVED':
       return `${actorName} approved ${details.version || 'version'} for client review${context}`
+
+    case 'FLOORPLAN_APPROVAL_SENT':
+      const isTestEmail = details.isTest || details.action === 'floorplan_test_email_sent'
+      const isResendEmail = details.isResend || details.action === 'floorplan_email_resent'
+      
+      if (isTestEmail) {
+        return `${actorName} sent a test floorplan email to ${details.recipientEmail}${context}`
+      } else if (isResendEmail) {
+        return `${actorName} resent floorplan ${details.version || 'approval'} email to ${details.recipientEmail || 'client'}${context}`
+      } else {
+        return `${actorName} sent floorplan ${details.version || 'approval'} email to ${details.recipientEmail || 'client'}${context}`
+      }
 
     default:
       // Generic fallback - include as much context as possible

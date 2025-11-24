@@ -220,7 +220,7 @@ export async function POST(
       // Log to main activity log
       await logActivity({
         session,
-        action: ActivityActions.PROJECT_UPDATE,
+        action: ActivityActions.FLOORPLAN_APPROVAL_SENT,
         entity: EntityTypes.PROJECT,
         entityId: version.projectId,
         details: {

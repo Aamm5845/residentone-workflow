@@ -304,10 +304,6 @@ export default async function TeamMemberTasks({ params }: PageProps) {
                   Team Preferences
                 </Link>
               </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Mail className="w-4 h-4 mr-2" />
-                Send Message
-              </Button>
               {(session.user.role === 'OWNER' || session.user.role === 'ADMIN') && (
                 <Button className="w-full justify-start" variant="outline">
                   <UserIcon className="w-4 h-4 mr-2" />

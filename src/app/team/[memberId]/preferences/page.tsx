@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
 import { NotificationPreferences } from '@/components/team/NotificationPreferences'
-import { PhoneNumberSettings } from '@/components/team/PhoneNumberSettings'
-import PersonalInformationForm from '@/components/team/PersonalInformationForm'
+import { ProfileUpdateForm } from '@/components/team/ProfileUpdateForm'
+import { ChangePasswordForm } from '@/components/team/ChangePasswordForm'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User as UserIcon, Bell, Shield } from 'lucide-react'
+import { ArrowLeft, User as UserIcon } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Session } from 'next-auth'
@@ -31,6 +31,15 @@ export default async function TeamMemberPreferences({ params }: PageProps) {
     redirect('/auth/signin')
   }
 
+  // Check if user is trying to access their own preferences or if they're admin/owner
+  const isOwnPreferences = session.user.id === resolvedParams.memberId
+  const isAdminOrOwner = ['OWNER', 'ADMIN'].includes(session.user.role)
+  
+  if (!isOwnPreferences && !isAdminOrOwner) {
+    // Regular team members can only access their own preferences
+    redirect(`/team/${session.user.id}/preferences`)
+  }
+
   let member: any = null
   
   try {
@@ -47,12 +56,7 @@ export default async function TeamMemberPreferences({ params }: PageProps) {
         phoneNumber: true,
         smsNotificationsEnabled: true,
         emailNotificationsEnabled: true,
-        orgId: true,
-        organization: {
-          select: {
-            name: true
-          }
-        }
+        orgId: true
       }
     })
   } catch (error) {
@@ -137,67 +141,30 @@ export default async function TeamMemberPreferences({ params }: PageProps) {
 
         {/* Preferences Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Notification Preferences */}
-          <NotificationPreferences
-            userId={member.id}
-            initialEmailEnabled={member.emailNotificationsEnabled ?? true}
-            initialSmsEnabled={member.smsNotificationsEnabled}
-            initialPhoneNumber={member.phoneNumber}
-            canEdit={canEdit}
-          />
-
-          {/* Phone Number Settings */}
-          <PhoneNumberSettings
-            userId={member.id}
-            initialPhoneNumber={member.phoneNumber}
-            initialSmsEnabled={member.smsNotificationsEnabled}
-            canEdit={canEdit}
-          />
-
-          {/* Personal Information */}
-          <PersonalInformationForm
+          {/* Profile Information */}
+          <ProfileUpdateForm
             userId={member.id}
             initialName={member.name}
             initialEmail={member.email}
-            organizationName={member.organization?.name}
+            initialImage={member.image}
             canEdit={canEdit}
           />
 
           {/* Security Settings */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Shield className="h-5 w-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Security Settings</h3>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <p className="text-sm text-gray-500 mb-3">Manage your account password and security</p>
-                {session.user.id === member.id ? (
-                  <Button variant="outline" className="w-full" disabled>
-                    <Shield className="w-4 h-4 mr-2" />
-                    Change Password
-                  </Button>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Password management is handled by administrators
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+          <ChangePasswordForm
+            userId={member.id}
+            canEdit={canEdit}
+          />
 
-        {/* Quick Actions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-blue-900 mb-1">Notification Tips</h4>
-              <p className="text-sm text-blue-800">
-                Enable SMS notifications to receive instant alerts for chat mentions and important updates. Make sure your phone number is verified.
-              </p>
-            </div>
+          {/* Notification Preferences - Full Width */}
+          <div className="lg:col-span-2">
+            <NotificationPreferences
+              userId={member.id}
+              initialEmailEnabled={member.emailNotificationsEnabled ?? true}
+              initialSmsEnabled={member.smsNotificationsEnabled}
+              initialPhoneNumber={member.phoneNumber}
+              canEdit={canEdit}
+            />
           </div>
         </div>
       </div>

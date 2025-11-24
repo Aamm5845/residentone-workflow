@@ -605,16 +605,6 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
                     <div className="relative flex items-center justify-end space-x-2">
                       <Button
-                        onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                      
-                      <Button
                         asChild
                         variant="outline"
                         size="sm"
@@ -622,8 +612,17 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       >
                         <Link href={`/team/${member.id}/preferences`}>
                           <Settings className="h-3 w-3 mr-1" />
-                          Team Preferences
+                          Preferences
                         </Link>
+                      </Button>
+                      
+                      <Button
+                        onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2"
+                      >
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                       
                       {openDropdown === member.id && (

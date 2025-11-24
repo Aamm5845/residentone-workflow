@@ -96,6 +96,11 @@ export function NotificationPreferences({
 
       toast.success('Notification preferences updated!')
       setIsEditing(false)
+      
+      // Reload page to reflect changes
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
     } catch (error) {
       console.error('Error updating notification preferences:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update preferences')
