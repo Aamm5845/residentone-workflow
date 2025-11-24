@@ -542,11 +542,9 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Contributions
               </th>
-              {canManageTeam && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200" style={{position: 'relative'}}>
@@ -601,21 +599,23 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                     <div>{member._count?.uploadedAssets || 0} files</div>
                   </div>
                 </td>
-                {canManageTeam && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
-                    <div className="relative flex items-center justify-end space-x-2">
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                      >
-                        <Link href={`/team/${member.id}/preferences`}>
-                          <Settings className="h-3 w-3 mr-1" />
-                          Preferences
-                        </Link>
-                      </Button>
-                      
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{position: 'relative'}}>
+                  <div className="relative flex items-center justify-end space-x-2">
+                    {/* Show preferences button to everyone, but highlight own row */}
+                    <Button
+                      asChild
+                      variant={member.id === currentUser.id ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-3 text-xs"
+                    >
+                      <Link href={`/team/${member.id}/preferences`}>
+                        <Settings className="h-3 w-3 mr-1" />
+                        {member.id === currentUser.id ? 'My Preferences' : 'Preferences'}
+                      </Link>
+                    </Button>
+                    
+                    {/* Show admin menu only for admins/owners */}
+                    {canManageTeam && (
                       <Button
                         onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                         variant="outline"
@@ -624,6 +624,7 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
+                    )}
                       
                       {openDropdown === member.id && (
                         <>
@@ -700,22 +701,14 @@ export default function TeamManagementClient({ teamMembers, currentUser }: TeamM
                           </div>
                         </>
                       )}
-                    </div>
-                  </td>
-                )}
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {!canManageTeam && (
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <p className="text-sm text-gray-600 text-center">
-            You need owner or admin privileges to manage team members.
-          </p>
-        </div>
-      )}
 
       {editingMember && (
         <EditMemberDialog
