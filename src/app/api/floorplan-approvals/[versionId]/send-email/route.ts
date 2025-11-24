@@ -306,7 +306,7 @@ function generateFloorplanApprovalEmailHtml(data: {
                  draggable="false" 
                  ondragstart="return false;" 
                  oncontextmenu="return false;"/> -->
-            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Approval</h1>
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Documents Ready</h1>
             <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 16px; font-weight: 400;">${projectName}</p>
         </div>
         
@@ -314,49 +314,20 @@ function generateFloorplanApprovalEmailHtml(data: {
         <div style="padding: 40px 32px;">
             <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Dear ${clientName},</p>
             
-            <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.7;">This is the latest floor design for your project and is ready for your review and approval.</p>
+            <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.7;">Your floorplan documents are ready for review. We've attached ${floorplanCount} PDF ${floorplanCount !== 1 ? 'files' : 'file'} to this email for your convenience.</p>
             
             <!-- Project Details -->
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 24px 0;">
                 <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Project Details</h3>
                 <p style="margin: 8px 0; color: #475569;"><strong>Project:</strong> ${projectName}</p>
                 <p style="margin: 8px 0; color: #475569;"><strong>Version:</strong> ${versionName}</p>
-                <p style="margin: 8px 0; color: #475569;"><strong>Floorplans:</strong> ${floorplanCount} document${floorplanCount !== 1 ? 's' : ''} included</p>
+                <p style="margin: 8px 0; color: #475569;"><strong>Attachments:</strong> ${floorplanCount} floorplan ${floorplanCount !== 1 ? 'documents' : 'document'}</p>
             </div>
 
-            ${assets.length > 0 ? `
-            <div style="margin: 32px 0;">
-                <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Included Floorplans</h3>
-                <div style="margin: 16px 0;">
-                    ${assets.map(asset => `
-                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #e2e8f0; border-radius: 8px; margin: 12px 0; background: #ffffff;">
-                        <tr>
-                            <td style="padding: 20px;">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tr>
-                                        <td style="vertical-align: top;">
-                                            <div style="font-size: 16px; color: #1e293b; margin: 0 0 8px 0; font-weight: 600;">${asset.title}</div>
-                                            <div style="font-size: 13px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">${asset.type === 'FLOORPLAN_PDF' ? 'PDF Floorplan' : 'CAD File'}</div>
-                                            <div style="font-size: 12px; color: #94a3b8;">${asset.size ? Math.round(asset.size / 1024 / 1024 * 100) / 100 + ' MB' : 'File size not available'}</div>
-                                        </td>
-                                        <td style="vertical-align: middle; text-align: right; padding-left: 16px;">
-                                            <a href="${asset.url}" 
-                                               style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; white-space: nowrap;"
-                                               target="_blank" rel="noopener noreferrer">Download PDF</a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                    `).join('')}
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- Download Instructions -->
-            <div style="text-align: center; margin: 32px 0;">
-                <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">Please download the floorplan documents above by clicking the download button next to each file.</p>
+            <!-- Attachment Notice -->
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 8px; padding: 24px; margin: 32px 0; text-align: center;">
+                <h3 style="margin: 0 0 12px 0; color: #1e40af; font-size: 18px; font-weight: 600;">📎 Floorplans Attached</h3>
+                <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.7;">All floorplan documents are attached to this email. You can open them directly from your email attachments.</p>
             </div>
 
             <!-- Information Section -->
