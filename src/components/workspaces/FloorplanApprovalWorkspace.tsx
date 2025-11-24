@@ -1095,7 +1095,7 @@ export default function FloorplanApprovalWorkspace({
                       <div className="bg-gray-50 p-3 rounded-lg mb-4">
                         <p className="text-sm text-gray-600">
                           <strong>To:</strong> {project.client?.email}<br/>
-                          <strong>Subject:</strong> 📐 Floorplan Approval Required - {project.name}
+                          <strong>Subject:</strong> {project.name} - Floorplan Ready for Approval
                         </p>
                       </div>
                       {currentVersion && (
