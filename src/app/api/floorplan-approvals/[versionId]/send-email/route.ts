@@ -330,16 +330,7 @@ function generateFloorplanApprovalEmailHtml(data: {
                 <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.7;">All floorplan documents are attached to this email. You can open them directly from your email attachments.</p>
             </div>
 
-            <!-- Information Section -->
-            <div style="margin: 32px 0;">
-                <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Floorplan Information</h3>
-                <div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; margin: 16px 0; border-radius: 0 8px 8px 0;">
-                    <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 12px 0;">These floorplan documents show the layout and design details for your project. Each PDF contains detailed information about room layouts, dimensions, and design elements.</p>
-                    <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0;">You can download and save these files for your records. If you have any questions about the floorplans, please don't hesitate to reach out.</p>
-                </div>
-            </div>
-            
-            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Questions about the design? Please reply to this email or call us to discuss any changes or concerns.</p>
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Questions? Just reply to this email or give us a call.</p>
         </div>
         
         <!-- Footer -->
