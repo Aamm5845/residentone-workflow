@@ -34,44 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    // Check for manually uploaded renderings first (these take priority)
-    const section = await prisma.specBookSection.findFirst({
-      where: {
-        roomId: roomId,
-        type: 'ROOM',
-        specBook: {
-          isActive: true
-        }
-      }
-    })
-
-    const manualUrls = section?.renderingUrls && section.renderingUrls.length > 0 
-      ? section.renderingUrls 
-      : section?.renderingUrl ? [section.renderingUrl] : []
-    
-    // If there are manual uploads, use those (they override approved renderings)
-    if (manualUrls.length > 0) {
-      const manualRenderings = manualUrls.map((url, index) => {
-        const filename = url.split('/').pop()?.split('?')[0] || `rendering-${index + 1}.jpg`
-        return {
-          id: url,
-          url: url,
-          filename: filename,
-          fileSize: 0,
-          source: 'MANUAL' as const
-        }
-      })
-      
-      return NextResponse.json({
-        success: true,
-        roomId: roomId,
-        source: 'MANUAL',
-        approved: null,
-        renderings: manualRenderings
-      })
-    }
-
-    // No manual uploads, so check for client-approved rendering version
+    // Get client-approved rendering version from 3D rendering phase
     const approvedVersion = await prisma.renderingVersion.findFirst({
       where: {
         roomId: roomId,

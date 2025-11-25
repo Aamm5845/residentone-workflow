@@ -332,77 +332,62 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get rendering URLs - prioritize manual uploads over approved versions
+      // Get rendering URLs from client-approved 3D rendering phase
       let renderingUrls: string[] = []
       
-      // First, check for manually uploaded renderings (these take priority)
-      const manualUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
-        ? roomSection.renderingUrls
-        : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
-      
-      if (manualUrls.length > 0) {
-        // Use manual uploads (they override approved renderings)
-        renderingUrls = manualUrls
-        console.log(`[DEBUG] Using ${renderingUrls.length} manual rendering URL(s) for room ${room.name}`)
-      } else {
-        // No manual uploads, so fall back to client-approved rendering assets from 3D render phase
-        const approvedVersion = await prisma.renderingVersion.findFirst({
-          where: {
-            roomId: roomId,
-            clientApprovalVersion: {
-              clientDecision: 'APPROVED'
+      const approvedVersion = await prisma.renderingVersion.findFirst({
+        where: {
+          roomId: roomId,
+          clientApprovalVersion: {
+            clientDecision: 'APPROVED'
+          }
+        },
+        include: {
+          clientApprovalVersion: {
+            select: {
+              clientDecidedAt: true
             }
           },
-          include: {
-            clientApprovalVersion: {
-              select: {
-                clientDecidedAt: true
-              }
+          assets: {
+            where: {
+              type: 'RENDER'
             },
-            assets: {
-              where: {
-                type: 'RENDER'
-              },
-              orderBy: {
-                createdAt: 'asc'
-              },
-              select: {
-                url: true,
-                provider: true
-              }
-            }
-          },
-          orderBy: {
-            clientApprovalVersion: {
-              clientDecidedAt: 'desc'
+            orderBy: {
+              createdAt: 'asc'
+            },
+            select: {
+              url: true,
+              provider: true
             }
           }
-        })
-        
-        if (approvedVersion && approvedVersion.assets.length > 0) {
-          // Use approved rendering assets from 3D render phase as fallback
-          console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
-          // Convert Dropbox paths to public URLs if needed
-          for (const asset of approvedVersion.assets) {
-            if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
-              // Generate temporary link for Dropbox files
-              try {
-                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-                if (temporaryLink) {
-                  renderingUrls.push(temporaryLink)
-                } else {
-                  console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
-                }
-              } catch (error) {
-                console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
-              }
-            } else {
-              renderingUrls.push(asset.url)
-            }
+        },
+        orderBy: {
+          clientApprovalVersion: {
+            clientDecidedAt: 'desc'
           }
-        } else {
-          console.log(`[DEBUG] No renderings found for room ${room.name}`)
         }
+      })
+      
+      if (approvedVersion && approvedVersion.assets.length > 0) {
+        console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
+        for (const asset of approvedVersion.assets) {
+          if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
+            try {
+              const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+              if (temporaryLink) {
+                renderingUrls.push(temporaryLink)
+              } else {
+                console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
+              }
+            } catch (error) {
+              console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
+            }
+          } else {
+            renderingUrls.push(asset.url)
+          }
+        }
+      } else {
+        console.log(`[DEBUG] No approved renderings found for room ${room.name}`)
       }
       
       // Only add room if it has content (CAD files or rendering)
