@@ -82,6 +82,46 @@ export async function POST(request: NextRequest) {
     const processedSections = []
     console.log(`[DEBUG] Processing ${(selectedSections || []).length} project-level sections`)
     for (const sectionType of selectedSections || []) {
+      // For FLOORPLANS section, check if we should use floorplan approval PDFs
+      let floorplanApprovalAssets = []
+      if (sectionType === 'FLOORPLANS') {
+        const floorplanApproval = await prisma.floorplanApprovalVersion.findFirst({
+          where: {
+            projectId: projectId,
+            clientDecision: 'APPROVED'
+          },
+          include: {
+            assets: {
+              where: {
+                includeInEmail: true
+              },
+              include: {
+                asset: {
+                  where: {
+                    type: 'FLOORPLAN_PDF'
+                  }
+                }
+              }
+            }
+          },
+          orderBy: {
+            clientDecidedAt: 'desc'
+          }
+        })
+        
+        if (floorplanApproval && floorplanApproval.assets.length > 0) {
+          console.log(`[DEBUG] Found ${floorplanApproval.assets.length} approved floorplan PDFs`)
+          floorplanApprovalAssets = floorplanApproval.assets
+            .filter(a => a.asset)
+            .map(a => ({
+              id: a.asset.id,
+              fileName: a.asset.title || a.asset.filename || 'Floor Plan',
+              uploadedPdfUrl: a.asset.url,
+              isActive: true
+            }))
+        }
+      }
+      
       // Create or update section
       let section = await prisma.specBookSection.findFirst({
         where: {
@@ -117,13 +157,25 @@ export async function POST(request: NextRequest) {
         })
       }
       
-      console.log(`[DEBUG] Section ${sectionType} has ${section.dropboxFiles?.length || 0} files`)
-      section.dropboxFiles?.forEach((file, index) => {
-        console.log(`[DEBUG] Section file ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId}`)
+      // For FLOORPLANS section, combine floorplan approval PDFs with regular section files
+      const allSectionFiles = sectionType === 'FLOORPLANS' 
+        ? [...(section.dropboxFiles || []), ...floorplanApprovalAssets]
+        : (section.dropboxFiles || [])
+      
+      console.log(`[DEBUG] Section ${sectionType} has ${allSectionFiles.length} files (${section.dropboxFiles?.length || 0} dropbox + ${floorplanApprovalAssets.length} approval PDFs)`)
+      allSectionFiles.forEach((file, index) => {
+        console.log(`[DEBUG] Section file ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl || file.uploadedPdfUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId || file.id}`)
       })
       
       // Process CAD files for project-level sections (convert if not cached)
-      for (const dropboxFile of section.dropboxFiles || []) {
+      for (const dropboxFile of allSectionFiles) {
+        // Check if this is an already-uploaded PDF (from floorplan approval)
+        if (dropboxFile.uploadedPdfUrl) {
+          // Already a PDF, no conversion needed
+          console.log(`[PDF-Generation] Using uploaded PDF: ${dropboxFile.fileName}`)
+          continue
+        }
+        
         if (!dropboxFile.cadToPdfCacheUrl) {
           // Convert CAD file if not cached
           try {
@@ -165,15 +217,17 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Only add section if it has files with successful conversions or cached PDFs
-      const sectionsWithContent = section.dropboxFiles?.filter(file => file.cadToPdfCacheUrl) || []
+      // Only add section if it has files with successful conversions, cached PDFs, or uploaded PDFs
+      const sectionsWithContent = allSectionFiles.filter(file => 
+        file.cadToPdfCacheUrl || file.uploadedPdfUrl
+      )
       if (sectionsWithContent.length > 0) {
         // Update section to only include files with content
         section.dropboxFiles = sectionsWithContent
         processedSections.push(section)
-        console.log(`[DEBUG] Added section ${section.name} with ${sectionsWithContent.length} converted files`)
+        console.log(`[DEBUG] Added section ${section.name} with ${sectionsWithContent.length} files (converted + uploaded PDFs)`)
       } else {
-        console.log(`[DEBUG] Skipped empty section ${section.name} (no converted CAD files)`)
+        console.log(`[DEBUG] Skipped empty section ${section.name} (no converted CAD files or uploaded PDFs)`)
       }
     }
 
@@ -278,70 +332,77 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get rendering URLs from approved versions first (3D render phase), fallback to manual uploads
+      // Get rendering URLs - prioritize manual uploads over approved versions
       let renderingUrls: string[] = []
       
-      // First, check for client-approved rendering assets
-      const approvedVersion = await prisma.renderingVersion.findFirst({
-        where: {
-          roomId: roomId,
-          clientApprovalVersion: {
-            clientDecision: 'APPROVED'
-          }
-        },
-        include: {
-          clientApprovalVersion: {
-            select: {
-              clientDecidedAt: true
+      // First, check for manually uploaded renderings (these take priority)
+      const manualUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
+        ? roomSection.renderingUrls
+        : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
+      
+      if (manualUrls.length > 0) {
+        // Use manual uploads (they override approved renderings)
+        renderingUrls = manualUrls
+        console.log(`[DEBUG] Using ${renderingUrls.length} manual rendering URL(s) for room ${room.name}`)
+      } else {
+        // No manual uploads, so fall back to client-approved rendering assets from 3D render phase
+        const approvedVersion = await prisma.renderingVersion.findFirst({
+          where: {
+            roomId: roomId,
+            clientApprovalVersion: {
+              clientDecision: 'APPROVED'
             }
           },
-          assets: {
-            where: {
-              type: 'RENDER'
-            },
-            orderBy: {
-              createdAt: 'asc'
-            },
-            select: {
-              url: true,
-              provider: true
-            }
-          }
-        },
-        orderBy: {
-          clientApprovalVersion: {
-            clientDecidedAt: 'desc'
-          }
-        }
-      })
-      
-      if (approvedVersion && approvedVersion.assets.length > 0) {
-        // Use approved rendering assets from 3D render phase
-        console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
-        // Convert Dropbox paths to public URLs if needed
-        for (const asset of approvedVersion.assets) {
-          if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
-            // Generate temporary link for Dropbox files
-            try {
-              const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-              if (temporaryLink) {
-                renderingUrls.push(temporaryLink)
-              } else {
-                console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
+          include: {
+            clientApprovalVersion: {
+              select: {
+                clientDecidedAt: true
               }
-            } catch (error) {
-              console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
+            },
+            assets: {
+              where: {
+                type: 'RENDER'
+              },
+              orderBy: {
+                createdAt: 'asc'
+              },
+              select: {
+                url: true,
+                provider: true
+              }
             }
-          } else {
-            renderingUrls.push(asset.url)
+          },
+          orderBy: {
+            clientApprovalVersion: {
+              clientDecidedAt: 'desc'
+            }
           }
+        })
+        
+        if (approvedVersion && approvedVersion.assets.length > 0) {
+          // Use approved rendering assets from 3D render phase as fallback
+          console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
+          // Convert Dropbox paths to public URLs if needed
+          for (const asset of approvedVersion.assets) {
+            if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
+              // Generate temporary link for Dropbox files
+              try {
+                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+                if (temporaryLink) {
+                  renderingUrls.push(temporaryLink)
+                } else {
+                  console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
+                }
+              } catch (error) {
+                console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
+              }
+            } else {
+              renderingUrls.push(asset.url)
+            }
+          }
+        } else {
+          console.log(`[DEBUG] No renderings found for room ${room.name}`)
         }
-      } else {
-        // Fallback to manually uploaded renderings in spec book section
-        renderingUrls = roomSection.renderingUrls && roomSection.renderingUrls.length > 0
-          ? roomSection.renderingUrls
-          : roomSection.renderingUrl ? [roomSection.renderingUrl] : []
-        console.log(`[DEBUG] Using ${renderingUrls.length} manual rendering URL(s) for room ${room.name}`)
       }
       
       // Only add room if it has content (CAD files or rendering)

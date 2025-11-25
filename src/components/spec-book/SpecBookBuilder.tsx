@@ -534,11 +534,18 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                 </div>
               </div>
               <div className="p-6">
-                <Accordion type="multiple" value={projectSectionsOpen ? PROJECT_LEVEL_SECTIONS.map(s => s.type) : undefined} className="space-y-3">
-                  {PROJECT_LEVEL_SECTIONS.map((section) => (
-                    <AccordionItem key={section.type} value={section.type} className="border border-gray-200/70 rounded-xl overflow-hidden">
-                      <div className="flex items-center">
-                        <div className="px-3 py-3 flex items-center">
+                <div className="space-y-3">
+                  {PROJECT_LEVEL_SECTIONS.map((section) => {
+                    // Get the spec book section for this type to check if it has files
+                    const specBookSection = currentSpecBook?.sections?.find(
+                      s => s.type === section.type && !s.roomId
+                    )
+                    const hasFiles = specBookSection?.dropboxFiles && specBookSection.dropboxFiles.length > 0
+                    const fileCount = specBookSection?.dropboxFiles?.length || 0
+                    
+                    return (
+                      <div key={section.type} className="border border-gray-200/70 rounded-xl overflow-hidden bg-white">
+                        <div className="flex items-center px-4 py-3">
                           <Checkbox
                             id={section.type}
                             checked={selectedSections[section.type] || false}
@@ -547,40 +554,25 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
                             }
                             className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                           />
-                        </div>
-                        <AccordionTrigger className="hover:no-underline flex-1 px-4 py-3 hover:bg-gray-50/50">
-                          <div className="flex items-center space-x-3 flex-1 text-left">
+                          <div className="flex items-center flex-1 ml-3">
                             <div className="flex-1">
                               <div className="font-medium text-gray-900">{section.name}</div>
                               <div className="text-xs text-gray-500 mt-0.5">{section.description}</div>
                             </div>
+                            {hasFiles && (
+                              <div className="flex items-center gap-2 text-sm text-green-600">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="font-medium">{fileCount} {fileCount === 1 ? 'file' : 'files'}</span>
+                              </div>
+                            )}
                           </div>
-                        </AccordionTrigger>
+                        </div>
                       </div>
-                      <AccordionContent className="px-4 pb-4 bg-gray-50/30">
-                        {selectedSections[section.type] && (
-                          <div className="space-y-3 pt-2">
-                            <div className="rounded-lg border border-gray-200 bg-white p-4">
-                              <PlanPdfUpload
-                                projectId={project.id}
-                                sectionType={section.type}
-                                sectionName={section.name}
-                              />
-                            </div>
-                            <div className="rounded-lg border border-gray-200 bg-white p-4">
-                              <DropboxFileBrowser 
-                                roomId={null}
-                                projectId={project.id}
-                                sectionType={section.type}
-                                sectionName={section.name}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

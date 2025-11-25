@@ -34,7 +34,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    // Find the latest client-approved rendering version for this room
+    // Check for manually uploaded renderings first (these take priority)
+    const section = await prisma.specBookSection.findFirst({
+      where: {
+        roomId: roomId,
+        type: 'ROOM',
+        specBook: {
+          isActive: true
+        }
+      }
+    })
+
+    const manualUrls = section?.renderingUrls && section.renderingUrls.length > 0 
+      ? section.renderingUrls 
+      : section?.renderingUrl ? [section.renderingUrl] : []
+    
+    // If there are manual uploads, use those (they override approved renderings)
+    if (manualUrls.length > 0) {
+      const manualRenderings = manualUrls.map((url, index) => {
+        const filename = url.split('/').pop()?.split('?')[0] || `rendering-${index + 1}.jpg`
+        return {
+          id: url,
+          url: url,
+          filename: filename,
+          fileSize: 0,
+          source: 'MANUAL' as const
+        }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        roomId: roomId,
+        source: 'MANUAL',
+        approved: null,
+        renderings: manualRenderings
+      })
+    }
+
+    // No manual uploads, so check for client-approved rendering version
     const approvedVersion = await prisma.renderingVersion.findFirst({
       where: {
         roomId: roomId,
@@ -71,7 +108,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // If we have an approved version with assets, return them
+    // If we have an approved version with assets, use those as fallback
     if (approvedVersion && approvedVersion.assets.length > 0) {
       const approvedAssets = await Promise.all(
         approvedVersion.assets.map(async (asset) => {
@@ -117,42 +154,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Fallback: check if there are manually uploaded renderings in spec book section
-    const section = await prisma.specBookSection.findFirst({
-      where: {
-        roomId: roomId,
-        type: 'ROOM',
-        specBook: {
-          isActive: true
-        }
-      }
-    })
-
-    const manualRenderings = []
-    if (section) {
-      const urls = section.renderingUrls && section.renderingUrls.length > 0 
-        ? section.renderingUrls 
-        : section.renderingUrl ? [section.renderingUrl] : []
-      
-      urls.forEach((url, index) => {
-        const filename = url.split('/').pop()?.split('?')[0] || `rendering-${index + 1}.jpg`
-        manualRenderings.push({
-          id: url,
-          url: url,
-          filename: filename,
-          fileSize: 0,
-          source: 'MANUAL' as const
-        })
-      })
-    }
-
-    // Return manual renderings if any, otherwise empty
+    // No approved renderings and no manual uploads - empty state
     return NextResponse.json({
       success: true,
       roomId: roomId,
-      source: manualRenderings.length > 0 ? 'MANUAL' : 'NONE',
+      source: 'NONE',
       approved: null,
-      renderings: manualRenderings
+      renderings: []
     })
 
   } catch (error) {
