@@ -10,6 +10,7 @@ const updateProjectSchema = z.object({
   name: z.string().min(1, "Project name is required").max(200).optional(),
   description: z.string().optional(),
   type: z.nativeEnum(ProjectType).optional(),
+  status: z.nativeEnum(ProjectStatus).optional(),
   budget: z.number().positive().optional().nullable(),
   dueDate: z.string().optional().nullable(), // Accept date strings like '2024-12-31'
   clientId: z.string().optional(),
@@ -176,6 +177,9 @@ export async function PUT(
     }
     if (validatedData.type !== undefined) {
       updateData.type = validatedData.type
+    }
+    if (validatedData.status !== undefined) {
+      updateData.status = validatedData.status
     }
     if (validatedData.budget !== undefined) {
       updateData.budget = validatedData.budget
