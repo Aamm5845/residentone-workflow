@@ -712,15 +712,17 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     project.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
                     project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                    project.status === 'PENDING_APPROVAL' ? 'bg-yellow-100 text-yellow-800' :
-                    project.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                    project.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800' :
+                    project.status === 'ON_HOLD' ? 'bg-yellow-100 text-yellow-800' :
+                    project.status === 'URGENT' ? 'bg-red-100 text-red-800' :
+                    project.status === 'CANCELLED' ? 'bg-gray-200 text-gray-700' :
+                    project.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
                     {project.status === 'DRAFT' ? 'Draft' :
                      project.status === 'IN_PROGRESS' ? 'In Progress' :
-                     project.status === 'PENDING_APPROVAL' ? 'Pending Approval' :
-                     project.status === 'APPROVED' ? 'Approved' :
+                     project.status === 'ON_HOLD' ? 'On Hold' :
+                     project.status === 'URGENT' ? 'Urgent' :
+                     project.status === 'CANCELLED' ? 'Cancelled' :
                      project.status === 'COMPLETED' ? 'Completed' :
                      project.status}
                   </span>

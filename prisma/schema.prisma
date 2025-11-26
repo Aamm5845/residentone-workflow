@@ -1887,8 +1887,9 @@ enum ProjectType {
 enum ProjectStatus {
   DRAFT
   IN_PROGRESS
-  PENDING_APPROVAL
-  APPROVED
+  ON_HOLD
+  URGENT
+  CANCELLED
   COMPLETED
 }
 

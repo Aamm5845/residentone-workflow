@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
  * - DRAFT: No phases have started (all are NOT_STARTED or NOT_APPLICABLE)
  * - IN_PROGRESS: At least one phase has been started (IN_PROGRESS or COMPLETED)
  * - COMPLETED: All applicable phases are completed
+ * 
+ * Manual statuses (URGENT, ON_HOLD, CANCELLED) are never overridden by auto-update
  */
 export async function autoUpdateProjectStatus(projectId: string): Promise<void> {
   try {
@@ -22,6 +24,12 @@ export async function autoUpdateProjectStatus(projectId: string): Promise<void> 
 
     if (!project) {
       console.error(`Project not found: ${projectId}`)
+      return
+    }
+
+    // Don't override manually set statuses
+    const manualStatuses = ['URGENT', 'ON_HOLD', 'CANCELLED']
+    if (manualStatuses.includes(project.status)) {
       return
     }
 
@@ -43,7 +51,7 @@ export async function autoUpdateProjectStatus(projectId: string): Promise<void> 
     )
     const completedStages = relevantStages.filter(stage => stage.status === 'COMPLETED')
 
-    let newStatus: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' = 'DRAFT'
+    let newStatus: 'DRAFT' | 'IN_PROGRESS' | 'ON_HOLD' | 'URGENT' | 'CANCELLED' | 'COMPLETED' = 'DRAFT'
 
     if (applicableStages.length === 0) {
       // All stages are NOT_APPLICABLE - keep as DRAFT
