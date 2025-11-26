@@ -236,20 +236,20 @@ export default function InteractiveProjectsPage({
           }, 0) || 0
           const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0
           
-          // Get current phase based on active stages
-          const getCurrentPhase = () => {
-            const activeStages = project.rooms?.flatMap((room: any) => 
-              room.stages?.filter((stage: any) => stage.status === 'IN_PROGRESS') || []
-            ) || []
-            if (activeStages.some((stage: any) => stage.type === 'DESIGN')) return { name: '🎨 Design', color: 'bg-purple-100 text-purple-800' }
-            if (activeStages.some((stage: any) => stage.type === 'THREE_D')) return { name: '🎥 3D Rendering', color: 'bg-blue-100 text-blue-800' }
-            if (activeStages.some((stage: any) => stage.type === 'CLIENT_APPROVAL')) return { name: '👥 Client Review', color: 'bg-green-100 text-green-800' }
-            if (activeStages.some((stage: any) => stage.type === 'DRAWINGS')) return { name: '📐 Drafting', color: 'bg-orange-100 text-orange-800' }
-            if (activeStages.some((stage: any) => stage.type === 'FFE')) return { name: '🛋️ FFE', color: 'bg-indigo-100 text-indigo-800' }
-            return { name: 'Planning', color: 'bg-gray-100 text-gray-800' }
+          // Get project status badge with colors
+          const getProjectStatus = () => {
+            const statusMap: Record<string, { name: string; color: string }> = {
+              DRAFT: { name: 'Draft', color: 'bg-gray-100 text-gray-800 border border-gray-300' },
+              IN_PROGRESS: { name: 'In Progress', color: 'bg-blue-100 text-blue-800 border border-blue-300' },
+              ON_HOLD: { name: 'On Hold', color: 'bg-yellow-100 text-yellow-800 border border-yellow-300' },
+              URGENT: { name: 'Urgent', color: 'bg-red-100 text-red-800 border border-red-300' },
+              CANCELLED: { name: 'Cancelled', color: 'bg-gray-200 text-gray-700 border border-gray-400' },
+              COMPLETED: { name: 'Completed', color: 'bg-green-100 text-green-800 border border-green-300' }
+            }
+            return statusMap[project.status] || { name: project.status, color: 'bg-gray-100 text-gray-800' }
           }
           
-          const currentPhase = getCurrentPhase()
+          const projectStatus = getProjectStatus()
 
           return (
             <Link key={project.id} href={`/projects/${project.id}`} className="group">
@@ -357,8 +357,8 @@ export default function InteractiveProjectsPage({
                   )}
                   {/* Status Badge */}
                   <div className="absolute top-3 right-3">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${currentPhase.color} backdrop-blur-sm`}>
-                      {currentPhase.name}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${projectStatus.color} backdrop-blur-sm shadow-sm`}>
+                      {projectStatus.name}
                     </span>
                   </div>
                   {/* Progress Badge */}
