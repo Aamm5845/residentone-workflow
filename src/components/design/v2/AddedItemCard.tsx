@@ -53,8 +53,7 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const [viewingImageIndex, setViewingImageIndex] = useState(0)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   // Debug: Log item data
   React.useEffect(() => {
@@ -203,76 +202,33 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
     }
   }
 
-  // Upload image
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Unified file upload handler - handles both images and documents
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file')
+    const isImage = file.type.startsWith('image/')
+    
+    // Validate file size
+    const maxSize = isImage ? 10 * 1024 * 1024 : 50 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error(`File size must be less than ${isImage ? '10MB' : '50MB'}`)
       return
     }
 
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image size must be less than 10MB')
-      return
-    }
-
-    setIsUploadingImage(true)
-    const toastId = toast.loading('Uploading image to Dropbox...')
+    setIsUploadingFile(true)
+    const toastId = toast.loading(`Uploading ${isImage ? 'image' : 'file'} to Dropbox...`)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`/api/design-items/${item.id}/images`, {
-        method: 'POST',
-        body: formData
-      })
+      // Route to appropriate endpoint based on file type
+      const endpoint = isImage 
+        ? `/api/design-items/${item.id}/images`
+        : `/api/design-items/${item.id}/attachments`
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to upload image')
-      }
-
-      console.log('[AddedItemCard] Image uploaded successfully, calling onUpdate()')
-      toast.success('Image uploaded successfully', { id: toastId })
-      
-      // Force refresh of the items list
-      await onUpdate()
-      
-      // Clear the input
-      event.target.value = ''
-      console.log('[AddedItemCard] Update complete')
-    } catch (error: any) {
-      console.error('Error uploading image:', error)
-      toast.error(error.message || 'Failed to upload image', { id: toastId })
-    } finally {
-      setIsUploadingImage(false)
-    }
-  }
-
-  // Upload attachment (PDF, docs, etc)
-  const handleAttachmentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Validate file size (50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('File size must be less than 50MB')
-      return
-    }
-
-    setIsUploadingAttachment(true)
-    const toastId = toast.loading('Uploading file to Dropbox...')
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch(`/api/design-items/${item.id}/attachments`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData
       })
@@ -282,16 +238,16 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
         throw new Error(error.error || 'Failed to upload file')
       }
 
-      console.log('[AddedItemCard] Attachment uploaded successfully')
-      toast.success('File uploaded successfully', { id: toastId })
+      console.log(`[AddedItemCard] ${isImage ? 'Image' : 'File'} uploaded successfully`)
+      toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`, { id: toastId })
       
       await onUpdate()
       event.target.value = ''
     } catch (error: any) {
-      console.error('Error uploading attachment:', error)
+      console.error('Error uploading file:', error)
       toast.error(error.message || 'Failed to upload file', { id: toastId })
     } finally {
-      setIsUploadingAttachment(false)
+      setIsUploadingFile(false)
     }
   }
 
@@ -381,11 +337,9 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
                   {libraryItem.category}
                 </span>
               )}
-              <span>Images ({images.length})</span>
+              <span>Files ({images.length + attachments.length})</span>
               <span>•</span>
               <span>Links ({links.length})</span>
-              <span>•</span>
-              <span>Files ({attachments.length})</span>
             </div>
           </div>
         </div>
@@ -495,145 +449,126 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
           </div>
         </div>
 
-        {/* Images */}
+        {/* Files & Images - Unified Upload Section */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
               <ImageIcon className="w-4 h-4" />
-              <span>Images</span>
-              <span className="text-gray-500">({item.images?.length || 0})</span>
+              <span>Files & Images</span>
+              <span className="text-gray-500">({images.length + attachments.length} total)</span>
             </label>
             <Button 
               size="sm" 
               variant="outline" 
               className="h-7 text-xs"
-              disabled={isUploadingImage}
-              onClick={() => document.getElementById(`image-upload-${item.id}`)?.click()}
+              disabled={isUploadingFile}
+              onClick={() => document.getElementById(`file-upload-${item.id}`)?.click()}
             >
               <Plus className="w-3 h-3 mr-1" />
-              {isUploadingImage ? 'Uploading...' : 'Upload'}
+              {isUploadingFile ? 'Uploading...' : 'Upload'}
             </Button>
             <input
-              id={`image-upload-${item.id}`}
+              id={`file-upload-${item.id}`}
               type="file"
-              accept="image/*"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
               className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploadingImage}
+              onChange={handleFileUpload}
+              disabled={isUploadingFile}
             />
           </div>
 
-          {item.images && item.images.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {item.images.map((image: any, idx: number) => (
-                <div key={image.id} className="relative aspect-square group">
-                  <img
-                    src={image.thumbnailUrl || image.url}
-                    alt={image.fileName}
-                    className="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer"
-                    onClick={() => {
-                      setViewingImageIndex(idx)
-                      setShowImageViewer(true)
-                    }}
-                  />
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      deleteImage(image.id)
-                    }}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                  <div className="absolute bottom-1 right-1 p-1 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Maximize2 className="w-3 h-3" />
+          {/* Display content */}
+          {(images.length > 0 || attachments.length > 0) ? (
+            <div className="space-y-3">
+              {/* Images Grid */}
+              {images.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-2">Images ({images.length})</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {images.map((image: any, idx: number) => (
+                      <div key={image.id} className="relative aspect-square group">
+                        <img
+                          src={image.thumbnailUrl || image.url}
+                          alt={image.fileName}
+                          className="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer"
+                          onClick={() => {
+                            setViewingImageIndex(idx)
+                            setShowImageViewer(true)
+                          }}
+                        />
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteImage(image.id)
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="absolute bottom-1 right-1 p-1 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Maximize2 className="w-3 h-3" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* File Attachments List */}
+              {attachments.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-2">Files ({attachments.length})</p>
+                  <div className="space-y-2">
+                    {attachments.map((attachment: any) => (
+                      <div
+                        key={attachment.id}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition-all group"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            {getFileIcon(attachment.fileType)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {attachment.fileName.replace(/^\d+_/, '')}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(attachment.fileSize || 0)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-indigo-500 transition-colors"
+                            title="Download file"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => deleteAttachment(attachment.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Delete file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">No images yet</p>
-              <p className="text-xs text-gray-400">Drag & drop or click to upload</p>
-            </div>
-          )}
-        </div>
-
-        {/* Attachments (PDFs, Docs, etc) */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
-              <FileText className="w-4 h-4" />
-              <span>File Attachments</span>
-              <span className="text-gray-500">({attachments.length})</span>
-            </label>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-7 text-xs"
-              disabled={isUploadingAttachment}
-              onClick={() => document.getElementById(`attachment-upload-${item.id}`)?.click()}
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              {isUploadingAttachment ? 'Uploading...' : 'Upload'}
-            </Button>
-            <input
-              id={`attachment-upload-${item.id}`}
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
-              className="hidden"
-              onChange={handleAttachmentUpload}
-              disabled={isUploadingAttachment}
-            />
-          </div>
-
-          {attachments.length > 0 ? (
-            <div className="space-y-2">
-              {attachments.map((attachment: any) => (
-                <div
-                  key={attachment.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition-all group"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex-shrink-0">
-                      {getFileIcon(attachment.fileType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {attachment.fileName.replace(/^\d+_/, '')}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(attachment.fileSize || 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <a
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-gray-400 hover:text-indigo-500 transition-colors"
-                      title="Download file"
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
-                    <button
-                      onClick={() => deleteAttachment(attachment.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Delete file"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-              <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">No attachments yet</p>
-              <p className="text-xs text-gray-400">Upload PDFs, documents, or other files</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <ImageIcon className="w-8 h-8 text-gray-400" />
+                <FileText className="w-8 h-8 text-gray-400" />
+              </div>
+              <p className="text-xs text-gray-500">No files or images yet</p>
+              <p className="text-xs text-gray-400">Upload images, PDFs, documents, and more</p>
             </div>
           )}
         </div>

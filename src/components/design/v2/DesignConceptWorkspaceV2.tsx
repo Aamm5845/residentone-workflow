@@ -321,17 +321,17 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
         {/* Right Sidebar - AI Summary, Activity Log & Chat */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
           {/* AI Summary */}
-          <div className="border-b border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: '30%' }}>
+          <div className="border-b border-gray-200 p-4 overflow-y-auto flex-shrink-0" style={{ maxHeight: '25%' }}>
             <AISummaryCard stageId={stageId} />
           </div>
           
-          {/* Activity Log */}
-          <div className="border-b border-gray-200 h-64 overflow-hidden">
+          {/* Activity Log - Fixed height */}
+          <div className="border-b border-gray-200 flex-shrink-0" style={{ height: '320px' }}>
             <ActivityLogPanel stageId={stageId} />
           </div>
           
-          {/* Chat */}
-          <div className="flex-1 overflow-hidden">
+          {/* Chat - Fixed height */}
+          <div className="flex-shrink-0 overflow-hidden" style={{ height: 'calc(100% - 25% - 320px)' }}>
             <PhaseChat
               stageId={stageId}
               stageName={`Design - ${roomName}`}

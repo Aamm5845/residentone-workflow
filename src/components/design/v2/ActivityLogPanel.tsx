@@ -61,11 +61,23 @@ export default function ActivityLogPanel({ stageId }: Props) {
               color: 'text-orange-600',
               message: `${actorName} marked ${itemName} as pending`
             }
+      case 'update':
+        return {
+          icon: '✏️',
+          color: 'text-blue-600',
+          message: `${actorName} updated ${itemName}`
+        }
+      case 'delete':
+        return {
+          icon: '🗑️',
+          color: 'text-red-600',
+          message: `${actorName} removed ${itemName}`
+        }
       default:
         return {
           icon: '📝',
           color: 'text-gray-600',
-          message: `${actorName} performed ${log.action} on ${itemName}`
+          message: `${actorName} modified ${itemName}`
         }
     }
   }
