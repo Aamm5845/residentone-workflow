@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Search, Filter, MoreVertical, Building, Calendar, List, LayoutGrid } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, Search, Filter, MoreVertical, Building, Calendar, List, LayoutGrid, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
 import { getPhaseUrgency } from '@/lib/validation/due-date-validation'
@@ -67,6 +67,24 @@ export default function InteractiveProjectsPage({
 }: InteractiveProjectsPageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [sortBy, setSortBy] = useState<string>('created')
+  const [showFilters, setShowFilters] = useState(false)
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const filterDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilters(false)
+      }
+    }
+
+    if (showFilters) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showFilters])
   
   // Generate unique subtle color based on project name
   const getProjectColor = (name: string) => {
@@ -92,8 +110,21 @@ export default function InteractiveProjectsPage({
     return colors[Math.abs(hash) % colors.length]
   }
   
+  // Filter projects based on selected filters
+  const filteredProjects = projects.filter(project => {
+    // Status filter
+    if (selectedStatuses.length > 0 && !selectedStatuses.includes(project.status)) {
+      return false
+    }
+    // Type filter
+    if (selectedTypes.length > 0 && !selectedTypes.includes(project.type)) {
+      return false
+    }
+    return true
+  })
+
   // Sort projects based on selected option
-  const sortedProjects = [...projects].sort((a, b) => {
+  const sortedProjects = [...filteredProjects].sort((a, b) => {
     switch (sortBy) {
       case 'created':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -463,8 +494,8 @@ export default function InteractiveProjectsPage({
              statusFilter === 'completed' ? 'Completed Projects' : 'My Projects'}
           </h1>
           <p className="text-gray-600 mt-1">
-            {projects?.length || 0} {statusFilter === 'active' ? 'active' : statusFilter === 'completed' ? 'completed' : ''} projects
-            {statusFilter === 'completed' && timeframeFilter === 'month' ? ' this month' : ''}
+            {filteredProjects?.length || 0} of {projects?.length || 0} projects
+            {(selectedStatuses.length > 0 || selectedTypes.length > 0) && ' (filtered)'}
           </p>
           {(statusFilter || timeframeFilter) && (
             <Link href="/dashboard" className="text-sm text-purple-600 hover:text-purple-800 mt-2 inline-block">
@@ -473,10 +504,118 @@ export default function InteractiveProjectsPage({
           )}
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
+          <div className="relative" ref={filterDropdownRef}>
+            <Button
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={selectedStatuses.length + selectedTypes.length > 0 ? 'border-purple-500 bg-purple-50' : ''}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+              {(selectedStatuses.length + selectedTypes.length > 0) && (
+                <span className="ml-2 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {selectedStatuses.length + selectedTypes.length}
+                </span>
+              )}
+            </Button>
+            
+            {/* Filter Dropdown */}
+            {showFilters && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+                <div className="p-4 space-y-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                    <h3 className="font-semibold text-gray-900">Filters</h3>
+                    {(selectedStatuses.length + selectedTypes.length > 0) && (
+                      <button
+                        onClick={() => {
+                          setSelectedStatuses([])
+                          setSelectedTypes([])
+                        }}
+                        className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'DRAFT', label: 'Draft', color: 'bg-gray-100 text-gray-800' },
+                        { value: 'IN_PROGRESS', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
+                        { value: 'ON_HOLD', label: 'On Hold', color: 'bg-yellow-100 text-yellow-800' },
+                        { value: 'URGENT', label: 'Urgent', color: 'bg-red-100 text-red-800' },
+                        { value: 'CANCELLED', label: 'Cancelled', color: 'bg-gray-200 text-gray-700' },
+                        { value: 'COMPLETED', label: 'Completed', color: 'bg-green-100 text-green-800' }
+                      ].map(status => (
+                        <label key={status.value} className="flex items-center cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={selectedStatuses.includes(status.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedStatuses([...selectedStatuses, status.value])
+                              } else {
+                                setSelectedStatuses(selectedStatuses.filter(s => s !== status.value))
+                              }
+                            }}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+                            {status.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Type Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Project Type</label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'RESIDENTIAL', label: 'Residential' },
+                        { value: 'COMMERCIAL', label: 'Commercial' },
+                        { value: 'HOSPITALITY', label: 'Hospitality' }
+                      ].map(type => (
+                        <label key={type.value} className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedTypes.includes(type.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTypes([...selectedTypes, type.value])
+                              } else {
+                                setSelectedTypes(selectedTypes.filter(t => t !== type.value))
+                              }
+                            }}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">
+                            {type.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Apply Button */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <Button
+                      onClick={() => setShowFilters(false)}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
             <Link href="/projects/new">
               <Plus className="w-4 h-4 mr-2" />
@@ -485,6 +624,51 @@ export default function InteractiveProjectsPage({
           </Button>
         </div>
       </div>
+
+      {/* Active Filters Display */}
+      {(selectedStatuses.length > 0 || selectedTypes.length > 0) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-600 font-medium">Active filters:</span>
+          {selectedStatuses.map(status => {
+            const statusMap: Record<string, string> = {
+              DRAFT: 'Draft',
+              IN_PROGRESS: 'In Progress',
+              ON_HOLD: 'On Hold',
+              URGENT: 'Urgent',
+              CANCELLED: 'Cancelled',
+              COMPLETED: 'Completed'
+            }
+            return (
+              <span
+                key={status}
+                className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full"
+              >
+                {statusMap[status]}
+                <button
+                  onClick={() => setSelectedStatuses(selectedStatuses.filter(s => s !== status))}
+                  className="hover:bg-purple-200 rounded-full p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )
+          })}
+          {selectedTypes.map(type => (
+            <span
+              key={type}
+              className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full"
+            >
+              {type.charAt(0) + type.slice(1).toLowerCase()}
+              <button
+                onClick={() => setSelectedTypes(selectedTypes.filter(t => t !== type))}
+                className="hover:bg-indigo-200 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* View Toggle */}
       <div className="flex items-center justify-between">
