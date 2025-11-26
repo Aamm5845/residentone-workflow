@@ -682,7 +682,6 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   type="submit"
                   disabled={isLoading}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => console.log('🔄 Save Changes button clicked (section form)')}
                 >
                   {isLoading ? 'Saving...' : 'Save Changes'}
                 </Button>

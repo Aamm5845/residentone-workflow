@@ -96,6 +96,7 @@ export function DropboxFolderBrowser({
       {/* Breadcrumb Navigation */}
       <div className="flex items-center space-x-2 text-sm text-gray-600 overflow-x-auto">
         <button
+          type="button"
           onClick={goToRoot}
           className="flex items-center hover:text-purple-600 transition-colors"
         >
@@ -105,6 +106,7 @@ export function DropboxFolderBrowser({
           <div key={index} className="flex items-center space-x-2">
             <ChevronRight className="w-4 h-4" />
             <button
+              type="button"
               onClick={() => navigateToBreadcrumb(index)}
               className="hover:text-purple-600 transition-colors whitespace-nowrap"
             >
