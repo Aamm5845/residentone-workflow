@@ -596,8 +596,9 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 >
                   <option value="DRAFT">Draft</option>
                   <option value="IN_PROGRESS">In Progress</option>
-                  <option value="PENDING_APPROVAL">Pending Approval</option>
-                  <option value="APPROVED">Approved</option>
+                  <option value="ON_HOLD">On Hold</option>
+                  <option value="URGENT">Urgent</option>
+                  <option value="CANCELLED">Cancelled</option>
                   <option value="COMPLETED">Completed</option>
                 </select>
               </div>
