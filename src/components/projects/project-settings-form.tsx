@@ -19,7 +19,7 @@ const projectSettingsSchema = z.object({
   name: z.string().min(1, "Project name is required").max(200),
   description: z.string().optional(),
   type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'HOSPITALITY']),
-  status: z.enum(['DRAFT', 'IN_PROGRESS', 'PENDING_APPROVAL', 'APPROVED', 'COMPLETED']),
+  status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'URGENT', 'CANCELLED', 'COMPLETED']),
   budget: z.string().optional(),
   dueDate: z.string().optional(),
   address: z.string().optional(), // Legacy field
