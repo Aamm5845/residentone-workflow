@@ -13,6 +13,7 @@ import { DrawingAsset, DrawingChecklistItem, DropboxFileLink } from '@/types/dra
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { DropboxFileBrowser } from '../spec-book/DropboxFileBrowser'
+import { WorkspaceTimerButton } from '@/components/timeline/WorkspaceTimerButton'
 import {
   CheckCircle,
   PencilRuler,
@@ -311,6 +312,12 @@ export default function DrawingsWorkspace({
           </div>
           
           <div className="flex items-center space-x-2">
+            <WorkspaceTimerButton
+              projectId={project.id}
+              roomId={room.id}
+              stageId={stage.id}
+              stageType={stage.type}
+            />
             <Button 
               onClick={() => setShowActivity(!showActivity)}
               variant="outline"

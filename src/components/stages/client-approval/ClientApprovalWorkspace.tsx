@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PhaseChat } from '../../chat/PhaseChat'
 import Link from 'next/link'
 import EmailPreviewModal, { EmailPreviewData } from '@/components/modals/EmailPreviewModal'
+import StageWorkspaceHeader from '../StageWorkspaceHeader'
 
 interface ClientApprovalWorkspaceProps {
   stage: any
@@ -807,6 +808,59 @@ export default function ClientApprovalWorkspace({
 
   const isNotApplicable = stage.status === 'NOT_APPLICABLE'
   
+  // Handle reset phase
+  const handleResetPhase = async () => {
+    try {
+      const response = await fetch(`/api/stages/${stage.id}/reset`, { method: 'POST' })
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        alert('Failed to reset phase')
+      }
+    } catch (error) {
+      alert('Failed to reset phase')
+    }
+    setShowSettingsMenu(false)
+  }
+
+  // Handle mark not applicable
+  const handleMarkNotApplicable = async () => {
+    try {
+      const response = await fetch(`/api/stages/${stage.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_not_applicable' })
+      })
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        alert('Failed to mark as not applicable')
+      }
+    } catch (error) {
+      alert('Failed to mark as not applicable')
+    }
+    setShowSettingsMenu(false)
+  }
+
+  // Handle mark applicable
+  const handleMarkApplicable = async () => {
+    try {
+      const response = await fetch(`/api/stages/${stage.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_applicable' })
+      })
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        alert('Failed to mark as applicable')
+      }
+    } catch (error) {
+      alert('Failed to mark as applicable')
+    }
+    setShowSettingsMenu(false)
+  }
+
   return (
     <>
     <div className={`min-h-screen ${
@@ -814,130 +868,83 @@ export default function ClientApprovalWorkspace({
         ? 'bg-gray-100 opacity-75' 
         : 'bg-white'
     }`}>
-      {/* Status Badge */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Client Approval Workspace</h2>
-              <p className="text-sm text-gray-600">Manage rendering approvals and client communication</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Badge className={statusConfig.color}>
-              {statusConfig.label}
-            </Badge>
+      {/* Unified Header */}
+      <StageWorkspaceHeader
+        projectId={project.id}
+        projectName={project.name}
+        clientName={project.client?.name}
+        roomId={room.id}
+        roomName={room.name}
+        roomType={room.type}
+        stageId={stage.id}
+        stageType={stage.type}
+        stageStatus={stage.status}
+        assignedUserName={stage.assignedUser?.name || null}
+        dueDate={stage.dueDate}
+        rightSlot={(
+          <Badge className={statusConfig.color}>
+            {statusConfig.label}
+          </Badge>
+        )}
+        settingsSlot={(
+          <div className="relative">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
             
-            {/* Settings Menu */}
-            <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-              
-              {showSettingsMenu && (
-                <>
-                  {/* Backdrop */}
-                  <div 
-                    className="fixed inset-0 z-10" 
-                    onClick={() => setShowSettingsMenu(false)}
-                  />
-                  
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-                    <div className="p-2">
-                      <div className="px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100 mb-2">
-                        Client Approval Settings
-                      </div>
-                      
-                      {stage.status !== 'NOT_APPLICABLE' && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/stages/${stage.id}/reset`, { method: 'POST' })
-                              if (response.ok) {
-                                window.location.reload()
-                              } else {
-                                alert('Failed to reset phase')
-                              }
-                            } catch (error) {
-                              alert('Failed to reset phase')
-                            }
-                            setShowSettingsMenu(false)
-                          }}
-                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4 mr-3" />
-                          Reset Phase
-                        </button>
-                      )}
-                      
-                      {stage.status !== 'NOT_APPLICABLE' ? (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/stages/${stage.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: 'mark_not_applicable' })
-                              })
-                              if (response.ok) {
-                                window.location.reload()
-                              } else {
-                                alert('Failed to mark as not applicable')
-                              }
-                            } catch (error) {
-                              alert('Failed to mark as not applicable')
-                            }
-                            setShowSettingsMenu(false)
-                          }}
-                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                        >
-                          <Minus className="w-4 h-4 mr-3" />
-                          Mark as Not Applicable
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/stages/${stage.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: 'mark_applicable' })
-                              })
-                              if (response.ok) {
-                                window.location.reload()
-                              } else {
-                                alert('Failed to mark as applicable')
-                              }
-                            } catch (error) {
-                              alert('Failed to mark as applicable')
-                            }
-                            setShowSettingsMenu(false)
-                          }}
-                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4 mr-3" />
-                          Mark as Applicable
-                        </button>
-                      )}
+            {showSettingsMenu && (
+              <>
+                {/* Backdrop */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowSettingsMenu(false)}
+                />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                  <div className="p-2">
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100 mb-2">
+                      Client Approval Settings
                     </div>
+                    
+                    {stage.status !== 'NOT_APPLICABLE' && (
+                      <button
+                        onClick={handleResetPhase}
+                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-3" />
+                        Reset Phase
+                      </button>
+                    )}
+                    
+                    {stage.status !== 'NOT_APPLICABLE' ? (
+                      <button
+                        onClick={handleMarkNotApplicable}
+                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <Minus className="w-4 h-4 mr-3" />
+                        Mark as Not Applicable
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleMarkApplicable}
+                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-3" />
+                        Mark as Applicable
+                      </button>
+                    )}
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* Main Content with Sidebar Layout */}
-      <div className="flex">
-        {/* Main Workspace */}
-        <div className="flex-1">
-          {/* Client Approval Content */}
+        )}
+      />
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Main Content - Left Side */}
         <div className="flex-1 p-6 space-y-6">
@@ -1624,8 +1631,6 @@ export default function ClientApprovalWorkspace({
               </div>
             </div>
           </div>
-        </div>
-      </div>
         </div>
 
         {/* Chat Sidebar */}

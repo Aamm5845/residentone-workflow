@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import DesignConceptWorkspaceV2 from '@/components/design/v2/DesignConceptWorkspaceV2'
+import DesignConceptWorkspace from '@/components/design/v2/DesignConceptWorkspace'
 
 interface Props {
   params: Promise<{
@@ -45,7 +45,7 @@ export default async function DesignConceptV2Page({ params }: Props) {
   }
 
   return (
-    <DesignConceptWorkspaceV2 
+    <DesignConceptWorkspace 
       stageId={stageId}
       roomId={stage.roomId}
       projectId={stage.room.projectId}

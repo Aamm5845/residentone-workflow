@@ -28,6 +28,7 @@ import { IssueNotification } from '@/components/issues/issue-notification'
 import { IssueModal } from '@/components/issues/issue-modal'
 import { NavigationMenu } from './NavigationMenu'
 import { GlobalSearch } from './GlobalSearch'
+import { TimerButton } from '@/components/timeline/TimerButton'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -106,8 +107,11 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 </Link>
               </Button>
               
+              {/* Timer Button */}
+              <TimerButton />
+              
               {/* Report Issue - Hide on small mobile */}
-              <Button 
+              <Button
                 variant="outline" 
                 size="sm" 
                 onClick={() => setIssueModalOpen(true)}

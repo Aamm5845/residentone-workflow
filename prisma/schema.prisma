@@ -144,6 +144,10 @@ model User {
   createdStages               Stage[]                     @relation("CreatedByUserStage")
   updatedStages               Stage[]                     @relation("UpdatedByUserStage")
   organization                Organization?               @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  // Time tracking relations
+  timeEntries                 TimeEntry[]                 @relation("UserTimeEntries")
+  timeEntryEdits              TimeEntryEdit[]             @relation("UserTimeEntryEdits")
+  timeSettings                UserTimeSettings?           @relation("UserTimeSettings")
 }
 
 model Client {
@@ -240,6 +244,7 @@ model Project {
   rooms                     Room[]
   roomSections              RoomSection[]
   specBooks                 SpecBook[]
+  timeEntries               TimeEntry[]                @relation("ProjectTimeEntries")
 }
 
 model RoomSection {
@@ -287,6 +292,7 @@ model Room {
   ffeInstance        RoomFFEInstance?    @relation("RoomFFEInstance")
   specBookSections   SpecBookSection[]
   stages             Stage[]
+  timeEntries        TimeEntry[]         @relation("RoomTimeEntries")
 
   @@index([projectId])
   @@index([sectionId])
@@ -322,6 +328,7 @@ model Stage {
   createdBy              User?                   @relation("CreatedByUserStage", fields: [createdById], references: [id])
   room                   Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   updatedBy              User?                   @relation("UpdatedByUserStage", fields: [updatedById], references: [id])
+  timeEntries            TimeEntry[]             @relation("StageTimeEntries")
 
   @@unique([roomId, type])
 }
@@ -1745,27 +1752,27 @@ model DesignConceptItemLibrary {
 }
 
 model DesignConceptItem {
-  id                  String                   @id @default(cuid())
+  id                  String                        @id @default(cuid())
   stageId             String
   libraryItemId       String
-  order               Int                      @default(0)
+  order               Int                           @default(0)
   notes               String?
-  completedByRenderer Boolean                  @default(false)
+  completedByRenderer Boolean                       @default(false)
   completedAt         DateTime?
   completedById       String?
   createdById         String
   updatedById         String?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  completedBy         User?                    @relation("DesignConceptItemCompletedBy", fields: [completedById], references: [id])
-  createdBy           User                     @relation("DesignConceptItemCreatedBy", fields: [createdById], references: [id])
-  libraryItem         DesignConceptItemLibrary @relation(fields: [libraryItemId], references: [id])
-  stage               Stage                    @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  updatedBy           User?                    @relation("DesignConceptItemUpdatedBy", fields: [updatedById], references: [id])
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  completedBy         User?                         @relation("DesignConceptItemCompletedBy", fields: [completedById], references: [id])
+  createdBy           User                          @relation("DesignConceptItemCreatedBy", fields: [createdById], references: [id])
+  libraryItem         DesignConceptItemLibrary      @relation(fields: [libraryItemId], references: [id])
+  stage               Stage                         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  updatedBy           User?                         @relation("DesignConceptItemUpdatedBy", fields: [updatedById], references: [id])
+  attachments         DesignConceptItemAttachment[]
   images              DesignConceptItemImage[]
   links               DesignConceptItemLink[]
   itemNotes           DesignConceptItemNote[]
-  attachments         DesignConceptItemAttachment[]
 
   @@index([stageId])
   @@index([stageId, order])
@@ -1830,7 +1837,7 @@ model DesignConceptItemAttachment {
   dropboxPath String
   fileName    String
   fileSize    Int?
-  fileType    String            // MIME type
+  fileType    String
   description String?
   order       Int               @default(0)
   createdAt   DateTime          @default(now())
@@ -1842,15 +1849,15 @@ model DesignConceptItemAttachment {
 }
 
 model DesignConceptCategory {
-  id          String   @id @default(cuid())
-  key         String   @unique  // e.g., "furniture", "plumbing"
-  name        String                // e.g., "Furniture", "Plumbing Fixtures"
-  icon        String?              // Lucide icon name
-  order       Int      @default(0)
-  isDefault   Boolean  @default(false) // Default categories vs custom
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  icon      String?
+  order     Int      @default(0)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([order])
@@ -2200,4 +2207,90 @@ enum SpecBookGenStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// ============================================
+// TIME TRACKING MODELS
+// ============================================
+
+enum TimeEntryStatus {
+  RUNNING
+  PAUSED
+  STOPPED
+}
+
+model TimeEntry {
+  id          String          @id @default(cuid())
+  userId      String
+  projectId   String?
+  roomId      String?
+  stageId     String?
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?            // Total minutes (calculated on stop, excludes pauses)
+  status      TimeEntryStatus @default(RUNNING)
+  isManual    Boolean         @default(false)
+  isBillable  Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user    User     @relation("UserTimeEntries", fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation("ProjectTimeEntries", fields: [projectId], references: [id], onDelete: SetNull)
+  room    Room?    @relation("RoomTimeEntries", fields: [roomId], references: [id], onDelete: SetNull)
+  stage   Stage?   @relation("StageTimeEntries", fields: [stageId], references: [id], onDelete: SetNull)
+  pauses  TimePause[]
+  edits   TimeEntryEdit[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, startTime])
+  @@index([projectId])
+  @@index([startTime])
+}
+
+model TimePause {
+  id          String    @id @default(cuid())
+  timeEntryId String
+  pausedAt    DateTime  @default(now())
+  resumedAt   DateTime?
+  duration    Int?      // Pause duration in minutes (calculated on resume)
+  createdAt   DateTime  @default(now())
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@index([timeEntryId])
+}
+
+model TimeEntryEdit {
+  id            String   @id @default(cuid())
+  timeEntryId   String
+  editedById    String
+  field         String   // Which field was changed
+  previousValue String?  // JSON string of previous value
+  newValue      String?  // JSON string of new value
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  editedBy  User      @relation("UserTimeEntryEdits", fields: [editedById], references: [id])
+
+  @@index([timeEntryId])
+  @@index([editedById])
+}
+
+model UserTimeSettings {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  defaultProjectId String?
+  autoStopMinutes  Int      @default(0) // 0 = disabled
+  weekStartsOn     Int      @default(0) // 0 = Sunday, 1 = Monday, etc.
+  dailyTargetHours Float    @default(8)
+  recentProjects   Json?    // Array of {projectId, roomId, stageId, description}
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation("UserTimeSettings", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

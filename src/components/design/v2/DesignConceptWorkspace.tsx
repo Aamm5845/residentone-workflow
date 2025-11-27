@@ -16,6 +16,7 @@ import ItemLibrarySidebar from './ItemLibrarySidebar'
 import AddedItemCard from './AddedItemCard'
 import AISummaryCard from '@/components/design-concept/AISummaryCard'
 import ActivityLogPanel from './ActivityLogPanel'
+import StageWorkspaceHeader from '@/components/stages/StageWorkspaceHeader'
 
 interface Props {
   stageId: string
@@ -28,7 +29,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
   return res.json()
 })
 
-export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }: Props) {
+export default function DesignConceptWorkspace({ stageId, roomId, projectId }: Props) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showLibrary, setShowLibrary] = useState(true)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
@@ -99,20 +100,6 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
     return sorted
   }, [items, sortBy])
 
-  // Debug: Log items data
-  React.useEffect(() => {
-    if (itemsData) {
-      console.log('[DesignConceptWorkspaceV2] Items data received:', {
-        itemCount: items.length,
-        items: items.map((item: any) => ({
-          id: item.id,
-          name: item.libraryItem?.name,
-          imageCount: item.images?.length || 0,
-          linkCount: item.links?.length || 0
-        }))
-      })
-    }
-  }, [itemsData, items])
 
   const isLoading = stageLoading || itemsLoading
   const hasError = stageError || itemsError
@@ -129,10 +116,8 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
       const newExpanded = { ...prev }
       if (newExpanded[itemId]) {
         delete newExpanded[itemId]
-        console.log('[DesignConceptWorkspaceV2] Collapsed item:', itemId, 'Expanded items:', Object.keys(newExpanded))
       } else {
         newExpanded[itemId] = true
-        console.log('[DesignConceptWorkspaceV2] Expanded item:', itemId, 'Expanded items:', Object.keys(newExpanded))
       }
       return newExpanded
     })
@@ -172,36 +157,21 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Design Concept</h1>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-              <span>{projectName}</span>
-              <span>•</span>
-              <span>{roomName}</span>
-            </div>
-          </div>
-
-          {/* Progress */}
-          <div className="flex items-center space-x-6">
-            <div className="text-right">
-              <div className="text-3xl font-bold text-gray-900">{progress.percentage}%</div>
-              <div className="text-sm text-gray-500">
-                {progress.completed} of {progress.total} items
-              </div>
-            </div>
-            
-            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                style={{ width: `${progress.percentage}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Unified Header */}
+      <StageWorkspaceHeader
+        projectId={project?.id || projectId || ''}
+        projectName={projectName}
+        clientName={project?.client?.name}
+        roomId={room?.id || roomId}
+        roomName={room?.name}
+        roomType={room?.type}
+        stageId={stageId}
+        stageType={stage?.type || 'DESIGN_CONCEPT'}
+        stageStatus={stage?.status}
+        assignedUserName={stage?.assignedUser?.name || null}
+        dueDate={stage?.dueDate}
+        progressPercent={progress.percentage}
+      />
 
       {/* Main Content - 3 Pane Layout */}
       <div className="flex-1 flex overflow-hidden">
@@ -294,14 +264,8 @@ export default function DesignConceptWorkspaceV2({ stageId, roomId, projectId }:
                   ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
                   : 'space-y-4'
               }>
-                {sortedItems.map((item: any) => {
+              {sortedItems.map((item: any) => {
                   const isExpanded = !!expandedItems[item.id]
-                  console.log('[DesignConceptWorkspaceV2] Rendering card:', {
-                    itemId: item.id,
-                    itemName: item.libraryItem?.name,
-                    isExpanded,
-                    expandedItemsKeys: Object.keys(expandedItems)
-                  })
                   return (
                     <AddedItemCard
                       key={item.id}

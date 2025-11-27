@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { PhaseChat } from '../chat/PhaseChat'
 import PhaseSettingsMenu from './PhaseSettingsMenu'
+import StageWorkspaceHeader from './StageWorkspaceHeader'
 import { 
   CheckCircle, 
   User, 
@@ -406,51 +407,38 @@ export default function RenderingWorkspace({
         ? 'bg-gray-100 border-gray-300 opacity-75' 
         : 'bg-white'
     }`}>
-      {/* Header */}
-      <div className="p-6 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-              <Box className="w-6 h-6 text-white" />
-            </div>
-            
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">3D Rendering Workspace</h2>
-              <p className="text-gray-600">{room.name || room.type} - {project.name}</p>
-              <div className="flex items-center space-x-4 mt-2">
-                <div className="flex items-center text-sm text-gray-500">
-                  <User className="w-4 h-4 mr-1" />
-                  {stage.assignedUser?.name || 'Unassigned'}
-                </div>
-                {stage.dueDate && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    Due {new Date(stage.dueDate).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button 
-              onClick={() => setShowActivityLog(!showActivityLog)}
-              variant="outline"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Activity
-            </Button>
-            <PhaseSettingsMenu 
-              stageId={stage.id}
-              stageName="3D Rendering"
-              isNotApplicable={isNotApplicable}
-              onReset={fetchRenderingVersions}
-              onMarkNotApplicable={fetchRenderingVersions}
-              onMarkApplicable={fetchRenderingVersions}
-            />
-          </div>
-        </div>
-      </div>
+      {/* Unified Header */}
+      <StageWorkspaceHeader
+        projectId={project.id}
+        projectName={project.name}
+        roomId={room.id}
+        roomName={room.name}
+        roomType={room.type}
+        stageId={stage.id}
+        stageType={stage.type}
+        stageStatus={stage.status}
+        assignedUserName={stage.assignedUser?.name || null}
+        dueDate={stage.dueDate}
+        rightSlot={(
+          <Button 
+            onClick={() => setShowActivityLog(!showActivityLog)}
+            variant="outline"
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
+          </Button>
+        )}
+        settingsSlot={(
+          <PhaseSettingsMenu 
+            stageId={stage.id}
+            stageName="3D Rendering"
+            isNotApplicable={isNotApplicable}
+            onReset={fetchRenderingVersions}
+            onMarkNotApplicable={fetchRenderingVersions}
+            onMarkApplicable={fetchRenderingVersions}
+          />
+        )}
+      />
 
       {/* Main Content with Sidebar Layout */}
       <div className="flex">

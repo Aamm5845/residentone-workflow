@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import DesignConceptWorkspaceV2 from '@/components/design/v2/DesignConceptWorkspaceV2'
+import DesignConceptWorkspace from '@/components/design/v2/DesignConceptWorkspace'
 
 interface DesignConceptStageProps {
   stage: any
@@ -26,10 +26,8 @@ export default function DesignConceptStage({
   onUploadFile,
   onMarkSectionComplete
 }: DesignConceptStageProps) {
-  // Use the V2 workspace with universal item library
-  // This provides 83 pre-loaded items, auto-notifications, and enhanced workflow
   return (
-    <DesignConceptWorkspaceV2 
+    <DesignConceptWorkspace 
       stageId={stage.id}
       roomId={room?.id}
       projectId={project?.id}

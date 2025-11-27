@@ -2,12 +2,7 @@ import { getSession } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { prisma } from '@/lib/prisma'
-import DesignStage from '@/components/stages/design-stage'
 import StageDetailClient from '@/components/stages/stage-detail-client'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { getStageName } from '@/constants/workflow'
 import type { Session } from 'next-auth'
 
 export default async function StageDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -162,27 +157,8 @@ export default async function StageDetail({ params }: { params: Promise<{ id: st
 
   return (
     <DashboardLayout session={session}>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center space-x-4">
-          <Button asChild variant="ghost" size="icon">
-            <Link href={`/projects/${stage.room.project.id}`}>
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {getStageName(stage.type)} Phase
-            </h1>
-            <p className="text-gray-600">
-              {stage.room.name || stage.room.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {stage.room.project.name} • {stage.room.project.client.name}
-            </p>
-          </div>
-        </div>
-
-        {/* Stage Content */}
-        <StageDetailClient stage={stage} />
-      </div>
+      {/* Stage Content - header is handled by workspace components */}
+      <StageDetailClient stage={stage} />
     </DashboardLayout>
   )
 }

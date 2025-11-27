@@ -30,7 +30,7 @@ interface Props {
   item: any
   onUpdate: () => void
   viewMode: 'grid' | 'list'
-  expanded: boolean  // Controlled by parent DesignConceptWorkspaceV2
+  expanded: boolean  // Controlled by parent DesignConceptWorkspace
   onToggleExpanded: () => void  // Calls parent's toggle function
 }
 
