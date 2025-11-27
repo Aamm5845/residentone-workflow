@@ -111,6 +111,7 @@ public/uploads/*
 backups/
 .db-backups/
 *.sql
+!prisma/migrations/**/*.sql
 *.dump
 backup-log.txt
 export-data.sql
