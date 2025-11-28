@@ -42,7 +42,10 @@ export default function ActivityLogPanel({ stageId }: Props) {
     
     const itemName = details.itemName || 'an item'
 
-    switch (log.action) {
+    // Normalize action to lowercase for comparison
+    const action = (log.action || '').toLowerCase()
+    
+    switch (action) {
       case 'create':
         return {
           icon: '➕',
