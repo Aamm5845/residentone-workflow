@@ -6,12 +6,27 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ emailId: string }> }
 ) {
-  try {
-    const resolvedParams = await params
-    const { emailId } = resolvedParams
+  const resolvedParams = await params
+  const { emailId } = resolvedParams
 
+  // Return pixel immediately for preview or invalid IDs without tracking
+  if (emailId === 'preview' || !emailId || emailId.length < 10) {
+    const pixel = Buffer.from(
+      'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+      'base64'
+    )
+    return new NextResponse(pixel, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/gif',
+        'Content-Length': pixel.length.toString(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    })
+  }
+
+  try {
     // Update the email log with opened timestamp
-    
     const updatedLog = await prisma.emailLog.update({
       where: { 
         id: emailId 

@@ -458,27 +458,20 @@ export async function DELETE(
             where: { stageId: { in: stageIds } }
           })
           
-          // Delete client approval stages - with error handling
+          // Delete client approval versions by stageId
           try {
-            const deletedClientApprovalStages = await tx.clientApprovalStage.deleteMany({
+            const deletedClientApprovalVersions = await tx.clientApprovalVersion.deleteMany({
               where: { stageId: { in: stageIds } }
             })
-            
           } catch (approvalError) {
-            console.warn('⚠️ Could not delete client approval stages (may not exist):', approvalError)
+            console.warn('⚠️ Could not delete client approval versions (may not exist):', approvalError)
           }
           
           // Delete activity logs for these stages - with error handling
           try {
             const deletedActivityLogs = await tx.activityLog.deleteMany({
-              where: {
-                OR: [
-                  { entityId: { in: stageIds } },
-                  { details: { path: ['stageId'], in: stageIds } }
-                ]
-              }
+              where: { entityId: { in: stageIds } }
             })
-            
           } catch (activityError) {
             console.warn('⚠️ Could not delete activity logs (may not exist):', activityError)
           }
@@ -500,14 +493,8 @@ export async function DELETE(
       // Delete any remaining activity logs for this project - with error handling
       try {
         const deletedProjectActivityLogs = await tx.activityLog.deleteMany({
-          where: {
-            OR: [
-              { entityId: params.id },
-              { details: { path: ['projectId'], equals: params.id } }
-            ]
-          }
+          where: { entityId: params.id }
         })
-        
       } catch (projectActivityError) {
         console.warn('⚠️ Could not delete project activity logs (may not exist):', projectActivityError)
       }

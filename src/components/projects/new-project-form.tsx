@@ -61,7 +61,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     name: '',
     description: '',
     type: 'RESIDENTIAL',
-    status: 'DRAFT',
+    status: 'IN_PROGRESS',
     clientName: '',
     clientEmail: '',
     clientPhone: '',
@@ -75,7 +75,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     coverImages: [] as string[], // Support multiple images
     selectedRooms: [] as Array<{ type: string; name: string; customName?: string }>,
     contractors: [] as Array<{ id?: string; businessName: string; contactName: string; email: string; phone: string; address: string; type: 'contractor' | 'subcontractor' }>,
-    dropboxOption: 'skip' as 'create' | 'link' | 'skip',
+    dropboxOption: 'create' as 'create' | 'link' | 'skip',
     dropboxFolderPath: ''
   })
 
@@ -91,7 +91,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
   const [contractorForm, setContractorForm] = useState({ businessName: '', contactName: '', email: '', phone: '', address: '' })
   const [existingContractors, setExistingContractors] = useState<any[]>([])
   const [contractorSearchTerm, setContractorSearchTerm] = useState('')
-  const [isDropboxSectionExpanded, setIsDropboxSectionExpanded] = useState(false)
+  const [isDropboxSectionExpanded, setIsDropboxSectionExpanded] = useState(true)
   const [addressInputRef, setAddressInputRef] = useState<HTMLInputElement | null>(null)
   const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null)
   const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null)
@@ -846,20 +846,20 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 onClick={() => setIsDropboxSectionExpanded(!isDropboxSectionExpanded)}
               >
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Dropbox Integration (Optional)</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Dropbox Integration</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    {formData.dropboxOption === 'skip' 
-                      ? 'Click to configure Dropbox folder organization'
-                      : formData.dropboxOption === 'create'
+                    {formData.dropboxOption === 'create'
                       ? 'Auto-create project folder with standard structure'
-                      : 'Link to existing Dropbox folder'
+                      : formData.dropboxOption === 'link'
+                      ? 'Link to existing Dropbox folder'
+                      : 'No Dropbox folder will be created'
                     }
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {formData.dropboxOption !== 'skip' && (
                     <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                      Enabled
+                      {formData.dropboxOption === 'create' ? 'Create New' : 'Link Existing'}
                     </span>
                   )}
                   {isDropboxSectionExpanded ? (
@@ -984,6 +984,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                     </div>
                   </div>
                 </div>
+
               </div>
               )}
             </div>

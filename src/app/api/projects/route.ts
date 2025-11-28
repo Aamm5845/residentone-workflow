@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
       name: name,
       description: description || null,
       type: type as ProjectType,
-      status: (status || 'DRAFT') as any,
+      status: (status || 'IN_PROGRESS') as any,
       clientId: client.id,
       budget: budget ? parseFloat(budget) : null,
       dueDate: dueDate ? new Date(dueDate) : null,
