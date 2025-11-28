@@ -18,24 +18,30 @@ export async function notifyItemAdded({
   addedBy: { name: string; email: string };
   stageId: string;
 }) {
+  console.log(`[Design Notification] notifyItemAdded called - Item: ${itemName}, AddedBy: ${addedBy.name || addedBy.email}`);
+  
   try {
-    // Find Vitor's user account
+    // Find Vitor's user account (check actual email, name, or role)
     const vitor = await prisma.user.findFirst({
       where: {
         OR: [
+          { email: 'euvi.3d@gmail.com' },
           { email: { contains: 'vitor', mode: 'insensitive' } },
           { name: { contains: 'vitor', mode: 'insensitive' } },
+          { role: 'RENDERER' },
         ],
       },
     });
 
     if (!vitor) {
-      console.warn('[Design Notification] Vitor user not found - skipping notification');
+      console.warn('[Design Notification] Vitor/Renderer user not found - skipping notification');
       return;
     }
 
-    // Check if email notifications are enabled
-    if (vitor.emailNotificationsEnabled) {
+    console.log(`[Design Notification] Found renderer: ${vitor.name} (${vitor.email}), emailNotificationsEnabled: ${vitor.emailNotificationsEnabled}`);
+
+    // Send email notification (default to enabled unless explicitly disabled)
+    if (vitor.emailNotificationsEnabled !== false) {
       const emailHtml = `
         <!DOCTYPE html>
         <html>
@@ -88,7 +94,9 @@ export async function notifyItemAdded({
         html: emailHtml,
       });
 
-      console.log(`[Design Notification] Email sent to Vitor about new item: ${itemName}`);
+      console.log(`[Design Notification] Email sent to ${vitor.name || vitor.email} about new item: ${itemName}`);
+    } else {
+      console.log(`[Design Notification] Email notifications disabled for ${vitor.name || vitor.email} - skipping`);
     }
   } catch (error) {
     console.error('[Design Notification] Error sending item added notification:', error);

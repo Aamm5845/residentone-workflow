@@ -73,25 +73,13 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/design-concept/categories
- * Create new custom category (admin only)
+ * Create new custom category (any team member)
  */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if user is admin or owner
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id }
-    })
-
-    if (!user || !['ADMIN', 'OWNER'].includes(user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      )
     }
 
     const body = await request.json()

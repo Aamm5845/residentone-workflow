@@ -92,22 +92,7 @@ export async function POST(
     const body = await req.json();
     const data = createSchema.parse(body);
 
-    // Check if item already exists for this stage
-    const existingItem = await prisma.designConceptItem.findFirst({
-      where: {
-        stageId,
-        libraryItemId: data.libraryItemId,
-      },
-    });
-
-    if (existingItem) {
-      return NextResponse.json(
-        { error: 'This item is already added to the design concept' },
-        { status: 400 }
-      );
-    }
-
-    // Get library item details
+    // Get library item details (duplicates are allowed - can add same item multiple times)
     const libraryItem = await prisma.designConceptItemLibrary.findUnique({
       where: { id: data.libraryItemId },
     });
@@ -207,7 +192,8 @@ export async function POST(
       });
     }
 
-    // Send email notification to Vitor (renderer)
+    // Send email notification to Vitor (renderer) - always notify regardless of who adds
+    console.log(`[Design Items] Sending notification - Item: ${libraryItem.name}, Added by: ${user.name || user.email}`);
     await notifyItemAdded({
       itemName: libraryItem.name,
       projectName: stage.room.project.name,
@@ -218,6 +204,7 @@ export async function POST(
       },
       stageId,
     });
+    console.log(`[Design Items] Notification sent successfully`);
 
     return NextResponse.json(item);
   } catch (error) {
