@@ -86,30 +86,28 @@ export default function InteractiveProjectsPage({
     }
   }, [showFilters])
   
-  // Generate unique subtle color based on project name
-  const getProjectColor = (name: string) => {
-    // Simple hash function to generate consistent colors from name
+  // Subtle, mature color tints for project backgrounds
+  const getProjectTint = (name: string) => {
     let hash = 0
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash)
     }
     
-    const colors = [
-      { gradient: 'from-purple-50/50 via-pink-50/50 to-rose-50/50', border: 'border-purple-200' },
-      { gradient: 'from-blue-50/50 via-cyan-50/50 to-teal-50/50', border: 'border-blue-200' },
-      { gradient: 'from-violet-50/50 via-purple-50/50 to-fuchsia-50/50', border: 'border-violet-200' },
-      { gradient: 'from-amber-50/50 via-orange-50/50 to-yellow-50/50', border: 'border-amber-200' },
-      { gradient: 'from-emerald-50/50 via-teal-50/50 to-cyan-50/50', border: 'border-emerald-200' },
-      { gradient: 'from-indigo-50/50 via-blue-50/50 to-sky-50/50', border: 'border-indigo-200' },
-      { gradient: 'from-pink-50/50 via-rose-50/50 to-red-50/50', border: 'border-pink-200' },
-      { gradient: 'from-lime-50/50 via-green-50/50 to-emerald-50/50', border: 'border-lime-200' },
-      { gradient: 'from-fuchsia-50/50 via-purple-50/50 to-violet-50/50', border: 'border-fuchsia-200' },
-      { gradient: 'from-orange-50/50 via-amber-50/50 to-rose-50/50', border: 'border-orange-200' }
+    // Sophisticated muted tones - warm neutrals and subtle earth tones
+    const tints = [
+      'bg-stone-100/60',      // Warm grey
+      'bg-zinc-100/60',       // Cool grey  
+      'bg-slate-100/60',      // Blue-grey
+      'bg-neutral-100/60',    // Pure neutral
+      'bg-amber-50/40',       // Warm cream
+      'bg-rose-50/30',        // Blush
+      'bg-sky-50/30',         // Soft blue
+      'bg-emerald-50/25',     // Sage
     ]
     
-    return colors[Math.abs(hash) % colors.length]
+    return tints[Math.abs(hash) % tints.length]
   }
-  
+
   // Filter projects based on selected filters
   const filteredProjects = projects.filter(project => {
     // Status filter
@@ -296,95 +294,26 @@ export default function InteractiveProjectsPage({
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                     />
                   ) : (
-                    <>
-                      {/* Soft colored gradient base */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${getProjectColor(project.name).gradient}`} />
-                      
-                      {/* Building illustration - different for commercial vs residential */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.25]">
-                        {project.type === 'COMMERCIAL' ? (
-                          // Commercial building
-                          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
-                            <g className="text-gray-700">
-                              {/* Main building structure */}
-                              <rect x="40" y="20" width="120" height="130" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              <rect x="42" y="22" width="116" height="126" stroke="currentColor" strokeWidth="2.5" fill="none" opacity="0.3"/>
-                              
-                              {/* Windows grid - Floor 1 */}
-                              <rect x="55" y="35" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="85" y="35" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="115" y="35" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              
-                              {/* Windows grid - Floor 2 */}
-                              <rect x="55" y="60" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="85" y="60" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="115" y="60" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              
-                              {/* Windows grid - Floor 3 */}
-                              <rect x="55" y="85" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="85" y="85" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="115" y="85" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              
-                              {/* Windows grid - Floor 4 */}
-                              <rect x="55" y="110" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="85" y="110" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <rect x="115" y="110" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              
-                              {/* Entrance */}
-                              <rect x="85" y="135" width="30" height="15" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              <path d="M100 135 L100 150" stroke="currentColor" strokeWidth="1.5"/>
-                              
-                              {/* Decorative top */}
-                              <path d="M40 20 L50 10 L150 10 L160 20" stroke="currentColor" strokeWidth="2" fill="none"/>
-                            </g>
-                          </svg>
-                        ) : (
-                          // Residential house
-                          <svg width="240" height="160" viewBox="0 0 240 160" fill="none">
-                            <g className="text-gray-700">
-                              {/* Main house structure with shadow effect */}
-                              <path d="M20 85 L120 20 L220 85 L220 145 L20 145 Z" stroke="currentColor" strokeWidth="2.5" fill="none" opacity="0.3"/>
-                              <path d="M20 83 L120 18 L220 83 L220 143 L20 143 Z" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              
-                              {/* Roof detail */}
-                              <circle cx="120" cy="30" r="7" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <path d="M120 37 L120 45" stroke="currentColor" strokeWidth="2"/>
-                              
-                              {/* Door with arch */}
-                              <path d="M100 110 L100 143 L140 143 L140 110 Q120 105 100 110 Z" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              <circle cx="133" cy="125" r="2.5" fill="currentColor"/>
-                              <path d="M120 110 L120 143" stroke="currentColor" strokeWidth="1.5"/>
-                              
-                              {/* Windows - Left side */}
-                              <rect x="40" y="90" width="28" height="28" rx="2" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              <path d="M54 90 L54 118 M40 104 L68 104" stroke="currentColor" strokeWidth="1.5"/>
-                              
-                              {/* Windows - Right side */}
-                              <rect x="172" y="90" width="28" height="28" rx="2" stroke="currentColor" strokeWidth="2.5" fill="none"/>
-                              <path d="M186 90 L186 118 M172 104 L200 104" stroke="currentColor" strokeWidth="1.5"/>
-                              
-                              {/* Upper floor windows */}
-                              <rect x="60" y="55" width="22" height="22" rx="1.5" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <path d="M71 55 L71 77 M60 66 L82 66" stroke="currentColor" strokeWidth="1.2"/>
-                              
-                              <rect x="158" y="55" width="22" height="22" rx="1.5" stroke="currentColor" strokeWidth="2" fill="none"/>
-                              <path d="M169 55 L169 77 M158 66 L180 66" stroke="currentColor" strokeWidth="1.2"/>
-                              
-                              {/* Decorative elements */}
-                              <path d="M35 143 L35 150 M50 143 L50 150 M70 143 L70 150" stroke="currentColor" strokeWidth="1.5" opacity="0.5"/>
-                              <path d="M170 143 L170 150 M190 143 L190 150 M205 143 L205 150" stroke="currentColor" strokeWidth="1.5" opacity="0.5"/>
-                            </g>
-                          </svg>
-                        )}
-                      </div>
-                      
-                      {/* Project name as watermark background */}
-                      <div className="absolute inset-0 flex items-start justify-center pt-6 px-4">
-                        <h3 className="text-gray-500 font-black text-3xl text-center line-clamp-2 tracking-tight uppercase opacity-40 leading-tight">
+                    <div className="absolute inset-0">
+                      {/* Grayscale interior design background */}
+                      <Image
+                        src="/default-project-cover.jpg"
+                        alt="Interior design"
+                        fill
+                        className="object-cover grayscale opacity-30"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                      />
+                      {/* Subtle color tint - unique per project */}
+                      <div className={`absolute inset-0 ${getProjectTint(project.name)}`} />
+                      {/* Light overlay for better text readability */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-white/40" />
+                      {/* Project name overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <h3 className="text-gray-700 font-semibold text-lg text-center leading-tight drop-shadow-sm">
                           {project.name}
                         </h3>
                       </div>
-                    </>
+                    </div>
                   )}
                   {/* Status Badge */}
                   <div className="absolute top-3 right-3">

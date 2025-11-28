@@ -632,9 +632,13 @@ export function MyTimesheet({ userId }: MyTimesheetProps) {
       )}
 
       <TimeEntryModal 
-        isOpen={showModal} 
-        onClose={() => setShowModal(false)}
+        isOpen={showModal || !!editingEntry} 
+        onClose={() => {
+          setShowModal(false)
+          setEditingEntry(null)
+        }}
         onSuccess={() => mutate()}
+        entryId={editingEntry}
       />
     </div>
   )

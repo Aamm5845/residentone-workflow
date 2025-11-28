@@ -23,6 +23,7 @@ interface TimeEntryModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  entryId?: string | null  // If provided, we're editing an existing entry
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -30,7 +31,8 @@ const fetcher = (url: string) => fetch(url).then(res => res.json())
 // Projects API returns array directly, not { projects: [...] }
 const projectsFetcher = (url: string) => fetch(url).then(res => res.json()).then(data => Array.isArray(data) ? data : [])
 
-export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalProps) {
+export function TimeEntryModal({ isOpen, onClose, onSuccess, entryId }: TimeEntryModalProps) {
+  const isEditing = !!entryId
   const { startTimer, activeEntry } = useTimer()
   const [mode, setMode] = useState<'timer' | 'manual'>('timer')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -50,6 +52,12 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
   const [manualStartTime, setManualStartTime] = useState('')
   const [manualEndTime, setManualEndTime] = useState('')
 
+  // Fetch entry data if editing
+  const { data: entryData, isLoading: isLoadingEntry } = useSWR(
+    isOpen && entryId ? `/api/timeline/entries/${entryId}` : null,
+    fetcher
+  )
+
   // Fetch projects - API returns array directly
   const { data: projectsData } = useSWR(isOpen ? '/api/projects' : null, projectsFetcher)
   const projects = projectsData || []
@@ -65,9 +73,9 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
   const selectedRoom = rooms.find((r: any) => r.id === roomId)
   const stages = selectedRoom?.stages || []
 
-  // Reset form when modal opens
+  // Reset form when modal opens for new entry
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !entryId) {
       setProjectId('')
       setRoomId('')
       setStageId('')
@@ -77,19 +85,52 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
       setManualDate(new Date().toISOString().split('T')[0])
       setManualStartTime('')
       setManualEndTime('')
+      setMode('timer')
     }
-  }, [isOpen])
+  }, [isOpen, entryId])
 
-  // Reset room and stage when project changes
-  useEffect(() => {
-    setRoomId('')
-    setStageId('')
-  }, [projectId])
+  // Track if we're initially loading entry data to prevent resetting values
+  const [isInitialLoad, setIsInitialLoad] = useState(false)
 
-  // Reset stage when room changes
+  // Pre-fill form when editing an existing entry
   useEffect(() => {
-    setStageId('')
-  }, [roomId])
+    if (isOpen && entryId && entryData?.entry) {
+      const entry = entryData.entry
+      setIsInitialLoad(true)
+      setProjectId(entry.projectId || '')
+      setRoomId(entry.roomId || '')
+      setStageId(entry.stageId || '')
+      setDescription(entry.description || '')
+      setMode('manual')  // Always use manual mode for editing
+      
+      if (entry.startTime) {
+        const startDate = new Date(entry.startTime)
+        setManualDate(startDate.toISOString().split('T')[0])
+        setManualStartTime(startDate.toTimeString().slice(0, 5))
+      }
+      if (entry.endTime) {
+        const endDate = new Date(entry.endTime)
+        setManualEndTime(endDate.toTimeString().slice(0, 5))
+      }
+      // Reset flag after a tick to allow subsequent changes to work normally
+      setTimeout(() => setIsInitialLoad(false), 0)
+    }
+  }, [isOpen, entryId, entryData])
+
+  // Reset room and stage when project changes (but not during initial load)
+  useEffect(() => {
+    if (!isInitialLoad) {
+      setRoomId('')
+      setStageId('')
+    }
+  }, [projectId, isInitialLoad])
+
+  // Reset stage when room changes (but not during initial load)
+  useEffect(() => {
+    if (!isInitialLoad) {
+      setStageId('')
+    }
+  }, [roomId, isInitialLoad])
 
   const handleStartTimer = async () => {
     if (activeEntry) {
@@ -130,8 +171,11 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
       const startDateTime = new Date(`${manualDate}T${manualStartTime}`)
       const endDateTime = new Date(`${manualDate}T${manualEndTime}`)
 
-      const response = await fetch('/api/timeline/entries', {
-        method: 'POST',
+      const url = isEditing ? `/api/timeline/entries/${entryId}` : '/api/timeline/entries'
+      const method = isEditing ? 'PATCH' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: projectId || null,
@@ -166,13 +210,19 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-cyan-600" />
-            Track Time
+          <DialogTitle className="flex items-center">
+            <Clock className="w-5 h-5 text-cyan-600 mr-3" />
+            {isEditing ? 'Edit Time Entry' : 'Track Time'}
           </DialogTitle>
         </DialogHeader>
 
+        {isLoadingEntry ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-cyan-600" />
+          </div>
+        ) : (
         <Tabs value={mode} onValueChange={(v) => setMode(v as 'timer' | 'manual')}>
+          {!isEditing && (
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="timer" className="flex items-center gap-2">
               <Play className="w-4 h-4" />
@@ -183,6 +233,7 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
               Manual Entry
             </TabsTrigger>
           </TabsList>
+          )}
 
           <div className="mt-4 space-y-4">
             {/* Project Selector - Required */}
@@ -339,11 +390,12 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess }: TimeEntryModalPro
                 ) : (
                   <Clock className="w-4 h-4 mr-2" />
                 )}
-                Add Time Entry
+                {isEditing ? 'Update Time Entry' : 'Add Time Entry'}
               </Button>
             </TabsContent>
           </div>
         </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   )
