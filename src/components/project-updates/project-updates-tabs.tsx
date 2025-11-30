@@ -343,6 +343,41 @@ export default function ProjectUpdatesTabs({
     }
   }
 
+  const handleBulkPhotoDelete = async (photoIds: string[]) => {
+    let successCount = 0
+    let failCount = 0
+    
+    for (const photoId of photoIds) {
+      const photo = photos.find((p: any) => p.id === photoId)
+      if (!photo) {
+        failCount++
+        continue
+      }
+
+      try {
+        const response = await fetch(`/api/projects/${projectId}/updates/${photo.updateId}/photos/${photoId}`, {
+          method: 'DELETE'
+        })
+
+        if (response.ok) {
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch (error) {
+        console.error('Error deleting photo:', error)
+        failCount++
+      }
+    }
+
+    if (successCount > 0) {
+      success('Photos Deleted', `${successCount} photo${successCount !== 1 ? 's' : ''} deleted successfully${failCount > 0 ? `, ${failCount} failed` : ''}`)
+      router.refresh()
+    } else {
+      showError('Delete Failed', 'Failed to delete selected photos')
+    }
+  }
+
   // Task handlers
   const handleTaskCreate = async (task: any) => {
     try {
@@ -638,6 +673,7 @@ export default function ProjectUpdatesTabs({
             onPhotoSelect={handlePhotoSelect}
             onPhotoUpdate={handlePhotoUpdate}
             onPhotoDelete={handlePhotoDelete}
+            onBulkDelete={handleBulkPhotoDelete}
             canEdit={true}
             showBeforeAfter={true}
           />

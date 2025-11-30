@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 // Using plain <img> for Dropbox-backed assets to avoid Next/Image optimizer issues
 // import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -31,7 +31,12 @@ import {
   Clock,
   User,
   ChevronDown,
-  Video as VideoIcon
+  Video as VideoIcon,
+  CheckSquare,
+  Square,
+  ChevronRight,
+  Tags,
+  Save
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,8 +47,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Label } from '@/components/ui/label'
 
 interface Photo {
   id: string
@@ -104,8 +110,53 @@ interface PhotoGalleryProps {
   onPhotoSelect?: (photo: Photo) => void
   onPhotoUpdate?: (photoId: string, updates: Partial<Photo>) => void
   onPhotoDelete?: (photoId: string) => void
+  onBulkDelete?: (photoIds: string[]) => void
+  onBulkUpdate?: (photoIds: string[], updates: Partial<Photo>) => void
   canEdit?: boolean
   showBeforeAfter?: boolean
+}
+
+// Helper function to group photos by date
+function groupPhotosByDate(photos: Photo[]): Map<string, Photo[]> {
+  const groups = new Map<string, Photo[]>()
+  
+  photos.forEach(photo => {
+    const date = new Date(photo.takenAt || photo.createdAt)
+    const dateKey = date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+    
+    if (!groups.has(dateKey)) {
+      groups.set(dateKey, [])
+    }
+    groups.get(dateKey)!.push(photo)
+  })
+  
+  return groups
+}
+
+// Helper function to get relative date label
+function getRelativeDateLabel(dateStr: string): string {
+  const date = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today'
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday'
+  }
+  
+  // Check if it's within the last 7 days
+  const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 7) {
+    return date.toLocaleDateString('en-US', { weekday: 'long' })
+  }
+  
+  return dateStr
 }
 
 export default function PhotoGallery({
@@ -115,6 +166,8 @@ export default function PhotoGallery({
   onPhotoSelect,
   onPhotoUpdate,
   onPhotoDelete,
+  onBulkDelete,
+  onBulkUpdate,
   canEdit = false,
   showBeforeAfter = true
 }: PhotoGalleryProps) {
@@ -133,6 +186,17 @@ export default function PhotoGallery({
   const [zoom, setZoom] = useState(100)
   const [rotation, setRotation] = useState(0)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null)
+  
+  // Multi-select state
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set())
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false)
+  const [bulkEditTags, setBulkEditTags] = useState<string>('')
+  const [bulkEditCaption, setBulkEditCaption] = useState<string>('')
+  const [bulkEditRoomArea, setBulkEditRoomArea] = useState<string>('')
+  const [bulkEditTradeCategory, setBulkEditTradeCategory] = useState<string>('')
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  const [groupByDate, setGroupByDate] = useState(true)
 
   // Get unique values for filters
   const allTags = Array.from(new Set(photos.flatMap(p => p.tags)))
@@ -180,7 +244,124 @@ export default function PhotoGallery({
     after: before.pairedPhoto!
   }))
 
-  const PhotoCard = ({ photo, index }: { photo: Photo; index: number }) => (
+  // Group photos by date
+  const groupedPhotos = useMemo(() => {
+    if (!groupByDate) return null
+    return groupPhotosByDate(filteredPhotos)
+  }, [filteredPhotos, groupByDate])
+
+  // Selection handlers
+  const togglePhotoSelection = (photoId: string) => {
+    const newSelected = new Set(selectedPhotoIds)
+    if (newSelected.has(photoId)) {
+      newSelected.delete(photoId)
+    } else {
+      newSelected.add(photoId)
+    }
+    setSelectedPhotoIds(newSelected)
+  }
+
+  const selectAllInDate = (dateKey: string) => {
+    if (!groupedPhotos) return
+    const photosInDate = groupedPhotos.get(dateKey) || []
+    const newSelected = new Set(selectedPhotoIds)
+    const allSelected = photosInDate.every(p => selectedPhotoIds.has(p.id))
+    
+    photosInDate.forEach(p => {
+      if (allSelected) {
+        newSelected.delete(p.id)
+      } else {
+        newSelected.add(p.id)
+      }
+    })
+    setSelectedPhotoIds(newSelected)
+  }
+
+  const selectAll = () => {
+    if (selectedPhotoIds.size === filteredPhotos.length) {
+      setSelectedPhotoIds(new Set())
+    } else {
+      setSelectedPhotoIds(new Set(filteredPhotos.map(p => p.id)))
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedPhotoIds(new Set())
+    setIsSelectMode(false)
+  }
+
+  const toggleDateCollapse = (dateKey: string) => {
+    const newCollapsed = new Set(collapsedDates)
+    if (newCollapsed.has(dateKey)) {
+      newCollapsed.delete(dateKey)
+    } else {
+      newCollapsed.add(dateKey)
+    }
+    setCollapsedDates(newCollapsed)
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedPhotoIds.size === 0) return
+    
+    if (confirm(`Are you sure you want to delete ${selectedPhotoIds.size} photo${selectedPhotoIds.size > 1 ? 's' : ''}? This action cannot be undone.`)) {
+      if (onBulkDelete) {
+        onBulkDelete(Array.from(selectedPhotoIds))
+      } else if (onPhotoDelete) {
+        // Fall back to deleting one by one
+        for (const photoId of selectedPhotoIds) {
+          onPhotoDelete(photoId)
+        }
+      }
+      clearSelection()
+    }
+  }
+
+  const handleBulkEdit = () => {
+    if (selectedPhotoIds.size === 0) return
+    // Reset form
+    setBulkEditTags('')
+    setBulkEditCaption('')
+    setBulkEditRoomArea('')
+    setBulkEditTradeCategory('')
+    setBulkEditDialogOpen(true)
+  }
+
+  const handleBulkEditSubmit = () => {
+    if (selectedPhotoIds.size === 0) return
+    
+    const updates: Partial<Photo> = {}
+    if (bulkEditTags) {
+      updates.tags = bulkEditTags.split(',').map(t => t.trim()).filter(Boolean)
+    }
+    if (bulkEditCaption) {
+      updates.caption = bulkEditCaption
+    }
+    if (bulkEditRoomArea) {
+      updates.roomArea = bulkEditRoomArea
+    }
+    if (bulkEditTradeCategory) {
+      updates.tradeCategory = bulkEditTradeCategory
+    }
+
+    if (Object.keys(updates).length > 0) {
+      if (onBulkUpdate) {
+        onBulkUpdate(Array.from(selectedPhotoIds), updates)
+      } else if (onPhotoUpdate) {
+        // Fall back to updating one by one
+        for (const photoId of selectedPhotoIds) {
+          onPhotoUpdate(photoId, updates)
+        }
+      }
+    }
+    
+    setBulkEditDialogOpen(false)
+    clearSelection()
+  }
+
+  const PhotoCard = ({ photo, index }: { photo: Photo; index: number }) => {
+    const isSelected = selectedPhotoIds.has(photo.id)
+    
+    return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
@@ -189,15 +370,41 @@ export default function PhotoGallery({
       transition={{ duration: 0.2, delay: index * 0.05 }}
       className="group relative"
     >
-      <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer">
+      <Card className={`overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
         <div 
           className="relative aspect-square"
           onClick={() => {
-            setSelectedPhoto(photo)
-            setLightboxOpen(true)
-            onPhotoSelect?.(photo)
+            if (isSelectMode) {
+              togglePhotoSelection(photo.id)
+            } else {
+              setSelectedPhoto(photo)
+              setLightboxOpen(true)
+              onPhotoSelect?.(photo)
+            }
           }}
         >
+          {/* Selection checkbox */}
+          {isSelectMode && (
+            <div 
+              className="absolute top-2 left-2 z-10"
+              onClick={(e) => {
+                e.stopPropagation()
+                togglePhotoSelection(photo.id)
+              }}
+            >
+              <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+                isSelected 
+                  ? 'bg-primary text-white' 
+                  : 'bg-white/90 text-gray-400 hover:bg-white hover:text-gray-600'
+              }`}>
+                {isSelected ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+              </div>
+            </div>
+          )}
           {photo.asset?.mimeType?.startsWith('video/') ? (
             <video
               src={photo.asset.url}
@@ -374,7 +581,7 @@ export default function PhotoGallery({
         </CardContent>
       </Card>
     </motion.div>
-  )
+  )}
 
   const BeforeAfterCard = ({ pair, index }: { pair: { before: Photo; after: Photo }; index: number }) => (
     <motion.div
@@ -442,6 +649,60 @@ export default function PhotoGallery({
 
   return (
     <div className="space-y-6">
+      {/* Bulk Action Toolbar - shows when photos are selected */}
+      {isSelectMode && selectedPhotoIds.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="sticky top-0 z-20 bg-primary text-white rounded-lg p-3 shadow-lg"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="font-medium">
+                {selectedPhotoIds.size} photo{selectedPhotoIds.size !== 1 ? 's' : ''} selected
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={selectAll}
+                className="text-xs"
+              >
+                {selectedPhotoIds.size === filteredPhotos.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleBulkEdit}
+                className="gap-1"
+              >
+                <Tags className="w-4 h-4" />
+                Edit Tags
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleBulkDelete}
+                className="gap-1"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearSelection}
+                className="text-white hover:text-white hover:bg-white/20"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Header with controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -484,6 +745,35 @@ export default function PhotoGallery({
               <List className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Select mode toggle */}
+          {canEdit && (
+            <Button
+              variant={isSelectMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setIsSelectMode(!isSelectMode)
+                if (isSelectMode) {
+                  setSelectedPhotoIds(new Set())
+                }
+              }}
+              className="gap-1"
+            >
+              <CheckSquare className="w-4 h-4" />
+              {isSelectMode ? 'Cancel' : 'Select'}
+            </Button>
+          )}
+
+          {/* Group by date toggle */}
+          <Button
+            variant={groupByDate ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setGroupByDate(!groupByDate)}
+            className="gap-1"
+          >
+            <Calendar className="w-4 h-4" />
+            By Date
+          </Button>
 
           {/* Filters */}
           <Button
@@ -634,7 +924,79 @@ export default function PhotoGallery({
               <Camera className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p>No photos found matching your criteria</p>
             </div>
+          ) : groupByDate && groupedPhotos ? (
+            // Grouped by date view
+            <div className="space-y-6">
+              {Array.from(groupedPhotos.entries()).map(([dateKey, datePhotos]) => {
+                const isCollapsed = collapsedDates.has(dateKey)
+                const allInDateSelected = datePhotos.every(p => selectedPhotoIds.has(p.id))
+                const someInDateSelected = datePhotos.some(p => selectedPhotoIds.has(p.id))
+                
+                return (
+                  <div key={dateKey} className="space-y-3">
+                    {/* Date header */}
+                    <div className="flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-sm py-2 z-10 border-b">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleDateCollapse(dateKey)}
+                          className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+                        >
+                          <ChevronRight className={`w-4 h-4 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+                          <h4 className="font-semibold text-gray-900">{getRelativeDateLabel(dateKey)}</h4>
+                          <span className="text-sm text-gray-500">({datePhotos.length})</span>
+                        </button>
+                        
+                        {isSelectMode && (
+                          <button
+                            onClick={() => selectAllInDate(dateKey)}
+                            className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors"
+                          >
+                            <div className={`w-4 h-4 rounded flex items-center justify-center border ${
+                              allInDateSelected ? 'bg-primary border-primary text-white' : 
+                              someInDateSelected ? 'bg-primary/30 border-primary' : 'border-gray-300'
+                            }`}>
+                              {allInDateSelected && <CheckSquare className="w-3 h-3" />}
+                            </div>
+                            <span>{allInDateSelected ? 'Deselect' : 'Select'} all</span>
+                          </button>
+                        )}
+                      </div>
+                      
+                      <span className="text-xs text-gray-400">
+                        {new Date(datePhotos[0]?.takenAt || datePhotos[0]?.createdAt).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </span>
+                    </div>
+                    
+                    {/* Photos grid */}
+                    {!isCollapsed && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className={`grid gap-4 ${
+                          viewMode === 'grid' 
+                            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+                            : 'grid-cols-1'
+                        }`}
+                      >
+                        <AnimatePresence>
+                          {datePhotos.map((photo, index) => (
+                            <PhotoCard key={photo.id} photo={photo} index={index} />
+                          ))}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           ) : (
+            // Flat view (no grouping)
             <motion.div
               layout
               className={`grid gap-6 ${
@@ -717,6 +1079,87 @@ export default function PhotoGallery({
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tags className="w-5 h-5" />
+              Edit {selectedPhotoIds.size} Photo{selectedPhotoIds.size !== 1 ? 's' : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Update tags and metadata for selected photos. Leave fields empty to keep existing values.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-tags">Add Tags (comma-separated)</Label>
+              <Input
+                id="bulk-tags"
+                placeholder="e.g. kitchen, renovation, progress"
+                value={bulkEditTags}
+                onChange={(e) => setBulkEditTags(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">Tags will be added to existing tags</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bulk-caption">Caption</Label>
+              <Textarea
+                id="bulk-caption"
+                placeholder="Enter caption for all selected photos..."
+                value={bulkEditCaption}
+                onChange={(e) => setBulkEditCaption(e.target.value)}
+                rows={2}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-room">Room Area</Label>
+                <Select value={bulkEditRoomArea} onValueChange={setBulkEditRoomArea}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Keep existing</SelectItem>
+                    {allRoomAreas.map(area => (
+                      <SelectItem key={area} value={area}>{area}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="bulk-trade">Trade Category</Label>
+                <Select value={bulkEditTradeCategory} onValueChange={setBulkEditTradeCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Keep existing</SelectItem>
+                    {allTradeCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkEditSubmit} className="gap-1">
+              <Save className="w-4 h-4" />
+              Apply Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Lightbox for full-size viewing */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
