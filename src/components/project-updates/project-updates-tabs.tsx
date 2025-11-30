@@ -30,6 +30,7 @@ interface ProjectUpdatesTabsProps {
   tasks: any[]
   availableUsers: any[]
   availableContractors: any[]
+  openIssuesCount: number
 }
 
 export default function ProjectUpdatesTabs({
@@ -39,7 +40,8 @@ export default function ProjectUpdatesTabs({
   photos,
   tasks: initialTasks,
   availableUsers,
-  availableContractors
+  availableContractors,
+  openIssuesCount
 }: ProjectUpdatesTabsProps) {
   const { toasts, success, error: showError, dismissToast } = useToast()
   const { tasks, isLoading: tasksLoading, error: tasksError, createTask, updateTask, deleteTask } = useTasks(projectId)
@@ -610,12 +612,8 @@ export default function ProjectUpdatesTabs({
                   <span className="font-semibold text-green-600">{tasks.filter(t => t.status === 'DONE').length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Team Members</span>
-                  <span className="font-semibold">{availableUsers.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Contractors</span>
-                  <span className="font-semibold">{availableContractors.length}</span>
+                  <span className="text-gray-600">Open Issues</span>
+                  <span className="font-semibold text-orange-600">{openIssuesCount}</span>
                 </div>
               </div>
             </div>

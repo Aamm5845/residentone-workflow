@@ -29,6 +29,7 @@ export default async function ProjectUpdatesPage({ params }: Props) {
   let tasks: any[] = []
   let availableUsers: any[] = []
   let availableContractors: any[] = []
+  let openIssuesCount: number = 0
   
   try {
     // Fetch project
@@ -205,6 +206,14 @@ export default async function ProjectUpdatesPage({ params }: Props) {
       // Extract available users and contractors
       availableUsers = project.organization.users
       availableContractors = project.projectContractors.map((pc: any) => pc.contractor)
+
+      // Fetch open issues count for this project
+      openIssuesCount = await prisma.issue.count({
+        where: {
+          projectId: id,
+          status: { in: ['OPEN', 'IN_PROGRESS'] }
+        }
+      })
     }
   } catch (error) {
     console.error('Error fetching project:', error)
@@ -242,6 +251,7 @@ export default async function ProjectUpdatesPage({ params }: Props) {
             tasks={tasks}
             availableUsers={availableUsers}
             availableContractors={availableContractors}
+            openIssuesCount={openIssuesCount}
           />
         </div>
       </div>
