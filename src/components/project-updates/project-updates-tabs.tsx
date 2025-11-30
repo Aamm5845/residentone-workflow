@@ -95,27 +95,27 @@ export default function ProjectUpdatesTabs({
   // Helper to get badge color based on type
   const getTypeBadgeColor = (type: string) => {
     const colors: Record<string, string> = {
-      'GENERAL': 'bg-slate-100 text-slate-700 border-slate-200',
-      'PHOTO': 'bg-blue-50 text-blue-700 border-blue-200',
-      'TASK': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      'DOCUMENT': 'bg-amber-50 text-amber-700 border-amber-200',
-      'COMMUNICATION': 'bg-violet-50 text-violet-700 border-violet-200',
-      'MILESTONE': 'bg-orange-50 text-orange-700 border-orange-200',
-      'INSPECTION': 'bg-cyan-50 text-cyan-700 border-cyan-200',
-      'ISSUE': 'bg-rose-50 text-rose-700 border-rose-200'
+      'GENERAL': 'bg-gray-100 text-gray-600',
+      'PHOTO': 'bg-blue-50 text-blue-600',
+      'TASK': 'bg-green-50 text-green-600',
+      'DOCUMENT': 'bg-amber-50 text-amber-600',
+      'COMMUNICATION': 'bg-purple-50 text-purple-600',
+      'MILESTONE': 'bg-orange-50 text-orange-600',
+      'INSPECTION': 'bg-cyan-50 text-cyan-600',
+      'ISSUE': 'bg-red-50 text-red-600'
     }
-    return colors[type] || 'bg-gray-100 text-gray-700 border-gray-200'
+    return colors[type] || 'bg-gray-100 text-gray-600'
   }
 
   const getPriorityBadgeColor = (priority: string) => {
     const colors: Record<string, string> = {
-      'LOW': 'bg-gray-50 text-gray-600 border-gray-200',
-      'NORMAL': 'bg-blue-50 text-blue-600 border-blue-200',
-      'MEDIUM': 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      'HIGH': 'bg-orange-50 text-orange-700 border-orange-200',
-      'URGENT': 'bg-red-50 text-red-700 border-red-200'
+      'LOW': 'bg-gray-100 text-gray-500',
+      'NORMAL': 'bg-gray-100 text-gray-600',
+      'MEDIUM': 'bg-yellow-50 text-yellow-600',
+      'HIGH': 'bg-orange-50 text-orange-600',
+      'URGENT': 'bg-red-50 text-red-600'
     }
-    return colors[priority] || 'bg-gray-50 text-gray-600 border-gray-200'
+    return colors[priority] || 'bg-gray-100 text-gray-500'
   }
 
   const handleViewUpdate = (update: any) => {
@@ -421,47 +421,35 @@ export default function ProjectUpdatesTabs({
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview" className="space-y-8">
+      <TabsContent value="overview" className="space-y-6">
         {/* Overview Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Updates */}
           <div className="lg:col-span-2">
-            <div className="bg-gradient-to-b from-white to-gray-50/50 rounded-2xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                    <Megaphone className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Recent Updates</h3>
-                    <p className="text-xs text-gray-500">Team announcements & progress</p>
-                  </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Recent Updates</h3>
+                  <p className="text-sm text-gray-500">Team announcements & progress</p>
                 </div>
                 <Button 
                   onClick={() => setCreateUpdateDialogOpen(true)} 
                   size="sm"
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-sm border-0"
+                  className="bg-indigo-600 hover:bg-indigo-700"
                 >
                   <Plus className="w-4 h-4 mr-1.5" />
                   New Update
                 </Button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* Filter out internal updates (like photo uploads) - only show team communication posts */}
                 {projectUpdates.filter((u: any) => !u.isInternal).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 px-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-4">
-                      <Megaphone className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h4 className="text-base font-semibold text-gray-900 mb-1">No updates yet</h4>
-                    <p className="text-sm text-gray-500 text-center mb-4 max-w-xs">
-                      Post updates to keep your team informed about project progress and milestones.
-                    </p>
+                  <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                    <p className="text-gray-500 mb-3">No updates yet</p>
                     <Button 
                       onClick={() => setCreateUpdateDialogOpen(true)}
                       variant="outline"
                       size="sm"
-                      className="border-dashed"
                     >
                       <Plus className="w-4 h-4 mr-1.5" />
                       Create First Update
@@ -471,118 +459,68 @@ export default function ProjectUpdatesTabs({
                   projectUpdates.filter((u: any) => !u.isInternal).map((update: any) => (
                     <div 
                       key={update.id} 
-                      className="group relative flex items-start gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer" 
+                      className="group flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0" 
                       onClick={() => handleViewUpdate(update)}
                     >
-                      {/* Type Icon */}
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${getTypeIconStyle(update.type)}`}>
-                        {getTypeIcon(update.type)}
-                      </div>
-                      
                       {/* Content */}
-                      <div className="flex-1 min-w-0 min-h-[72px] flex flex-col">
+                      <div className="flex-1 min-w-0">
                         {/* Header Row */}
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-gray-900 text-[15px] leading-tight">
+                              <h4 className="font-medium text-gray-900">
                                 {update.title || `${formatTypeLabel(update.type)} Update`}
                               </h4>
-                              <Badge variant="outline" className={`text-[10px] font-medium px-1.5 py-0 h-5 rounded border ${getTypeBadgeColor(update.type)}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadgeColor(update.type)}`}>
                                 {formatTypeLabel(update.type)}
-                              </Badge>
+                              </span>
                               {update.priority !== 'MEDIUM' && update.priority !== 'NORMAL' && (
-                                <Badge variant="outline" className={`text-[10px] font-medium px-1.5 py-0 h-5 rounded border ${getPriorityBadgeColor(update.priority)}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${getPriorityBadgeColor(update.priority)}`}>
                                   {formatPriorityLabel(update.priority)}
-                                </Badge>
+                                </span>
                               )}
                             </div>
                           </div>
                           
                           {/* Actions - visible on hover */}
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-7 w-7 p-0 rounded-lg hover:bg-blue-50 hover:text-blue-600"
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleEditUpdate(update)
                               }}
-                              title="Edit update"
+                              title="Edit"
                             >
                               <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-7 w-7 p-0 rounded-lg hover:bg-red-50 hover:text-red-600"
+                            </button>
+                            <button 
+                              className="p-1.5 rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleDeleteUpdate(update.id)
                               }}
-                              title="Delete update"
+                              title="Delete"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            </button>
                           </div>
                         </div>
                         
-                        {/* Description - fixed height area */}
-                        <div className="flex-1 mt-1">
-                          {update.description ? (
-                            <p className="text-sm text-gray-600 line-clamp-1 leading-relaxed">{update.description}</p>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic">No description</p>
-                          )}
-                        </div>
+                        {/* Description */}
+                        {update.description && (
+                          <p className="text-sm text-gray-500 mt-1 line-clamp-1">{update.description}</p>
+                        )}
                         
                         {/* Footer */}
-                        <div className="flex items-center gap-2.5 mt-2 text-xs text-gray-500">
-                          <div className="flex items-center gap-1.5">
-                            {update.author?.image ? (
-                              <img 
-                                src={update.author.image} 
-                                alt={update.author.name || 'User'}
-                                className="w-5 h-5 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[10px] font-medium text-white">
-                                {(update.author?.name || 'U').charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <span className="font-medium text-gray-700">{update.author?.name || 'Unknown'}</span>
-                          </div>
-                          <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                          <span>{update.author?.name || 'Unknown'}</span>
+                          <span>•</span>
                           <span>{new Date(update.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                          {/* Show room if selected */}
                           {update.roomId && project?.rooms && (
                             <>
-                              <span className="text-gray-300">•</span>
-                              <span className="flex items-center gap-1 text-indigo-600 font-medium">
-                                <Home className="w-3 h-3" />
-                                {project.rooms.find((r: any) => r.id === update.roomId)?.name || 'Room'}
-                              </span>
-                            </>
-                          )}
-                          {/* Show photo and task counts */}
-                          {(update._count?.photos > 0 || update._count?.tasks > 0) && (
-                            <>
-                              <span className="text-gray-300">•</span>
-                              <div className="flex items-center gap-2 text-gray-500">
-                                {update._count?.photos > 0 && (
-                                  <span className="flex items-center gap-0.5">
-                                    <FileImage className="w-3 h-3" />
-                                    {update._count.photos}
-                                  </span>
-                                )}
-                                {update._count?.tasks > 0 && (
-                                  <span className="flex items-center gap-0.5">
-                                    <CheckSquare className="w-3 h-3" />
-                                    {update._count.tasks}
-                                  </span>
-                                )}
-                              </div>
+                              <span>•</span>
+                              <span>{project.rooms.find((r: any) => r.id === update.roomId)?.name || 'Room'}</span>
                             </>
                           )}
                         </div>
@@ -596,110 +534,58 @@ export default function ProjectUpdatesTabs({
 
           {/* Quick Stats */}
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-white via-white to-indigo-50/30 rounded-2xl shadow-sm border border-gray-100/80 p-6 overflow-hidden relative">
-              {/* Decorative background */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100/40 to-indigo-100/40 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-100/30 to-cyan-100/30 rounded-full blur-xl translate-y-1/2 -translate-x-1/2" />
-              
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                    <Activity className="w-4.5 h-4.5 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Project Status</h3>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Project Status</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Photos</span>
+                  <span className="text-lg font-semibold text-gray-900">{photos.length}</span>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Photos */}
-                  <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                        <FileImage className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-medium text-violet-600">Photos</span>
-                    </div>
-                    <p className="text-2xl font-bold text-violet-700">{photos.length}</p>
-                  </div>
-                  
-                  {/* Active Tasks */}
-                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
-                        <Clock className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-medium text-blue-600">Active</span>
-                    </div>
-                    <p className="text-2xl font-bold text-blue-700">{tasks.filter(t => t.status !== 'DONE').length}</p>
-                  </div>
-                  
-                  {/* Completed */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
-                        <CheckSquare className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-medium text-emerald-600">Done</span>
-                    </div>
-                    <p className="text-2xl font-bold text-emerald-700">{tasks.filter(t => t.status === 'DONE').length}</p>
-                  </div>
-                  
-                  {/* Issues */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-medium text-amber-600">Issues</span>
-                    </div>
-                    <p className="text-2xl font-bold text-amber-700">{openIssuesCount}</p>
-                  </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Active Tasks</span>
+                  <span className="text-lg font-semibold text-gray-900">{tasks.filter(t => t.status !== 'DONE').length}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-600">Completed</span>
+                  <span className="text-lg font-semibold text-emerald-600">{tasks.filter(t => t.status === 'DONE').length}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-600">Open Issues</span>
+                  <span className="text-lg font-semibold text-orange-600">{openIssuesCount}</span>
                 </div>
               </div>
             </div>
 
             {/* Recent Photos */}
             {photos.length > 0 && (
-              <div className="bg-gradient-to-br from-white via-white to-cyan-50/30 rounded-2xl shadow-sm border border-gray-100/80 p-6 overflow-hidden relative">
-                {/* Decorative background */}
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-100/40 to-blue-100/40 rounded-full blur-xl -translate-y-1/2 translate-x-1/2" />
-                
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm">
-                        <FileImage className="w-4.5 h-4.5 text-white" />
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Recent Photos</h3>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-gray-500 hover:text-gray-900 -mr-2"
+                    onClick={() => {
+                      const photosTab = document.querySelector('[value="photos"]') as HTMLButtonElement
+                      photosTab?.click()
+                    }}
+                  >
+                    View All
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {photos.slice(0, 4).map((photo: any) => (
+                    <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
+                      <img
+                        src={photo.asset.url}
+                        alt={photo.asset.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end">
+                        <p className="text-xs text-white p-2 truncate w-full">{photo.caption || photo.asset.title}</p>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900">Recent Photos</h3>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
-                      onClick={() => {
-                        const photosTab = document.querySelector('[value="photos"]') as HTMLButtonElement
-                        photosTab?.click()
-                      }}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View All
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {photos.slice(0, 4).map((photo: any) => (
-                      <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer shadow-sm ring-1 ring-black/5">
-                        <img
-                          src={photo.asset.url}
-                          alt={photo.asset.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-xs text-white font-medium truncate">{photo.caption || photo.asset.title}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
