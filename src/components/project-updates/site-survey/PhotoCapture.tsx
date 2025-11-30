@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import { Camera, Upload, X, Image as ImageIcon, Loader2, MapPin } from 'lucide-react'
+import { Camera, Upload, X, Image as ImageIcon, Loader2, MapPin, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,7 +36,7 @@ export default function PhotoCapture({
   photos,
   onPhotosChange,
   maxPhotos = 50,
-  acceptedFormats = 'image/jpeg,image/jpg,image/png,image/heic,image/webp',
+  acceptedFormats = 'image/jpeg,image/jpg,image/png,image/heic,image/webp,video/mp4,video/mov,video/quicktime,video/webm',
   rooms = []
 }: PhotoCaptureProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -200,15 +200,15 @@ export default function PhotoCapture({
           
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              {photos.length === 0 ? 'Add Photos' : `${photos.length} photo${photos.length !== 1 ? 's' : ''} added`}
+              {photos.length === 0 ? 'Add Photos & Videos' : `${photos.length} file${photos.length !== 1 ? 's' : ''} added`}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              Drag and drop or use the buttons below
+              Drag and drop photos or videos, or use the buttons below
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {photos.length < maxPhotos 
-                ? `Up to ${maxPhotos - photos.length} more photos` 
-                : 'Maximum photos reached'}
+                ? `Up to ${maxPhotos - photos.length} more files` 
+                : 'Maximum files reached'}
             </p>
           </div>
 
@@ -251,7 +251,7 @@ export default function PhotoCapture({
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
               <Upload className="w-4 h-4" />
-              Upload Photos
+              Upload Files
             </Button>
             <input
               ref={fileInputRef}
@@ -303,13 +303,28 @@ export default function PhotoCapture({
               >
                 <CardContent className="p-0">
                   <div className="relative aspect-square">
-                    <Image
-                      src={photo.preview}
-                      alt={photo.caption || 'Photo'}
-                      fill
-                      className="object-cover rounded-t-lg"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                    />
+                    {photo.file.type.startsWith('video/') ? (
+                      <div className="w-full h-full bg-gray-900 rounded-t-lg flex items-center justify-center relative">
+                        <video
+                          src={photo.preview}
+                          className="w-full h-full object-cover rounded-t-lg"
+                          muted
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+                            <Video className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <Image
+                        src={photo.preview}
+                        alt={photo.caption || 'Photo'}
+                        fill
+                        className="object-cover rounded-t-lg"
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                      />
+                    )}
                     
                     {/* Remove button */}
                     <Button
@@ -324,6 +339,16 @@ export default function PhotoCapture({
                     >
                       <X className="w-3 h-3" />
                     </Button>
+
+                    {/* Video indicator */}
+                    {photo.file.type.startsWith('video/') && (
+                      <div className="absolute top-1 left-1">
+                        <Badge variant="secondary" className="text-xs bg-purple-500 text-white">
+                          <Video className="w-2 h-2 mr-1" />
+                          Video
+                        </Badge>
+                      </div>
+                    )}
 
                     {/* GPS indicator */}
                     {photo.gpsCoordinates && (

@@ -15,12 +15,19 @@ import {
 import { logAssetUpload } from '@/lib/activity-logger'
 
 // File upload configuration
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_TYPES = {
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB for images/docs
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024 // 100MB for videos
+const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
   'image/svg+xml': '.svg',
+  'image/heic': '.heic',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/x-msvideo': '.avi',
+  'video/webm': '.webm',
+  'video/x-m4v': '.m4v',
   'application/pdf': '.pdf',
   'text/plain': '.txt',
   'application/msword': '.doc',
@@ -61,11 +68,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // File size validation
-    if (file.size > MAX_FILE_SIZE) {
+    // File size validation - allow larger files for videos
+    const isVideo = file.type.startsWith('video/')
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_FILE_SIZE
+    if (file.size > maxSize) {
       return NextResponse.json({ 
         error: 'File too large',
-        details: `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`
+        details: `File size must be less than ${maxSize / (1024 * 1024)}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`
       }, { status: 400 })
     }
 
@@ -186,9 +195,11 @@ export async function POST(request: NextRequest) {
       const storageType: 'cloud' | 'local' = 'cloud'
       
       // Determine asset type
-      let assetType: 'IMAGE' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
+      let assetType: 'IMAGE' | 'VIDEO' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
       if (file.type.startsWith('image/')) {
         assetType = 'IMAGE'
+      } else if (file.type.startsWith('video/')) {
+        assetType = 'VIDEO'
       } else if (file.type === 'application/pdf') {
         assetType = 'PDF'
       }
@@ -347,6 +358,7 @@ export async function POST(request: NextRequest) {
         fileName: fileName,
         size: file.size,
         type: file.type.startsWith('image/') ? 'image' : 
+              file.type.startsWith('video/') ? 'video' :
               file.type === 'application/pdf' ? 'pdf' : 'document',
         mimeType: file.type,
         url: fileUrl,
@@ -366,6 +378,7 @@ export async function POST(request: NextRequest) {
           sizeFormatted: formatFileSize(file.size),
           extension: fileExtension,
           isImage: file.type.startsWith('image/'),
+          isVideo: file.type.startsWith('video/'),
           isPDF: file.type === 'application/pdf'
         }
       }

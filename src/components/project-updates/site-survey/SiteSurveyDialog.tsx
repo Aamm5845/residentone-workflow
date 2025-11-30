@@ -225,7 +225,7 @@ export default function SiteSurveyDialog({
             <div>
               <DialogTitle className="text-2xl">On-Site Survey</DialogTitle>
               <DialogDescription>
-                {projectName} • Upload and tag photos from the job site
+                {projectName} • Upload and tag photos & videos from the job site
               </DialogDescription>
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function SiteSurveyDialog({
               <Alert>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <AlertDescription>
-                  Uploading photos to Dropbox... {successCount} of {photos.length} uploaded
+                  Uploading files to Dropbox... {successCount} of {photos.length} uploaded
                 </AlertDescription>
                 <Progress value={uploadProgress} className="mt-2" />
               </Alert>
@@ -249,7 +249,7 @@ export default function SiteSurveyDialog({
               <Alert className="bg-green-50 border-green-200">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <AlertDescription className="text-green-800">
-                  All {successCount} photos uploaded successfully!
+                  All {successCount} files uploaded successfully!
                 </AlertDescription>
               </Alert>
             )}
@@ -342,9 +342,9 @@ export default function SiteSurveyDialog({
           <div className="flex items-center justify-between w-full">
             <div className="text-sm text-gray-600">
               {photos.length > 0 ? (
-                <span>{photos.length} photo{photos.length !== 1 ? 's' : ''} ready to upload</span>
+                <span>{photos.length} file{photos.length !== 1 ? 's' : ''} ready to upload</span>
               ) : (
-                <span>No photos added yet</span>
+                <span>No files added yet</span>
               )}
             </div>
             <div className="flex gap-3">
@@ -367,7 +367,7 @@ export default function SiteSurveyDialog({
                     Uploading {successCount}/{photos.length}
                   </>
                 ) : (
-                  <>Upload {photos.length} Photo{photos.length !== 1 ? 's' : ''}</>
+                  <>Upload {photos.length} File{photos.length !== 1 ? 's' : ''}</>
                 )}
               </Button>
             </div>

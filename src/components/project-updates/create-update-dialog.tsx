@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, Loader2, Upload, X, FileImage, FileText, File } from 'lucide-react'
+import { AlertCircle, Loader2, Upload, X, FileImage, FileText, File, Video } from 'lucide-react'
 
 interface Room {
   id: string
@@ -75,8 +75,13 @@ export default function CreateUpdateDialog({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const validFiles = files.filter(file => {
-      const isValidType = file.type.startsWith('image/') || file.type === 'application/pdf'
-      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
+      const isImage = file.type.startsWith('image/')
+      const isVideo = file.type.startsWith('video/')
+      const isPdf = file.type === 'application/pdf'
+      const isValidType = isImage || isVideo || isPdf
+      // Allow 100MB for videos, 10MB for images/PDFs
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024
+      const isValidSize = file.size <= maxSize
       return isValidType && isValidSize
     })
     setSelectedFiles(prev => [...prev, ...validFiles])
@@ -91,6 +96,7 @@ export default function CreateUpdateDialog({
 
   const getFileIcon = (file: File) => {
     if (file.type.startsWith('image/')) return <FileImage className="w-4 h-4 text-blue-500" />
+    if (file.type.startsWith('video/')) return <Video className="w-4 h-4 text-purple-500" />
     if (file.type === 'application/pdf') return <FileText className="w-4 h-4 text-red-500" />
     return <File className="w-4 h-4 text-gray-500" />
   }
@@ -295,7 +301,7 @@ export default function CreateUpdateDialog({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,.pdf"
+                accept="image/*,video/*,.pdf"
                 onChange={handleFileSelect}
                 className="hidden"
                 id="file-upload"
@@ -305,8 +311,8 @@ export default function CreateUpdateDialog({
                 className="flex flex-col items-center cursor-pointer"
               >
                 <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm text-gray-600">Click to upload images or PDFs</span>
-                <span className="text-xs text-gray-400 mt-1">Max 10MB per file</span>
+                <span className="text-sm text-gray-600">Click to upload images, videos, or PDFs</span>
+                <span className="text-xs text-gray-400 mt-1">Max 10MB for images/PDFs, 100MB for videos</span>
               </label>
             </div>
             
