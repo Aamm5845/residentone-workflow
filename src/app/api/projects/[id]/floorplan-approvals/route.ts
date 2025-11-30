@@ -220,7 +220,7 @@ export async function POST(
     // Log to main activity log
     await logActivity({
       session,
-      action: ActivityActions.PROJECT_UPDATE,
+      action: ActivityActions.PROJECT_UPDATED,
       entity: EntityTypes.PROJECT,
       entityId: resolvedParams.id,
       details: {
@@ -314,6 +314,13 @@ export async function PATCH(
 
     // Handle different actions
     switch (action) {
+      case 'push_to_approval':
+        // Push version from Drawings phase to Approval phase
+        updateData.status = 'READY_FOR_CLIENT'
+        activityMessage = 'Floorplan pushed to approval phase'
+        activityType = 'pushed_to_approval'
+        break
+
       case 'approve_by_aaron':
         updateData.approvedByAaron = true
         updateData.aaronApprovedAt = new Date()
@@ -419,7 +426,7 @@ export async function PATCH(
     // Log to main activity log
     await logActivity({
       session,
-      action: ActivityActions.PROJECT_UPDATE,
+      action: ActivityActions.PROJECT_UPDATED,
       entity: EntityTypes.PROJECT,
       entityId: resolvedParams.id,
       details: {
@@ -460,6 +467,121 @@ export async function PATCH(
     console.error('Error updating floorplan approval version:', error)
     return NextResponse.json({
       error: 'Failed to update version',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const ipAddress = getIPAddress(request)
+    const resolvedParams = await params
+    
+    if (!isValidAuthSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const versionId = searchParams.get('versionId')
+
+    if (!versionId) {
+      return NextResponse.json({
+        error: 'Version ID is required'
+      }, { status: 400 })
+    }
+
+    // Find the version and verify access
+    const version = await prisma.floorplanApprovalVersion.findFirst({
+      where: {
+        id: versionId,
+        projectId: resolvedParams.id,
+        project: {
+          orgId: session.user.orgId
+        }
+      },
+      include: {
+        project: {
+          include: {
+            client: true
+          }
+        },
+        assets: {
+          include: {
+            asset: true
+          }
+        }
+      }
+    })
+
+    if (!version) {
+      return NextResponse.json({ error: 'Version not found' }, { status: 404 })
+    }
+
+    // Get asset IDs before deletion (to delete the actual Asset records)
+    const assetIds = version.assets.map(a => a.assetId)
+
+    // Delete in transaction to ensure consistency
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete activity logs (has cascade but doing explicitly for safety)
+      await tx.floorplanApprovalActivity.deleteMany({
+        where: { versionId: versionId }
+      })
+
+      // 2. Delete email logs
+      await tx.floorplanApprovalEmailLog.deleteMany({
+        where: { versionId: versionId }
+      })
+
+      // 3. Delete version-asset join table records
+      await tx.floorplanApprovalAsset.deleteMany({
+        where: { versionId: versionId }
+      })
+
+      // 4. Delete the actual Asset records (uploaded files metadata)
+      if (assetIds.length > 0) {
+        await tx.asset.deleteMany({
+          where: { id: { in: assetIds } }
+        })
+      }
+
+      // 5. Finally delete the version
+      await tx.floorplanApprovalVersion.delete({
+        where: { id: versionId }
+      })
+    })
+
+    // Log to main activity log
+    await logActivity({
+      session,
+      action: ActivityActions.PROJECT_UPDATED,
+      entity: EntityTypes.PROJECT,
+      entityId: resolvedParams.id,
+      details: {
+        action: 'floorplan_approval_version_deleted',
+        versionId: versionId,
+        version: version.version,
+        projectName: version.project.name,
+        clientName: version.project.client?.name,
+        wasPublished: version.status !== 'DRAFT',
+        assetCount: version.assets.length
+      },
+      ipAddress
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Version ${version.version} deleted successfully`,
+      deletedVersion: version.version
+    })
+
+  } catch (error) {
+    console.error('Error deleting floorplan approval version:', error)
+    return NextResponse.json({
+      error: 'Failed to delete version',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }

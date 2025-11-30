@@ -54,18 +54,18 @@ export async function POST(
       return NextResponse.json({ error: 'Version not found' }, { status: 404 })
     }
 
-    if (!version.approvedByAaron) {
+    // Check if version is approved (either explicitly or by being pushed to approval)
+    const isApproved = version.approvedByAaron || version.status !== 'DRAFT'
+    if (!isApproved) {
       return NextResponse.json({
-        error: 'Cannot send to client: Version must be approved by Aaron first'
+        error: 'Cannot send to client: Version must be approved first'
       }, { status: 400 })
     }
 
-    // Get selected assets or default to all email-included assets
-    let assetsToInclude = version.assets.filter(a => a.includeInEmail)
+    // Get selected assets or default to all assets
+    let assetsToInclude = version.assets
     if (selectedAssetIds && selectedAssetIds.length > 0) {
-      assetsToInclude = version.assets.filter(a => 
-        selectedAssetIds.includes(a.id) && a.includeInEmail
-      )
+      assetsToInclude = version.assets.filter(a => selectedAssetIds.includes(a.id))
     }
 
     if (assetsToInclude.length === 0) {

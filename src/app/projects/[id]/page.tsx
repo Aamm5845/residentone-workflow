@@ -379,10 +379,10 @@ export default async function ProjectDetail({ params }: Props) {
               
               <div className="mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Floorplan Approval Card */}
+                  {/* Floorplan Card */}
                   {project.hasFloorplanApproval && (
                     <Link
-                      href={`/projects/${project.id}/floorplan-approval`}
+                      href={`/projects/${project.id}/floorplan`}
                       className="group block"
                     >
                       <div className="bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
@@ -393,10 +393,10 @@ export default async function ProjectDetail({ params }: Props) {
                             </div>
                             <div>
                               <h3 className="font-semibold text-blue-800 group-hover:text-blue-900 transition-colors">
-                                Floorplan Approval
+                                Floorplan
                               </h3>
                               <p className="text-xs text-blue-600 mt-1">
-                                Manage floorplan reviews and client approvals
+                                Manage floorplan drawings and client approvals
                               </p>
                             </div>
                           </div>

@@ -148,6 +148,10 @@ model User {
   timeEntries                 TimeEntry[]                 @relation("UserTimeEntries")
   timeEntryEdits              TimeEntryEdit[]             @relation("UserTimeEntryEdits")
   timeSettings                UserTimeSettings?           @relation("UserTimeSettings")
+  // Floorplan chat relations
+  floorplanChatMessages       FloorplanChatMessage[]      @relation("FloorplanChatAuthor")
+  floorplanChatMentions       FloorplanChatMention[]      @relation("FloorplanChatMentioned")
+  floorplanChatReactions      FloorplanChatReaction[]     @relation("FloorplanChatReactor")
 }
 
 model Client {
@@ -235,6 +239,7 @@ model Project {
   clientAccessTokens        ClientAccessToken[]        @relation("ClientAccessTokenProject")
   comments                  Comment[]
   floorplanApprovalVersions FloorplanApprovalVersion[]
+  floorplanChatMessages     FloorplanChatMessage[]
   issues                    Issue[]                    @relation("IssueProject")
   client                    Client                     @relation(fields: [clientId], references: [id])
   createdBy                 User                       @relation("CreatedByUser", fields: [createdById], references: [id])
@@ -806,11 +811,12 @@ model Asset {
   room                    Room?                    @relation("RoomAssets", fields: [roomId], references: [id], onDelete: Cascade)
   section                 DesignSection?           @relation("SectionAssets", fields: [sectionId], references: [id], onDelete: Cascade)
   stage                   Stage?                   @relation("StageAssets", fields: [stageId], references: [id], onDelete: Cascade)
-  uploadedByUser          User                     @relation("UploadedByUser", fields: [uploadedBy], references: [id])
+  uploadedByUser          User                      @relation("UploadedByUser", fields: [uploadedBy], references: [id])
   assetPin                AssetPin?
   assetTags               AssetTag[]
   clientApprovalAssets    ClientApprovalAsset[]
   floorplanApprovalAssets FloorplanApprovalAsset[]
+  floorplanChatAttachments FloorplanChatAttachment[] @relation("FloorplanChatAssets")
 }
 
 model Notification {
@@ -2293,4 +2299,77 @@ model UserTimeSettings {
   user User @relation("UserTimeSettings", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Floorplan Chat Models
+model FloorplanChatMessage {
+  id              String                    @id @default(cuid())
+  projectId       String
+  authorId        String
+  content         String
+  parentMessageId String?
+  imageUrl        String?
+  imageFileName   String?
+  editedAt        DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  project       Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author        User                         @relation("FloorplanChatAuthor", fields: [authorId], references: [id])
+  parentMessage FloorplanChatMessage?        @relation("FloorplanChatReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       FloorplanChatMessage[]       @relation("FloorplanChatReplies")
+  mentions      FloorplanChatMention[]
+  reactions     FloorplanChatReaction[]
+  attachments   FloorplanChatAttachment[]
+
+  @@index([projectId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model FloorplanChatMention {
+  id              String   @id @default(cuid())
+  messageId       String
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  message       FloorplanChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mentionedUser User                 @relation("FloorplanChatMentioned", fields: [mentionedUserId], references: [id])
+
+  @@unique([messageId, mentionedUserId])
+  @@index([messageId])
+  @@index([mentionedUserId])
+}
+
+model FloorplanChatReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message FloorplanChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User                 @relation("FloorplanChatReactor", fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model FloorplanChatAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  assetId   String
+  name      String
+  url       String
+  type      String
+  size      Int
+  createdAt DateTime @default(now())
+
+  message FloorplanChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  asset   Asset                @relation("FloorplanChatAssets", fields: [assetId], references: [id])
+
+  @@unique([messageId, assetId])
+  @@index([messageId])
+  @@index([assetId])
 }
