@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Camera } from 'lucide-react'
+import { ArrowLeft, Plus, Camera, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import SiteSurveyDialog from './site-survey/SiteSurveyDialog'
 import CreateUpdateDialog from './create-update-dialog'
@@ -75,16 +75,21 @@ export default function ProjectUpdatesHeader({
           </div>
           
           {/* Project Header */}
-          <div className="mt-5">
-            <h1 className="text-2xl font-semibold text-gray-900">Project Updates</h1>
-            <p className="text-gray-500 mt-1">{project.name} • {project.client.name}</p>
-            <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-              <span>{photos.length} photos</span>
-              <span className="text-gray-300">•</span>
-              <span>{tasks.length} tasks</span>
-              <span className="text-gray-300">•</span>
-              <span>{projectUpdates.filter((u: any) => !u.isInternal).length} updates</span>
+          <div className="mt-5 flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+              <ClipboardList className="w-6 h-6 text-indigo-600" />
             </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Project Updates</h1>
+              <p className="text-gray-500 mt-0.5">{project.name} • {project.client.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
+            <span>{photos.length} photos</span>
+            <span className="text-gray-300">•</span>
+            <span>{tasks.length} tasks</span>
+            <span className="text-gray-300">•</span>
+            <span>{projectUpdates.filter((u: any) => !u.isInternal).length} updates</span>
           </div>
         </div>
       </div>

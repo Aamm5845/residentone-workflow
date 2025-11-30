@@ -428,9 +428,14 @@ export default function ProjectUpdatesTabs({
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Updates</h3>
-                  <p className="text-sm text-gray-500">Team announcements & progress</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
+                    <Megaphone className="w-4.5 h-4.5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Recent Updates</h3>
+                    <p className="text-sm text-gray-500">Team announcements & progress</p>
+                  </div>
                 </div>
                 <Button 
                   onClick={() => setCreateUpdateDialogOpen(true)} 
@@ -533,24 +538,44 @@ export default function ProjectUpdatesTabs({
           </div>
 
           {/* Quick Stats */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Project Status</h3>
               <div className="space-y-3">
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Photos</span>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                      <FileImage className="w-4 h-4 text-violet-500" />
+                    </div>
+                    <span className="text-gray-600">Photos</span>
+                  </div>
                   <span className="text-lg font-semibold text-gray-900">{photos.length}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Active Tasks</span>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <span className="text-gray-600">Active Tasks</span>
+                  </div>
                   <span className="text-lg font-semibold text-gray-900">{tasks.filter(t => t.status !== 'DONE').length}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Completed</span>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                      <CheckSquare className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <span className="text-gray-600">Completed</span>
+                  </div>
                   <span className="text-lg font-semibold text-emerald-600">{tasks.filter(t => t.status === 'DONE').length}</span>
                 </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600">Open Issues</span>
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                      <AlertTriangle className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <span className="text-gray-600">Open Issues</span>
+                  </div>
                   <span className="text-lg font-semibold text-orange-600">{openIssuesCount}</span>
                 </div>
               </div>
@@ -560,7 +585,12 @@ export default function ProjectUpdatesTabs({
             {photos.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Recent Photos</h3>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center">
+                      <FileImage className="w-4 h-4 text-cyan-600" />
+                    </div>
+                    <h3 className="text-sm font-medium text-gray-700">Recent Photos</h3>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
