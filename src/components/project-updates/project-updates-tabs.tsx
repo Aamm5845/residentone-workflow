@@ -18,6 +18,7 @@ import ChatInterface from './chat-interface'
 import Timeline from './timeline'
 import EmptyState from './empty-state'
 import CreateUpdateDialog from './create-update-dialog'
+import SiteSurveyDialog from './site-survey/SiteSurveyDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useToast, ToastContainer } from '@/components/ui/toast'
 
@@ -47,6 +48,7 @@ export default function ProjectUpdatesTabs({
   const [createUpdateDialogOpen, setCreateUpdateDialogOpen] = useState(false)
   const [viewUpdateDialogOpen, setViewUpdateDialogOpen] = useState(false)
   const [selectedUpdate, setSelectedUpdate] = useState<any>(null)
+  const [surveyDialogOpen, setSurveyDialogOpen] = useState(false)
 
   // Helper to get icon based on type
   const getTypeIcon = (type: string) => {
@@ -314,9 +316,31 @@ export default function ProjectUpdatesTabs({
     // In production, this would call the API to update the photo
   }
 
-  const handlePhotoDelete = (photoId: string) => {
-    
-    // In production, this would call the API to delete the photo
+  const handlePhotoDelete = async (photoId: string) => {
+    // Find the photo to get its updateId
+    const photo = photos.find((p: any) => p.id === photoId)
+    if (!photo) {
+      showError('Delete Failed', 'Photo not found')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/updates/${photo.updateId}/photos/${photoId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete photo')
+      }
+
+      success('Photo Deleted', 'Photo has been removed successfully')
+      // Refresh the page to reflect the deletion
+      router.refresh()
+    } catch (error) {
+      console.error('Error deleting photo:', error)
+      showError('Delete Failed', error instanceof Error ? error.message : 'Failed to delete photo')
+    }
   }
 
   // Task handlers
@@ -602,9 +626,9 @@ export default function ProjectUpdatesTabs({
           <EmptyState
             icon={FileImage}
             title="No photos yet"
-            description="Upload photos to document your project progress and share updates with your team."
-            actionLabel="Upload Photos"
-            onAction={() => console.log('Upload photos clicked')}
+            description="Start a site survey to capture and organize photos from the job site."
+            actionLabel="Start Survey"
+            onAction={() => setSurveyDialogOpen(true)}
           />
         ) : (
           <PhotoGallery
@@ -621,95 +645,48 @@ export default function ProjectUpdatesTabs({
       </TabsContent>
 
       <TabsContent value="tasks">
-        {tasks.length === 0 ? (
-          <EmptyState
-            icon={CheckSquare}
-            title="No tasks yet"
-            description="Create tasks to organize work, assign team members, and track progress on your project."
-            actionLabel="Create Task"
-            onAction={() => {
-              // TaskBoard will handle the create dialog
-              console.log('Create task from empty state - TaskBoard should handle this')
-            }}
-          />
-        ) : tasksLoading ? (
-          <div className="space-y-6">
-            <div className="h-8 bg-gray-200 rounded animate-pulse" />
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <div className="h-6 bg-gray-200 rounded animate-pulse" />
-                  <div className="space-y-2">
-                    {Array.from({ length: 2 }).map((_, j) => (
-                      <div key={j} className="h-20 bg-gray-100 rounded animate-pulse" />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mb-6">
+            <CheckSquare className="w-8 h-8 text-amber-600" />
           </div>
-        ) : (
-          <TaskBoard
-            projectId={projectId}
-            tasks={tasks}
-            onTaskCreate={handleTaskCreate}
-            onTaskUpdate={handleTaskUpdate}
-            onTaskDelete={handleTaskDelete}
-            canEdit={true}
-            showDependencies={true}
-            availableUsers={availableUsers}
-            availableContractors={availableContractors}
-          />
-        )}
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Tasks Coming Soon</h3>
+          <p className="text-gray-500 text-center max-w-md mb-4">
+            Task management for project updates is currently in development. Soon you'll be able to create, assign, and track tasks directly from updates.
+          </p>
+          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+            In Progress
+          </Badge>
+        </div>
       </TabsContent>
 
       <TabsContent value="messages">
-        {messages.length === 0 ? (
-          <EmptyState
-            icon={MessageCircle}
-            title="No messages yet"
-            description="Start a conversation with your team to discuss project details and coordinate work."
-            actionLabel="Start Conversation"
-            onAction={() => console.log('Start conversation clicked')}
-          />
-        ) : (
-          <ChatInterface
-            projectId={projectId}
-            messages={messages}
-            currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
-            participants={availableUsers}
-            onSendMessage={handleSendMessage}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-            onReactToMessage={handleReactToMessage}
-            onUploadFile={handleUploadFile}
-            canEdit={true}
-            showParticipants={true}
-            height="h-[600px]"
-          />
-        )}
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+            <MessageCircle className="w-8 h-8 text-blue-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Messages Coming Soon</h3>
+          <p className="text-gray-500 text-center max-w-md mb-4">
+            Team messaging for project updates is currently in development. Soon you'll be able to discuss updates and coordinate with your team in real-time.
+          </p>
+          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+            In Progress
+          </Badge>
+        </div>
       </TabsContent>
 
       <TabsContent value="timeline">
-        {timelineActivities.length === 0 ? (
-          <EmptyState
-            icon={Activity}
-            title="No timeline activities yet"
-            description="Project activities will appear here as you create updates, upload photos, and manage tasks."
-            variant="subtle"
-          />
-        ) : (
-          <Timeline
-            activities={timelineActivities}
-            currentUser={availableUsers[0] || { id: 'current-user', name: 'Current User', email: 'user@example.com' }}
-            onActivityClick={handleActivityClick}
-            onMilestoneClick={handleMilestoneClick}
-            onExportTimeline={handleExportTimeline}
-            showFilters={true}
-            showMilestones={true}
-            maxHeight="max-h-[600px]"
-          />
-        )}
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+            <Activity className="w-8 h-8 text-purple-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Timeline Coming Soon</h3>
+          <p className="text-gray-500 text-center max-w-md mb-4">
+            Project timeline visualization is currently in development. Soon you'll see a complete history of all project activities, milestones, and updates.
+          </p>
+          <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
+            In Progress
+          </Badge>
+        </div>
       </TabsContent>
     </Tabs>
     
@@ -720,6 +697,18 @@ export default function ProjectUpdatesTabs({
       rooms={project?.rooms || []}
       onSuccess={(update) => {
         success('Update Created', `Update "${update.title || 'New update'}" created successfully`)
+      }}
+    />
+
+    {/* Site Survey Dialog */}
+    <SiteSurveyDialog
+      open={surveyDialogOpen}
+      onOpenChange={setSurveyDialogOpen}
+      projectId={projectId}
+      projectName={project?.name || 'Project'}
+      rooms={project?.rooms || []}
+      onSuccess={() => {
+        success('Survey Complete', 'Photos uploaded successfully')
       }}
     />
 

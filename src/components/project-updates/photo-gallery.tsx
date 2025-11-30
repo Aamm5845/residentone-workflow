@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface Photo {
   id: string
+  updateId: string
   asset: {
     id: string
     title: string
