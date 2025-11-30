@@ -596,57 +596,110 @@ export default function ProjectUpdatesTabs({
 
           {/* Quick Stats */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-lg font-semibold mb-4">Project Status</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Total Photos</span>
-                  <span className="font-semibold text-purple-600">{photos.length}</span>
+            <div className="bg-gradient-to-br from-white via-white to-indigo-50/30 rounded-2xl shadow-sm border border-gray-100/80 p-6 overflow-hidden relative">
+              {/* Decorative background */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100/40 to-indigo-100/40 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-100/30 to-cyan-100/30 rounded-full blur-xl translate-y-1/2 -translate-x-1/2" />
+              
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                    <Activity className="w-4.5 h-4.5 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Project Status</h3>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Active Tasks</span>
-                  <span className="font-semibold text-blue-600">{tasks.filter(t => t.status !== 'DONE').length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Completed Tasks</span>
-                  <span className="font-semibold text-green-600">{tasks.filter(t => t.status === 'DONE').length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Open Issues</span>
-                  <span className="font-semibold text-orange-600">{openIssuesCount}</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Photos */}
+                  <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                        <FileImage className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-medium text-violet-600">Photos</span>
+                    </div>
+                    <p className="text-2xl font-bold text-violet-700">{photos.length}</p>
+                  </div>
+                  
+                  {/* Active Tasks */}
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                        <Clock className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-medium text-blue-600">Active</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-700">{tasks.filter(t => t.status !== 'DONE').length}</p>
+                  </div>
+                  
+                  {/* Completed */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+                        <CheckSquare className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-medium text-emerald-600">Done</span>
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-700">{tasks.filter(t => t.status === 'DONE').length}</p>
+                  </div>
+                  
+                  {/* Issues */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-medium text-amber-600">Issues</span>
+                    </div>
+                    <p className="text-2xl font-bold text-amber-700">{openIssuesCount}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Recent Photos */}
             {photos.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Recent Photos</h3>
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    // Switch to photos tab
-                    const photosTab = document.querySelector('[value="photos"]') as HTMLButtonElement
-                    photosTab?.click()
-                  }}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    View All
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {photos.slice(0, 4).map((photo: any) => (
-                    <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
-                      <img
-                        src={photo.asset.url}
-                        alt={photo.asset.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="absolute bottom-0 left-0 right-0 p-2">
-                          <p className="text-xs text-white truncate">{photo.caption || photo.asset.title}</p>
+              <div className="bg-gradient-to-br from-white via-white to-cyan-50/30 rounded-2xl shadow-sm border border-gray-100/80 p-6 overflow-hidden relative">
+                {/* Decorative background */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-100/40 to-blue-100/40 rounded-full blur-xl -translate-y-1/2 translate-x-1/2" />
+                
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm">
+                        <FileImage className="w-4.5 h-4.5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Recent Photos</h3>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                      onClick={() => {
+                        const photosTab = document.querySelector('[value="photos"]') as HTMLButtonElement
+                        photosTab?.click()
+                      }}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View All
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {photos.slice(0, 4).map((photo: any) => (
+                      <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer shadow-sm ring-1 ring-black/5">
+                        <img
+                          src={photo.asset.url}
+                          alt={photo.asset.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-xs text-white font-medium truncate">{photo.caption || photo.asset.title}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
