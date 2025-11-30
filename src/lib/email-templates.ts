@@ -140,6 +140,107 @@ export function generateDeliveryEmailTemplate(data: EmailTemplateData): { subjec
   return generateMeisnerDeliveryEmailTemplate(data);
 }
 
+// Project Update Notification Email Template
+interface ProjectUpdateEmailData {
+  recipientName: string
+  projectName: string
+  clientName: string
+  updateTitle: string
+  updateDescription?: string
+  updateType: string
+  photoCount: number
+  authorName: string
+  updateUrl: string
+  photoUrls?: string[] // First 3-4 photo thumbnails
+}
+
+export function generateProjectUpdateNotificationEmail(data: ProjectUpdateEmailData): { subject: string; html: string } {
+  const subject = `New Update: ${data.updateTitle} - ${data.projectName}`
+  
+  const photoPreviewHtml = data.photoUrls && data.photoUrls.length > 0 ? `
+    <div style="margin: 24px 0;">
+      <h3 style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px; font-weight: 600;">Photos (${data.photoCount})</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
+        ${data.photoUrls.slice(0, 4).map(url => `
+          <img src="${url}" 
+               alt="Update photo" 
+               style="width: 100%; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0;"/>
+        `).join('')}
+      </div>
+      ${data.photoCount > 4 ? `<p style="margin: 8px 0 0 0; color: #64748b; font-size: 12px; text-align: center;">+${data.photoCount - 4} more photos</p>` : ''}
+    </div>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Update - ${data.projectName}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); padding: 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png"
+                 alt="Meisner Interiors" 
+                 style="max-width: 180px; height: auto; margin-bottom: 16px; background-color: white; padding: 12px; border-radius: 8px;"/>
+            <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Project Update</h1>
+            <p style="margin: 8px 0 0 0; color: #e9d5ff; font-size: 14px;">${data.projectName} • ${data.clientName}</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 32px;">
+            <p style="margin: 0 0 20px 0; color: #1e293b; font-size: 15px;">Hi ${data.recipientName},</p>
+            
+            <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px; line-height: 1.7;">${data.authorName} posted a new <strong>${data.updateType.toLowerCase()}</strong> update on the project.</p>
+            
+            <!-- Update Card -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <h2 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 600;">${data.updateTitle}</h2>
+                  <span style="background: #ddd6fe; color: #6d28d9; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 500; text-transform: uppercase;">${data.updateType}</span>
+                </div>
+                
+                ${data.updateDescription ? `
+                <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px; line-height: 1.6;">${data.updateDescription}</p>
+                ` : ''}
+                
+                ${photoPreviewHtml}
+                
+                <div style="margin-top: 20px; text-align: center;">
+                  <a href="${data.updateUrl}" 
+                     style="background: #7c3aed; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-block;">View Full Update</a>
+                </div>
+            </div>
+            
+            <p style="margin: 24px 0 0 0; color: #64748b; font-size: 13px; line-height: 1.6;">You're receiving this because you're a team member on this project. Stay up to date with all project progress and updates.</p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors</div>
+            
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #7c3aed; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #7c3aed; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}
+
 export function generateFollowUpEmailTemplate(data: EmailTemplateData): { subject: string; html: string } {
   const subject = `Friendly Reminder: Design Approval Needed - ${data.projectName}`;
   

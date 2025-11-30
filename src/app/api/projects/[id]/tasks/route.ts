@@ -155,17 +155,7 @@ export async function GET(
             take: 3,
             orderBy: { createdAt: 'desc' }
           },
-          assignments: {
-            include: {
-              contractor: {
-                select: {
-                  id: true,
-                  businessName: true,
-                  specialty: true
-                }
-              }
-            }
-          },
+          assignments: true,
           _count: {
             select: {
               messages: true,

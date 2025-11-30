@@ -104,25 +104,7 @@ export async function GET(
             }
           }
         },
-        assignments: {
-          include: {
-            contractor: {
-              select: {
-                id: true,
-                businessName: true,
-                contactName: true,
-                specialty: true
-              }
-            },
-            assignedBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
+        assignments: true
       }
     })
 

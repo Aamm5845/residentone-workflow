@@ -93,20 +93,23 @@ export default async function FloorplanPage({ params }: Props) {
   const pushedVersions = floorplanVersions.filter(v => v.status !== 'DRAFT')
   const latestPushedVersion = pushedVersions[0]
   
+  // Check if latest pushed version has revision requested
+  const revisionRequested = latestPushedVersion?.clientDecision === 'REVISION_REQUESTED'
+  
   // Determine Drawings phase status
   // - NOT_STARTED: no versions at all
-  // - IN_PROGRESS: has versions but none pushed yet (all DRAFT)
-  // - COMPLETED: at least one version pushed to approval
+  // - IN_PROGRESS: has versions but none pushed yet (all DRAFT), OR revision requested
+  // - COMPLETED: at least one version pushed to approval AND not revision requested
   let drawingsStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' = 'NOT_STARTED'
-  if (hasPushedVersions) {
+  if (hasPushedVersions && !revisionRequested) {
     drawingsStatus = 'COMPLETED'
-  } else if (hasVersions) {
+  } else if (hasVersions || revisionRequested) {
     drawingsStatus = 'IN_PROGRESS'
   }
   
   // Determine Approval phase status
   // - NOT_STARTED: no pushed versions
-  // - IN_PROGRESS: pushed but not yet client approved
+  // - IN_PROGRESS: pushed but not yet client approved (includes revision requested)
   // - COMPLETED: client approved
   let approvalStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' = 'NOT_STARTED'
   if (latestPushedVersion?.clientDecision === 'APPROVED') {
@@ -123,6 +126,7 @@ export default async function FloorplanPage({ params }: Props) {
         approvalStatus={approvalStatus}
         currentVersionId={currentVersion?.id}
         hasAssets={hasAssets}
+        revisionRequested={revisionRequested}
       />
     </DashboardLayout>
   )

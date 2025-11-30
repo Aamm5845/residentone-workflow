@@ -249,7 +249,7 @@ export default function CreateTaskDialog({
                   <SelectValue placeholder="Select trade type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {tradeTypes.map(trade => (
                     <SelectItem key={trade} value={trade}>
                       {trade.charAt(0).toUpperCase() + trade.slice(1)}

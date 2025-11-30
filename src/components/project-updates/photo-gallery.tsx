@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
+// Using plain <img> for Dropbox-backed assets to avoid Next/Image optimizer issues
+// import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Camera, 
@@ -29,7 +30,8 @@ import {
   Target,
   Clock,
   User,
-  ChevronDown
+  ChevronDown,
+  Video as VideoIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,8 +123,8 @@ export default function PhotoGallery({
   const [filterOpen, setFilterOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedTradeCategory, setSelectedTradeCategory] = useState<string>('')
-  const [selectedRoomArea, setSelectedRoomArea] = useState<string>('')
+  const [selectedTradeCategory, setSelectedTradeCategory] = useState<string>('all')
+  const [selectedRoomArea, setSelectedRoomArea] = useState<string>('all')
   const [dateRange, setDateRange] = useState<[string, string]>(['', ''])
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'quality' | 'size'>('date')
@@ -145,10 +147,10 @@ export default function PhotoGallery({
     if (selectedTags.length > 0 && !selectedTags.some(tag => photo.tags.includes(tag))) {
       return false
     }
-    if (selectedTradeCategory && photo.tradeCategory !== selectedTradeCategory) {
+    if (selectedTradeCategory && selectedTradeCategory !== 'all' && photo.tradeCategory !== selectedTradeCategory) {
       return false
     }
-    if (selectedRoomArea && photo.roomArea !== selectedRoomArea) {
+    if (selectedRoomArea && selectedRoomArea !== 'all' && photo.roomArea !== selectedRoomArea) {
       return false
     }
     return true
@@ -195,13 +197,22 @@ export default function PhotoGallery({
             onPhotoSelect?.(photo)
           }}
         >
-          <Image
-            src={photo.asset.url}
-            alt={photo.asset.title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-200"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
+          {photo.asset?.mimeType?.startsWith('video/') ? (
+            <video
+              src={photo.asset.url}
+              className="w-full h-full object-cover"
+              muted
+              loop
+              playsInline
+              autoPlay
+            />
+          ) : (
+            <img
+              src={photo.asset.url}
+              alt={photo.asset.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+            />
+          )}
           
           {/* Overlay with metadata */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -230,6 +241,15 @@ export default function PhotoGallery({
             <div className="absolute top-2 right-2">
               <Badge variant="outline" className="text-xs bg-white/90">
                 {photo.isBeforePhoto ? 'Before' : 'After'}
+              </Badge>
+            </div>
+          )}
+
+          {/* Video indicator */}
+          {photo.asset?.mimeType?.startsWith('video/') && (
+            <div className="absolute top-2 left-2">
+              <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                <VideoIcon className="w-3 h-3" /> Video
               </Badge>
             </div>
           )}
@@ -310,18 +330,45 @@ export default function PhotoGallery({
               </div>
             )}
 
-            {/* Metadata */}
+            {/* Caption */}
+            {photo.caption && (
+              <p className="text-xs text-gray-700 line-clamp-2">{photo.caption}</p>
+            )}
+
+            {/* Room Area */}
+            {photo.roomArea && (
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <Target className="w-3 h-3" />
+                <span className="truncate">{photo.roomArea}</span>
+              </div>
+            )}
+
+            {/* Uploader */}
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <User className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{photo.asset.uploader?.name || 'Unknown'}</span>
+            </div>
+
+            {/* Date and Time */}
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 {new Date(photo.takenAt || photo.createdAt).toLocaleDateString()}
               </span>
-              {photo.tradeCategory && (
-                <Badge variant="outline" className="text-xs">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {new Date(photo.takenAt || photo.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+
+            {/* Trade Category */}
+            {photo.tradeCategory && (
+              <div className="pt-2 border-t">
+                <Badge variant="outline" className="text-xs w-full justify-center">
                   {photo.tradeCategory}
                 </Badge>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -346,12 +393,10 @@ export default function PhotoGallery({
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-2">
               <div className="relative aspect-square rounded-lg overflow-hidden">
-                <Image
+                <img
                   src={pair.before.asset.url}
                   alt="Before"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                   <Badge className="text-xs">Before</Badge>
@@ -362,12 +407,10 @@ export default function PhotoGallery({
             
             <div className="space-y-2">
               <div className="relative aspect-square rounded-lg overflow-hidden">
-                <Image
+                <img
                   src={pair.after.asset.url}
                   alt="After"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                   <Badge className="text-xs">After</Badge>
@@ -401,10 +444,11 @@ export default function PhotoGallery({
       {/* Header with controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Photo Gallery</h3>
+          <h3 className="text-lg font-semibold">Photo Documentation</h3>
           <p className="text-sm text-gray-500">
-            {filteredPhotos.length} of {photos.length} photos
-            {showBeforeAfter && beforeAfterPairs.length > 0 && ` • ${beforeAfterPairs.length} before/after pairs`}
+            {filteredPhotos.length} {filteredPhotos.length === 1 ? 'photo' : 'photos'}
+            {filteredPhotos.length !== photos.length && ` of ${photos.length} total`}
+            {showBeforeAfter && beforeAfterPairs.length > 0 && ` • ${beforeAfterPairs.length} before/after ${beforeAfterPairs.length === 1 ? 'pair' : 'pairs'}`}
           </p>
         </div>
 
@@ -514,7 +558,7 @@ export default function PhotoGallery({
                       <SelectValue placeholder="All categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All categories</SelectItem>
+                      <SelectItem value="all">All categories</SelectItem>
                       {allTradeCategories.map(category => (
                         <SelectItem key={category} value={category}>
                           {category}
@@ -531,7 +575,7 @@ export default function PhotoGallery({
                       <SelectValue placeholder="All areas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All areas</SelectItem>
+                      <SelectItem value="all">All areas</SelectItem>
                       {allRoomAreas.map(area => (
                         <SelectItem key={area} value={area}>
                           {area}
@@ -549,8 +593,8 @@ export default function PhotoGallery({
                       size="sm"
                       onClick={() => {
                         setSelectedTags([])
-                        setSelectedTradeCategory('')
-                        setSelectedRoomArea('')
+                        setSelectedTradeCategory('all')
+                        setSelectedRoomArea('all')
                         setSearchQuery('')
                       }}
                       className="w-full"
@@ -633,12 +677,10 @@ export default function PhotoGallery({
                   <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
+                        <img
                           src={photo.asset.url}
                           alt={photo.asset.title}
-                          fill
-                          className="object-cover"
-                          sizes="96px"
+                          className="w-24 h-24 object-cover rounded-lg"
                         />
                       </div>
                       <div className="flex-1 space-y-2">
@@ -692,28 +734,32 @@ export default function PhotoGallery({
                     </DialogDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setZoom(Math.max(25, zoom - 25))}
-                    >
-                      <ZoomOut className="w-4 h-4" />
-                    </Button>
-                    <span className="text-sm min-w-12 text-center">{zoom}%</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setZoom(Math.min(400, zoom + 25))}
-                    >
-                      <ZoomIn className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRotation((rotation + 90) % 360)}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </Button>
+                    {!selectedPhoto.asset?.mimeType?.startsWith('video/') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setZoom(Math.max(25, zoom - 25))}
+                        >
+                          <ZoomOut className="w-4 h-4" />
+                        </Button>
+                        <span className="text-sm min-w-12 text-center">{zoom}%</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setZoom(Math.min(400, zoom + 25))}
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRotation((rotation + 90) % 360)}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                     <Button size="sm" variant="outline" asChild>
                       <a href={selectedPhoto.asset.url} download={selectedPhoto.asset.filename}>
                         <Download className="w-4 h-4" />
@@ -724,30 +770,43 @@ export default function PhotoGallery({
               </DialogHeader>
               
               <div className="flex-1 relative overflow-hidden">
-                <div 
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ transform: `scale(${zoom / 100}) rotate(${rotation}deg)` }}
-                >
-                  <Image
-                    src={selectedPhoto.asset.url}
-                    alt={selectedPhoto.asset.title}
-                    width={800}
-                    height={600}
-                    className="max-w-full max-h-full object-contain"
-                  />
-                </div>
+                {selectedPhoto.asset?.mimeType?.startsWith('video/') ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <video
+                      src={selectedPhoto.asset.url}
+                      className="max-w-full max-h-full"
+                      controls
+                      playsInline
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ transform: `scale(${zoom / 100}) rotate(${rotation}deg)` }}
+                  >
+                    <img
+                      src={selectedPhoto.asset.url}
+                      alt={selectedPhoto.asset.title}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Photo metadata */}
-              <div className="flex-shrink-0 border-t pt-4 space-y-2">
+              <div className="flex-shrink-0 border-t pt-4 space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Uploaded by: </span>
-                    {selectedPhoto.asset.uploadedByUser?.name || 'Unknown'}
+                    {selectedPhoto.asset.uploader?.name || 'Unknown'}
                   </div>
                   <div>
                     <span className="font-medium">Size: </span>
                     {(selectedPhoto.asset.size / 1024 / 1024).toFixed(1)} MB
+                  </div>
+                  <div>
+                    <span className="font-medium">Uploaded: </span>
+                    {new Date(selectedPhoto.asset.createdAt).toLocaleDateString()} at {new Date(selectedPhoto.asset.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                   {selectedPhoto.gpsCoordinates && (
                     <div>
@@ -755,13 +814,21 @@ export default function PhotoGallery({
                       {selectedPhoto.gpsCoordinates.lat.toFixed(6)}, {selectedPhoto.gpsCoordinates.lng.toFixed(6)}
                     </div>
                   )}
-                  {selectedPhoto.tradeCategory && (
-                    <div>
-                      <span className="font-medium">Category: </span>
-                      {selectedPhoto.tradeCategory}
-                    </div>
-                  )}
                 </div>
+
+                {selectedPhoto.roomArea && (
+                  <div>
+                    <span className="font-medium text-sm">Room: </span>
+                    <Badge variant="outline" className="text-xs">{selectedPhoto.roomArea}</Badge>
+                  </div>
+                )}
+
+                {selectedPhoto.tradeCategory && (
+                  <div>
+                    <span className="font-medium text-sm">Trade Category: </span>
+                    <Badge variant="outline" className="text-xs">{selectedPhoto.tradeCategory}</Badge>
+                  </div>
+                )}
                 
                 {selectedPhoto.tags.length > 0 && (
                   <div>
@@ -775,6 +842,26 @@ export default function PhotoGallery({
                     </div>
                   </div>
                 )}
+
+                {/* Display notes from metadata */}
+                {selectedPhoto.asset.metadata && (() => {
+                  try {
+                    const metadata = typeof selectedPhoto.asset.metadata === 'string' 
+                      ? JSON.parse(selectedPhoto.asset.metadata) 
+                      : selectedPhoto.asset.metadata
+                    if (metadata?.notes) {
+                      return (
+                        <div className="pt-2 border-t">
+                          <span className="font-medium text-sm">Notes: </span>
+                          <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{metadata.notes}</p>
+                        </div>
+                      )
+                    }
+                  } catch (e) {
+                    // Ignore JSON parse errors
+                  }
+                  return null
+                })()}
               </div>
             </div>
           )}

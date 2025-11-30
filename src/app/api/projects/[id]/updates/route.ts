@@ -3,10 +3,11 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/attribution'
 
 const createUpdateSchema = z.object({
   type: z.enum(['GENERAL', 'PHOTO', 'TASK', 'DOCUMENT', 'COMMUNICATION', 'MILESTONE', 'INSPECTION', 'ISSUE']),
-  category: z.enum(['GENERAL', 'PROGRESS', 'QUALITY', 'SAFETY', 'BUDGET', 'SCHEDULE', 'COMMUNICATION', 'APPROVAL']),
+  category: z.enum(['GENERAL', 'PROGRESS', 'QUALITY', 'SAFETY', 'BUDGET', 'SCHEDULE', 'COMMUNICATION', 'APPROVAL']).default('GENERAL'),
   priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NORMAL']).default('MEDIUM'),
   title: z.string().optional(),
   description: z.string().optional(),
@@ -302,33 +303,43 @@ export async function POST(
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined
       },
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true
-          }
-        },
-        room: {
-          select: {
-            id: true,
-            name: true,
-            type: true
-          }
-        },
+        tasks: true,
         _count: {
           select: {
-            photos: true,
-            tasks: true,
-            documents: true,
-            messages: true
+            tasks: true
           }
         }
       }
     })
 
-    // Create activity log
+    // Fetch author info separately since there's no relation
+    const author = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, email: true, image: true }
+    })
+
+    // Fetch room info if roomId exists
+    let room = null
+    if (update.roomId) {
+      room = await prisma.room.findUnique({
+        where: { id: update.roomId },
+        select: { id: true, name: true, type: true }
+      })
+    }
+
+    const responseData = {
+      ...update,
+      author,
+      room,
+      _count: {
+        photos: 0,
+        tasks: update._count.tasks,
+        documents: 0,
+        messages: 0
+      }
+    }
+
+    // Create activity log in ProjectUpdateActivity
     await prisma.projectUpdateActivity.create({
       data: {
         projectId,
@@ -340,6 +351,25 @@ export async function POST(
         description: `Created ${validatedData.type.toLowerCase()} update${validatedData.title ? `: ${validatedData.title}` : ''}`
       }
     })
+    
+    // Also log to main ActivityLog so it shows in the Activities page
+    const ipAddress = getIPAddress(request)
+    await logActivity({
+      session,
+      action: ActivityActions.PROJECT_UPDATE_CREATED,
+      entity: EntityTypes.PROJECT_UPDATE,
+      entityId: update.id,
+      details: {
+        projectId,
+        projectName: project.name,
+        updateType: validatedData.type,
+        title: validatedData.title || undefined,
+        description: validatedData.description || undefined,
+        roomId: validatedData.roomId || undefined,
+        roomName: room?.name || undefined
+      },
+      ipAddress
+    })
 
     // Revalidate project updates page
     revalidatePath(`/projects/${projectId}/project-updates`)
@@ -347,7 +377,7 @@ export async function POST(
     // TODO: Send real-time notification via WebSocket
     // TODO: Send notifications to relevant stakeholders
 
-    return NextResponse.json(update, { status: 201 })
+    return NextResponse.json(responseData, { status: 201 })
   } catch (error) {
     console.error('Error creating project update:', error)
     

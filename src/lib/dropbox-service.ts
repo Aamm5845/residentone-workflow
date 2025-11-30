@@ -713,6 +713,56 @@ class DropboxService {
   }
 
   /**
+   * Upload a survey photo to the project's 7- SOURCES/Site Photos folder organized by date
+   * Creates folder structure: /ProjectFolder/7- SOURCES/Site Photos/YYYY-MM-DD/
+   */
+  async uploadSurveyPhoto(
+    projectFolderPath: string,
+    date: Date,
+    fileBuffer: Buffer,
+    filename: string
+  ): Promise<{ path: string; sharedLink?: string }> {
+    try {
+      // Format date as YYYY-MM-DD
+      const dateStr = date.toISOString().split('T')[0]
+      
+      // Construct the path: /ProjectFolder/7- SOURCES/Site Photos/YYYY-MM-DD/
+      const sitePhotosFolder = `${projectFolderPath}/7- SOURCES/Site Photos`
+      const dateFolder = `${sitePhotosFolder}/${dateStr}`
+      
+      // Ensure Site Photos folder exists
+      console.log('[DropboxService] Creating Site Photos folder:', sitePhotosFolder)
+      await this.createFolder(sitePhotosFolder)
+      
+      // Ensure date folder exists
+      console.log('[DropboxService] Creating survey photo date folder:', dateFolder)
+      await this.createFolder(dateFolder)
+      
+      // Sanitize filename
+      const sanitizedFilename = filename
+        .replace(/[<>:"|?*]/g, '_')
+        .replace(/\\/g, '-')
+        .trim()
+      
+      // Upload the file
+      const filePath = `${dateFolder}/${sanitizedFilename}`
+      console.log('[DropboxService] Uploading survey photo to:', filePath)
+      
+      const uploadResult = await this.uploadFile(filePath, fileBuffer, { mode: 'add' })
+      
+      console.log('[DropboxService] ✅ Survey photo uploaded successfully')
+      
+      // Return the path
+      return {
+        path: filePath
+      }
+    } catch (error) {
+      console.error('[DropboxService] ❌ Failed to upload survey photo:', error)
+      throw new Error(`Failed to upload survey photo to Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Create project folder structure in Dropbox
    * Creates: /Meisner Interiors Team Folder/{projectName}/
    * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-SOURCES, 8-DRAWINGS, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS

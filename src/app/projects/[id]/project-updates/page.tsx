@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { ArrowLeft, ClipboardList, Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ProjectUpdatesTabs from '@/components/project-updates/project-updates-tabs'
+import ProjectUpdatesHeader from '@/components/project-updates/ProjectUpdatesHeader'
 import Link from 'next/link'
 
 interface Props {
@@ -94,11 +95,109 @@ export default async function ProjectUpdatesPage({ params }: Props) {
     })
 
     if (project && project.hasProjectUpdates) {
-      // TODO: Fetch real project updates from API
-      projectUpdates = []
+      // Fetch project updates with author info
+      projectUpdates = await prisma.projectUpdate.findMany({
+        where: { projectId: id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          tasks: true,
+          _count: {
+            select: {
+              tasks: true
+            }
+          }
+        }
+      })
 
-      // TODO: Fetch real photos from API
-      photos = []
+      // Fetch author info for each update
+      const authorIds = [...new Set(projectUpdates.map(u => u.authorId))]
+      const authors = await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, name: true, email: true, image: true }
+      })
+      const authorMap = new Map(authors.map(a => [a.id, a]))
+
+      // Fetch all photos belonging to these updates with asset and uploader info
+      const updateIds = projectUpdates.map(u => u.id)
+      const rawPhotos = updateIds.length > 0
+        ? await prisma.projectUpdatePhoto.findMany({
+            where: {
+              updateId: { in: updateIds }
+            },
+            orderBy: { createdAt: 'desc' }
+          })
+        : []
+
+      // Join assets manually since ProjectUpdatePhoto has no Prisma relation in schema
+      const assetIds = Array.from(new Set(rawPhotos.map(p => p.assetId)))
+      const assets = assetIds.length > 0
+        ? await prisma.asset.findMany({
+            where: { id: { in: assetIds } },
+            select: {
+              id: true,
+              title: true,
+              filename: true,
+              url: true,
+              type: true,
+              size: true,
+              mimeType: true,
+              metadata: true,
+              createdAt: true,
+              uploadedByUser: {
+                select: { id: true, name: true, email: true, image: true }
+              }
+            }
+          })
+        : []
+      const assetById = new Map(assets.map(a => [a.id, a]))
+
+      // Map uploadedByUser to uploader for compatibility with PhotoGallery component
+      photos = rawPhotos.map(photo => {
+        const asset = assetById.get(photo.assetId)
+        return {
+          ...photo,
+          asset: asset
+            ? { 
+                ...asset, 
+                // Serve through our proxy route so Next/Image can load reliably
+                url: `/api/assets/${asset.id}/file`,
+                uploader: asset.uploadedByUser 
+              }
+            : null
+        }
+      })
+
+      // Compute photo counts per update and attach author
+      const photoCounts = new Map<string, number>()
+      for (const p of rawPhotos) {
+        photoCounts.set(p.updateId, (photoCounts.get(p.updateId) || 0) + 1)
+      }
+
+      projectUpdates = projectUpdates.map(update => {
+        // Check if this is an internal update (like photo uploads) that shouldn't show in Recent Updates feed
+        const metadata = update.metadata as Record<string, any> | null
+        const isInternalByFlag = metadata?.isInternal === true
+        
+        // Also detect legacy site survey entries (before the flag was added)
+        // Site surveys have type 'PHOTO' and descriptions like "X photos from site survey"
+        const isLegacySiteSurvey = update.type === 'PHOTO' && 
+          (update.description?.toLowerCase().includes('from site survey') ||
+           update.title?.toLowerCase().includes('site survey'))
+        
+        const isInternal = isInternalByFlag || isLegacySiteSurvey
+        
+        return {
+          ...update,
+          author: authorMap.get(update.authorId) || { id: update.authorId, name: 'Unknown', email: '' },
+          isInternal, // Flag for filtering in UI
+          _count: {
+            ...update._count,
+            photos: photoCounts.get(update.id) || 0,
+            documents: 0,
+            messages: 0
+          }
+        }
+      })
 
       // TODO: Fetch real tasks from API
       tasks = []
@@ -125,50 +224,13 @@ export default async function ProjectUpdatesPage({ params }: Props) {
   return (
     <DashboardLayout session={session}>
       <div className="min-h-screen bg-gray-50">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Link href={`/projects/${project.id}`}>
-                  <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Project
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Update
-                </Button>
-              </div>
-            </div>
-            
-            {/* Project Header */}
-            <div className="mt-6">
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <ClipboardList className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Project Updates</h1>
-                  <p className="text-lg text-gray-600 mt-1">{project.name} • {project.client.name}</p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                    <span>{photos.length} photos</span>
-                    <span>{tasks.length} tasks</span>
-                    <span>{projectUpdates.length} updates</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProjectUpdatesHeader
+          project={project}
+          photos={photos}
+          tasks={tasks}
+          projectUpdates={projectUpdates}
+          rooms={project.rooms}
+        />
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-6 py-8">

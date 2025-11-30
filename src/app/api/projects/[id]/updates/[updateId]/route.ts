@@ -203,20 +203,7 @@ export async function GET(
             }
           }
         },
-        assignments: {
-          include: {
-            contractor: {
-              select: {
-                id: true,
-                businessName: true,
-                contactName: true,
-                email: true,
-                phone: true,
-                specialty: true
-              }
-            }
-          }
-        },
+        assignments: true,
         milestones: {
           orderBy: {
             targetDate: 'asc'
@@ -405,18 +392,27 @@ export async function DELETE(
 
     const { id: projectId, updateId } = await params
 
-    // Check if user has access to project and update
+    // First verify user has access to the project
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
+      }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Then find the update
     const existingUpdate = await prisma.projectUpdate.findFirst({
       where: {
         id: updateId,
-        projectId,
-        project: {
-          OR: [
-            { createdById: session.user.id },
-            { updatedById: session.user.id },
-            { organization: { users: { some: { id: session.user.id } } } }
-          ]
-        }
+        projectId
       }
     })
 

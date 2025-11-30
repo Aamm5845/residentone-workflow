@@ -7,6 +7,9 @@ import {
   withCreateAttribution,
   getIPAddress,
   isValidAuthSession,
+  logActivity,
+  ActivityActions,
+  EntityTypes,
   type AuthSession
 } from '@/lib/attribution'
 import { logAssetUpload } from '@/lib/activity-logger'
@@ -47,6 +50,7 @@ export async function POST(request: NextRequest) {
     const sectionId = formData.get('sectionId') as string
     const roomId = formData.get('roomId') as string
     const projectId = formData.get('projectId') as string
+    const updateId = formData.get('updateId') as string | null  // For linking to project updates
     const userDescription = formData.get('description') as string | null
 
     // Validation
@@ -181,18 +185,110 @@ export async function POST(request: NextRequest) {
       const fileUrl = sharedLink
       const storageType: 'cloud' | 'local' = 'cloud'
       
-      // Save to database if we have section info
+      // Determine asset type
+      let assetType: 'IMAGE' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
+      if (file.type.startsWith('image/')) {
+        assetType = 'IMAGE'
+      } else if (file.type === 'application/pdf') {
+        assetType = 'PDF'
+      }
+      
+      // Save to database
       let asset = null
-      if (section) {
+      
+      // If we have an updateId, this is for a project update - always create asset and link it
+      if (updateId && projectId) {
         try {
-          // Determine asset type
-          let assetType: 'IMAGE' | 'PDF' | 'DOCUMENT' = 'DOCUMENT'
-          if (file.type.startsWith('image/')) {
-            assetType = 'IMAGE'
-          } else if (file.type === 'application/pdf') {
-            assetType = 'PDF'
+          // Verify update exists and user has access
+          const update = await prisma.projectUpdate.findFirst({
+            where: {
+              id: updateId,
+              projectId: projectId
+            }
+          })
+          
+          if (update) {
+            // Create asset record
+            asset = await prisma.asset.create({
+              data: {
+                title: file.name,
+                filename: fileName,
+                url: fileUrl,
+                type: assetType,
+                size: file.size,
+                mimeType: file.type,
+                provider: 'dropbox',
+                metadata: JSON.stringify({
+                  originalName: file.name,
+                  uploadDate: new Date().toISOString(),
+                  updateId: updateId,
+                  dropboxPath: uploadResult.path_display,
+                  storageMethod: 'dropbox'
+                }),
+                userDescription: userDescription || null,
+                uploadedBy: session.user.id,
+                orgId: session.user.orgId,
+                projectId: projectId,
+                roomId: roomId || null
+              }
+            })
+            
+            // Create ProjectUpdatePhoto to link asset to update
+            const photo = await prisma.projectUpdatePhoto.create({
+              data: {
+                updateId: updateId,
+                assetId: asset.id,
+                caption: userDescription || null,
+                roomArea: roomId ? (await prisma.room.findUnique({ where: { id: roomId }, select: { name: true } }))?.name : null
+              }
+            })
+            
+            // Log activity for the photo upload to ProjectUpdateActivity
+            await prisma.projectUpdateActivity.create({
+              data: {
+                projectId: projectId,
+                updateId: updateId,
+                actorId: session.user.id,
+                actionType: 'ADD_PHOTO',
+                entityType: 'PROJECT_UPDATE_PHOTO',
+                entityId: photo.id,
+                description: `Added photo${userDescription ? `: ${userDescription}` : ` to update`}`,
+                metadata: {
+                  photoId: photo.id,
+                  assetId: asset.id,
+                  fileName: file.name,
+                  fileSize: file.size
+                }
+              }
+            })
+            
+            // Also log to main ActivityLog so it shows in the Activities page
+            await logActivity({
+              session,
+              action: ActivityActions.PROJECT_UPDATE_PHOTO_ADDED,
+              entity: EntityTypes.PROJECT_UPDATE_PHOTO,
+              entityId: photo.id,
+              details: {
+                projectId: projectId,
+                updateId: updateId,
+                photoId: photo.id,
+                assetId: asset.id,
+                fileName: file.name,
+                fileSize: file.size,
+                caption: userDescription || undefined
+              },
+              ipAddress
+            })
+            
+            console.log(`[upload] Created ProjectUpdatePhoto linking asset ${asset.id} to update ${updateId}`)
           }
-
+        } catch (dbError) {
+          console.error('Database save error for update photo:', dbError)
+        }
+      }
+      // Otherwise save to section if we have section info
+      else if (section) {
+        try {
           // Create asset record in database
           asset = await prisma.asset.create({
             data: {
@@ -208,6 +304,7 @@ export async function POST(request: NextRequest) {
                 uploadDate: new Date().toISOString(),
                 stageId: section.stageId,
                 sectionType: section.type,
+                dropboxPath: uploadResult.path_display,
                 storageMethod: 'dropbox'
               }),
               userDescription: userDescription || null,

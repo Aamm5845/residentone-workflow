@@ -12,7 +12,8 @@ import {
   Play,
   FileCheck,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,7 @@ interface FloorplanPhasesWorkspaceProps {
   approvalStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
   currentVersionId?: string
   hasAssets: boolean
+  revisionRequested?: boolean
 }
 
 export function FloorplanPhasesWorkspace({
@@ -38,7 +40,8 @@ export function FloorplanPhasesWorkspace({
   drawingsStatus,
   approvalStatus,
   currentVersionId,
-  hasAssets
+  hasAssets,
+  revisionRequested = false
 }: FloorplanPhasesWorkspaceProps) {
   const router = useRouter()
 
@@ -130,7 +133,9 @@ export function FloorplanPhasesWorkspace({
           <Link href={`/projects/${project.id}/floorplan/drawings`} className="group block">
             <div className={cn(
               "relative rounded-2xl border-2 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1",
-              drawingsStatus === 'COMPLETED' 
+              revisionRequested
+                ? 'border-red-300 bg-gradient-to-br from-red-50 to-orange-50'
+                : drawingsStatus === 'COMPLETED' 
                 ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50' 
                 : 'border-indigo-200 bg-gradient-to-br from-white to-indigo-50/80'
             )}>
@@ -140,27 +145,37 @@ export function FloorplanPhasesWorkspace({
                   {/* Icon */}
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center shadow-md",
-                    drawingsStatus === 'COMPLETED' 
+                    revisionRequested
+                      ? 'bg-gradient-to-br from-red-500 to-orange-500'
+                      : drawingsStatus === 'COMPLETED' 
                       ? 'bg-gradient-to-br from-emerald-500 to-green-500' 
                       : 'bg-gradient-to-br from-indigo-500 to-blue-500'
                   )}>
-                    <Pencil className="w-6 h-6 text-white" />
+                    {revisionRequested ? (
+                      <AlertTriangle className="w-6 h-6 text-white" />
+                    ) : (
+                      <Pencil className="w-6 h-6 text-white" />
+                    )}
                   </div>
                   
                   {/* Phase Number */}
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold",
-                    drawingsStatus === 'COMPLETED' 
+                    revisionRequested
+                      ? 'bg-red-500 text-white'
+                      : drawingsStatus === 'COMPLETED' 
                       ? 'bg-emerald-500 text-white' 
                       : 'bg-indigo-500 text-white'
                   )}>
-                    {drawingsStatus === 'COMPLETED' ? <Check className="w-4 h-4" /> : '1'}
+                    {revisionRequested ? <AlertTriangle className="w-4 h-4" /> :
+                     drawingsStatus === 'COMPLETED' ? <Check className="w-4 h-4" /> : '1'}
                   </div>
                 </div>
 
                 {/* Content */}
                 <h3 className={cn(
                   "text-xl font-bold mb-2",
+                  revisionRequested ? 'text-red-700' :
                   drawingsStatus === 'COMPLETED' ? 'text-emerald-700' : 'text-indigo-800'
                 )}>
                   Floorplan Drawings
@@ -173,7 +188,9 @@ export function FloorplanPhasesWorkspace({
                 <div className="flex items-center justify-between mb-4">
                   <div className={cn(
                     "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold",
-                    drawingsStatus === 'COMPLETED' 
+                    revisionRequested
+                      ? 'bg-red-100 text-red-700'
+                      : drawingsStatus === 'COMPLETED' 
                       ? 'bg-emerald-100 text-emerald-700' 
                       : drawingsStatus === 'IN_PROGRESS'
                       ? 'bg-blue-100 text-blue-700'
@@ -181,15 +198,22 @@ export function FloorplanPhasesWorkspace({
                   )}>
                     <div className={cn(
                       "w-2 h-2 rounded-full mr-2",
+                      revisionRequested ? 'bg-red-500 animate-pulse' :
                       drawingsStatus === 'COMPLETED' ? 'bg-emerald-500' : 
                       drawingsStatus === 'IN_PROGRESS' ? 'bg-blue-500 animate-pulse' : 
                       'bg-indigo-400'
                     )} />
-                    {drawingsStatus === 'COMPLETED' ? 'Completed' : 
+                    {revisionRequested ? 'Revision Needed' :
+                     drawingsStatus === 'COMPLETED' ? 'Completed' : 
                      drawingsStatus === 'IN_PROGRESS' ? 'In Progress' : 
                      'Ready to Start'}
                   </div>
-                  {hasAssets && (
+                  {revisionRequested ? (
+                    <span className="text-xs text-red-600 flex items-center font-medium">
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+                      Update Required
+                    </span>
+                  ) : hasAssets && (
                     <span className="text-xs text-emerald-600 flex items-center font-medium">
                       <FileCheck className="w-3.5 h-3.5 mr-1" />
                       Files uploaded
@@ -201,15 +225,19 @@ export function FloorplanPhasesWorkspace({
                 <Button
                   className={cn(
                     "w-full font-semibold shadow-md hover:shadow-lg transition-all",
-                    drawingsStatus === 'COMPLETED' 
+                    revisionRequested
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : drawingsStatus === 'COMPLETED' 
                       ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
                       : 'bg-indigo-500 hover:bg-indigo-600 text-white'
                   )}
                 >
-                  {drawingsStatus === 'NOT_STARTED' && <Play className="w-4 h-4 mr-2" />}
-                  {drawingsStatus === 'IN_PROGRESS' && <ArrowRight className="w-4 h-4 mr-2" />}
-                  {drawingsStatus === 'COMPLETED' && <Check className="w-4 h-4 mr-2" />}
-                  {drawingsStatus === 'NOT_STARTED' ? 'Start Drawings' :
+                  {revisionRequested && <AlertTriangle className="w-4 h-4 mr-2" />}
+                  {!revisionRequested && drawingsStatus === 'NOT_STARTED' && <Play className="w-4 h-4 mr-2" />}
+                  {!revisionRequested && drawingsStatus === 'IN_PROGRESS' && <ArrowRight className="w-4 h-4 mr-2" />}
+                  {!revisionRequested && drawingsStatus === 'COMPLETED' && <Check className="w-4 h-4 mr-2" />}
+                  {revisionRequested ? 'Make Revisions' :
+                   drawingsStatus === 'NOT_STARTED' ? 'Start Drawings' :
                    drawingsStatus === 'IN_PROGRESS' ? 'Continue Working' :
                    'View Drawings'}
                 </Button>

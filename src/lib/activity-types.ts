@@ -96,6 +96,13 @@ export type ActivityType =
   | 'CHECKLIST_ITEM_COMPLETED'
   | 'CHECKLIST_ITEM_REOPENED'
   | 'CHECKLIST_ITEM_DELETED'
+  // Project Update activities
+  | 'PROJECT_UPDATE_CREATED'
+  | 'PROJECT_UPDATE_UPDATED'
+  | 'PROJECT_UPDATE_DELETED'
+  | 'PROJECT_UPDATE_PHOTO_ADDED'
+  | 'PROJECT_UPDATE_TASK_CREATED'
+  | 'PROJECT_UPDATE_MESSAGE_ADDED'
   // Tag activities
   | 'TAG_CREATED'
   | 'TAG_DELETED'
@@ -127,6 +134,7 @@ export type ActivityCategory =
   | 'Tags'
   | 'Team'
   | 'System'
+  | 'Updates'
 
 export interface ActivityTypeMeta {
   label: string
@@ -681,6 +689,44 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, ActivityTypeMeta> = {
     color: 'text-gray-600',
     category: 'System'
   },
+
+  // Project Updates
+  PROJECT_UPDATE_CREATED: {
+    label: 'Update posted',
+    icon: 'Megaphone',
+    color: 'text-purple-600',
+    category: 'Updates'
+  },
+  PROJECT_UPDATE_UPDATED: {
+    label: 'Update edited',
+    icon: 'Edit',
+    color: 'text-purple-600',
+    category: 'Updates'
+  },
+  PROJECT_UPDATE_DELETED: {
+    label: 'Update deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Updates'
+  },
+  PROJECT_UPDATE_PHOTO_ADDED: {
+    label: 'Photo added to update',
+    icon: 'ImagePlus',
+    color: 'text-blue-600',
+    category: 'Updates'
+  },
+  PROJECT_UPDATE_TASK_CREATED: {
+    label: 'Task created from update',
+    icon: 'CheckSquare',
+    color: 'text-green-600',
+    category: 'Updates'
+  },
+  PROJECT_UPDATE_MESSAGE_ADDED: {
+    label: 'Message added to update',
+    icon: 'MessageSquare',
+    color: 'text-blue-600',
+    category: 'Updates'
+  },
 }
 
 // ============================================================================
@@ -855,6 +901,28 @@ export function formatDescription(activity: {
         return `${actorName} sent floorplan ${details.version || 'approval'} email to ${details.recipientEmail || 'client'}${context}`
       }
 
+    // Project Update activities
+    case 'PROJECT_UPDATE_CREATED':
+      const updateTitle = details.title ? `: "${details.title}"` : ''
+      const updateType = details.updateType?.toLowerCase() || 'general'
+      return `${actorName} posted a ${updateType} update${updateTitle}${context}`
+
+    case 'PROJECT_UPDATE_UPDATED':
+      return `${actorName} edited an update${details.title ? ` "${details.title}"` : ''}${context}`
+
+    case 'PROJECT_UPDATE_DELETED':
+      return `${actorName} deleted an update${details.title ? ` "${details.title}"` : ''}${context}`
+
+    case 'PROJECT_UPDATE_PHOTO_ADDED':
+      const photoCaption = details.caption ? `: "${details.caption}"` : ''
+      return `${actorName} added a photo to an update${photoCaption}${context}`
+
+    case 'PROJECT_UPDATE_TASK_CREATED':
+      return `${actorName} created a task from an update${context}`
+
+    case 'PROJECT_UPDATE_MESSAGE_ADDED':
+      return `${actorName} commented on an update${context}`
+
     default:
       // Generic fallback - include as much context as possible
       // Convert action type to readable format (e.g., "FFE_ITEM_UPDATED" -> "updated FFE item")
@@ -910,7 +978,8 @@ export function getActivitiesByCategory(): Record<ActivityCategory, ActivityType
     Checklists: [],
     Tags: [],
     Team: [],
-    System: []
+    System: [],
+    Updates: []
   }
 
   Object.entries(ACTIVITY_TYPE_META).forEach(([type, meta]) => {
