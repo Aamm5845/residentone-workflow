@@ -958,12 +958,19 @@ export default function PhotoGallery({
 
       {/* Content tabs */}
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">All Photos ({filteredPhotos.length})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="all">
+            All ({filteredPhotos.length})
+          </TabsTrigger>
+          <TabsTrigger value="photos-only">
+            Photos ({filteredPhotos.filter(p => !p.asset?.mimeType?.startsWith('video/')).length})
+          </TabsTrigger>
+          <TabsTrigger value="videos-only">
+            Videos ({filteredPhotos.filter(p => p.asset?.mimeType?.startsWith('video/')).length})
+          </TabsTrigger>
           <TabsTrigger value="before-after" disabled={!showBeforeAfter || beforeAfterPairs.length === 0}>
             Before/After ({beforeAfterPairs.length})
           </TabsTrigger>
-          <TabsTrigger value="ai-analysis">AI Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
@@ -1060,6 +1067,60 @@ export default function PhotoGallery({
               </AnimatePresence>
             </motion.div>
           )}
+        </TabsContent>
+
+        <TabsContent value="photos-only" className="mt-6">
+          {(() => {
+            const photosOnly = filteredPhotos.filter(p => !p.asset?.mimeType?.startsWith('video/'))
+            return photosOnly.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Camera className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>No photos found</p>
+              </div>
+            ) : (
+              <motion.div
+                layout
+                className={`grid gap-6 ${
+                  viewMode === 'grid' 
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+                    : 'grid-cols-1'
+                }`}
+              >
+                <AnimatePresence>
+                  {photosOnly.map((photo, index) => (
+                    <PhotoCard key={photo.id} photo={photo} index={index} />
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })()}
+        </TabsContent>
+
+        <TabsContent value="videos-only" className="mt-6">
+          {(() => {
+            const videosOnly = filteredPhotos.filter(p => p.asset?.mimeType?.startsWith('video/'))
+            return videosOnly.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <VideoIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>No videos found</p>
+              </div>
+            ) : (
+              <motion.div
+                layout
+                className={`grid gap-6 ${
+                  viewMode === 'grid' 
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+                    : 'grid-cols-1'
+                }`}
+              >
+                <AnimatePresence>
+                  {videosOnly.map((photo, index) => (
+                    <PhotoCard key={photo.id} photo={photo} index={index} />
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })()}
         </TabsContent>
 
         <TabsContent value="before-after" className="mt-6">
