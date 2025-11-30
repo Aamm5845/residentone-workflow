@@ -186,6 +186,11 @@ export default function PhotoGallery({
   const [zoom, setZoom] = useState(100)
   const [rotation, setRotation] = useState(0)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null)
+  const [singleEditDialogOpen, setSingleEditDialogOpen] = useState(false)
+  const [singleEditCaption, setSingleEditCaption] = useState('')
+  const [singleEditTags, setSingleEditTags] = useState('')
+  const [singleEditRoomArea, setSingleEditRoomArea] = useState('')
+  const [singleEditTradeCategory, setSingleEditTradeCategory] = useState('')
   
   // Multi-select state
   const [isSelectMode, setIsSelectMode] = useState(false)
@@ -358,6 +363,34 @@ export default function PhotoGallery({
     clearSelection()
   }
 
+  // Single photo edit handlers
+  const handleOpenSingleEdit = (photo: Photo) => {
+    setEditingPhoto(photo)
+    setSingleEditCaption(photo.caption || '')
+    setSingleEditTags((photo.tags || []).join(', '))
+    setSingleEditRoomArea(photo.roomArea || '')
+    setSingleEditTradeCategory(photo.tradeCategory || '')
+    setSingleEditDialogOpen(true)
+  }
+
+  const handleSingleEditSubmit = () => {
+    if (!editingPhoto) return
+    
+    const updates: Partial<Photo> = {
+      caption: singleEditCaption,
+      tags: singleEditTags.split(',').map(t => t.trim()).filter(Boolean),
+      roomArea: singleEditRoomArea || undefined,
+      tradeCategory: singleEditTradeCategory || undefined
+    }
+
+    if (onPhotoUpdate) {
+      onPhotoUpdate(editingPhoto.id, updates)
+    }
+    
+    setSingleEditDialogOpen(false)
+    setEditingPhoto(null)
+  }
+
   const PhotoCard = ({ photo, index }: { photo: Photo; index: number }) => {
     const isSelected = selectedPhotoIds.has(photo.id)
     
@@ -487,7 +520,15 @@ export default function PhotoGallery({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenSingleEdit(photo)
+                        }}
+                      >
                         <Edit3 className="w-4 h-4" />
                       </Button>
                     </TooltipTrigger>
@@ -1156,6 +1197,104 @@ export default function PhotoGallery({
             <Button onClick={handleBulkEditSubmit} className="gap-1">
               <Save className="w-4 h-4" />
               Apply Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Single Photo Edit Dialog */}
+      <Dialog open={singleEditDialogOpen} onOpenChange={setSingleEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit3 className="w-5 h-5" />
+              Edit Photo Details
+            </DialogTitle>
+            <DialogDescription>
+              Update the caption, tags, and metadata for this photo.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingPhoto && (
+            <div className="space-y-4 py-4">
+              {/* Preview thumbnail */}
+              <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                {editingPhoto.asset?.mimeType?.startsWith('video/') ? (
+                  <video
+                    src={editingPhoto.asset.url}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <img
+                    src={editingPhoto.asset.url}
+                    alt={editingPhoto.caption || editingPhoto.asset.title}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="single-caption">Caption</Label>
+                <Textarea
+                  id="single-caption"
+                  placeholder="Enter a caption for this photo..."
+                  value={singleEditCaption}
+                  onChange={(e) => setSingleEditCaption(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="single-tags">Tags (comma-separated)</Label>
+                <Input
+                  id="single-tags"
+                  placeholder="e.g. kitchen, renovation, progress"
+                  value={singleEditTags}
+                  onChange={(e) => setSingleEditTags(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="single-room">Room Area</Label>
+                  <Select value={singleEditRoomArea || 'none'} onValueChange={(v) => setSingleEditRoomArea(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select room" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {allRoomAreas.map(area => (
+                        <SelectItem key={area} value={area}>{area}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="single-trade">Trade Category</Label>
+                  <Select value={singleEditTradeCategory || 'none'} onValueChange={(v) => setSingleEditTradeCategory(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {allTradeCategories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSingleEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSingleEditSubmit} className="gap-1">
+              <Save className="w-4 h-4" />
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

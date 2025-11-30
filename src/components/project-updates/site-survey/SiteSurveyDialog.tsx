@@ -59,8 +59,8 @@ export default function SiteSurveyDialog({
   const [batchTradeCategory, setBatchTradeCategory] = useState<string | null>(null)
   const [batchCustomArea, setBatchCustomArea] = useState('')
   
-  // Survey metadata
-  const [updateTitle, setUpdateTitle] = useState('')
+  // Survey metadata - default title with today's date
+  const [updateTitle, setUpdateTitle] = useState(`Site Survey - ${new Date().toLocaleDateString()}`)
   const [updateDescription, setUpdateDescription] = useState('')
 
   const handleApplyBatchTags = () => {
@@ -178,7 +178,7 @@ export default function SiteSurveyDialog({
           onOpenChange(false)
           // Reset state
           setPhotos([])
-          setUpdateTitle('')
+          setUpdateTitle(`Site Survey - ${new Date().toLocaleDateString()}`)
           setUpdateDescription('')
           setBatchRoom(null)
           setBatchTags([])
@@ -265,10 +265,9 @@ export default function SiteSurveyDialog({
             {/* Survey Metadata */}
             <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
               <div className="space-y-2">
-                <Label htmlFor="update-title">Survey Title (Optional)</Label>
+                <Label htmlFor="update-title">Survey Title</Label>
                 <Input
                   id="update-title"
-                  placeholder={`Site Survey - ${new Date().toLocaleDateString()}`}
                   value={updateTitle}
                   onChange={(e) => setUpdateTitle(e.target.value)}
                   disabled={isUploading}
