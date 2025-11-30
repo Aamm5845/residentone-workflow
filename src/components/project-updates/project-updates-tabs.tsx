@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 // import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock, FileImage, CheckSquare, MessageCircle, Activity, Plus, Eye, Edit, Tag, Trash2, Loader2, X, Megaphone, AlertTriangle, FileText, Milestone, ClipboardCheck, Users, MoreHorizontal, Pencil, Home } from 'lucide-react'
+import { Calendar, Clock, FileImage, CheckSquare, MessageCircle, Activity, Plus, Eye, Edit, Tag, Trash2, Loader2, X, Megaphone, AlertTriangle, FileText, Milestone, ClipboardCheck, Users, MoreHorizontal, Pencil, Home, Play, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -601,7 +601,7 @@ export default function ProjectUpdatesTabs({
               </div>
             </div>
 
-            {/* Recent Photos */}
+            {/* Recent Media */}
             {photos.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -609,7 +609,12 @@ export default function ProjectUpdatesTabs({
                     <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center">
                       <FileImage className="w-4 h-4 text-cyan-600" />
                     </div>
-                    <h3 className="text-sm font-medium text-gray-700">Recent Photos</h3>
+                    <h3 className="text-sm font-medium text-gray-700">
+                      {(() => {
+                        const hasVideos = photos.some((p: any) => p.asset?.mimeType?.startsWith('video/'))
+                        return hasVideos ? 'Recent Media' : 'Recent Photos'
+                      })()}
+                    </h3>
                   </div>
                   <Button 
                     variant="ghost" 
@@ -624,18 +629,46 @@ export default function ProjectUpdatesTabs({
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {photos.slice(0, 4).map((photo: any) => (
-                    <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
-                      <img
-                        src={photo.asset.url}
-                        alt={photo.asset.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end">
-                        <p className="text-xs text-white p-2 truncate w-full">{photo.caption || photo.asset.title}</p>
+                  {photos.slice(0, 4).map((photo: any) => {
+                    const isVideo = photo.asset?.mimeType?.startsWith('video/')
+                    return (
+                      <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
+                        {isVideo ? (
+                          <>
+                            {/* Video thumbnail - use video element with poster or first frame */}
+                            <video
+                              src={photo.asset.url}
+                              className="w-full h-full object-cover"
+                              muted
+                              preload="metadata"
+                            />
+                            {/* Play icon overlay for videos */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-12 h-12 bg-black/60 rounded-full flex items-center justify-center group-hover:bg-purple-600/80 transition-colors duration-200">
+                                <Play className="w-6 h-6 text-white ml-1" fill="white" />
+                              </div>
+                            </div>
+                            {/* Video badge */}
+                            <div className="absolute top-2 left-2">
+                              <span className="px-1.5 py-0.5 bg-purple-600 text-white text-[10px] font-medium rounded flex items-center gap-1">
+                                <Video className="w-2.5 h-2.5" />
+                                Video
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <img
+                            src={photo.asset.url}
+                            alt={photo.asset.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end pointer-events-none">
+                          <p className="text-xs text-white p-2 truncate w-full">{photo.caption || photo.asset.title}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
