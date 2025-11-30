@@ -415,7 +415,15 @@ export default function ProjectUpdatesTabs({
     <Tabs defaultValue="overview" className="w-full">
       <TabsList className="grid w-full grid-cols-5 mb-8">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="photos">Photos ({photos.length})</TabsTrigger>
+        <TabsTrigger value="photos">
+          {(() => {
+            const photoCount = photos.filter((p: any) => !p.asset?.mimeType?.startsWith('video/')).length
+            const videoCount = photos.filter((p: any) => p.asset?.mimeType?.startsWith('video/')).length
+            if (photoCount > 0 && videoCount > 0) return `Photos (${photoCount}) & Videos (${videoCount})`
+            if (videoCount > 0) return `Videos (${videoCount})`
+            return `Photos (${photoCount})`
+          })()}
+        </TabsTrigger>
         <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
         <TabsTrigger value="messages">Messages ({messages.length})</TabsTrigger>
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -547,9 +555,21 @@ export default function ProjectUpdatesTabs({
                     <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
                       <FileImage className="w-4 h-4 text-violet-500" />
                     </div>
-                    <span className="text-gray-600">Photos</span>
+                    <span className="text-gray-600">
+                      {(() => {
+                        const videoCount = photos.filter((p: any) => p.asset?.mimeType?.startsWith('video/')).length
+                        return videoCount > 0 ? 'Media' : 'Photos'
+                      })()}
+                    </span>
                   </div>
-                  <span className="text-lg font-semibold text-gray-900">{photos.length}</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {(() => {
+                      const photoCount = photos.filter((p: any) => !p.asset?.mimeType?.startsWith('video/')).length
+                      const videoCount = photos.filter((p: any) => p.asset?.mimeType?.startsWith('video/')).length
+                      if (photoCount > 0 && videoCount > 0) return `${photoCount}+${videoCount}`
+                      return photos.length
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-gray-100">
                   <div className="flex items-center gap-2.5">

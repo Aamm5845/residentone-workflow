@@ -85,7 +85,16 @@ export default function ProjectUpdatesHeader({
             </div>
           </div>
           <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
-            <span>{photos.length} photos</span>
+            <span>
+              {(() => {
+                const photoCount = photos.filter((p: any) => !p.asset?.mimeType?.startsWith('video/')).length
+                const videoCount = photos.filter((p: any) => p.asset?.mimeType?.startsWith('video/')).length
+                const parts = []
+                if (photoCount > 0) parts.push(`${photoCount} photo${photoCount !== 1 ? 's' : ''}`)
+                if (videoCount > 0) parts.push(`${videoCount} video${videoCount !== 1 ? 's' : ''}`)
+                return parts.length > 0 ? parts.join(', ') : '0 photos'
+              })()}
+            </span>
             <span className="text-gray-300">•</span>
             <span>{tasks.length} tasks</span>
             <span className="text-gray-300">•</span>

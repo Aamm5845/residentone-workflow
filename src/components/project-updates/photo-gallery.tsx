@@ -749,7 +749,14 @@ export default function PhotoGallery({
         <div>
           <h3 className="text-lg font-semibold">Photo Documentation</h3>
           <p className="text-sm text-gray-500">
-            {filteredPhotos.length} {filteredPhotos.length === 1 ? 'photo' : 'photos'}
+            {(() => {
+              const photoCount = filteredPhotos.filter(p => !p.asset?.mimeType?.startsWith('video/')).length
+              const videoCount = filteredPhotos.filter(p => p.asset?.mimeType?.startsWith('video/')).length
+              const parts = []
+              if (photoCount > 0) parts.push(`${photoCount} photo${photoCount !== 1 ? 's' : ''}`)
+              if (videoCount > 0) parts.push(`${videoCount} video${videoCount !== 1 ? 's' : ''}`)
+              return parts.length > 0 ? parts.join(', ') : 'No files'
+            })()}
             {filteredPhotos.length !== photos.length && ` of ${photos.length} total`}
             {showBeforeAfter && beforeAfterPairs.length > 0 && ` • ${beforeAfterPairs.length} before/after ${beforeAfterPairs.length === 1 ? 'pair' : 'pairs'}`}
           </p>
