@@ -88,7 +88,7 @@ export default function ProjectUpdatesHeader({
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                   <span>{photos.length} photos</span>
                   <span>{tasks.length} tasks</span>
-                  <span>{projectUpdates.length} updates</span>
+                  <span>{projectUpdates.filter((u: any) => !u.isInternal).length} updates</span>
                 </div>
               </div>
             </div>
