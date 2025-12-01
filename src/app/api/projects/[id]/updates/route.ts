@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/attribution'
+import { sendEmail } from '@/lib/email/email-service'
 
 const createUpdateSchema = z.object({
   type: z.enum(['GENERAL', 'PHOTO', 'TASK', 'DOCUMENT', 'COMMUNICATION', 'MILESTONE', 'INSPECTION', 'ISSUE']),
@@ -374,8 +375,67 @@ export async function POST(
     // Revalidate project updates page
     revalidatePath(`/projects/${projectId}/project-updates`)
 
-    // TODO: Send real-time notification via WebSocket
-    // TODO: Send notifications to relevant stakeholders
+    // Send email notifications to all team members
+    try {
+      // Get all team members for this project's organization
+      if (!project.orgId) {
+        console.log('[Update Notification] No orgId found, skipping notifications')
+      } else {
+      const teamMembers = await prisma.user.findMany({
+        where: {
+          orgId: project.orgId,
+          id: { not: session.user.id }, // Exclude the author
+          emailNotificationsEnabled: true
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      })
+
+      if (teamMembers.length > 0) {
+        const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${projectId}/project-updates`
+        const authorName = author?.name || session.user.name || 'A team member'
+        const updateTypeDisplay = validatedData.type.charAt(0) + validatedData.type.slice(1).toLowerCase()
+        
+        // Send emails in parallel (non-blocking)
+        const emailPromises = teamMembers.map(async (member) => {
+          try {
+            await sendEmail({
+              to: member.email,
+              subject: `📢 New ${updateTypeDisplay} Update - ${project.name}`,
+              html: generateProjectUpdateEmail({
+                recipientName: member.name || 'Team Member',
+                authorName,
+                projectName: project.name,
+                updateType: updateTypeDisplay,
+                updateTitle: validatedData.title || undefined,
+                updateDescription: validatedData.description || undefined,
+                roomName: room?.name || undefined,
+                priority: validatedData.priority,
+                projectUrl
+              }),
+              text: `Hi ${member.name},\n\n${authorName} posted a new ${updateTypeDisplay.toLowerCase()} update for ${project.name}${validatedData.title ? `: ${validatedData.title}` : ''}.\n\n${validatedData.description || ''}\n\nView the update: ${projectUrl}\n\nBest regards,\nMeisner Interiors`
+            })
+            console.log(`[Update Notification] Email sent to ${member.name}`)
+          } catch (emailError) {
+            console.error(`[Update Notification] Failed to send email to ${member.name}:`, emailError)
+          }
+        })
+
+        // Don't wait for emails - let them send in background
+        Promise.all(emailPromises).catch(err => 
+          console.error('[Update Notification] Some emails failed:', err)
+        )
+
+        console.log(`[Update Notification] Sending emails to ${teamMembers.length} team members`)
+      }
+      }
+    } catch (notificationError) {
+      console.error('[Update Notification] Error sending notifications:', notificationError)
+      // Don't fail the request if notifications fail
+    }
 
     return NextResponse.json(responseData, { status: 201 })
   } catch (error) {
@@ -393,4 +453,102 @@ export async function POST(
       { status: 500 }
     )
   }
+}
+
+/**
+ * Generate HTML email for project update notification
+ */
+function generateProjectUpdateEmail({
+  recipientName,
+  authorName,
+  projectName,
+  updateType,
+  updateTitle,
+  updateDescription,
+  roomName,
+  priority,
+  projectUrl
+}: {
+  recipientName: string
+  authorName: string
+  projectName: string
+  updateType: string
+  updateTitle?: string
+  updateDescription?: string
+  roomName?: string
+  priority?: string
+  projectUrl: string
+}) {
+  const priorityColors: Record<string, { bg: string; text: string }> = {
+    URGENT: { bg: '#fee2e2', text: '#dc2626' },
+    HIGH: { bg: '#ffedd5', text: '#ea580c' },
+    MEDIUM: { bg: '#fef3c7', text: '#d97706' },
+    LOW: { bg: '#dcfce7', text: '#16a34a' },
+    NORMAL: { bg: '#f1f5f9', text: '#475569' }
+  }
+
+  const priorityStyle = priorityColors[priority || 'NORMAL'] || priorityColors.NORMAL
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Project Update - ${projectName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">📢 New Update Posted</h1>
+            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">${projectName}</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 32px 24px;">
+            <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px;">
+                Hi ${recipientName},
+            </p>
+            
+            <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px;">
+                <strong>${authorName}</strong> posted a new <strong>${updateType.toLowerCase()}</strong> update${roomName ? ` for <strong>${roomName}</strong>` : ''}:
+            </p>
+            
+            <!-- Update Card -->
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #4f46e5;">
+                ${updateTitle ? `<h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 18px; font-weight: 600;">${updateTitle}</h3>` : ''}
+                ${updateDescription ? `<p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${updateDescription.substring(0, 300)}${updateDescription.length > 300 ? '...' : ''}</p>` : '<p style="margin: 0; color: #6b7280; font-size: 14px; font-style: italic;">No description provided</p>'}
+                
+                <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span style="display: inline-block; padding: 4px 12px; background: #e0e7ff; color: #4338ca; border-radius: 20px; font-size: 12px; font-weight: 500;">
+                        ${updateType}
+                    </span>
+                    ${priority ? `<span style="display: inline-block; padding: 4px 12px; background: ${priorityStyle.bg}; color: ${priorityStyle.text}; border-radius: 20px; font-size: 12px; font-weight: 500;">
+                        ${priority}
+                    </span>` : ''}
+                </div>
+            </div>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                    View Update →
+                </a>
+            </div>
+            
+            <p style="margin: 24px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                You're receiving this because you're a team member on this project.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                © ${new Date().getFullYear()} Meisner Interiors. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>`
 }
