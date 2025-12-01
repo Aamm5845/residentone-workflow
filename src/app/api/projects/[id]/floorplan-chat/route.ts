@@ -4,6 +4,85 @@ import { isValidAuthSession } from '@/lib/attribution'
 import { prisma } from '@/lib/prisma'
 import { DropboxService } from '@/lib/dropbox-service'
 import { v4 as uuidv4 } from 'uuid'
+import { sendEmail } from '@/lib/email'
+
+// Generate email HTML for mention notifications
+function generateMentionNotificationEmail({
+  recipientName,
+  authorName,
+  projectName,
+  messageContent,
+  projectUrl,
+  hasAttachment
+}: {
+  recipientName: string
+  authorName: string
+  projectName: string
+  messageContent: string
+  projectUrl: string
+  hasAttachment: boolean
+}) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You were mentioned - ${projectName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 40px 32px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+                 alt="Meisner Interiors" 
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600;">💬 You were mentioned</h1>
+            <p style="margin: 8px 0 0 0; color: #ddd6fe; font-size: 16px; font-weight: 400;">Floorplan Drawings • ${projectName}</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${recipientName},</p>
+            
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${authorName}</strong> mentioned you in the Floorplan Drawings chat:
+            </p>
+            
+            <div style="background: #f1f5f9; border-left: 4px solid #8b5cf6; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0; color: #1e293b; font-size: 15px; line-height: 1.6; font-style: italic;">"${messageContent}"</p>
+                ${hasAttachment ? '<p style="margin: 12px 0 0 0; color: #64748b; font-size: 13px;">📎 Attachment included</p>' : ''}
+            </div>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}" 
+                   style="background: #8b5cf6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);"
+                   target="_blank">View Floorplan Drawings</a>
+            </div>
+            
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                You're receiving this because you were mentioned in a chat message.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" 
+                   style="color: #7c3aed; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957" 
+                   style="color: #7c3aed; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+}
 
 // GET - Fetch all messages for a floorplan
 export async function GET(
@@ -361,17 +440,57 @@ export async function POST(
 
     // Send notifications for mentions
     if (mentions && mentions.length > 0) {
-      for (const userId of mentions) {
+      // Get mentioned users' details for email notifications
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          id: { in: mentions },
+          NOT: { id: session.user.id } // Don't notify yourself
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      })
+
+      const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${project.id}/floorplan/drawings`
+      const messagePreview = content.length > 150 ? content.substring(0, 150) + '...' : content
+      const authorName = session.user.name || 'A team member'
+
+      for (const user of mentionedUsers) {
+        // Create in-app notification
         await prisma.notification.create({
           data: {
-            userId,
+            userId: user.id,
             type: 'MENTION',
-            title: `${session.user.name} mentioned you`,
+            title: `${authorName} mentioned you`,
             message: `You were mentioned in the floorplan chat for ${project.name}`,
             link: `/projects/${project.id}/floorplan/drawings`,
             read: false
           }
         })
+
+        // Send email notification (don't await to not block the response)
+        if (user.email) {
+          console.log(`[Floorplan Chat] Sending mention email to ${user.name} (${user.email})`)
+          sendEmail({
+            to: user.email,
+            subject: `${authorName} mentioned you in Floorplan Drawings - ${project.name}`,
+            html: generateMentionNotificationEmail({
+              recipientName: user.name || 'Team Member',
+              authorName,
+              projectName: project.name,
+              messageContent: messagePreview,
+              projectUrl,
+              hasAttachment: uploadedAttachments.length > 0
+            }),
+            text: `Hi ${user.name},\n\n${authorName} mentioned you in the Floorplan Drawings chat for ${project.name}:\n\n"${messagePreview}"\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nMeisner Interiors Team`
+          }).then(() => {
+            console.log(`[Floorplan Chat] ✅ Email sent to ${user.email}`)
+          }).catch((error) => {
+            console.error(`[Floorplan Chat] ❌ Failed to send email to ${user.email}:`, error)
+          })
+        }
       }
     }
 

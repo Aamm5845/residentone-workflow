@@ -106,6 +106,139 @@ export const sendPasswordResetEmail = async (email: string, resetToken: string):
   })
 }
 
+export const sendPasswordChangedEmail = async (email: string, name: string): Promise<boolean> => {
+  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
+  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Password Changed - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #1e293b; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .success-icon { 
+            width: 60px; 
+            height: 60px; 
+            background-color: #22c55e; 
+            border-radius: 50%; 
+            margin: 0 auto 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+          }
+          .success-icon::after {
+            content: "✓";
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+          }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .warning-box {
+            background-color: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .warning-box p {
+            color: #92400e;
+            margin: 0;
+            font-size: 14px;
+          }
+          .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #1e293b; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+            font-weight: 500;
+          }
+          .footer { 
+            background-color: #1e293b; 
+            padding: 20px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+          .footer a { color: #60a5fa; text-decoration: none; }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>${companyName}</h1>
+          </div>
+          <div class="content">
+            <div class="success-icon"></div>
+            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Password Changed Successfully</h2>
+            
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${name},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                Your password for your ${companyName} account has been successfully changed.
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                <strong>Changed at:</strong> ${new Date().toLocaleString()}
+              </p>
+            </div>
+
+            <div class="warning-box">
+              <p>
+                <strong>⚠️ Security Notice:</strong> If you did not make this change, please reset your password immediately or contact our support team.
+              </p>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${appUrl}/auth/signin" class="button">Sign In to Your Account</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This email was sent by ${companyName}</p>
+            <p>If you have concerns about your account security, please <a href="${appUrl}/auth/forgot-password">reset your password</a>.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+    Password Changed Successfully - ${companyName}
+    
+    Hi ${name},
+    
+    Your password for your ${companyName} account has been successfully changed.
+    
+    Changed at: ${new Date().toLocaleString()}
+    
+    SECURITY NOTICE: If you did not make this change, please reset your password immediately or contact our support team.
+    
+    Sign in at: ${appUrl}/auth/signin
+  `
+
+  return sendEmail({
+    to: email,
+    subject: `Password Changed Successfully - ${companyName}`,
+    html,
+    text
+  })
+}
+
 export const sendWelcomeEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   const appUrl = process.env.APP_URL || 'http://localhost:3000'

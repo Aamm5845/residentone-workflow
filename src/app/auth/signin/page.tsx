@@ -32,11 +32,14 @@ function SignInForm() {
     setError('')
 
     try {
+      // Normalize email to lowercase for case-insensitive login
+      const normalizedEmail = email.toLowerCase().trim()
+      
       // First check if user exists and their approval status
       const checkResponse = await fetch('/api/auth/check-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: normalizedEmail })
       })
       
       const checkData = await checkResponse.json()
@@ -55,7 +58,7 @@ function SignInForm() {
       
       // Use NextAuth to authenticate against the database
       const result = await signIn('credentials', {
-        email: email,
+        email: normalizedEmail,
         password: password,
         redirect: false
       })

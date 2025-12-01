@@ -24,7 +24,10 @@ import {
   Building,
   Cloud,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -76,6 +79,19 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const [cloudBackups, setCloudBackups] = useState<any[]>([])
   const [loadingCloudBackups, setLoadingCloudBackups] = useState(false)
   const [cloudBackupsError, setCloudBackupsError] = useState<string | null>(null)
+  
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
 
   const canManageBackups = ['OWNER', 'ADMIN'].includes(user.role)
   const canCompleteBackup = user.role === 'OWNER'
@@ -388,6 +404,58 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    // Client-side validation
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long')
+      return
+    }
+
+    try {
+      setPasswordLoading(true)
+      
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong')
+      }
+
+      setPasswordSuccess(data.message)
+      // Clear the form
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const tabs = [
@@ -1051,23 +1119,168 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
           )}
 
           {activeTab === 'security' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Lock className="w-5 h-5 mr-2" />
-                  Security Settings
-                </CardTitle>
-                <CardDescription>
-                  Manage your security and privacy settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gray-50 rounded-lg p-8 text-center">
-                  <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Security settings will be available soon.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <KeyRound className="w-5 h-5 mr-2" />
+                    Change Password
+                  </CardTitle>
+                  <CardDescription>
+                    Update your password to keep your account secure
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
+                    {passwordError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-center">
+                          <AlertCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0" />
+                          <p className="text-red-700 text-sm">{passwordError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {passwordSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+                          <p className="text-green-700 text-sm">{passwordSuccess}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                        Current Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          id="currentPassword"
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Enter current password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          id="newPassword"
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Enter new password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Confirm new password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={passwordLoading}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      {passwordLoading ? (
+                        <>
+                          <Clock className="w-4 h-4 mr-2 animate-spin" />
+                          Changing Password...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Change Password
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Shield className="w-5 h-5 mr-2" />
+                    Security Tips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+                      <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Use a strong password</p>
+                        <p className="text-xs text-blue-700 mt-1">Include uppercase, lowercase, numbers, and special characters for better security.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-green-900">Keep your password private</p>
+                        <p className="text-xs text-green-700 mt-1">Never share your password with anyone or use it on other websites.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 bg-amber-50 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-900">Change password regularly</p>
+                        <p className="text-xs text-amber-700 mt-1">Update your password every few months to maintain account security.</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </div>

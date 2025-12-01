@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
     }
 
-    // Query database directly instead of calling another API
+    // Query all approved team members in the organization for mentions
     const users = await prisma.user.findMany({
       where: {
         AND: [
@@ -24,25 +24,27 @@ export async function GET(request: NextRequest) {
           { name: { not: null } },
           { name: { not: { startsWith: '[DELETED]' } } },
           { email: { not: { startsWith: 'deleted_' } } },
-          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+          { approvalStatus: 'APPROVED' }
         ]
       },
       select: {
         id: true,
         name: true,
         email: true,
-        role: true
+        role: true,
+        image: true
       },
       orderBy: {
         name: 'asc'
       }
     })
     
-    const teamMembers = users.filter(user => user.name) as Array<{ id: string; name: string; email: string; role: string }>
+    const teamMembers = users.filter(user => user.name) as Array<{ id: string; name: string; email: string; role: string; image?: string | null }>
 
     return NextResponse.json({
       success: true,
-      teamMembers
+      users: teamMembers, // Component expects 'users' key
+      teamMembers // Also include teamMembers for backwards compatibility
     })
 
   } catch (error) {

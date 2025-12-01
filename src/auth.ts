@@ -23,13 +23,16 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          console.log('🔐 Auth attempt for:', credentials.email)
+          // Normalize email to lowercase for case-insensitive comparison
+          const normalizedEmail = (credentials.email as string).toLowerCase().trim()
+          
+          console.log('🔐 Auth attempt for:', normalizedEmail)
           console.log('📊 DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'NOT SET')
           console.log('🔌 Prisma client ready')
           
           const user = await prisma.user.findUnique({
             where: {
-              email: credentials.email as string
+              email: normalizedEmail
             },
             include: {
               organization: true
@@ -37,18 +40,18 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (!user) {
-            console.log('❌ User not found:', credentials.email)
+            console.log('❌ User not found:', normalizedEmail)
             return null
           }
           
           if (!user.password) {
-            console.log('❌ User has no password:', credentials.email)
+            console.log('❌ User has no password:', normalizedEmail)
             return null
           }
           
           // Check if user is approved
           if (user.approvalStatus !== 'APPROVED') {
-            console.log('❌ User not approved:', credentials.email, 'Status:', user.approvalStatus)
+            console.log('❌ User not approved:', normalizedEmail, 'Status:', user.approvalStatus)
             return null
           }
           
@@ -59,7 +62,7 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (!isPasswordValid) {
-            console.log('❌ Invalid password for:', credentials.email)
+            console.log('❌ Invalid password for:', normalizedEmail)
             return null
           }
 
