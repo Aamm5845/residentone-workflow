@@ -10,9 +10,13 @@ import {
   ArrowLeft, 
   Check,
   Clock,
-  Bell
+  Bell,
+  Camera,
+  Lock,
+  Star,
+  LucideIcon
 } from 'lucide-react'
-import { changelog } from '@/data/changelog'
+import { changelog, ChangelogEntry } from '@/data/changelog'
 
 const typeConfig = {
   feature: {
@@ -47,6 +51,27 @@ const typeConfig = {
     borderColor: 'border-amber-200',
     iconBg: 'bg-amber-500'
   }
+}
+
+// Map icon names to Lucide components
+const iconMap: Record<string, LucideIcon> = {
+  camera: Camera,
+  clock: Clock,
+  lock: Lock,
+  megaphone: Megaphone,
+  zap: Zap,
+  wrench: Wrench,
+  star: Star,
+  bell: Bell,
+  sparkles: Sparkles
+}
+
+// Get icon component for an entry
+const getEntryIcon = (entry: ChangelogEntry): LucideIcon | null => {
+  if (entry.icon && iconMap[entry.icon]) {
+    return iconMap[entry.icon]
+  }
+  return null
 }
 
 const SEEN_UPDATES_KEY = 'studioflow-seen-updates'
@@ -113,7 +138,8 @@ export default function WhatsNewContent() {
         <div className="space-y-6">
           {changelog.map((entry) => {
             const config = typeConfig[entry.type]
-            const Icon = config.icon
+            const TypeIcon = config.icon
+            const EntryIcon = getEntryIcon(entry)
             const isNewUpdate = isNew(entry.id)
 
             return (
@@ -133,7 +159,7 @@ export default function WhatsNewContent() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${config.bgColor} ${config.textColor}`}>
-                            <Icon className="w-3.5 h-3.5" />
+                            <TypeIcon className="w-3.5 h-3.5" />
                             {config.label}
                           </span>
                           {isNewUpdate && (
@@ -146,7 +172,14 @@ export default function WhatsNewContent() {
                             {entry.date}
                           </span>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900">{entry.title}</h3>
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          {EntryIcon && (
+                            <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <EntryIcon className="w-4 h-4 text-gray-600" />
+                            </span>
+                          )}
+                          {entry.title}
+                        </h3>
                       </div>
                     </div>
                   </div>

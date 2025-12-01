@@ -8,6 +8,7 @@ export interface ChangelogEntry {
   title: string
   description: string
   type: 'feature' | 'improvement' | 'fix' | 'announcement'
+  icon?: 'camera' | 'clock' | 'lock' | 'megaphone' | 'zap' | 'wrench' | 'star' | 'bell' // Optional icon name
   highlights?: string[] // Bullet points
 }
 
@@ -16,9 +17,10 @@ export const changelog: ChangelogEntry[] = [
   {
     id: 'update-2024-12-01-project-updates',
     date: 'December 1, 2025',
-    title: '📸 Project Updates & On-Site Surveys',
+    title: 'Project Updates & On-Site Surveys',
     description: 'Keep everyone in the loop! Post project progress updates and capture on-site photos with the Site Survey feature.',
     type: 'feature',
+    icon: 'camera',
     highlights: [
       'Post updates in Project Overview to share where the project is at',
       'Start Site Survey to capture on-site photos & videos',
@@ -31,9 +33,10 @@ export const changelog: ChangelogEntry[] = [
   {
     id: 'update-2024-12-01-timeline',
     date: 'December 1, 2025',
-    title: '⏱️ Time Tracking is Here!',
+    title: 'Time Tracking is Here!',
     description: 'Track your work hours on each project and see what your team is currently working on in real-time.',
     type: 'feature',
+    icon: 'clock',
     highlights: [
       'Start timer from dashboard or any phase',
       'See what teammates are working on',
@@ -44,9 +47,10 @@ export const changelog: ChangelogEntry[] = [
   {
     id: 'update-2024-11-30-password',
     date: 'November 30, 2025',
-    title: '🔐 Password Management',
+    title: 'Password Management',
     description: 'Team members can now change their password from the preferences page and use forgot password on sign-in.',
     type: 'feature',
+    icon: 'lock',
     highlights: [
       'Change password in Team Preferences → Security',
       'Forgot password on sign-in page',
