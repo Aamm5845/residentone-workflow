@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import useSWR from 'swr'
@@ -12,24 +13,51 @@ import {
   Inbox,
   Activity,
   BarChart3,
-  Clock
+  Clock,
+  Sparkles
 } from 'lucide-react'
+import { changelog, countUnseenUpdates } from '@/data/changelog'
 
 interface NavigationMenuProps {
   sidebarCollapsed: boolean
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { unreadCount: 0 })
+const SEEN_UPDATES_KEY = 'studioflow-seen-updates'
 
 export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const pathname = usePathname()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
+  const [unseenUpdatesCount, setUnseenUpdatesCount] = useState(0)
   
   // On mobile, always show expanded menu (sidebarCollapsed only applies to desktop)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   
   const mentionNotifications = getNotificationsByType('MENTION')
   const unreadMentionCount = mentionNotifications.filter(n => !n.read).length
+  
+  // Check for unseen updates
+  useEffect(() => {
+    const checkUnseenUpdates = () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(SEEN_UPDATES_KEY)
+        const seenIds = stored ? JSON.parse(stored) : []
+        const count = countUnseenUpdates(seenIds)
+        setUnseenUpdatesCount(count)
+      }
+    }
+    
+    checkUnseenUpdates()
+    // Re-check when localStorage changes (e.g., after visiting What's New page)
+    window.addEventListener('storage', checkUnseenUpdates)
+    // Also check periodically in case the page stays open
+    const interval = setInterval(checkUnseenUpdates, 5000)
+    
+    return () => {
+      window.removeEventListener('storage', checkUnseenUpdates)
+      clearInterval(interval)
+    }
+  }, [])
   
   // Get lastViewed from localStorage
   const getLastViewed = () => {
@@ -68,6 +96,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const updatesNavigation = [
     { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount },
     { name: 'Activities', href: '/activities', icon: Activity, color: 'text-orange-600', badgeCount: unreadActivitiesCount },
+    { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-pink-600', badgeCount: unseenUpdatesCount, special: true },
   ]
 
   const isActive = (href: string) => pathname.startsWith(href)
@@ -167,6 +196,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
           {updatesNavigation.map((item) => {
             const Icon = item.icon
             const showBadge = item.badgeCount && item.badgeCount > 0
+            const isSpecial = 'special' in item && item.special
             return (
               <Link
                 key={item.name}
@@ -175,6 +205,8 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
                   'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   isActive(item.href)
                     ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
+                    : isSpecial && showBadge
+                    ? 'text-gray-700 hover:bg-pink-50 hover:text-pink-700 bg-gradient-to-r from-pink-50/50 to-transparent'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 )}
               >
@@ -183,7 +215,10 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
                   {item.name}
                 </div>
                 {showBadge && (
-                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                  <span className={cn(
+                    "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
+                    isSpecial ? "bg-gradient-to-r from-pink-500 to-purple-500" : "bg-red-500"
+                  )}>
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}
