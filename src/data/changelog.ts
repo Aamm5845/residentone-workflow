@@ -17,14 +17,15 @@ export const changelog: ChangelogEntry[] = [
     id: 'update-2024-12-01-project-updates',
     date: 'December 1, 2025',
     title: '📸 Project Updates & On-Site Surveys',
-    description: 'Keep everyone in the loop! Post project progress updates in the Overview section and capture on-site photos with our new Survey feature.',
+    description: 'Keep everyone in the loop! Post project progress updates and capture on-site photos with the Site Survey feature.',
     type: 'feature',
     highlights: [
       'Post updates in Project Overview to share where the project is at',
-      'Start an on-site photo survey directly from the app',
-      'All photos automatically saved & uploaded to Dropbox (7- folders)',
-      'Tag images with notes and labels for easy reference',
-      'Track project milestones and share progress with the team'
+      'Start Site Survey to capture on-site photos & videos',
+      'Photos saved to Dropbox: Project Folder → 7- SOURCES → Site Photos → Date',
+      'Tag photos with room names, trade categories & notes',
+      'Mark photos as Before/After for easy comparison',
+      'View all media in the Photos tab with full details'
     ]
   },
   {
