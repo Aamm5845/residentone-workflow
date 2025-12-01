@@ -14,16 +14,17 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   // ⬇️ ADD NEW UPDATES HERE (at the top) ⬇️
   {
-    id: 'update-2024-12-01-auto-refresh',
+    id: 'update-2024-12-01-project-updates',
     date: 'December 1, 2025',
-    title: 'Auto-Update for Desktop App',
-    description: 'The app will now automatically refresh when updates are available and you\'re not actively working.',
-    type: 'improvement',
+    title: '📸 Project Updates & On-Site Surveys',
+    description: 'Keep everyone in the loop! Post project progress updates in the Overview section and capture on-site photos with our new Survey feature.',
+    type: 'feature',
     highlights: [
-      'Checks for updates every 5 minutes',
-      'Auto-refreshes after 3 minutes of inactivity',
-      'Shows notification if you\'re actively working',
-      'No more manual refreshing needed!'
+      'Post updates in Project Overview to share where the project is at',
+      'Start an on-site photo survey directly from the app',
+      'All photos automatically saved & uploaded to Dropbox (7- folders)',
+      'Tag images with notes and labels for easy reference',
+      'Track project milestones and share progress with the team'
     ]
   },
   {
@@ -40,28 +41,15 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    id: 'update-2024-12-01-mentions',
-    date: 'December 1, 2025',
-    title: '@Mentions with Email Notifications',
-    description: 'Mention team members in Floorplan chat and they\'ll receive email notifications.',
-    type: 'feature',
-    highlights: [
-      'Type @ to see team members',
-      'Email sent to mentioned users',
-      'Works in Floorplan Drawings chat'
-    ]
-  },
-  {
     id: 'update-2024-11-30-password',
     date: 'November 30, 2025',
-    title: 'Password Management',
+    title: '🔐 Password Management',
     description: 'Team members can now change their password from the preferences page and use forgot password on sign-in.',
     type: 'feature',
     highlights: [
       'Change password in Team Preferences → Security',
       'Forgot password on sign-in page',
-      'Email confirmation when password changed',
-      'Case-insensitive email login'
+      'Email confirmation when password changed'
     ]
   },
   // Add more entries above this line
@@ -74,4 +62,3 @@ export const getLatestUpdateId = () => changelog[0]?.id || ''
 export const countUnseenUpdates = (seenIds: string[]): number => {
   return changelog.filter(entry => !seenIds.includes(entry.id)).length
 }
-
