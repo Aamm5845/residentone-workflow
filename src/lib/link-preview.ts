@@ -14,13 +14,19 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewData> {
     // Validate URL
     const urlObj = new URL(url);
     
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     // Fetch the page
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; DesignWorkflow/1.0; +https://meisnerinteriors.com)',
       },
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.warn(`[Link Preview] Failed to fetch ${url}: ${response.status}`);

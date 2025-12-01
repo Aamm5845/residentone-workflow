@@ -19,7 +19,10 @@ import {
   FileText,
   FileSpreadsheet,
   FileArchive,
-  Download
+  Download,
+  Paperclip,
+  MessageSquare,
+  StickyNote
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -286,66 +289,52 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
+  // Calculate if item has any content
+  const hasContent = (images.length + attachments.length) > 0 || links.length > 0 || itemNotes.length > 0
+
   return (
     <div className={cn(
-      "rounded-lg border transition-all duration-300 w-full",
-      !expanded && "h-24 min-h-24",  // Fixed height when collapsed
-      expanded && "min-h-24",  // Flexible height when expanded
+      "rounded-xl border-2 transition-all duration-200 w-full overflow-hidden",
       isCompleted 
-        ? "opacity-60 bg-gray-50 border-gray-200" 
-        : "bg-white border-gray-200 hover:shadow-md"
+        ? "opacity-60 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200" 
+        : "bg-white border-gray-100 hover:border-indigo-200 hover:shadow-lg"
     )}>
-      {/* Collapsed Header */}
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Completion Checkbox */}
-          <button
-            onClick={toggleComplete}
-            className="flex-shrink-0 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded"
-            aria-label={isCompleted ? 'Mark as pending' : 'Mark as complete'}
-            aria-checked={isCompleted}
-          >
-            {isCompleted ? (
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-            ) : (
-              <Circle className="w-5 h-5 text-gray-300 hover:text-gray-400" />
-            )}
-          </button>
+      {/* Card Header */}
+      <div className="p-4">
+        {/* Top row: Checkbox, Name, Actions */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Completion Checkbox */}
+            <button
+              onClick={toggleComplete}
+              className="flex-shrink-0 mt-0.5 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full"
+              aria-label={isCompleted ? 'Mark as pending' : 'Mark as complete'}
+              aria-checked={isCompleted}
+            >
+              {isCompleted ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 hover:text-indigo-400" />
+              )}
+            </button>
 
-          {/* Item Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">
-                <DynamicIcon 
-                  name={libraryItem.icon || 'Package'} 
-                  className={cn(
-                    "w-5 h-5",
-                    isCompleted ? "text-gray-400" : "text-gray-700"
-                  )} 
-                />
-              </div>
+            {/* Item Info */}
+            <div className="flex-1 min-w-0">
               <h3 className={cn(
-                "font-semibold text-base truncate",
-                isCompleted ? "line-through text-gray-500" : "text-gray-900"
+                "font-semibold text-base leading-tight",
+                isCompleted ? "line-through text-gray-400" : "text-gray-900"
               )}>
                 {libraryItem.name}
               </h3>
-            </div>
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              {libraryItem.category && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded border border-gray-300 bg-gray-50">
-                  {libraryItem.category}
-                </span>
-              )}
-              <span>Files ({images.length + attachments.length})</span>
-              <span>•</span>
-              <span>Links ({links.length})</span>
+              {/* Category */}
+              <p className="text-xs text-gray-500 mt-0.5">
+                {libraryItem.category || 'Uncategorized'}
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
           {/* More Menu */}
           <div className="relative">
             <Button
@@ -395,6 +384,31 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
             )}
           </Button>
         </div>
+        </div>
+
+        {/* Content indicators - compact row */}
+        {hasContent && (
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
+            {(images.length + attachments.length) > 0 && (
+              <div className="flex items-center gap-1.5 text-blue-600">
+                <Paperclip className="w-4 h-4" />
+                <span className="text-sm font-medium">{images.length + attachments.length} files</span>
+              </div>
+            )}
+            {links.length > 0 && (
+              <div className="flex items-center gap-1.5 text-purple-600">
+                <LinkIcon className="w-4 h-4" />
+                <span className="text-sm font-medium">{links.length} links</span>
+              </div>
+            )}
+            {itemNotes.length > 0 && (
+              <div className="flex items-center gap-1.5 text-amber-600">
+                <StickyNote className="w-4 h-4" />
+                <span className="text-sm font-medium">{itemNotes.length} notes</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Expanded Content */}

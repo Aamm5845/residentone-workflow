@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Filter, Clock, CheckCircle, AlertCircle, Users, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
-import Link from 'next/link'
 
 interface Stage {
   id: string
@@ -38,6 +38,7 @@ interface InteractiveStagesPageProps {
 }
 
 export default function InteractiveStagesPage({ stages, statusFilter }: InteractiveStagesPageProps) {
+  const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
   const [projectFilter, setProjectFilter] = useState<string>('all')
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
@@ -255,8 +256,11 @@ export default function InteractiveStagesPage({ stages, statusFilter }: Interact
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredStages.map((stage) => (
-                  <Link key={stage.id} href={`/stages/${stage.id}`} className="contents">
-                    <tr className="hover:bg-gray-50 cursor-pointer">
+                    <tr 
+                      key={stage.id} 
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => router.push(`/stages/${stage.id}`)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {getStatusIcon(stage.status)}
@@ -300,7 +304,6 @@ export default function InteractiveStagesPage({ stages, statusFilter }: Interact
                         {formatDate(stage.updatedAt)}
                       </td>
                     </tr>
-                  </Link>
                 ))}
               </tbody>
             </table>

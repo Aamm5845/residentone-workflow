@@ -10,7 +10,8 @@ import {
   Loader2,
   Check,
   Pencil,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
@@ -312,7 +313,16 @@ export default function ItemLibrarySidebar({ stageId, onItemAdded, addedItemIds 
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Item Library</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">Item Library</h2>
+          <a
+            href="/settings/item-library"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Manage Item Library"
+          >
+            <Settings className="w-5 h-5" />
+          </a>
+        </div>
         
         {/* Search */}
         <div className="relative">

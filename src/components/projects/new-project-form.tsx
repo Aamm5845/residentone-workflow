@@ -714,29 +714,44 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client Name *
+                  </label>
                   <input
                     type="text"
                     value={formData.clientName}
                     onChange={(e) => handleInputChange('clientName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Client Name *"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                      !formData.clientName ? 'border-gray-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter client name"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
+                  </label>
                   <input
                     type="email"
                     value={formData.clientEmail}
                     onChange={(e) => handleInputChange('clientEmail', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Email Address *"
+                    placeholder="client@example.com"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
                   <input
                     type="tel"
                     value={formData.clientPhone}
                     onChange={(e) => handleInputChange('clientPhone', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Phone Number"
+                    placeholder="(555) 123-4567"
                   />
                 </div>
               </div>
@@ -1414,7 +1429,15 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               <Button 
                 onClick={() => setStep(step + 1)}
                 disabled={
-                  (step === 1 && (!formData.name || !formData.clientName)) ||
+                  (step === 1 && (
+                    !formData.name || 
+                    !formData.clientName || 
+                    !formData.clientEmail ||
+                    !formData.streetAddress ||
+                    !formData.city ||
+                    !formData.province ||
+                    !formData.postalCode
+                  )) ||
                   (step === 2 && formData.selectedRooms.length === 0)
                 }
                 className="bg-purple-600 hover:bg-purple-700 text-white"
