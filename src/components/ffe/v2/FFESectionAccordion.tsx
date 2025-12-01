@@ -108,146 +108,125 @@ function ItemCard({ item, children = [], isChild = false, isExpanded = false, on
   // Don't show auto-generated notes for linked items
   const shouldShowNotes = !isLinkedItem || (item.notes && !item.notes.includes('Imported from'))
   
-  const statusColors = {
-    PENDING: { bg: 'bg-blue-50', border: 'border-blue-200', accent: 'border-l-blue-500', icon: 'text-blue-600' },
-    UNDECIDED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
-    COMPLETED: { bg: 'bg-green-50', border: 'border-green-200', accent: 'border-l-green-500', icon: 'text-green-600' },
-    SELECTED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
-    CONFIRMED: { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500', icon: 'text-amber-600' },
-    NOT_NEEDED: { bg: 'bg-gray-50', border: 'border-gray-200', accent: 'border-l-gray-400', icon: 'text-gray-600' },
+  // Status dot colors
+  const statusDot = {
+    PENDING: 'bg-blue-500',
+    UNDECIDED: 'bg-amber-500',
+    COMPLETED: 'bg-emerald-500',
+    SELECTED: 'bg-amber-500',
+    CONFIRMED: 'bg-amber-500',
+    NOT_NEEDED: 'bg-slate-400',
   }
-  const statusColor = statusColors[item.state] || statusColors.PENDING
   
   return (
-    <div className="mb-2">
-      <div className={`bg-white rounded-lg border ${statusColor.border} border-l-4 ${statusColor.accent} p-3 hover:shadow-md transition-all`}>
-        <div className="flex items-start gap-3">
-          {/* Item Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {hasChildren && (
-                <button
-                  onClick={onToggleExpanded}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-              )}
-              
-              <IconComponent className={`h-4 w-4 ${statusColor.icon} flex-shrink-0`} />
-              
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-sm font-semibold text-gray-900">{item.name}</span>
-                {item.isRequired && (
-                  <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">Required</span>
-                )}
-                {item.quantity && item.quantity > 1 && (
-                  <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded font-medium">{item.quantity}x</span>
-                )}
-                {hasChildren && (
-                  <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">{children.length} items</span>
-                )}
-              </div>
-            </div>
-            {item.description && (
-              <p className="text-xs text-gray-600 ml-10 mt-1">{item.description}</p>
-            )}
-          </div>
-          
-          {/* Status and Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Quick Action Buttons */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => onStateChange('PENDING')}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                  item.state === 'PENDING'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
-                )}
-                title="Mark as Pending"
-              >
-                Pending
-              </button>
-              <button
-                onClick={() => onStateChange('UNDECIDED')}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                  item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED'
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:border-amber-300'
-                )}
-                title="Mark as Undecided"
-              >
-                Undecided
-              </button>
-              <button
-                onClick={() => onStateChange('COMPLETED')}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                  item.state === 'COMPLETED'
-                    ? 'bg-green-600 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:border-green-300'
-                )}
-                title="Mark as Completed"
-              >
-                Completed
-              </button>
-              <button
-                onClick={() => setIsEditingNotes(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                title="Add Note"
-              >
-                <Edit3 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+    <div className={cn("group", isChild ? "px-3 py-2 bg-slate-50" : "px-3 py-2.5 hover:bg-slate-50/50")}>
+      <div className="flex items-center gap-2">
+        {/* Status Dot */}
+        <div className={cn("w-2 h-2 rounded-full flex-shrink-0", statusDot[item.state] || statusDot.PENDING)} />
+        
+        {/* Expand Button */}
+        {hasChildren && (
+          <button onClick={onToggleExpanded} className="flex-shrink-0 p-0.5 hover:bg-slate-200 rounded">
+            <ChevronRight className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", isExpanded && "rotate-90")} />
+          </button>
+        )}
+        
+        {/* Item Name */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <span className={cn("font-medium text-slate-800 truncate", isChild ? "text-xs" : "text-sm")}>{item.name}</span>
+          {item.isRequired && (
+            <span className="text-[9px] px-1 py-0.5 bg-rose-100 text-rose-600 rounded font-medium">REQ</span>
+          )}
+          {item.quantity > 1 && (
+            <span className="text-[9px] px-1 py-0.5 bg-slate-100 text-slate-500 rounded">×{item.quantity}</span>
+          )}
+          {hasChildren && (
+            <span className="text-[9px] px-1 py-0.5 bg-indigo-100 text-indigo-600 rounded">{children.length}</span>
+          )}
         </div>
         
-        {/* Notes */}
-        {shouldShowNotes && item.notes && !isEditingNotes && (
-          <div className="mt-3 ml-10 px-3 py-2 bg-amber-50 border-l-2 border-amber-400 rounded text-xs text-gray-700">
-            <div className="flex items-start gap-2">
-              <StickyNote className="h-3 w-3 text-amber-600 mt-0.5 flex-shrink-0" />
-              <span>{item.notes}</span>
-            </div>
-          </div>
-        )}
+        {/* Status Badge - fades on hover */}
+        <span className={cn(
+          "text-[10px] px-1.5 py-0.5 rounded font-medium opacity-70 group-hover:opacity-0 transition-opacity",
+          item.state === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+          item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED' ? 'bg-amber-100 text-amber-700' :
+          'bg-blue-100 text-blue-700'
+        )}>
+          {item.state === 'COMPLETED' ? 'Done' : item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED' ? 'Undec' : 'Pend'}
+        </span>
         
-        {isEditingNotes && (
-          <div className="mt-3 ml-10 space-y-2">
-            <Textarea
-              value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
-              placeholder="Add notes about this item..."
-              className="min-h-[60px] text-sm"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleCancelNotes}
-                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveNotes}
-                className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-md shadow-sm transition-colors"
-              >
-                Save
-              </button>
-            </div>
+        {/* Action Buttons - Show on Hover */}
+        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="inline-flex rounded bg-slate-100 p-0.5">
+            <button
+              onClick={() => onStateChange('PENDING')}
+              className={cn(
+                "px-2 py-1 text-[10px] font-medium rounded transition-all",
+                item.state === 'PENDING' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/60'
+              )}
+            >P</button>
+            <button
+              onClick={() => onStateChange('UNDECIDED')}
+              className={cn(
+                "px-2 py-1 text-[10px] font-medium rounded transition-all",
+                item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED' 
+                  ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:bg-white/60'
+              )}
+            >U</button>
+            <button
+              onClick={() => onStateChange('COMPLETED')}
+              className={cn(
+                "px-2 py-1 text-[10px] font-medium rounded transition-all",
+                item.state === 'COMPLETED' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:bg-white/60'
+              )}
+            >✓</button>
           </div>
-        )}
+          
+          <button
+            onClick={() => setIsEditingNotes(true)}
+            className={cn(
+              "p-1 rounded transition-all",
+              item.notes ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:bg-slate-100"
+            )}
+            title="Note"
+          >
+            <Edit3 className="h-3 w-3" />
+          </button>
+        </div>
       </div>
+      
+      {/* Notes Display */}
+      {shouldShowNotes && item.notes && !isEditingNotes && (
+        <div className="mt-1.5 ml-4 flex items-start gap-1.5 text-[11px] text-slate-600 bg-amber-50/50 rounded px-2 py-1">
+          <StickyNote className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
+          <span className="truncate">{item.notes}</span>
+        </div>
+      )}
+      
+      {/* Notes Editor */}
+      {isEditingNotes && (
+        <div className="mt-2 ml-4 space-y-1.5">
+          <Textarea
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            placeholder="Add notes..."
+            className="min-h-[50px] text-xs border-slate-200 rounded focus:border-blue-300 resize-none"
+            autoFocus
+          />
+          <div className="flex justify-end gap-1.5">
+            <button onClick={handleCancelNotes} className="px-2 py-1 text-[10px] text-slate-500 hover:bg-slate-100 rounded">
+              Cancel
+            </button>
+            <button onClick={handleSaveNotes} className="px-2 py-1 text-[10px] bg-blue-500 text-white rounded hover:bg-blue-600">
+              Save
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Child Items */}
       {hasChildren && isExpanded && (
-        <div className="mt-2 ml-8 pl-4 border-l-2 border-gray-300 space-y-2">
+        <div className="mt-1 ml-4 border-l border-slate-200">
           {children
             .sort((a, b) => (a.order || 0) - (b.order || 0))
             .map((childItem) => (
@@ -399,116 +378,123 @@ export default function FFESectionAccordion({ sections, onItemStateChange, onIte
         .map((section) => {
           const isExpanded = expandedSections.has(section.id)
           const progress = getSectionProgress(section.id)
+          const isComplete = progress.percentage === 100
           
           return (
-            <div key={section.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-              {/* Section Header - Clean with good hierarchy */}
+            <div key={section.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              {/* Section Header */}
               <div 
-                className={`flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-gray-50 transition-all group ${
-                  isExpanded ? 'bg-gray-50 border-b border-gray-200' : ''
-                }`}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-all group",
+                  isExpanded ? "bg-gradient-to-r from-slate-50 to-white border-b border-slate-100" : "hover:bg-slate-50/50"
+                )}
                 onClick={() => toggleSectionExpanded(section.id)}
                 role="button"
                 aria-expanded={isExpanded}
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && toggleSectionExpanded(section.id)}
               >
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`transition-transform ${
-                    isExpanded ? 'rotate-0' : '-rotate-90'
-                  }`}>
-                    <ChevronDown className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                {/* Expand Icon */}
+                <ChevronRight className={cn(
+                  "h-4 w-4 text-slate-400 transition-transform flex-shrink-0",
+                  isExpanded && "rotate-90"
+                )} />
+                
+                {/* Section Info */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-slate-800">{section.name}</h3>
+                  <span className={cn(
+                    "text-[11px] font-medium px-1.5 py-0.5 rounded",
+                    isComplete 
+                      ? "bg-emerald-100 text-emerald-700" 
+                      : "bg-slate-100 text-slate-500"
+                  )}>
+                    {progress.completed}/{progress.total}
+                  </span>
+                </div>
+                
+                {/* Progress Section */}
+                <div className="flex items-center gap-2 w-36">
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isComplete 
+                          ? "bg-emerald-500" 
+                          : "bg-blue-500"
+                      )}
+                      style={{ width: `${progress.percentage}%` }}
+                    />
                   </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                        {progress.completed}/{progress.total}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${
-                            progress.percentage === 100 
-                              ? 'bg-gradient-to-r from-green-500 to-green-600' 
-                              : 'bg-gradient-to-r from-blue-500 to-blue-600'
-                          }`}
-                          style={{ width: `${progress.percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-gray-900 w-10 text-right">
-                        {Math.ceil(progress.percentage)}%
-                      </span>
-                    </div>
-                  </div>
+                  <span className={cn(
+                    "text-xs font-semibold w-9 text-right",
+                    isComplete ? "text-emerald-600" : "text-slate-600"
+                  )}>
+                    {Math.round(progress.percentage)}%
+                  </span>
                 </div>
               </div>
               
-              {/* Section Content */}
+              {/* Section Content - Items wrapped in a visual container */}
               {isExpanded && (
-                <div className="p-4 bg-gray-50">
-                  {(() => {
-                    // Filter items by visibility first
-                    const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
-                    const { parentItems, childItemsMap } = buildItemHierarchy(visibleItems)
-                    
-                    // Apply status filtering after visibility filter
-                    const filteredParentItems = parentItems.filter((item) => {
-                      if (statusFilter === 'all') return true
-                      if (statusFilter === 'pending') return item.state === 'PENDING'
-                      if (statusFilter === 'undecided') return item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED'
-                      if (statusFilter === 'completed') return item.state === 'COMPLETED'
-                      return true
-                    })
-                    
-                    if (visibleItems.length === 0) {
-                      return (
-                        <div className="text-center py-6">
-                          <p className="text-xs text-gray-500">No items in this section</p>
-                        </div>
-                      )
-                    }
-                    
-                    if (statusFilter !== 'all' && filteredParentItems.length === 0) {
-                      const statusLabels = {
-                        pending: 'pending',
-                        undecided: 'undecided',
-                        completed: 'completed'
+                <div className="bg-slate-50/50 px-3 py-2">
+                    {(() => {
+                      // Filter items by visibility first
+                      const visibleItems = section.items.filter(item => (item.visibility || 'VISIBLE') === 'VISIBLE')
+                      const { parentItems, childItemsMap } = buildItemHierarchy(visibleItems)
+                      
+                      // Apply status filtering after visibility filter
+                      const filteredParentItems = parentItems.filter((item) => {
+                        if (statusFilter === 'all') return true
+                        if (statusFilter === 'pending') return item.state === 'PENDING'
+                        if (statusFilter === 'undecided') return item.state === 'UNDECIDED' || item.state === 'SELECTED' || item.state === 'CONFIRMED'
+                        if (statusFilter === 'completed') return item.state === 'COMPLETED'
+                        return true
+                      })
+                      
+                      if (visibleItems.length === 0) {
+                        return (
+                          <div className="text-center py-6">
+                            <p className="text-xs text-slate-400">No items in this section</p>
+                          </div>
+                        )
                       }
+                      
+                      if (statusFilter !== 'all' && filteredParentItems.length === 0) {
+                        return (
+                          <div className="text-center py-6">
+                            <p className="text-xs text-slate-400">No {statusFilter} items</p>
+                          </div>
+                        )
+                      }
+                      
                       return (
-                        <div className="text-center py-6">
-                          <p className="text-xs text-gray-500">No {statusLabels[statusFilter as keyof typeof statusLabels]} items</p>
+                        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                          {filteredParentItems
+                            .sort((a, b) => (a.order || 0) - (b.order || 0))
+                            .map((item, index) => {
+                              // Get children by parent name (not ID)
+                              const children = childItemsMap.get(item.name) || []
+                              const isItemExpanded = expandedItems.has(item.id)
+                              const isLast = index === filteredParentItems.length - 1
+                              
+                              return (
+                                <div key={item.id} className={cn(!isLast && "border-b border-slate-100")}>
+                                  <ItemCard
+                                    item={item}
+                                    children={children} // eslint-disable-line react/no-children-prop
+                                    isExpanded={isItemExpanded}
+                                    onStateChange={(state, notes) => handleItemStateChange(item.id, state, notes)}
+                                    onToggleExpanded={() => toggleItemExpanded(item.id)}
+                                    onChildStateChange={handleItemStateChange}
+                                  />
+                                </div>
+                              )
+                            })}
                         </div>
                       )
+                    })()
                     }
-                    
-                    return (
-                      <div className="divide-y divide-gray-100">
-                        {filteredParentItems
-                          .sort((a, b) => (a.order || 0) - (b.order || 0))
-                          .map((item) => {
-                            // Get children by parent name (not ID)
-                            const children = childItemsMap.get(item.name) || []
-                            const isItemExpanded = expandedItems.has(item.id)
-                            
-                            return (
-                              <ItemCard
-                                key={item.id}
-                                item={item}
-                                children={children} // eslint-disable-line react/no-children-prop
-                                isExpanded={isItemExpanded}
-                                onStateChange={(state, notes) => handleItemStateChange(item.id, state, notes)}
-                                onToggleExpanded={() => toggleItemExpanded(item.id)}
-                                onChildStateChange={handleItemStateChange}
-                              />
-                            )
-                          })}
-                      </div>
-                    )
-                  })()
-                  }
                 </div>
               )}
             </div>

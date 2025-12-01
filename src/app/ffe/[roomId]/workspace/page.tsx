@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { PhaseChat } from '@/components/chat/PhaseChat'
 import { WorkspaceTimerButton } from '@/components/timeline/WorkspaceTimerButton'
+import FFEActivityLogPanel from '@/components/ffe/v2/FFEActivityLogPanel'
 
 interface FFEWorkspacePageProps {
   params: {
@@ -159,13 +160,21 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
             />
           </div>
 
-          {/* Chat Sidebar */}
-          <div className="w-96 border-l border-gray-200/60 bg-gradient-to-b from-gray-50 to-white">
-            <PhaseChat
-              stageId={ffeStage.id}
-              stageName={`FFE - ${room.name || room.type}`}
-              className="h-full"
-            />
+          {/* Right Sidebar - Activity Log & Chat */}
+          <div className="w-96 border-l border-gray-200/60 bg-white flex flex-col">
+            {/* Activity Log - Compact */}
+            <div className="h-44 border-b border-gray-100 flex-shrink-0">
+              <FFEActivityLogPanel roomId={roomId} />
+            </div>
+            
+            {/* Chat - Fills remaining space */}
+            <div className="flex-1 overflow-hidden">
+              <PhaseChat
+                stageId={ffeStage.id}
+                stageName={`FFE - ${room.name || room.type}`}
+                className="h-full"
+              />
+            </div>
           </div>
         </div>
       </div>

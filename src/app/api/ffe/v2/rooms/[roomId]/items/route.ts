@@ -219,12 +219,29 @@ export async function PATCH(
             }
           }
         }
+      },
+      include: {
+        section: {
+          include: {
+            instance: {
+              include: {
+                room: {
+                  include: {
+                    project: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     })
 
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
+
+    const previousState = item.state
 
     // Prepare update data
     const updateData: any = {
@@ -296,6 +313,32 @@ export async function PATCH(
         status: overallProgress === 100 ? 'COMPLETED' : 'IN_PROGRESS'
       }
     })
+
+    // Log activity if state changed
+    if (state && previousState !== state) {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            actorId: session.user.id,
+            action: 'STATE_CHANGE',
+            entity: 'FFE_ITEM',
+            entityId: itemId,
+            orgId: item.section.instance.room.project?.orgId,
+            details: {
+              roomId,
+              itemId,
+              itemName: item.name,
+              sectionName: item.section.name,
+              previousState,
+              newState: state
+            }
+          }
+        })
+      } catch (logError) {
+        console.error('Failed to log FFE activity:', logError)
+        // Don't fail the request if logging fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
