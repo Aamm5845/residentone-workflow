@@ -152,3 +152,6 @@ check-phone-fields.js
 send-test-sms.js
 SMS_DEBUG_RESULTS.md
 .env.vercel.production
+
+# Cursor AI issues sync file (generated dynamically)
+.cursor/issues.json

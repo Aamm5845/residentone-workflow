@@ -107,17 +107,19 @@ class ApiClient {
     return response.json();
   }
 
-  // Project endpoints
+  // Project endpoints (using mobile-specific API)
   async getProjects(): Promise<{ projects: any[] }> {
-    return this.get('/api/projects');
+    return this.get('/api/mobile/projects');
   }
 
   async getProject(id: string): Promise<any> {
-    return this.get(`/api/projects/${id}`);
+    return this.get(`/api/mobile/projects/${id}`);
   }
 
   async getProjectRooms(projectId: string): Promise<any[]> {
-    return this.get(`/api/projects/${projectId}/rooms`);
+    // Rooms are included in the project detail response
+    const project = await this.getProject(projectId);
+    return project.rooms || [];
   }
 
   // Project updates endpoints

@@ -10,6 +10,7 @@ import {
 } from '@/lib/attribution'
 import { logIssueActivity, ActivityActions } from '@/lib/activity-logger'
 import { put } from '@vercel/blob'
+import { syncIssuesToCursor } from '@/lib/cursor-issues'
 
 // Get all issues for the organization
 export async function GET(request: NextRequest) {
@@ -336,6 +337,9 @@ export async function POST(request: NextRequest) {
           ipAddress
         })
 
+        // Sync issues to .cursor/issues.json for Cursor AI access
+        syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
+
         return NextResponse.json(updatedIssue, { status: 201 })
       } catch (blobError) {
         console.error('[Issues API] Failed to upload image to Blob (non-fatal):', blobError)
@@ -357,6 +361,9 @@ export async function POST(request: NextRequest) {
       entityUrl: issue.projectId ? `/projects/${issue.projectId}` : '/issues',
       ipAddress
     })
+
+    // Sync issues to .cursor/issues.json for Cursor AI access
+    syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
     return NextResponse.json(issue, { status: 201 })
   } catch (error) {
