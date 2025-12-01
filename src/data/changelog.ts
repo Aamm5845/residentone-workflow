@@ -10,6 +10,10 @@ export interface ChangelogEntry {
   type: 'feature' | 'improvement' | 'fix' | 'announcement'
   icon?: 'camera' | 'clock' | 'lock' | 'megaphone' | 'zap' | 'wrench' | 'star' | 'bell' // Optional icon name
   highlights?: string[] // Bullet points
+  link?: { // Optional link to the feature
+    href: string
+    label: string
+  }
 }
 
 export const changelog: ChangelogEntry[] = [
@@ -28,7 +32,11 @@ export const changelog: ChangelogEntry[] = [
       'Tag photos with room names, trade categories & notes',
       'Mark photos as Before/After for easy comparison',
       'View all media in the Photos tab with full details'
-    ]
+    ],
+    link: {
+      href: '/projects',
+      label: 'Go to Projects → Select a Project → Project Updates'
+    }
   },
   {
     id: 'update-2024-12-01-timeline',
@@ -42,7 +50,11 @@ export const changelog: ChangelogEntry[] = [
       'See what teammates are working on',
       'Manual timesheet entries',
       'Track project costs accurately'
-    ]
+    ],
+    link: {
+      href: '/timeline',
+      label: 'Open Timeline'
+    }
   },
   {
     id: 'update-2024-11-30-password',
@@ -55,7 +67,11 @@ export const changelog: ChangelogEntry[] = [
       'Change password in Team Preferences → Security',
       'Forgot password on sign-in page',
       'Email confirmation when password changed'
-    ]
+    ],
+    link: {
+      href: '/team',
+      label: 'Go to Team → Click your name → Security tab'
+    }
   },
   // Add more entries above this line
 ]

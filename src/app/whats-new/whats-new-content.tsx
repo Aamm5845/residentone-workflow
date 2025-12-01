@@ -7,7 +7,8 @@ import {
   Zap, 
   Wrench, 
   Megaphone, 
-  ArrowLeft, 
+  ArrowLeft,
+  ArrowRight,
   Check,
   Clock,
   Bell,
@@ -197,6 +198,19 @@ export default function WhatsNewContent() {
                           </li>
                         ))}
                       </ul>
+                    )}
+                    
+                    {/* Link to feature */}
+                    {entry.link && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <Link
+                          href={entry.link.href}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                          {entry.link.label}
+                        </Link>
+                      </div>
                     )}
                   </div>
                 </div>
