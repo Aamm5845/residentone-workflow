@@ -102,7 +102,8 @@ export default function SiteSurveyDialog({
       })
 
       if (!updateResponse.ok) {
-        throw new Error('Failed to create update')
+        const errorData = await updateResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create update')
       }
 
       const update = await updateResponse.json()
@@ -142,7 +143,8 @@ export default function SiteSurveyDialog({
           })
 
           if (!response.ok) {
-            throw new Error(`Failed to upload photo ${i + 1}`)
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || `Failed to upload photo ${i + 1}`)
           }
 
           results.push({
