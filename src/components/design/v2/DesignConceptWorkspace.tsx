@@ -7,7 +7,13 @@ import {
   Loader2,
   LayoutGrid,
   List,
-  Settings
+  Settings,
+  MessageCircle,
+  Activity,
+  Sparkles,
+  X,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react'
 import useSWR, { useSWRConfig } from 'swr'
 import { toast } from 'sonner'
@@ -17,6 +23,8 @@ import AddedItemCard from './AddedItemCard'
 import AISummaryCard from '@/components/design-concept/AISummaryCard'
 import ActivityLogPanel from './ActivityLogPanel'
 import StageWorkspaceHeader from '@/components/stages/StageWorkspaceHeader'
+import { useDeviceType } from '@/hooks/useDeviceType'
+import { cn } from '@/lib/utils'
 
 interface Props {
   stageId: string
@@ -30,10 +38,26 @@ const fetcher = (url: string) => fetch(url).then(res => {
 })
 
 export default function DesignConceptWorkspace({ stageId, roomId, projectId }: Props) {
+  // iPad/Tablet detection
+  const { isIPad, isTablet } = useDeviceType()
+  const isTabletDevice = isIPad || isTablet
+  
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [showLibrary, setShowLibrary] = useState(true)
+  // On iPad, hide library by default to give more space
+  const [showLibrary, setShowLibrary] = useState(!isTabletDevice)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
   const [sortBy, setSortBy] = useState<'order' | 'name' | 'category' | 'status'>('order')
+  // iPad: Tab-based right sidebar instead of showing all panels
+  const [activeRightPanel, setActiveRightPanel] = useState<'chat' | 'activity' | 'ai'>('chat')
+  const [showRightSidebar, setShowRightSidebar] = useState(!isTabletDevice)
+  
+  // Update showLibrary when device type changes (e.g., on resize for testing)
+  useEffect(() => {
+    if (isTabletDevice) {
+      setShowLibrary(false)
+      setShowRightSidebar(false)
+    }
+  }, [isTabletDevice])
 
   // Fetch stage data
   const { data: stageData, error: stageError, isLoading: stageLoading } = useSWR(
@@ -173,14 +197,38 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
         progressPercent={progress.percentage}
       />
 
-      {/* Main Content - 3 Pane Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Content - Responsive Layout */}
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar - Item Library */}
         {showLibrary && (
-          <div className="w-80 bg-white border-r border-gray-200 overflow-hidden">
+          <div className={cn(
+            "bg-white border-r border-gray-200 overflow-hidden flex-shrink-0",
+            // iPad: Full-screen overlay instead of side panel
+            isTabletDevice 
+              ? "absolute inset-0 z-40" 
+              : "w-80"
+          )}>
+            {/* iPad: Close button for library overlay */}
+            {isTabletDevice && (
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">Item Library</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLibrary(false)}
+                  className="h-10 w-10 p-0"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
             <ItemLibrarySidebar 
               stageId={stageId}
-              onItemAdded={handleItemAdded}
+              onItemAdded={() => {
+                handleItemAdded()
+                // Auto-close library on iPad after adding item
+                if (isTabletDevice) setShowLibrary(false)
+              }}
               addedItemIds={items.map((item: any) => item.libraryItemId)}
             />
           </div>
@@ -188,31 +236,37 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
 
         {/* Center - Main Workspace */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Toolbar */}
-          <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          {/* Toolbar - iPad: larger touch targets */}
+          <div className={cn(
+            "bg-white border-b border-gray-200 flex items-center justify-between",
+            isTabletDevice ? "px-4 py-4" : "px-6 py-3"
+          )}>
+            <div className={cn("flex items-center", isTabletDevice ? "gap-3" : "space-x-2")}>
               <Button
                 variant="ghost"
-                size="sm"
+                size={isTabletDevice ? "default" : "sm"}
                 onClick={() => setShowLibrary(!showLibrary)}
-                className="text-gray-600"
+                className={cn("text-gray-600", isTabletDevice && "h-11 px-4")}
               >
                 {showLibrary ? 'Hide' : 'Show'} Library
               </Button>
               
               {items.length > 0 && (
-                <span className="text-sm text-gray-500">
+                <span className={cn("text-gray-500", isTabletDevice ? "text-base" : "text-sm")}>
                   {progress.pending} pending
                 </span>
               )}
             </div>
 
-            <div className="flex items-center space-x-2">
-              {/* Sort dropdown */}
+            <div className={cn("flex items-center", isTabletDevice ? "gap-3" : "space-x-2")}>
+              {/* Sort dropdown - iPad: larger */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className={cn(
+                  "border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent",
+                  isTabletDevice ? "text-base px-4 py-2.5" : "text-sm px-3 py-1.5"
+                )}
               >
                 <option value="order">Sort: Default</option>
                 <option value="name">Sort: Name</option>
@@ -222,38 +276,62 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
               
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
+                size={isTabletDevice ? "default" : "sm"}
                 onClick={() => setViewMode('grid')}
+                className={isTabletDevice ? "h-11 w-11 p-0" : ""}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className={isTabletDevice ? "w-5 h-5" : "w-4 h-4"} />
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
+                size={isTabletDevice ? "default" : "sm"}
                 onClick={() => setViewMode('list')}
+                className={isTabletDevice ? "h-11 w-11 p-0" : ""}
               >
-                <List className="w-4 h-4" />
+                <List className={isTabletDevice ? "w-5 h-5" : "w-4 h-4"} />
               </Button>
+              
+              {/* iPad: Toggle right sidebar button */}
+              {isTabletDevice && (
+                <Button
+                  variant={showRightSidebar ? 'default' : 'ghost'}
+                  size="default"
+                  onClick={() => setShowRightSidebar(!showRightSidebar)}
+                  className="h-11 w-11 p-0"
+                >
+                  {showRightSidebar ? (
+                    <PanelRightClose className="w-5 h-5" />
+                  ) : (
+                    <PanelRightOpen className="w-5 h-5" />
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Items Grid/List */}
-          <div className="flex-1 overflow-y-auto p-6 pt-4">
+          {/* Items Grid/List - iPad: single column, more padding */}
+          <div className={cn(
+            "flex-1 overflow-y-auto",
+            isTabletDevice ? "p-4" : "p-6 pt-4"
+          )}>
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <LayoutGrid className="w-12 h-12 text-gray-400" />
+                <div className={cn(
+                  "bg-gray-100 rounded-full flex items-center justify-center mb-4",
+                  isTabletDevice ? "w-20 h-20" : "w-24 h-24"
+                )}>
+                  <LayoutGrid className={cn("text-gray-400", isTabletDevice ? "w-10 h-10" : "w-12 h-12")} />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className={cn("font-semibold text-gray-900 mb-2", isTabletDevice ? "text-xl" : "text-xl")}>
                   No items added yet
                 </h3>
-                <p className="text-gray-600 mb-6 max-w-md">
-                  Start by selecting items from the library on the left. 
+                <p className={cn("text-gray-600 mb-6 max-w-md", isTabletDevice ? "text-base" : "")}>
+                  Start by selecting items from the library. 
                   Add furniture, fixtures, materials, and more to guide the 3D rendering.
                 </p>
                 <Button
                   onClick={() => setShowLibrary(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700"
+                  className={cn("bg-indigo-600 hover:bg-indigo-700", isTabletDevice && "h-12 px-6 text-base")}
                 >
                   Browse Library
                 </Button>
@@ -261,8 +339,11 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
             ) : (
               <div className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
-                  : 'space-y-4'
+                  // iPad: Single column for readability
+                  ? isTabletDevice 
+                    ? 'grid grid-cols-1 gap-4' 
+                    : 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
+                  : isTabletDevice ? 'space-y-3' : 'space-y-4'
               }>
               {sortedItems.map((item: any) => {
                   const isExpanded = !!expandedItems[item.id]
@@ -282,27 +363,104 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
           </div>
         </div>
 
-        {/* Right Sidebar - AI Summary, Activity Log & Chat */}
-        <div className="w-96 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
-          {/* AI Summary */}
-          <div className="border-b border-gray-200 p-4 overflow-y-auto flex-shrink-0" style={{ maxHeight: '25%' }}>
-            <AISummaryCard stageId={stageId} />
+        {/* Right Sidebar - Desktop: Always visible, iPad: Slide-over panel with tabs */}
+        {(showRightSidebar || !isTabletDevice) && (
+          <div className={cn(
+            "bg-white border-l border-gray-200 flex flex-col overflow-hidden flex-shrink-0",
+            isTabletDevice 
+              ? "absolute right-0 top-0 bottom-0 w-80 z-30 shadow-xl" 
+              : "w-96"
+          )}>
+            {/* iPad: Tab bar for switching panels */}
+            {isTabletDevice ? (
+              <>
+                {/* Tab Header */}
+                <div className="flex items-center justify-between border-b border-gray-200 px-2 py-2 bg-gray-50">
+                  <div className="flex gap-1">
+                    <Button
+                      variant={activeRightPanel === 'chat' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setActiveRightPanel('chat')}
+                      className="h-10 px-3"
+                    >
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      Chat
+                    </Button>
+                    <Button
+                      variant={activeRightPanel === 'activity' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setActiveRightPanel('activity')}
+                      className="h-10 px-3"
+                    >
+                      <Activity className="w-4 h-4 mr-1" />
+                      Activity
+                    </Button>
+                    <Button
+                      variant={activeRightPanel === 'ai' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setActiveRightPanel('ai')}
+                      className="h-10 px-3"
+                    >
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      AI
+                    </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowRightSidebar(false)}
+                    className="h-10 w-10 p-0"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+                
+                {/* Tab Content */}
+                <div className="flex-1 overflow-hidden">
+                  {activeRightPanel === 'chat' && (
+                    <PhaseChat
+                      stageId={stageId}
+                      stageName={`Design - ${roomName}`}
+                      className="h-full"
+                    />
+                  )}
+                  {activeRightPanel === 'activity' && (
+                    <div className="h-full overflow-y-auto">
+                      <ActivityLogPanel stageId={stageId} />
+                    </div>
+                  )}
+                  {activeRightPanel === 'ai' && (
+                    <div className="p-4 overflow-y-auto h-full">
+                      <AISummaryCard stageId={stageId} />
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Desktop: Show all panels stacked */
+              <>
+                {/* AI Summary */}
+                <div className="border-b border-gray-200 p-4 overflow-y-auto flex-shrink-0" style={{ maxHeight: '25%' }}>
+                  <AISummaryCard stageId={stageId} />
+                </div>
+                
+                {/* Activity Log - Fixed height */}
+                <div className="border-b border-gray-200 flex-shrink-0" style={{ height: '320px' }}>
+                  <ActivityLogPanel stageId={stageId} />
+                </div>
+                
+                {/* Chat - Fixed height */}
+                <div className="flex-shrink-0 overflow-hidden" style={{ height: 'calc(100% - 25% - 320px)' }}>
+                  <PhaseChat
+                    stageId={stageId}
+                    stageName={`Design - ${roomName}`}
+                    className="h-full"
+                  />
+                </div>
+              </>
+            )}
           </div>
-          
-          {/* Activity Log - Fixed height */}
-          <div className="border-b border-gray-200 flex-shrink-0" style={{ height: '320px' }}>
-            <ActivityLogPanel stageId={stageId} />
-          </div>
-          
-          {/* Chat - Fixed height */}
-          <div className="flex-shrink-0 overflow-hidden" style={{ height: 'calc(100% - 25% - 320px)' }}>
-            <PhaseChat
-              stageId={stageId}
-              stageName={`Design - ${roomName}`}
-              className="h-full"
-            />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
