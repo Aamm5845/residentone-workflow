@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { CapturedPhoto } from '../types';
 import useAuthStore from '../store/auth';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PHOTO_SIZE = (SCREEN_WIDTH - 48) / 3;
 
 export default function CameraScreen() {
   const { projectId, projectName } = useLocalSearchParams<{
@@ -62,7 +66,6 @@ export default function CameraScreen() {
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         
-        // Get current location
         let gpsCoordinates = undefined;
         if (location) {
           gpsCoordinates = {
@@ -88,7 +91,6 @@ export default function CameraScreen() {
         setCurrentCaption('');
         setCurrentNotes('');
 
-        // Refresh location for next photo
         if (location) {
           Location.getCurrentPositionAsync({}).then(setLocation);
         }
@@ -138,7 +140,6 @@ export default function CameraScreen() {
     try {
       const formData = new FormData();
       
-      // Get the file from the URI
       const response = await fetch(photo.uri);
       const blob = await response.blob();
       
@@ -219,7 +220,8 @@ export default function CameraScreen() {
   if (hasPermission === null) {
     return (
       <View style={styles.centerContainer}>
-        <Text>Requesting permissions...</Text>
+        <ActivityIndicator size="large" color="#7c3aed" />
+        <Text style={styles.loadingText}>Requesting permissions...</Text>
       </View>
     );
   }
@@ -227,8 +229,13 @@ export default function CameraScreen() {
   if (hasPermission === false) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={64} color="#d1d5db" />
-        <Text style={styles.permissionText}>Camera permission is required</Text>
+        <View style={styles.permissionIcon}>
+          <Ionicons name="camera-outline" size={64} color="#7c3aed" />
+        </View>
+        <Text style={styles.permissionTitle}>Camera Access Required</Text>
+        <Text style={styles.permissionText}>
+          Please allow camera access to take photos for site surveys
+        </Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermissions}>
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
@@ -238,39 +245,42 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Pressable 
+        <TouchableOpacity 
           onPress={() => router.back()}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-          accessibilityRole="button"
+          style={styles.headerButton}
+          activeOpacity={0.7}
         >
-          <Ionicons name="close" size={28} color="#1f2937" />
-        </Pressable>
+          <Ionicons name="arrow-back" size={28} color="#1f2937" />
+        </TouchableOpacity>
+        
         <View style={styles.headerTitle}>
           <Text style={styles.projectLabel}>Project</Text>
-          <Text style={styles.projectName}>{projectName}</Text>
+          <Text style={styles.projectName} numberOfLines={1}>{projectName}</Text>
         </View>
-        <Pressable 
+        
+        <TouchableOpacity 
           onPress={handleDone}
           disabled={isUploading}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-          accessibilityRole="button"
+          style={[styles.uploadButton, capturedPhotos.length === 0 && styles.uploadButtonDisabled]}
+          activeOpacity={0.7}
         >
           {isUploading ? (
             <View style={styles.uploadingContainer}>
-              <ActivityIndicator size="small" color="#7c3aed" />
+              <ActivityIndicator size="small" color="#fff" />
               <Text style={styles.uploadingText}>{uploadProgress}%</Text>
             </View>
           ) : (
-            <Text style={styles.doneText}>
-              {capturedPhotos.length > 0 ? `Upload (${capturedPhotos.length})` : 'Done'}
+            <Text style={styles.uploadButtonText}>
+              {capturedPhotos.length > 0 ? `Upload ${capturedPhotos.length}` : 'Done'}
             </Text>
           )}
-        </Pressable>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Quick caption input */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Caption Input */}
         <View style={styles.captionSection}>
           <TextInput
             style={styles.captionInput}
@@ -281,66 +291,84 @@ export default function CameraScreen() {
           />
         </View>
 
-        {/* Photo grid */}
-        <View style={styles.photoGrid}>
-          {capturedPhotos.map((photo) => (
-            <TouchableOpacity 
-              key={photo.id} 
-              style={styles.photoItem}
-              onPress={() => router.push({
-                pathname: '/annotate',
-                params: { 
-                  photoUri: photo.uri, 
-                  projectId, 
-                  projectName 
-                }
-              })}
-            >
-              <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => removePhoto(photo.id)}
+        {/* Photo Grid */}
+        {capturedPhotos.length > 0 ? (
+          <View style={styles.photoGrid}>
+            {capturedPhotos.map((photo) => (
+              <TouchableOpacity 
+                key={photo.id} 
+                style={styles.photoItem}
+                onPress={() => router.push({
+                  pathname: '/annotate',
+                  params: { 
+                    photoUri: photo.uri, 
+                    projectId, 
+                    projectName 
+                  }
+                })}
+                activeOpacity={0.8}
               >
-                <Ionicons name="close-circle" size={24} color="#ef4444" />
-              </TouchableOpacity>
-              {photo.gpsCoordinates && (
-                <View style={styles.gpsBadge}>
-                  <Ionicons name="location" size={12} color="#fff" />
+                <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => removePhoto(photo.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={28} color="#ef4444" />
+                </TouchableOpacity>
+                {photo.gpsCoordinates && (
+                  <View style={styles.gpsBadge}>
+                    <Ionicons name="location" size={14} color="#fff" />
+                  </View>
+                )}
+                <View style={styles.editBadge}>
+                  <Ionicons name="create-outline" size={16} color="#fff" />
                 </View>
-              )}
-              <View style={styles.editBadge}>
-                <Ionicons name="create-outline" size={14} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {capturedPhotos.length === 0 && (
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="images-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No photos captured yet</Text>
-            <Text style={styles.emptySubtext}>
-              Use the buttons below to take or select photos
+            <View style={styles.emptyIcon}>
+              <Ionicons name="images-outline" size={80} color="#7c3aed" />
+            </View>
+            <Text style={styles.emptyTitle}>No photos yet</Text>
+            <Text style={styles.emptyText}>
+              Use the camera button below to capture photos{'\n'}or select from your gallery
             </Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Camera controls */}
+      {/* Camera Controls - Large Touch Targets */}
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.controlButton} onPress={pickFromGallery}>
-          <Ionicons name="images" size={28} color="#7c3aed" />
+        <TouchableOpacity 
+          style={styles.controlButton} 
+          onPress={pickFromGallery}
+          activeOpacity={0.7}
+        >
+          <View style={styles.controlIconWrapper}>
+            <Ionicons name="images" size={32} color="#7c3aed" />
+          </View>
           <Text style={styles.controlLabel}>Gallery</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-          <View style={styles.captureInner}>
-            <Ionicons name="camera" size={32} color="#fff" />
+        <TouchableOpacity 
+          style={styles.captureButton} 
+          onPress={takePhoto}
+          activeOpacity={0.8}
+        >
+          <View style={styles.captureOuter}>
+            <View style={styles.captureInner}>
+              <Ionicons name="camera" size={40} color="#fff" />
+            </View>
           </View>
         </TouchableOpacity>
 
-        <View style={styles.photoCount}>
-          <Text style={styles.photoCountNumber}>{capturedPhotos.length}</Text>
+        <View style={styles.photoCountContainer}>
+          <View style={styles.photoCountBadge}>
+            <Text style={styles.photoCountNumber}>{capturedPhotos.length}</Text>
+          </View>
           <Text style={styles.controlLabel}>Photos</Text>
         </View>
       </View>
@@ -351,176 +379,100 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 32,
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  permissionIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  permissionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
   },
   permissionText: {
     fontSize: 16,
     color: '#6b7280',
-    marginTop: 16,
     textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
   },
   permissionButton: {
-    marginTop: 20,
     backgroundColor: '#7c3aed',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
   },
   permissionButtonText: {
     color: '#fff',
+    fontSize: 18,
     fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 24,
     paddingBottom: 16,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    gap: 12,
   },
   headerButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  headerButtonPressed: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    alignItems: 'center',
+    flex: 1,
   },
   projectLabel: {
     fontSize: 12,
     color: '#9ca3af',
+    fontWeight: '500',
   },
   projectName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#1f2937',
   },
-  doneText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#7c3aed',
-  },
-  content: {
-    flex: 1,
-  },
-  captionSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  captionInput: {
-    backgroundColor: '#f3f4f6',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
-  },
-  photoItem: {
-    width: '33.33%',
-    aspectRatio: 1,
-    padding: 4,
-  },
-  photoThumbnail: {
-    flex: 1,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-  },
-  removeButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#fff',
+  uploadButton: {
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: 12,
-  },
-  gpsBadge: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: '#10b981',
-    padding: 4,
-    borderRadius: 4,
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: '#7c3aed',
-    padding: 6,
-    borderRadius: 4,
-  },
-  emptyState: {
+    minWidth: 100,
     alignItems: 'center',
-    paddingVertical: 64,
   },
-  emptyText: {
-    fontSize: 18,
+  uploadButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    backgroundColor: '#f9fafb',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  controlButton: {
-    alignItems: 'center',
-    width: 80,
-  },
-  controlLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureInner: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#7c3aed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photoCount: {
-    alignItems: 'center',
-    width: 80,
-  },
-  photoCountNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#7c3aed',
   },
   uploadingContainer: {
     flexDirection: 'row',
@@ -530,6 +482,152 @@ const styles = StyleSheet.create({
   uploadingText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#fff',
+  },
+  content: {
+    flex: 1,
+  },
+  captionSection: {
+    padding: 16,
+  },
+  captionInput: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    gap: 8,
+  },
+  photoItem: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  photoThumbnail: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e5e7eb',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+  },
+  gpsBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: '#10b981',
+    padding: 6,
+    borderRadius: 6,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#7c3aed',
+    padding: 6,
+    borderRadius: 6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  controlButton: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  controlIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  controlLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  captureButton: {
+    alignItems: 'center',
+  },
+  captureOuter: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+  },
+  captureInner: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#7c3aed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoCountContainer: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  photoCountBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  photoCountNumber: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#7c3aed',
   },
 });

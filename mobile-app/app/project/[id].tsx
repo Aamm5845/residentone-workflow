@@ -125,13 +125,13 @@ export default function ProjectDetailScreen() {
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleStartCapture}>
-            <Ionicons name="camera" size={24} color="#fff" />
+          <TouchableOpacity style={styles.primaryButton} onPress={handleStartCapture} activeOpacity={0.8}>
+            <Ionicons name="camera" size={28} color="#fff" />
             <Text style={styles.primaryButtonText}>Capture Photos</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Ionicons name="images-outline" size={24} color="#7c3aed" />
+          <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
+            <Ionicons name="images-outline" size={26} color="#7c3aed" />
             <Text style={styles.secondaryButtonText}>View Gallery</Text>
           </TouchableOpacity>
         </View>
@@ -268,37 +268,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actions: {
-    padding: 16,
-    gap: 12,
+    padding: 20,
+    gap: 14,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#7c3aed',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 22,
+    borderRadius: 16,
+    gap: 12,
   },
   primaryButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 20,
+    borderRadius: 16,
+    gap: 10,
     borderWidth: 2,
     borderColor: '#7c3aed',
   },
   secondaryButtonText: {
     color: '#7c3aed',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
