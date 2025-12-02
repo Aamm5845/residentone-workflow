@@ -47,15 +47,15 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
   const [showLibrary, setShowLibrary] = useState(!isTabletDevice)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
   const [sortBy, setSortBy] = useState<'order' | 'name' | 'category' | 'status'>('order')
-  // iPad: Tab-based right sidebar instead of showing all panels
+  // iPad: Tab-based right sidebar - SHOW chat by default
   const [activeRightPanel, setActiveRightPanel] = useState<'chat' | 'activity' | 'ai'>('chat')
-  const [showRightSidebar, setShowRightSidebar] = useState(!isTabletDevice)
+  const [showRightSidebar, setShowRightSidebar] = useState(true) // Always show chat sidebar
   
   // Update showLibrary when device type changes (e.g., on resize for testing)
   useEffect(() => {
     if (isTabletDevice) {
       setShowLibrary(false)
-      setShowRightSidebar(false)
+      // Keep right sidebar (chat) visible on iPad
     }
   }, [isTabletDevice])
 
