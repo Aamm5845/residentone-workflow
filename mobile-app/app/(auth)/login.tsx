@@ -18,13 +18,19 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [staySignedIn, setStaySignedIn] = useState(true);
 
-  const { login, isLoading, error, serverUrl } = useAuthStore();
+  const { login, isLoading, error, serverUrl, setRememberMe } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
       useAuthStore.getState().setError('Please enter email and password');
       return;
+    }
+
+    // Set remember me preference before login
+    if (setRememberMe) {
+      setRememberMe(staySignedIn);
     }
 
     const success = await login(email, password);
@@ -103,24 +109,39 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          {/* Stay Signed In Checkbox */}
+          <TouchableOpacity 
+            style={styles.checkboxRow}
+            onPress={() => setStaySignedIn(!staySignedIn)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, staySignedIn && styles.checkboxChecked]}>
+              {staySignedIn && (
+                <Ionicons name="checkmark" size={18} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.checkboxLabel}>Stay signed in</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="log-in-outline" size={20} color="#fff" />
+                <Ionicons name="log-in-outline" size={24} color="#fff" />
                 <Text style={styles.loginButtonText}>Sign In</Text>
               </>
             )}
           </TouchableOpacity>
 
           <Link href="/(auth)/setup" asChild>
-            <TouchableOpacity style={styles.setupLink}>
-              <Ionicons name="settings-outline" size={16} color="#7c3aed" />
+            <TouchableOpacity style={styles.setupLink} activeOpacity={0.7}>
+              <Ionicons name="settings-outline" size={18} color="#7c3aed" />
               <Text style={styles.setupLinkText}>Change Server</Text>
             </TouchableOpacity>
           </Link>
@@ -142,16 +163,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
     marginBottom: 32,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 90,
+    height: 90,
+    borderRadius: 24,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -169,54 +190,55 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 20,
+    padding: 28,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   formTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 4,
     textAlign: 'center',
   },
   serverInfo: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#9ca3af',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fef2f2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
   },
   errorText: {
     color: '#dc2626',
-    marginLeft: 8,
+    marginLeft: 10,
     flex: 1,
+    fontSize: 15,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
@@ -233,6 +255,32 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 16,
   },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
   loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,7 +288,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#7c3aed',
     paddingVertical: 20,
     borderRadius: 14,
-    marginTop: 12,
     gap: 10,
   },
   loginButtonDisabled: {
@@ -256,18 +303,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
-    paddingVertical: 12,
-    gap: 6,
+    paddingVertical: 14,
+    gap: 8,
   },
   setupLinkText: {
     color: '#7c3aed',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   footerText: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 28,
   },
 });

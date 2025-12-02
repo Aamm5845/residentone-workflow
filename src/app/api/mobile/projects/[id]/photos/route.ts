@@ -27,7 +27,7 @@ async function verifyToken(request: NextRequest) {
   }
 }
 
-// Get photos for a project
+// Get photos for a project - from both ProjectUpdatePhotos AND Assets
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,17 +40,91 @@ export async function GET(
 
     const { id } = await params;
 
+    // Get photos from ProjectUpdatePhoto
     const updates = await prisma.projectUpdate.findMany({
       where: { projectId: id },
       include: { photos: { orderBy: { createdAt: 'desc' } } },
       orderBy: { createdAt: 'desc' }
     });
 
-    const photos = updates.flatMap(update => 
-      update.photos.map(photo => ({ ...photo, updateId: update.id, updateTitle: update.title }))
+    const updatePhotos = updates.flatMap(update => 
+      update.photos.map(photo => ({
+        id: photo.id,
+        fileUrl: photo.fileUrl,
+        caption: photo.caption,
+        takenAt: photo.takenAt,
+        createdAt: photo.createdAt,
+        gpsCoordinates: photo.gpsCoordinates,
+        tags: photo.tags,
+        source: 'update',
+        updateId: update.id,
+        updateTitle: update.title
+      }))
     );
 
-    return NextResponse.json({ photos }, { headers: corsHeaders });
+    // Get photos from Assets table (these include Dropbox photos)
+    const assets = await prisma.asset.findMany({
+      where: { 
+        projectId: id,
+        type: 'IMAGE'
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const assetPhotos = await Promise.all(assets.map(async (asset) => {
+      let fileUrl = asset.fileUrl;
+      
+      // If it's a Dropbox path, get a fresh shared link
+      if (asset.dropboxPath && dropboxService.isConfigured()) {
+        try {
+          const sharedLink = await dropboxService.getSharedLink(asset.dropboxPath);
+          fileUrl = sharedLink.replace('?dl=0', '?raw=1');
+        } catch (e) {
+          // Use existing URL or try thumbnail
+          if (asset.fileUrl?.startsWith('dropbox://')) {
+            try {
+              const thumbnail = await dropboxService.getThumbnail(asset.dropboxPath);
+              if (thumbnail) {
+                fileUrl = `data:image/jpeg;base64,${thumbnail.toString('base64')}`;
+              }
+            } catch {
+              fileUrl = null;
+            }
+          }
+        }
+      }
+      
+      return {
+        id: asset.id,
+        fileUrl: fileUrl || asset.fileUrl,
+        caption: asset.caption,
+        takenAt: asset.createdAt,
+        createdAt: asset.createdAt,
+        gpsCoordinates: null,
+        tags: asset.tags,
+        source: 'asset',
+        fileName: asset.fileName,
+        dropboxPath: asset.dropboxPath
+      };
+    }));
+
+    // Combine and dedupe (prefer update photos over assets if same file)
+    const seenUrls = new Set<string>();
+    const allPhotos = [...updatePhotos, ...assetPhotos].filter(photo => {
+      if (!photo.fileUrl) return false;
+      if (seenUrls.has(photo.fileUrl)) return false;
+      seenUrls.add(photo.fileUrl);
+      return true;
+    });
+
+    // Sort by date
+    allPhotos.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    return NextResponse.json({ photos: allPhotos }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error fetching photos:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders });

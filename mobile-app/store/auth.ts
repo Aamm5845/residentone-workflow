@@ -18,11 +18,13 @@ interface AuthState {
   serverUrl: string;
   isLoading: boolean;
   error: string | null;
+  rememberMe: boolean;
   setToken: (token: string | null) => Promise<void>;
   setUser: (user: User | null) => void;
   setServerUrl: (url: string) => void;
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  setRememberMe: (remember: boolean) => void;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -60,10 +62,11 @@ const useAuthStore = create<AuthState>()(
       serverUrl: DEFAULT_SERVER_URL,
       isLoading: false,
       error: null,
+      rememberMe: true,
 
       setToken: async (token: string | null) => {
         set({ token });
-        if (token) {
+        if (token && get().rememberMe) {
           await storage.setItem('userToken', token);
         } else {
           await storage.removeItem('userToken');
@@ -74,6 +77,7 @@ const useAuthStore = create<AuthState>()(
       setServerUrl: (url: string) => set({ serverUrl: url }),
       setError: (error: string | null) => set({ error }),
       setLoading: (loading: boolean) => set({ isLoading: loading }),
+      setRememberMe: (remember: boolean) => set({ rememberMe: remember }),
 
       login: async (email: string, password: string) => {
         const { serverUrl } = get();
@@ -106,11 +110,19 @@ const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         await get().setToken(null);
-        set({ user: null, error: null });
+        set({ user: null, error: null, token: null });
+        await storage.removeItem('userToken');
       },
 
       checkAuth: async () => {
-        const { token, serverUrl } = get();
+        const { token, serverUrl, rememberMe } = get();
+        
+        // If not remembering, don't auto-login
+        if (!rememberMe) {
+          set({ token: null, user: null });
+          return;
+        }
+        
         if (!token) return;
 
         set({ isLoading: true });
@@ -138,8 +150,10 @@ const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       storage: createJSONStorage(() => storage),
       partialize: (state) => ({
-        token: state.token,
+        token: state.rememberMe ? state.token : null,
+        user: state.rememberMe ? state.user : null,
         serverUrl: state.serverUrl,
+        rememberMe: state.rememberMe,
       }),
     }
   )
