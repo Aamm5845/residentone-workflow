@@ -38,8 +38,17 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/favicon.png"
+      "output": "static",
+      "favicon": "./assets/favicon.png",
+      "name": "ResidentOne Mobile",
+      "shortName": "ResidentOne",
+      "description": "Photo documentation and site survey app",
+      "backgroundColor": "#7c3aed",
+      "themeColor": "#7c3aed",
+      "lang": "en",
+      "startUrl": "/",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

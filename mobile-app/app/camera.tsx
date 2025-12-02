@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Image,
   TextInput,
@@ -163,16 +164,24 @@ export default function CameraScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <Pressable 
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+          accessibilityRole="button"
+        >
           <Ionicons name="close" size={28} color="#1f2937" />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerTitle}>
           <Text style={styles.projectLabel}>Project</Text>
           <Text style={styles.projectName}>{projectName}</Text>
         </View>
-        <TouchableOpacity onPress={handleDone}>
+        <Pressable 
+          onPress={handleDone}
+          style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+          accessibilityRole="button"
+        >
           <Text style={styles.doneText}>Done</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.content}>
@@ -190,7 +199,18 @@ export default function CameraScreen() {
         {/* Photo grid */}
         <View style={styles.photoGrid}>
           {capturedPhotos.map((photo) => (
-            <View key={photo.id} style={styles.photoItem}>
+            <TouchableOpacity 
+              key={photo.id} 
+              style={styles.photoItem}
+              onPress={() => router.push({
+                pathname: '/annotate',
+                params: { 
+                  photoUri: photo.uri, 
+                  projectId, 
+                  projectName 
+                }
+              })}
+            >
               <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
               <TouchableOpacity
                 style={styles.removeButton}
@@ -203,7 +223,10 @@ export default function CameraScreen() {
                   <Ionicons name="location" size={12} color="#fff" />
                 </View>
               )}
-            </View>
+              <View style={styles.editBadge}>
+                <Ionicons name="create-outline" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -278,6 +301,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  headerButtonPressed: {
+    backgroundColor: '#f3f4f6',
+  },
   headerTitle: {
     alignItems: 'center',
   },
@@ -337,6 +367,14 @@ const styles = StyleSheet.create({
     left: 8,
     backgroundColor: '#10b981',
     padding: 4,
+    borderRadius: 4,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#7c3aed',
+    padding: 6,
     borderRadius: 4,
   },
   emptyState: {
