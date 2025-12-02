@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MyTimesheet } from './MyTimesheet'
 import { TeamActivity } from './TeamActivity'
 import { TimeReports } from './TimeReports'
-import { Clock, Users, BarChart3 } from 'lucide-react'
+import { TeamTimesheets } from './TeamTimesheets'
+import { Clock, Users, BarChart3, UserSearch } from 'lucide-react'
 
 interface TimelineContentProps {
   userId: string
@@ -22,7 +23,7 @@ export default function TimelineContent({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-      <TabsList className="bg-white border border-gray-200 p-1">
+      <TabsList className="bg-white border border-gray-200 p-1 flex-wrap h-auto gap-1">
         <TabsTrigger 
           value="timesheet" 
           className="flex items-center gap-2 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700"
@@ -38,13 +39,22 @@ export default function TimelineContent({
           Team Activity
         </TabsTrigger>
         {isOwnerOrAdmin && (
-          <TabsTrigger 
-            value="reports" 
-            className="flex items-center gap-2 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Reports
-          </TabsTrigger>
+          <>
+            <TabsTrigger 
+              value="team-timesheets" 
+              className="flex items-center gap-2 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700"
+            >
+              <UserSearch className="w-4 h-4" />
+              Team Timesheets
+            </TabsTrigger>
+            <TabsTrigger 
+              value="reports" 
+              className="flex items-center gap-2 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Reports
+            </TabsTrigger>
+          </>
         )}
       </TabsList>
 
@@ -57,9 +67,15 @@ export default function TimelineContent({
       </TabsContent>
 
       {isOwnerOrAdmin && (
-        <TabsContent value="reports" className="mt-0">
-          <TimeReports />
-        </TabsContent>
+        <>
+          <TabsContent value="team-timesheets" className="mt-0">
+            <TeamTimesheets />
+          </TabsContent>
+          
+          <TabsContent value="reports" className="mt-0">
+            <TimeReports />
+          </TabsContent>
+        </>
       )}
     </Tabs>
   )
