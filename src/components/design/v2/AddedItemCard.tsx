@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import DynamicIcon from './DynamicIcon'
+import { useDeviceType } from '@/hooks/useDeviceType'
 
 interface Props {
   item: any
@@ -57,6 +58,10 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
   const [isUploadingFile, setIsUploadingFile] = useState(false)
+  
+  // iPad/Tablet detection for responsive styling
+  const { isIPad, isTablet } = useDeviceType()
+  const isTabletDevice = isIPad || isTablet
 
   // Debug: Log item data
   React.useEffect(() => {
@@ -299,51 +304,58 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
         ? "opacity-60 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200" 
         : "bg-white border-gray-100 hover:border-indigo-200 hover:shadow-lg"
     )}>
-      {/* Card Header */}
-      <div className="p-4">
+      {/* Card Header - iPad: larger padding and touch targets */}
+      <div className={cn("p-4", isTabletDevice && "p-5")}>
         {/* Top row: Checkbox, Name, Actions */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Completion Checkbox */}
+          <div className={cn("flex items-start gap-3 flex-1 min-w-0", isTabletDevice && "gap-4")}>
+            {/* Completion Checkbox - iPad: larger touch target */}
             <button
               onClick={toggleComplete}
-              className="flex-shrink-0 mt-0.5 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full"
+              className={cn(
+                "flex-shrink-0 mt-0.5 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full",
+                isTabletDevice && "p-1 -m-1" // Larger touch area on iPad
+              )}
               aria-label={isCompleted ? 'Mark as pending' : 'Mark as complete'}
               aria-checked={isCompleted}
             >
               {isCompleted ? (
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
+                <CheckCircle2 className={cn("w-6 h-6 text-green-500", isTabletDevice && "w-8 h-8")} />
               ) : (
-                <Circle className="w-6 h-6 text-gray-300 hover:text-indigo-400" />
+                <Circle className={cn("w-6 h-6 text-gray-300 hover:text-indigo-400", isTabletDevice && "w-8 h-8")} />
               )}
             </button>
 
-            {/* Item Info */}
+            {/* Item Info - iPad: larger text */}
             <div className="flex-1 min-w-0">
               <h3 className={cn(
-                "font-semibold text-base leading-tight",
-                isCompleted ? "line-through text-gray-400" : "text-gray-900"
+                "font-semibold leading-tight",
+                isCompleted ? "line-through text-gray-400" : "text-gray-900",
+                isTabletDevice ? "text-lg" : "text-base"
               )}>
                 {libraryItem.name}
               </h3>
-              {/* Category */}
-              <p className="text-xs text-gray-500 mt-0.5">
+              {/* Category - iPad: larger text */}
+              <p className={cn(
+                "text-gray-500 mt-0.5",
+                isTabletDevice ? "text-sm" : "text-xs"
+              )}>
                 {libraryItem.category || 'Uncategorized'}
               </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Action Buttons - iPad: larger buttons */}
+          <div className={cn("flex items-center flex-shrink-0", isTabletDevice ? "gap-2" : "gap-1")}>
           {/* More Menu */}
           <div className="relative">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
-              className="h-8 w-8 p-0"
+              className={cn("p-0", isTabletDevice ? "h-11 w-11" : "h-8 w-8")}
             >
-              <MoreVertical className="w-4 h-4" />
+              <MoreVertical className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
             </Button>
 
             {showMenu && (
@@ -368,65 +380,94 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
             )}
           </div>
 
-          {/* Expand/Collapse Toggle */}
+          {/* Expand/Collapse Toggle - iPad: larger button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleExpanded}
-            className="h-8 w-8 p-0 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className={cn(
+              "p-0 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+              isTabletDevice ? "h-11 w-11" : "h-8 w-8"
+            )}
             aria-expanded={expanded}
             aria-label={expanded ? 'Collapse details' : 'Expand details'}
           >
             {expanded ? (
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
             ) : (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
             )}
           </Button>
         </div>
         </div>
 
-        {/* Content indicators - compact row */}
+        {/* Content indicators - iPad: larger text and icons */}
         {hasContent && (
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
+          <div className={cn(
+            "flex items-center mt-3 pt-3 border-t border-gray-100",
+            isTabletDevice ? "gap-4" : "gap-3"
+          )}>
             {(images.length + attachments.length) > 0 && (
               <div className="flex items-center gap-1.5 text-blue-600">
-                <Paperclip className="w-4 h-4" />
-                <span className="text-sm font-medium">{images.length + attachments.length} files</span>
+                <Paperclip className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
+                <span className={cn("font-medium", isTabletDevice ? "text-base" : "text-sm")}>
+                  {images.length + attachments.length} files
+                </span>
               </div>
             )}
             {links.length > 0 && (
               <div className="flex items-center gap-1.5 text-purple-600">
-                <LinkIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">{links.length} links</span>
+                <LinkIcon className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
+                <span className={cn("font-medium", isTabletDevice ? "text-base" : "text-sm")}>
+                  {links.length} links
+                </span>
               </div>
             )}
             {itemNotes.length > 0 && (
               <div className="flex items-center gap-1.5 text-amber-600">
-                <StickyNote className="w-4 h-4" />
-                <span className="text-sm font-medium">{itemNotes.length} notes</span>
+                <StickyNote className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
+                <span className={cn("font-medium", isTabletDevice ? "text-base" : "text-sm")}>
+                  {itemNotes.length} notes
+                </span>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - iPad: larger padding and text */}
       {expanded && (
-        <div className="border-t border-gray-100 p-4 space-y-4 transition-all duration-300">
+        <div className={cn(
+          "border-t border-gray-100 space-y-4 transition-all duration-300",
+          isTabletDevice ? "p-5 space-y-5" : "p-4"
+        )}>
         {/* Notes */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className={cn(
+            "block font-medium text-gray-700 mb-2",
+            isTabletDevice ? "text-base" : "text-sm"
+          )}>
             Notes for Renderer ({itemNotes.length})
           </label>
           
-          {/* Existing Notes List */}
+          {/* Existing Notes List - iPad: larger text */}
           {itemNotes.length > 0 && (
-            <div className="mb-3 space-y-2 max-h-64 overflow-y-auto">
+            <div className={cn("mb-3 space-y-2 overflow-y-auto", isTabletDevice ? "max-h-80 space-y-3" : "max-h-64")}>
               {itemNotes.map((note: any) => (
-                <div key={note.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
-                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                <div key={note.id} className={cn(
+                  "bg-gray-50 rounded-lg border border-gray-200",
+                  isTabletDevice ? "p-4" : "p-3"
+                )}>
+                  <p className={cn(
+                    "text-gray-900 whitespace-pre-wrap",
+                    isTabletDevice ? "text-base leading-relaxed" : "text-sm"
+                  )}>
+                    {note.content}
+                  </p>
+                  <div className={cn(
+                    "mt-2 flex items-center text-gray-500",
+                    isTabletDevice ? "text-sm" : "text-xs"
+                  )}>
                     <span className="font-medium">{note.author.name || note.author.email}</span>
                     <span className="mx-1">•</span>
                     <span>{formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
@@ -436,24 +477,30 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
             </div>
           )}
           
-          {/* Add New Note */}
-          <div className="space-y-2">
+          {/* Add New Note - iPad: larger textarea and button */}
+          <div className={cn("space-y-2", isTabletDevice && "space-y-3")}>
             <textarea
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
               placeholder="Add a new note, specification, or detail for the 3D renderer..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              rows={3}
+              className={cn(
+                "w-full border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent",
+                isTabletDevice ? "px-4 py-3 text-base" : "px-3 py-2 text-sm"
+              )}
+              rows={isTabletDevice ? 4 : 3}
             />
             <Button
               onClick={saveNote}
               disabled={isSavingNote || !newNoteContent.trim()}
-              size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size={isTabletDevice ? "default" : "sm"}
+              className={cn(
+                "bg-indigo-600 hover:bg-indigo-700 text-white",
+                isTabletDevice && "h-11 px-5 text-base"
+              )}
             >
               {isSavingNote ? (
                 <>
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  <Loader2 className={cn("mr-1 animate-spin", isTabletDevice ? "w-4 h-4" : "w-3 h-3")} />
                   Saving...
                 </>
               ) : (
@@ -463,22 +510,25 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
           </div>
         </div>
 
-        {/* Files & Images - Unified Upload Section */}
+        {/* Files & Images - Unified Upload Section - iPad: larger elements */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-1">
-              <ImageIcon className="w-4 h-4" />
+          <div className={cn("flex items-center justify-between", isTabletDevice ? "mb-3" : "mb-2")}>
+            <label className={cn(
+              "font-medium text-gray-700 flex items-center",
+              isTabletDevice ? "text-base space-x-2" : "text-sm space-x-1"
+            )}>
+              <ImageIcon className={cn(isTabletDevice ? "w-5 h-5" : "w-4 h-4")} />
               <span>Files & Images</span>
               <span className="text-gray-500">({images.length + attachments.length} total)</span>
             </label>
             <Button 
-              size="sm" 
+              size={isTabletDevice ? "default" : "sm"}
               variant="outline" 
-              className="h-7 text-xs"
+              className={cn(isTabletDevice ? "h-10 px-4 text-sm" : "h-7 text-xs")}
               disabled={isUploadingFile}
               onClick={() => document.getElementById(`file-upload-${item.id}`)?.click()}
             >
-              <Plus className="w-3 h-3 mr-1" />
+              <Plus className={cn("mr-1", isTabletDevice ? "w-4 h-4" : "w-3 h-3")} />
               {isUploadingFile ? 'Uploading...' : 'Upload'}
             </Button>
             <input

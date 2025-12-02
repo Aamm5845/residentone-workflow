@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { MentionTextarea } from '@/components/ui/mention-textarea'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+import { useDeviceType } from '@/hooks/useDeviceType'
 
 interface Reaction {
   emoji: string
@@ -98,6 +99,10 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [assignedUser, setAssignedUser] = useState<AssignedUser | null>(null)
   const [newMessage, setNewMessage] = useState('')
+  
+  // iPad/Tablet detection for responsive styling
+  const { isIPad, isTablet } = useDeviceType()
+  const isTabletDevice = isIPad || isTablet
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [loading, setLoading] = useState(true)
@@ -447,9 +452,19 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
   }
 
   return (
-    <Card className={cn("flex flex-col h-[calc(100vh-180px)] max-h-[800px] min-h-[500px]", className)}>
-      {/* Chat Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 flex-shrink-0">
+    <Card className={cn(
+      "flex flex-col",
+      // iPad: Use more forgiving height to prevent cropping
+      isTabletDevice 
+        ? "h-[calc(100vh-120px)] min-h-[400px]" 
+        : "h-[calc(100vh-180px)] max-h-[800px] min-h-[500px]",
+      className
+    )}>
+      {/* Chat Header - iPad: larger touch targets */}
+      <div className={cn(
+        "flex items-center gap-2 border-b border-gray-200 flex-shrink-0",
+        isTabletDevice ? "px-5 py-4" : "px-4 py-3"
+      )}
         <MessageCircle className="w-5 h-5 text-gray-600" />
         <h3 className="font-semibold text-gray-900 text-base">
           {stageName}

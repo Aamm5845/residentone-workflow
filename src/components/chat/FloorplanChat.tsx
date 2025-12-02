@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useDeviceType } from '@/hooks/useDeviceType'
 import { format } from 'date-fns'
 import { MoreHorizontal, Edit, Trash2, MessageCircle, Paperclip, X, Download, Smile, Reply, Image, File } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,10 @@ export function FloorplanChat({ projectId, phaseName, className }: FloorplanChat
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [newMessage, setNewMessage] = useState('')
+  
+  // iPad/Tablet detection for responsive styling
+  const { isIPad, isTablet } = useDeviceType()
+  const isTabletDevice = isIPad || isTablet
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [loading, setLoading] = useState(true)
@@ -416,9 +421,19 @@ export function FloorplanChat({ projectId, phaseName, className }: FloorplanChat
   }
 
   return (
-    <Card className={cn("flex flex-col h-[calc(100vh-180px)] max-h-[800px] min-h-[500px]", className)}>
-      {/* Chat Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 flex-shrink-0">
+    <Card className={cn(
+      "flex flex-col",
+      // iPad: Use more forgiving height to prevent cropping
+      isTabletDevice 
+        ? "h-[calc(100vh-120px)] min-h-[400px]" 
+        : "h-[calc(100vh-180px)] max-h-[800px] min-h-[500px]",
+      className
+    )}>
+      {/* Chat Header - iPad: larger touch targets */}
+      <div className={cn(
+        "flex items-center gap-2 border-b border-gray-200 flex-shrink-0",
+        isTabletDevice ? "px-5 py-4" : "px-4 py-3"
+      )}
         <MessageCircle className="w-5 h-5 text-gray-600" />
         <h3 className="font-semibold text-gray-900 text-base">
           {phaseName}
