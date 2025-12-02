@@ -4,73 +4,22 @@
     "slug": "residentone-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "scheme": "residentone",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#7c3aed"
-    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.residentone.mobile",
-      "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to capture photos for site surveys.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload existing photos.",
-        "NSLocationWhenInUseUsageDescription": "This app uses your location to tag photos with GPS coordinates."
-      }
+      "bundleIdentifier": "com.residentone.mobile"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#7c3aed"
-      },
-      "package": "com.residentone.mobile",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
-      ]
+      "package": "com.residentone.mobile"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/favicon.png",
-      "name": "ResidentOne Mobile",
-      "shortName": "ResidentOne",
-      "description": "Photo documentation and site survey app",
-      "backgroundColor": "#7c3aed",
-      "themeColor": "#7c3aed",
-      "lang": "en",
-      "startUrl": "/",
-      "display": "standalone",
-      "orientation": "portrait"
+      "output": "static"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for taking photos."
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location for GPS tagging."
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
-          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos."
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
