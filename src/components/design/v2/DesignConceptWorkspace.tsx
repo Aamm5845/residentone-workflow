@@ -13,7 +13,9 @@ import {
   Sparkles,
   X,
   PanelRightOpen,
-  PanelRightClose
+  PanelRightClose,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import useSWR, { useSWRConfig } from 'swr'
 import { toast } from 'sonner'
@@ -50,6 +52,7 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
   // iPad: Tab-based right sidebar - SHOW chat by default
   const [activeRightPanel, setActiveRightPanel] = useState<'chat' | 'activity' | 'ai'>('chat')
   const [showRightSidebar, setShowRightSidebar] = useState(true) // Always show chat sidebar
+  const [isRightSidebarFullscreen, setIsRightSidebarFullscreen] = useState(false) // iPad: fullscreen mode
   
   // Update showLibrary when device type changes (e.g., on resize for testing)
   useEffect(() => {
@@ -368,14 +371,16 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
           <div className={cn(
             "bg-white border-l border-gray-200 flex flex-col overflow-hidden flex-shrink-0",
             isTabletDevice 
-              ? "absolute right-0 top-0 bottom-0 w-80 z-30 shadow-xl" 
+              ? isRightSidebarFullscreen
+                ? "absolute inset-0 z-40" // Fullscreen mode
+                : "absolute right-0 top-0 bottom-0 w-[420px] z-30 shadow-xl" // Wider panel (was w-80)
               : "w-96"
           )}>
             {/* iPad: Tab bar for switching panels */}
             {isTabletDevice ? (
               <>
                 {/* Tab Header */}
-                <div className="flex items-center justify-between border-b border-gray-200 px-2 py-2 bg-gray-50">
+                <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 bg-gray-50">
                   <div className="flex gap-1">
                     <Button
                       variant={activeRightPanel === 'chat' ? 'default' : 'ghost'}
@@ -405,14 +410,33 @@ export default function DesignConceptWorkspace({ stageId, roomId, projectId }: P
                       AI
                     </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowRightSidebar(false)}
-                    className="h-10 w-10 p-0"
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
+                  <div className="flex gap-1">
+                    {/* Fullscreen toggle */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsRightSidebarFullscreen(!isRightSidebarFullscreen)}
+                      className="h-10 w-10 p-0"
+                      title={isRightSidebarFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                    >
+                      {isRightSidebarFullscreen ? (
+                        <Minimize2 className="w-5 h-5" />
+                      ) : (
+                        <Maximize2 className="w-5 h-5" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowRightSidebar(false)
+                        setIsRightSidebarFullscreen(false)
+                      }}
+                      className="h-10 w-10 p-0"
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Tab Content */}
