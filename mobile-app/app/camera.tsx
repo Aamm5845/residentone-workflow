@@ -21,7 +21,7 @@ import { CapturedPhoto } from '../types';
 import useAuthStore from '../store/auth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PHOTO_SIZE = (SCREEN_WIDTH - 48) / 3;
+const PHOTO_SIZE = (SCREEN_WIDTH - 60) / 2; // 2 columns with better spacing
 
 export default function CameraScreen() {
   const { projectId, projectName } = useLocalSearchParams<{
@@ -295,36 +295,39 @@ export default function CameraScreen() {
         {capturedPhotos.length > 0 ? (
           <View style={styles.photoGrid}>
             {capturedPhotos.map((photo) => (
-              <TouchableOpacity 
-                key={photo.id} 
-                style={styles.photoItem}
-                onPress={() => router.push({
-                  pathname: '/annotate',
-                  params: { 
-                    photoUri: photo.uri, 
-                    projectId, 
-                    projectName 
-                  }
-                })}
-                activeOpacity={0.8}
-              >
-                <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removePhoto(photo.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="close-circle" size={28} color="#ef4444" />
-                </TouchableOpacity>
-                {photo.gpsCoordinates && (
-                  <View style={styles.gpsBadge}>
-                    <Ionicons name="location" size={14} color="#fff" />
-                  </View>
-                )}
-                <View style={styles.editBadge}>
-                  <Ionicons name="create-outline" size={16} color="#fff" />
+              <View key={photo.id} style={styles.photoItemWrapper}>
+                <View style={styles.photoItem}>
+                  <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removePhoto(photo.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle-outline" size={32} color="#fff" />
+                  </TouchableOpacity>
+                  {photo.gpsCoordinates && (
+                    <View style={styles.gpsBadge}>
+                      <Ionicons name="location" size={14} color="#fff" />
+                    </View>
+                  )}
                 </View>
-              </TouchableOpacity>
+                {/* Big Edit Button */}
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => router.push({
+                    pathname: '/annotate',
+                    params: { 
+                      photoUri: photo.uri, 
+                      projectId, 
+                      projectName 
+                    }
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="create" size={20} color="#fff" />
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         ) : (
@@ -502,25 +505,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 12,
-    gap: 8,
+    gap: 12,
+  },
+  photoItemWrapper: {
+    width: PHOTO_SIZE,
   },
   photoItem: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#e5e7eb',
   },
   photoThumbnail: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#e5e7eb',
   },
   removeButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    padding: 2,
   },
   gpsBadge: {
     position: 'absolute',
@@ -528,15 +535,22 @@ const styles = StyleSheet.create({
     left: 8,
     backgroundColor: '#10b981',
     padding: 6,
-    borderRadius: 6,
+    borderRadius: 8,
   },
-  editBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#7c3aed',
-    padding: 6,
-    borderRadius: 6,
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
