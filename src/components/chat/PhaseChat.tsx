@@ -464,7 +464,7 @@ export function PhaseChat({ stageId, stageName, className }: PhaseChatProps) {
       <div className={cn(
         "flex items-center gap-2 border-b border-gray-200 flex-shrink-0",
         isTabletDevice ? "px-5 py-4" : "px-4 py-3"
-      )}
+      )}>
         <MessageCircle className="w-5 h-5 text-gray-600" />
         <h3 className="font-semibold text-gray-900 text-base">
           {stageName}
