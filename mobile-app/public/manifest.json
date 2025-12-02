@@ -1,7 +1,7 @@
 {
-  "name": "ResidentOne Mobile",
-  "short_name": "ResidentOne",
-  "description": "Photo documentation and site survey app for construction projects",
+  "name": "Meisner Interiors Mobile",
+  "short_name": "Meisner",
+  "description": "Photo documentation and site survey app",
   "start_url": "/",
   "id": "/",
   "display": "standalone",
@@ -10,7 +10,6 @@
   "orientation": "portrait",
   "scope": "/",
   "lang": "en",
-  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icon.png",
@@ -29,14 +28,7 @@
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ],
-  "screenshots": [],
   "prefer_related_applications": false
 }

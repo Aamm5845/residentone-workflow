@@ -52,8 +52,8 @@ export default function LoginScreen() {
           <View style={styles.iconContainer}>
             <Ionicons name="camera" size={48} color="#fff" />
           </View>
-          <Text style={styles.title}>ResidentOne Mobile</Text>
-          <Text style={styles.subtitle}>Photo Documentation System</Text>
+          <Text style={styles.title}>Meisner Interiors</Text>
+          <Text style={styles.subtitle}>Photo Documentation</Text>
         </View>
 
         <View style={styles.formCard}>
