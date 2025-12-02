@@ -66,17 +66,13 @@ export default function TimelineContent({
         <TeamActivity />
       </TabsContent>
 
-      {isOwnerOrAdmin && (
-        <>
-          <TabsContent value="team-timesheets" className="mt-0">
-            <TeamTimesheets />
-          </TabsContent>
-          
-          <TabsContent value="reports" className="mt-0">
-            <TimeReports />
-          </TabsContent>
-        </>
-      )}
+      <TabsContent value="team-timesheets" className="mt-0">
+        {isOwnerOrAdmin && <TeamTimesheets />}
+      </TabsContent>
+      
+      <TabsContent value="reports" className="mt-0">
+        {isOwnerOrAdmin && <TimeReports />}
+      </TabsContent>
     </Tabs>
   )
 }
