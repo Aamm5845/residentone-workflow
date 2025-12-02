@@ -10,12 +10,14 @@ import {
   ScrollView,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { CapturedPhoto } from '../types';
+import useAuthStore from '../store/auth';
 
 export default function CameraScreen() {
   const { projectId, projectName } = useLocalSearchParams<{
@@ -28,6 +30,10 @@ export default function CameraScreen() {
   const [currentNotes, setCurrentNotes] = useState('');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  const { token, serverUrl } = useAuthStore();
 
   useEffect(() => {
     requestPermissions();
@@ -128,16 +134,85 @@ export default function CameraScreen() {
     setCapturedPhotos(capturedPhotos.filter((p) => p.id !== id));
   };
 
-  const handleDone = () => {
-    if (capturedPhotos.length > 0) {
-      // In a real app, add to upload queue here
+  const uploadPhoto = async (photo: CapturedPhoto): Promise<boolean> => {
+    try {
+      const formData = new FormData();
+      
+      // Get the file from the URI
+      const response = await fetch(photo.uri);
+      const blob = await response.blob();
+      
+      formData.append('file', blob, `photo_${Date.now()}.jpg`);
+      formData.append('caption', photo.caption || '');
+      
+      if (photo.gpsCoordinates) {
+        formData.append('gpsCoordinates', JSON.stringify({
+          latitude: photo.gpsCoordinates.latitude,
+          longitude: photo.gpsCoordinates.longitude,
+        }));
+      }
+      
+      formData.append('takenAt', photo.takenAt.toISOString());
+      formData.append('tags', JSON.stringify(photo.tags || []));
+      
+      const uploadResponse = await fetch(`${serverUrl}/api/mobile/projects/${projectId}/photos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Upload error:', error);
+      return false;
+    }
+  };
+
+  const handleDone = async () => {
+    if (capturedPhotos.length === 0) {
+      router.back();
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < capturedPhotos.length; i++) {
+      const photo = capturedPhotos[i];
+      setUploadProgress(Math.round(((i + 1) / capturedPhotos.length) * 100));
+      
+      const success = await uploadPhoto(photo);
+      if (success) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+    
+    setIsUploading(false);
+    
+    if (failCount === 0) {
       Alert.alert(
-        'Photos Captured',
-        `${capturedPhotos.length} photo(s) added to upload queue`,
+        'Upload Complete',
+        `${successCount} photo(s) uploaded successfully!`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } else {
-      router.back();
+      Alert.alert(
+        'Upload Partial',
+        `${successCount} uploaded, ${failCount} failed. Check your connection and try again.`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     }
   };
 
@@ -177,10 +252,20 @@ export default function CameraScreen() {
         </View>
         <Pressable 
           onPress={handleDone}
+          disabled={isUploading}
           style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
           accessibilityRole="button"
         >
-          <Text style={styles.doneText}>Done</Text>
+          {isUploading ? (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="small" color="#7c3aed" />
+              <Text style={styles.uploadingText}>{uploadProgress}%</Text>
+            </View>
+          ) : (
+            <Text style={styles.doneText}>
+              {capturedPhotos.length > 0 ? `Upload (${capturedPhotos.length})` : 'Done'}
+            </Text>
+          )}
         </Pressable>
       </View>
 
@@ -435,6 +520,16 @@ const styles = StyleSheet.create({
   photoCountNumber: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#7c3aed',
+  },
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadingText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#7c3aed',
   },
 });
