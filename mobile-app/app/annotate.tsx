@@ -9,10 +9,13 @@ import {
   ScrollView,
   Platform,
   Dimensions,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Line, Circle, Text as SvgText, G } from 'react-native-svg';
+import useAuthStore from '../store/auth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -59,7 +62,9 @@ export default function AnnotateScreen() {
   const [showMeasurementInput, setShowMeasurementInput] = useState(false);
   const [measurementValue, setMeasurementValue] = useState('');
   const [pendingMeasurement, setPendingMeasurement] = useState<Annotation | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
+  const { token, serverUrl } = useAuthStore();
   const imageRef = useRef<View>(null);
 
   const handleImagePress = (event: any) => {
@@ -151,23 +156,58 @@ export default function AnnotateScreen() {
   };
 
   const handleSave = async () => {
-    // Prepare photo data with annotations
-    const photoData = {
-      uri: params.photoUri,
-      caption,
-      notes,
-      tags: tags.map(t => t.label),
-      roomId: selectedRoom,
-      tradeCategory,
-      annotations,
-      projectId: params.projectId,
-    };
-
-    // TODO: Upload to server
-    console.log('Saving photo:', photoData);
+    setIsUploading(true);
     
-    // For now, just go back
-    router.back();
+    try {
+      const formData = new FormData();
+      
+      // Get the file from the URI
+      const response = await fetch(params.photoUri);
+      const blob = await response.blob();
+      
+      formData.append('file', blob, `photo_${Date.now()}.jpg`);
+      formData.append('caption', caption);
+      formData.append('tags', JSON.stringify(tags.map(t => t.label)));
+      formData.append('tradeCategory', tradeCategory);
+      formData.append('annotationsData', JSON.stringify(annotations));
+      formData.append('takenAt', new Date().toISOString());
+      
+      if (selectedRoom) {
+        formData.append('roomArea', selectedRoom);
+      }
+      
+      const uploadResponse = await fetch(`${serverUrl}/api/mobile/projects/${params.projectId}/photos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      
+      const result = await uploadResponse.json();
+      
+      Alert.alert(
+        'Photo Saved!',
+        result.dropboxPath 
+          ? 'Photo uploaded to Dropbox and saved to database.' 
+          : 'Photo saved to database.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert(
+        'Upload Failed',
+        error instanceof Error ? error.message : 'Could not save photo. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const ToolButton = ({ tool, icon, label }: { tool: typeof currentTool; icon: string; label: string }) => (
@@ -188,8 +228,12 @@ export default function AnnotateScreen() {
           <Ionicons name="close" size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Photo</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={isUploading}>
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#7c3aed" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save</Text>
+          )}
         </TouchableOpacity>
       </View>
 
