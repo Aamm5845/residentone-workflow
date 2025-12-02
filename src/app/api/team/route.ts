@@ -24,10 +24,9 @@ export async function GET(request: NextRequest) {
     const teamMembers = await prisma.user.findMany({
       where: {
         AND: [
-          { orgId: { not: null } },
+          { orgId: session.user.orgId }, // Same organization as current user
           { name: { not: { startsWith: '[DELETED]' } } },
-          { email: { not: { startsWith: 'deleted_' } } },
-          { email: { in: ['aaron@meisnerinteriors.com', 'shaya@meisnerinteriors.com', 'sami@meisnerinteriors.com', 'euvi.3d@gmail.com'] } }
+          { email: { not: { startsWith: 'deleted_' } } }
         ]
       },
       select: {
@@ -77,7 +76,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      teamMembers
+      teamMembers,
+      users: teamMembers // Alias for backward compatibility
     })
 
   } catch (error) {

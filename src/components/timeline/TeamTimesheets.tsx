@@ -26,6 +26,9 @@ export function TeamTimesheets() {
   // Get selected user info
   const selectedUser = teamMembers.find((m: any) => m.id === selectedUserId)
 
+  // Debug: Always show this first
+  console.log('TeamTimesheets rendering, loadingTeam:', loadingTeam, 'teamMembers:', teamMembers.length)
+
   if (loadingTeam) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -52,21 +55,15 @@ export function TeamTimesheets() {
                 <SelectTrigger className="w-full h-12">
                   <SelectValue placeholder="Select a team member to view their timesheet..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px]">
                   {teamMembers.map((member: any) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      <div className="flex items-center gap-3 py-1">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={member.image} alt={member.name} />
-                          <AvatarFallback className="bg-cyan-100 text-cyan-700 text-sm">
-                            {member.name?.charAt(0) || member.email?.charAt(0) || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{member.name || 'Unnamed'}</span>
-                          <span className="text-xs text-gray-500">{member.role}</span>
-                        </div>
-                      </div>
+                    <SelectItem 
+                      key={member.id} 
+                      value={member.id}
+                      className="py-3"
+                    >
+                      <span className="font-medium">{member.name || member.email || 'Unnamed'}</span>
+                      <span className="text-xs text-gray-500 ml-2">({member.role})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
