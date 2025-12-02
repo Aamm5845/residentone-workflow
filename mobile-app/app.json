@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "residentone",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.residentone.mobile"
@@ -19,7 +18,8 @@
       "output": "static"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
