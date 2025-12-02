@@ -3,12 +3,13 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
-import { ArrowLeft, BarChart3, Loader2, TrendingUp, Layers, Package, Building2, CheckCircle, Clock, AlertCircle, Target, Zap, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, BarChart3, Loader2, TrendingUp, Layers, Package, Building2, CheckCircle, Clock, AlertCircle, Target, Zap, AlertTriangle, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ReportFilters } from '@/components/reports/ReportFilters'
 import { TaskLevelView } from '@/components/reports/TaskLevelView'
 import { RoomBreakdownView } from '@/components/reports/RoomBreakdownView'
 import { FFEAnalyticsView } from '@/components/reports/FFEAnalyticsView'
+import { TimeInvestmentView } from '@/components/reports/TimeInvestmentView'
 import { AISummarySection } from '@/components/reports/AISummarySection'
 import { PhaseProgressChart } from '@/components/reports/charts/PhaseProgressChart'
 import { StatusDistributionChart } from '@/components/reports/charts/StatusDistributionChart'
@@ -20,7 +21,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
   return res.json()
 })
 
-type TabType = 'overview' | 'phases' | 'rooms' | 'ffe'
+type TabType = 'overview' | 'phases' | 'rooms' | 'ffe' | 'time'
 
 interface Props {
   projectId: string
@@ -80,7 +81,8 @@ export function ProjectReportContent({ projectId }: Props) {
     { id: 'overview' as TabType, label: 'Overview', icon: TrendingUp },
     { id: 'phases' as TabType, label: 'Phase Details', icon: Layers },
     { id: 'rooms' as TabType, label: 'Room Breakdown', icon: Building2 },
-    { id: 'ffe' as TabType, label: 'FFE Analytics', icon: Package }
+    { id: 'ffe' as TabType, label: 'FFE Analytics', icon: Package },
+    { id: 'time' as TabType, label: 'Time Investment', icon: Timer }
   ]
 
   if (isLoading) {
@@ -385,6 +387,11 @@ export function ProjectReportContent({ projectId }: Props) {
           {/* FFE Analytics Tab */}
           {activeTab === 'ffe' && (
             <FFEAnalyticsView phases={project.phases} />
+          )}
+
+          {/* Time Investment Tab */}
+          {activeTab === 'time' && (
+            <TimeInvestmentView projectId={project.id} />
           )}
         </div>
       </div>
