@@ -880,6 +880,22 @@ export function formatDescription(activity: {
       const updatedStageName = getStageDisplayName(details.stageName)
       return `${actorName} updated ${updatedStageName} stage${context}`
 
+    case 'DESIGN_ITEM_CREATED':
+      const itemName = details.itemName || 'item'
+      return `${actorName} added "${itemName}"${context}`
+
+    case 'DESIGN_ITEM_COMPLETED':
+      const completedItemName = details.itemName || 'item'
+      return `${actorName} completed "${completedItemName}"${context}`
+
+    case 'DESIGN_ITEM_UPDATED':
+      const updatedItemName = details.itemName || 'item'
+      return `${actorName} updated "${updatedItemName}"${context}`
+
+    case 'DESIGN_NOTE_CREATED':
+      const noteItemName = details.itemName ? ` for "${details.itemName}"` : ''
+      return `${actorName} added a note${noteItemName}${context}`
+
     case 'ASSET_DELETED':
       return `${actorName} deleted ${details.assetName || 'a file'}${context}`
 

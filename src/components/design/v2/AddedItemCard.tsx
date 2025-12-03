@@ -22,7 +22,9 @@ import {
   Download,
   Paperclip,
   MessageSquare,
-  StickyNote
+  StickyNote,
+  Pencil,
+  Check
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -58,6 +60,9 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
   const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteContent, setEditingNoteContent] = useState('')
+  const [isDeletingNote, setIsDeletingNote] = useState<string | null>(null)
   
   // iPad/Tablet detection for responsive styling
   const { isIPad, isTablet } = useDeviceType()
@@ -97,15 +102,62 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
       })
 
       if (!response.ok) throw new Error('Failed to save note')
-      
+
       setNewNoteContent('')
-      await onUpdate()
+      onUpdate()
       toast.success('Note saved')
     } catch (error) {
-      console.error('Error saving note:', error)
       toast.error('Failed to save note')
     } finally {
       setIsSavingNote(false)
+    }
+  }
+
+  // Update existing note
+  const updateNote = async (noteId: string) => {
+    if (!editingNoteContent.trim()) {
+      toast.error('Note cannot be empty')
+      return
+    }
+
+    setIsSavingNote(true)
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingNoteContent })
+      })
+
+      if (!response.ok) throw new Error('Failed to update note')
+
+      setEditingNoteId(null)
+      setEditingNoteContent('')
+      onUpdate()
+      toast.success('Note updated')
+    } catch (error) {
+      toast.error('Failed to update note')
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
+  // Delete note
+  const deleteNote = async (noteId: string) => {
+    setIsDeletingNote(noteId)
+    try {
+      const response = await fetch(`/api/design-items/${item.id}/notes/${noteId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete note')
+      
+      onUpdate()
+      toast.success('Note deleted')
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      toast.error('Failed to delete note')
+    } finally {
+      setIsDeletingNote(null)
     }
   }
 
@@ -458,20 +510,87 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
                   "bg-gray-50 rounded-lg border border-gray-200",
                   isTabletDevice ? "p-4" : "p-3"
                 )}>
-                  <p className={cn(
-                    "text-gray-900 whitespace-pre-wrap",
-                    isTabletDevice ? "text-base leading-relaxed" : "text-sm"
-                  )}>
-                    {note.content}
-                  </p>
-                  <div className={cn(
-                    "mt-2 flex items-center text-gray-500",
-                    isTabletDevice ? "text-sm" : "text-xs"
-                  )}>
-                    <span className="font-medium">{note.author.name || note.author.email}</span>
-                    <span className="mx-1">•</span>
-                    <span>{formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
-                  </div>
+                  {editingNoteId === note.id ? (
+                    // Edit mode
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingNoteContent}
+                        onChange={(e) => setEditingNoteContent(e.target.value)}
+                        className={cn(
+                          "w-full border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent",
+                          isTabletDevice ? "px-3 py-2 text-base" : "px-2 py-1.5 text-sm"
+                        )}
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => updateNote(note.id)}
+                          disabled={isSavingNote || !editingNoteContent.trim()}
+                          size="sm"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white h-7 px-2 text-xs"
+                        >
+                          {isSavingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                          Save
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setEditingNoteId(null)
+                            setEditingNoteContent('')
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // View mode
+                    <>
+                      <p className={cn(
+                        "text-gray-900 whitespace-pre-wrap",
+                        isTabletDevice ? "text-base leading-relaxed" : "text-sm"
+                      )}>
+                        {note.content}
+                      </p>
+                      <div className={cn(
+                        "mt-2 flex items-center justify-between",
+                        isTabletDevice ? "text-sm" : "text-xs"
+                      )}>
+                        <div className="flex items-center text-gray-500">
+                          <span className="font-medium">{note.author.name || note.author.email}</span>
+                          <span className="mx-1">•</span>
+                          <span>{formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingNoteId(note.id)
+                              setEditingNoteContent(note.content)
+                            }}
+                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit note"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteNote(note.id)}
+                            disabled={isDeletingNote === note.id}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                            title="Delete note"
+                          >
+                            {isDeletingNote === note.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

@@ -5,6 +5,73 @@ import { dropboxService } from '@/lib/dropbox-service'
 import { unlink } from 'fs/promises'
 import type { Session } from 'next-auth'
 
+// GET /api/assets/[assetId] - Get asset details including Dropbox path
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assetId: string }> }
+) {
+  try {
+    const session = await getSession() as Session & {
+      user: {
+        id: string
+        orgId: string
+      }
+    } | null
+    
+    if (!session?.user?.orgId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const resolvedParams = await params
+    const { assetId } = resolvedParams
+
+    const asset = await prisma.asset.findFirst({
+      where: { 
+        id: assetId,
+        orgId: session.user.orgId
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            dropboxFolder: true
+          }
+        },
+        room: {
+          select: {
+            id: true,
+            name: true,
+            type: true
+          }
+        }
+      }
+    })
+
+    if (!asset) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+    }
+
+    // Return asset with diagnostic info about storage location
+    return NextResponse.json({
+      id: asset.id,
+      title: asset.title,
+      filename: asset.filename,
+      provider: asset.provider,
+      dropboxPath: asset.url,
+      projectDropboxFolder: asset.project?.dropboxFolder,
+      room: asset.room ? {
+        name: asset.room.name,
+        type: asset.room.type
+      } : null,
+      uploadedAt: asset.createdAt
+    })
+  } catch (error) {
+    console.error('[Asset Get] Error:', error)
+    return NextResponse.json({ error: 'Failed to retrieve asset' }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> }
@@ -54,8 +121,8 @@ export async function DELETE(
         const projectFolder = existingAsset.renderingVersion.room.project.dropboxFolder
         const version = existingAsset.renderingVersion.version
         
-        // Construct the Dropbox file path
-        const dropboxFilePath = `${projectFolder}/3-RENDERING/${sanitizedRoomName}/${version}/${existingAsset.filename}`
+        // Construct the Dropbox file path (note: folder is "3- RENDERING" with space after dash)
+        const dropboxFilePath = `${projectFolder}/3- RENDERING/${sanitizedRoomName}/${version}/${existingAsset.filename}`
         
         await dropboxService.deleteFile(dropboxFilePath)
         console.log(`✅ File deleted from Dropbox: ${dropboxFilePath}`)

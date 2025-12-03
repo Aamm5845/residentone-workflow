@@ -163,10 +163,10 @@ export async function POST(
       },
     });
 
-    // Log activity
+    // Log activity with project and room context
     await logActivity({
       session: session as AuthSession,
-      action: ActivityActions.CREATE,
+      action: ActivityActions.DESIGN_ITEM_CREATED,
       entity: EntityTypes.DESIGN_CONCEPT_ITEM,
       entityId: item.id,
       details: {
@@ -174,6 +174,10 @@ export async function POST(
         itemName: libraryItem.name,
         libraryItemId: data.libraryItemId,
         category: libraryItem.category,
+        projectName: stage.room.project.name,
+        roomName: stage.room.name || stage.room.type,
+        stageName: stage.type,
+        entityUrl: `/stages/${stageId}`,
       },
     });
 

@@ -56,3 +56,4 @@ If needed, add in Vercel:
 - ☁️ Uploads to Dropbox (if configured)
 - 📱 Works offline, syncs when connected
 
+
