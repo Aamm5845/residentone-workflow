@@ -629,7 +629,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button type="submit" size="sm" disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save Changes</Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
               </div>
             </form>
@@ -723,7 +723,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               </Button>
 
               <div className="flex gap-2 pt-2">
-                <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button type="submit" size="sm" disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save Changes</Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
               </div>
             </form>
@@ -797,7 +797,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 </Button>
               </div>
               <div className="flex gap-2 pt-2 border-t">
-                <Button size="sm" onClick={saveContractors} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button size="sm" onClick={saveContractors} disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save Changes</Button>
                 <Button variant="ghost" size="sm" onClick={() => { setEditingField(null); setContractorsList(project.contractors || []) }}>Cancel</Button>
               </div>
             </div>
@@ -963,7 +963,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           <FeatureToggle icon={BookOpen} title="Spec Book" color="green" register={register('hasSpecBook')} />
           <FeatureToggle icon={ClipboardList} title="Project Updates" color="purple" register={register('hasProjectUpdates')} />
           <div className="flex gap-2 pt-4">
-            <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save</Button>
+            <Button type="submit" size="sm" disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save</Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
           </div>
         </form>
@@ -1007,7 +1007,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 <p className="font-medium text-gray-900">Create New Folder</p>
                 <p className="text-xs text-gray-500">Auto-create with subfolders</p>
               </div>
-              <div className={`w-5 h-5 rounded-full border-2 ${dropboxOption === 'create' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}`}>
+              <div className={`w-5 h-5 rounded-full border-2 ${dropboxOption === 'create' ? 'border-[#a657f0] bg-[#a657f0]' : 'border-gray-300'}`}>
                 {dropboxOption === 'create' && <Check className="w-full h-full text-white p-0.5" />}
               </div>
             </div>
@@ -1033,7 +1033,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" disabled={isCreatingDropbox || (dropboxOption === 'link' && !dropboxFolderPath)} className="bg-purple-600 hover:bg-purple-700"
+            <Button size="sm" disabled={isCreatingDropbox || (dropboxOption === 'link' && !dropboxFolderPath)} className="bg-[#a657f0] hover:bg-[#a657f0]/90"
               onClick={async () => {
                 setIsCreatingDropbox(true)
                 try {
@@ -1135,7 +1135,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           </div>
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="outline" size="sm" onClick={() => setShowAddContractorDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={addContractor} disabled={!newContractor.businessName || !newContractor.email} className="bg-purple-600 hover:bg-purple-700">Add</Button>
+            <Button size="sm" onClick={addContractor} disabled={!newContractor.businessName || !newContractor.email} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Add</Button>
           </div>
         </Modal>
       )}

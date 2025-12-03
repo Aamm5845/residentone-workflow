@@ -198,7 +198,7 @@ export default async function RoomWorkspace({ params }: Props) {
             <div className="mt-4">
               <div className="w-full bg-gray-200 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-1.5 rounded-full transition-all duration-700 ease-out"
+                  className="bg-[#a657f0] h-1.5 rounded-full transition-all duration-700 ease-out"
                   style={{ width: `${roomProgress}%` }}
                 />
               </div>

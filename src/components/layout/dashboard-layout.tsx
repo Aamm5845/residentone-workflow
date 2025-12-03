@@ -84,8 +84,12 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 <Menu className="h-6 w-6" />
               </Button>
               <Link href="/dashboard" className="flex items-center space-x-2 md:space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <Building className="w-5 h-5 text-white" />
+                {/* Brand Color Palette Icon */}
+                <div className="w-8 h-8 rounded-lg overflow-hidden grid grid-cols-2 grid-rows-2 gap-[1px] bg-white p-[2px]">
+                  <div className="bg-[#a657f0] rounded-tl-md" /> {/* Purple - Design */}
+                  <div className="bg-[#f6762e] rounded-tr-md" /> {/* Orange - 3D */}
+                  <div className="bg-[#14b8a6] rounded-bl-md" /> {/* Teal - Approval */}
+                  <div className="bg-[#e94d97] rounded-br-md" /> {/* Pink - FFE */}
                 </div>
                 <span className="text-lg md:text-xl font-bold text-gray-900">StudioFlow</span>
                 <span className="hidden lg:inline-block text-xs text-gray-500">by Meisner Interiors</span>
@@ -100,7 +104,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
             {/* Right: Actions and Profile */}
             <div className="flex items-center space-x-2 md:space-x-4">
               {/* New Project Button - Icon only on mobile */}
-              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white touch-target">
+              <Button asChild className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white touch-target">
                 <Link href="/projects/new" className="flex items-center">
                   <Plus className="w-4 h-4 md:mr-2" />
                   <span className="hidden md:inline">New Project</span>
@@ -229,7 +233,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                           className={cn(
                             'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             isActive(item.href)
-                              ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
+                              ? 'bg-[#a657f0]/10 text-[#a657f0] border-r-2 border-[#a657f0]'
                               : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                           )}
                         >
@@ -262,7 +266,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                         className={cn(
                           'group flex items-center justify-center p-2 text-sm font-medium rounded-md transition-colors relative',
                           isActive(item.href)
-                            ? 'bg-purple-50 text-purple-700'
+                            ? 'bg-[#a657f0]/10 text-[#a657f0]'
                             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         )}
                         title={item.name}

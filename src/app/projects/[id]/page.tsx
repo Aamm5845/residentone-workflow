@@ -358,7 +358,7 @@ export default async function ProjectDetail({ params }: Props) {
             <div className="mt-4">
               <div className="w-full bg-gray-200 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-purple-500 to-purple-600 h-1.5 rounded-full transition-all duration-500"
+                  className="bg-[#a657f0] h-1.5 rounded-full transition-all duration-500"
                   style={{ width: `${overallProgress}%` }}
                 />
               </div>

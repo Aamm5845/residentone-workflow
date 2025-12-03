@@ -560,7 +560,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
-            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+            className="bg-[#a657f0] h-2 rounded-full transition-all duration-300"
             style={{ width: `${(step / 3) * 100}%` }}
           />
         </div>
@@ -990,7 +990,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                     <div className="ml-auto">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         formData.dropboxOption === 'create' 
-                          ? 'border-purple-500 bg-purple-500' 
+                          ? 'border-[#a657f0] bg-[#a657f0]' 
                           : 'border-gray-300'
                       }`}>
                         {formData.dropboxOption === 'create' && (
@@ -1323,7 +1323,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                     <Button
                       onClick={saveCustomRoom}
                       disabled={!customRoomName.trim()}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
                     >
                       Add Room
                     </Button>
@@ -1416,7 +1416,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                     <Button
                       onClick={saveMultipleCustomRooms}
                       disabled={!customRooms.some(room => room.name.trim())}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
                     >
                       Add {customRooms.filter(room => room.name.trim()).length} Room(s)
                     </Button>
@@ -1519,7 +1519,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                   )) ||
                   (step === 2 && formData.selectedRooms.length === 0)
                 }
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
               >
                 Next
               </Button>
@@ -1527,7 +1527,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               <Button 
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
               >
                 {isLoading ? 'Creating...' : 'Create Project'}
               </Button>
@@ -1642,7 +1642,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               <Button
                 onClick={saveNewContractor}
                 disabled={!contractorForm.businessName || !contractorForm.email}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
               >
                 Add {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}
               </Button>
