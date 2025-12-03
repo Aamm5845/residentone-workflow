@@ -181,6 +181,9 @@ export async function GET(
     let totalStages = 0
     let completedStages = 0
     let inProgressStages = 0
+    
+    // Track FFE room completion percentages for averaging
+    const ffeRoomCompletions: number[] = []
 
     // Aggregate stage statistics
     updatedProject.rooms.forEach(room => {
@@ -242,6 +245,12 @@ export async function GET(
             // Track FFE items at phase level
             phases.FFE.ffeItemsTotal = (phases.FFE.ffeItemsTotal || 0) + ffeItemsTotal
             phases.FFE.ffeItemsCompleted = (phases.FFE.ffeItemsCompleted || 0) + ffeItemsCompleted
+            
+            // Calculate this room's FFE completion percentage
+            const roomFfeCompletion = ffeItemsTotal > 0 
+              ? (ffeItemsCompleted / ffeItemsTotal) * 100 
+              : 0
+            ffeRoomCompletions.push(roomFfeCompletion)
             
             if (ffeItemsTotal > 0) {
               phases.FFE.ffeRoomsWithItems = (phases.FFE.ffeRoomsWithItems || 0) + 1
@@ -350,9 +359,11 @@ export async function GET(
       if (phase.total > 0) {
         const applicableTotal = phase.total - phase.notApplicable
         
-        // For FFE, calculate percentage based on actual items completed
-        if (phaseKey === 'FFE' && phase.ffeItemsTotal && phase.ffeItemsTotal > 0) {
-          phase.percentage = Math.round((phase.ffeItemsCompleted! / phase.ffeItemsTotal) * 100)
+        // For FFE, calculate percentage as average of all room completions
+        // This way: 10 rooms, 8 empty (0%), 1 at 90%, 1 at 20% = (0+0+0+0+0+0+0+0+90+20)/10 = 11%
+        if (phaseKey === 'FFE' && ffeRoomCompletions.length > 0) {
+          const sumOfCompletions = ffeRoomCompletions.reduce((sum, pct) => sum + pct, 0)
+          phase.percentage = Math.round(sumOfCompletions / ffeRoomCompletions.length)
         } else {
           phase.percentage = applicableTotal > 0 
             ? Math.round((phase.completed / applicableTotal) * 100)

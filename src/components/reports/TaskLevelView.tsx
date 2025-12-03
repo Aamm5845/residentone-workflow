@@ -26,6 +26,11 @@ interface PhaseStats {
   notApplicable: number
   total: number
   percentage: number
+  // FFE-specific stats
+  ffeItemsTotal?: number
+  ffeItemsCompleted?: number
+  ffeRoomsWithItems?: number
+  ffeRoomsEmpty?: number
   tasks: TaskDetail[]
 }
 
@@ -197,9 +202,32 @@ export function TaskLevelView({ phases, filters }: Props) {
           if (!phaseData) return null
           
           const PhaseIcon = config.icon
-          const completion = phaseData.total > 0 
-            ? Math.round((phaseData.completed / (phaseData.total - (phaseData.notApplicable || 0))) * 100) 
-            : 0
+          const isFFE = key === 'FFE'
+          
+          // For FFE, use the percentage from API (already calculated as room average)
+          // For other phases, calculate from completed/total
+          const completion = isFFE 
+            ? phaseData.percentage
+            : (phaseData.total > 0 
+                ? Math.round((phaseData.completed / (phaseData.total - (phaseData.notApplicable || 0))) * 100) 
+                : 0)
+          
+          // Generate description text
+          let descriptionText = ''
+          if (isFFE) {
+            const roomsWithItems = phaseData.ffeRoomsWithItems || 0
+            const totalRooms = phaseData.total - (phaseData.notApplicable || 0)
+            const itemsCompleted = phaseData.ffeItemsCompleted || 0
+            const itemsTotal = phaseData.ffeItemsTotal || 0
+            
+            if (itemsTotal > 0) {
+              descriptionText = `${itemsCompleted}/${itemsTotal} items • ${roomsWithItems}/${totalRooms} rooms started`
+            } else {
+              descriptionText = `${roomsWithItems}/${totalRooms} rooms started`
+            }
+          } else {
+            descriptionText = `${phaseData.completed} of ${phaseData.total - (phaseData.notApplicable || 0)} complete`
+          }
           
           return (
             <div 
@@ -219,7 +247,7 @@ export function TaskLevelView({ phases, filters }: Props) {
               </div>
               <h4 className="text-sm font-medium text-gray-900 mb-1">{config.label}</h4>
               <p className="text-xs text-gray-500">
-                {phaseData.completed} of {phaseData.total - (phaseData.notApplicable || 0)} complete
+                {descriptionText}
               </p>
               <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div 
