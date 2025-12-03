@@ -8,7 +8,11 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search, FolderPlus, Link2, FolderX, ChevronDown, ChevronUp } from 'lucide-react'
+import { 
+  Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, 
+  Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search, FolderPlus, Link2, FolderX, 
+  Shield, Layers, Check, Mail, Phone, MapPin, Briefcase, FileText
+} from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 import RoomsManagementSection from './rooms-management-section'
@@ -22,7 +26,7 @@ const projectSettingsSchema = z.object({
   status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'URGENT', 'CANCELLED', 'COMPLETED']),
   budget: z.string().optional(),
   dueDate: z.string().optional(),
-  address: z.string().optional(), // Legacy field
+  address: z.string().optional(),
   streetAddress: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
@@ -41,16 +45,26 @@ interface ProjectSettingsFormProps {
   session: any
 }
 
+// Navigation items for sidebar
+const navItems = [
+  { id: 'overview', label: 'Overview', icon: FileText },
+  { id: 'images', label: 'Cover Images', icon: Camera },
+  { id: 'access', label: 'Client Access', icon: Shield },
+  { id: 'rooms', label: 'Rooms', icon: Home },
+  { id: 'features', label: 'Features', icon: SettingsIcon },
+  { id: 'dropbox', label: 'Dropbox', icon: Folder },
+  { id: 'danger', label: 'Delete', icon: Trash2 },
+]
+
 export default function ProjectSettingsForm({ project, clients, session }: ProjectSettingsFormProps) {
-  
   const router = useRouter()
+  const [activeSection, setActiveSection] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [currentCoverImages, setCurrentCoverImages] = useState(() => {
-    // Handle different formats: array, stringified array, single string, or null
     if (!project.coverImages) return []
     if (Array.isArray(project.coverImages)) return project.coverImages
     if (typeof project.coverImages === 'string') {
@@ -63,7 +77,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     }
     return []
   })
-  const [editingSection, setEditingSection] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<string | null>(null)
   const [contractorsList, setContractorsList] = useState(project.contractors || [])
   const [showAddContractorDialog, setShowAddContractorDialog] = useState(false)
   const [showSelectContractorDialog, setShowSelectContractorDialog] = useState(false)
@@ -81,44 +95,159 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   })
   const [dropboxOption, setDropboxOption] = useState<'create' | 'link' | 'skip'>('skip')
   const [dropboxFolderPath, setDropboxFolderPath] = useState('')
-  const [isDropboxExpanded, setIsDropboxExpanded] = useState(false)
   const [isCreatingDropbox, setIsCreatingDropbox] = useState(false)
-  const [showDropboxLinkModal, setShowDropboxLinkModal] = useState(false)
   const [clientFormData, setClientFormData] = useState({
     name: project.client?.name || '',
     email: project.client?.email || '',
     phone: project.client?.phone || '',
     company: project.client?.company || ''
   })
+  const [additionalEmails, setAdditionalEmails] = useState<Array<{ label: string; email: string }>>(
+    project.client?.additionalEmails || []
+  )
+  const [roomsData, setRoomsData] = useState<any[]>([])
+  const [sectionsData, setSectionsData] = useState<any[]>([])
+  const [loadingRooms, setLoadingRooms] = useState(true)
+  
+  // Google Maps autocomplete state
+  const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null)
+  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null)
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
+  const [showPredictions, setShowPredictions] = useState(false)
+  const [addressValue, setAddressValue] = useState(project?.streetAddress || '')
 
-  // Track component lifecycle
+  // Additional email functions
+  const addAdditionalEmail = () => {
+    setAdditionalEmails(prev => [...prev, { label: '', email: '' }])
+  }
+
+  const updateAdditionalEmail = (index: number, field: 'label' | 'email', value: string) => {
+    setAdditionalEmails(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ))
+  }
+
+  const removeAdditionalEmail = (index: number) => {
+    setAdditionalEmails(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Initialize Google Places API
   useEffect(() => {
-    
-    // Check for any immediate issues
-    if (!project) {
-      console.error('❌ PROJECT SETTINGS FORM - No project data provided!')
-      return
-    }
-    
-    if (!project.id) {
-      console.error('❌ PROJECT SETTINGS FORM - Project missing ID:', project)
-      return
+    const initGooglePlaces = () => {
+      if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        setAutocompleteService(new google.maps.places.AutocompleteService())
+        const dummyMap = document.createElement('div')
+        setPlacesService(new google.maps.places.PlacesService(dummyMap))
+      }
     }
 
-    // Cleanup function
-    return () => {
-      
+    if (typeof google !== 'undefined' && google.maps) {
+      initGooglePlaces()
+    } else {
+      const existingScript = document.getElementById('google-maps-script')
+      if (!existingScript) {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        if (apiKey) {
+          const script = document.createElement('script')
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=en`
+          script.async = true
+          script.defer = true
+          script.id = 'google-maps-script'
+          script.onload = initGooglePlaces
+          document.head.appendChild(script)
+        }
+      } else {
+        initGooglePlaces()
+      }
     }
   }, [])
-  
-  // Log project changes
-  useEffect(() => {
-    
-  }, [project])
 
-  // Update client form data when entering edit mode
+  // Handle address autocomplete
+  const handleAddressSearch = (value: string) => {
+    setAddressValue(value)
+    setValue('streetAddress', value)
+    
+    if (!autocompleteService || value.length < 3) {
+      setPredictions([])
+      setShowPredictions(false)
+      return
+    }
+
+    autocompleteService.getPlacePredictions(
+      {
+        input: value,
+        types: ['address'],
+        componentRestrictions: { country: 'ca' }
+      },
+      (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          setPredictions(results)
+          setShowPredictions(true)
+        } else {
+          setPredictions([])
+          setShowPredictions(false)
+        }
+      }
+    )
+  }
+
+  const handleSelectAddress = (placeId: string) => {
+    if (!placesService) return
+
+    placesService.getDetails(
+      {
+        placeId: placeId,
+        fields: ['address_components', 'formatted_address']
+      },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          let streetNumber = ''
+          let route = ''
+          let city = ''
+          let postalCode = ''
+
+          place.address_components?.forEach((component) => {
+            const types = component.types
+            if (types.includes('street_number')) streetNumber = component.long_name
+            if (types.includes('route')) route = component.long_name
+            if (types.includes('locality')) city = component.long_name
+            if (types.includes('postal_code')) postalCode = component.long_name
+          })
+
+          const streetAddress = `${streetNumber} ${route}`.trim()
+          setAddressValue(streetAddress)
+          setValue('streetAddress', streetAddress)
+          setValue('city', city)
+          setValue('postalCode', postalCode)
+          setPredictions([])
+          setShowPredictions(false)
+        }
+      }
+    )
+  }
+
+  // Fetch rooms and sections data
   useEffect(() => {
-    if (editingSection === 'client') {
+    const fetchRoomsAndSections = async () => {
+      try {
+        setLoadingRooms(true)
+        const response = await fetch(`/api/projects/${project.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setRoomsData(data.rooms || [])
+          setSectionsData(data.roomSections || [])
+        }
+      } catch (error) {
+        console.error('Error fetching rooms:', error)
+      } finally {
+        setLoadingRooms(false)
+      }
+    }
+    fetchRoomsAndSections()
+  }, [project.id])
+
+  useEffect(() => {
+    if (editingField === 'client') {
       setClientFormData({
         name: project.client?.name || '',
         email: project.client?.email || '',
@@ -126,14 +255,13 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         company: project.client?.company || ''
       })
     }
-  }, [editingSection, project.client])
+  }, [editingField, project.client])
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isDirty },
+    formState: { errors },
     setValue,
-    watch
   } = useForm<ProjectSettingsFormData>({
     resolver: zodResolver(projectSettingsSchema),
     defaultValues: {
@@ -143,24 +271,10 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       status: project?.status || 'DRAFT',
       budget: project?.budget ? project.budget.toString() : '',
       dueDate: project?.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : '',
-      address: project?.address || '', // Legacy field
-      streetAddress: project?.streetAddress || project?.address || '', // Fallback to legacy address if structured field is empty
+      streetAddress: project?.streetAddress || project?.address || '',
       city: project?.city || '',
       postalCode: project?.postalCode || '',
-      coverImages: (() => {
-        // Handle different formats: array, stringified array, single string, or null
-        if (!project?.coverImages) return []
-        if (Array.isArray(project.coverImages)) return project.coverImages
-        if (typeof project.coverImages === 'string') {
-          try {
-            const parsed = JSON.parse(project.coverImages)
-            return Array.isArray(parsed) ? parsed : [project.coverImages]
-          } catch {
-            return [project.coverImages]
-          }
-        }
-        return []
-      })(),
+      coverImages: currentCoverImages,
       dropboxFolder: project?.dropboxFolder || '',
       hasFloorplanApproval: project?.hasFloorplanApproval || false,
       hasSpecBook: project?.hasSpecBook || false,
@@ -170,18 +284,13 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    
-    if (!files) {
-      
-      return
-    }
+    if (!files) return
 
     try {
       setUploadingImage(true)
       const uploadedUrls = []
       
       for (const file of Array.from(files)) {
-        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('imageType', 'project-cover')
@@ -193,36 +302,22 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         const response = await fetch('/api/upload-image', {
           method: 'POST',
           body: formData,
-          credentials: 'include' // Ensure cookies are included
+          credentials: 'include'
         })
 
         const data = await response.json()
-        
-        // Check if we need to prompt for Dropbox linking
-        if (data.errorCode === 'NO_DROPBOX_LINK') {
-          setShowDropboxLinkModal(true)
-          setUploadingImage(false)
-          return // Stop upload process and show modal
-        }
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to upload image')
-        }
-
+        if (!response.ok) throw new Error(data.message || 'Failed to upload')
         uploadedUrls.push(data.url)
       }
       
       const newCoverImages = [...currentCoverImages, ...uploadedUrls]
       setCurrentCoverImages(newCoverImages)
       setValue('coverImages', newCoverImages, { shouldDirty: true })
-      
-      // Auto-save after upload
       await updateSection('cover images', { coverImages: newCoverImages })
       
-      alert(`${uploadedUrls.length} image(s) uploaded successfully!`)
     } catch (error) {
       console.error('Image upload error:', error)
-      alert('Failed to upload image. Please try again.')
+      alert('Failed to upload image.')
     } finally {
       setUploadingImage(false)
     }
@@ -232,95 +327,30 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     const newCoverImages = currentCoverImages.filter((_: string, i: number) => i !== index)
     setCurrentCoverImages(newCoverImages)
     setValue('coverImages', newCoverImages, { shouldDirty: true })
-    
-    // Auto-save after removal
     await updateSection('cover images', { coverImages: newCoverImages })
   }
 
-  const replaceImage = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    try {
-      setUploadingImage(true)
-      const file = files[0]
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('imageType', 'project-cover')
-      formData.append('projectId', project.id)
-      if (project.dropboxFolder) {
-        formData.append('dropboxFolder', project.dropboxFolder)
-      }
-
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const data = await response.json()
-      
-      // Check if we need to prompt for Dropbox linking
-      if (data.errorCode === 'NO_DROPBOX_LINK') {
-        setShowDropboxLinkModal(true)
-        setUploadingImage(false)
-        return // Stop upload process and show modal
-      }
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to upload image')
-      }
-      
-      const newCoverImages = [...currentCoverImages]
-      newCoverImages[index] = data.url
-      setCurrentCoverImages(newCoverImages)
-      setValue('coverImages', newCoverImages, { shouldDirty: true })
-      
-      // Auto-save after replacement
-      await updateSection('cover images', { coverImages: newCoverImages })
-      
-      alert('Image replaced successfully!')
-    } catch (error) {
-      console.error('Image replacement error:', error)
-      alert('Failed to replace image. Please try again.')
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
   const updateSection = async (sectionName: string, sectionData: any) => {
-
     try {
       setIsLoading(true)
-
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sectionData),
-        credentials: 'include' // Ensure cookies are included
+        credentials: 'include'
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        let errorData
-        try {
-          errorData = JSON.parse(errorText)
-        } catch {
-          errorData = { error: errorText }
-        }
+        const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || `Failed to update ${sectionName}`)
       }
       
-      const result = await response.json()
-      setEditingSection(null)
-      
-      // Refresh the page to show updated data
+      setEditingField(null)
       router.refresh()
       
     } catch (error) {
-      console.error(`Update error for ${sectionName}:`, error)
-      alert(error instanceof Error ? error.message : `Failed to update ${sectionName}`)
+      console.error(`Update error:`, error)
+      alert(error instanceof Error ? error.message : `Failed to update`)
     } finally {
       setIsLoading(false)
     }
@@ -328,17 +358,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const addContractor = async () => {
     if (!newContractor.businessName || !newContractor.email) {
-      alert('Please fill in required fields: Business Name and Email')
+      alert('Please fill in Business Name and Email')
       return
     }
     
     if (newContractor.type === 'subcontractor' && !newContractor.specialty) {
-      alert('Please specify the specialty/trade for subcontractors (e.g., Electrician, Plumber, HVAC, etc.)')
+      alert('Please specify the specialty for subcontractors')
       return
     }
 
     try {
-      // Save to contractors library database
       const response = await fetch('/api/contractors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -355,31 +384,12 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
       if (response.ok) {
         const savedContractor = await response.json()
-        
-        // Add the saved contractor to the project's contractor list
-        const contractor = {
-          id: savedContractor.id,
-          ...newContractor
-        }
-
-        setContractorsList([...contractorsList, contractor])
-        setNewContractor({
-          businessName: '',
-          contactName: '',
-          email: '',
-          phone: '',
-          address: '',
-          type: 'contractor',
-          specialty: ''
-        })
+        setContractorsList([...contractorsList, { id: savedContractor.id, ...newContractor }])
+        setNewContractor({ businessName: '', contactName: '', email: '', phone: '', address: '', type: 'contractor', specialty: '' })
         setShowAddContractorDialog(false)
-      } else {
-        const errorData = await response.json()
-        alert(errorData.error || 'Failed to save contractor to library')
       }
     } catch (error) {
-      console.error('Error saving contractor:', error)
-      alert('Failed to save contractor to library')
+      alert('Failed to save contractor')
     }
   }
 
@@ -392,88 +402,23 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   }
 
   const updateClient = async () => {
-    
     try {
       setIsLoading(true)
-
       const response = await fetch(`/api/clients/${project.clientId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(clientFormData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...clientFormData,
+          additionalEmails: additionalEmails.filter(e => e.email) // Only include emails that have values
+        }),
         credentials: 'include'
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        let errorData
-        try {
-          errorData = JSON.parse(errorText)
-        } catch {
-          errorData = { error: errorText }
-        }
-        throw new Error(errorData.error || 'Failed to update client')
-      }
-      
-      const result = await response.json()
-      
-      setEditingSection(null)
-      
-      // Refresh the page to show updated client data
+      if (!response.ok) throw new Error('Failed to update client')
+      setEditingField(null)
       router.refresh()
-      
     } catch (error) {
-      console.error('Client update error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update client')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const onSubmit = async (data: ProjectSettingsFormData) => {
-
-    try {
-      setIsLoading(true)
-
-      const submitData = {
-        ...data,
-        budget: data.budget ? parseFloat(data.budget) : null,
-        dueDate: data.dueDate || null,
-        coverImages: currentCoverImages,
-      }
-
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-        credentials: 'include' // Ensure cookies are included
-      })
-
-      console.log('🗺️ Response headers:', Object.fromEntries(response.headers.entries()))
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('API Error response:', errorText)
-        let errorData
-        try {
-          errorData = JSON.parse(errorText)
-        } catch {
-          errorData = { error: errorText }
-        }
-        throw new Error(errorData.error || `HTTP ${response.status}: Failed to update project`)
-      }
-      
-      const result = await response.json()
-      
-      // Navigate back to the project page after successful save
-      router.push(`/projects/${project.id}?saved=true`)
-      // Note: You can add a toast notification here instead of alert if preferred
-    } catch (error) {
-      console.error('Update error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update project')
+      alert('Failed to update client')
     } finally {
       setIsLoading(false)
     }
@@ -481,70 +426,122 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const handleDelete = async () => {
     if (deleteConfirmation.trim() !== project.name.trim()) {
-      alert('Please enter the exact project name to confirm deletion.')
+      alert('Please enter the exact project name.')
       return
     }
 
     try {
       setIsDeleting(true)
-
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          confirmationName: deleteConfirmation,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmationName: deleteConfirmation }),
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete project')
-      }
-
-      alert('Project deleted successfully!')
+      if (!response.ok) throw new Error('Failed to delete')
       router.push('/projects')
     } catch (error) {
-      console.error('Delete error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete project')
+      alert('Failed to delete project')
     } finally {
       setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setDeleteConfirmation('')
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* 1. Project Information Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <Building className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Project Information</h2>
-          </div>
-          {editingSection !== 'project' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                
-                setEditingSection('project')
-              }}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'project' ? (
-            <form onSubmit={handleSubmit((data) => {
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      'DRAFT': 'bg-gray-100 text-gray-700 border-gray-200',
+      'IN_PROGRESS': 'bg-blue-50 text-blue-700 border-blue-200',
+      'ON_HOLD': 'bg-amber-50 text-amber-700 border-amber-200',
+      'URGENT': 'bg-red-50 text-red-700 border-red-200',
+      'CANCELLED': 'bg-gray-100 text-gray-500 border-gray-200',
+      'COMPLETED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    }
+    return colors[status] || colors['DRAFT']
+  }
 
-              updateSection('project information', {
+  const formatStatus = (status: string) => status?.replace(/_/g, ' ')
+
+  // Get address string
+  const getAddress = () => {
+    const parts = [project.streetAddress, project.city, project.postalCode].filter(Boolean)
+    return parts.length > 0 ? parts.join(', ') : null
+  }
+
+  // Render sidebar
+  const renderSidebar = () => (
+    <div className="w-48 flex-shrink-0">
+      <nav className="space-y-1 sticky top-4">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeSection === item.id
+          const isDanger = item.id === 'danger'
+          
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id)}
+              className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-all ${
+                isActive
+                  ? isDanger
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-purple-50 text-purple-700'
+                  : isDanger
+                    ? 'text-gray-500 hover:bg-red-50 hover:text-red-600'
+                    : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Icon className={`w-4 h-4 mr-2.5 ${isActive ? '' : 'text-gray-400'}`} />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+    </div>
+  )
+
+  // Render main content
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'overview': return renderOverview()
+      case 'images': return renderCoverImages()
+      case 'access': return renderClientAccess()
+      case 'rooms': return renderRoomsManagement()
+      case 'features': return renderProjectFeatures()
+      case 'dropbox': return renderDropboxConfig()
+      case 'danger': return renderDangerZone()
+      default: return null
+    }
+  }
+
+  // Main Overview - Project + Client + Contractors in one view
+  const renderOverview = () => {
+    const contractors = contractorsList.filter((c: any) => c.type?.toLowerCase() === 'contractor')
+    const subcontractors = contractorsList.filter((c: any) => c.type?.toLowerCase() === 'subcontractor')
+    
+    // Group subcontractors by specialty
+    const subsBySpecialty = subcontractors.reduce((groups: Record<string, any[]>, sub: any) => {
+      const specialty = sub.specialty || 'Other'
+      if (!groups[specialty]) groups[specialty] = []
+      groups[specialty].push(sub)
+      return groups
+    }, {})
+
+    return (
+      <div className="space-y-8">
+        {/* Project Details */}
+        <div>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-semibold text-gray-900">Project Details</h3>
+            {editingField !== 'project' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditingField('project')} className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                <Edit className="w-4 h-4 mr-1" /> Edit
+              </Button>
+            )}
+          </div>
+
+          {editingField === 'project' ? (
+            <form onSubmit={handleSubmit((data) => {
+              updateSection('project', {
                 name: data.name,
                 type: data.type,
                 status: data.status,
@@ -555,1685 +552,700 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 budget: data.budget ? parseFloat(data.budget) : null,
                 dueDate: data.dueDate || null
               })
-            })} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Project Name *
-                  </label>
-                  <Input
-                    {...register('name')}
-                    placeholder="Enter project name"
-                    className={errors.name ? 'border-red-500' : ''}
-                  />
-                  {errors.name && (
-                    <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
-                  )}
+            })} className="bg-gray-50 rounded-xl p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                  <Input {...register('name')} />
                 </div>
-                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Project Type
-                  </label>
-                  <select
-                    {...register('type')}
-                    className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select {...register('type')} className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
                     <option value="RESIDENTIAL">Residential</option>
                     <option value="COMMERCIAL">Commercial</option>
                     <option value="HOSPITALITY">Hospitality</option>
                   </select>
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Status
-                </label>
-                <select
-                  {...register('status')}
-                  className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="ON_HOLD">On Hold</option>
-                  <option value="URGENT">Urgent</option>
-                  <option value="CANCELLED">Cancelled</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
-              </div>
-              
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Address
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Input
-                      {...register('streetAddress')}
-                      placeholder="123 Main Street"
-                      className="mb-2"
-                    />
-                    <label className="text-xs text-gray-500">Street Address</label>
-                  </div>
-                  <div>
-                    <Input
-                      {...register('city')}
-                      placeholder="City"
-                      className="mb-2"
-                    />
-                    <label className="text-xs text-gray-500">City</label>
-                  </div>
-                  <div>
-                    <Input
-                      {...register('postalCode')}
-                      placeholder="12345"
-                      className="mb-2"
-                    />
-                    <label className="text-xs text-gray-500">Postal Code</label>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select {...register('status')} className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
+                    <option value="DRAFT">Draft</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="ON_HOLD">On Hold</option>
+                    <option value="URGENT">Urgent</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Budget</label>
+                  <Input {...register('budget')} type="number" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                  <Input {...register('dueDate')} type="date" />
                 </div>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <Textarea
-                  {...register('description')}
-                  rows={3}
-                  placeholder="Describe this project..."
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <Textarea {...register('description')} rows={2} placeholder="Project description..." />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Budget (USD)
-                  </label>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-3 relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      {...register('budget')}
-                      type="number"
-                      placeholder="150000"
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input 
+                      value={addressValue}
+                      onChange={(e) => handleAddressSearch(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowPredictions(false), 200)}
+                      onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                      placeholder="Start typing address..."
                       className="pl-10"
                     />
                   </div>
+                  {showPredictions && predictions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {predictions.map((prediction) => (
+                        <button
+                          key={prediction.place_id}
+                          type="button"
+                          onClick={() => handleSelectAddress(prediction.place_id)}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-50 focus:bg-purple-50 focus:outline-none"
+                        >
+                          <span className="font-medium">{prediction.structured_formatting.main_text}</span>
+                          <span className="text-gray-500 ml-1">{prediction.structured_formatting.secondary_text}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Due Date
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      {...register('dueDate')}
-                      type="date"
-                      className="pl-10"
-                    />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <Input {...register('city')} placeholder="City" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                  <Input {...register('postalCode')} placeholder="A1A 1A1" />
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-3 pt-4">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingSection(null)}
-                >
-                  Cancel
-                </Button>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
               </div>
             </form>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Project Name</p>
-                  <p className="text-gray-900 mt-1">{project.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Type</p>
-                  <p className="text-gray-900 mt-1">{project.type}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <div className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    project.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                    project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                    project.status === 'ON_HOLD' ? 'bg-yellow-100 text-yellow-800' :
-                    project.status === 'URGENT' ? 'bg-red-100 text-red-800' :
-                    project.status === 'CANCELLED' ? 'bg-gray-200 text-gray-700' :
-                    project.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {project.status === 'DRAFT' ? 'Draft' :
-                     project.status === 'IN_PROGRESS' ? 'In Progress' :
-                     project.status === 'ON_HOLD' ? 'On Hold' :
-                     project.status === 'URGENT' ? 'Urgent' :
-                     project.status === 'CANCELLED' ? 'Cancelled' :
-                     project.status === 'COMPLETED' ? 'Completed' :
-                     project.status}
+            <div className="bg-gray-50 rounded-xl p-5">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <InfoRow label="Project Name" value={project.name} />
+                <InfoRow label="Type" value={project.type} />
+                <InfoRow label="Status" value={
+                  <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(project.status)}`}>
+                    {formatStatus(project.status)}
                   </span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Project Address</p>
-                <div className="text-gray-900 mt-1">
-                  {project.streetAddress || project.city || project.postalCode ? (
-                    <div className="space-y-1">
-                      {project.streetAddress && <div>{project.streetAddress}</div>}
-                      <div>
-                        {project.city && <span>{project.city}</span>}
-                        {project.city && project.postalCode && <span>, </span>}
-                        {project.postalCode && <span>{project.postalCode}</span>}
-                      </div>
-                    </div>
-                  ) : (
-                    project.address || 'No address specified'
-                  )}
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Description</p>
-                <p className="text-gray-900 mt-1">{project.description || 'No description provided'}</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Budget</p>
-                  <p className="text-gray-900 mt-1">{project.budget ? `$${project.budget.toLocaleString()}` : 'No budget specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Due Date</p>
-                  <p className="text-gray-900 mt-1">{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'No due date set'}</p>
-                </div>
+                } />
+                <InfoRow label="Budget" value={project.budget ? `$${project.budget.toLocaleString()}` : null} />
+                <InfoRow label="Due Date" value={project.dueDate ? new Date(project.dueDate).toLocaleDateString() : null} />
+                <InfoRow label="Description" value={project.description} className="col-span-2" />
+                <InfoRow label="Street Address" value={project.streetAddress} />
+                <InfoRow label="City" value={project.city} />
+                <InfoRow label="Postal Code" value={project.postalCode} />
               </div>
             </div>
           )}
         </div>
-      </div>
-      
-      {/* 2. Client Information Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <User className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Client Information</h2>
+
+        {/* Client Information */}
+        <div>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-semibold text-gray-900">Client Information</h3>
+            {editingField !== 'client' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditingField('client')} className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                <Edit className="w-4 h-4 mr-1" /> Edit
+              </Button>
+            )}
           </div>
-          {editingSection !== 'client' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('client')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'client' ? (
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              updateClient()
-            }} className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Editing client information will update the client record across all projects.
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {editingField === 'client' ? (
+            <form onSubmit={(e) => { e.preventDefault(); updateClient() }} className="bg-gray-50 rounded-xl p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Client Name *
-                  </label>
-                  <Input
-                    value={clientFormData.name}
-                    onChange={(e) => setClientFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter client name"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                  <Input value={clientFormData.name} onChange={(e) => setClientFormData(p => ({ ...p, name: e.target.value }))} placeholder="Full name" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <Input
-                    type="email"
-                    value={clientFormData.email}
-                    onChange={(e) => setClientFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="client@email.com"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                  <Input value={clientFormData.company} onChange={(e) => setClientFormData(p => ({ ...p, company: e.target.value }))} placeholder="Company name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Email</label>
+                  <Input type="email" value={clientFormData.email} onChange={(e) => setClientFormData(p => ({ ...p, email: e.target.value }))} placeholder="email@example.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <Input value={clientFormData.phone} onChange={(e) => setClientFormData(p => ({ ...p, phone: e.target.value }))} placeholder="(555) 123-4567" />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
-                  <Input
-                    type="tel"
-                    value={clientFormData.phone}
-                    onChange={(e) => setClientFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="(555) 123-4567"
-                  />
+
+              {/* Additional Emails */}
+              {additionalEmails.length > 0 && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">Additional Emails</label>
+                  {additionalEmails.map((item, index) => (
+                    <div key={index} className="flex gap-3 items-start">
+                      <div className="w-1/3">
+                        <Input
+                          value={item.label}
+                          onChange={(e) => updateAdditionalEmail(index, 'label', e.target.value)}
+                          placeholder="Label (e.g., Accounting)"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          type="email"
+                          value={item.email}
+                          onChange={(e) => updateAdditionalEmail(index, 'email', e.target.value)}
+                          placeholder="email@example.com"
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeAdditionalEmail(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9 w-9 p-0">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company
-                  </label>
-                  <Input
-                    value={clientFormData.company}
-                    onChange={(e) => setClientFormData(prev => ({ ...prev, company: e.target.value }))}
-                    placeholder="Company Name"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3 pt-4">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingSection(null)
-                    // Reset form data to original values
-                    setClientFormData({
-                      name: project.client?.name || '',
-                      email: project.client?.email || '',
-                      phone: project.client?.phone || '',
-                      company: project.client?.company || ''
-                    })
-                  }}
-                >
-                  Cancel
-                </Button>
+              )}
+
+              <Button type="button" variant="outline" size="sm" onClick={addAdditionalEmail} className="text-purple-600 border-purple-200 hover:bg-purple-50">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Additional Email
+              </Button>
+
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
               </div>
             </form>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Client Name</p>
-                  <p className="text-gray-900 mt-1">{project.client?.name || 'No client assigned'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Email</p>
-                  <p className="text-gray-900 mt-1">{project.client?.email || 'No email provided'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Phone</p>
-                  <p className="text-gray-900 mt-1">{project.client?.phone || 'No phone provided'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Company</p>
-                  <p className="text-gray-900 mt-1">{project.client?.company || 'No company specified'}</p>
-                </div>
+            <div className="bg-gray-50 rounded-xl p-5">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <InfoRow label="Client Name" value={project.client?.name} />
+                <InfoRow label="Company" value={project.client?.company} />
+                <InfoRow label="Primary Email" value={project.client?.email} />
+                <InfoRow label="Phone" value={project.client?.phone} />
+                {project.client?.additionalEmails && project.client.additionalEmails.length > 0 && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Additional Emails</p>
+                    <div className="space-y-1">
+                      {project.client.additionalEmails.map((item: any, i: number) => (
+                        <p key={i} className="text-sm text-gray-900">
+                          {item.label && <span className="text-gray-500">{item.label}: </span>}
+                          {item.email}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
-      </div>
-      
-      {/* 3. Contractor & Subcontractor Information Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <Users className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Contractor & Subcontractor Information</h2>
-          </div>
-          {editingSection !== 'contractors' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('contractors')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'contractors' ? (
-            <div className="space-y-4">
-              {/* Current Contractors */}
-              {contractorsList.length > 0 && (
-                <div className="space-y-3">
-                  {contractorsList.map((contractor: any, index: number) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 relative">
-                      <button
-                        onClick={() => removeContractor(index)}
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-8">
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Business Name</p>
-                          <p className="text-gray-900 mt-1">{contractor.businessName || contractor.name || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Type</p>
-                          <p className="text-gray-900 mt-1 capitalize">{contractor.type}</p>
-                        </div>
-                      </div>
-                      {contractor.specialty && (
-                        <div className="mt-3 pr-8">
-                          <p className="text-sm font-medium text-gray-500">Specialty</p>
-                          <p className="text-gray-900 mt-1">{contractor.specialty}</p>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pr-8">
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Contact Name</p>
-                          <p className="text-gray-900 mt-1">{contractor.contactName || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Email</p>
-                          <p className="text-gray-900 mt-1">{contractor.email || 'Not specified'}</p>
-                        </div>
-                      </div>
-                      {contractor.address && (
-                        <div className="mt-3 pr-8">
-                          <p className="text-sm font-medium text-gray-500">Address</p>
-                          <p className="text-gray-900 mt-1">{contractor.address}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Add Contractor Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    setLoadingContractors(true)
-                    try {
-                      const response = await fetch('/api/contractors')
-                      if (response.ok) {
-                        const data = await response.json()
-                        setAvailableContractors(data)
-                        setShowSelectContractorDialog(true)
-                      }
-                    } catch (error) {
-                      console.error('Error loading contractors:', error)
-                      alert('Failed to load contractors library')
-                    } finally {
-                      setLoadingContractors(false)
-                    }
-                  }}
-                  className="border-2 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
-                  disabled={loadingContractors}
-                >
-                  <Building className="w-4 h-4 mr-2" />
-                  {loadingContractors ? 'Loading...' : 'Select from Library'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddContractorDialog(true)}
-                  className="border-dashed border-2 border-gray-300 hover:border-purple-400"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add New Contractor
-                </Button>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-3 pt-4 border-t">
-                <Button
-                  onClick={saveContractors}
-                  disabled={isLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingSection(null)
-                    setContractorsList(project.contractors || []) // Reset changes
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {contractorsList.length > 0 ? (
-                <>
-                  {/* Main Contractors Section */}
-                  {contractorsList.filter((c: any) => c.type?.toLowerCase() === 'contractor').length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <Building className="w-4 h-4 mr-2 text-blue-600" />
-                        General Contractors
-                      </h4>
-                      <div className="space-y-3">
-                        {contractorsList
-                          .filter((c: any) => c.type?.toLowerCase() === 'contractor')
-                          .map((contractor: any, index: number) => (
-                            <div key={`contractor-${index}`} className="border border-blue-200 bg-blue-50/30 rounded-lg p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h5 className="font-semibold text-gray-900">{contractor.businessName || contractor.name || 'Not specified'}</h5>
-                                  {contractor.contactName && (
-                                    <p className="text-sm text-gray-600 mt-1">{contractor.contactName}</p>
-                                  )}
-                                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
-                                    {contractor.email && <span>{contractor.email}</span>}
-                                    {contractor.phone && <span>{contractor.phone}</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Subcontractors Grouped by Specialty */}
-                  {contractorsList.filter((c: any) => c.type?.toLowerCase() === 'subcontractor').length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <Users className="w-4 h-4 mr-2 text-purple-600" />
-                        Subcontractors by Trade
-                      </h4>
-                      <div className="space-y-4">
-                        {/* Group subcontractors by specialty */}
-                        {Object.entries(
-                          contractorsList
-                            .filter((c: any) => c.type?.toLowerCase() === 'subcontractor')
-                            .reduce((groups: Record<string, any[]>, contractor: any) => {
-                              const specialty = contractor.specialty || 'Other'
-                              if (!groups[specialty]) groups[specialty] = []
-                              groups[specialty].push(contractor)
-                              return groups
-                            }, {})
-                        )
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([specialty, subs]) => (
-                            <div key={specialty} className="border border-purple-200 rounded-lg overflow-hidden">
-                              <div className="px-4 py-2 bg-purple-50 border-b border-purple-200">
-                                <h5 className="font-medium text-purple-900">{specialty}</h5>
-                              </div>
-                              <div className="divide-y divide-gray-100">
-                                {(subs as any[]).map((contractor: any, index: number) => (
-                                  <div key={`sub-${specialty}-${index}`} className="p-4">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <h6 className="font-semibold text-gray-900">{contractor.businessName || contractor.name || 'Not specified'}</h6>
-                                        {contractor.contactName && (
-                                          <p className="text-sm text-gray-600 mt-1">{contractor.contactName}</p>
-                                        )}
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
-                                          {contractor.email && <span>{contractor.email}</span>}
-                                          {contractor.phone && <span>{contractor.phone}</span>}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-gray-500 italic">No contractors or subcontractors assigned to this project</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* 4. Client Portal Section */}
-      <ClientAccessManagement 
-        projectId={project.id}
-        projectName={project.name}
-        clientName={project.client?.name || 'Client'}
-      />
-      
-      {/* 5. Project Cover Images Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Project Cover Images</h2>
+        {/* Contractors & Subcontractors */}
+        <div>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-semibold text-gray-900">Contractors & Subcontractors</h3>
+            {editingField !== 'contractors' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditingField('contractors')} className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                <Edit className="w-4 h-4 mr-1" /> Edit
+              </Button>
+            )}
           </div>
-          {editingSection !== 'images' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('images')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'images' ? (
-            <div className="space-y-4">
-              {/* Existing Images */}
-              {currentCoverImages.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {currentCoverImages.map((imageUrl: string, index: number) => (
-                    <div key={index} className="relative group">
-                      <Image
-                        src={imageUrl}
-                        alt={`Project cover ${index + 1}`}
-                        width={150}
-                        height={100}
-                        className="rounded-lg object-cover border border-gray-200 w-full"
-                      />
-                      
-                      {/* Delete Button */}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Delete image"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                      
-                      {/* Replace Button */}
-                      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <input
-                          type="file"
-                          id={`replace-image-${index}`}
-                          accept="image/*"
-                          onChange={(e) => replaceImage(index, e)}
-                          className="hidden"
-                        />
-                        <label htmlFor={`replace-image-${index}`}>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-6 px-2 bg-blue-500 hover:bg-blue-600 text-white text-xs cursor-pointer"
-                            asChild
-                          >
-                            <span title="Replace image">
-                              Replace
-                            </span>
-                          </Button>
-                        </label>
+
+          {editingField === 'contractors' ? (
+            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+              {contractorsList.length > 0 && (
+                <div className="space-y-2">
+                  {contractorsList.map((c: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{c.businessName}</p>
+                        <p className="text-xs text-gray-500 capitalize">{c.type}{c.specialty ? ` • ${c.specialty}` : ''}</p>
                       </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeContractor(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0">
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
-              
-              <div>
-                <input
-                  type="file"
-                  id="cover-images"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <label htmlFor="cover-images">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={uploadingImage}
-                    className="cursor-pointer border-dashed border-2 border-gray-300 hover:border-purple-400"
-                    asChild
-                  >
-                    <span>
-                      <Upload className="w-4 h-4 mr-2" />
-                      {uploadingImage ? 'Uploading...' : 'Add More Images'}
-                    </span>
-                  </Button>
-                </label>
-                <p className="text-sm text-gray-500 mt-1">
-                  Images are automatically saved after upload. PNG, JPG, WebP up to 4MB each.
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingSection(null)}
-                >
-                  Done
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  setLoadingContractors(true)
+                  try {
+                    const res = await fetch('/api/contractors')
+                    if (res.ok) { setAvailableContractors(await res.json()); setShowSelectContractorDialog(true) }
+                  } finally { setLoadingContractors(false) }
+                }}>
+                  <Building className="w-4 h-4 mr-1.5" />
+                  Select from Library
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowAddContractorDialog(true)}>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add New
                 </Button>
               </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <Button size="sm" onClick={saveContractors} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save Changes</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setEditingField(null); setContractorsList(project.contractors || []) }}>Cancel</Button>
+              </div>
             </div>
-          ) : (
+          ) : contractorsList.length > 0 ? (
             <div className="space-y-4">
-              {currentCoverImages.length > 0 ? (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-3">{currentCoverImages.length} Cover Image{currentCoverImages.length > 1 ? 's' : ''}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {currentCoverImages.map((imageUrl: string, index: number) => (
-                      <div key={index} className="relative">
-                        <Image
-                          src={imageUrl}
-                          alt={`Project cover ${index + 1}`}
-                          width={150}
-                          height={100}
-                          className="rounded-lg object-cover border border-gray-200 w-full"
-                        />
+              {/* General Contractors */}
+              {contractors.length > 0 && (
+                <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
+                    <Building className="w-4 h-4 mr-2" />
+                    General Contractors
+                  </h4>
+                  <div className="space-y-4">
+                    {contractors.map((c: any, i: number) => (
+                      <div key={i} className="bg-white rounded-lg p-4 border border-blue-200">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                          <InfoRowSmall label="Business Name" value={c.businessName} />
+                          <InfoRowSmall label="Contact Name" value={c.contactName} />
+                          <InfoRowSmall label="Email" value={c.email} />
+                          <InfoRowSmall label="Phone" value={c.phone} />
+                          <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <p className="text-gray-500 italic">No cover images uploaded</p>
               )}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* 6. Dropbox Configuration Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <Folder className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Dropbox Configuration</h2>
-          </div>
-          {editingSection !== 'storage' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('storage')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'storage' ? (
-            <div className="space-y-6">
-              {/* Dropbox Integration Options - Collapsible */}
-              <div>
-                <div 
-                  className="flex items-center justify-between cursor-pointer p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  onClick={() => setIsDropboxExpanded(!isDropboxExpanded)}
-                >
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Dropbox Integration Options</h3>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {dropboxOption === 'skip' 
-                        ? 'Click to configure Dropbox folder'
-                        : dropboxOption === 'create'
-                        ? 'Create new project folder structure'
-                        : 'Link to existing Dropbox folder'
-                      }
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {dropboxOption !== 'skip' && (
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                        Configured
-                      </span>
-                    )}
-                    {isDropboxExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
-                    )}
-                  </div>
-                </div>
-                
-                {isDropboxExpanded && (
-                  <div className="mt-4 space-y-4 pl-4 border-l-2 border-gray-200">
-                    {/* Create new folder option */}
-                    <div 
-                      onClick={() => setDropboxOption('create')}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        dropboxOption === 'create' 
-                          ? 'border-purple-500 bg-purple-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <FolderPlus className="w-5 h-5 text-purple-600" />
-                          </div>
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-1">Create New Dropbox Folder</h4>
-                          <p className="text-sm text-gray-600">
-                            Automatically create a project folder with standard subfolders (1-CAD, 2-MAX, 3-RENDERING, etc.)
-                          </p>
-                        </div>
-                        <div className="ml-auto">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            dropboxOption === 'create' 
-                              ? 'border-purple-500 bg-purple-500' 
-                              : 'border-gray-300'
-                          }`}>
-                            {dropboxOption === 'create' && (
-                              <div className="w-2 h-2 bg-white rounded-full" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Link to existing folder option */}
-                    <div 
-                      onClick={() => setDropboxOption('link')}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        dropboxOption === 'link' 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Link2 className="w-5 h-5 text-blue-600" />
-                          </div>
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-1">Link to Existing Dropbox Folder</h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Browse or enter the path to an existing Dropbox folder
-                          </p>
-                          {dropboxOption === 'link' && (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={dropboxFolderPath}
-                                onChange={(e) => {
-                                  e.stopPropagation()
-                                  setDropboxFolderPath(e.target.value)
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                placeholder="/Meisner Interiors Team Folder/Project Name"
-                              />
-                              <p className="text-xs text-gray-500">Or browse below:</p>
-                              <DropboxFolderBrowser
-                                currentPath={dropboxFolderPath}
-                                onSelect={(path) => setDropboxFolderPath(path)}
-                              />
+              {/* Subcontractors by Trade */}
+              {Object.entries(subsBySpecialty).length > 0 && (
+                <div className="space-y-4">
+                  {Object.entries(subsBySpecialty).sort(([a], [b]) => a.localeCompare(b)).map(([specialty, subs]) => (
+                    <div key={specialty} className="bg-purple-50 rounded-xl p-5 border border-purple-100">
+                      <h4 className="text-sm font-semibold text-purple-900 mb-4 flex items-center">
+                        <Briefcase className="w-4 h-4 mr-2" />
+                        {specialty}
+                      </h4>
+                      <div className="space-y-3">
+                        {(subs as any[]).map((c: any, i: number) => (
+                          <div key={i} className="bg-white rounded-lg p-4 border border-purple-200">
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                              <InfoRowSmall label="Business Name" value={c.businessName} />
+                              <InfoRowSmall label="Contact Name" value={c.contactName} />
+                              <InfoRowSmall label="Email" value={c.email} />
+                              <InfoRowSmall label="Phone" value={c.phone} />
+                              <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
                             </div>
-                          )}
-                        </div>
-                        <div className="ml-auto">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            dropboxOption === 'link' 
-                              ? 'border-blue-500 bg-blue-500' 
-                              : 'border-gray-300'
-                          }`}>
-                            {dropboxOption === 'link' && (
-                              <div className="w-2 h-2 bg-white rounded-full" />
-                            )}
                           </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
-
-                    {/* Skip integration option */}
-                    <div 
-                      onClick={() => setDropboxOption('skip')}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        dropboxOption === 'skip' 
-                          ? 'border-gray-500 bg-gray-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <FolderX className="w-5 h-5 text-gray-600" />
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-1">No Dropbox Integration</h4>
-                          <p className="text-sm text-gray-600">
-                            Don't link this project to a Dropbox folder
-                          </p>
-                        </div>
-                        <div className="ml-auto">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            dropboxOption === 'skip' 
-                              ? 'border-gray-500 bg-gray-500' 
-                              : 'border-gray-300'
-                          }`}>
-                            {dropboxOption === 'skip' && (
-                              <div className="w-2 h-2 bg-white rounded-full" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingSection(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    setIsCreatingDropbox(true)
-                    try {
-                      let folderPath = null
-                      
-                      if (dropboxOption === 'create') {
-                        // Call API to create Dropbox folder structure
-                        const response = await fetch(`/api/projects/${project.id}/dropbox-folder`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ projectName: project.name })
-                        })
-                        
-                        if (response.ok) {
-                          const data = await response.json()
-                          folderPath = data.folderPath
-                          alert(`Dropbox folder created successfully!\n\n${folderPath}`)
-                        } else {
-                          throw new Error('Failed to create Dropbox folder')
-                        }
-                      } else if (dropboxOption === 'link') {
-                        folderPath = dropboxFolderPath
-                      }
-                      
-                      // Update project with folder path
-                      await updateSection('file storage', { dropboxFolder: folderPath })
-                      setValue('dropboxFolder', folderPath || '', { shouldDirty: true })
-                      setEditingSection(null)
-                    } catch (error) {
-                      console.error('Error updating Dropbox folder:', error)
-                      alert('Failed to update Dropbox folder. Please try again.')
-                    } finally {
-                      setIsCreatingDropbox(false)
-                    }
-                  }}
-                  disabled={isCreatingDropbox || (dropboxOption === 'link' && !dropboxFolderPath)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isCreatingDropbox ? 'Processing...' : 'Save Changes'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {project.dropboxFolder ? (
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Dropbox Folder Location</p>
-                  <div className="flex items-center space-x-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                    <Folder className="w-5 h-5 text-purple-600" />
-                    <span className="text-gray-900 font-mono text-sm">{project.dropboxFolder}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    All project files will be organized in this Dropbox folder.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium text-gray-500">No Dropbox folder linked</p>
-                  <p className="text-gray-600 mt-1 text-sm">
-                    Click "Edit" to link a Dropbox folder for this project.
-                  </p>
+                  ))}
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
+              <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500 mb-3">No contractors or subcontractors assigned</p>
+              <Button variant="outline" size="sm" onClick={() => setEditingField('contractors')}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Contractors
+              </Button>
             </div>
           )}
         </div>
       </div>
-      
-      {/* 7. Rooms Management Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <Home className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Rooms Management</h2>
-            {editingSection !== 'rooms' && (
-              <span className="ml-3 text-sm text-gray-500">
-                {project.rooms?.length || 0} room{(project.rooms?.length || 0) !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          {editingSection !== 'rooms' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('rooms')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection(null)}
-              className="flex items-center"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Close
-            </Button>
-          )}
+    )
+  }
+
+  // Cover Images Section
+  const renderCoverImages = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Cover Images</h3>
+          <p className="text-sm text-gray-500">{currentCoverImages.length} image{currentCoverImages.length !== 1 ? 's' : ''}</p>
         </div>
-        {editingSection === 'rooms' ? (
-          <div className="px-6 py-4">
-            <RoomsManagementSection projectId={project.id} />
-          </div>
-        ) : (
-          <div className="px-6 py-4">
-            {project.rooms && project.rooms.length > 0 ? (
-              <div className="space-y-2">
-                {project.rooms.slice(0, 5).map((room: any, index: number) => (
-                  <div key={room.id || index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <Home className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-900">{room.name || room.type?.replace(/_/g, ' ')}</span>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      room.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                      room.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {room.status?.replace(/_/g, ' ') || 'Not Started'}
-                    </span>
-                  </div>
-                ))}
-                {project.rooms.length > 5 && (
-                  <p className="text-sm text-gray-500 pt-2">
-                    + {project.rooms.length - 5} more room{project.rooms.length - 5 !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 italic">No rooms added yet. Click Edit to add rooms.</p>
-            )}
-          </div>
+        <div>
+          <input type="file" id="cover-images" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+          <label htmlFor="cover-images">
+            <Button variant="outline" size="sm" disabled={uploadingImage} className="cursor-pointer" asChild>
+              <span><Upload className="w-4 h-4 mr-2" />{uploadingImage ? 'Uploading...' : 'Add'}</span>
+            </Button>
+          </label>
+        </div>
+      </div>
+
+      {currentCoverImages.length > 0 ? (
+        <div className="grid grid-cols-3 gap-4">
+          {currentCoverImages.map((url: string, i: number) => (
+            <div key={i} className="relative group aspect-video rounded-lg overflow-hidden border border-gray-200">
+              <Image src={url} alt={`Cover ${i + 1}`} fill className="object-cover" />
+              <button
+                onClick={() => removeImage(i)}
+                className="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+          <Camera className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 mb-3">No cover images</p>
+          <label htmlFor="cover-images" className="cursor-pointer">
+            <Button variant="outline" size="sm" asChild><span>Upload Images</span></Button>
+          </label>
+        </div>
+      )}
+    </div>
+  )
+
+  // Client Access Section
+  const renderClientAccess = () => (
+    <ClientAccessManagement 
+      projectId={project.id}
+      projectName={project.name}
+      clientName={project.client?.name || 'Client'}
+    />
+  )
+
+  // Rooms Management Section
+  const renderRoomsManagement = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Rooms Management</h3>
+          <p className="text-sm text-gray-500">
+            {loadingRooms ? 'Loading...' : `${roomsData.length} rooms • ${sectionsData.length} sections`}
+          </p>
+        </div>
+      </div>
+      <div className="bg-gray-50 rounded-xl p-6">
+        <RoomsManagementSection projectId={project.id} />
+      </div>
+    </div>
+  )
+
+  // Project Features Section
+  const renderProjectFeatures = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Project Features</h3>
+          <p className="text-sm text-gray-500">Enable or disable features</p>
+        </div>
+        {editingField !== 'features' && (
+          <Button variant="ghost" size="sm" onClick={() => setEditingField('features')}><Edit className="w-4 h-4" /></Button>
         )}
       </div>
-      
-      {/* 8. Project Features Section */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <SettingsIcon className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Project Features</h2>
+
+      {editingField === 'features' ? (
+        <form onSubmit={handleSubmit((data) => {
+          updateSection('features', {
+            hasFloorplanApproval: data.hasFloorplanApproval || false,
+            hasSpecBook: data.hasSpecBook || false,
+            hasProjectUpdates: data.hasProjectUpdates || false,
+          })
+        })} className="space-y-3">
+          <FeatureToggle icon={Folder} title="Floorplan" color="blue" register={register('hasFloorplanApproval')} />
+          <FeatureToggle icon={BookOpen} title="Spec Book" color="green" register={register('hasSpecBook')} />
+          <FeatureToggle icon={ClipboardList} title="Project Updates" color="purple" register={register('hasProjectUpdates')} />
+          <div className="flex gap-2 pt-4">
+            <Button type="submit" size="sm" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">Save</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
           </div>
-          {editingSection !== 'features' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingSection('features')}
-              className="flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          )}
+        </form>
+      ) : (
+        <div className="space-y-3">
+          <FeatureStatus title="Floorplan" enabled={project.hasFloorplanApproval} icon={Folder} color="blue" />
+          <FeatureStatus title="Spec Book" enabled={project.hasSpecBook} icon={BookOpen} color="green" />
+          <FeatureStatus title="Project Updates" enabled={project.hasProjectUpdates} icon={ClipboardList} color="purple" />
         </div>
-        
-        <div className="px-6 py-4">
-          {editingSection === 'features' ? (
-            <form onSubmit={handleSubmit((data) => {
-              updateSection('project features', {
-                hasFloorplanApproval: data.hasFloorplanApproval || false,
-                hasSpecBook: data.hasSpecBook || false,
-                hasProjectUpdates: data.hasProjectUpdates || false,
-              })
-            })} className="space-y-6">
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Enable or disable project-level features for this project. Features can be toggled on or off at any time.
-                </p>
-                
-                {/* Floorplan */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Folder className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Floorplan</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Manage floorplan reviews and client approvals independently from room workflows
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register('hasFloorplanApproval')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                </div>
-                
-                {/* Spec Book */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Spec Book</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Organize spec options, generate PDFs, and link CAD files for client presentations
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register('hasSpecBook')}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    />
-                  </div>
-                </div>
-                
-                {/* Project Updates */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <ClipboardList className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Project Updates</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Track onsite visits, manage revisions, and keep stakeholders informed of progress
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register('hasProjectUpdates')}
-                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3 pt-4 border-t">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingSection(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
-                Project-level features currently enabled for this project:
-              </p>
-              
-              <div className="space-y-3">
-                {/* Floorplan Status */}
-                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Folder className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Floorplan</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    {project.hasFloorplanApproval ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Enabled
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Disabled
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Spec Book Status */}
-                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <BookOpen className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Spec Book</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    {project.hasSpecBook ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Enabled
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Disabled
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Project Updates Status */}
-                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <ClipboardList className="w-4 h-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">Project Updates</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    {project.hasProjectUpdates ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Enabled
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Disabled
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {(!project.hasFloorplanApproval && !project.hasSpecBook && !project.hasProjectUpdates) && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 italic">No project features are currently enabled</p>
-                  <p className="text-sm text-gray-400 mt-1">Click "Edit" to enable project features</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Danger Zone */}
-      <div className="bg-white border border-red-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-red-200">
-          <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
-        </div>
-        
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">Delete Project</h3>
-              <p className="text-sm text-gray-500">Permanently delete this project and all associated data</p>
-              {session.user.role !== 'OWNER' && (
-                <p className="text-sm text-red-500 mt-1">Only project owners can delete projects</p>
-              )}
-            </div>
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={session.user.role !== 'OWNER'}
-              className="flex items-center"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Project
-            </Button>
-          </div>
-        </div>
+      )}
+    </div>
+  )
+
+  // Dropbox Config Section
+  const renderDropboxConfig = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900">Dropbox Configuration</h3>
+        <p className="text-sm text-gray-500">File storage location</p>
       </div>
 
-      {/* Add Contractor Dialog */}
-      {showAddContractorDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Add {newContractor.type === 'contractor' ? 'Contractor' : 'Subcontractor'}
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Type *
-                </label>
-                <select
-                  value={newContractor.type}
-                  onChange={(e) => setNewContractor({ ...newContractor, type: e.target.value as 'contractor' | 'subcontractor' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="contractor">Contractor</option>
-                  <option value="subcontractor">Subcontractor</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Name *
-                </label>
-                <Input
-                  value={newContractor.businessName}
-                  onChange={(e) => setNewContractor({ ...newContractor, businessName: e.target.value })}
-                  placeholder="Enter business name"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contact Name
-                </label>
-                <Input
-                  value={newContractor.contactName}
-                  onChange={(e) => setNewContractor({ ...newContractor, contactName: e.target.value })}
-                  placeholder="Enter contact person name"
-                />
-              </div>
-              
-              {newContractor.type === 'subcontractor' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Specialty/Trade *
-                  </label>
-                  <Input
-                    value={newContractor.specialty}
-                    onChange={(e) => setNewContractor({ ...newContractor, specialty: e.target.value })}
-                    placeholder="e.g., Electrician, Plumber, HVAC, Flooring, etc."
-                    required={newContractor.type === 'subcontractor'}
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Required for subcontractors - specify their trade or specialty
-                  </p>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
-                <Input
-                  type="email"
-                  value={newContractor.email}
-                  onChange={(e) => setNewContractor({ ...newContractor, email: e.target.value })}
-                  placeholder="Enter email address"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone
-                </label>
-                <Input
-                  type="tel"
-                  value={newContractor.phone}
-                  onChange={(e) => setNewContractor({ ...newContractor, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <Input
-                  value={newContractor.address}
-                  onChange={(e) => setNewContractor({ ...newContractor, address: e.target.value })}
-                  placeholder="Enter business address (optional)"
-                />
-              </div>
+      {project.dropboxFolder ? (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center">
+              <Folder className="w-5 h-5 text-purple-600" />
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddContractorDialog(false)
-                  setNewContractor({
-                    businessName: '',
-                    contactName: '',
-                    email: '',
-                    phone: '',
-                    address: '',
-                    type: 'contractor',
-                    specialty: ''
-                  })
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={addContractor}
-                disabled={!newContractor.businessName || !newContractor.email}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                Add {newContractor.type === 'contractor' ? 'Contractor' : 'Subcontractor'}
-              </Button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-purple-900 truncate">{project.dropboxFolder}</p>
+              <p className="text-xs text-purple-600">Connected</p>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setEditingField('dropbox')}>Change</Button>
           </div>
         </div>
-      )}
-
-      {/* Select Contractor from Library Dialog */}
-      {showSelectContractorDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Select Contractor from Library
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowSelectContractorDialog(false)
-                    setContractorSearchTerm('')
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+      ) : editingField === 'dropbox' ? (
+        <div className="space-y-4">
+          <div onClick={() => setDropboxOption('create')} className={`p-4 rounded-xl border-2 cursor-pointer ${dropboxOption === 'create' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
+            <div className="flex items-center gap-3">
+              <FolderPlus className="w-5 h-5 text-purple-600" />
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Create New Folder</p>
+                <p className="text-xs text-gray-500">Auto-create with subfolders</p>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search contractors..."
-                  value={contractorSearchTerm}
-                  onChange={(e) => setContractorSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+              <div className={`w-5 h-5 rounded-full border-2 ${dropboxOption === 'create' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}`}>
+                {dropboxOption === 'create' && <Check className="w-full h-full text-white p-0.5" />}
               </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {availableContractors.filter(c => 
-                c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
-              ).length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Building className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No contractors found</p>
-                  <p className="text-sm mt-1">Try adjusting your search or add contractors in Preferences</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {availableContractors
-                    .filter(c => 
-                      c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                      c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                      c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
-                    )
-                    .map((contractor) => {
-                      const isAlreadyAdded = contractorsList.some(
-                        (c: any) => c.id === contractor.id || c.email === contractor.email
-                      )
-                      
-                      return (
-                        <div
-                          key={contractor.id}
-                          className={`border rounded-lg p-4 transition-all ${
-                            isAlreadyAdded 
-                              ? 'border-gray-200 bg-gray-50 opacity-60' 
-                              : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                          }`}
-                          onClick={() => {
-                            if (!isAlreadyAdded) {
-                              setContractorsList([...contractorsList, {
-                                id: contractor.id,
-                                businessName: contractor.businessName,
-                                contactName: contractor.contactName,
-                                email: contractor.email,
-                                phone: contractor.phone,
-                                address: contractor.address,
-                                type: contractor.type.toLowerCase(),
-                                specialty: contractor.specialty
-                              }])
-                              setShowSelectContractorDialog(false)
-                              setContractorSearchTerm('')
-                            }
-                          }}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <h4 className="font-semibold text-gray-900">{contractor.businessName}</h4>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  contractor.type === 'CONTRACTOR' 
-                                    ? 'bg-blue-100 text-blue-800' 
-                                    : 'bg-purple-100 text-purple-800'
-                                }`}>
-                                  {contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
-                                </span>
-                                {isAlreadyAdded && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Added
-                                  </span>
-                                )}
-                              </div>
-                              {contractor.specialty && (
-                                <p className="text-sm text-gray-600 mb-1">
-                                  <span className="font-medium">Specialty:</span> {contractor.specialty}
-                                </p>
-                              )}
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                                {contractor.contactName && (
-                                  <span>{contractor.contactName}</span>
-                                )}
-                                {contractor.email && (
-                                  <span>{contractor.email}</span>
-                                )}
-                                {contractor.phone && (
-                                  <span>{contractor.phone}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-4 border-t border-gray-200">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSelectContractorDialog(false)
-                  setContractorSearchTerm('')
-                }}
-                className="w-full"
-              >
-                Close
-              </Button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Delete Project
-            </h3>
-            <p className="text-gray-600 mb-4">
-              This action cannot be undone. This will permanently delete the project
-              <strong className="text-gray-900"> "{project.name}" </strong>
-              and all associated data.
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              Please type <strong>{project.name}</strong> to confirm:
-            </p>
-            <Input
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              placeholder={project.name}
-              className="mb-6"
-            />
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteConfirm(false)
-                  setDeleteConfirmation('')
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isDeleting || deleteConfirmation.trim() !== project.name.trim()}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Project'}
-              </Button>
+          <div onClick={() => setDropboxOption('link')} className={`p-4 rounded-xl border-2 cursor-pointer ${dropboxOption === 'link' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+            <div className="flex items-center gap-3">
+              <Link2 className="w-5 h-5 text-blue-600" />
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Link Existing</p>
+                <p className="text-xs text-gray-500">Browse or enter path</p>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 ${dropboxOption === 'link' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                {dropboxOption === 'link' && <Check className="w-full h-full text-white p-0.5" />}
+              </div>
             </div>
+            {dropboxOption === 'link' && (
+              <div className="mt-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+                <Input value={dropboxFolderPath} onChange={(e) => setDropboxFolderPath(e.target.value)} placeholder="/Folder/Path" />
+                <DropboxFolderBrowser currentPath={dropboxFolderPath} onSelect={(p) => setDropboxFolderPath(p)} />
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Dropbox Link Required Modal */}
-      {showDropboxLinkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                <Folder className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  No Dropbox Folder Linked
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Project cover images are uploaded, but not archived to Dropbox
-                </p>
-              </div>
-            </div>
-            
-            <p className="text-sm text-gray-700 mb-6">
-              To archive cover images in your project's Dropbox folder, please link or create a Dropbox folder structure.
-            </p>
-
-            <div className="space-y-3 mb-6">
-              <button
-                onClick={async () => {
-                  setShowDropboxLinkModal(false)
-                  setDropboxOption('create')
-                  setIsDropboxExpanded(true)
-                  setEditingSection('storage')
-                  
-                  // Auto-create Dropbox folder
-                  try {
-                    setIsCreatingDropbox(true)
-                    const response = await fetch(`/api/projects/${project.id}/dropbox-folder`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'create' })
+          <div className="flex gap-2">
+            <Button size="sm" disabled={isCreatingDropbox || (dropboxOption === 'link' && !dropboxFolderPath)} className="bg-purple-600 hover:bg-purple-700"
+              onClick={async () => {
+                setIsCreatingDropbox(true)
+                try {
+                  let folderPath = null
+                  if (dropboxOption === 'create') {
+                    const res = await fetch(`/api/projects/${project.id}/dropbox-folder`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ projectName: project.name })
                     })
-                    
-                    if (response.ok) {
-                      const data = await response.json()
-                      router.refresh()
-                      alert('Dropbox folder created successfully!')
-                    } else {
-                      throw new Error('Failed to create folder')
-                    }
-                  } catch (error) {
-                    console.error('Error creating Dropbox folder:', error)
-                    alert('Failed to create Dropbox folder. Please try again.')
-                  } finally {
-                    setIsCreatingDropbox(false)
+                    if (res.ok) folderPath = (await res.json()).folderPath
+                  } else {
+                    folderPath = dropboxFolderPath
                   }
-                }}
-                className="w-full flex items-center justify-between p-4 border-2 border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <FolderPlus className="w-5 h-5 text-purple-600" />
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Create New Folder</p>
-                    <p className="text-xs text-gray-600">Auto-create with 10 standard subfolders</p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowDropboxLinkModal(false)
-                  setDropboxOption('link')
-                  setIsDropboxExpanded(true)
-                  setEditingSection('storage')
-                }}
-                className="w-full flex items-center justify-between p-4 border-2 border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <Link2 className="w-5 h-5 text-blue-600" />
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Link Existing Folder</p>
-                    <p className="text-xs text-gray-600">Connect to an existing Dropbox folder</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowDropboxLinkModal(false)}
-              >
-                Skip for Now
-              </Button>
-            </div>
+                  await updateSection('dropbox', { dropboxFolder: folderPath })
+                  setEditingField(null)
+                } finally { setIsCreatingDropbox(false) }
+              }}
+            >
+              {isCreatingDropbox ? 'Processing...' : 'Save'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
           </div>
         </div>
+      ) : (
+        <div className="text-center py-10 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+          <Folder className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 mb-3">No folder linked</p>
+          <Button variant="outline" size="sm" onClick={() => setEditingField('dropbox')}>
+            <FolderPlus className="w-4 h-4 mr-1.5" />
+            Configure
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+
+  // Danger Zone
+  const renderDangerZone = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-red-600">Danger Zone</h3>
+        <p className="text-sm text-gray-500">Irreversible actions</p>
+      </div>
+
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h4 className="font-medium text-gray-900">Delete Project</h4>
+            <p className="text-sm text-gray-600 mt-1">Permanently delete this project and all data.</p>
+            {session.user.role !== 'OWNER' && <p className="text-sm text-red-600 mt-2">Only owners can delete</p>}
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={session.user.role !== 'OWNER'}>
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            Delete
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex gap-8">
+      {renderSidebar()}
+      <div className="flex-1 min-w-0">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          {renderContent()}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showAddContractorDialog && (
+        <Modal title="Add Contractor" onClose={() => setShowAddContractorDialog(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select value={newContractor.type} onChange={(e) => setNewContractor({ ...newContractor, type: e.target.value as any })} className="w-full px-3 py-2 border rounded-md text-sm">
+                <option value="contractor">Contractor</option>
+                <option value="subcontractor">Subcontractor</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Name *</label>
+              <Input value={newContractor.businessName} onChange={(e) => setNewContractor({ ...newContractor, businessName: e.target.value })} />
+            </div>
+            {newContractor.type === 'subcontractor' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Specialty *</label>
+                <Input value={newContractor.specialty} onChange={(e) => setNewContractor({ ...newContractor, specialty: e.target.value })} placeholder="Electrician, Plumber, etc." />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <Input type="email" value={newContractor.email} onChange={(e) => setNewContractor({ ...newContractor, email: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+              <Input value={newContractor.contactName} onChange={(e) => setNewContractor({ ...newContractor, contactName: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" size="sm" onClick={() => setShowAddContractorDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={addContractor} disabled={!newContractor.businessName || !newContractor.email} className="bg-purple-600 hover:bg-purple-700">Add</Button>
+          </div>
+        </Modal>
+      )}
+
+      {showSelectContractorDialog && (
+        <Modal title="Select from Library" onClose={() => setShowSelectContractorDialog(false)}>
+          <div className="mb-4">
+            <Input placeholder="Search..." value={contractorSearchTerm} onChange={(e) => setContractorSearchTerm(e.target.value)} className="text-sm" />
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {availableContractors.filter(c => c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase())).map((c) => {
+              const added = contractorsList.some((x: any) => x.id === c.id)
+              return (
+                <div key={c.id} onClick={() => {
+                  if (!added) {
+                    setContractorsList([...contractorsList, { id: c.id, businessName: c.businessName, contactName: c.contactName, email: c.email, type: c.type.toLowerCase(), specialty: c.specialty }])
+                    setShowSelectContractorDialog(false)
+                  }
+                }} className={`p-3 rounded-lg border cursor-pointer ${added ? 'bg-gray-50 opacity-50' : 'hover:bg-purple-50 hover:border-purple-200'}`}>
+                  <p className="font-medium text-sm text-gray-900">{c.businessName}</p>
+                  <p className="text-xs text-gray-500 capitalize">{c.type.toLowerCase()}{c.specialty ? ` • ${c.specialty}` : ''}</p>
+                </div>
+              )
+            })}
+          </div>
+        </Modal>
+      )}
+
+      {showDeleteConfirm && (
+        <Modal title="Delete Project" onClose={() => setShowDeleteConfirm(false)}>
+          <p className="text-sm text-gray-600 mb-4">Type <strong>{project.name}</strong> to confirm:</p>
+          <Input value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} className="mb-4" />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting || deleteConfirmation !== project.name}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// Helper Components
+function FeatureToggle({ icon: Icon, title, color, register }: { icon: any; title: string; color: string; register: any }) {
+  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : 'bg-purple-100'
+  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : 'text-purple-600'
+  return (
+    <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}><Icon className={`w-4 h-4 ${ic}`} /></div>
+        <span className="font-medium text-gray-900 text-sm">{title}</span>
+      </div>
+      <input type="checkbox" {...register} className="h-4 w-4 rounded border-gray-300 text-purple-600" />
+    </label>
+  )
+}
+
+function FeatureStatus({ title, enabled, icon: Icon, color }: { title: string; enabled: boolean; icon: any; color: string }) {
+  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : 'bg-purple-100'
+  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : 'text-purple-600'
+  return (
+    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}><Icon className={`w-4 h-4 ${ic}`} /></div>
+        <span className="font-medium text-gray-900 text-sm">{title}</span>
+      </div>
+      <span className={`text-xs font-medium px-2 py-1 rounded-full ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+        {enabled ? 'On' : 'Off'}
+      </span>
+    </div>
+  )
+}
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value, className = '' }: { label: string; value: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
+      {value ? (
+        <p className="text-sm text-gray-900">{value}</p>
+      ) : (
+        <p className="text-sm text-gray-400 italic">Not set</p>
+      )}
+    </div>
+  )
+}
+
+function InfoRowSmall({ label, value, className = '' }: { label: string; value: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-xs text-gray-500">{label}</p>
+      {value ? (
+        <p className="text-sm font-medium text-gray-900">{value}</p>
+      ) : (
+        <p className="text-sm text-gray-400 italic">—</p>
       )}
     </div>
   )

@@ -323,7 +323,7 @@ export default async function ProjectDetail({ params }: Props) {
                 <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50" asChild>
                   <Link href={`/projects/${project.id}/settings`}>
                     <Settings className="w-4 h-4 mr-2" />
-                    Project Settings
+                    Project Information
                   </Link>
                 </Button>
               </div>

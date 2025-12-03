@@ -105,30 +105,22 @@ export default async function ProjectSettings({ params }: Props) {
               </div>
             </div>
             
-            {/* Project Title & Info */}
-            <div className="mt-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                Project Settings
+            {/* Project Title */}
+            <div className="mt-4">
+              <h1 className="text-2xl font-semibold text-gray-900">
+                {project.name}
               </h1>
-              <p className="text-gray-600">
-                Manage project information, cover image, Dropbox location, and other settings
-              </p>
-              
             </div>
           </div>
         </div>
 
-        {/* Settings Form */}
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-8">
-              <ProjectSettingsForm 
-                project={project}
-                clients={clients}
-                session={session}
-              />
-            </div>
-          </div>
+        {/* Settings Form with Sidebar */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <ProjectSettingsForm 
+            project={project}
+            clients={clients}
+            session={session}
+          />
         </div>
       </div>
     </DashboardLayout>

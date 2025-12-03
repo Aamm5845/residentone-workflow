@@ -746,17 +746,6 @@ export default function RoomsManagementSection({ projectId }: RoomsManagementSec
         )}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <AlertCircle className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0 mt-0.5" />
-          <div className="text-blue-700">
-            <p className="font-medium">Room Organization</p>
-            <p className="text-sm mt-1">
-              Create sections (like floors, wings, or areas) to organize your rooms. Use the dropdown next to each room to assign it to a section.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Add Room Dialog */}
       {showAddRoomDialog && (

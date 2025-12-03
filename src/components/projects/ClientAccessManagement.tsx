@@ -286,19 +286,11 @@ export default function ClientAccessManagement({
       )}
 
       {/* Token List */}
-      {tokens.length === 0 ? (
-        <div className="text-center py-12">
-          <LinkIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h4 className="text-lg font-medium text-gray-900 mb-2">No Access Links</h4>
-          <p className="text-gray-600 mb-4">
-            Generate secure links to share project progress with your client
-          </p>
-          <Button onClick={() => setShowCreateForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Generate First Link
-          </Button>
+      {tokens.length === 0 && !showCreateForm ? (
+        <div className="text-center py-4 text-gray-500">
+          <p className="text-sm">No access links generated yet. Click "Generate Link" above to create one.</p>
         </div>
-      ) : (
+      ) : tokens.length > 0 ? (
         <div className="space-y-4">
           {tokens.map((token) => {
             const expiryStatus = getExpiryStatus(token.expiresAt)
@@ -384,7 +376,7 @@ export default function ClientAccessManagement({
             )
           })}
         </div>
-      )}
+      ) : null}
 
     </div>
   )
