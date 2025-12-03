@@ -143,7 +143,7 @@ function FeatureAnnouncementBanner() {
   return (
     <>
       {/* Main Banner - Compact */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-[#a657f0] shadow-lg">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl" />
@@ -170,7 +170,7 @@ function FeatureAnnouncementBanner() {
                     NEW
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-white">
-                    Hey team! ⏱️ Time Tracking is here
+                    Hey team! Time Tracking is here
                   </h3>
                 </div>
                 
@@ -184,7 +184,7 @@ function FeatureAnnouncementBanner() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowDetails(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-purple-700 rounded-lg font-semibold text-xs hover:bg-white/90 transition-all shadow-md hover:shadow-lg"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#a657f0] rounded-lg font-semibold text-xs hover:bg-white/90 transition-all shadow-md hover:shadow-lg"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Learn More</span>
@@ -217,7 +217,7 @@ function FeatureAnnouncementBanner() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-8 text-white">
+            <div className="relative bg-[#a657f0] px-6 py-8 text-white">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl" />
               </div>
@@ -251,23 +251,23 @@ function FeatureAnnouncementBanner() {
               {/* Goals Section */}
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600">
-                    🎯
+                  <span className="w-8 h-8 bg-[#a657f0]/10 rounded-lg flex items-center justify-center text-[#a657f0]">
+                    <TrendingUp className="w-4 h-4" />
                   </span>
                   Why We Built This
                 </h3>
-                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-100">
+                <div className="bg-[#a657f0]/5 rounded-xl p-4 border border-[#a657f0]/20">
                   <ul className="space-y-3 text-gray-700">
                     <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">1</span>
+                      <span className="w-6 h-6 bg-[#a657f0] rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">1</span>
                       <span><strong>Project Cost Tracking:</strong> Understand how much time (and money) is spent on each project to price future work accurately</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">2</span>
+                      <span className="w-6 h-6 bg-[#f6762e] rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">2</span>
                       <span><strong>Team Visibility:</strong> See what projects your teammates are currently working on in real-time</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">3</span>
+                      <span className="w-6 h-6 bg-[#14b8a6] rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 mt-0.5">3</span>
                       <span><strong>Workload Balance:</strong> Identify bottlenecks and distribute work more evenly across the team</span>
                     </li>
                   </ul>
@@ -277,23 +277,23 @@ function FeatureAnnouncementBanner() {
               {/* How to Use Section */}
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
-                    📖
+                  <span className="w-8 h-8 bg-[#14b8a6]/15 rounded-lg flex items-center justify-center text-[#14b8a6]">
+                    <FileText className="w-4 h-4" />
                   </span>
                   How to Use
                 </h3>
                 
                 <div className="space-y-4">
                   {/* Method 1 */}
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-[#a657f0]/30 hover:shadow-md transition-all">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                      <div className="w-10 h-10 bg-[#f6762e] rounded-xl flex items-center justify-center text-white flex-shrink-0">
                         <Play className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-1">Method 1: Quick Start from Dashboard</h4>
                         <p className="text-sm text-gray-600 mb-2">Click the <strong>"Track Time"</strong> button in the top navigation bar, select a project and phase, then start tracking!</p>
-                        <div className="inline-flex items-center gap-1 text-xs text-cyan-600 bg-cyan-50 px-2 py-1 rounded-full">
+                        <div className="inline-flex items-center gap-1 text-xs text-[#f6762e] bg-[#f6762e]/10 px-2 py-1 rounded-full">
                           <Clock className="w-3 h-3" />
                           Best for quick time entries
                         </div>
@@ -302,15 +302,15 @@ function FeatureAnnouncementBanner() {
                   </div>
                   
                   {/* Method 2 */}
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-[#a657f0]/30 hover:shadow-md transition-all">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                      <div className="w-10 h-10 bg-[#a657f0] rounded-xl flex items-center justify-center text-white flex-shrink-0">
                         <Layers3 className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-1">Method 2: Start from a Phase</h4>
                         <p className="text-sm text-gray-600 mb-2">When you're in any project phase (Design, 3D, etc.), click the timer button to start tracking time for that specific task.</p>
-                        <div className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                        <div className="inline-flex items-center gap-1 text-xs text-[#a657f0] bg-[#a657f0]/10 px-2 py-1 rounded-full">
                           <Timer className="w-3 h-3" />
                           Auto-links to correct project & phase
                         </div>
@@ -319,7 +319,7 @@ function FeatureAnnouncementBanner() {
                   </div>
                   
                   {/* Method 3 */}
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-[#a657f0]/30 hover:shadow-md transition-all">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white flex-shrink-0">
                         <FileText className="w-5 h-5" />
@@ -338,9 +338,9 @@ function FeatureAnnouncementBanner() {
               </div>
               
               {/* Team Activity */}
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+              <div className="bg-[#14b8a6]/10 rounded-xl p-4 border border-[#14b8a6]/20">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                  <div className="w-10 h-10 bg-[#14b8a6] rounded-xl flex items-center justify-center text-white flex-shrink-0">
                     <Users className="w-5 h-5" />
                   </div>
                   <div>
@@ -372,7 +372,7 @@ function FeatureAnnouncementBanner() {
                 <Link
                   href="/timeline"
                   onClick={() => setShowDetails(false)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#a657f0] text-white rounded-xl font-semibold text-sm hover:bg-[#a657f0]/90 transition-all shadow-lg hover:shadow-xl"
                 >
                   <Clock className="w-4 h-4" />
                   Open Timeline
@@ -434,7 +434,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user.name}! 👋
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user.name}!
           </h1>
           <p className="text-gray-600 mt-1">
             {isLoading ? (
@@ -455,7 +455,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           label="Active Projects"
           value={isLoading ? '...' : statsData?.activeProjects?.toString() || '0'}
           icon={Briefcase}
-          color="bg-blue-500"
+          color="bg-[#a657f0]"
           isLoading={isLoading}
           href="/projects?status=active"
         />
@@ -463,7 +463,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           label="Active Rooms"
           value={isLoading ? '...' : statsData?.activeRooms?.toString() || '0'}
           icon={Layers3}
-          color="bg-green-500"
+          color="bg-[#14b8a6]"
           isLoading={isLoading}
           href="/rooms?status=active"
         />
@@ -471,7 +471,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           label="Pending Approvals"
           value={isLoading ? '...' : statsData?.pendingApprovals?.toString() || '0'}
           icon={Clock}
-          color="bg-orange-500"
+          color="bg-[#f6762e]"
           isLoading={isLoading}
           onClick={() => setShowPendingApprovals(true)}
         />
@@ -479,7 +479,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           label="Completed This Month"
           value={isLoading ? '...' : statsData?.completedThisMonth?.toString() || '0'}
           icon={CheckCircle}
-          color="bg-purple-500"
+          color="bg-[#6366ea]"
           isLoading={isLoading}
           href="/projects?status=completed&timeframe=month"
         />
@@ -489,7 +489,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#a657f0] rounded-xl flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -503,7 +503,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             variant="ghost"
             size="sm"
             onClick={() => setTasksCollapsed(!tasksCollapsed)}
-            className="h-9 px-3 hover:bg-purple-50 transition-colors"
+            className="h-9 px-3 hover:bg-[#a657f0]/10 transition-colors"
           >
             {tasksCollapsed ? (
               <>
@@ -532,12 +532,12 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             </div>
           ) : !tasksData?.tasks || tasksData.tasks.length === 0 ? (
             <div className="text-center py-16 px-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
               <p className="text-gray-600">No pending tasks assigned to you</p>
-              <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work! 🎉</p>
+              <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work!</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -566,7 +566,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
                 <p className="text-sm font-medium text-gray-600">Active Stages</p>
                 <p className="text-2xl font-bold text-gray-900">{statsData.activeStages}</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-blue-500" />
+              <TrendingUp className="w-8 h-8 text-[#14b8a6]" />
             </div>
           </div>
           
@@ -635,8 +635,8 @@ function TaskItem({ task }: { task: Task }) {
       label: 'Medium Priority'
     },
     low: {
-      badge: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white',
-      icon: '🟢',
+      badge: 'bg-green-500 text-white',
+      icon: '',
       label: 'Low Priority'
     }
   }
@@ -664,7 +664,7 @@ function TaskItem({ task }: { task: Task }) {
           ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-500' 
           : isDueSoon
           ? 'bg-amber-50 hover:bg-amber-100 border-l-4 border-amber-500' 
-          : 'bg-white hover:bg-gray-50 border-l-4 border-gray-300 hover:border-purple-400'
+          : 'bg-white hover:bg-gray-50 border-l-4 border-gray-300 hover:border-[#a657f0]'
       } border border-gray-200 hover:border-gray-300 hover:shadow-md`}
       onClick={handleTaskClick}
     >
@@ -838,7 +838,7 @@ function LastCompletedPhaseCard({
           
           {/* Completed By - with profile picture */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-[#a657f0] flex items-center justify-center text-white text-sm font-medium flex-shrink-0 overflow-hidden">
               {data.completedBy.image ? (
                 <Image
                   src={data.completedBy.image}
@@ -865,7 +865,7 @@ function LastCompletedPhaseCard({
         </div>
         
         {/* Milestone Icon */}
-        <Award className="w-8 h-8 text-purple-500 flex-shrink-0 ml-3" />
+        <Award className="w-8 h-8 text-[#a657f0] flex-shrink-0 ml-3" />
       </div>
       
       {/* Click to view more indicator */}
@@ -979,7 +979,7 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
                   <div key={completion.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div className="flex items-center space-x-4">
                       {/* Profile Picture/Initial */}
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-[#a657f0] flex items-center justify-center text-white font-medium flex-shrink-0">
                         {completion.completedBy.image ? (
                           <Image
                             src={completion.completedBy.image}
@@ -997,7 +997,7 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
 
                       {/* Phase Details */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-purple-600 text-sm">
+                        <h3 className="font-semibold text-[#a657f0] text-sm">
                           {formatPhaseName(completion.stageType)}
                         </h3>
                         <p className="text-sm font-medium text-gray-900 truncate">
@@ -1016,7 +1016,7 @@ function RecentCompletionsModal({ isOpen, onClose }: { isOpen: boolean, onClose:
 
                       {/* Order Number */}
                       <div className="flex-shrink-0">
-                        <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium">
+                        <div className="w-6 h-6 bg-[#a657f0]/15 text-[#a657f0] rounded-full flex items-center justify-center text-xs font-medium">
                           {index + 1}
                         </div>
                       </div>
@@ -1115,7 +1115,7 @@ function PendingApprovalsModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   >
                     <div className="flex items-center space-x-4">
                       {/* Creator Profile Picture/Initial */}
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-medium flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-[#6366ea] flex items-center justify-center text-white font-medium flex-shrink-0">
                         {approval.createdBy.image ? (
                           <Image
                             src={approval.createdBy.image}

@@ -1,6 +1,6 @@
-# StudioFlow Color System
+# StudioFlow Color System & UI Guidelines
 
-This document defines the official color palette for the StudioFlow application. All new features and UI components should use these colors consistently.
+This document defines the official color palette and UI guidelines for the StudioFlow application. All new features and UI components should follow these rules consistently.
 
 ## Phase Colors (Workflow Stages)
 
@@ -23,7 +23,8 @@ Use arbitrary value syntax for exact colors:
 className="bg-[#a657f0]"  // Design Concept purple
 className="bg-[#f6762e]"  // 3D orange
 className="bg-[#14b8a6]"  // Client Approval teal
-className="bg-[#6366ea]"  // Drawings/FFE indigo
+className="bg-[#6366ea]"  // Drawings indigo
+className="bg-[#e94d97]"  // FFE pink
 
 // Text colors
 className="text-[#a657f0]"
@@ -79,8 +80,11 @@ className="bg-gradient-to-br from-[#f6762e]/10 to-[#f6762e]/20 border border-[#f
 // Client Approval card
 className="bg-gradient-to-br from-[#14b8a6]/10 to-[#14b8a6]/20 border border-[#14b8a6]/30"
 
-// Drawings/FFE card
+// Drawings card
 className="bg-gradient-to-br from-[#6366ea]/10 to-[#6366ea]/20 border border-[#6366ea]/30"
+
+// FFE card
+className="bg-gradient-to-br from-[#e94d97]/10 to-[#e94d97]/20 border border-[#e94d97]/30"
 ```
 
 ## UI Accent Colors
@@ -92,6 +96,68 @@ className="bg-gradient-to-br from-[#6366ea]/10 to-[#6366ea]/20 border border-[#6
 | Highlight/Active | Teal | `#14b8a6` |
 | Notification/Alert | Orange | `#f6762e` |
 
+---
+
+## Icons - NO EMOJIS RULE
+
+**CRITICAL: Use Lucide React icons ONLY. Never use emojis in the UI.**
+
+### Why No Emojis?
+- Emojis render differently across operating systems and browsers
+- Lucide icons provide consistent, professional appearance
+- Icons can be styled with colors, sizes, and animations
+- Better accessibility support
+
+### Icon Usage
+
+Always import icons from `lucide-react`:
+
+```tsx
+import { 
+  Palette,      // Design Concept phase
+  Box,          // 3D Rendering phase
+  Users,        // Client Approval phase
+  Ruler,        // Drawings phase
+  Sofa,         // FFE phase
+  Check,        // Completed/Success
+  Clock,        // Time/Pending
+  AlertTriangle,// Warning
+  X,            // Close/Error
+  Plus,         // Add
+  Settings,     // Settings
+  FileText,     // Documents
+  FolderOpen,   // Projects
+  Home,         // Home/Dashboard
+} from 'lucide-react'
+```
+
+### Phase Icons Mapping
+
+| Phase | Icon | Import |
+|-------|------|--------|
+| Design Concept | Palette | `import { Palette } from 'lucide-react'` |
+| 3D Rendering | Box | `import { Box } from 'lucide-react'` |
+| Client Approval | Users | `import { Users } from 'lucide-react'` |
+| Drawings | Ruler | `import { Ruler } from 'lucide-react'` |
+| FFE | Sofa | `import { Sofa } from 'lucide-react'` |
+
+### Icon Styling
+
+```tsx
+// Basic usage
+<Palette className="w-5 h-5" />
+
+// With brand color
+<Palette className="w-5 h-5 text-[#a657f0]" />
+
+// White on colored background
+<div className="bg-[#a657f0] p-2 rounded-lg">
+  <Palette className="w-5 h-5 text-white" />
+</div>
+```
+
+---
+
 ## Rules for Implementation
 
 1. **Always use the defined phase colors** for workflow-related UI elements
@@ -99,3 +165,5 @@ className="bg-gradient-to-br from-[#6366ea]/10 to-[#6366ea]/20 border border-[#6
 3. **Use opacity variants** for light backgrounds, not entirely different colors
 4. **Reference the constants file** instead of hardcoding hex values
 5. **Maintain visual hierarchy** - use full colors for primary elements, muted for secondary
+6. **NEVER use emojis** - always use Lucide React icons
+7. **Replace existing emojis** with appropriate Lucide icons when updating code

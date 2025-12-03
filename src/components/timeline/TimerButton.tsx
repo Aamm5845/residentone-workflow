@@ -115,11 +115,11 @@ export function TimerButton() {
         <Button 
           variant="outline" 
           size="sm" 
-          className="border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:border-cyan-300"
+          className="h-9 px-3 border-[#14b8a6]/30 text-[#14b8a6] hover:bg-[#14b8a6]/10 hover:border-[#14b8a6]/50"
           onClick={() => setShowModal(true)}
         >
-          <Play className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Track Time</span>
+          <Play className="w-4 h-4 md:mr-1.5" />
+          <span className="hidden md:inline text-sm">Track Time</span>
         </Button>
         <TimeEntryModal 
           isOpen={showModal} 

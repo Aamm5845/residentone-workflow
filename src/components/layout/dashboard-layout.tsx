@@ -83,7 +83,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               >
                 <Menu className="h-6 w-6" />
               </Button>
-              <Link href="/dashboard" className="flex items-center space-x-2 md:space-x-3">
+              <Link href="/dashboard" className="flex items-center space-x-2">
                 {/* Brand Color Palette Icon */}
                 <div className="w-8 h-8 rounded-lg overflow-hidden grid grid-cols-2 grid-rows-2 gap-[1px] bg-white p-[2px]">
                   <div className="bg-[#a657f0] rounded-tl-md" /> {/* Purple - Design */}
@@ -91,8 +91,10 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                   <div className="bg-[#14b8a6] rounded-bl-md" /> {/* Teal - Approval */}
                   <div className="bg-[#e94d97] rounded-br-md" /> {/* Pink - FFE */}
                 </div>
-                <span className="text-lg md:text-xl font-bold text-gray-900">StudioFlow</span>
-                <span className="hidden lg:inline-block text-xs text-gray-500">by Meisner Interiors</span>
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-gray-900 leading-tight">StudioFlow</span>
+                  <span className="hidden md:block text-[10px] text-gray-400 leading-tight">by Meisner Interiors</span>
+                </div>
               </Link>
               
               {/* Global Search */}
@@ -103,26 +105,26 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
 
             {/* Right: Actions and Profile */}
             <div className="flex items-center space-x-2 md:space-x-4">
-              {/* New Project Button - Icon only on mobile */}
-              <Button asChild className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white touch-target">
+              {/* New Project Button */}
+              <Button asChild size="sm" className="h-9 px-3 bg-[#a657f0] hover:bg-[#a657f0]/90 text-white">
                 <Link href="/projects/new" className="flex items-center">
-                  <Plus className="w-4 h-4 md:mr-2" />
-                  <span className="hidden md:inline">New Project</span>
+                  <Plus className="w-4 h-4 md:mr-1.5" />
+                  <span className="hidden md:inline text-sm">New Project</span>
                 </Link>
               </Button>
               
               {/* Timer Button */}
               <TimerButton />
               
-              {/* Report Issue - Hide on small mobile */}
+              {/* Report Issue */}
               <Button
                 variant="outline" 
                 size="sm" 
                 onClick={() => setIssueModalOpen(true)}
-                className="hidden sm:flex border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 touch-target"
+                className="h-9 px-3 hidden sm:flex border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
               >
-                <AlertCircle className="w-4 h-4 sm:mr-2" />
-                <span className="hidden lg:inline">Report Issue</span>
+                <AlertCircle className="w-4 h-4 md:mr-1.5" />
+                <span className="hidden lg:inline text-sm">Report Issue</span>
               </Button>
               
               <IssueNotification />
