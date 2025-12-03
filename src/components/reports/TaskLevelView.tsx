@@ -182,12 +182,10 @@ export function TaskLevelView({ phases, filters }: Props) {
     }
   }
 
-  const getProgressColor = (progress: number) => {
-    if (progress === 100) return '#14b8a6'
-    if (progress >= 75) return '#6366ea'
-    if (progress >= 50) return '#a657f0'
-    if (progress >= 25) return '#f6762e'
-    return '#e94d97'
+  const getProgressColor = (progress: number, completed: number) => {
+    if (progress === 100) return '#14b8a6' // Teal - Complete
+    if (completed > 0) return '#6366ea'    // Indigo - In Progress (has at least 1 complete)
+    return '#f6762e'                       // Orange - Pending (nothing completed yet)
   }
 
   return (
@@ -264,7 +262,7 @@ export function TaskLevelView({ phases, filters }: Props) {
         <div className="divide-y divide-gray-100">
           {sortedRooms.map(room => {
             const isExpanded = expandedRooms.has(room.id)
-            const progressColor = getProgressColor(room.progress)
+            const progressColor = getProgressColor(room.progress, room.completed)
             
             return (
               <div key={room.id} className="group">

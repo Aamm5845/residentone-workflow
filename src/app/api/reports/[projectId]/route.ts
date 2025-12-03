@@ -23,6 +23,9 @@ interface TaskDetail {
     cost?: number
     notes?: string | null
   }[]
+  // FFE progress per room
+  ffeItemsTotal?: number
+  ffeItemsCompleted?: number
 }
 
 interface PhaseStats {
@@ -32,6 +35,11 @@ interface PhaseStats {
   notApplicable: number
   total: number
   percentage: number
+  // For FFE: actual item-level stats
+  ffeItemsTotal?: number
+  ffeItemsCompleted?: number
+  ffeRoomsWithItems?: number
+  ffeRoomsEmpty?: number
   rooms: {
     roomId: string
     roomName: string
@@ -53,7 +61,7 @@ export async function GET(
 
     const { projectId } = await params
 
-    // Fetch single project with all details
+    // Fetch single project with all details including client approval assets for blob URLs
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
@@ -71,6 +79,14 @@ export async function GET(
                 assets: {
                   orderBy: { createdAt: 'desc' },
                   take: 1
+                },
+                clientApprovalVersion: {
+                  include: {
+                    assets: {
+                      orderBy: { displayOrder: 'asc' },
+                      take: 1
+                    }
+                  }
                 }
               }
             },
@@ -117,6 +133,14 @@ export async function GET(
                 assets: {
                   orderBy: { createdAt: 'desc' },
                   take: 1
+                },
+                clientApprovalVersion: {
+                  include: {
+                    assets: {
+                      orderBy: { displayOrder: 'asc' },
+                      take: 1
+                    }
+                  }
                 }
               }
             },
@@ -147,7 +171,11 @@ export async function GET(
       DESIGN_CONCEPT: { completed: 0, inProgress: 0, pending: 0, notApplicable: 0, total: 0, percentage: 0, rooms: [], tasks: [] },
       THREE_D: { completed: 0, inProgress: 0, pending: 0, notApplicable: 0, total: 0, percentage: 0, rooms: [], tasks: [] },
       DRAWINGS: { completed: 0, inProgress: 0, pending: 0, notApplicable: 0, total: 0, percentage: 0, rooms: [], tasks: [] },
-      FFE: { completed: 0, inProgress: 0, pending: 0, notApplicable: 0, total: 0, percentage: 0, rooms: [], tasks: [] }
+      FFE: { 
+        completed: 0, inProgress: 0, pending: 0, notApplicable: 0, total: 0, percentage: 0, 
+        ffeItemsTotal: 0, ffeItemsCompleted: 0, ffeRoomsWithItems: 0, ffeRoomsEmpty: 0,
+        rooms: [], tasks: [] 
+      }
     }
 
     let totalStages = 0
@@ -167,6 +195,33 @@ export async function GET(
           
           let roomStatus = 'pending'
 
+          // Get rendering image URL for this room
+          let renderingImageUrl: string | null = null
+          if ((room as any).renderingVersions?.length > 0) {
+            const latestVersion = (room as any).renderingVersions[0]
+            
+            // First, check for blob URL in client approval assets (faster)
+            if (latestVersion.clientApprovalVersion?.assets?.length > 0) {
+              const clientAsset = latestVersion.clientApprovalVersion.assets[0]
+              if (clientAsset.blobUrl) {
+                renderingImageUrl = clientAsset.blobUrl
+              }
+            }
+            
+            // If no blob URL, check if the original asset URL is HTTP (not a Dropbox path)
+            if (!renderingImageUrl && latestVersion.assets?.length > 0) {
+              const assetUrl = latestVersion.assets[0].url
+              // Only use if it's an HTTP URL (not a Dropbox path)
+              if (assetUrl && assetUrl.startsWith('http')) {
+                renderingImageUrl = assetUrl
+              }
+            }
+          }
+
+          // FFE item tracking for this room
+          let ffeItemsTotal = 0
+          let ffeItemsCompleted = 0
+
           // Special handling for FFE - use v2 workspace
           if (stage.type === 'FFE') {
             // Get all FFE items from v2 workspace
@@ -179,50 +234,41 @@ export async function GET(
               })
             }
             
-            if (allFfeItems.length > 0) {
-              // Count items by state (v2 uses 'state' field)
-              const completedItems = allFfeItems.filter(item => 
-                item.state === 'ORDERED' || item.state === 'DELIVERED' || item.state === 'COMPLETED'
-              ).length
+            ffeItemsTotal = allFfeItems.length
+            ffeItemsCompleted = allFfeItems.filter(item => 
+              item.state === 'ORDERED' || item.state === 'DELIVERED' || item.state === 'COMPLETED'
+            ).length
+
+            // Track FFE items at phase level
+            phases.FFE.ffeItemsTotal = (phases.FFE.ffeItemsTotal || 0) + ffeItemsTotal
+            phases.FFE.ffeItemsCompleted = (phases.FFE.ffeItemsCompleted || 0) + ffeItemsCompleted
+            
+            if (ffeItemsTotal > 0) {
+              phases.FFE.ffeRoomsWithItems = (phases.FFE.ffeRoomsWithItems || 0) + 1
               
-              const inProgressItems = allFfeItems.filter(item =>
-                item.state === 'IN_PROGRESS'
-              ).length
-              
-              const totalItems = allFfeItems.length
-              
-              if (completedItems === totalItems) {
+              // Determine room status based on item completion
+              if (ffeItemsCompleted === ffeItemsTotal) {
                 phases[phaseKey].completed++
                 completedStages++
                 roomStatus = 'completed'
-              } else if (completedItems > 0 || inProgressItems > 0) {
+              } else if (ffeItemsCompleted > 0) {
                 phases[phaseKey].inProgress++
                 inProgressStages++
                 roomStatus = 'in_progress'
               } else {
-                phases[phaseKey].pending++
-                roomStatus = 'pending'
+                // Has items but none completed - still in progress (started)
+                phases[phaseKey].inProgress++
+                inProgressStages++
+                roomStatus = 'in_progress'
               }
             } else if (stage.status === 'NOT_APPLICABLE') {
               phases[phaseKey].notApplicable++
               roomStatus = 'not_applicable'
             } else {
-              // No FFE items - use stage status
-              switch (stage.status) {
-                case 'COMPLETED':
-                  phases[phaseKey].completed++
-                  completedStages++
-                  roomStatus = 'completed'
-                  break
-                case 'IN_PROGRESS':
-                  phases[phaseKey].inProgress++
-                  inProgressStages++
-                  roomStatus = 'in_progress'
-                  break
-                default:
-                  phases[phaseKey].pending++
-                  roomStatus = 'pending'
-              }
+              // No FFE items yet - this room is pending (empty)
+              phases.FFE.ffeRoomsEmpty = (phases.FFE.ffeRoomsEmpty || 0) + 1
+              phases[phaseKey].pending++
+              roomStatus = 'pending'
             }
           } else {
             // For non-FFE phases
@@ -255,15 +301,6 @@ export async function GET(
             status: roomStatus
           })
           
-          // Get latest rendering image URL for this room
-          let renderingImageUrl: string | null = null
-          if ((room as any).renderingVersions?.length > 0) {
-            const latestVersion = (room as any).renderingVersions[0]
-            if (latestVersion.assets?.length > 0) {
-              renderingImageUrl = latestVersion.assets[0].url || null
-            }
-          }
-
           // Add task details
           const taskDetail: TaskDetail = {
             id: stage.id,
@@ -274,7 +311,9 @@ export async function GET(
             stageType: stage.type,
             status: stage.status,
             updatedAt: stage.updatedAt.toISOString(),
-            renderingImageUrl
+            renderingImageUrl,
+            ffeItemsTotal: stage.type === 'FFE' ? ffeItemsTotal : undefined,
+            ffeItemsCompleted: stage.type === 'FFE' ? ffeItemsCompleted : undefined
           }
           
           // Add FFE items if this is an FFE stage (from v2 workspace)
@@ -310,9 +349,15 @@ export async function GET(
       const phase = phases[phaseKey as keyof typeof phases]
       if (phase.total > 0) {
         const applicableTotal = phase.total - phase.notApplicable
-        phase.percentage = applicableTotal > 0 
-          ? Math.round((phase.completed / applicableTotal) * 100)
-          : 0
+        
+        // For FFE, calculate percentage based on actual items completed
+        if (phaseKey === 'FFE' && phase.ffeItemsTotal && phase.ffeItemsTotal > 0) {
+          phase.percentage = Math.round((phase.ffeItemsCompleted! / phase.ffeItemsTotal) * 100)
+        } else {
+          phase.percentage = applicableTotal > 0 
+            ? Math.round((phase.completed / applicableTotal) * 100)
+            : 0
+        }
       }
     })
 
