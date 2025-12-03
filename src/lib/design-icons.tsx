@@ -130,7 +130,7 @@ export type LucideIconName = keyof typeof LucideIconRegistry
 
 // Professional color themes using existing Tailwind gradient classes
 export const ColorThemes = [
-  'from-purple-500 to-pink-500',      // Purple-Pink (original General)
+  'from-[#a657f0] to-[#a657f0]',      // Brand Purple (original General)
   'from-blue-500 to-cyan-500',        // Blue-Cyan (original Wall Covering)
   'from-amber-500 to-orange-500',     // Amber-Orange (original Ceiling)
   'from-emerald-500 to-teal-500',     // Emerald-Teal (original Floor)
@@ -155,7 +155,7 @@ export const DefaultTemplates = [
   {
     name: 'General',
     icon: 'Sparkles' as LucideIconName,
-    color: 'from-purple-500 to-pink-500' as ColorTheme,
+    color: 'from-[#a657f0] to-[#a657f0]' as ColorTheme,
     description: 'Overall design concept, mood, and styling direction',
     placeholder: 'Describe the overall design vision, mood, color palette, and style direction for this space...',
     order: 0,

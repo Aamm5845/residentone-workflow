@@ -146,7 +146,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                     className="w-8 h-8 rounded-full object-cover border border-gray-200"
                   />
                 ) : (
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-[#a657f0] rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">
                       {session?.user?.name?.charAt(0) || 'U'}
                     </span>

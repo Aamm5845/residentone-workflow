@@ -66,7 +66,7 @@ const SECTION_CONFIG = {
   GENERAL: {
     name: 'General',
     icon: '✨',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-[#a657f0] to-[#a657f0]',
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200'
   },

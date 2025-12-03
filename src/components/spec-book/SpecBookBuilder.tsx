@@ -512,7 +512,7 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
 
             {/* Step 2: Project Plans */}
             <div className="bg-white rounded-2xl border border-gray-200/70 shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200/70">
+              <div className="bg-[#a657f0]/10 px-6 py-4 border-b border-gray-200/70">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/20">

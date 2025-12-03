@@ -67,7 +67,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
             className="w-10 h-10 rounded-full object-cover"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+          <div className="w-10 h-10 rounded-full bg-[#a657f0] flex items-center justify-center text-white font-semibold text-sm">
             {initials}
           </div>
         )}

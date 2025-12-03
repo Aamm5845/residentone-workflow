@@ -143,7 +143,7 @@ function FeatureAnnouncementBanner() {
   return (
     <>
       {/* Main Banner - Compact */}
-      <div className="relative overflow-hidden rounded-xl bg-[#a657f0] shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-[#14b8a6] shadow-lg">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl" />
@@ -184,7 +184,7 @@ function FeatureAnnouncementBanner() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowDetails(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#a657f0] rounded-lg font-semibold text-xs hover:bg-white/90 transition-all shadow-md hover:shadow-lg"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#14b8a6] rounded-lg font-semibold text-xs hover:bg-white/90 transition-all shadow-md hover:shadow-lg"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Learn More</span>
@@ -217,7 +217,7 @@ function FeatureAnnouncementBanner() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="relative bg-[#a657f0] px-6 py-8 text-white">
+            <div className="relative bg-[#14b8a6] px-6 py-8 text-white">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl" />
               </div>
@@ -372,7 +372,7 @@ function FeatureAnnouncementBanner() {
                 <Link
                   href="/timeline"
                   onClick={() => setShowDetails(false)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#a657f0] text-white rounded-xl font-semibold text-sm hover:bg-[#a657f0]/90 transition-all shadow-lg hover:shadow-xl"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14b8a6] text-white rounded-xl font-semibold text-sm hover:bg-[#14b8a6]/90 transition-all shadow-lg hover:shadow-xl"
                 >
                   <Clock className="w-4 h-4" />
                   Open Timeline
@@ -479,7 +479,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           label="Completed This Month"
           value={isLoading ? '...' : statsData?.completedThisMonth?.toString() || '0'}
           icon={CheckCircle}
-          color="bg-[#6366ea]"
+          color="bg-[#e94d97]"
           isLoading={isLoading}
           href="/projects?status=completed&timeframe=month"
         />
@@ -489,7 +489,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#a657f0] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#6366ea] rounded-xl flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
             <div>

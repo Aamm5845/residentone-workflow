@@ -234,7 +234,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
                         <tr className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                            <div className="w-10 h-10 bg-[#a657f0] rounded-lg flex items-center justify-center">
                               <Users className="w-5 h-5 text-white" />
                             </div>
                             <div className="ml-4">
@@ -272,7 +272,7 @@ export default async function Rooms({ searchParams }: { searchParams: { status?:
                           <div className="flex items-center">
                             <div className="w-16 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" 
+                                className="bg-[#a657f0] h-2 rounded-full transition-all duration-500" 
                                 style={{ width: `${room.progressPercent}%` }}
                               />
                             </div>

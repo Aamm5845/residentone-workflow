@@ -120,7 +120,7 @@ export default function WhatsNewContent() {
         </Link>
         
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="w-14 h-14 bg-[#a657f0] rounded-2xl flex items-center justify-center shadow-lg">
             <Sparkles className="w-7 h-7 text-white" />
           </div>
           <div>
@@ -133,7 +133,7 @@ export default function WhatsNewContent() {
       {/* Timeline */}
       <div className="relative">
         {/* Vertical line */}
-        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-300 via-blue-300 to-gray-200"></div>
+        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#a657f0]/30 via-[#14b8a6]/30 to-gray-200"></div>
 
         {/* Entries */}
         <div className="space-y-6">

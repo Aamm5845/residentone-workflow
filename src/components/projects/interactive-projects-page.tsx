@@ -327,7 +327,7 @@ export default function InteractiveProjectsPage({
                       <div className="flex items-center space-x-2">
                         <div className="w-16 bg-gray-200 rounded-full h-1.5">
                           <div 
-                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-500" 
+                            className="bg-[#a657f0] h-1.5 rounded-full transition-all duration-500" 
                             style={{ width: `${progressPercent}%` }}
                           />
                         </div>

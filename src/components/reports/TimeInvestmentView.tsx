@@ -50,25 +50,25 @@ function StatCard({
   trend?: { value: number; label: string }
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+          <p className="text-xs font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
           {trend && (
-            <div className={`flex items-center gap-1 mt-2 text-sm ${
+            <div className={`flex items-center gap-1 mt-2 text-xs ${
               trend.value > 0 ? 'text-green-600' : trend.value < 0 ? 'text-red-600' : 'text-gray-500'
             }`}>
-              {trend.value > 0 ? <ArrowUp className="w-4 h-4" /> : 
-               trend.value < 0 ? <ArrowDown className="w-4 h-4" /> : 
-               <Minus className="w-4 h-4" />}
+              {trend.value > 0 ? <ArrowUp className="w-3 h-3" /> : 
+               trend.value < 0 ? <ArrowDown className="w-3 h-3" /> : 
+               <Minus className="w-3 h-3" />}
               <span>{trend.label}</span>
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-xl ${gradient}`}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={`p-2.5 rounded-lg ${gradient}`}>
+          <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
     </div>
@@ -85,14 +85,14 @@ function TeamMemberCard({ member }: { member: any }) {
       <div className="flex items-start gap-4">
         <Avatar className="w-14 h-14 border-2 border-gray-200">
           <AvatarImage src={member.userImage} alt={member.userName} />
-          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-lg">
+          <AvatarFallback className="bg-[#a657f0] text-white font-semibold text-lg">
             {member.userName?.charAt(0) || '?'}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <h4 className="font-semibold text-gray-900 truncate">{member.userName}</h4>
-            <span className="text-2xl font-bold text-indigo-600">
+            <span className="text-xl font-bold text-[#a657f0]">
               {formatDuration(member.totalHours)}
             </span>
           </div>
@@ -147,14 +147,14 @@ function WeeklyChart({ data }: { data: any[] }) {
           <h3 className="text-lg font-semibold text-gray-900">Weekly Activity</h3>
           <p className="text-sm text-gray-500">Hours tracked over the last 12 weeks</p>
         </div>
-        <BarChart3 className="w-5 h-5 text-indigo-600" />
+        <BarChart3 className="w-5 h-5 text-[#a657f0]" />
       </div>
       
       <div className="flex items-end gap-1.5 h-40">
         {data.map((week, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-1">
             <div 
-              className="w-full bg-gradient-to-t from-indigo-500 to-purple-500 rounded-t-sm transition-all duration-300 hover:from-indigo-600 hover:to-purple-600"
+              className="w-full bg-[#a657f0] rounded-t-sm transition-all duration-300 hover:bg-[#a657f0]/80"
               style={{ 
                 height: `${Math.max((week.hours / maxHours) * 100, 2)}%`,
                 minHeight: week.hours > 0 ? '8px' : '2px'
@@ -187,7 +187,7 @@ function PhaseBreakdown({ data }: { data: any[] }) {
           <h3 className="text-lg font-semibold text-gray-900">Time by Phase</h3>
           <p className="text-sm text-gray-500">Distribution of hours across phases</p>
         </div>
-        <Target className="w-5 h-5 text-indigo-600" />
+        <Target className="w-5 h-5 text-[#a657f0]" />
       </div>
       
       <div className="space-y-4">
@@ -229,7 +229,7 @@ function RecentActivityList({ activities }: { activities: any[] }) {
           <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
           <p className="text-sm text-gray-500">Latest time entries</p>
         </div>
-        <Activity className="w-5 h-5 text-indigo-600" />
+        <Activity className="w-5 h-5 text-[#a657f0]" />
       </div>
       
       <div className="space-y-3">
@@ -239,7 +239,7 @@ function RecentActivityList({ activities }: { activities: any[] }) {
             <div key={entry.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={entry.user.image} alt={entry.user.name} />
-                <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs">
+                <AvatarFallback className="bg-[#a657f0]/10 text-[#a657f0] text-xs">
                   {entry.user.name?.charAt(0) || '?'}
                 </AvatarFallback>
               </Avatar>
@@ -255,7 +255,7 @@ function RecentActivityList({ activities }: { activities: any[] }) {
                 </p>
               </div>
               <div className="text-right">
-                <span className="font-semibold text-indigo-600">{formatDuration(entry.hours)}</span>
+                <span className="font-semibold text-[#a657f0]">{formatDuration(entry.hours)}</span>
               </div>
             </div>
           )
@@ -282,7 +282,7 @@ export function TimeInvestmentView({ projectId }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <Loader2 className="w-10 h-10 animate-spin text-[#a657f0]" />
       </div>
     )
   }
@@ -312,43 +312,43 @@ export function TimeInvestmentView({ projectId }: Props) {
           value={formatDuration(summary.totalHours)}
           subtitle={`${summary.entryCount} time entries`}
           icon={Clock}
-          gradient="bg-gradient-to-br from-indigo-500 to-purple-600"
+          gradient="bg-[#a657f0]"
         />
         <StatCard
           title="Team Members"
           value={byMember.length}
           subtitle="Contributing to project"
           icon={Users}
-          gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
+          gradient="bg-[#14b8a6]"
         />
         <StatCard
           title="Avg Hours/Week"
           value={formatDuration(summary.avgHoursPerWeek)}
           subtitle={`Over ${summary.projectDuration.weeks} weeks`}
           icon={TrendingUp}
-          gradient="bg-gradient-to-br from-green-500 to-emerald-600"
+          gradient="bg-[#6366ea]"
         />
         <StatCard
           title="Project Age"
           value={`${summary.projectDuration.days}d`}
           subtitle={`${summary.projectDuration.months} months since start`}
           icon={Calendar}
-          gradient="bg-gradient-to-br from-orange-500 to-amber-600"
+          gradient="bg-[#f6762e]"
         />
       </div>
 
       {/* Quick Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200">
+        <div className="bg-[#a657f0]/5 rounded-xl p-4 border border-[#a657f0]/20">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-indigo-100 rounded-xl">
-              <Timer className="w-5 h-5 text-indigo-600" />
+            <div className="p-2 bg-[#a657f0]/10 rounded-lg">
+              <Timer className="w-4 h-4 text-[#a657f0]" />
             </div>
             <h4 className="font-semibold text-gray-900">Time Tracked</h4>
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-3xl font-bold text-indigo-600">{formatDuration(summary.totalHours)}</p>
+              <p className="text-2xl font-bold text-[#a657f0]">{formatDuration(summary.totalHours)}</p>
               <p className="text-sm text-gray-600 mt-1">{summary.tracking.activeDays} active days</p>
             </div>
             <ProgressRing 
@@ -361,10 +361,10 @@ export function TimeInvestmentView({ projectId }: Props) {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+        <div className="bg-[#14b8a6]/5 rounded-xl p-4 border border-[#14b8a6]/20">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-green-100 rounded-xl">
-              <Zap className="w-5 h-5 text-green-600" />
+            <div className="p-2 bg-[#14b8a6]/10 rounded-lg">
+              <Zap className="w-4 h-4 text-[#14b8a6]" />
             </div>
             <h4 className="font-semibold text-gray-900">Most Active</h4>
           </div>
@@ -378,7 +378,7 @@ export function TimeInvestmentView({ projectId }: Props) {
               </Avatar>
               <div>
                 <p className="font-semibold text-gray-900">{byMember[0].userName}</p>
-                <p className="text-sm text-green-600 font-medium">{formatDuration(byMember[0].totalHours)} logged</p>
+                <p className="text-sm text-[#14b8a6] font-medium">{formatDuration(byMember[0].totalHours)} logged</p>
               </div>
             </div>
           ) : (
@@ -386,16 +386,16 @@ export function TimeInvestmentView({ projectId }: Props) {
           )}
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+        <div className="bg-[#f6762e]/5 rounded-xl p-4 border border-[#f6762e]/20">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-orange-100 rounded-xl">
-              <Target className="w-5 h-5 text-orange-600" />
+            <div className="p-2 bg-[#f6762e]/10 rounded-lg">
+              <Target className="w-4 h-4 text-[#f6762e]" />
             </div>
             <h4 className="font-semibold text-gray-900">Top Phase</h4>
           </div>
           {byPhase[0] ? (
             <div>
-              <p className="text-2xl font-bold text-orange-600">{byPhase[0].label}</p>
+              <p className="text-xl font-bold text-[#f6762e]">{byPhase[0].label}</p>
               <p className="text-sm text-gray-600 mt-1">
                 {formatDuration(byPhase[0].hours)} ({byPhase[0].percentage}% of total)
               </p>
@@ -415,7 +415,7 @@ export function TimeInvestmentView({ projectId }: Props) {
       {/* Team Members */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-indigo-600" />
+          <Users className="w-5 h-5 text-[#a657f0]" />
           <h3 className="text-lg font-semibold text-gray-900">Team Contributions</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

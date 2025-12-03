@@ -284,7 +284,7 @@ export default function DesignStage({
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#a657f0] rounded-lg flex items-center justify-center">
               <Edit3 className="w-6 h-6 text-white" />
             </div>
             
@@ -341,7 +341,7 @@ export default function DesignStage({
         <div className="mt-4">
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
+              className="bg-[#a657f0] h-3 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>

@@ -88,7 +88,7 @@ export function ProjectReportContent({ projectId }: Props) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-[#a657f0]" />
       </div>
     )
   }
@@ -160,7 +160,7 @@ export function ProjectReportContent({ projectId }: Props) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-[#a657f0] text-[#a657f0]'
                   : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
@@ -195,32 +195,32 @@ export function ProjectReportContent({ projectId }: Props) {
                   title="Total Tasks"
                   value={stats?.totalTasks || 0}
                   icon={Layers}
-                  gradient="bg-gradient-to-br from-indigo-500 to-purple-600"
-                  iconColor="text-indigo-600"
+                  gradient="bg-[#a657f0]"
+                  iconColor="text-[#a657f0]"
                   subtitle="Across all phases"
                 />
                 <StatCard
                   title="Completed"
                   value={stats?.completedTasks || 0}
                   icon={CheckCircle}
-                  gradient="bg-gradient-to-br from-green-500 to-emerald-600"
-                  iconColor="text-green-600"
+                  gradient="bg-[#14b8a6]"
+                  iconColor="text-[#14b8a6]"
                   subtitle={`${stats?.totalTasks ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}% of total`}
                 />
                 <StatCard
                   title="In Progress"
                   value={stats?.inProgressTasks || 0}
                   icon={Zap}
-                  gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
-                  iconColor="text-blue-600"
+                  gradient="bg-[#6366ea]"
+                  iconColor="text-[#6366ea]"
                   subtitle="Active tasks"
                 />
                 <StatCard
                   title="Pending"
                   value={stats?.pendingTasks || 0}
                   icon={AlertTriangle}
-                  gradient="bg-gradient-to-br from-orange-500 to-amber-600"
-                  iconColor="text-orange-600"
+                  gradient="bg-[#f6762e]"
+                  iconColor="text-[#f6762e]"
                   subtitle="Awaiting action"
                 />
               </div>
@@ -231,7 +231,7 @@ export function ProjectReportContent({ projectId }: Props) {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-gray-900">Phase Progress</h3>
-                    <Target className="w-5 h-5 text-indigo-600" />
+                    <Target className="w-5 h-5 text-[#a657f0]" />
                   </div>
                   <PhaseProgressChart 
                     phases={Object.entries(project.phases)
@@ -295,7 +295,7 @@ export function ProjectReportContent({ projectId }: Props) {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-gray-900">Status Distribution</h3>
-                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    <BarChart3 className="w-5 h-5 text-[#a657f0]" />
                   </div>
                   <StatusDistributionChart
                     completed={stats?.completedTasks || 0}
@@ -307,10 +307,10 @@ export function ProjectReportContent({ projectId }: Props) {
 
               {/* Quick Insights */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-5 border border-purple-200">
+                <div className="bg-[#a657f0]/5 rounded-lg p-5 border border-[#a657f0]/20">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                    <div className="p-2 bg-[#a657f0]/10 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-[#a657f0]" />
                     </div>
                     <h4 className="font-semibold text-gray-900">Overall Progress</h4>
                   </div>
@@ -329,39 +329,39 @@ export function ProjectReportContent({ projectId }: Props) {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-5 border border-green-200">
+                <div className="bg-[#14b8a6]/5 rounded-lg p-5 border border-[#14b8a6]/20">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    <div className="p-2 bg-[#14b8a6]/10 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-[#14b8a6]" />
                     </div>
                     <h4 className="font-semibold text-gray-900">Tasks Completed</h4>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-bold text-green-600">{stats?.completedTasks}</p>
+                      <p className="text-3xl font-bold text-[#14b8a6]">{stats?.completedTasks}</p>
                       <p className="text-gray-600">/ {stats?.totalTasks}</p>
                     </div>
-                    <div className="h-2 bg-green-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-[#14b8a6]/20 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-500"
+                        className="h-full bg-[#14b8a6] transition-all duration-500"
                         style={{ width: `${stats?.totalTasks ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-5 border border-orange-200">
+                <div className="bg-[#f6762e]/5 rounded-lg p-5 border border-[#f6762e]/20">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <div className="p-2 bg-[#f6762e]/10 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-[#f6762e]" />
                     </div>
                     <h4 className="font-semibold text-gray-900">Needs Attention</h4>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-3xl font-bold text-orange-600">{stats?.pendingTasks}</p>
+                    <p className="text-3xl font-bold text-[#f6762e]">{stats?.pendingTasks}</p>
                     <p className="text-sm text-gray-600">Tasks pending action</p>
                     {stats?.pendingTasks && stats.pendingTasks > 0 && (
-                      <button className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">
+                      <button className="text-sm text-[#f6762e] hover:text-[#f6762e]/80 font-medium flex items-center gap-1">
                         View details →
                       </button>
                     )}
