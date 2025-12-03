@@ -1030,46 +1030,88 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {contractorsList.length > 0 ? (
-                <div className="space-y-3">
-                  {contractorsList.map((contractor: any, index: number) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Business Name</p>
-                          <p className="text-gray-900 mt-1">{contractor.businessName || contractor.name || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Type</p>
-                          <p className="text-gray-900 mt-1 capitalize">{contractor.type}</p>
-                        </div>
+                <>
+                  {/* Main Contractors Section */}
+                  {contractorsList.filter((c: any) => c.type?.toLowerCase() === 'contractor').length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <Building className="w-4 h-4 mr-2 text-blue-600" />
+                        General Contractors
+                      </h4>
+                      <div className="space-y-3">
+                        {contractorsList
+                          .filter((c: any) => c.type?.toLowerCase() === 'contractor')
+                          .map((contractor: any, index: number) => (
+                            <div key={`contractor-${index}`} className="border border-blue-200 bg-blue-50/30 rounded-lg p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h5 className="font-semibold text-gray-900">{contractor.businessName || contractor.name || 'Not specified'}</h5>
+                                  {contractor.contactName && (
+                                    <p className="text-sm text-gray-600 mt-1">{contractor.contactName}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                                    {contractor.email && <span>{contractor.email}</span>}
+                                    {contractor.phone && <span>{contractor.phone}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                       </div>
-                      {contractor.specialty && (
-                        <div className="mt-3">
-                          <p className="text-sm font-medium text-gray-500">Specialty</p>
-                          <p className="text-gray-900 mt-1">{contractor.specialty}</p>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Contact Name</p>
-                          <p className="text-gray-900 mt-1">{contractor.contactName || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Email</p>
-                          <p className="text-gray-900 mt-1">{contractor.email || 'Not specified'}</p>
-                        </div>
-                      </div>
-                      {contractor.address && (
-                        <div className="mt-3">
-                          <p className="text-sm font-medium text-gray-500">Address</p>
-                          <p className="text-gray-900 mt-1">{contractor.address}</p>
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {/* Subcontractors Grouped by Specialty */}
+                  {contractorsList.filter((c: any) => c.type?.toLowerCase() === 'subcontractor').length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <Users className="w-4 h-4 mr-2 text-purple-600" />
+                        Subcontractors by Trade
+                      </h4>
+                      <div className="space-y-4">
+                        {/* Group subcontractors by specialty */}
+                        {Object.entries(
+                          contractorsList
+                            .filter((c: any) => c.type?.toLowerCase() === 'subcontractor')
+                            .reduce((groups: Record<string, any[]>, contractor: any) => {
+                              const specialty = contractor.specialty || 'Other'
+                              if (!groups[specialty]) groups[specialty] = []
+                              groups[specialty].push(contractor)
+                              return groups
+                            }, {})
+                        )
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([specialty, subs]) => (
+                            <div key={specialty} className="border border-purple-200 rounded-lg overflow-hidden">
+                              <div className="px-4 py-2 bg-purple-50 border-b border-purple-200">
+                                <h5 className="font-medium text-purple-900">{specialty}</h5>
+                              </div>
+                              <div className="divide-y divide-gray-100">
+                                {(subs as any[]).map((contractor: any, index: number) => (
+                                  <div key={`sub-${specialty}-${index}`} className="p-4">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <h6 className="font-semibold text-gray-900">{contractor.businessName || contractor.name || 'Not specified'}</h6>
+                                        {contractor.contactName && (
+                                          <p className="text-sm text-gray-600 mt-1">{contractor.contactName}</p>
+                                        )}
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                                          {contractor.email && <span>{contractor.email}</span>}
+                                          {contractor.phone && <span>{contractor.phone}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-gray-500 italic">No contractors or subcontractors assigned to this project</p>
               )}
@@ -1223,12 +1265,12 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         </div>
       </div>
       
-      {/* 6. File Storage Section */}
+      {/* 6. Dropbox Configuration Section */}
       <div className="bg-white border border-gray-200 rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center">
             <Folder className="w-5 h-5 mr-2 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">File Storage</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Dropbox Configuration</h2>
           </div>
           {editingSection !== 'storage' && (
             <Button
@@ -1478,17 +1520,6 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   <p className="text-gray-600 mt-1 text-sm">
                     Click "Edit" to link a Dropbox folder for this project.
                   </p>
-                  <div className="bg-gray-50 rounded-lg p-4 mt-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Suggested Structure:</h4>
-                    <p className="text-sm text-gray-600">/Projects/{project.name}/</p>
-                    <ul className="text-sm text-gray-600 mt-2 space-y-1 ml-4">
-                      <li>• Design Assets/</li>
-                      <li>• 3D Renderings/</li>
-                      <li>• Client Approvals/</li>
-                      <li>• Technical Drawings/</li>
-                      <li>• FFE Documentation/</li>
-                    </ul>
-                  </div>
                 </div>
               )}
             </div>
@@ -1498,15 +1529,72 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
       
       {/* 7. Rooms Management Section */}
       <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center">
             <Home className="w-5 h-5 mr-2 text-gray-600" />
             <h2 className="text-lg font-semibold text-gray-900">Rooms Management</h2>
+            {editingSection !== 'rooms' && (
+              <span className="ml-3 text-sm text-gray-500">
+                {project.rooms?.length || 0} room{(project.rooms?.length || 0) !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
+          {editingSection !== 'rooms' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingSection('rooms')}
+              className="flex items-center"
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingSection(null)}
+              className="flex items-center"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Close
+            </Button>
+          )}
         </div>
-        <div className="px-6 py-4">
-          <RoomsManagementSection projectId={project.id} />
-        </div>
+        {editingSection === 'rooms' ? (
+          <div className="px-6 py-4">
+            <RoomsManagementSection projectId={project.id} />
+          </div>
+        ) : (
+          <div className="px-6 py-4">
+            {project.rooms && project.rooms.length > 0 ? (
+              <div className="space-y-2">
+                {project.rooms.slice(0, 5).map((room: any, index: number) => (
+                  <div key={room.id || index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center space-x-3">
+                      <Home className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-900">{room.name || room.type?.replace(/_/g, ' ')}</span>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      room.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                      room.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {room.status?.replace(/_/g, ' ') || 'Not Started'}
+                    </span>
+                  </div>
+                ))}
+                {project.rooms.length > 5 && (
+                  <p className="text-sm text-gray-500 pt-2">
+                    + {project.rooms.length - 5} more room{project.rooms.length - 5 !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No rooms added yet. Click Edit to add rooms.</p>
+            )}
+          </div>
+        )}
       </div>
       
       {/* 8. Project Features Section */}
@@ -1543,14 +1631,14 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   Enable or disable project-level features for this project. Features can be toggled on or off at any time.
                 </p>
                 
-                {/* Floorplan Approval */}
+                {/* Floorplan */}
                 <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div className="flex items-start space-x-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Folder className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">Floorplan Approval</h3>
+                      <h3 className="font-medium text-gray-900">Floorplan</h3>
                       <p className="text-sm text-gray-600 mt-1">
                         Manage floorplan reviews and client approvals independently from room workflows
                       </p>
@@ -1634,14 +1722,14 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               </p>
               
               <div className="space-y-3">
-                {/* Floorplan Approval Status */}
+                {/* Floorplan Status */}
                 <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Folder className="w-4 h-4 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">Floorplan Approval</h3>
+                      <h3 className="font-medium text-gray-900">Floorplan</h3>
                     </div>
                   </div>
                   <div className="flex items-center">

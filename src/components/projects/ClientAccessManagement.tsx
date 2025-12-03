@@ -386,22 +386,6 @@ export default function ClientAccessManagement({
         </div>
       )}
 
-      {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <h5 className="font-semibold text-blue-900 mb-1">Security Information</h5>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Links are unique and cannot be guessed by unauthorized users</li>
-              <li>• Clients can only see approved renderings and completed phases</li>
-              <li>• Access is logged and can be monitored for security</li>
-              <li>• Links can be deactivated at any time to revoke access</li>
-              <li>• No login is required - the link provides secure access</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
