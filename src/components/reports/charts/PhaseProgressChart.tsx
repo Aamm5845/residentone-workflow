@@ -78,16 +78,16 @@ export function PhaseProgressChart({ phases }: Props) {
         >
           <defs>
             <linearGradient id="completedGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#14b8a6" stopOpacity={1} />
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.6} />
+              <stop offset="100%" stopColor="#5eead4" stopOpacity={0.8} />
             </linearGradient>
             <linearGradient id="inProgressGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366ea" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#6366ea" stopOpacity={1} />
+              <stop offset="0%" stopColor="#6366ea" stopOpacity={0.6} />
+              <stop offset="100%" stopColor="#a5b4fc" stopOpacity={0.8} />
             </linearGradient>
             <linearGradient id="pendingGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#f6762e" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#f6762e" stopOpacity={1} />
+              <stop offset="0%" stopColor="#f6762e" stopOpacity={0.6} />
+              <stop offset="100%" stopColor="#fdba74" stopOpacity={0.8} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
