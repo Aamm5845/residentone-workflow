@@ -65,6 +65,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
     clientName: '',
     clientEmail: '',
     clientPhone: '',
+    additionalEmails: [] as Array<{ label: string; email: string }>, // Additional emails for accounting, etc.
     projectAddress: '', // Legacy combined address
     streetAddress: '',
     city: '',
@@ -100,6 +101,30 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Additional email management
+  const addAdditionalEmail = () => {
+    setFormData(prev => ({
+      ...prev,
+      additionalEmails: [...prev.additionalEmails, { label: '', email: '' }]
+    }))
+  }
+
+  const updateAdditionalEmail = (index: number, field: 'label' | 'email', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      additionalEmails: prev.additionalEmails.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }))
+  }
+
+  const removeAdditionalEmail = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      additionalEmails: prev.additionalEmails.filter((_, i) => i !== index)
+    }))
   }
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -488,7 +513,8 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
           streetAddress: formData.streetAddress,
           city: formData.city,
           province: formData.province,
-          postalCode: formData.postalCode
+          postalCode: formData.postalCode,
+          additionalEmails: formData.additionalEmails.filter(e => e.email) // Only include emails that have values
         })
       })
 
@@ -731,7 +757,7 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
+                    Primary Email Address *
                   </label>
                   <input
                     type="email"
@@ -742,6 +768,59 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                     required
                   />
                 </div>
+                
+                {/* Additional Emails */}
+                {formData.additionalEmails.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Additional Emails
+                    </label>
+                    {formData.additionalEmails.map((item, index) => (
+                      <div key={index} className="flex gap-3 items-start">
+                        <div className="w-1/3">
+                          <input
+                            type="text"
+                            value={item.label}
+                            onChange={(e) => updateAdditionalEmail(index, 'label', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                            placeholder="Label (e.g., Accounting)"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="email"
+                            value={item.email}
+                            onChange={(e) => updateAdditionalEmail(index, 'email', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                            placeholder="email@example.com"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAdditionalEmail(index)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addAdditionalEmail}
+                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Additional Email
+                </Button>
+                <p className="text-xs text-gray-500 -mt-2">
+                  Add emails for accounting, operations, or other contacts
+                </p>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
@@ -1465,12 +1544,18 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
               Add {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}
             </h3>
             
-            {/* Existing Contractors */}
-            {existingContractors.length > 0 && (
+            {/* Existing Contractors - Filtered by type */}
+            {existingContractors.filter(c => 
+              contractorType === 'contractor' ? c.type === 'CONTRACTOR' : c.type === 'SUBCONTRACTOR'
+            ).length > 0 && (
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Select Existing:</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                  Select Existing {contractorType === 'contractor' ? 'Contractor' : 'Subcontractor'}:
+                </h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {existingContractors.map((contractor) => (
+                  {existingContractors
+                    .filter(c => contractorType === 'contractor' ? c.type === 'CONTRACTOR' : c.type === 'SUBCONTRACTOR')
+                    .map((contractor) => (
                     <div
                       key={contractor.id}
                       onClick={() => {
@@ -1597,24 +1682,42 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
             </div>
             
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {existingContractors.filter(c => 
-                c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
-              ).length === 0 ? (
+              {existingContractors.filter(c => {
+                // Filter by contractor type (CONTRACTOR or SUBCONTRACTOR)
+                const typeMatch = contractorType === 'contractor' 
+                  ? c.type === 'CONTRACTOR' 
+                  : c.type === 'SUBCONTRACTOR'
+                
+                // Filter by search term
+                const searchMatch = 
+                  c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                  c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                  c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+                
+                return typeMatch && searchMatch
+              }).length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Building className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No contractors found</p>
-                  <p className="text-sm mt-1">Try adjusting your search or add contractors in Preferences</p>
+                  <p>No {contractorType === 'contractor' ? 'contractors' : 'subcontractors'} found</p>
+                  <p className="text-sm mt-1">Try adjusting your search or add {contractorType === 'contractor' ? 'contractors' : 'subcontractors'} in Preferences</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {existingContractors
-                    .filter(c => 
-                      c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                      c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
-                      c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
-                    )
+                    .filter(c => {
+                      // Filter by contractor type (CONTRACTOR or SUBCONTRACTOR)
+                      const typeMatch = contractorType === 'contractor' 
+                        ? c.type === 'CONTRACTOR' 
+                        : c.type === 'SUBCONTRACTOR'
+                      
+                      // Filter by search term
+                      const searchMatch = 
+                        c.businessName.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                        c.contactName?.toLowerCase().includes(contractorSearchTerm.toLowerCase()) ||
+                        c.specialty?.toLowerCase().includes(contractorSearchTerm.toLowerCase())
+                      
+                      return typeMatch && searchMatch
+                    })
                     .map((contractor) => {
                       const isAlreadyAdded = formData.contractors.some(
                         (c: any) => c.id === contractor.id || c.email === contractor.email

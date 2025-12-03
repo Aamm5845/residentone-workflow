@@ -42,6 +42,7 @@ export default function ProjectContractorSelector({
   const [availableContractors, setAvailableContractors] = useState<Contractor[]>([])
   const [loading, setLoading] = useState(false)
   const [showSelector, setShowSelector] = useState(false)
+  const [selectorType, setSelectorType] = useState<'CONTRACTOR' | 'SUBCONTRACTOR'>('CONTRACTOR')
   const [searchTerm, setSearchTerm] = useState('')
   const [showNewContractorForm, setShowNewContractorForm] = useState(false)
   const [newContractorData, setNewContractorData] = useState({
@@ -130,11 +131,11 @@ export default function ProjectContractorSelector({
     }
 
     try {
-      // First create the contractor
+      // First create the contractor with the selected type
       const createResponse = await fetch('/api/contractors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newContractorData)
+        body: JSON.stringify({ ...newContractorData, type: selectorType })
       })
 
       if (!createResponse.ok) {
@@ -167,12 +168,19 @@ export default function ProjectContractorSelector({
     }
   }
 
-  const filteredContractors = availableContractors.filter(c =>
-    c.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.specialty?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredContractors = availableContractors.filter(c => {
+    // Filter by type (CONTRACTOR or SUBCONTRACTOR)
+    const typeMatch = c.type === selectorType
+    
+    // Filter by search term
+    const searchMatch = 
+      c.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.specialty?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    return typeMatch && searchMatch
+  })
 
   return (
     <div className="space-y-4">
@@ -231,16 +239,32 @@ export default function ProjectContractorSelector({
         )}
       </div>
 
-      {/* Add Contractor Button */}
+      {/* Add Contractor/Subcontractor Buttons */}
       {!showSelector && (
-        <Button
-          onClick={() => setShowSelector(true)}
-          variant="outline"
-          className="w-full"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Contractor
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={() => {
+              setSelectorType('CONTRACTOR')
+              setShowSelector(true)
+            }}
+            variant="outline"
+            className="border-2 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Contractor
+          </Button>
+          <Button
+            onClick={() => {
+              setSelectorType('SUBCONTRACTOR')
+              setShowSelector(true)
+            }}
+            variant="outline"
+            className="border-2 border-purple-300 hover:border-purple-400 hover:bg-purple-50"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Subcontractor
+          </Button>
+        </div>
       )}
 
       {/* Contractor Selector Modal */}
@@ -249,7 +273,9 @@ export default function ProjectContractorSelector({
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Add Contractor to Project</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Add {selectorType === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'} to Project
+                </h3>
                 <Button variant="ghost" size="sm" onClick={() => setShowSelector(false)}>
                   <X className="w-5 h-5" />
                 </Button>
@@ -260,19 +286,22 @@ export default function ProjectContractorSelector({
                   <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
-                      placeholder="Search contractors from library..."
+                      placeholder={`Search ${selectorType === 'CONTRACTOR' ? 'contractors' : 'subcontractors'} from library...`}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
                   </div>
                   <Button
-                    onClick={() => setShowNewContractorForm(true)}
+                    onClick={() => {
+                      setNewContractorData(prev => ({ ...prev, type: selectorType }))
+                      setShowNewContractorForm(true)
+                    }}
                     variant="outline"
                     className="w-full"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Create New Contractor
+                    Create New {selectorType === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
                   </Button>
                 </>
               )}
@@ -281,18 +310,15 @@ export default function ProjectContractorSelector({
             <div className="flex-1 overflow-y-auto p-6">
               {showNewContractorForm ? (
                 <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">New Contractor Details</h4>
+                  <h4 className="font-medium text-gray-900">
+                    New {selectorType === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'} Details
+                  </h4>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-                    <select
-                      value={newContractorData.type}
-                      onChange={(e) => setNewContractorData({ ...newContractorData, type: e.target.value as 'CONTRACTOR' | 'SUBCONTRACTOR' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="CONTRACTOR">Contractor</option>
-                      <option value="SUBCONTRACTOR">Subcontractor</option>
-                    </select>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
+                      {selectorType === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
+                    </div>
                   </div>
 
                   <div>
@@ -332,7 +358,7 @@ export default function ProjectContractorSelector({
                     />
                   </div>
 
-                  {newContractorData.type === 'SUBCONTRACTOR' && (
+                  {selectorType === 'SUBCONTRACTOR' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Specialty/Trade</label>
                       <Input
@@ -348,7 +374,7 @@ export default function ProjectContractorSelector({
                       Back
                     </Button>
                     <Button onClick={createAndLinkContractor}>
-                      Create & Add to Project
+                      Create {selectorType === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'} & Add to Project
                     </Button>
                   </div>
                 </div>
@@ -388,8 +414,8 @@ export default function ProjectContractorSelector({
               ) : (
                 <div className="text-center py-8">
                   <Building className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                  <p className="text-gray-600">No contractors found</p>
-                  <p className="text-sm text-gray-500 mt-1">Try a different search or create a new contractor</p>
+                  <p className="text-gray-600">No {selectorType === 'CONTRACTOR' ? 'contractors' : 'subcontractors'} found</p>
+                  <p className="text-sm text-gray-500 mt-1">Try a different search or create a new {selectorType === 'CONTRACTOR' ? 'contractor' : 'subcontractor'}</p>
                 </div>
               )}
             </div>
