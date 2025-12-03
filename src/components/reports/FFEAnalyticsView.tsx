@@ -46,6 +46,8 @@ export function FFEAnalyticsView({ phases }: Props) {
   const [sortField, setSortField] = useState<SortField>('room')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [showAllItems, setShowAllItems] = useState(false)
+  const ITEMS_LIMIT = 10
 
   // Get all FFE tasks (rooms) to track empty vs populated
   const ffeRoomData = useMemo(() => {
@@ -244,66 +246,44 @@ export function FFEAnalyticsView({ phases }: Props) {
         </div>
       </div>
 
-      {/* Room Status List */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 text-sm">Room FFE Status</h3>
-          <div className="flex items-center gap-3 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#f6762e]"></div>
-              <span>Empty</span>
+      {/* Chart and Empty Rooms - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Items per Room Chart */}
+        {stats.costBreakdownData.length > 0 && (
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Items per Room</h3>
+              <BarChart3 className="w-5 h-5 text-[#a657f0]" />
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#6366ea]"></div>
-              <span>In Progress</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#14b8a6]"></div>
-              <span>Complete</span>
-            </div>
+            <CostBreakdownChart data={stats.costBreakdownData} />
           </div>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {ffeRoomData.rooms.map(room => {
-            const isComplete = room.itemCount > 0 && room.completedCount === room.itemCount
-            const isEmpty = room.itemCount === 0
-            const isInProgress = room.itemCount > 0 && room.completedCount < room.itemCount
+        )}
 
-            return (
-              <div key={room.roomId} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${
-                    isEmpty ? 'bg-[#f6762e]' : isComplete ? 'bg-[#14b8a6]' : 'bg-[#6366ea]'
-                  }`}></div>
-                  <span className="text-sm font-medium text-gray-900">{room.roomName}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  {isEmpty ? (
-                    <span className="text-xs px-2 py-1 rounded bg-[#f6762e]/10 text-[#f6762e] font-medium">
-                      No items yet
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-500">
-                      {room.completedCount}/{room.itemCount} items complete
-                    </span>
-                  )}
-                </div>
+        {/* Empty Rooms Alert - Only show if there are empty rooms */}
+        {ffeRoomData.emptyRooms > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 bg-[#f6762e]/5 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-[#f6762e]" />
+              <h3 className="font-semibold text-gray-900 text-sm">Rooms Needing Items</h3>
+            </div>
+            <div className="p-3 max-h-[280px] overflow-y-auto">
+              <div className="space-y-2">
+                {ffeRoomData.rooms
+                  .filter(room => room.itemCount === 0)
+                  .map(room => (
+                    <div 
+                      key={room.roomId} 
+                      className="px-3 py-2 rounded-lg bg-[#f6762e]/5 border border-[#f6762e]/20 flex items-center gap-2"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#f6762e]"></div>
+                      <span className="text-sm text-gray-700">{room.roomName}</span>
+                    </div>
+                  ))}
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Items per Room Chart */}
-      {stats.costBreakdownData.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Items per Room</h3>
-            <BarChart3 className="w-5 h-5 text-[#a657f0]" />
+            </div>
           </div>
-          <CostBreakdownChart data={stats.costBreakdownData} />
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Items Table */}
       {allFFEItems.length > 0 && (
@@ -312,7 +292,7 @@ export function FFEAnalyticsView({ phases }: Props) {
             <div className="flex items-center gap-2">
               <Package className="w-5 h-5 text-[#e94d97]" />
               <h3 className="font-semibold text-gray-900">All FFE Items</h3>
-              <span className="text-xs text-gray-500">({allFFEItems.length} items)</span>
+              <span className="text-xs text-gray-500">({filteredAndSortedItems.length} items)</span>
             </div>
             <select
               value={statusFilter}
@@ -367,7 +347,7 @@ export function FFEAnalyticsView({ phases }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredAndSortedItems.map((item, index) => (
+                {(showAllItems ? filteredAndSortedItems : filteredAndSortedItems.slice(0, ITEMS_LIMIT)).map((item, index) => (
                   <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-sm font-medium text-gray-900">
                       {item.name}
@@ -388,6 +368,20 @@ export function FFEAnalyticsView({ phases }: Props) {
               </tbody>
             </table>
           </div>
+
+          {/* Show more/less button */}
+          {filteredAndSortedItems.length > ITEMS_LIMIT && (
+            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowAllItems(!showAllItems)}
+                className="w-full text-center text-sm font-medium text-[#a657f0] hover:text-[#8b46cc] transition-colors"
+              >
+                {showAllItems 
+                  ? 'Show less' 
+                  : `Show all ${filteredAndSortedItems.length} items`}
+              </button>
+            </div>
+          )}
 
           {filteredAndSortedItems.length === 0 && (
             <div className="p-8 text-center">
