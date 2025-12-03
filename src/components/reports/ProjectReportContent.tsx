@@ -3,11 +3,10 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
-import { ArrowLeft, BarChart3, Loader2, TrendingUp, Layers, Package, Building2, CheckCircle, Clock, AlertCircle, Target, Zap, AlertTriangle, Timer } from 'lucide-react'
+import { ArrowLeft, BarChart3, Loader2, TrendingUp, Layers, Package, CheckCircle, Clock, AlertCircle, Target, Zap, AlertTriangle, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ReportFilters } from '@/components/reports/ReportFilters'
 import { TaskLevelView } from '@/components/reports/TaskLevelView'
-import { RoomBreakdownView } from '@/components/reports/RoomBreakdownView'
 import { FFEAnalyticsView } from '@/components/reports/FFEAnalyticsView'
 import { TimeInvestmentView } from '@/components/reports/TimeInvestmentView'
 import { AISummarySection } from '@/components/reports/AISummarySection'
@@ -21,7 +20,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
   return res.json()
 })
 
-type TabType = 'overview' | 'phases' | 'rooms' | 'ffe' | 'time'
+type TabType = 'overview' | 'phases' | 'ffe' | 'time'
 
 interface Props {
   projectId: string
@@ -80,7 +79,6 @@ export function ProjectReportContent({ projectId }: Props) {
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: TrendingUp },
     { id: 'phases' as TabType, label: 'Phase Details', icon: Layers },
-    { id: 'rooms' as TabType, label: 'Room Breakdown', icon: Building2 },
     { id: 'ffe' as TabType, label: 'FFE Analytics', icon: Package },
     { id: 'time' as TabType, label: 'Time Investment', icon: Timer }
   ]
@@ -377,11 +375,6 @@ export function ProjectReportContent({ projectId }: Props) {
           {/* Phase Details Tab */}
           {activeTab === 'phases' && (
             <TaskLevelView phases={project.phases} filters={filters} />
-          )}
-
-          {/* Room Breakdown Tab */}
-          {activeTab === 'rooms' && (
-            <RoomBreakdownView phases={project.phases} filters={filters} />
           )}
 
           {/* FFE Analytics Tab */}

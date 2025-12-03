@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Image from 'next/image'
 import { 
   CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight,
-  Palette, FileImage, FileText, Sofa, LayoutGrid
+  Palette, FileImage, FileText, Sofa, LayoutGrid, ImageIcon
 } from 'lucide-react'
 
 interface TaskDetail {
@@ -15,6 +16,7 @@ interface TaskDetail {
   stageType: string
   status: string
   updatedAt: string
+  renderingImageUrl?: string | null
 }
 
 interface PhaseStats {
@@ -75,6 +77,7 @@ export function TaskLevelView({ phases, filters }: Props) {
     const rooms: Record<string, {
       name: string
       type: string
+      renderingImageUrl?: string | null
       phases: Record<string, { status: string; updatedAt: string }>
     }> = {}
 
@@ -84,8 +87,15 @@ export function TaskLevelView({ phases, filters }: Props) {
           rooms[task.roomId] = {
             name: task.roomName,
             type: task.roomType,
+            renderingImageUrl: task.renderingImageUrl,
             phases: {}
           }
+        }
+        // Update rendering URL if we find one (prefer THREE_D phase)
+        if (phaseKey === 'THREE_D' && task.renderingImageUrl) {
+          rooms[task.roomId].renderingImageUrl = task.renderingImageUrl
+        } else if (!rooms[task.roomId].renderingImageUrl && task.renderingImageUrl) {
+          rooms[task.roomId].renderingImageUrl = task.renderingImageUrl
         }
         rooms[task.roomId].phases[phaseKey] = {
           status: task.status,
@@ -271,6 +281,22 @@ export function TaskLevelView({ phases, filters }: Props) {
                         <ChevronRight className="w-4 h-4 text-gray-400" />
                       )}
                     </div>
+                    
+                    {/* Room Rendering Thumbnail */}
+                    <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                      {room.renderingImageUrl ? (
+                        <img
+                          src={room.renderingImageUrl}
+                          alt={room.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900 text-sm truncate">

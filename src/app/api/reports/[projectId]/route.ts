@@ -14,6 +14,7 @@ interface TaskDetail {
   stageType: string
   status: string
   updatedAt: string
+  renderingImageUrl?: string | null
   ffeItems?: {
     id: string
     name: string
@@ -63,6 +64,16 @@ export async function GET(
         rooms: {
           include: {
             stages: true,
+            renderingVersions: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: {
+                assets: {
+                  orderBy: { createdAt: 'desc' },
+                  take: 1
+                }
+              }
+            },
             ffeInstance: {
               include: {
                 sections: {
@@ -99,6 +110,16 @@ export async function GET(
         rooms: {
           include: {
             stages: true,
+            renderingVersions: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: {
+                assets: {
+                  orderBy: { createdAt: 'desc' },
+                  take: 1
+                }
+              }
+            },
             ffeInstance: {
               include: {
                 sections: {
@@ -234,6 +255,15 @@ export async function GET(
             status: roomStatus
           })
           
+          // Get latest rendering image URL for this room
+          let renderingImageUrl: string | null = null
+          if ((room as any).renderingVersions?.length > 0) {
+            const latestVersion = (room as any).renderingVersions[0]
+            if (latestVersion.assets?.length > 0) {
+              renderingImageUrl = latestVersion.assets[0].url || null
+            }
+          }
+
           // Add task details
           const taskDetail: TaskDetail = {
             id: stage.id,
@@ -243,7 +273,8 @@ export async function GET(
             stageName: stage.type,
             stageType: stage.type,
             status: stage.status,
-            updatedAt: stage.updatedAt.toISOString()
+            updatedAt: stage.updatedAt.toISOString(),
+            renderingImageUrl
           }
           
           // Add FFE items if this is an FFE stage (from v2 workspace)
