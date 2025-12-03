@@ -1,5 +1,8 @@
 // Workflow constants for interior design project stages
 // This is the authoritative source for all workflow-related logic
+// Colors are defined in @/constants/colors.ts
+
+import { PHASE_COLORS } from './colors'
 
 export const WORKFLOW_STAGES = [
   'DESIGN_CONCEPT',
@@ -18,16 +21,17 @@ export const STAGE_CONFIG = {
   DESIGN_CONCEPT: {
     name: 'Design Concept',
     icon: '🎨',
-    baseColor: 'bg-gradient-to-r from-purple-500 to-pink-500',
+    color: PHASE_COLORS.DESIGN_CONCEPT.primary, // #a657f0 Purple
+    baseColor: 'bg-[#a657f0]',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
-      IN_PROGRESS: 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg ring-2 ring-purple-200',
+      IN_PROGRESS: 'border-[#a657f0]/40 bg-gradient-to-br from-[#a657f0]/5 to-[#a657f0]/15 shadow-lg ring-2 ring-[#a657f0]/20',
       COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
       NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
-      IN_PROGRESS: 'text-purple-800',
+      IN_PROGRESS: 'text-[#a657f0]',
       COMPLETED: 'text-green-800',
       NOT_APPLICABLE: 'text-slate-600'
     },
@@ -36,16 +40,17 @@ export const STAGE_CONFIG = {
   THREE_D: {
     name: '3D Rendering',
     icon: '🎥', 
-    baseColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
+    color: PHASE_COLORS.THREE_D.primary, // #f6762e Orange
+    baseColor: 'bg-[#f6762e]',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
-      IN_PROGRESS: 'border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg ring-2 ring-blue-200',
+      IN_PROGRESS: 'border-[#f6762e]/40 bg-gradient-to-br from-[#f6762e]/5 to-[#f6762e]/15 shadow-lg ring-2 ring-[#f6762e]/20',
       COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
       NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
-      IN_PROGRESS: 'text-blue-800',
+      IN_PROGRESS: 'text-[#f6762e]',
       COMPLETED: 'text-green-800',
       NOT_APPLICABLE: 'text-slate-600'
     },
@@ -54,16 +59,17 @@ export const STAGE_CONFIG = {
   CLIENT_APPROVAL: {
     name: 'Client Approval',
     icon: '👥',
-    baseColor: 'bg-gradient-to-r from-yellow-500 to-amber-500', 
+    color: PHASE_COLORS.CLIENT_APPROVAL.primary, // #14b8a6 Teal
+    baseColor: 'bg-[#14b8a6]',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
-      IN_PROGRESS: 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 shadow-lg ring-2 ring-yellow-200',
+      IN_PROGRESS: 'border-[#14b8a6]/40 bg-gradient-to-br from-[#14b8a6]/5 to-[#14b8a6]/15 shadow-lg ring-2 ring-[#14b8a6]/20',
       COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
       NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
-      IN_PROGRESS: 'text-yellow-800',
+      IN_PROGRESS: 'text-[#14b8a6]',
       COMPLETED: 'text-green-800',
       NOT_APPLICABLE: 'text-slate-600'
     },
@@ -72,16 +78,17 @@ export const STAGE_CONFIG = {
   DRAWINGS: {
     name: 'Drawings',
     icon: '📐',
-    baseColor: 'bg-gradient-to-r from-orange-500 to-red-500',
+    color: PHASE_COLORS.DRAWINGS.primary, // #6366ea Indigo
+    baseColor: 'bg-[#6366ea]',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
-      IN_PROGRESS: 'border-orange-400 bg-gradient-to-br from-orange-50 to-red-50 shadow-lg ring-2 ring-orange-200',
+      IN_PROGRESS: 'border-[#6366ea]/40 bg-gradient-to-br from-[#6366ea]/5 to-[#6366ea]/15 shadow-lg ring-2 ring-[#6366ea]/20',
       COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
       NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
-      IN_PROGRESS: 'text-orange-800',
+      IN_PROGRESS: 'text-[#6366ea]',
       COMPLETED: 'text-green-800',
       NOT_APPLICABLE: 'text-slate-600'
     },
@@ -89,17 +96,18 @@ export const STAGE_CONFIG = {
   },
   FFE: {
     name: 'FFE',
-    icon: '🛌️',
-    baseColor: 'bg-gradient-to-r from-emerald-500 to-teal-500',
+    icon: '🛋️',
+    color: PHASE_COLORS.FFE.primary, // #e94d97 Pink/Magenta
+    baseColor: 'bg-[#e94d97]',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
-      IN_PROGRESS: 'border-emerald-400 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-lg ring-2 ring-emerald-200',
+      IN_PROGRESS: 'border-[#e94d97]/40 bg-gradient-to-br from-[#e94d97]/5 to-[#e94d97]/15 shadow-lg ring-2 ring-[#e94d97]/20',
       COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
       NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
     },
     textColors: {
       NOT_STARTED: 'text-gray-600',
-      IN_PROGRESS: 'text-emerald-800',
+      IN_PROGRESS: 'text-[#e94d97]',
       COMPLETED: 'text-green-800',
       NOT_APPLICABLE: 'text-slate-600'
     },
@@ -112,6 +120,7 @@ export function getStageConfig(stageType: string) {
   return STAGE_CONFIG[stageType as keyof typeof STAGE_CONFIG] || {
     name: 'Unknown Stage',
     icon: '⏳',
+    color: '#6b7280',
     baseColor: 'bg-gray-500',
     colors: {
       NOT_STARTED: 'border-gray-200 bg-white',
@@ -135,6 +144,10 @@ export function getStageIcon(stageType: string) {
 
 export function getStageColor(stageType: string) {
   return getStageConfig(stageType).baseColor
+}
+
+export function getStageHexColor(stageType: string) {
+  return getStageConfig(stageType).color
 }
 
 export function getStageStatusColor(stageType: string, status: StageStatus) {

@@ -638,6 +638,15 @@ export default async function ProjectDetail({ params }: Props) {
                             'FFE': 'FFE'
                           }
                           
+                          // Phase colors matching the brand
+                          const phaseColors: Record<string, { bg: string, border: string, text: string }> = {
+                            'DESIGN_CONCEPT': { bg: 'bg-[#a657f0]/20', border: 'border-[#a657f0]', text: 'text-[#a657f0]' },
+                            'THREE_D': { bg: 'bg-[#f6762e]/20', border: 'border-[#f6762e]', text: 'text-[#f6762e]' },
+                            'CLIENT_APPROVAL': { bg: 'bg-[#14b8a6]/20', border: 'border-[#14b8a6]', text: 'text-[#14b8a6]' },
+                            'DRAWINGS': { bg: 'bg-[#6366ea]/20', border: 'border-[#6366ea]', text: 'text-[#6366ea]' },
+                            'FFE': { bg: 'bg-[#e94d97]/20', border: 'border-[#e94d97]', text: 'text-[#e94d97]' },
+                          }
+                          
                           return phaseIds.map((phaseId, index) => {
                             // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed/in_progress
                             let matchingStage = null
@@ -664,6 +673,7 @@ export default async function ProjectDetail({ params }: Props) {
                             const isCompleted = matchingStage?.status === 'COMPLETED'
                             const isInProgress = matchingStage?.status === 'IN_PROGRESS'
                             const isPending = !isCompleted && !isInProgress
+                            const colors = phaseColors[phaseId]
                             
                             return (
                               <div key={phaseId} className="flex flex-col items-center space-y-2">
@@ -674,7 +684,7 @@ export default async function ProjectDetail({ params }: Props) {
                                       isCompleted 
                                         ? 'bg-emerald-100 border-2 border-emerald-300' 
                                         : isInProgress 
-                                        ? 'bg-blue-100 border-2 border-blue-300' 
+                                        ? `${colors.bg} border-2 ${colors.border}` 
                                         : 'bg-gray-100 border-2 border-gray-300'
                                     }`}
                                   >
@@ -684,7 +694,7 @@ export default async function ProjectDetail({ params }: Props) {
                                       </svg>
                                     )}
                                     {isInProgress && (
-                                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <svg className={`w-5 h-5 ${colors.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
                                     )}
@@ -703,7 +713,7 @@ export default async function ProjectDetail({ params }: Props) {
                                 {/* Phase Label */}
                                 <div className={`text-[10px] font-medium text-center leading-tight ${
                                   isCompleted ? 'text-emerald-700' : 
-                                  isInProgress ? 'text-blue-700' : 
+                                  isInProgress ? colors.text : 
                                   'text-gray-500'
                                 }`}>
                                   {phaseLabels[phaseId]}

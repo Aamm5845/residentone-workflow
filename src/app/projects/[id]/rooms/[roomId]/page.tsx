@@ -67,7 +67,8 @@ export default async function RoomWorkspace({ params }: Props) {
                     select: {
                       id: true,
                       name: true,
-                      email: true
+                      email: true,
+                      image: true
                     }
                   }
                 }

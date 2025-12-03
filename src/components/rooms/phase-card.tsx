@@ -14,7 +14,13 @@ import {
   Calendar,
   AlertTriangle,
   Clock,
-  X
+  X,
+  Palette,
+  Box,
+  Users,
+  Ruler,
+  Sofa,
+  Minus
 } from 'lucide-react'
 import { 
   getPhaseConfig, 
@@ -124,12 +130,14 @@ export default function PhaseCard({
     if (isOverdue) return "border-red-500 bg-gradient-to-br from-red-50 to-red-100"
     if (isDueSoon) return "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100"
     if (isActive) {
+      // Use brand colors for active phases
       const activeBorders: Record<string, string> = {
-        purple: 'border-purple-400 bg-gradient-to-br from-purple-50 to-purple-100',
-        orange: 'border-orange-400 bg-gradient-to-br from-orange-50 to-orange-100',
-        blue: 'border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100',
-        indigo: 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-indigo-100',
-        pink: 'border-pink-400 bg-gradient-to-br from-pink-50 to-pink-100'
+        purple: 'border-[#a657f0]/40 bg-gradient-to-br from-[#a657f0]/5 to-[#a657f0]/15',
+        orange: 'border-[#f6762e]/40 bg-gradient-to-br from-[#f6762e]/5 to-[#f6762e]/15',
+        teal: 'border-[#14b8a6]/40 bg-gradient-to-br from-[#14b8a6]/5 to-[#14b8a6]/15',
+        blue: 'border-[#14b8a6]/40 bg-gradient-to-br from-[#14b8a6]/5 to-[#14b8a6]/15',
+        indigo: 'border-[#6366ea]/40 bg-gradient-to-br from-[#6366ea]/5 to-[#6366ea]/15',
+        pink: 'border-[#e94d97]/40 bg-gradient-to-br from-[#e94d97]/5 to-[#e94d97]/15'
       }
       return activeBorders[phaseConfig.color] || 'border-gray-400 bg-gray-50'
     }
@@ -158,17 +166,32 @@ export default function PhaseCard({
               "w-10 h-10 rounded-lg flex items-center justify-center shadow-sm",
               isComplete ? "bg-green-500" :
               isNotApplicable ? "bg-slate-400" : {
-                'purple': 'bg-purple-500',
-                'orange': 'bg-orange-500',
-                'blue': 'bg-blue-500',
-                'indigo': 'bg-indigo-500',
-                'pink': 'bg-pink-500'
+                'purple': 'bg-[#a657f0]',
+                'orange': 'bg-[#f6762e]',
+                'teal': 'bg-[#14b8a6]',
+                'blue': 'bg-[#14b8a6]',
+                'indigo': 'bg-[#6366ea]',
+                'pink': 'bg-[#e94d97]'
               }[phaseConfig.color] || 'bg-gray-500',
               "transition-all duration-200"
             )}>
-              <span className="text-lg text-white">
-                {isComplete ? '✅' : isNotApplicable ? '➖' : phaseConfig.icon}
-              </span>
+              {isComplete ? (
+                <Check className="w-5 h-5 text-white" />
+              ) : isNotApplicable ? (
+                <Minus className="w-5 h-5 text-white" />
+              ) : (
+                (() => {
+                  // Map phase IDs to Lucide icons
+                  const PhaseIcon = {
+                    'DESIGN_CONCEPT': Palette,
+                    'RENDERING': Box,
+                    'CLIENT_APPROVAL': Users,
+                    'DRAWINGS': Ruler,
+                    'FFE': Sofa
+                  }[phase.id] || Palette
+                  return <PhaseIcon className="w-5 h-5 text-white" />
+                })()
+              )}
             </div>
             
             <div>
@@ -221,36 +244,28 @@ export default function PhaseCard({
         {/* Assignee Section */}
         <div className="mb-4">
           <div className={cn(
-            "flex items-center space-x-2.5",
+            "flex items-center space-x-2",
             isNotApplicable && "opacity-60"
           )}>
             {phase.assignedUser ? (
               <>
-                <Avatar className="h-7 w-7">
+                <Avatar className="h-6 w-6">
                   <AvatarImage src={phase.assignedUser.image || undefined} />
-                  <AvatarFallback className="text-xs bg-gray-100">
+                  <AvatarFallback className="text-[10px] bg-gray-100">
                     {getInitials(phase.assignedUser.name)}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className={cn(
-                    "text-sm font-medium",
-                    isNotApplicable ? "text-slate-600" : "text-gray-800"
-                  )}>
-                    {phase.assignedUser.name}
-                  </p>
-                  <p className={cn(
-                    "text-xs",
-                    isNotApplicable ? "text-slate-500" : "text-gray-500"
-                  )}>
-                    {phase.assignedUser.role}
-                  </p>
-                </div>
+                <span className={cn(
+                  "text-sm",
+                  isNotApplicable ? "text-slate-600" : "text-gray-700"
+                )}>
+                  {phase.assignedUser.name.split(' ')[0]}
+                </span>
               </>
             ) : (
               <>
                 <div className={cn(
-                  "h-7 w-7 rounded-full border border-dashed flex items-center justify-center",
+                  "h-6 w-6 rounded-full border border-dashed flex items-center justify-center",
                   isNotApplicable ? "border-slate-300" : "border-gray-300"
                 )}>
                   <UserX className={cn(
@@ -258,12 +273,10 @@ export default function PhaseCard({
                     isNotApplicable ? "text-slate-400" : "text-gray-400"
                   )} />
                 </div>
-                <div>
-                  <p className={cn(
-                    "text-sm",
-                    isNotApplicable ? "text-slate-500" : "text-gray-500"
-                  )}>Unassigned</p>
-                </div>
+                <span className={cn(
+                  "text-sm",
+                  isNotApplicable ? "text-slate-500" : "text-gray-500"
+                )}>—</span>
               </>
             )}
           </div>
@@ -423,11 +436,12 @@ export default function PhaseCard({
               className={cn(
                 "w-full font-medium text-white shadow-sm hover:shadow-md transition-all duration-200",
                 {
-                  'purple': 'bg-purple-500 hover:bg-purple-600',
-                  'orange': 'bg-orange-500 hover:bg-orange-600',
-                  'blue': 'bg-blue-500 hover:bg-blue-600',
-                  'indigo': 'bg-indigo-500 hover:bg-indigo-600',
-                  'pink': 'bg-pink-500 hover:bg-pink-600'
+                  'purple': 'bg-[#a657f0] hover:bg-[#a657f0]/90',
+                  'orange': 'bg-[#f6762e] hover:bg-[#f6762e]/90',
+                  'teal': 'bg-[#14b8a6] hover:bg-[#14b8a6]/90',
+                  'blue': 'bg-[#14b8a6] hover:bg-[#14b8a6]/90',
+                  'indigo': 'bg-[#6366ea] hover:bg-[#6366ea]/90',
+                  'pink': 'bg-[#e94d97] hover:bg-[#e94d97]/90'
                 }[phaseConfig.color] || 'bg-gray-500 hover:bg-gray-600'
               )}
             >

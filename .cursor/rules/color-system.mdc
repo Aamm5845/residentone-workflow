@@ -1,0 +1,101 @@
+# StudioFlow Color System
+
+This document defines the official color palette for the StudioFlow application. All new features and UI components should use these colors consistently.
+
+## Phase Colors (Workflow Stages)
+
+The 5 workflow phases have specific brand colors that should be used throughout the application:
+
+| Phase | Color Name | Hex Code | Usage |
+|-------|-----------|----------|-------|
+| **Design Concept** | Purple | `#a657f0` | First workflow phase, design boards, concept work |
+| **3D Rendering** | Orange | `#f6762e` | 3D visualization phase |
+| **Client Approval** | Teal | `#14b8a6` | Client review and approval workflows |
+| **Drawings** | Indigo | `#6366ea` | Technical drawings phase |
+| **FFE** | Pink/Magenta | `#e94d97` | Furniture, fixtures, equipment phase |
+
+## How to Use These Colors
+
+### In Tailwind CSS
+Use arbitrary value syntax for exact colors:
+```tsx
+// Background colors
+className="bg-[#a657f0]"  // Design Concept purple
+className="bg-[#f6762e]"  // 3D orange
+className="bg-[#14b8a6]"  // Client Approval teal
+className="bg-[#6366ea]"  // Drawings/FFE indigo
+
+// Text colors
+className="text-[#a657f0]"
+
+// Border colors
+className="border-[#a657f0]"
+
+// Ring colors
+className="ring-[#a657f0]"
+```
+
+### Light/Muted Variants
+For backgrounds and hover states, use opacity variants:
+```tsx
+className="bg-[#a657f0]/10"  // 10% opacity for light backgrounds
+className="bg-[#a657f0]/20"  // 20% opacity for hover states
+className="border-[#a657f0]/30"  // 30% opacity for subtle borders
+```
+
+### Import from Constants
+Always import phase colors from the central constants file:
+```tsx
+import { PHASE_COLORS } from '@/constants/colors'
+
+// Usage
+<div style={{ backgroundColor: PHASE_COLORS.DESIGN_CONCEPT.primary }} />
+// Or with Tailwind arbitrary values
+<div className={`bg-[${PHASE_COLORS.DESIGN_CONCEPT.primary}]`} />
+```
+
+## Status Colors
+
+These colors indicate different states and should remain consistent:
+
+| Status | Color | Hex Code |
+|--------|-------|----------|
+| Success/Completed | Green | `#22c55e` (green-500) |
+| Warning/Pending | Amber | `#f59e0b` (amber-500) |
+| Error/Rejected | Red | `#ef4444` (red-500) |
+| Neutral/Not Started | Gray | `#6b7280` (gray-500) |
+
+## Feature Cards (Project Features)
+
+Feature cards use subtle gradients with the phase colors:
+
+```tsx
+// Design Concept card
+className="bg-gradient-to-br from-[#a657f0]/10 to-[#a657f0]/20 border border-[#a657f0]/30"
+
+// 3D card  
+className="bg-gradient-to-br from-[#f6762e]/10 to-[#f6762e]/20 border border-[#f6762e]/30"
+
+// Client Approval card
+className="bg-gradient-to-br from-[#14b8a6]/10 to-[#14b8a6]/20 border border-[#14b8a6]/30"
+
+// Drawings/FFE card
+className="bg-gradient-to-br from-[#6366ea]/10 to-[#6366ea]/20 border border-[#6366ea]/30"
+```
+
+## UI Accent Colors
+
+| Purpose | Color | Hex |
+|---------|-------|-----|
+| Primary Action | Purple | `#a657f0` |
+| Secondary Action | Indigo | `#6366ea` |
+| Highlight/Active | Teal | `#14b8a6` |
+| Notification/Alert | Orange | `#f6762e` |
+
+## Rules for Implementation
+
+1. **Always use the defined phase colors** for workflow-related UI elements
+2. **Keep completed states green** (`#22c55e`) for consistency
+3. **Use opacity variants** for light backgrounds, not entirely different colors
+4. **Reference the constants file** instead of hardcoding hex values
+5. **Maintain visual hierarchy** - use full colors for primary elements, muted for secondary

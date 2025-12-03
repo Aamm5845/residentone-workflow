@@ -1,5 +1,8 @@
 // Room phases configuration for interior design workflow
 // Professional, enterprise-grade phase management
+// Colors are defined in @/constants/colors.ts
+
+import { PHASE_COLORS } from '@/constants/colors'
 
 export const ROOM_PHASES = [
   {
@@ -7,7 +10,8 @@ export const ROOM_PHASES = [
     label: 'Design Concept',
     shortLabel: 'Concept',
     icon: '🎨',
-    color: 'purple',
+    color: 'purple',      // Brand color: #a657f0
+    hexColor: PHASE_COLORS.DESIGN_CONCEPT.primary,
     description: 'Create mood boards, material selections, and design concepts'
   },
   {
@@ -15,7 +19,8 @@ export const ROOM_PHASES = [
     label: '3D Rendering',
     shortLabel: '3D',
     icon: '🎥',
-    color: 'orange', 
+    color: 'orange',      // Brand color: #f6762e
+    hexColor: PHASE_COLORS.THREE_D.primary,
     description: 'Generate photorealistic 3D visualizations'
   },
   {
@@ -23,7 +28,8 @@ export const ROOM_PHASES = [
     label: 'Client Approval',
     shortLabel: 'Approval',
     icon: '👥',
-    color: 'blue',
+    color: 'teal',        // Brand color: #14b8a6
+    hexColor: PHASE_COLORS.CLIENT_APPROVAL.primary,
     description: 'Client review and approval process'
   },
   {
@@ -31,15 +37,17 @@ export const ROOM_PHASES = [
     label: 'Drawings',
     shortLabel: 'Drawings',
     icon: '📐',
-    color: 'indigo',
+    color: 'indigo',      // Brand color: #6366ea
+    hexColor: PHASE_COLORS.DRAWINGS.primary,
     description: 'Technical drawings and construction documentation'
   },
   {
     id: 'FFE',
     label: 'FFE',
     shortLabel: 'FFE',
-    icon: '🛌️',
-    color: 'pink',
+    icon: '🛋️',
+    color: 'pink',        // Brand color: #e94d97
+    hexColor: PHASE_COLORS.FFE.primary,
     description: 'Furniture, fixtures, and equipment sourcing'
   }
 ] as const
@@ -108,6 +116,11 @@ export function getPhaseColor(phaseId: PhaseId, status: PhaseStatus = 'PENDING')
   return status === 'COMPLETE' ? 'green' : phase.color
 }
 
+export function getPhaseHexColor(phaseId: PhaseId) {
+  const phase = getPhaseConfig(phaseId)
+  return phase?.hexColor || '#6b7280'
+}
+
 // All phases are available to all team members
 // Assignments are used for notification and task tracking only
 
@@ -149,62 +162,80 @@ export function mapPhaseStatusToStageAction(phaseStatus: PhaseStatus): string {
 }
 
 // Tailwind color classes for dynamic styling
+// Using custom hex colors for brand consistency
 export const COLOR_CLASSES = {
   purple: {
-    bg: 'bg-purple-50',
-    text: 'text-purple-800',
-    border: 'border-purple-200',
-    hover: 'hover:bg-purple-100',
-    ring: 'ring-purple-200'
+    bg: 'bg-[#a657f0]/10',
+    text: 'text-[#a657f0]',
+    border: 'border-[#a657f0]/30',
+    hover: 'hover:bg-[#a657f0]/20',
+    ring: 'ring-[#a657f0]/20',
+    solid: 'bg-[#a657f0]'
   },
   orange: {
-    bg: 'bg-orange-50', 
-    text: 'text-orange-800',
-    border: 'border-orange-200',
-    hover: 'hover:bg-orange-100',
-    ring: 'ring-orange-200'
+    bg: 'bg-[#f6762e]/10', 
+    text: 'text-[#f6762e]',
+    border: 'border-[#f6762e]/30',
+    hover: 'hover:bg-[#f6762e]/20',
+    ring: 'ring-[#f6762e]/20',
+    solid: 'bg-[#f6762e]'
   },
-  blue: {
-    bg: 'bg-blue-50',
-    text: 'text-blue-800', 
-    border: 'border-blue-200',
-    hover: 'hover:bg-blue-100',
-    ring: 'ring-blue-200'
+  teal: {
+    bg: 'bg-[#14b8a6]/10',
+    text: 'text-[#14b8a6]', 
+    border: 'border-[#14b8a6]/30',
+    hover: 'hover:bg-[#14b8a6]/20',
+    ring: 'ring-[#14b8a6]/20',
+    solid: 'bg-[#14b8a6]'
   },
   indigo: {
-    bg: 'bg-indigo-50',
-    text: 'text-indigo-800',
-    border: 'border-indigo-200', 
-    hover: 'hover:bg-indigo-100',
-    ring: 'ring-indigo-200'
+    bg: 'bg-[#6366ea]/10',
+    text: 'text-[#6366ea]',
+    border: 'border-[#6366ea]/30', 
+    hover: 'hover:bg-[#6366ea]/20',
+    ring: 'ring-[#6366ea]/20',
+    solid: 'bg-[#6366ea]'
+  },
+  // Keep these for compatibility
+  blue: {
+    bg: 'bg-[#14b8a6]/10',
+    text: 'text-[#14b8a6]', 
+    border: 'border-[#14b8a6]/30',
+    hover: 'hover:bg-[#14b8a6]/20',
+    ring: 'ring-[#14b8a6]/20',
+    solid: 'bg-[#14b8a6]'
   },
   pink: {
-    bg: 'bg-pink-50',
-    text: 'text-pink-800',
-    border: 'border-pink-200',
-    hover: 'hover:bg-pink-100',
-    ring: 'ring-pink-200'
+    bg: 'bg-[#e94d97]/10',
+    text: 'text-[#e94d97]',
+    border: 'border-[#e94d97]/30',
+    hover: 'hover:bg-[#e94d97]/20',
+    ring: 'ring-[#e94d97]/20',
+    solid: 'bg-[#e94d97]'
   },
   green: {
     bg: 'bg-green-50',
     text: 'text-green-800',
     border: 'border-green-200',
     hover: 'hover:bg-green-100', 
-    ring: 'ring-green-200'
+    ring: 'ring-green-200',
+    solid: 'bg-green-500'
   },
   gray: {
     bg: 'bg-gray-50',
     text: 'text-gray-700',
     border: 'border-gray-200',
     hover: 'hover:bg-gray-100',
-    ring: 'ring-gray-200'
+    ring: 'ring-gray-200',
+    solid: 'bg-gray-500'
   },
   slate: {
     bg: 'bg-slate-50',
     text: 'text-slate-700',
     border: 'border-slate-200',
     hover: 'hover:bg-slate-100',
-    ring: 'ring-slate-200'
+    ring: 'ring-slate-200',
+    solid: 'bg-slate-500'
   }
 } as const
 

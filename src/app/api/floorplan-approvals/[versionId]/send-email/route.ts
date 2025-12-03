@@ -283,7 +283,7 @@ function generateFloorplanApprovalEmailHtml(data: {
   approvalUrl: string
   companyName: string
 }) {
-  const { clientName, projectName, versionName, floorplanCount, assets, approvalUrl, companyName } = data
+  const { clientName, projectName, versionName, floorplanCount } = data
 
   return `
 <!DOCTYPE html>
@@ -291,61 +291,61 @@ function generateFloorplanApprovalEmailHtml(data: {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Floorplan Approval - Meisner Interiors</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    </style>
+    <title>Floorplan Review - ${projectName}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
-    <div style="max-width: 640px; margin: 0 auto; background: white;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white;">
+        
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
-            <!-- <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/logo.png" 
-                 alt="Interior Design Studio" 
-                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
-                 draggable="false" 
-                 ondragstart="return false;" 
-                 oncontextmenu="return false;"/> -->
-            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Documents Ready</h1>
-            <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 16px; font-weight: 400;">${projectName}</p>
+        <div style="background: #18181b; padding: 32px; text-align: center;">
+            <h1 style="margin: 0; color: white; font-size: 22px; font-weight: 600;">Floorplan Review</h1>
+            <p style="margin: 8px 0 0 0; color: #a1a1aa; font-size: 14px;">${projectName}</p>
         </div>
         
         <!-- Content -->
-        <div style="padding: 40px 32px;">
-            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Dear ${clientName},</p>
+        <div style="padding: 32px;">
+            <p style="margin: 0 0 20px 0; color: #18181b; font-size: 15px;">Hi ${clientName},</p>
             
-            <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.7;">Your floorplan documents are ready for review. We've attached ${floorplanCount} PDF ${floorplanCount !== 1 ? 'files' : 'file'} to this email for your convenience.</p>
-            
-            <!-- Project Details -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 24px 0;">
-                <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600;">Project Details</h3>
-                <p style="margin: 8px 0; color: #475569;"><strong>Project:</strong> ${projectName}</p>
-                <p style="margin: 8px 0; color: #475569;"><strong>Version:</strong> ${versionName}</p>
-                <p style="margin: 8px 0; color: #475569;"><strong>Attachments:</strong> ${floorplanCount} floorplan ${floorplanCount !== 1 ? 'documents' : 'document'}</p>
+            <p style="margin: 0 0 20px 0; color: #52525b; font-size: 15px;">
+                The latest floorplan${floorplanCount > 1 ? 's' : ''} for your project ${floorplanCount > 1 ? 'are' : 'is'} ready. Please find ${floorplanCount > 1 ? 'them' : 'it'} attached to this email.
+            </p>
+
+            <!-- Summary Box -->
+            <div style="background: #fafafa; border: 1px solid #e4e4e7; border-radius: 6px; padding: 20px; margin: 24px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="color: #71717a; font-size: 13px; padding: 4px 0;">Project</td>
+                        <td style="color: #18181b; font-size: 13px; padding: 4px 0; text-align: right; font-weight: 500;">${projectName}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #71717a; font-size: 13px; padding: 4px 0;">Version</td>
+                        <td style="color: #18181b; font-size: 13px; padding: 4px 0; text-align: right; font-weight: 500;">${versionName}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #71717a; font-size: 13px; padding: 4px 0;">Files</td>
+                        <td style="color: #18181b; font-size: 13px; padding: 4px 0; text-align: right; font-weight: 500;">${floorplanCount} PDF${floorplanCount > 1 ? 's' : ''}</td>
+                    </tr>
+                </table>
             </div>
 
-            <!-- Attachment Notice -->
-            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 8px; padding: 24px; margin: 32px 0; text-align: center;">
-                <h3 style="margin: 0 0 12px 0; color: #1e40af; font-size: 18px; font-weight: 600;">📎 Floorplans Attached</h3>
-                <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.7;">All floorplan documents are attached to this email. You can open them directly from your email attachments.</p>
-            </div>
-
-            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">Please review the attached floorplans and let us know if you have any questions.</p>
+            <p style="margin: 0 0 20px 0; color: #52525b; font-size: 15px;">
+                Take your time to review. If you have any questions or would like to discuss changes, just reply to this email.
+            </p>
+            
+            <p style="margin: 24px 0 0 0; color: #52525b; font-size: 15px;">
+                Best regards,<br>
+                <strong style="color: #18181b;">The Meisner Interiors Team</strong>
+            </p>
         </div>
         
         <!-- Footer -->
-        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors</div>
-            
-            <div style="margin-bottom: 12px;">
-                <a href="mailto:projects@meisnerinteriors.com" 
-                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
-                <span style="color: #cbd5e1;">•</span>
-                <a href="tel:+15147976957" 
-                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
-            </div>
-            
-            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        <div style="background: #fafafa; border-top: 1px solid #e4e4e7; padding: 20px; text-align: center;">
+            <p style="margin: 0 0 8px 0; color: #18181b; font-size: 13px; font-weight: 600;">Meisner Interiors</p>
+            <p style="margin: 0; color: #71717a; font-size: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com" style="color: #71717a; text-decoration: none;">projects@meisnerinteriors.com</a>
+                &nbsp;•&nbsp;
+                <a href="tel:+15147976957" style="color: #71717a; text-decoration: none;">514-797-6957</a>
+            </p>
             
             <!-- Tracking Pixel -->
             <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="1" height="1" style="display:none;" alt="" />
