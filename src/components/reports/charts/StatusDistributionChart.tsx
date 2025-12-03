@@ -63,17 +63,17 @@ export function StatusDistributionChart({ completed, inProgress, pending, notSta
     { 
       name: 'Completed', 
       value: completed, 
-      color: '#10B981',
+      color: '#14b8a6', // brand teal
     },
     { 
       name: 'In Progress', 
       value: inProgress, 
-      color: '#3B82F6',
+      color: '#6366ea', // brand indigo
     },
     { 
       name: 'Pending', 
       value: pending, 
-      color: '#F59E0B',
+      color: '#f6762e', // brand orange
     },
   ]
 
@@ -81,7 +81,7 @@ export function StatusDistributionChart({ completed, inProgress, pending, notSta
     data.push({
       name: 'Not Started',
       value: notStarted,
-      color: '#6B7280',
+      color: '#9ca3af', // lighter gray
     })
   }
 

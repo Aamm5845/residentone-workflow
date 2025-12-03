@@ -30,11 +30,11 @@ interface Props {
 }
 
 const PHASE_CONFIG = {
-  DESIGN_CONCEPT: { label: 'Design Concept', color: 'bg-purple-500', lightColor: 'bg-purple-100' },
-  RENDERING: { label: '3D Rendering', color: 'bg-orange-500', lightColor: 'bg-orange-100' },
-  CLIENT_APPROVAL: { label: 'Client Approval', color: 'bg-blue-500', lightColor: 'bg-blue-100' },
-  DRAWINGS: { label: 'Drawings', color: 'bg-indigo-500', lightColor: 'bg-indigo-100' },
-  FFE: { label: 'FFE', color: 'bg-pink-500', lightColor: 'bg-pink-100' }
+  DESIGN_CONCEPT: { label: 'Design Concept', color: 'bg-[#a657f0]', lightColor: 'bg-[#a657f0]/10' },
+  RENDERING: { label: '3D Rendering', color: 'bg-[#f6762e]', lightColor: 'bg-[#f6762e]/10' },
+  CLIENT_APPROVAL: { label: 'Client Approval', color: 'bg-[#14b8a6]', lightColor: 'bg-[#14b8a6]/10' },
+  DRAWINGS: { label: 'Drawings', color: 'bg-[#6366ea]', lightColor: 'bg-[#6366ea]/10' },
+  FFE: { label: 'FFE', color: 'bg-[#e94d97]', lightColor: 'bg-[#e94d97]/10' }
 }
 
 export function ProjectReportCard({ project }: Props) {
@@ -189,7 +189,7 @@ export function ProjectReportCard({ project }: Props) {
           <span className="text-gray-300">•</span>
           <button
             onClick={() => setShowAISummary(!showAISummary)}
-            className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 font-medium transition-colors"
+            className="text-sm text-[#a657f0] hover:text-[#a657f0]/80 flex items-center gap-1 font-medium transition-colors"
           >
             {showAISummary ? (
               <>

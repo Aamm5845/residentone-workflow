@@ -16,9 +16,9 @@ interface Props {
 }
 
 const COLORS = {
-  completed: '#10B981', // green
-  inProgress: '#3B82F6', // blue
-  pending: '#F59E0B', // orange
+  completed: '#14b8a6', // brand teal
+  inProgress: '#6366ea', // brand indigo
+  pending: '#f6762e', // brand orange
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -78,16 +78,16 @@ export function PhaseProgressChart({ phases }: Props) {
         >
           <defs>
             <linearGradient id="completedGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
-              <stop offset="100%" stopColor="#34D399" stopOpacity={1} />
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#14b8a6" stopOpacity={1} />
             </linearGradient>
             <linearGradient id="inProgressGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
-              <stop offset="100%" stopColor="#60A5FA" stopOpacity={1} />
+              <stop offset="0%" stopColor="#6366ea" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#6366ea" stopOpacity={1} />
             </linearGradient>
             <linearGradient id="pendingGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.8} />
-              <stop offset="100%" stopColor="#FBBF24" stopOpacity={1} />
+              <stop offset="0%" stopColor="#f6762e" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#f6762e" stopOpacity={1} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />

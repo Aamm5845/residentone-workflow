@@ -49,6 +49,7 @@ interface ProjectReport {
   phases: Record<string, PhaseStats>
   roomCount: number
   updatedAt: string
+  coverImage: string | null
 }
 
 export async function GET(request: Request) {
@@ -302,6 +303,10 @@ export async function GET(request: Request) {
         ? Math.round((completedStages / applicableStages) * 100)
         : 0
 
+      // Get first cover image if available
+      const coverImages = project.coverImages as string[] | null
+      const coverImage = coverImages && coverImages.length > 0 ? coverImages[0] : null
+
       return {
         id: project.id,
         name: project.name,
@@ -310,7 +315,8 @@ export async function GET(request: Request) {
         overallCompletion,
         phases,
         roomCount: project.rooms.length,
-        updatedAt: project.updatedAt.toISOString()
+        updatedAt: project.updatedAt.toISOString(),
+        coverImage
       }
     })
 
