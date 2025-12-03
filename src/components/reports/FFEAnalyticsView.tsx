@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3, DoorOpen, Navigation, Baby, UserCheck, Gamepad2, Bed, Bath, Settings, Home } from 'lucide-react'
+import { Package, TrendingUp, ChevronDown, ChevronUp, Download, BarChart3, AlertTriangle, CheckCircle, Plus, Home } from 'lucide-react'
 import { CostBreakdownChart } from '@/components/reports/charts/CostBreakdownChart'
-import { motion } from 'framer-motion'
 
 interface FFEItem {
   id: string
@@ -22,34 +21,6 @@ interface TaskDetail {
   ffeItems?: FFEItem[]
 }
 
-const ROOM_ICONS: Record<string, any> = {
-  ENTRANCE: DoorOpen,
-  FOYER: Home,
-  STAIRCASE: Navigation,
-  LIVING_ROOM: Home,
-  DINING_ROOM: Home,
-  KITCHEN: Home,
-  STUDY_ROOM: Settings,
-  OFFICE: Settings,
-  PLAYROOM: Gamepad2,
-  MASTER_BEDROOM: Bed,
-  GIRLS_ROOM: Bed,
-  BOYS_ROOM: Bed,
-  GUEST_BEDROOM: Bed,
-  POWDER_ROOM: Bath,
-  MASTER_BATHROOM: Bath,
-  FAMILY_BATHROOM: Bath,
-  GIRLS_BATHROOM: Bath,
-  BOYS_BATHROOM: Bath,
-  GUEST_BATHROOM: Bath,
-  LAUNDRY_ROOM: Settings,
-  SUKKAH: Home,
-}
-
-const getRoomIcon = (roomType: string) => {
-  return ROOM_ICONS[roomType] || Home
-}
-
 interface PhaseStats {
   tasks: TaskDetail[]
 }
@@ -62,18 +33,43 @@ type SortField = 'name' | 'room' | 'status'
 type SortDirection = 'asc' | 'desc'
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETED: 'bg-green-100 text-green-800',
-  DELIVERED: 'bg-green-100 text-green-800',
-  ORDERED: 'bg-blue-100 text-blue-800',
-  PENDING: 'bg-orange-100 text-orange-800',
-  UNDECIDED: 'bg-yellow-100 text-yellow-800',
-  NOT_STARTED: 'bg-gray-100 text-gray-800'
+  COMPLETED: 'bg-[#14b8a6]/10 text-[#14b8a6]',
+  DELIVERED: 'bg-[#14b8a6]/10 text-[#14b8a6]',
+  ORDERED: 'bg-[#6366ea]/10 text-[#6366ea]',
+  PENDING: 'bg-[#f6762e]/10 text-[#f6762e]',
+  UNDECIDED: 'bg-amber-100 text-amber-700',
+  NOT_STARTED: 'bg-gray-100 text-gray-600',
+  IN_PROGRESS: 'bg-[#6366ea]/10 text-[#6366ea]'
 }
 
 export function FFEAnalyticsView({ phases }: Props) {
   const [sortField, setSortField] = useState<SortField>('room')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Get all FFE tasks (rooms) to track empty vs populated
+  const ffeRoomData = useMemo(() => {
+    if (!phases.FFE || !phases.FFE.tasks) {
+      return { rooms: [], totalRooms: 0, roomsWithItems: 0, emptyRooms: 0 }
+    }
+
+    const rooms = phases.FFE.tasks.map(task => ({
+      roomId: task.roomId,
+      roomName: task.roomName,
+      roomType: task.roomType,
+      itemCount: task.ffeItems?.length || 0,
+      completedCount: task.ffeItems?.filter(i => 
+        i.status === 'COMPLETED' || i.status === 'ORDERED' || i.status === 'DELIVERED'
+      ).length || 0,
+      items: task.ffeItems || []
+    }))
+
+    const totalRooms = rooms.length
+    const roomsWithItems = rooms.filter(r => r.itemCount > 0).length
+    const emptyRooms = totalRooms - roomsWithItems
+
+    return { rooms, totalRooms, roomsWithItems, emptyRooms }
+  }, [phases])
 
   // Extract all FFE items with room context
   const allFFEItems = useMemo(() => {
@@ -100,12 +96,10 @@ export function FFEAnalyticsView({ phases }: Props) {
   const filteredAndSortedItems = useMemo(() => {
     let filtered = allFFEItems
     
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(item => item.status === statusFilter)
     }
     
-    // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
       let comparison = 0
       
@@ -127,17 +121,17 @@ export function FFEAnalyticsView({ phases }: Props) {
     return sorted
   }, [allFFEItems, sortField, sortDirection, statusFilter])
 
-  // Calculate summary stats and cost breakdown by room
+  // Calculate summary stats
   const stats = useMemo(() => {
     const totalItems = allFFEItems.length
     const completedItems = allFFEItems.filter(i => 
       i.status === 'COMPLETED' || i.status === 'ORDERED' || i.status === 'DELIVERED'
     ).length
     const pendingItems = allFFEItems.filter(i => 
-      i.status === 'PENDING' || i.status === 'UNDECIDED' || i.status === 'NOT_STARTED'
+      i.status === 'PENDING' || i.status === 'UNDECIDED' || i.status === 'NOT_STARTED' || i.status === 'IN_PROGRESS'
     ).length
     
-    // Group by room for item breakdown (completed vs pending)
+    // Group by room for chart
     const itemsByRoom = allFFEItems.reduce((acc, item) => {
       if (!acc[item.roomName]) {
         acc[item.roomName] = { completed: 0, pending: 0, total: 0 }
@@ -189,211 +183,228 @@ export function FFEAnalyticsView({ phases }: Props) {
     )
   }
 
-  if (allFFEItems.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
-        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <p className="text-lg text-gray-600 font-medium">No FFE items found for this project</p>
-        <p className="text-sm text-gray-500 mt-2">FFE items will appear here once they are added to rooms</p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-5" />
-          <div className="relative p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">Total Items</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalItems}</p>
-              </div>
-              <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
-              </div>
+      {/* Room Progress Cards - FFE Workflow Tracking */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Total Rooms */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Total Rooms</p>
+              <p className="text-2xl font-bold text-gray-900">{ffeRoomData.totalRooms}</p>
+              <p className="text-xs text-gray-400 mt-1">with FFE stage</p>
+            </div>
+            <div className="p-2.5 bg-[#e94d97]/10 rounded-lg">
+              <Home className="w-5 h-5 text-[#e94d97]" />
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-br from-indigo-500 to-purple-600" />
-        </motion.div>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-5" />
-          <div className="relative p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">Completion Rate</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p>
-              </div>
-              <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
+        {/* Empty Rooms (Need Items) */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Empty Rooms</p>
+              <p className="text-2xl font-bold text-[#f6762e]">{ffeRoomData.emptyRooms}</p>
+              <p className="text-xs text-gray-400 mt-1">need items added</p>
+            </div>
+            <div className="p-2.5 bg-[#f6762e]/10 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-[#f6762e]" />
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-br from-green-500 to-emerald-600" />
-        </motion.div>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 opacity-5" />
-          <div className="relative p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">Pending Items</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.pendingItems}</p>
-              </div>
-              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
-              </div>
+        {/* Rooms with Items */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Rooms with Items</p>
+              <p className="text-2xl font-bold text-[#6366ea]">{ffeRoomData.roomsWithItems}</p>
+              <p className="text-xs text-gray-400 mt-1">items added</p>
+            </div>
+            <div className="p-2.5 bg-[#6366ea]/10 rounded-lg">
+              <Plus className="w-5 h-5 text-[#6366ea]" />
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-br from-orange-500 to-amber-600" />
-        </motion.div>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-5" />
-          <div className="relative p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">Completed Items</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completedItems}</p>
-              </div>
-              <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
-              </div>
+        {/* Completion Rate */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-1">Items Complete</p>
+              <p className="text-2xl font-bold text-[#14b8a6]">{stats.completionRate}%</p>
+              <p className="text-xs text-gray-400 mt-1">{stats.completedItems} of {stats.totalItems}</p>
+            </div>
+            <div className="p-2.5 bg-[#14b8a6]/10 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-[#14b8a6]" />
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-br from-green-500 to-emerald-600" />
-        </motion.div>
+        </div>
+      </div>
+
+      {/* Room Status List */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900 text-sm">Room FFE Status</h3>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#f6762e]"></div>
+              <span>Empty</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#6366ea]"></div>
+              <span>In Progress</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#14b8a6]"></div>
+              <span>Complete</span>
+            </div>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {ffeRoomData.rooms.map(room => {
+            const isComplete = room.itemCount > 0 && room.completedCount === room.itemCount
+            const isEmpty = room.itemCount === 0
+            const isInProgress = room.itemCount > 0 && room.completedCount < room.itemCount
+
+            return (
+              <div key={room.roomId} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${
+                    isEmpty ? 'bg-[#f6762e]' : isComplete ? 'bg-[#14b8a6]' : 'bg-[#6366ea]'
+                  }`}></div>
+                  <span className="text-sm font-medium text-gray-900">{room.roomName}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {isEmpty ? (
+                    <span className="text-xs px-2 py-1 rounded bg-[#f6762e]/10 text-[#f6762e] font-medium">
+                      No items yet
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      {room.completedCount}/{room.itemCount} items complete
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* Items per Room Chart */}
       {stats.costBreakdownData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900">Items per Room</h3>
-            <BarChart3 className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-semibold text-gray-900">Items per Room</h3>
+            <BarChart3 className="w-5 h-5 text-[#a657f0]" />
           </div>
           <CostBreakdownChart data={stats.costBreakdownData} />
         </div>
       )}
 
-      {/* Filters and Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex items-center gap-3">
-            <Package className="w-6 h-6 text-indigo-600" />
-            <h3 className="text-xl font-bold text-gray-900">FFE Items Directory</h3>
-          </div>
-          <div className="flex items-center gap-3">
+      {/* Items Table */}
+      {allFFEItems.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#e94d97]" />
+              <h3 className="font-semibold text-gray-900">All FFE Items</h3>
+              <span className="text-xs text-gray-500">({allFFEItems.length} items)</span>
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 text-sm font-medium border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a657f0]"
             >
               <option value="all">All Status</option>
               <option value="COMPLETED">Completed</option>
               <option value="DELIVERED">Delivered</option>
               <option value="ORDERED">Ordered</option>
+              <option value="IN_PROGRESS">In Progress</option>
               <option value="PENDING">Pending</option>
               <option value="UNDECIDED">Undecided</option>
               <option value="NOT_STARTED">Not Started</option>
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all font-medium shadow-md">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
-              <tr>
-                <th
-                  onClick={() => handleSort('name')}
-                  className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
-                >
-                  <div className="flex items-center gap-1">
-                    Item Name
-                    <SortIcon field="name" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('room')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    Room
-                    <SortIcon field="room" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('status')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    Status
-                    <SortIcon field="status" />
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Notes
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
-              {filteredAndSortedItems.map((item, index) => (
-                <tr key={`${item.id}-${index}`} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    {item.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {item.roomName}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1.5 text-xs font-semibold rounded-full ${STATUS_COLORS[item.status] || STATUS_COLORS.NOT_STARTED} shadow-sm`}>
-                      {item.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                    {item.notes || '-'}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1">
+                      Item
+                      <SortIcon field="name" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('room')}
+                    className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1">
+                      Room
+                      <SortIcon field="room" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('status')}
+                    className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1">
+                      Status
+                      <SortIcon field="status" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                    Notes
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredAndSortedItems.length === 0 && (
-          <div className="p-12 text-center">
-            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-600">No items match the selected filter</p>
-            <p className="text-sm text-gray-500 mt-2">Try adjusting your filters</p>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredAndSortedItems.map((item, index) => (
+                  <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
+                    <td className="px-4 py-2.5 text-sm font-medium text-gray-900">
+                      {item.name}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-gray-600">
+                      {item.roomName}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${STATUS_COLORS[item.status] || STATUS_COLORS.NOT_STARTED}`}>
+                        {item.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-gray-500 max-w-[200px] truncate">
+                      {item.notes || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {filteredAndSortedItems.length === 0 && (
+            <div className="p-8 text-center">
+              <Package className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No items match the selected filter</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {allFFEItems.length === 0 && ffeRoomData.totalRooms === 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">No FFE data for this project</p>
+          <p className="text-sm text-gray-400 mt-1">FFE items will appear here once added to rooms</p>
+        </div>
+      )}
     </div>
   )
 }

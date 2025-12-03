@@ -1,13 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { 
-  ChevronDown, ChevronRight, CheckCircle, Clock, AlertCircle, XCircle, 
-  Palette, FileImage, FileText, Sofa, Target, TrendingUp, 
-  ArrowRight, Filter
+  CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight,
+  Palette, FileImage, FileText, Sofa, LayoutGrid
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ProgressRing } from '@/components/reports/ui/ProgressRing'
 
 interface TaskDetail {
   id: string
@@ -39,302 +36,320 @@ interface Props {
   }
 }
 
-const PHASE_CONFIG: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: any; gradient: string }> = {
+const PHASE_CONFIG: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: any }> = {
   DESIGN_CONCEPT: { 
     label: 'Design Concept', 
-    color: 'text-purple-700', 
-    bgColor: 'bg-purple-50', 
-    borderColor: 'border-purple-200',
-    icon: Palette, 
-    gradient: 'from-purple-500 to-purple-600' 
+    color: '#a657f0',
+    bgColor: 'bg-[#a657f0]/10',
+    borderColor: 'border-[#a657f0]/30',
+    icon: Palette
   },
   THREE_D: { 
     label: '3D Rendering', 
-    color: 'text-orange-700', 
-    bgColor: 'bg-orange-50', 
-    borderColor: 'border-orange-200',
-    icon: FileImage, 
-    gradient: 'from-orange-500 to-orange-600' 
+    color: '#f6762e',
+    bgColor: 'bg-[#f6762e]/10',
+    borderColor: 'border-[#f6762e]/30',
+    icon: FileImage
   },
   DRAWINGS: { 
     label: 'Drawings', 
-    color: 'text-indigo-700', 
-    bgColor: 'bg-indigo-50', 
-    borderColor: 'border-indigo-200',
-    icon: FileText, 
-    gradient: 'from-indigo-500 to-indigo-600' 
+    color: '#6366ea',
+    bgColor: 'bg-[#6366ea]/10',
+    borderColor: 'border-[#6366ea]/30',
+    icon: FileText
   },
   FFE: { 
     label: 'FFE', 
-    color: 'text-pink-700', 
-    bgColor: 'bg-pink-50', 
-    borderColor: 'border-pink-200',
-    icon: Sofa, 
-    gradient: 'from-pink-500 to-pink-600' 
+    color: '#e94d97',
+    bgColor: 'bg-[#e94d97]/10',
+    borderColor: 'border-[#e94d97]/30',
+    icon: Sofa
   }
-}
-
-const STATUS_CONFIG: Record<string, { label: string; icon: any; bgColor: string; textColor: string; dotColor: string }> = {
-  COMPLETED: { label: 'Completed', icon: CheckCircle, bgColor: 'bg-green-50', textColor: 'text-green-700', dotColor: 'bg-green-500' },
-  IN_PROGRESS: { label: 'In Progress', icon: Clock, bgColor: 'bg-blue-50', textColor: 'text-blue-700', dotColor: 'bg-blue-500' },
-  PENDING: { label: 'Pending', icon: AlertCircle, bgColor: 'bg-orange-50', textColor: 'text-orange-700', dotColor: 'bg-orange-500' },
-  NOT_STARTED: { label: 'Not Started', icon: XCircle, bgColor: 'bg-gray-50', textColor: 'text-gray-600', dotColor: 'bg-gray-400' },
-  NOT_APPLICABLE: { label: 'N/A', icon: XCircle, bgColor: 'bg-slate-50', textColor: 'text-slate-500', dotColor: 'bg-slate-400' }
-}
-
-function PhaseCard({ 
-  phaseKey, 
-  phase, 
-  config, 
-  isExpanded, 
-  onToggle,
-  filteredTasks 
-}: { 
-  phaseKey: string
-  phase: PhaseStats
-  config: typeof PHASE_CONFIG[string]
-  isExpanded: boolean
-  onToggle: () => void
-  filteredTasks: TaskDetail[]
-}) {
-  const groupedTasks = useMemo(() => {
-    const grouped: Record<string, TaskDetail[]> = {}
-    filteredTasks.forEach(task => {
-      if (!grouped[task.roomId]) grouped[task.roomId] = []
-      grouped[task.roomId].push(task)
-    })
-    return grouped
-  }, [filteredTasks])
-
-  const effectiveTotal = phase.total - phase.notApplicable
-  const PhaseIcon = config.icon
-
-  return (
-    <div className={`bg-white rounded-xl border-2 ${config.borderColor} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden`}>
-      {/* Phase Header */}
-      <button
-        onClick={onToggle}
-        className={`w-full p-5 flex items-center gap-4 hover:${config.bgColor} transition-colors duration-200`}
-      >
-        {/* Icon */}
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${config.gradient} shadow-md flex-shrink-0`}>
-          <PhaseIcon className="w-6 h-6 text-white" />
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 text-left">
-          <h3 className={`text-xl font-bold ${config.color}`}>{config.label}</h3>
-          <div className="flex items-center gap-4 mt-2">
-            <StatusBadge count={phase.completed} type="completed" />
-            <StatusBadge count={phase.inProgress} type="inProgress" />
-            <StatusBadge count={phase.pending} type="pending" />
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:block text-right">
-            <p className="text-sm text-gray-500">{phase.completed} / {effectiveTotal}</p>
-            <p className="text-xs text-gray-400">tasks completed</p>
-          </div>
-          <ProgressRing 
-            percentage={phase.percentage} 
-            size={60} 
-            strokeWidth={5} 
-            color="auto" 
-            showLabel={true}
-          />
-          {isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-gray-400" />
-          )}
-        </div>
-      </button>
-
-      {/* Expanded Content */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className={`border-t ${config.borderColor}`}
-          >
-            <div className={`p-5 ${config.bgColor} space-y-4`}>
-              {Object.entries(groupedTasks).map(([roomId, tasks]) => (
-                <RoomTaskGroup 
-                  key={roomId} 
-                  roomName={tasks[0].roomName} 
-                  tasks={tasks} 
-                />
-              ))}
-              {Object.keys(groupedTasks).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Filter className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                  <p>No tasks match the current filters</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function StatusBadge({ count, type }: { count: number; type: 'completed' | 'inProgress' | 'pending' }) {
-  const styles = {
-    completed: 'bg-green-100 text-green-700',
-    inProgress: 'bg-blue-100 text-blue-700',
-    pending: 'bg-orange-100 text-orange-700'
-  }
-  const icons = {
-    completed: CheckCircle,
-    inProgress: Clock,
-    pending: AlertCircle
-  }
-  const Icon = icons[type]
-
-  return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${styles[type]}`}>
-      <Icon className="w-3.5 h-3.5" />
-      {count}
-    </div>
-  )
-}
-
-function RoomTaskGroup({ roomName, tasks }: { roomName: string; tasks: TaskDetail[] }) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-        <h4 className="font-semibold text-gray-900">{roomName}</h4>
-        <span className="text-sm text-gray-500">{tasks.length} tasks</span>
-      </div>
-      <div className="divide-y divide-gray-100">
-        {tasks.map(task => {
-          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.NOT_STARTED
-          const StatusIcon = statusConfig.icon
-          
-          const stageLabels: Record<string, string> = {
-            'DESIGN_CONCEPT': 'Design Concept',
-            'THREE_D': '3D Rendering',
-            'DRAWINGS': 'Drawings',
-            'FFE': 'FFE'
-          }
-
-          return (
-            <div 
-              key={task.id} 
-              className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${statusConfig.dotColor}`} />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {stageLabels[task.stageName] || task.stageName.replace(/_/g, ' ')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Updated {new Date(task.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                {statusConfig.label}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
 }
 
 export function TaskLevelView({ phases, filters }: Props) {
-  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({})
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set())
 
-  const togglePhase = (phaseKey: string) => {
-    setExpandedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))
-  }
+  // Group rooms by their progress across all phases
+  const roomProgress = useMemo(() => {
+    const rooms: Record<string, {
+      name: string
+      type: string
+      phases: Record<string, { status: string; updatedAt: string }>
+    }> = {}
 
-  const getFilteredTasks = (tasks: TaskDetail[]) => {
-    if (!filters) return tasks
+    Object.entries(phases).forEach(([phaseKey, phase]) => {
+      phase.tasks.forEach(task => {
+        if (!rooms[task.roomId]) {
+          rooms[task.roomId] = {
+            name: task.roomName,
+            type: task.roomType,
+            phases: {}
+          }
+        }
+        rooms[task.roomId].phases[phaseKey] = {
+          status: task.status,
+          updatedAt: task.updatedAt
+        }
+      })
+    })
 
-    return tasks.filter(task => {
-      if (filters.phases.length > 0 && !filters.phases.includes(task.stageType)) return false
-      if (filters.rooms.length > 0 && !filters.rooms.includes(task.roomId)) return false
-      if (filters.statuses.length > 0 && !filters.statuses.includes(task.status)) return false
+    return Object.entries(rooms).map(([id, room]) => {
+      const phaseStatuses = Object.values(room.phases)
+      const completed = phaseStatuses.filter(p => p.status === 'COMPLETED').length
+      const total = phaseStatuses.filter(p => p.status !== 'NOT_APPLICABLE').length
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0
+
+      return {
+        id,
+        ...room,
+        progress,
+        completed,
+        total
+      }
+    })
+  }, [phases])
+
+  // Apply filters if any
+  const filteredRooms = useMemo(() => {
+    if (!filters) return roomProgress
+    
+    return roomProgress.filter(room => {
+      if (filters.rooms.length > 0 && !filters.rooms.includes(room.id)) return false
       return true
     })
+  }, [roomProgress, filters])
+
+  // Sort rooms by progress
+  const sortedRooms = useMemo(() => {
+    return [...filteredRooms].sort((a, b) => {
+      // First, sort by completion (incomplete first)
+      if (a.progress === 100 && b.progress !== 100) return 1
+      if (a.progress !== 100 && b.progress === 100) return -1
+      // Then by progress percentage (descending - more progress first)
+      return b.progress - a.progress
+    })
+  }, [filteredRooms])
+
+  const toggleRoom = (roomId: string) => {
+    setExpandedRooms(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(roomId)) {
+        newSet.delete(roomId)
+      } else {
+        newSet.add(roomId)
+      }
+      return newSet
+    })
   }
 
-  // Calculate summary stats
-  const summary = useMemo(() => {
-    let totalCompleted = 0, totalInProgress = 0, totalPending = 0, total = 0
-    
-    Object.values(phases).forEach(phase => {
-      totalCompleted += phase.completed
-      totalInProgress += phase.inProgress
-      totalPending += phase.pending
-      total += phase.total - phase.notApplicable
-    })
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#14b8a6]/10 text-[#14b8a6]">
+            <CheckCircle className="w-3 h-3" /> Complete
+          </span>
+        )
+      case 'IN_PROGRESS':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#6366ea]/10 text-[#6366ea]">
+            <Clock className="w-3 h-3" /> In Progress
+          </span>
+        )
+      case 'NOT_APPLICABLE':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+            N/A
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f6762e]/10 text-[#f6762e]">
+            <AlertCircle className="w-3 h-3" /> Pending
+          </span>
+        )
+    }
+  }
 
-    return { totalCompleted, totalInProgress, totalPending, total }
-  }, [phases])
+  const getProgressColor = (progress: number) => {
+    if (progress === 100) return '#14b8a6'
+    if (progress >= 75) return '#6366ea'
+    if (progress >= 50) return '#a657f0'
+    if (progress >= 25) return '#f6762e'
+    return '#e94d97'
+  }
 
   return (
     <div className="space-y-6">
-      {/* Summary Header */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-100 rounded-xl">
-              <Target className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Phase Progress Overview</h3>
-              <p className="text-sm text-gray-600">Click on any phase to see detailed room breakdown</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{summary.totalCompleted}</p>
-              <p className="text-xs text-gray-500">Completed</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{summary.totalInProgress}</p>
-              <p className="text-xs text-gray-500">In Progress</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-600">{summary.totalPending}</p>
-              <p className="text-xs text-gray-500">Pending</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Phase Cards */}
-      <div className="space-y-4">
-        {Object.entries(phases).map(([phaseKey, phase]) => {
-          const config = PHASE_CONFIG[phaseKey]
-          if (!config) return null
-          if (phase.total > 0 && phase.total === phase.notApplicable) return null
-
-          const filteredTasks = getFilteredTasks(phase.tasks)
-
+      {/* Phase Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Object.entries(PHASE_CONFIG).map(([key, config]) => {
+          const phaseData = phases[key]
+          if (!phaseData) return null
+          
+          const PhaseIcon = config.icon
+          const completion = phaseData.total > 0 
+            ? Math.round((phaseData.completed / (phaseData.total - (phaseData.notApplicable || 0))) * 100) 
+            : 0
+          
           return (
-            <PhaseCard
-              key={phaseKey}
-              phaseKey={phaseKey}
-              phase={phase}
-              config={config}
-              isExpanded={expandedPhases[phaseKey] || false}
-              onToggle={() => togglePhase(phaseKey)}
-              filteredTasks={filteredTasks}
-            />
+            <div 
+              key={key} 
+              className={`bg-white rounded-xl border ${config.borderColor} p-4 hover:shadow-sm transition-shadow`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className={`p-2 rounded-lg ${config.bgColor}`}>
+                  <PhaseIcon className="w-4 h-4" style={{ color: config.color }} />
+                </div>
+                <span 
+                  className="text-lg font-bold"
+                  style={{ color: config.color }}
+                >
+                  {completion}%
+                </span>
+              </div>
+              <h4 className="text-sm font-medium text-gray-900 mb-1">{config.label}</h4>
+              <p className="text-xs text-gray-500">
+                {phaseData.completed} of {phaseData.total - (phaseData.notApplicable || 0)} complete
+              </p>
+              <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${completion}%`,
+                    backgroundColor: config.color
+                  }}
+                />
+              </div>
+            </div>
           )
         })}
+      </div>
+
+      {/* Room Progress List */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4 text-gray-500" />
+            <h3 className="font-semibold text-gray-900 text-sm">Room Progress</h3>
+            <span className="text-xs text-gray-500">({sortedRooms.length} rooms)</span>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#14b8a6]"></div>
+              Complete
+            </span>
+            <span className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#6366ea]"></div>
+              In Progress
+            </span>
+            <span className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-[#f6762e]"></div>
+              Pending
+            </span>
+          </div>
+        </div>
+
+        <div className="divide-y divide-gray-100">
+          {sortedRooms.map(room => {
+            const isExpanded = expandedRooms.has(room.id)
+            const progressColor = getProgressColor(room.progress)
+            
+            return (
+              <div key={room.id} className="group">
+                {/* Room Header */}
+                <button
+                  onClick={() => toggleRoom(room.id)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex-shrink-0">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900 text-sm truncate">
+                          {room.name}
+                        </span>
+                        {room.progress === 100 && (
+                          <CheckCircle className="w-4 h-4 text-[#14b8a6] flex-shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 w-32">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${room.progress}%`,
+                            backgroundColor: progressColor
+                          }}
+                        />
+                      </div>
+                      <span 
+                        className="text-xs font-medium w-8 text-right"
+                        style={{ color: progressColor }}
+                      >
+                        {room.progress}%
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 w-20 text-right">
+                      {room.completed}/{room.total} phases
+                    </span>
+                  </div>
+                </button>
+
+                {/* Expanded Phase Details */}
+                {isExpanded && (
+                  <div className="px-4 pb-3 pl-11 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {Object.entries(PHASE_CONFIG).map(([phaseKey, config]) => {
+                      const phaseData = room.phases[phaseKey]
+                      const PhaseIcon = config.icon
+                      
+                      return (
+                        <div 
+                          key={phaseKey}
+                          className={`p-2.5 rounded-lg border ${
+                            phaseData?.status === 'COMPLETED' 
+                              ? 'bg-[#14b8a6]/5 border-[#14b8a6]/20'
+                              : phaseData?.status === 'IN_PROGRESS'
+                              ? 'bg-[#6366ea]/5 border-[#6366ea]/20'
+                              : phaseData?.status === 'NOT_APPLICABLE'
+                              ? 'bg-gray-50 border-gray-200'
+                              : 'bg-[#f6762e]/5 border-[#f6762e]/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <PhaseIcon className="w-3.5 h-3.5" style={{ color: config.color }} />
+                            <span className="text-xs font-medium text-gray-700">{config.label}</span>
+                          </div>
+                          {phaseData ? getStatusBadge(phaseData.status) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {sortedRooms.length === 0 && (
+          <div className="p-8 text-center">
+            <LayoutGrid className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">No rooms found</p>
+          </div>
+        )}
       </div>
     </div>
   )

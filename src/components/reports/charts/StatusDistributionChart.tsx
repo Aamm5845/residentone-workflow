@@ -1,6 +1,6 @@
 'use client'
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 interface StatusData {
   name: string
@@ -35,11 +35,11 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
   const RADIAN = Math.PI / 180
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
 
-  if (percent < 0.08) return null // Don't show label if slice is too small
+  if (percent < 0.1) return null // Don't show label if slice is too small
 
   return (
     <text 
@@ -48,8 +48,8 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
       fill="white" 
       textAnchor="middle" 
       dominantBaseline="central"
-      className="font-bold text-base drop-shadow-md"
-      style={{ pointerEvents: 'none' }}
+      className="font-semibold text-sm"
+      style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
     >
       {`${(percent * 100).toFixed(0)}%`}
     </text>
@@ -92,13 +92,13 @@ export function StatusDistributionChart({ completed, inProgress, pending, notSta
   }))
 
   return (
-    <div className="w-full h-[260px] flex items-center justify-center">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full h-[240px] flex flex-col items-center justify-center">
+      <ResponsiveContainer width="100%" height={180}>
         <PieChart>
           <defs>
             {data.map((entry, index) => (
               <linearGradient key={index} id={`gradient-${entry.name}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={entry.color} stopOpacity={1} />
+                <stop offset="0%" stopColor={entry.color} stopOpacity={0.9} />
                 <stop offset="100%" stopColor={entry.color} stopOpacity={0.7} />
               </linearGradient>
             ))}
@@ -109,11 +109,11 @@ export function StatusDistributionChart({ completed, inProgress, pending, notSta
             cy="50%"
             labelLine={false}
             label={renderCustomLabel}
-            outerRadius={85}
-            innerRadius={50}
+            outerRadius={75}
+            innerRadius={45}
             fill="#8884d8"
             dataKey="value"
-            paddingAngle={3}
+            paddingAngle={2}
             animationBegin={0}
             animationDuration={800}
           >
@@ -122,18 +122,22 @@ export function StatusDistributionChart({ completed, inProgress, pending, notSta
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            verticalAlign="bottom" 
-            height={36}
-            iconType="circle"
-            formatter={(value, entry: any) => (
-              <span className="text-sm text-gray-700">
-                {value} <span className="font-semibold">({entry.payload.value})</span>
-              </span>
-            )}
-          />
         </PieChart>
       </ResponsiveContainer>
+      {/* Custom Legend */}
+      <div className="flex items-center justify-center gap-4 mt-2">
+        {dataWithPercentage.map((entry, index) => (
+          <div key={index} className="flex items-center gap-1.5">
+            <div 
+              className="w-2.5 h-2.5 rounded-full" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-xs text-gray-600">
+              {entry.name} <span className="font-medium text-gray-800">({entry.value})</span>
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
