@@ -260,32 +260,25 @@ export function TaskLevelView({ phases, filters }: Props) {
             <h3 className="font-semibold text-gray-900 text-sm">Room Progress</h3>
             <span className="text-xs text-gray-500">({sortedRooms.length} rooms)</span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <CheckCircle className="w-3 h-3 text-[#14b8a6]" />
-              Complete
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-[#6366ea]" />
-              In Progress
-            </span>
-            <span className="flex items-center gap-1">
-              <AlertCircle className="w-3 h-3 text-[#f6762e]" />
-              Pending
-            </span>
-          </div>
         </div>
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
           {sortedRooms.map(room => {
             const progressColor = getProgressColor(room.progress, room.completed)
             
-            // Helper to get phase status icon
-            const getPhaseStatusIcon = (phaseKey: string) => {
+            // Helper to get phase status badge
+            const getPhaseStatusBadge = (phaseKey: string) => {
               const phaseData = room.phases[phaseKey]
               const config = PHASE_CONFIG[phaseKey as keyof typeof PHASE_CONFIG]
-              const PhaseIcon = config.icon
               const isFFE = phaseKey === 'FFE'
+              
+              // Short labels for phases
+              const shortLabels: Record<string, string> = {
+                DESIGN_CONCEPT: 'Design',
+                THREE_D: '3D',
+                DRAWINGS: 'Drawings',
+                FFE: 'FFE'
+              }
               
               // For FFE, calculate percentage if items exist
               const ffeHasItems = isFFE && phaseData?.ffeItemsTotal && phaseData.ffeItemsTotal > 0
@@ -293,15 +286,20 @@ export function TaskLevelView({ phases, filters }: Props) {
                 ? Math.round((phaseData.ffeItemsCompleted! / phaseData.ffeItemsTotal!) * 100)
                 : 0
               
-              // Determine status
-              let statusColor = '#f6762e' // orange - pending
-              let StatusIcon = AlertCircle
-              let statusText = ''
+              // Determine styling based on status
+              let bgColor = 'bg-orange-50'
+              let textColor = 'text-orange-600'
+              let borderColor = 'border-orange-200'
+              let statusText = 'Pending'
               
               if (!phaseData || phaseData.status === 'NOT_APPLICABLE') {
                 return (
-                  <div key={phaseKey} className="flex items-center gap-1 text-gray-300" title={`${config.label}: N/A`}>
-                    <PhaseIcon className="w-3.5 h-3.5" />
+                  <div 
+                    key={phaseKey} 
+                    className="flex-1 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-center"
+                  >
+                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{shortLabels[phaseKey]}</div>
+                    <div className="text-xs text-gray-400">N/A</div>
                   </div>
                 )
               }
@@ -309,33 +307,38 @@ export function TaskLevelView({ phases, filters }: Props) {
               if (isFFE) {
                 if (ffeHasItems) {
                   if (ffePercentage === 100) {
-                    statusColor = '#14b8a6' // teal
-                    StatusIcon = CheckCircle
+                    bgColor = 'bg-teal-50'
+                    textColor = 'text-teal-600'
+                    borderColor = 'border-teal-200'
+                    statusText = 'Done'
                   } else {
-                    statusColor = '#e94d97' // pink
+                    bgColor = 'bg-pink-50'
+                    textColor = 'text-pink-600'
+                    borderColor = 'border-pink-200'
                     statusText = `${ffePercentage}%`
                   }
                 }
               } else {
                 if (phaseData.status === 'COMPLETED') {
-                  statusColor = '#14b8a6' // teal
-                  StatusIcon = CheckCircle
+                  bgColor = 'bg-teal-50'
+                  textColor = 'text-teal-600'
+                  borderColor = 'border-teal-200'
+                  statusText = 'Done'
                 } else if (phaseData.status === 'IN_PROGRESS') {
-                  statusColor = '#6366ea' // indigo
-                  StatusIcon = Clock
+                  bgColor = 'bg-indigo-50'
+                  textColor = 'text-indigo-600'
+                  borderColor = 'border-indigo-200'
+                  statusText = 'Active'
                 }
               }
               
               return (
                 <div 
                   key={phaseKey} 
-                  className="flex items-center gap-0.5" 
-                  title={`${config.label}: ${phaseData.status === 'COMPLETED' ? 'Complete' : phaseData.status === 'IN_PROGRESS' ? 'In Progress' : isFFE && ffeHasItems ? `${ffePercentage}%` : 'Pending'}`}
+                  className={`flex-1 px-2 py-1.5 rounded-md ${bgColor} border ${borderColor} text-center`}
                 >
-                  <PhaseIcon className="w-3.5 h-3.5" style={{ color: statusColor }} />
-                  {statusText && (
-                    <span className="text-[10px] font-medium" style={{ color: statusColor }}>{statusText}</span>
-                  )}
+                  <div className={`text-[10px] font-medium ${textColor} uppercase tracking-wide`}>{shortLabels[phaseKey]}</div>
+                  <div className={`text-xs font-semibold ${textColor}`}>{statusText}</div>
                 </div>
               )
             }
@@ -343,12 +346,12 @@ export function TaskLevelView({ phases, filters }: Props) {
             return (
               <div 
                 key={room.id} 
-                className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors bg-white"
+                className="border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all bg-white"
               >
                 {/* Room Header */}
-                <div className="flex items-start gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-3">
                   {/* Room Rendering Thumbnail */}
-                  <div className="flex-shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
                     {room.renderingImageUrl ? (
                       <img
                         src={room.renderingImageUrl}
@@ -357,23 +360,23 @@ export function TaskLevelView({ phases, filters }: Props) {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-4 h-4 text-gray-300" />
+                        <ImageIcon className="w-5 h-5 text-gray-300" />
                       </div>
                     )}
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-gray-900 text-sm truncate">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 truncate">
                         {room.name}
                       </span>
                       {room.progress === 100 && (
-                        <CheckCircle className="w-3.5 h-3.5 text-[#14b8a6] flex-shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-[#14b8a6] flex-shrink-0" />
                       )}
                     </div>
                     {/* Progress bar */}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div 
                           className="h-full rounded-full transition-all duration-300"
                           style={{ 
@@ -383,7 +386,7 @@ export function TaskLevelView({ phases, filters }: Props) {
                         />
                       </div>
                       <span 
-                        className="text-xs font-medium"
+                        className="text-sm font-semibold min-w-[36px] text-right"
                         style={{ color: progressColor }}
                       >
                         {room.progress}%
@@ -392,9 +395,9 @@ export function TaskLevelView({ phases, filters }: Props) {
                   </div>
                 </div>
                 
-                {/* Phase Status Icons */}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  {Object.keys(PHASE_CONFIG).map(phaseKey => getPhaseStatusIcon(phaseKey))}
+                {/* Phase Status Badges */}
+                <div className="flex gap-2">
+                  {Object.keys(PHASE_CONFIG).map(phaseKey => getPhaseStatusBadge(phaseKey))}
                 </div>
               </div>
             )
