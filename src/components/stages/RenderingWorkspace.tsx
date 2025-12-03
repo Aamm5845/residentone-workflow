@@ -29,8 +29,10 @@ import {
   Send,
   Eye,
   Clock,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 interface RenderingVersion {
   id: string
@@ -111,7 +113,39 @@ export default function RenderingWorkspace({
   const [editingDescriptions, setEditingDescriptions] = useState<Set<string>>(new Set())
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [syncingVersionId, setSyncingVersionId] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Sync files to Dropbox
+  const syncToDropbox = async (versionId: string) => {
+    try {
+      setSyncingVersionId(versionId)
+      toast.loading('Syncing files to Dropbox...', { id: 'sync-dropbox' })
+      
+      const response = await fetch(`/api/renderings/${versionId}/sync-to-dropbox`, {
+        method: 'POST'
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        const { results, roomName, versionFolder } = data
+        const message = `Synced ${results.synced.length} files to Dropbox\nFolder: ${versionFolder}`
+        toast.success(message, { id: 'sync-dropbox', duration: 5000 })
+        
+        if (results.failed.length > 0) {
+          toast.error(`Failed to sync ${results.failed.length} files`, { duration: 5000 })
+        }
+      } else {
+        toast.error(data.error || 'Failed to sync to Dropbox', { id: 'sync-dropbox' })
+      }
+    } catch (error) {
+      console.error('Error syncing to Dropbox:', error)
+      toast.error('Failed to sync to Dropbox', { id: 'sync-dropbox' })
+    } finally {
+      setSyncingVersionId(null)
+    }
+  }
 
   // Fetch rendering versions
   const fetchRenderingVersions = async () => {
@@ -540,6 +574,23 @@ export default function RenderingWorkspace({
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    {/* Resync to Dropbox button - always available if there are assets */}
+                    {version.assets.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          syncToDropbox(version.id)
+                        }}
+                        disabled={syncingVersionId === version.id}
+                        className="border-orange-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400"
+                        title="Re-sync files to Dropbox folder"
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-1 ${syncingVersionId === version.id ? 'animate-spin' : ''}`} />
+                        {syncingVersionId === version.id ? 'Syncing...' : 'Resync'}
+                      </Button>
+                    )}
                     {version.status === 'IN_PROGRESS' && (
                       <>
                         <Button
