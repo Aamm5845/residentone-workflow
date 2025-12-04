@@ -62,15 +62,26 @@ export function UploadZone({
       'image/jpeg',
       'image/png', 
       'image/webp',
-      'application/pdf'
+      'application/pdf',
+      'font/ttf',
+      'font/otf',
+      'application/x-font-ttf',
+      'application/x-font-otf',
+      'font/woff',
+      'font/woff2'
     ]
+    
+    // Check by file extension for fonts (browsers may report different MIME types)
+    const fileName = file.name.toLowerCase()
+    const isFontFile = fileName.endsWith('.ttf') || fileName.endsWith('.otf') || 
+                       fileName.endsWith('.woff') || fileName.endsWith('.woff2')
 
     if (file.size > maxSize) {
       return `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`
     }
 
-    if (!allowedTypes.includes(file.type)) {
-      return `File type not supported. Allowed types: JPG, PNG, WebP, PDF`
+    if (!allowedTypes.includes(file.type) && !isFontFile) {
+      return `File type not supported. Allowed types: JPG, PNG, WebP, PDF, TTF, OTF, WOFF, WOFF2`
     }
 
     return null
@@ -130,7 +141,13 @@ export function UploadZone({
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
       'image/webp': ['.webp'],
-      'application/pdf': ['.pdf']
+      'application/pdf': ['.pdf'],
+      'font/ttf': ['.ttf'],
+      'font/otf': ['.otf'],
+      'application/x-font-ttf': ['.ttf'],
+      'application/x-font-otf': ['.otf'],
+      'font/woff': ['.woff'],
+      'font/woff2': ['.woff2']
     },
     maxSize: 10 * 1024 * 1024, // 10MB
     disabled,

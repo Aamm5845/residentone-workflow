@@ -39,12 +39,23 @@ export async function POST(request: NextRequest) {
       'image/jpeg',
       'image/png', 
       'image/webp',
-      'application/pdf'
+      'application/pdf',
+      'font/ttf',
+      'font/otf',
+      'application/x-font-ttf',
+      'application/x-font-otf',
+      'font/woff',
+      'font/woff2'
     ]
     
-    if (!allowedTypes.includes(file.type)) {
+    // Also check by file extension for fonts (browsers may report different MIME types)
+    const fileNameLower = file.name.toLowerCase()
+    const isFontFile = fileNameLower.endsWith('.ttf') || fileNameLower.endsWith('.otf') || 
+                       fileNameLower.endsWith('.woff') || fileNameLower.endsWith('.woff2')
+    
+    if (!allowedTypes.includes(file.type) && !isFontFile) {
       return NextResponse.json({
-        error: `File type not supported. Allowed types: ${allowedTypes.join(', ')}`
+        error: `File type not supported. Allowed types: Images (JPG, PNG, WebP), PDF, Fonts (TTF, OTF, WOFF, WOFF2)`
       }, { status: 400 })
     }
 
