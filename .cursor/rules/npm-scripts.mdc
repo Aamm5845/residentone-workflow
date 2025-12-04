@@ -1,0 +1,28 @@
+# NPM Scripts Best Practices
+
+## Command Chaining in package.json Scripts
+
+When chaining multiple commands in npm scripts, use semicolons (`;`) instead of double ampersands (`&&`).
+
+### Why?
+- `&&` can be unreliable on Windows systems
+- `;` works consistently across all platforms (Windows, Mac, Linux)
+- Vercel and other CI/CD platforms handle `;` more reliably
+
+### Examples
+
+**❌ Don't do this:**
+```json
+"build": "prisma migrate deploy && prisma generate && next build"
+```
+
+**✅ Do this instead:**
+```json
+"build": "prisma migrate deploy; prisma generate; next build"
+```
+
+### Key Difference
+- `&&` - Runs next command only if previous succeeds (short-circuit)
+- `;` - Runs all commands sequentially regardless of exit codes
+
+For build scripts where all commands should run, `;` is the safer choice and works more reliably across environments.
