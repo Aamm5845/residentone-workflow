@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress, getUserAgent, AuthSession } from '@/lib/attribution'
 
 // POST - Create a new note
 export async function POST(
@@ -58,6 +59,22 @@ export async function POST(
           }
         }
       }
+    })
+
+    // Log activity for note creation
+    await logActivity({
+      session: session as AuthSession,
+      action: 'SOURCE_NOTE_CREATED',
+      entity: 'ProjectSource',
+      entityId: source.id,
+      details: {
+        projectId,
+        projectName: project.name,
+        noteTitle: title,
+        category: category || 'CLIENT_NOTES'
+      },
+      ipAddress: getIPAddress(request),
+      userAgent: getUserAgent(request)
     })
 
     return NextResponse.json({

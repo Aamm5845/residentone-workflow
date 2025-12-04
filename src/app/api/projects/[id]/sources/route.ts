@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { DropboxService } from '@/lib/dropbox-service'
+import { logActivity, ActivityActions, EntityTypes, getIPAddress, getUserAgent, AuthSession } from '@/lib/attribution'
 
 // Source category configurations
 const SOURCE_CATEGORIES = {
@@ -228,6 +229,24 @@ export async function POST(
       }
     })
 
+    // Log activity for file upload
+    await logActivity({
+      session: session as AuthSession,
+      action: 'SOURCE_FILE_UPLOADED',
+      entity: 'ProjectSource',
+      entityId: source.id,
+      details: {
+        projectId,
+        projectName: project.name,
+        fileName: file.name,
+        fileSize: file.size,
+        category: categoryConfig.label,
+        mimeType: file.type
+      },
+      ipAddress: getIPAddress(request),
+      userAgent: getUserAgent(request)
+    })
+
     return NextResponse.json({
       success: true,
       source
@@ -276,6 +295,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Source not found' }, { status: 404 })
     }
 
+    // Get project info for activity logging
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true }
+    })
+
     // Optionally delete from Dropbox
     if (source.dropboxPath) {
       try {
@@ -287,9 +312,33 @@ export async function DELETE(
       }
     }
 
+    // Store file info before deletion for activity log
+    const fileInfo = {
+      fileName: source.fileName,
+      title: source.title,
+      category: source.category
+    }
+
     // Delete from database
     await prisma.projectSource.delete({
       where: { id: sourceId }
+    })
+
+    // Log activity for file deletion
+    await logActivity({
+      session: session as AuthSession,
+      action: 'SOURCE_FILE_DELETED',
+      entity: 'ProjectSource',
+      entityId: sourceId,
+      details: {
+        projectId,
+        projectName: project?.name,
+        fileName: fileInfo.fileName,
+        title: fileInfo.title,
+        category: fileInfo.category
+      },
+      ipAddress: getIPAddress(request),
+      userAgent: getUserAgent(request)
     })
 
     return NextResponse.json({ success: true })
