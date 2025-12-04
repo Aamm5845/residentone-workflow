@@ -4,16 +4,13 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { 
   ArrowLeft, 
-  Layers, 
   Send,
   Pencil,
   Check,
   Clock,
   AlertTriangle,
   FolderOpen,
-  FileStack,
   ChevronRight,
-  Upload,
   File,
   Image as ImageIcon,
   FileText
@@ -58,22 +55,6 @@ export function FloorplanPhasesWorkspace({
   }
 
   const status = getOverallStatus()
-
-  // Calculate workflow progress (only the 2 phases)
-  const getProgress = () => {
-    let completed = 0
-    if (drawingsStatus === 'COMPLETED') completed++
-    if (approvalStatus === 'COMPLETED') completed++
-    return Math.round((completed / 2) * 100)
-  }
-
-  const progress = getProgress()
-
-  // Phase colors matching the brand (similar to room phases)
-  const phaseColors = {
-    DRAWINGS: { bg: 'bg-[#6366ea]/20', border: 'border-[#6366ea]', text: 'text-[#6366ea]', solid: 'bg-[#6366ea]' },
-    APPROVAL: { bg: 'bg-[#a657f0]/20', border: 'border-[#a657f0]', text: 'text-[#a657f0]', solid: 'bg-[#a657f0]' }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -161,99 +142,8 @@ export function FloorplanPhasesWorkspace({
           </Link>
         </div>
 
-        {/* Workflow Phases Section - The actual 2 phases */}
+        {/* Phase Cards */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">Workflow Phases</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Complete each phase to finalize the floorplan</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900">{progress}%</span>
-              <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#6366ea] to-[#a657f0] rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Phase Status Indicators (like room phases) */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-            <div className="flex items-center justify-center gap-8">
-              {/* Phase 1: Drawings */}
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  <div 
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      drawingsStatus === 'COMPLETED' 
-                        ? 'bg-emerald-100 border-2 border-emerald-300' 
-                        : drawingsStatus === 'IN_PROGRESS' || revisionRequested
-                        ? `${phaseColors.DRAWINGS.bg} border-2 ${phaseColors.DRAWINGS.border}` 
-                        : 'bg-gray-100 border-2 border-gray-300'
-                    }`}
-                  >
-                    {drawingsStatus === 'COMPLETED' && !revisionRequested ? (
-                      <Check className="w-6 h-6 text-emerald-600" />
-                    ) : revisionRequested ? (
-                      <AlertTriangle className="w-6 h-6 text-amber-500" />
-                    ) : drawingsStatus === 'IN_PROGRESS' ? (
-                      <Clock className={`w-6 h-6 ${phaseColors.DRAWINGS.text}`} />
-                    ) : (
-                      <Pencil className="w-6 h-6 text-gray-400" />
-                    )}
-                  </div>
-                  {/* Connection Line */}
-                  <div 
-                    className={`absolute top-6 left-12 w-16 h-0.5 transition-all duration-300 ${
-                      drawingsStatus === 'COMPLETED' && !revisionRequested ? 'bg-emerald-300' : 'bg-gray-300'
-                    }`}
-                  />
-                </div>
-                <span className={`text-xs font-medium mt-2 ${
-                  drawingsStatus === 'COMPLETED' && !revisionRequested ? 'text-emerald-700' : 
-                  drawingsStatus === 'IN_PROGRESS' || revisionRequested ? phaseColors.DRAWINGS.text : 
-                  'text-gray-500'
-                }`}>
-                  Drawings
-                </span>
-                {revisionRequested && (
-                  <span className="text-[10px] text-amber-600 font-medium">Revision</span>
-                )}
-              </div>
-
-              {/* Phase 2: Approval */}
-              <div className="flex flex-col items-center">
-                <div 
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                    approvalStatus === 'COMPLETED' 
-                      ? 'bg-emerald-100 border-2 border-emerald-300' 
-                      : approvalStatus === 'IN_PROGRESS'
-                      ? `${phaseColors.APPROVAL.bg} border-2 ${phaseColors.APPROVAL.border}` 
-                      : 'bg-gray-100 border-2 border-gray-300'
-                  }`}
-                >
-                  {approvalStatus === 'COMPLETED' ? (
-                    <Check className="w-6 h-6 text-emerald-600" />
-                  ) : approvalStatus === 'IN_PROGRESS' ? (
-                    <Clock className={`w-6 h-6 ${phaseColors.APPROVAL.text}`} />
-                  ) : (
-                    <Send className="w-6 h-6 text-gray-400" />
-                  )}
-                </div>
-                <span className={`text-xs font-medium mt-2 ${
-                  approvalStatus === 'COMPLETED' ? 'text-emerald-700' : 
-                  approvalStatus === 'IN_PROGRESS' ? phaseColors.APPROVAL.text : 
-                  'text-gray-500'
-                }`}>
-                  Approval
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Phase Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Phase 1: Floorplan Drawings */}
             <Link href={`/projects/${project.id}/floorplan/drawings`} className="group block">
@@ -268,7 +158,7 @@ export function FloorplanPhasesWorkspace({
               }`}>
                 <div className="flex items-start gap-4">
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${
-                    revisionRequested ? 'bg-amber-500' : phaseColors.DRAWINGS.solid
+                    revisionRequested ? 'bg-amber-500' : 'bg-indigo-500'
                   }`}>
                     {revisionRequested ? (
                       <AlertTriangle className="w-5 h-5 text-white" />
@@ -337,7 +227,7 @@ export function FloorplanPhasesWorkspace({
                   : 'border-gray-200 hover:border-purple-300'
               }`}>
                 <div className="flex items-start gap-4">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${phaseColors.APPROVAL.solid}`}>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm bg-violet-500">
                     <Send className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
