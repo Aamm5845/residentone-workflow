@@ -1,0 +1,39 @@
+---
+description: Prisma database safety rules - NEVER reset or drop production data
+globs: ["**/*.ts", "**/*.tsx", "prisma/**/*"]
+alwaysApply: true
+---
+
+# Prisma Database Safety Rules
+
+## CRITICAL: Never Use These Commands
+- **NEVER** use `prisma migrate reset` - this will DELETE ALL DATA
+- **NEVER** use `prisma db push --force-reset` - this will DELETE ALL DATA
+- **NEVER** use any command that drops tables or resets the database
+- **NEVER** use `--accept-data-loss` flag without explicit user confirmation
+
+## Safe Commands to Use
+- `npx prisma generate` - Regenerate Prisma client (safe)
+- `npx prisma db push` - Push schema changes (safe for additive changes)
+- `npx prisma migrate dev --name <name>` - Create new migration (safe)
+- `npx prisma migrate deploy` - Deploy migrations to production (safe)
+- `npx prisma studio` - Open database GUI (safe, read-only by default)
+
+## Schema Changes Best Practices
+1. Always use additive changes when possible (add new fields, tables)
+2. Make new fields optional or provide defaults
+3. Never drop columns without explicit user approval
+4. Always backup before destructive changes
+5. Use `npx prisma db push` for development schema sync
+6. Use migrations (`npx prisma migrate dev`) for production-ready changes
+
+## When Adding New Models
+1. Add the model to `prisma/schema.prisma`
+2. Run `npx prisma db push` to sync the schema
+3. Run `npx prisma generate` to update the client
+4. The dev server may need a restart if Prisma client is locked
+
+## Error Handling
+- If Prisma generate fails with EPERM error, the dev server is locking files
+- Solution: Stop the dev server, run Prisma command, restart dev server
+- Never force or reset to work around file locks

@@ -9,7 +9,9 @@ import {
   Pencil,
   Check,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  FolderOpen,
+  FileStack
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -25,6 +27,7 @@ interface FloorplanPhasesWorkspaceProps {
   }
   drawingsStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
   approvalStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
+  sourcesCount?: number
   currentVersionId?: string
   hasAssets: boolean
   revisionRequested?: boolean
@@ -34,6 +37,7 @@ export function FloorplanPhasesWorkspace({
   project,
   drawingsStatus,
   approvalStatus,
+  sourcesCount = 0,
   currentVersionId,
   hasAssets,
   revisionRequested = false
@@ -174,8 +178,42 @@ export function FloorplanPhasesWorkspace({
           <p className="text-sm text-gray-500 mt-1">Complete each phase to finalize the floorplan</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
+          {/* Phase 0: Client Sources */}
+          <Link href={`/projects/${project.id}/floorplan/sources`} className="group block">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-xl p-5 border border-amber-200 hover:border-amber-300 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 bg-[#f6762e] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                  <FileStack className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-amber-800">
+                    Client Sources
+                  </h3>
+                  <p className="text-sm mt-0.5 text-amber-600">
+                    Upload client files and documents
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${
+                  sourcesCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {sourcesCount > 0 ? (
+                    <>
+                      <FolderOpen className="w-3 h-3 mr-1" />
+                      {sourcesCount} {sourcesCount === 1 ? 'file' : 'files'}
+                    </>
+                  ) : (
+                    'No files yet'
+                  )}
+                </span>
+              </div>
+            </div>
+          </Link>
+
           {/* Phase 1: Floorplan Drawings */}
           <Link href={`/projects/${project.id}/floorplan/drawings`} className="group block">
             <div className={`bg-gradient-to-br ${drawingsConfig.gradient} rounded-xl p-5 border ${drawingsConfig.border} hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]`}>

@@ -89,6 +89,7 @@ model User {
   decidedApprovals            Approval[]                  @relation("DecidedByUser")
   sentApprovals               Approval[]                  @relation("SentByUser")
   uploadedAssets              Asset[]                     @relation("UploadedByUser")
+  uploadedSourceFiles         ProjectSource[]             @relation("UploadedSourceFiles")
   assetPins                   AssetPin[]                  @relation("UserAssetPins")
   assetTags                   AssetTag[]                  @relation("UserAssetTags")
   chatMentions                ChatMention[]
@@ -250,6 +251,42 @@ model Project {
   roomSections              RoomSection[]
   specBooks                 SpecBook[]
   timeEntries               TimeEntry[]                @relation("ProjectTimeEntries")
+  sources                   ProjectSource[]
+}
+
+// Client Sources - files received from clients (measurements, architect plans, etc.)
+model ProjectSource {
+  id          String              @id @default(cuid())
+  projectId   String
+  category    SourceCategory
+  title       String
+  description String?
+  dropboxPath String?
+  dropboxUrl  String?
+  fileName    String?
+  fileSize    Int?
+  mimeType    String?
+  uploadedBy  String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedByUser User             @relation("UploadedSourceFiles", fields: [uploadedBy], references: [id])
+  
+  @@index([projectId])
+  @@index([category])
+  @@index([projectId, category])
+}
+
+enum SourceCategory {
+  EXISTING_MEASUREMENTS
+  ARCHITECT_PLANS
+  REFERENCE_IMAGES
+  CLIENT_NOTES
+  PROPOSALS
+  CONTRACTS
+  COMMUNICATION
+  OTHER
 }
 
 model RoomSection {

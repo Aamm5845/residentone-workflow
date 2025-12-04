@@ -118,12 +118,24 @@ export default async function FloorplanPage({ params }: Props) {
     approvalStatus = 'IN_PROGRESS'
   }
 
+  // Get sources count (will return 0 if table doesn't exist yet)
+  let sourcesCount = 0
+  try {
+    sourcesCount = await prisma.projectSource.count({
+      where: { projectId: project.id }
+    })
+  } catch (e) {
+    // Table might not exist yet - migration pending
+    console.log('[floorplan] ProjectSource table not ready yet')
+  }
+
   return (
     <DashboardLayout session={session}>
       <FloorplanPhasesWorkspace 
         project={project}
         drawingsStatus={drawingsStatus}
         approvalStatus={approvalStatus}
+        sourcesCount={sourcesCount}
         currentVersionId={currentVersion?.id}
         hasAssets={hasAssets}
         revisionRequested={revisionRequested}
