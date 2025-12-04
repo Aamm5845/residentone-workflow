@@ -26,7 +26,10 @@ import {
   Loader2,
   File,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  PenLine,
+  CheckSquare,
+  Square
 } from 'lucide-react'
 
 interface Project {
@@ -50,6 +53,8 @@ interface SourceFile {
   fileName: string | null
   fileSize: number | null
   mimeType: string | null
+  isNote?: boolean
+  noteContent?: string | null
   createdAt: string
   uploadedByUser: {
     id: string
@@ -179,6 +184,12 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   const [uploading, setUploading] = useState(false)
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  
+  // Note creation state
+  const [showNoteForm, setShowNoteForm] = useState(false)
+  const [noteTitle, setNoteTitle] = useState('')
+  const [noteContent, setNoteContent] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   const { data, error, mutate, isLoading } = useSWR<SourcesResponse>(
     `/api/projects/${project.id}/sources`,
@@ -271,6 +282,44 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
     e.preventDefault()
     setDragOverCategory(null)
     handleFileUpload(category, e.dataTransfer.files)
+  }
+
+  const handleSaveNote = async () => {
+    if (!noteTitle.trim()) {
+      alert('Please enter a note title')
+      return
+    }
+
+    setSavingNote(true)
+    try {
+      const response = await fetch(`/api/projects/${project.id}/sources/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: noteTitle,
+          content: noteContent,
+          category: 'CLIENT_NOTES'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save note')
+      }
+
+      // Reset form and refresh data
+      setNoteTitle('')
+      setNoteContent('')
+      setShowNoteForm(false)
+      mutate()
+      
+      // Expand Client Notes to show new note
+      setExpandedCategories(prev => new Set([...prev, 'CLIENT_NOTES']))
+    } catch (error) {
+      console.error('Save note error:', error)
+      alert('Failed to save note')
+    } finally {
+      setSavingNote(false)
+    }
   }
 
   const totalFiles = data?.totalFiles || 0
@@ -377,6 +426,23 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
                           onChange={(e) => handleFileUpload(categoryData.category, e.target.files)}
                         />
                         
+                        {/* Write Note button - only for Client Notes */}
+                        {categoryData.category === 'CLIENT_NOTES' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`${config.titleColor} hover:bg-white/50`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowNoteForm(true)
+                              setExpandedCategories(prev => new Set([...prev, 'CLIENT_NOTES']))
+                            }}
+                          >
+                            <PenLine className="w-4 h-4" />
+                            <span className="ml-2 hidden sm:inline">Write Note</span>
+                          </Button>
+                        )}
+                        
                         <Button
                           variant="ghost"
                           size="sm"
@@ -408,78 +474,160 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
 
                   {/* Files List */}
                   {isExpanded && (
-                    <div className="px-5 pb-5">
-                      {fileCount === 0 ? (
+                    <div className="px-5 pb-5 space-y-4">
+                      {/* Note creation form - only for Client Notes */}
+                      {categoryData.category === 'CLIENT_NOTES' && showNoteForm && (
+                        <div className="bg-white rounded-lg border border-purple-200 p-4 shadow-sm">
+                          <div className="flex items-center gap-2 mb-3">
+                            <PenLine className="w-4 h-4 text-[#a657f0]" />
+                            <span className="font-medium text-gray-900">New Note</span>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Note title..."
+                            value={noteTitle}
+                            onChange={(e) => setNoteTitle(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none"
+                          />
+                          <textarea
+                            placeholder="Write your note here... (requirements, preferences, meeting notes, checklist items...)"
+                            value={noteContent}
+                            onChange={(e) => setNoteContent(e.target.value)}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none resize-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setShowNoteForm(false)
+                                setNoteTitle('')
+                                setNoteContent('')
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
+                              onClick={handleSaveNote}
+                              disabled={savingNote || !noteTitle.trim()}
+                            >
+                              {savingNote ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              ) : (
+                                <Check className="w-4 h-4 mr-2" />
+                              )}
+                              Save Note
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {fileCount === 0 && !(categoryData.category === 'CLIENT_NOTES' && showNoteForm) ? (
                         <div 
                           className={`border-2 border-dashed ${isDragOver ? 'border-[#a657f0]' : 'border-gray-200'} rounded-lg p-8 text-center bg-white/40`}
                         >
-                          <Upload className={`w-8 h-8 mx-auto mb-3 ${config.descColor}`} />
-                          <p className={`font-medium ${config.titleColor}`}>
-                            Drop files here or click Upload
-                          </p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Files will be synced to Dropbox
-                          </p>
+                          {categoryData.category === 'CLIENT_NOTES' ? (
+                            <>
+                              <PenLine className={`w-8 h-8 mx-auto mb-3 ${config.descColor}`} />
+                              <p className={`font-medium ${config.titleColor}`}>
+                                Write notes or upload files
+                              </p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Add requirements, preferences, or meeting notes
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className={`w-8 h-8 mx-auto mb-3 ${config.descColor}`} />
+                              <p className={`font-medium ${config.titleColor}`}>
+                                Drop files here or click Upload
+                              </p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Files will be synced to Dropbox
+                              </p>
+                            </>
+                          )}
                         </div>
-                      ) : (
+                      ) : fileCount > 0 && (
                         <div className="bg-white/60 rounded-lg divide-y divide-gray-100">
-                          {categoryData.files.map((file) => (
-                            <div 
-                              key={file.id}
-                              className="flex items-center justify-between p-4 hover:bg-white/80 transition-colors group"
-                            >
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                  {file.mimeType?.startsWith('image/') ? (
-                                    <Image className="w-5 h-5 text-gray-500" />
-                                  ) : file.mimeType === 'application/pdf' ? (
-                                    <FileText className="w-5 h-5 text-red-500" />
-                                  ) : (
-                                    <File className="w-5 h-5 text-gray-500" />
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-medium text-gray-900 truncate">
-                                    {file.title}
-                                  </p>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <span>{file.fileSize ? formatFileSize(file.fileSize) : '—'}</span>
-                                    <span>•</span>
-                                    <span>{formatDate(file.createdAt)}</span>
-                                    {file.uploadedByUser?.name && (
-                                      <>
-                                        <span>•</span>
-                                        <span>{file.uploadedByUser.name}</span>
-                                      </>
+                          {categoryData.files.map((file) => {
+                            // Check if this is a note (no fileName, mimeType is text/plain)
+                            const isNote = !file.fileName && file.mimeType === 'text/plain'
+                            
+                            return (
+                              <div 
+                                key={file.id}
+                                className="flex items-center justify-between p-4 hover:bg-white/80 transition-colors group"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isNote ? 'bg-purple-100' : 'bg-gray-100'
+                                  }`}>
+                                    {isNote ? (
+                                      <StickyNote className="w-5 h-5 text-[#a657f0]" />
+                                    ) : file.mimeType?.startsWith('image/') ? (
+                                      <Image className="w-5 h-5 text-gray-500" />
+                                    ) : file.mimeType === 'application/pdf' ? (
+                                      <FileText className="w-5 h-5 text-red-500" />
+                                    ) : (
+                                      <File className="w-5 h-5 text-gray-500" />
                                     )}
                                   </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-gray-900 truncate">
+                                      {file.title}
+                                    </p>
+                                    {isNote && file.description && (
+                                      <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                                        {file.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                      {isNote ? (
+                                        <span className="text-[#a657f0] font-medium">Note</span>
+                                      ) : (
+                                        <span>{file.fileSize ? formatFileSize(file.fileSize) : '—'}</span>
+                                      )}
+                                      <span>•</span>
+                                      <span>{formatDate(file.createdAt)}</span>
+                                      {file.uploadedByUser?.name && (
+                                        <>
+                                          <span>•</span>
+                                          <span>{file.uploadedByUser.name}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {file.dropboxUrl && (
+                                
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {file.dropboxUrl && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                      onClick={() => window.open(file.dropboxUrl!, '_blank')}
+                                      title="Open in Dropbox"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                                    onClick={() => window.open(file.dropboxUrl!, '_blank')}
-                                    title="Open in Dropbox"
+                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDelete(file.id)}
+                                    title="Delete"
                                   >
-                                    <ExternalLink className="w-4 h-4" />
+                                    <Trash2 className="w-4 h-4" />
                                   </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleDelete(file.id)}
-                                  title="Delete file"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
                     </div>

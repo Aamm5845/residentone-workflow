@@ -95,9 +95,9 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   ]
 
   const updatesNavigation = [
-    { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount },
-    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-orange-600', badgeCount: unreadActivitiesCount },
-    { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-pink-600', badgeCount: unseenUpdatesCount, special: true },
+    { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount, badgeColor: 'bg-[#6366ea]' },
+    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-[#f6762e]', badgeCount: unreadActivitiesCount, badgeColor: 'bg-[#f6762e]' },
+    { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-[#e94d97]', badgeCount: unseenUpdatesCount, special: true },
   ]
 
   // Don't highlight "My Projects" when viewing filtered projects (e.g., Active Projects from dashboard)
@@ -155,7 +155,11 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
               >
                 <Icon className={cn('h-5 w-5', item.color)} />
                 {showBadge && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className={cn(
+                    "absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center",
+                    'special' in item && item.special ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" :
+                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
+                  )}>
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}
@@ -225,7 +229,8 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
                 {showBadge && (
                   <span className={cn(
                     "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
-                    isSpecial ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" : "bg-red-500"
+                    isSpecial ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" : 
+                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
                   )}>
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
