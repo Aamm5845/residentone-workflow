@@ -217,6 +217,7 @@ model Project {
   description               String?
   type                      ProjectType                @default(RESIDENTIAL)
   status                    ProjectStatus              @default(DRAFT)
+  statusManuallySet         Boolean                    @default(false)
   clientId                  String
   dueDate                   DateTime?
   budget                    Float?

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
  * - COMPLETED: All applicable phases are completed
  * 
  * Manual statuses (URGENT, ON_HOLD, CANCELLED) are never overridden by auto-update
+ * Projects with statusManuallySet=true are also never auto-updated
  */
 export async function autoUpdateProjectStatus(projectId: string): Promise<void> {
   try {
@@ -30,6 +31,12 @@ export async function autoUpdateProjectStatus(projectId: string): Promise<void> 
     // Don't override manually set statuses
     const manualStatuses = ['URGENT', 'ON_HOLD', 'CANCELLED']
     if (manualStatuses.includes(project.status)) {
+      return
+    }
+
+    // Don't override if status was manually set by user
+    // @ts-ignore - statusManuallySet may not exist in older schemas
+    if (project.statusManuallySet === true) {
       return
     }
 

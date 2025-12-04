@@ -180,6 +180,8 @@ export async function PUT(
     }
     if (validatedData.status !== undefined) {
       updateData.status = validatedData.status
+      // Mark status as manually set so auto-update doesn't override it
+      updateData.statusManuallySet = true
     }
     if (validatedData.budget !== undefined) {
       updateData.budget = validatedData.budget
