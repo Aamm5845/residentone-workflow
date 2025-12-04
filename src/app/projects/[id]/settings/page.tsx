@@ -102,11 +102,27 @@ export default async function ProjectSettings({ params }: Props) {
     }
     
   } catch (error) {
-    console.error('Error fetching project or clients:', error)
-    redirect('/projects')
+    console.error('[ProjectSettings] Error fetching project or clients:', error)
+    console.error('[ProjectSettings] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    // Instead of silently redirecting, show an error page with more info
+    return (
+      <DashboardLayout session={session}>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-sm p-8 max-w-md text-center">
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load project settings</h1>
+            <p className="text-gray-600 mb-4">There was an error loading the project. This might be a temporary issue.</p>
+            <p className="text-sm text-red-600 mb-4">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+            <a href={`/projects/${id}`} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Back to Project
+            </a>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   if (!project) {
+    console.error('[ProjectSettings] Project not found for id:', id)
     redirect('/projects')
   }
 
