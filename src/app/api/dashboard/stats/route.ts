@@ -20,40 +20,10 @@ export async function GET() {
       activeStages,
       overdueTasks
     ] = await Promise.all([
-      // Count projects that have started any phase and not all rooms are complete
+      // Count projects with IN_PROGRESS status only
       prisma.project.count({
         where: {
-          AND: [
-            // Must have at least one stage that's been started (not NOT_STARTED)
-            {
-              rooms: {
-                some: {
-                  stages: {
-                    some: {
-                      status: { not: 'NOT_STARTED' }
-                    }
-                  }
-                }
-              }
-            },
-            // Must not have ALL rooms with ALL applicable stages completed
-            {
-              NOT: {
-                rooms: {
-                  every: {
-                    stages: {
-                      every: {
-                        OR: [
-                          { status: 'COMPLETED' },
-                          { status: 'NOT_APPLICABLE' }
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          ]
+          status: 'IN_PROGRESS'
         }
       }),
       // Count rooms that have IN_PROGRESS stages AND not all applicable stages are completed

@@ -457,7 +457,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           icon={Briefcase}
           color="bg-[#a657f0]"
           isLoading={isLoading}
-          href="/projects?status=active"
+          href="/projects?status=IN_PROGRESS"
         />
         <StatCard
           label="Active Rooms"

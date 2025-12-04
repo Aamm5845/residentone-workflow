@@ -25,8 +25,11 @@ export default async function Projects({ searchParams }: { searchParams: Promise
   // Build where clause based on filters
   const whereClause: any = {}
   
-  if (statusFilter === 'active') {
-    // Active projects are those that have started any phase and not all rooms are complete
+  if (statusFilter === 'IN_PROGRESS') {
+    // Filter by project status = IN_PROGRESS
+    whereClause.status = 'IN_PROGRESS'
+  } else if (statusFilter === 'active') {
+    // Legacy: Active projects are those that have started any phase and not all rooms are complete
     whereClause.AND = [
       // Must have at least one stage that's been started (not NOT_STARTED)
       {
@@ -58,7 +61,7 @@ export default async function Projects({ searchParams }: { searchParams: Promise
         }
       }
     ]
-  } else if (statusFilter === 'completed') {
+  } else if (statusFilter === 'completed' || statusFilter === 'COMPLETED') {
     whereClause.status = 'COMPLETED'
     
     if (timeframeFilter === 'month') {
@@ -66,6 +69,10 @@ export default async function Projects({ searchParams }: { searchParams: Promise
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       whereClause.updatedAt = { gte: firstDayOfMonth }
     }
+  } else if (statusFilter === 'DRAFT') {
+    whereClause.status = 'DRAFT'
+  } else if (statusFilter === 'ON_HOLD') {
+    whereClause.status = 'ON_HOLD'
   }
 
   // Fetch projects from database with fallback handling
