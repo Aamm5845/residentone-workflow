@@ -375,11 +375,12 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
           </div>
         ) : (
           <div className="grid gap-4">
-            {data?.categories.map((categoryData) => {
+            {(data?.categories || []).map((categoryData) => {
               const config = CATEGORY_CONFIG[categoryData.category]
+              if (!config) return null // Skip if config not found
               const Icon = config.icon
               const isExpanded = expandedCategories.has(categoryData.category)
-              const fileCount = categoryData.files.length
+              const fileCount = categoryData.files?.length || 0
               const isDragOver = dragOverCategory === categoryData.category
               const isUploading = uploadingCategory === categoryData.category
 

@@ -77,23 +77,30 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Fetch all sources for this project
-    const sources = await prisma.projectSource.findMany({
-      where: { projectId },
-      include: {
-        uploadedByUser: {
-          select: {
-            id: true,
-            name: true,
-            image: true
+    // Try to fetch sources - handle case where table doesn't exist yet
+    let sources: any[] = []
+    try {
+      sources = await prisma.projectSource.findMany({
+        where: { projectId },
+        include: {
+          uploadedByUser: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
           }
-        }
-      },
-      orderBy: [
-        { category: 'asc' },
-        { createdAt: 'desc' }
-      ]
-    })
+        },
+        orderBy: [
+          { category: 'asc' },
+          { createdAt: 'desc' }
+        ]
+      })
+    } catch (dbError: any) {
+      // Table might not exist yet in production - return empty data
+      console.log('[sources] ProjectSource table may not exist yet:', dbError?.message)
+      sources = []
+    }
 
     // Group sources by category
     const groupedSources = Object.entries(SOURCE_CATEGORIES).map(([key, config]) => ({
@@ -114,7 +121,16 @@ export async function GET(
 
   } catch (error) {
     console.error('[sources] Error fetching sources:', error)
-    return NextResponse.json({ error: 'Failed to fetch sources' }, { status: 500 })
+    // Return empty data structure instead of error for graceful degradation
+    return NextResponse.json({
+      project: null,
+      categories: Object.entries(SOURCE_CATEGORIES).map(([key, config]) => ({
+        category: key,
+        ...config,
+        files: []
+      })),
+      totalFiles: 0
+    })
   }
 }
 

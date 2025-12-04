@@ -53,26 +53,31 @@ export function FloorplanPhasesWorkspace({
 
   const status = getOverallStatus()
 
+  // Drawings always uses Indigo as base color
   const getDrawingsConfig = () => {
+    const baseConfig = {
+      gradient: 'from-indigo-50 to-blue-100',
+      border: 'border-indigo-200 hover:border-indigo-300',
+      iconBg: 'bg-[#6366ea]',
+      titleColor: 'text-indigo-800',
+      descColor: 'text-indigo-600',
+    }
+    
     if (revisionRequested) {
       return {
-        gradient: 'from-orange-50 to-amber-100',
-        border: 'border-orange-200 hover:border-orange-300',
-        iconBg: 'bg-[#f6762e]',
-        titleColor: 'text-orange-800',
-        descColor: 'text-orange-600',
-        statusBg: 'bg-orange-100',
-        statusText: 'text-orange-700',
+        ...baseConfig,
+        gradient: 'from-amber-50 to-orange-100',
+        border: 'border-amber-200 hover:border-amber-300',
+        titleColor: 'text-amber-800',
+        descColor: 'text-amber-600',
+        statusBg: 'bg-amber-100',
+        statusText: 'text-amber-700',
         statusLabel: 'Revision Needed'
       }
     }
     if (drawingsStatus === 'COMPLETED') {
       return {
-        gradient: 'from-teal-50 to-emerald-100',
-        border: 'border-teal-200 hover:border-teal-300',
-        iconBg: 'bg-[#14b8a6]',
-        titleColor: 'text-teal-800',
-        descColor: 'text-teal-600',
+        ...baseConfig,
         statusBg: 'bg-teal-100',
         statusText: 'text-teal-700',
         statusLabel: 'Completed'
@@ -80,36 +85,33 @@ export function FloorplanPhasesWorkspace({
     }
     if (drawingsStatus === 'IN_PROGRESS') {
       return {
-        gradient: 'from-indigo-50 to-blue-100',
-        border: 'border-indigo-200 hover:border-indigo-300',
-        iconBg: 'bg-[#6366ea]',
-        titleColor: 'text-indigo-800',
-        descColor: 'text-indigo-600',
+        ...baseConfig,
         statusBg: 'bg-indigo-100',
         statusText: 'text-indigo-700',
         statusLabel: 'In Progress'
       }
     }
     return {
-      gradient: 'from-indigo-50 to-blue-100',
-      border: 'border-indigo-200 hover:border-indigo-300',
-      iconBg: 'bg-[#6366ea]',
-      titleColor: 'text-indigo-800',
-      descColor: 'text-indigo-600',
+      ...baseConfig,
       statusBg: 'bg-gray-100',
       statusText: 'text-gray-600',
       statusLabel: 'Not Started'
     }
   }
 
+  // Approval always uses Purple as base color  
   const getApprovalConfig = () => {
+    const baseConfig = {
+      gradient: 'from-purple-50 to-violet-100',
+      border: 'border-purple-200 hover:border-purple-300',
+      iconBg: 'bg-[#a657f0]',
+      titleColor: 'text-purple-800',
+      descColor: 'text-purple-600',
+    }
+    
     if (approvalStatus === 'COMPLETED') {
       return {
-        gradient: 'from-teal-50 to-emerald-100',
-        border: 'border-teal-200 hover:border-teal-300',
-        iconBg: 'bg-[#14b8a6]',
-        titleColor: 'text-teal-800',
-        descColor: 'text-teal-600',
+        ...baseConfig,
         statusBg: 'bg-teal-100',
         statusText: 'text-teal-700',
         statusLabel: 'Approved'
@@ -117,22 +119,14 @@ export function FloorplanPhasesWorkspace({
     }
     if (approvalStatus === 'IN_PROGRESS') {
       return {
-        gradient: 'from-orange-50 to-amber-100',
-        border: 'border-orange-200 hover:border-orange-300',
-        iconBg: 'bg-[#f6762e]',
-        titleColor: 'text-orange-800',
-        descColor: 'text-orange-600',
-        statusBg: 'bg-orange-100',
-        statusText: 'text-orange-700',
+        ...baseConfig,
+        statusBg: 'bg-amber-100',
+        statusText: 'text-amber-700',
         statusLabel: 'Awaiting Response'
       }
     }
     return {
-      gradient: 'from-purple-50 to-violet-100',
-      border: 'border-purple-200 hover:border-purple-300',
-      iconBg: 'bg-[#a657f0]',
-      titleColor: 'text-purple-800',
-      descColor: 'text-purple-600',
+      ...baseConfig,
       statusBg: 'bg-gray-100',
       statusText: 'text-gray-600',
       statusLabel: 'Not Started'
