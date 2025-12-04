@@ -5,6 +5,9 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import PreferencesClient from '@/components/preferences/preferences-client'
 import type { Session } from 'next-auth'
 
+// Prevent static generation for pages using useSearchParams
+export const dynamic = 'force-dynamic'
+
 export default async function PreferencesPage() {
   const session = await getSession() as Session & {
     user: {

@@ -4,6 +4,9 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import ActivitiesContent from '@/components/activities/ActivitiesContent'
 import type { Session } from 'next-auth'
 
+// Prevent static generation for pages using useSearchParams
+export const dynamic = 'force-dynamic'
+
 export default async function ActivitiesPage() {
   const session = await getSession() as Session & {
     user: {

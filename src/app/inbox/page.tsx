@@ -4,6 +4,8 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import InboxContent from '@/components/inbox/InboxContent'
 import type { Session } from 'next-auth'
 
+export const dynamic = 'force-dynamic'
+
 export default async function InboxPage() {
   const session = await getSession() as Session & {
     user: {

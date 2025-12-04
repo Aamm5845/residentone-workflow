@@ -4,6 +4,8 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import InviteTeamMemberForm from '@/components/team/invite-team-member-form'
 import type { Session } from 'next-auth'
 
+export const dynamic = 'force-dynamic'
+
 export default async function InviteTeamMember() {
   const session = await getSession() as Session & {
     user: {
