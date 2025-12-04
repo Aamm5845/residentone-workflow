@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { useNotifications } from '@/hooks/useNotifications'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,7 @@ const SEEN_UPDATES_KEY = 'studioflow-seen-updates'
 
 export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
   const [unseenUpdatesCount, setUnseenUpdatesCount] = useState(0)
   
@@ -99,7 +100,14 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
     { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-pink-600', badgeCount: unseenUpdatesCount, special: true },
   ]
 
-  const isActive = (href: string) => pathname.startsWith(href)
+  // Don't highlight "My Projects" when viewing filtered projects (e.g., Active Projects from dashboard)
+  const isActive = (href: string) => {
+    // If we're on /projects with a status filter, don't highlight "My Projects"
+    if (href === '/projects' && pathname === '/projects' && searchParams?.get('status')) {
+      return false
+    }
+    return pathname.startsWith(href)
+  }
 
   // Show collapsed version only on desktop when collapsed
   if (sidebarCollapsed && !isMobile) {
@@ -206,7 +214,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
                   isActive(item.href)
                     ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
                     : isSpecial && showBadge
-                    ? 'text-gray-700 hover:bg-pink-50 hover:text-pink-700 bg-gradient-to-r from-pink-50/50 to-transparent'
+                    ? 'text-gray-700 hover:bg-[#e94d97]/10 hover:text-[#e94d97] bg-gradient-to-r from-[#e94d97]/10 to-transparent'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 )}
               >
@@ -217,7 +225,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
                 {showBadge && (
                   <span className={cn(
                     "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
-                    isSpecial ? "bg-gradient-to-r from-pink-500 to-purple-500" : "bg-red-500"
+                    isSpecial ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" : "bg-red-500"
                   )}>
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>

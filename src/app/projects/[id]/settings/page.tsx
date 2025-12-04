@@ -44,6 +44,12 @@ export default async function ProjectSettings({ params }: Props) {
           createdBy: {
             select: { id: true, name: true, email: true }
           },
+          projectContractors: {
+            where: { isActive: true },
+            include: {
+              contractor: true
+            }
+          },
           _count: {
             select: { 
               rooms: true,
@@ -62,6 +68,22 @@ export default async function ProjectSettings({ params }: Props) {
     // Assign results to variables
     project = results[0]
     clients = results[1]
+    
+    // Transform projectContractors to the format expected by the form
+    if (project && project.projectContractors) {
+      project.contractors = project.projectContractors.map((pc: any) => ({
+        id: pc.contractor.id,
+        businessName: pc.contractor.businessName,
+        contactName: pc.contractor.contactName,
+        email: pc.contractor.email,
+        phone: pc.contractor.phone,
+        address: pc.contractor.address,
+        type: pc.contractor.type?.toLowerCase() || pc.role?.toLowerCase() || 'contractor',
+        specialty: pc.contractor.specialty
+      }))
+    } else if (project) {
+      project.contractors = []
+    }
     
     // Ensure coverImages is properly serialized
     if (project && project.coverImages) {

@@ -418,9 +418,11 @@ export default function InteractiveProjectsPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {statusFilter === 'active' ? 'Active Projects' : 
-             statusFilter === 'completed' && timeframeFilter === 'month' ? 'Completed This Month' :
-             statusFilter === 'completed' ? 'Completed Projects' : 'My Projects'}
+            {statusFilter === 'IN_PROGRESS' || statusFilter === 'active' ? 'Active Projects' : 
+             (statusFilter === 'completed' || statusFilter === 'COMPLETED') && timeframeFilter === 'month' ? 'Completed This Month' :
+             statusFilter === 'completed' || statusFilter === 'COMPLETED' ? 'Completed Projects' :
+             statusFilter === 'DRAFT' ? 'Draft Projects' :
+             statusFilter === 'ON_HOLD' ? 'On Hold Projects' : 'My Projects'}
           </h1>
           <p className="text-gray-600 mt-1">
             {filteredProjects?.length || 0} of {projects?.length || 0} projects
