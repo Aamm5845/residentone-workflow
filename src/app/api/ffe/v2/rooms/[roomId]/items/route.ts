@@ -317,15 +317,22 @@ export async function PATCH(
     // Log activity if state changed
     if (state && previousState !== state) {
       try {
+        const room = item.section.instance.room
+        const project = room.project
+        
         await prisma.activityLog.create({
           data: {
             actorId: session.user.id,
             action: 'STATE_CHANGE',
             entity: 'FFE_ITEM',
             entityId: itemId,
-            orgId: item.section.instance.room.project?.orgId,
+            orgId: project?.orgId,
             details: {
               roomId,
+              roomName: room.name,
+              projectId: project?.id,
+              projectName: project?.name,
+              stageName: 'FFE',
               itemId,
               itemName: item.name,
               sectionName: item.section.name,

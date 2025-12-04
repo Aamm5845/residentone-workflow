@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      include: { project: { select: { orgId: true } } }
+      include: { project: { select: { id: true, name: true, orgId: true } } }
     })
 
     const log = await prisma.activityLog.create({
@@ -58,7 +58,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
         entity: 'FFE_ITEM',
         entityId: itemId,
         orgId: room?.project?.orgId,
-        details: { roomId, itemId, itemName, sectionName, previousState, newState }
+        details: { 
+          roomId, 
+          roomName: room?.name,
+          projectId: room?.project?.id,
+          projectName: room?.project?.name,
+          stageName: 'FFE',
+          itemId, 
+          itemName, 
+          sectionName, 
+          previousState, 
+          newState 
+        }
       },
       include: { actor: { select: { id: true, name: true, email: true } } }
     })

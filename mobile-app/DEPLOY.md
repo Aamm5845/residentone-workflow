@@ -57,3 +57,4 @@ If needed, add in Vercel:
 - 📱 Works offline, syncs when connected
 
 
+

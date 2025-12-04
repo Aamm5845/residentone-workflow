@@ -25,6 +25,8 @@ export type ActivityType =
   | 'STAGE_ASSIGNED'
   | 'STAGE_STATUS_CHANGED'
   | 'STAGE_UPDATED'
+  | 'STAGE_MARKED_APPLICABLE'
+  | 'STAGE_MARKED_NOT_APPLICABLE'
   // Asset activities
   | 'ASSET_UPLOADED'
   | 'ASSET_DELETED'
@@ -83,6 +85,8 @@ export type ActivityType =
   | 'FFE_ITEM_CREATED'
   | 'FFE_ITEM_UPDATED'
   | 'FFE_STATUS_CHANGED'
+  | 'STATE_CHANGE'
+  | 'FFE_ITEM_STATUS_CHANGED'
   | 'FFE_ITEM_DELETED'
   // Approval activities
   | 'CLIENT_APPROVAL_SENT'
@@ -205,37 +209,49 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, ActivityTypeMeta> = {
     label: 'Stage started',
     icon: 'Play',
     color: 'text-indigo-600',
-    category: 'Stages'
+    category: 'Workflow'
   },
   STAGE_COMPLETED: {
     label: 'Stage completed',
     icon: 'CheckCircle2',
     color: 'text-green-600',
-    category: 'Stages'
+    category: 'Workflow'
   },
   STAGE_REOPENED: {
     label: 'Stage reopened',
     icon: 'RotateCcw',
     color: 'text-orange-600',
-    category: 'Stages'
+    category: 'Workflow'
   },
   STAGE_ASSIGNED: {
     label: 'Stage assigned',
     icon: 'UserPlus',
     color: 'text-purple-600',
-    category: 'Stages'
+    category: 'Workflow'
   },
   STAGE_STATUS_CHANGED: {
     label: 'Stage status changed',
     icon: 'GitBranch',
     color: 'text-indigo-600',
-    category: 'Stages'
+    category: 'Workflow'
   },
   STAGE_UPDATED: {
     label: 'Stage updated',
     icon: 'Edit',
     color: 'text-indigo-600',
-    category: 'Stages'
+    category: 'Workflow'
+  },
+  STAGE_MARKED_APPLICABLE: {
+    label: 'Stage enabled',
+    icon: 'CheckCircle',
+    color: 'text-green-600',
+    category: 'Workflow'
+  },
+  STAGE_MARKED_NOT_APPLICABLE: {
+    label: 'Stage skipped',
+    icon: 'XCircle',
+    color: 'text-gray-600',
+    category: 'Workflow'
   },
 
   // Assets
@@ -550,6 +566,18 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, ActivityTypeMeta> = {
   FFE_STATUS_CHANGED: {
     label: 'FFE status changed',
     icon: 'GitBranch',
+    color: 'text-emerald-600',
+    category: 'FFE'
+  },
+  STATE_CHANGE: {
+    label: 'Status changed',
+    icon: 'RefreshCw',
+    color: 'text-emerald-600',
+    category: 'FFE'
+  },
+  FFE_ITEM_STATUS_CHANGED: {
+    label: 'FFE item status changed',
+    icon: 'RefreshCw',
     color: 'text-emerald-600',
     category: 'FFE'
   },
