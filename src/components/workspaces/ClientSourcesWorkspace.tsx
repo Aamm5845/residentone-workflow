@@ -11,7 +11,7 @@ import {
   FolderOpen,
   Ruler,
   FileText,
-  Image,
+  Image as ImageIcon,
   StickyNote,
   FileSignature,
   FileCheck,
@@ -29,8 +29,15 @@ import {
   ChevronRight,
   PenLine,
   CheckSquare,
-  Square
+  Square,
+  Grid3X3,
+  List,
+  Eye,
+  FileImage,
+  FileSpreadsheet,
+  FileArchive
 } from 'lucide-react'
+import Image from 'next/image'
 
 interface Project {
   id: string
@@ -190,6 +197,15 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   const [noteTitle, setNoteTitle] = useState('')
   const [noteContent, setNoteContent] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  
+  // Upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadCategory, setUploadCategory] = useState<string | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [fileDescriptions, setFileDescriptions] = useState<Record<string, string>>({})
+  
+  // View mode state (grid or list)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   const { data, error, mutate, isLoading } = useSWR<SourcesResponse>(
     `/api/projects/${project.id}/sources`,
@@ -209,18 +225,30 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
     })
   }
 
-  const handleFileUpload = async (category: string, files: FileList | null) => {
+  // Open upload modal with selected files
+  const handleFilesSelected = (category: string, files: FileList | null) => {
     if (!files || files.length === 0) return
+    
+    setUploadCategory(category)
+    setPendingFiles(Array.from(files))
+    setFileDescriptions({})
+    setShowUploadModal(true)
+  }
+  
+  // Upload files with descriptions
+  const handleUploadWithDescriptions = async () => {
+    if (!uploadCategory || pendingFiles.length === 0) return
 
     setUploading(true)
-    setUploadingCategory(category)
+    setUploadingCategory(uploadCategory)
 
     try {
-      for (const file of Array.from(files)) {
+      for (const file of pendingFiles) {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('category', category)
+        formData.append('category', uploadCategory)
         formData.append('title', file.name)
+        formData.append('description', fileDescriptions[file.name] || '')
 
         const response = await fetch(`/api/projects/${project.id}/sources`, {
           method: 'POST',
@@ -237,7 +265,13 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
       mutate()
       
       // Expand the category to show new files
-      setExpandedCategories(prev => new Set([...prev, category]))
+      setExpandedCategories(prev => new Set([...prev, uploadCategory]))
+      
+      // Close modal and reset
+      setShowUploadModal(false)
+      setPendingFiles([])
+      setFileDescriptions({})
+      setUploadCategory(null)
 
     } catch (error) {
       console.error('Upload error:', error)
@@ -246,6 +280,25 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
       setUploading(false)
       setUploadingCategory(null)
     }
+  }
+  
+  // Get file preview URL
+  const getFilePreviewUrl = (file: SourceFile): string | null => {
+    if (file.mimeType?.startsWith('image/') && file.dropboxUrl) {
+      // For Dropbox, try to get a preview
+      return file.dropboxUrl.replace('dl=0', 'raw=1')
+    }
+    return null
+  }
+  
+  // Get file icon based on mime type
+  const getFileIcon = (mimeType: string | null) => {
+    if (!mimeType) return File
+    if (mimeType.startsWith('image/')) return FileImage
+    if (mimeType === 'application/pdf') return FileText
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return FileSpreadsheet
+    if (mimeType.includes('zip') || mimeType.includes('archive')) return FileArchive
+    return File
   }
 
   const handleDelete = async (sourceId: string) => {
@@ -281,7 +334,7 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   const handleDrop = (e: React.DragEvent, category: string) => {
     e.preventDefault()
     setDragOverCategory(null)
-    handleFileUpload(category, e.dataTransfer.files)
+    handleFilesSelected(category, e.dataTransfer.files)
   }
 
   const handleSaveNote = async () => {
@@ -424,7 +477,7 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
                           ref={(el) => { fileInputRefs.current[categoryData.category] = el }}
                           className="hidden"
                           multiple
-                          onChange={(e) => handleFileUpload(categoryData.category, e.target.files)}
+                          onChange={(e) => handleFilesSelected(categoryData.category, e.target.files)}
                         />
                         
                         {/* Write Note button - only for Client Notes */}
@@ -553,82 +606,202 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
                           )}
                         </div>
                       ) : fileCount > 0 && (
-                        <div className="bg-white/60 rounded-lg divide-y divide-gray-100">
-                          {categoryData.files.map((file) => {
-                            // Check if this is a note (no fileName, mimeType is text/plain)
-                            const isNote = !file.fileName && file.mimeType === 'text/plain'
-                            
-                            return (
-                              <div 
-                                key={file.id}
-                                className="flex items-center justify-between p-4 hover:bg-white/80 transition-colors group"
+                        <div>
+                          {/* View toggle */}
+                          <div className="flex justify-end mb-3">
+                            <div className="flex bg-white/60 rounded-lg p-1 gap-1">
+                              <button
+                                onClick={() => setViewMode('grid')}
+                                className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                title="Grid view"
                               >
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    isNote ? 'bg-purple-100' : 'bg-gray-100'
-                                  }`}>
-                                    {isNote ? (
-                                      <StickyNote className="w-5 h-5 text-[#a657f0]" />
-                                    ) : file.mimeType?.startsWith('image/') ? (
-                                      <Image className="w-5 h-5 text-gray-500" />
-                                    ) : file.mimeType === 'application/pdf' ? (
-                                      <FileText className="w-5 h-5 text-red-500" />
-                                    ) : (
-                                      <File className="w-5 h-5 text-gray-500" />
-                                    )}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-gray-900 truncate">
-                                      {file.title}
-                                    </p>
-                                    {isNote && file.description && (
-                                      <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                                        {file.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <Grid3X3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setViewMode('list')}
+                                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                title="List view"
+                              >
+                                <List className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Grid View */}
+                          {viewMode === 'grid' ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                              {categoryData.files.map((file) => {
+                                const isNote = !file.fileName && file.mimeType === 'text/plain'
+                                const isImage = file.mimeType?.startsWith('image/')
+                                const FileIcon = getFileIcon(file.mimeType)
+                                const previewUrl = getFilePreviewUrl(file)
+                                
+                                return (
+                                  <div 
+                                    key={file.id}
+                                    className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md hover:border-[#a657f0]/30 transition-all group"
+                                  >
+                                    {/* Preview area */}
+                                    <div className={`aspect-square relative ${isNote ? 'bg-purple-50' : 'bg-gray-50'} flex items-center justify-center`}>
                                       {isNote ? (
-                                        <span className="text-[#a657f0] font-medium">Note</span>
-                                      ) : (
-                                        <span>{file.fileSize ? formatFileSize(file.fileSize) : '—'}</span>
+                                        <div className="p-3 text-center">
+                                          <StickyNote className="w-8 h-8 text-[#a657f0] mx-auto mb-2" />
+                                          <p className="text-xs text-gray-600 line-clamp-4">
+                                            {file.description || 'No content'}
+                                          </p>
+                                        </div>
+                                      ) : isImage && previewUrl ? (
+                                        <img 
+                                          src={previewUrl} 
+                                          alt={file.title}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            // Fallback to icon if image fails to load
+                                            e.currentTarget.style.display = 'none'
+                                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                          }}
+                                        />
+                                      ) : null}
+                                      {/* Icon fallback (shown if image fails or not an image) */}
+                                      {!isNote && (!isImage || !previewUrl) && (
+                                        <FileIcon className="w-12 h-12 text-gray-400" />
                                       )}
-                                      <span>•</span>
-                                      <span>{formatDate(file.createdAt)}</span>
-                                      {file.uploadedByUser?.name && (
-                                        <>
-                                          <span>•</span>
-                                          <span>{file.uploadedByUser.name}</span>
-                                        </>
+                                      {isImage && previewUrl && (
+                                        <div className="hidden w-full h-full items-center justify-center">
+                                          <FileIcon className="w-12 h-12 text-gray-400" />
+                                        </div>
                                       )}
+                                      
+                                      {/* Hover actions */}
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        {file.dropboxUrl && (
+                                          <button
+                                            onClick={() => window.open(file.dropboxUrl!, '_blank')}
+                                            className="p-2 bg-white rounded-full hover:bg-gray-100"
+                                            title="Open in Dropbox"
+                                          >
+                                            <Eye className="w-4 h-4 text-gray-700" />
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => handleDelete(file.id)}
+                                          className="p-2 bg-white rounded-full hover:bg-red-50"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-4 h-4 text-red-500" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* File info */}
+                                    <div className="p-2.5">
+                                      <p className="font-medium text-sm text-gray-900 truncate" title={file.title}>
+                                        {file.title}
+                                      </p>
+                                      {file.description && !isNote && (
+                                        <p className="text-xs text-gray-500 truncate mt-0.5" title={file.description}>
+                                          {file.description}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+                                        {isNote ? (
+                                          <span className="text-[#a657f0] font-medium">Note</span>
+                                        ) : (
+                                          <span>{file.fileSize ? formatFileSize(file.fileSize) : '—'}</span>
+                                        )}
+                                        <span>•</span>
+                                        <span>{formatDate(file.createdAt)}</span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            /* List View */
+                            <div className="bg-white/60 rounded-lg divide-y divide-gray-100">
+                              {categoryData.files.map((file) => {
+                                const isNote = !file.fileName && file.mimeType === 'text/plain'
+                                const isImage = file.mimeType?.startsWith('image/')
+                                const FileIcon = getFileIcon(file.mimeType)
+                                const previewUrl = getFilePreviewUrl(file)
                                 
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {file.dropboxUrl && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                                      onClick={() => window.open(file.dropboxUrl!, '_blank')}
-                                      title="Open in Dropbox"
-                                    >
-                                      <ExternalLink className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => handleDelete(file.id)}
-                                    title="Delete"
+                                return (
+                                  <div 
+                                    key={file.id}
+                                    className="flex items-center justify-between p-4 hover:bg-white/80 transition-colors group"
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            )
-                          })}
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                      {/* Thumbnail */}
+                                      <div className={`w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden ${
+                                        isNote ? 'bg-purple-100' : 'bg-gray-100'
+                                      } flex items-center justify-center`}>
+                                        {isNote ? (
+                                          <StickyNote className="w-5 h-5 text-[#a657f0]" />
+                                        ) : isImage && previewUrl ? (
+                                          <img 
+                                            src={previewUrl} 
+                                            alt={file.title}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <FileIcon className="w-5 h-5 text-gray-500" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="font-medium text-gray-900 truncate">
+                                          {file.title}
+                                        </p>
+                                        {file.description && (
+                                          <p className="text-sm text-gray-600 truncate mt-0.5">
+                                            {file.description}
+                                          </p>
+                                        )}
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                          {isNote ? (
+                                            <span className="text-[#a657f0] font-medium">Note</span>
+                                          ) : (
+                                            <span>{file.fileSize ? formatFileSize(file.fileSize) : '—'}</span>
+                                          )}
+                                          <span>•</span>
+                                          <span>{formatDate(file.createdAt)}</span>
+                                          {file.uploadedByUser?.name && (
+                                            <>
+                                              <span>•</span>
+                                              <span>{file.uploadedByUser.name}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {file.dropboxUrl && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                          onClick={() => window.open(file.dropboxUrl!, '_blank')}
+                                          title="Open in Dropbox"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleDelete(file.id)}
+                                        title="Delete"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -639,6 +812,136 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
           </div>
         )}
       </div>
+      
+      {/* Upload Modal with Descriptions */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Upload Files</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Add descriptions to help identify each file
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false)
+                  setPendingFiles([])
+                  setFileDescriptions({})
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Files List */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {pendingFiles.map((file, index) => {
+                const isImage = file.type.startsWith('image/')
+                const previewUrl = isImage ? URL.createObjectURL(file) : null
+                
+                return (
+                  <div 
+                    key={`${file.name}-${index}`}
+                    className="flex gap-4 p-4 bg-gray-50 rounded-lg"
+                  >
+                    {/* Preview */}
+                    <div className="w-20 h-20 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center">
+                      {isImage && previewUrl ? (
+                        <img 
+                          src={previewUrl} 
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <File className="w-8 h-8 text-gray-400" />
+                      )}
+                    </div>
+                    
+                    {/* File Info & Description */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{file.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {formatFileSize(file.size)}
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Add description (e.g., Living room measurements, Client's mood board...)"
+                        value={fileDescriptions[file.name] || ''}
+                        onChange={(e) => setFileDescriptions(prev => ({
+                          ...prev,
+                          [file.name]: e.target.value
+                        }))}
+                        className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none"
+                      />
+                    </div>
+                    
+                    {/* Remove button */}
+                    <button
+                      onClick={() => {
+                        setPendingFiles(prev => prev.filter((_, i) => i !== index))
+                        setFileDescriptions(prev => {
+                          const next = { ...prev }
+                          delete next[file.name]
+                          return next
+                        })
+                      }}
+                      className="p-1.5 hover:bg-gray-200 rounded-lg h-fit"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                )
+              })}
+              
+              {pendingFiles.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No files selected
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-sm text-gray-500">
+                {pendingFiles.length} {pendingFiles.length === 1 ? 'file' : 'files'} selected
+              </span>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUploadModal(false)
+                    setPendingFiles([])
+                    setFileDescriptions({})
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
+                  onClick={handleUploadWithDescriptions}
+                  disabled={uploading || pendingFiles.length === 0}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload {pendingFiles.length > 1 ? 'All' : ''}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
