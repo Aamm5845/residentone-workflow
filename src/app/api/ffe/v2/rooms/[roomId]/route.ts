@@ -327,7 +327,36 @@ export async function PUT(
     const roomId = resolvedParams.roomId;
     const data = await request.json();
     
-    // Update the room FFE instance
+    // If programaLink is being updated, sync it across all rooms in the project
+    if (data.programaLink !== undefined) {
+      // Get the room to find the project
+      const room = await prisma.room.findUnique({
+        where: { id: roomId },
+        select: { projectId: true }
+      });
+
+      if (room) {
+        // Find all rooms in the same project
+        const projectRooms = await prisma.room.findMany({
+          where: { projectId: room.projectId },
+          select: { id: true }
+        });
+
+        // Update programaLink for all FFE instances in this project
+        await prisma.roomFFEInstance.updateMany({
+          where: {
+            roomId: { in: projectRooms.map(r => r.id) }
+          },
+          data: {
+            programaLink: data.programaLink
+          }
+        });
+
+        console.log(`✅ Synced programaLink to ${projectRooms.length} rooms in project ${room.projectId}`);
+      }
+    }
+    
+    // Update the room FFE instance (with all other data)
     const instance = await prisma.roomFFEInstance.update({
       where: { roomId },
       data: {

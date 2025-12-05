@@ -338,18 +338,14 @@ export default function FFEWorkspaceDepartment({
       {/* Reference Section - Renderings & Programa Link */}
       {(renderingImages.length > 0 || programaLink) && (
         <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-          {/* 3D Rendering Gallery */}
+          {/* Rendering Gallery */}
           {renderingImages.length > 0 && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-[#f6762e]/10 px-2 py-1 rounded-lg">
-                <ImageIcon className="w-4 h-4 text-[#f6762e]" />
-                <span className="text-xs font-medium text-[#f6762e]">3D Renderings</span>
-              </div>
               <div className="flex items-center gap-1.5">
                 {renderingImages.slice(0, 4).map((img, idx) => (
                   <button 
                     key={img.id}
-                    className="w-10 h-10 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden hover:border-[#f6762e] hover:scale-105 transition-all shadow-sm"
+                    className="w-20 h-20 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden hover:border-[#f6762e] hover:scale-105 transition-all shadow-sm"
                     onClick={() => { setSelectedImageIndex(idx); setShowImageModal(true) }}
                     title={`Click to view ${img.filename}`}
                   >
@@ -358,10 +354,10 @@ export default function FFEWorkspaceDepartment({
                 ))}
                 {renderingImages.length > 4 && (
                   <button 
-                    className="w-10 h-10 rounded-lg border-2 border-[#f6762e]/30 bg-[#f6762e]/10 flex items-center justify-center hover:border-[#f6762e] transition-all"
+                    className="w-20 h-20 rounded-lg border-2 border-[#f6762e]/30 bg-[#f6762e]/10 flex items-center justify-center hover:border-[#f6762e] transition-all"
                     onClick={() => { setSelectedImageIndex(0); setShowImageModal(true) }}
                   >
-                    <span className="text-xs font-bold text-[#f6762e]">+{renderingImages.length - 4}</span>
+                    <span className="text-sm font-bold text-[#f6762e]">+{renderingImages.length - 4}</span>
                   </button>
                 )}
               </div>
