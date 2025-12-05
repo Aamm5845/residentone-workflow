@@ -269,8 +269,8 @@ export default function AIGenerateFFEDialog({
 
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
-      case 'high': return <Badge className="bg-green-100 text-green-700 text-xs">High</Badge>
-      case 'medium': return <Badge className="bg-yellow-100 text-yellow-700 text-xs">Medium</Badge>
+      case 'high': return <Badge className="bg-[#14b8a6]/10 text-[#14b8a6] text-xs">High</Badge>
+      case 'medium': return <Badge className="bg-[#f6762e]/10 text-[#f6762e] text-xs">Medium</Badge>
       case 'low': return <Badge className="bg-gray-100 text-gray-600 text-xs">Low</Badge>
       default: return null
     }
@@ -344,7 +344,7 @@ export default function AIGenerateFFEDialog({
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline">{result.designStyle}</Badge>
-                      <Badge className="bg-green-100 text-green-700">{totalCount} items detected</Badge>
+                      <Badge className="bg-[#14b8a6]/10 text-[#14b8a6]">{totalCount} items detected</Badge>
                     </div>
                     <p className="text-sm text-gray-600">{result.roomDescription}</p>
                   </div>
@@ -358,7 +358,7 @@ export default function AIGenerateFFEDialog({
               </div>
 
               {/* Edit Info */}
-              <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700 border border-blue-200">
+              <div className="bg-[#6366ea]/10 rounded-lg p-3 text-sm text-[#6366ea] border border-[#6366ea]/20">
                 <Edit3 className="h-4 w-4 inline mr-2" />
                 Click the edit icon on any item to customize its name or description before importing.
               </div>
@@ -412,7 +412,7 @@ export default function AIGenerateFFEDialog({
                             const isSelected = selectedItems.has(`${category.name}::${item.name}`)
                             
                             return (
-                              <div key={`${item.name}-${itemIndex}`} className={cn("p-4 pl-14", isSelected && "bg-green-50/50")}>
+                              <div key={`${item.name}-${itemIndex}`} className={cn("p-4 pl-14", isSelected && "bg-[#14b8a6]/5")}>
                                 {item.isEditing ? (
                                   <div className="space-y-3">
                                     <div>

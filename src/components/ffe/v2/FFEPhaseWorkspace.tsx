@@ -326,65 +326,83 @@ export default function FFEPhaseWorkspace({
       {/* Clean Stats Header */}
       <div className="bg-white border-b border-slate-200/80 shadow-sm">
         <div className="px-6 py-5">
+          {/* Mode Toggle - Large, prominent */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="inline-flex rounded-full bg-slate-100/80 p-1.5 shadow-inner">
+              <button
+                onClick={() => router.push(`/ffe/${roomId}/settings`)}
+                className="px-6 py-2.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 hover:bg-white/40 transition-all flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </button>
+              <button className="px-6 py-2.5 text-sm font-semibold rounded-full bg-white text-slate-900 shadow-md ring-1 ring-slate-200">
+                <Briefcase className="w-4 h-4 inline mr-2" />
+                Workspace
+                <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[#e94d97]/10 text-[#e94d97] font-bold">{stats.total}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Stats Grid - Clean, aligned cards */}
           <div className="grid grid-cols-4 gap-4 mb-5">
             {/* Pending */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/60">
+            <div className="bg-gradient-to-br from-[#f6762e]/5 to-[#f6762e]/15 rounded-xl p-4 border border-[#f6762e]/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-[#f6762e] flex items-center justify-center">
                   <Clock className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-blue-900">{stats.pending || 0}</div>
-                  <div className="text-xs font-medium text-blue-600/80 uppercase tracking-wide">Pending</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.pending || 0}</div>
+                  <div className="text-xs font-medium text-[#f6762e] uppercase tracking-wide">Pending</div>
                 </div>
               </div>
             </div>
             
             {/* Undecided */}
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-4 border border-amber-200/60">
+            <div className="bg-gradient-to-br from-[#a657f0]/5 to-[#a657f0]/15 rounded-xl p-4 border border-[#a657f0]/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-[#a657f0] flex items-center justify-center">
                   <AlertCircle className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-amber-900">{stats.undecided || 0}</div>
-                  <div className="text-xs font-medium text-amber-600/80 uppercase tracking-wide">Undecided</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.undecided || 0}</div>
+                  <div className="text-xs font-medium text-[#a657f0] uppercase tracking-wide">Undecided</div>
                 </div>
               </div>
             </div>
             
             {/* Completed */}
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-4 border border-emerald-200/60">
+            <div className="bg-gradient-to-br from-[#14b8a6]/5 to-[#14b8a6]/15 rounded-xl p-4 border border-[#14b8a6]/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-[#14b8a6] flex items-center justify-center">
                   <CheckCircle2 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-emerald-900">{stats.completed}</div>
-                  <div className="text-xs font-medium text-emerald-600/80 uppercase tracking-wide">Completed</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.completed}</div>
+                  <div className="text-xs font-medium text-[#14b8a6] uppercase tracking-wide">Completed</div>
                 </div>
               </div>
             </div>
             
             {/* Total Progress Card */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 border border-slate-200/60">
+            <div className="bg-gradient-to-br from-[#e94d97]/5 to-[#e94d97]/15 rounded-xl p-4 border border-[#e94d97]/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
                   <Package className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
-                    <span className="text-xs font-medium text-slate-500">items</span>
+                    <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
+                    <span className="text-xs font-medium text-gray-500">items</span>
                   </div>
-                  <div className="text-xs font-medium text-slate-600/80 uppercase tracking-wide">Total</div>
+                  <div className="text-xs font-medium text-[#e94d97] uppercase tracking-wide">Total</div>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Progress Bar - More prominent */}
+          {/* Progress Bar - More prominent with FFE pink */}
           <div className="bg-slate-100/80 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-slate-700">Overall Progress</span>
@@ -392,7 +410,7 @@ export default function FFEPhaseWorkspace({
             </div>
             <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-700 ease-out" 
+                className="h-full bg-gradient-to-r from-[#e94d97] via-[#6366ea] to-[#14b8a6] rounded-full transition-all duration-700 ease-out" 
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -415,37 +433,37 @@ export default function FFEPhaseWorkspace({
                 onClick={() => setStatusFilter('pending')}
                 className={`px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-2 ${
                   statusFilter === 'pending' 
-                    ? 'bg-white text-blue-600 shadow-md ring-1 ring-blue-200' 
+                    ? 'bg-white text-[#f6762e] shadow-md ring-1 ring-[#f6762e]/30' 
                     : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${statusFilter === 'pending' ? 'bg-blue-500' : 'bg-blue-400'}`}></span>
+                <span className={`w-2 h-2 rounded-full bg-[#f6762e]`}></span>
                 Pending
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'pending' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>{stats.pending || 0}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'pending' ? 'bg-[#f6762e]/10 text-[#f6762e]' : 'bg-slate-200 text-slate-600'}`}>{stats.pending || 0}</span>
               </button>
               <button
                 onClick={() => setStatusFilter('undecided')}
                 className={`px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-2 ${
                   statusFilter === 'undecided' 
-                    ? 'bg-white text-amber-600 shadow-md ring-1 ring-amber-200' 
+                    ? 'bg-white text-[#a657f0] shadow-md ring-1 ring-[#a657f0]/30' 
                     : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${statusFilter === 'undecided' ? 'bg-amber-500' : 'bg-amber-400'}`}></span>
+                <span className={`w-2 h-2 rounded-full bg-[#a657f0]`}></span>
                 Undecided
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'undecided' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>{stats.undecided || 0}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'undecided' ? 'bg-[#a657f0]/10 text-[#a657f0]' : 'bg-slate-200 text-slate-600'}`}>{stats.undecided || 0}</span>
               </button>
               <button
                 onClick={() => setStatusFilter('completed')}
                 className={`px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-2 ${
                   statusFilter === 'completed' 
-                    ? 'bg-white text-emerald-600 shadow-md ring-1 ring-emerald-200' 
+                    ? 'bg-white text-[#14b8a6] shadow-md ring-1 ring-[#14b8a6]/30' 
                     : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-500' : 'bg-emerald-400'}`}></span>
+                <span className={`w-2 h-2 rounded-full bg-[#14b8a6]`}></span>
                 Done
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{stats.completed}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === 'completed' ? 'bg-[#14b8a6]/10 text-[#14b8a6]' : 'bg-slate-200 text-slate-600'}`}>{stats.completed}</span>
               </button>
             </div>
             
@@ -454,7 +472,7 @@ export default function FFEPhaseWorkspace({
               onClick={() => setShowNotesDrawer(!showNotesDrawer)}
               className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                 showNotesDrawer 
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-200' 
+                  ? 'bg-[#6366ea] text-white shadow-lg shadow-[#6366ea]/30' 
                   : 'bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200 shadow-sm'
               }`}
             >
@@ -462,7 +480,7 @@ export default function FFEPhaseWorkspace({
               <span>Notes</span>
               {allNotes.length > 0 && (
                 <span className={`text-xs rounded-full h-5 min-w-5 px-1.5 flex items-center justify-center font-bold ${
-                  showNotesDrawer ? 'bg-white/25 text-white' : 'bg-violet-100 text-violet-700'
+                  showNotesDrawer ? 'bg-white/25 text-white' : 'bg-[#6366ea]/10 text-[#6366ea]'
                 }`}>
                   {allNotes.length}
                 </span>
@@ -500,16 +518,16 @@ export default function FFEPhaseWorkspace({
       {/* Completion Status - Celebration Banner */}
       {progress === 100 && stats.total > 0 && (
         <div className="mx-6 mb-6">
-          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl p-5 shadow-lg">
+          <div className="bg-gradient-to-r from-[#14b8a6] to-[#6366ea] rounded-xl p-5 shadow-lg">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
               <div>
                 <p className="text-lg font-semibold text-white">
-                  FFE Phase Complete! 🎉
+                  FFE Phase Complete!
                 </p>
-                <p className="text-emerald-100 text-sm">
+                <p className="text-white/80 text-sm">
                   All {stats.total} items have been processed successfully
                 </p>
               </div>

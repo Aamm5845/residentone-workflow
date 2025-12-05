@@ -17,9 +17,7 @@ import {
   EyeOff,
   ChevronRight,
   ChevronDown,
-  X,
   Import,
-  AlertTriangle,
   Trash2,
   Package,
   Link,
@@ -29,13 +27,16 @@ import {
   Search,
   CheckCircle2,
   ArrowRight,
-  Clock,
-  AlertCircle
+  Lock,
+  Image as ImageIcon,
+  LinkIcon
 } from 'lucide-react'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
-import { Checkbox } from '@/components/ui/checkbox'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+
+// FFE Phase Color
+const FFE_COLOR = '#e94d97'
 
 interface FFEItem {
   id: string
@@ -84,13 +85,16 @@ export default function FFESettingsDepartment({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [renderingImage, setRenderingImage] = useState<string | null>(null)
 
   // Dialog states
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showAIGenerateDialog, setShowAIGenerateDialog] = useState(false)
+  const [showAddLinkedItemDialog, setShowAddLinkedItemDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
+  const [selectedParentItem, setSelectedParentItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
   
   // Template states
   const [templates, setTemplates] = useState<any[]>([])
@@ -104,6 +108,9 @@ export default function FFESettingsDepartment({
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
+  const [linkedItemName, setLinkedItemName] = useState('')
+  const [linkedItemDescription, setLinkedItemDescription] = useState('')
+  const [showImageModal, setShowImageModal] = useState(false)
 
   // Stats
   const [stats, setStats] = useState({
@@ -117,15 +124,14 @@ export default function FFESettingsDepartment({
   useEffect(() => {
     loadFFEData()
     loadTemplates()
+    loadRenderingImage()
   }, [roomId, orgId])
 
   const loadFFEData = async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}?includeHidden=true`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch FFE data')
-      }
+      if (!response.ok) throw new Error('Failed to fetch FFE data')
 
       const result = await response.json()
       if (result.success && result.data) {
@@ -145,6 +151,22 @@ export default function FFESettingsDepartment({
       toast.error('Failed to load FFE data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRenderingImage = async () => {
+    try {
+      // Fetch the latest 3D rendering for this room
+      const response = await fetch(`/api/spec-books/room-renderings?roomId=${roomId}`)
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.renderings && result.renderings.length > 0) {
+          // Get the first rendering URL
+          setRenderingImage(result.renderings[0].url)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading rendering image:', error)
     }
   }
 
@@ -185,13 +207,11 @@ export default function FFESettingsDepartment({
   const handleVisibilityChange = async (itemId: string, newVisibility: 'VISIBLE' | 'HIDDEN') => {
     const previousSections = [...sections]
     
-    // Optimistic update - update state immediately without page refresh
     setSections(prev => {
       const updated = prev.map(section => ({
         ...section,
         items: section.items.map(item => item.id === itemId ? { ...item, visibility: newVisibility } : item)
       }))
-      // Recalculate stats immediately
       const allItems = updated.flatMap(s => s.items)
       setStats({
         totalItems: allItems.length,
@@ -210,9 +230,7 @@ export default function FFESettingsDepartment({
       })
       if (!response.ok) throw new Error('Failed to update visibility')
       toast.success(newVisibility === 'VISIBLE' ? 'Added to workspace' : 'Removed from workspace')
-      // No page refresh - optimistic update already done
     } catch (error) {
-      // Revert on error
       setSections(previousSections)
       calculateStats(previousSections)
       toast.error('Failed to update visibility')
@@ -260,6 +278,40 @@ export default function FFESettingsDepartment({
       toast.success('Item added')
     } catch (error) {
       toast.error('Failed to add item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddLinkedItem = async () => {
+    if (!linkedItemName.trim() || !selectedParentItem) { toast.error('Linked item name is required'); return }
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sectionId: selectedParentItem.sectionId, 
+          name: linkedItemName.trim(), 
+          description: linkedItemDescription.trim() || undefined, 
+          quantity: 1, 
+          visibility: 'HIDDEN',
+          customFields: {
+            isLinkedItem: true,
+            parentName: selectedParentItem.name,
+            parentId: selectedParentItem.id
+          }
+        })
+      })
+      if (!response.ok) throw new Error('Failed to add linked item')
+      await loadFFEData()
+      setShowAddLinkedItemDialog(false)
+      setLinkedItemName('')
+      setLinkedItemDescription('')
+      setSelectedParentItem(null)
+      toast.success('Linked item added')
+    } catch (error) {
+      toast.error('Failed to add linked item')
     } finally {
       setSaving(false)
     }
@@ -393,393 +445,484 @@ export default function FFESettingsDepartment({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Mode Toggle - Prominent switch between Settings and Workspace */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-          <button
-            className="px-4 py-2 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm"
-          >
-            <Settings className="w-4 h-4 inline mr-2" />
-            Settings
-          </button>
-          <button
-            onClick={() => router.push(`/ffe/${roomId}/workspace`)}
-            className="px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-colors"
-          >
-            <Briefcase className="w-4 h-4 inline mr-2" />
-            Workspace
+    <div className="bg-slate-50/50 -mx-6 -my-6 min-h-screen">
+      {/* Header with mode toggle */}
+      <div className="bg-white border-b border-slate-200/80 shadow-sm">
+        <div className="px-6 py-5">
+          {/* Mode Toggle - Large, prominent */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-4">
+              <div className="inline-flex rounded-full bg-slate-100/80 p-1.5 shadow-inner">
+                <button className="px-6 py-2.5 text-sm font-semibold rounded-full bg-white text-slate-900 shadow-md ring-1 ring-slate-200">
+                  <Settings className="w-4 h-4 inline mr-2" />
+                  Settings
+                </button>
+                <button
+                  onClick={() => router.push(`/ffe/${roomId}/workspace`)}
+                  className="px-6 py-2.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 hover:bg-white/40 transition-all flex items-center gap-2"
+                >
+                  <Briefcase className="w-4 h-4" />
+                  Workspace
+                  {stats.visibleItems > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#e94d97]/10 text-[#e94d97] font-bold">{stats.visibleItems}</span>
+                  )}
+                </button>
+              </div>
+              
+              {/* 3D Rendering Thumbnail */}
+              {renderingImage && (
+                <div 
+                  className="w-16 h-16 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden cursor-pointer hover:border-[#f6762e] transition-all shadow-sm"
+                  onClick={() => setShowImageModal(true)}
+                  title="Click to view 3D rendering"
+                >
+                  <img src={renderingImage} alt="3D Rendering" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+            
             {stats.visibleItems > 0 && (
-              <Badge className="ml-2 bg-green-100 text-green-700 text-xs">{stats.visibleItems}</Badge>
-            )}
-          </button>
-        </div>
-        
-        {stats.visibleItems > 0 && (
-          <Button 
-            onClick={() => router.push(`/ffe/${roomId}/workspace`)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <ArrowRight className="w-4 h-4 mr-2" />
-            Go to Workspace ({stats.visibleItems} items)
-          </Button>
-        )}
-      </div>
-
-      {/* Stats Header - Clean white cards with colored icon squares */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
-              <FolderPlus className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{stats.sectionsCount}</div>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sections</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gray-500 flex items-center justify-center">
-              <Package className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{stats.totalItems}</div>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Items</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center">
-              <Eye className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{stats.visibleItems}</div>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">In Workspace</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gray-400 flex items-center justify-center">
-              <EyeOff className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{stats.hiddenItems}</div>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Hidden</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={disabled}>
-              <Import className="w-4 h-4 mr-2" />
-              Import Template
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowAddSectionDialog(true)} disabled={disabled}>
-              <FolderPlus className="w-4 h-4 mr-2" />
-              Add Section
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowAddItemDialog(true)} disabled={disabled || sections.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
-            <Button size="sm" onClick={() => setShowAIGenerateDialog(true)} disabled={disabled} className="bg-[#e94d97] hover:bg-[#d63d87] text-white">
-              <Sparkles className="w-4 h-4 mr-2" />
-              AI Generate
-            </Button>
-          </div>
-        </div>
-      </div>
-
-
-      {/* Dialogs */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Import className="h-5 w-5 text-gray-600" />
-              Import Template
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Select Template</Label>
-              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder={templatesLoading ? "Loading..." : "Choose a template"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(templates || []).map(template => (
-                    <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>Cancel</Button>
-            <Button onClick={handleImportTemplate} disabled={!selectedTemplateId || saving}>
-              {saving ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
-              Import
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderPlus className="h-5 w-5 text-gray-600" />
-              Add Section
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Name</Label>
-              <Input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} placeholder="e.g., Flooring, Lighting" className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea value={newSectionDescription} onChange={(e) => setNewSectionDescription(e.target.value)} placeholder="Brief description..." rows={2} className="mt-1.5" />
-            </div>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => { setShowAddSectionDialog(false); setNewSectionName(''); setNewSectionDescription('') }}>Cancel</Button>
-            <Button onClick={handleAddSection} disabled={saving || !newSectionName.trim()}>
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Add Section
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-gray-600" />
-              Add Item
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Section</Label>
-              <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Select a section..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sections.map(section => (
-                    <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Item Name</Label>
-              <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g., Floor tiles, Pendant lights" className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Quantity</Label>
-              <Input type="number" min={1} max={50} value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} className="mt-1.5 w-24" />
-            </div>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId('') }}>Cancel</Button>
-            <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId}>
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Add Item
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Sections */}
-      <div className="space-y-4">
-        {filteredSections.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-            <Package className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No FFE Sections Yet</h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              Get started by importing a template, using AI to generate items, or creating sections manually.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Button onClick={() => setShowAIGenerateDialog(true)} className="bg-[#e94d97] hover:bg-[#d63d87] text-white">
-                <Sparkles className="w-4 h-4 mr-2" />
-                AI Generate
+              <Button 
+                onClick={() => router.push(`/ffe/${roomId}/workspace`)}
+                className="bg-[#e94d97] hover:bg-[#e94d97]/90 text-white shadow-lg"
+              >
+                Go to Workspace
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            )}
+          </div>
+
+          {/* Stats Grid - Using brand colors */}
+          <div className="grid grid-cols-4 gap-4 mb-5">
+            <div className="bg-gradient-to-br from-[#e94d97]/5 to-[#e94d97]/15 rounded-xl p-4 border border-[#e94d97]/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
+                    <FolderPlus className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{stats.sectionsCount}</div>
+                    <div className="text-xs font-medium text-[#e94d97] uppercase tracking-wide">Sections</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-[#6366ea]/5 to-[#6366ea]/15 rounded-xl p-4 border border-[#6366ea]/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#6366ea] flex items-center justify-center">
+                    <Package className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{stats.totalItems}</div>
+                    <div className="text-xs font-medium text-[#6366ea] uppercase tracking-wide">Total Items</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-[#14b8a6]/5 to-[#14b8a6]/15 rounded-xl p-4 border border-[#14b8a6]/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#14b8a6] flex items-center justify-center">
+                    <Lock className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{stats.visibleItems}</div>
+                    <div className="text-xs font-medium text-[#14b8a6] uppercase tracking-wide">In Workspace</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-[#f6762e]/5 to-[#f6762e]/15 rounded-xl p-4 border border-[#f6762e]/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#f6762e] flex items-center justify-center">
+                    <EyeOff className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{stats.hiddenItems}</div>
+              <div className="text-xs font-medium text-[#f6762e] uppercase tracking-wide">Not in Workspace</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Bar */}
+          <div className="flex items-center justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={disabled}>
                 <Import className="w-4 h-4 mr-2" />
                 Import Template
               </Button>
-              <Button variant="outline" onClick={() => setShowAddSectionDialog(true)}>
+              <Button variant="outline" size="sm" onClick={() => setShowAddSectionDialog(true)} disabled={disabled}>
                 <FolderPlus className="w-4 h-4 mr-2" />
                 Add Section
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowAddItemDialog(true)} disabled={disabled || sections.length === 0}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </Button>
+              <Button size="sm" onClick={() => setShowAIGenerateDialog(true)} disabled={disabled} className="bg-[#e94d97] hover:bg-[#e94d97]/90 text-white">
+                <Sparkles className="w-4 h-4 mr-2" />
+                AI Generate
+              </Button>
             </div>
           </div>
-        ) : (
-          filteredSections.map(section => {
-            const visibleCount = section.items.filter(item => item.visibility === 'VISIBLE').length
-            const parentItems = section.items.filter(item => !item.customFields?.isLinkedItem)
-            
-            return (
-              <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                {/* Section Header */}
-                <div 
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => toggleSectionExpanded(section.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <button className="p-1 hover:bg-gray-100 rounded">
-                      {section.isExpanded ? <ChevronDown className="h-5 w-5 text-gray-500" /> : <ChevronRight className="h-5 w-5 text-gray-500" />}
-                    </button>
-                    <div className="w-8 h-8 rounded-lg bg-[#e94d97] flex items-center justify-center">
-                      <Package className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{section.name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span>{parentItems.length} items</span>
-                        {visibleCount > 0 && (
-                          <>
-                            <span>•</span>
-                            <span className="text-green-600 font-medium">{visibleCount} in workspace</span>
-                          </>
-                        )}
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="px-6 py-6">
+        {/* Dialogs */}
+        <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Import className="h-5 w-5 text-gray-600" />
+                Import Template
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Select Template</Label>
+                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder={templatesLoading ? "Loading..." : "Choose a template"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(templates || []).map(template => (
+                      <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowImportDialog(false)}>Cancel</Button>
+              <Button onClick={handleImportTemplate} disabled={!selectedTemplateId || saving}>
+                {saving ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+                Import
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5 text-gray-600" />
+                Add Section
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Name</Label>
+                <Input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} placeholder="e.g., Flooring, Lighting" className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea value={newSectionDescription} onChange={(e) => setNewSectionDescription(e.target.value)} placeholder="Brief description..." rows={2} className="mt-1.5" />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => { setShowAddSectionDialog(false); setNewSectionName(''); setNewSectionDescription('') }}>Cancel</Button>
+              <Button onClick={handleAddSection} disabled={saving || !newSectionName.trim()}>
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                Add Section
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-gray-600" />
+                Add Item
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Section</Label>
+                <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Select a section..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map(section => (
+                      <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Item Name</Label>
+                <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g., Floor tiles, Pendant lights" className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Quantity</Label>
+                <Input type="number" min={1} max={50} value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} className="mt-1.5 w-24" />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId('') }}>Cancel</Button>
+              <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId}>
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                Add Item
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Linked Item Dialog */}
+        <Dialog open={showAddLinkedItemDialog} onOpenChange={setShowAddLinkedItemDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5 text-[#6366ea]" />
+                Add Linked Item
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {selectedParentItem && (
+                <div className="bg-[#6366ea]/5 rounded-lg p-3 border border-[#6366ea]/20">
+                  <p className="text-xs text-[#6366ea] font-medium mb-1">Linking to:</p>
+                  <p className="font-medium text-gray-900">{selectedParentItem.name}</p>
+                </div>
+              )}
+              <div>
+                <Label>Linked Item Name</Label>
+                <Input value={linkedItemName} onChange={(e) => setLinkedItemName(e.target.value)} placeholder="e.g., Hardware, Installation" className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea value={linkedItemDescription} onChange={(e) => setLinkedItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => { setShowAddLinkedItemDialog(false); setLinkedItemName(''); setLinkedItemDescription(''); setSelectedParentItem(null) }}>Cancel</Button>
+              <Button onClick={handleAddLinkedItem} disabled={saving || !linkedItemName.trim()} className="bg-[#6366ea] hover:bg-[#6366ea]/90">
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                Add Linked Item
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Sections */}
+        <div className="space-y-4">
+          {filteredSections.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+              <Package className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No FFE Sections Yet</h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                Get started by importing a template, using AI to generate items, or creating sections manually.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button onClick={() => setShowAIGenerateDialog(true)} className="bg-[#e94d97] hover:bg-[#e94d97]/90 text-white">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  AI Generate
+                </Button>
+                <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+                  <Import className="w-4 h-4 mr-2" />
+                  Import Template
+                </Button>
+                <Button variant="outline" onClick={() => setShowAddSectionDialog(true)}>
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  Add Section
+                </Button>
+              </div>
+            </div>
+          ) : (
+            filteredSections.map(section => {
+              const visibleCount = section.items.filter(item => item.visibility === 'VISIBLE').length
+              const parentItems = section.items.filter(item => !item.customFields?.isLinkedItem)
+              
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                  {/* Section Header */}
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100"
+                    onClick={() => toggleSectionExpanded(section.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button className="p-1 hover:bg-gray-100 rounded">
+                        {section.isExpanded ? <ChevronDown className="h-5 w-5 text-gray-500" /> : <ChevronRight className="h-5 w-5 text-gray-500" />}
+                      </button>
+                      <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
+                        <Package className="w-5 h-5 text-white" />
                       </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{section.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <span>{parentItems.length} items</span>
+                          {visibleCount > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-[#14b8a6] font-medium">{visibleCount} in workspace</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="sm" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Item
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSection(section.id, section.name)} className="text-gray-400 hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Item
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSection(section.id, section.name)} className="text-gray-400 hover:text-red-500">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Section Content */}
-                {section.isExpanded && (
-                  <div className="border-t border-gray-100">
-                    {parentItems.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 mb-3">No items in this section</p>
-                        <Button size="sm" variant="outline" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add First Item
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-gray-100">
-                        {parentItems.map(item => {
-                          const isInWorkspace = item.visibility === 'VISIBLE'
-                          const linkedChildren = section.items.filter(
-                            child => child.customFields?.isLinkedItem && child.customFields?.parentName === item.name
-                          )
-                          
-                          return (
-                            <div key={item.id} className={cn("p-4 hover:bg-gray-50 transition-colors", isInWorkspace && "bg-green-50/50")}>
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                    {item.quantity > 1 && (
-                                      <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
-                                    )}
-                                    {linkedChildren.length > 0 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        <Link className="w-3 h-3 mr-1" />
-                                        {linkedChildren.length} linked
-                                      </Badge>
-                                    )}
-                                    {isInWorkspace && (
-                                      <Badge className="bg-green-100 text-green-700 text-xs">
-                                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                                        In Workspace
-                                      </Badge>
+                  {/* Section Content */}
+                  {section.isExpanded && (
+                    <div>
+                      {parentItems.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-gray-500 mb-3">No items in this section</p>
+                          <Button size="sm" variant="outline" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
+                            <Plus className="w-4 h-4 mr-1" />
+                            Add First Item
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {parentItems.map(item => {
+                            const isInWorkspace = item.visibility === 'VISIBLE'
+                            const linkedChildren = section.items.filter(
+                              child => child.customFields?.isLinkedItem && child.customFields?.parentName === item.name
+                            )
+                            
+                            return (
+                              <div 
+                                key={item.id} 
+                                className={cn(
+                                  "p-4 transition-colors",
+                                  isInWorkspace 
+                                    ? "bg-[#14b8a6]/5 border-l-4 border-l-[#14b8a6]" 
+                                    : "hover:bg-gray-50 opacity-70"
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {isInWorkspace && (
+                                        <Lock className="w-4 h-4 text-[#14b8a6]" />
+                                      )}
+                                      <h4 className={cn("font-medium", isInWorkspace ? "text-gray-900" : "text-gray-500")}>{item.name}</h4>
+                                      {item.quantity > 1 && (
+                                        <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
+                                      )}
+                                      {linkedChildren.length > 0 && (
+                                        <Badge variant="outline" className="text-xs bg-[#6366ea]/5 text-[#6366ea] border-[#6366ea]/20">
+                                          <LinkIcon className="w-3 h-3 mr-1" />
+                                          {linkedChildren.length} linked
+                                        </Badge>
+                                      )}
+                                      {isInWorkspace && (
+                                        <Badge className="bg-[#14b8a6]/10 text-[#14b8a6] text-xs">
+                                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                                          In Workspace
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {item.description && (
+                                      <p className="text-sm text-gray-500 mt-1">{item.description}</p>
                                     )}
                                   </div>
-                                  {item.description && (
-                                    <p className="text-sm text-gray-500 mt-1">{item.description}</p>
-                                  )}
+                                  
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {/* Add Linked Item Button */}
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={() => {
+                                        setSelectedParentItem({ id: item.id, name: item.name, sectionId: section.id })
+                                        setShowAddLinkedItemDialog(true)
+                                      }}
+                                      className="text-[#6366ea] hover:bg-[#6366ea]/10"
+                                    >
+                                      <LinkIcon className="w-4 h-4 mr-1" />
+                                      Link
+                                    </Button>
+                                    
+                                    {isInWorkspace ? (
+                                      <Button size="sm" variant="outline" onClick={() => handleVisibilityChange(item.id, 'HIDDEN')} className="text-[#f6762e] border-[#f6762e]/30 hover:bg-[#f6762e]/10">
+                                        <EyeOff className="w-4 h-4 mr-1" />
+                                        Remove
+                                      </Button>
+                                    ) : (
+                                      <Button size="sm" onClick={() => handleVisibilityChange(item.id, 'VISIBLE')} className="bg-[#14b8a6] hover:bg-[#14b8a6]/90 text-white">
+                                        <Eye className="w-4 h-4 mr-1" />
+                                        Add to Workspace
+                                      </Button>
+                                    )}
+                                    <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }} className="text-gray-400 hover:text-red-500">
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {isInWorkspace ? (
-                                    <Button size="sm" variant="outline" onClick={() => handleVisibilityChange(item.id, 'HIDDEN')} className="text-orange-600 border-orange-200 hover:bg-orange-50">
-                                      <EyeOff className="w-4 h-4 mr-1" />
-                                      Remove
-                                    </Button>
-                                  ) : (
-                                    <Button size="sm" onClick={() => handleVisibilityChange(item.id, 'VISIBLE')} className="bg-green-600 hover:bg-green-700 text-white">
-                                      <Eye className="w-4 h-4 mr-1" />
-                                      Add to Workspace
-                                    </Button>
-                                  )}
-                                  <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }} className="text-gray-400 hover:text-red-500">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {linkedChildren.length > 0 && (
-                                <div className="mt-3 ml-4 pl-4 border-l-2 border-gray-200 space-y-2">
-                                  {linkedChildren.map(child => (
-                                    <div key={child.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                                      <div className="flex items-center gap-2">
-                                        <Link className="w-3 h-3 text-gray-400" />
-                                        <span className="text-sm text-gray-700">{child.name}</span>
-                                        {child.visibility === 'VISIBLE' && (
-                                          <Badge className="bg-green-100 text-green-600 text-xs">In Workspace</Badge>
-                                        )}
+                                {linkedChildren.length > 0 && (
+                                  <div className="mt-3 ml-6 pl-4 border-l-2 border-[#6366ea]/30 space-y-2">
+                                    {linkedChildren.map(child => (
+                                      <div key={child.id} className={cn(
+                                        "flex items-center justify-between py-2 px-3 rounded-lg",
+                                        child.visibility === 'VISIBLE' ? "bg-[#14b8a6]/5" : "bg-gray-50"
+                                      )}>
+                                        <div className="flex items-center gap-2">
+                                          <LinkIcon className="w-3 h-3 text-[#6366ea]" />
+                                          <span className="text-sm text-gray-700">{child.name}</span>
+                                          {child.visibility === 'VISIBLE' && (
+                                            <Badge className="bg-[#14b8a6]/10 text-[#14b8a6] text-xs">In Workspace</Badge>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          {child.visibility === 'VISIBLE' ? (
+                                            <Button size="sm" variant="ghost" onClick={() => handleVisibilityChange(child.id, 'HIDDEN')} className="h-7 text-xs text-[#f6762e]">
+                                              Remove
+                                            </Button>
+                                          ) : (
+                                            <Button size="sm" variant="ghost" onClick={() => handleVisibilityChange(child.id, 'VISIBLE')} className="h-7 text-xs text-[#14b8a6]">
+                                              Add
+                                            </Button>
+                                          )}
+                                          <Button size="sm" variant="ghost" onClick={() => handleDeleteItem(child.id)} className="h-7 text-gray-400 hover:text-red-500">
+                                            <Trash2 className="w-3 h-3" />
+                                          </Button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })
-        )}
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
       </div>
 
       {/* AI Generate Dialog */}
@@ -795,6 +938,31 @@ export default function FFESettingsDepartment({
         <div className="fixed bottom-6 right-6 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-2 border border-gray-200">
           <RefreshCw className="w-4 h-4 text-gray-500 animate-spin" />
           <span className="text-sm text-gray-600">Saving...</span>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {showImageModal && renderingImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full">
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+            >
+              <span className="text-sm mr-2">Close</span>
+              <span className="text-2xl">×</span>
+            </button>
+            <img 
+              src={renderingImage} 
+              alt="3D Rendering - Full View" 
+              className="w-full h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <p className="text-center text-white/70 text-sm mt-4">3D Rendering - {roomName}</p>
+          </div>
         </div>
       )}
     </div>
