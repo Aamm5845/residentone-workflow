@@ -34,36 +34,43 @@ export default async function Projects({ searchParams }: { searchParams: Promise
     // Filter by project status = IN_PROGRESS
     whereClause.status = 'IN_PROGRESS'
   } else if (statusFilter === 'active') {
-    // Legacy: Active projects are those that have started any phase and not all rooms are complete
-    whereClause.AND = [
-      // Must have at least one stage that's been started (not NOT_STARTED)
+    // Active projects: those that have started any phase and not all rooms are complete, OR marked as URGENT
+    whereClause.OR = [
+      // URGENT projects are always considered active
+      { status: 'URGENT' },
+      // Projects with active stages (started but not all completed)
       {
-        rooms: {
-          some: {
-            stages: {
+        AND: [
+          // Must have at least one stage that's been started (not NOT_STARTED)
+          {
+            rooms: {
               some: {
-                status: { not: 'NOT_STARTED' }
+                stages: {
+                  some: {
+                    status: { not: 'NOT_STARTED' }
+                  }
+                }
               }
             }
-          }
-        }
-      },
-      // Must not have ALL rooms with ALL applicable stages completed
-      {
-        NOT: {
-          rooms: {
-            every: {
-              stages: {
+          },
+          // Must not have ALL rooms with ALL applicable stages completed
+          {
+            NOT: {
+              rooms: {
                 every: {
-                  OR: [
-                    { status: 'COMPLETED' },
-                    { status: 'NOT_APPLICABLE' }
-                  ]
+                  stages: {
+                    every: {
+                      OR: [
+                        { status: 'COMPLETED' },
+                        { status: 'NOT_APPLICABLE' }
+                      ]
+                    }
+                  }
                 }
               }
             }
           }
-        }
+        ]
       }
     ]
   } else if (statusFilter === 'completed' || statusFilter === 'COMPLETED') {

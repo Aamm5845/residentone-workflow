@@ -485,7 +485,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
         />
       </div>
 
-      {/* My Tasks Section */}
+      {/* My Active Stages Section */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -493,9 +493,9 @@ export default function InteractiveDashboard({ user }: { user: any }) {
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">My Tasks</h2>
+              <h2 className="text-xl font-bold text-gray-900">My Active Stages</h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                {tasksData?.tasks?.length || 0} active {tasksData?.tasks?.length === 1 ? 'task' : 'tasks'} assigned
+                {tasksData?.tasks?.length || 0} active {tasksData?.tasks?.length === 1 ? 'stage' : 'stages'} assigned
               </p>
             </div>
           </div>
@@ -536,7 +536,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
-              <p className="text-gray-600">No pending tasks assigned to you</p>
+              <p className="text-gray-600">No active stages assigned to you</p>
               <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work!</p>
             </div>
           ) : (
