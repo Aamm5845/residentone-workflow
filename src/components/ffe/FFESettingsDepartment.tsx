@@ -1,36 +1,29 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
-  Settings, 
   Plus, 
-  Upload, 
   FolderPlus, 
   RefreshCw, 
   Eye,
   EyeOff,
-  ChevronDown,
   ChevronRight,
-  Save,
   X,
   Import,
   AlertTriangle,
   Trash2,
   Package,
-  Edit3,
-  Copy,
-  Link
+  Link,
+  Sparkles
 } from 'lucide-react'
+import AIGenerateFFEDialog from './AIGenerateFFEDialog'
 import { Checkbox } from '@/components/ui/checkbox'
-import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import FFEItemCard, { FFEItemState, FFEItemVisibility } from './common/FFEItemCard'
 
@@ -45,6 +38,7 @@ interface FFEItem {
   isCustom: boolean
   quantity: number
   order: number
+  customFields?: any
 }
 
 interface FFESection {
@@ -84,8 +78,7 @@ export default function FFESettingsDepartment({
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
-  const [showManageItemsDialog, setShowManageItemsDialog] = useState(false)
-  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
+  const [showAIGenerateDialog, setShowAIGenerateDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   
   // Template states
@@ -102,9 +95,6 @@ export default function FFESettingsDepartment({
   const [newItemQuantity, setNewItemQuantity] = useState(1)
   const [newItemLinkedItems, setNewItemLinkedItems] = useState<string[]>([])
   const [linkedItemInputValue, setLinkedItemInputValue] = useState('')
-  const [templateName, setTemplateName] = useState('')
-  const [templateDescription, setTemplateDescription] = useState('')
-  const [savingTemplate, setSavingTemplate] = useState(false)
   
   // Linked items dialog state
   const [showAddLinkedItemDialog, setShowAddLinkedItemDialog] = useState(false)
@@ -125,7 +115,6 @@ export default function FFESettingsDepartment({
 
   // Load FFE data
   useEffect(() => {
-    
     loadFFEData()
     loadTemplates()
   }, [roomId, orgId])
@@ -133,8 +122,6 @@ export default function FFESettingsDepartment({
   const loadFFEData = async () => {
     try {
       setLoading(true)
-      
-      // Load room FFE instance with all items (including hidden)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}?includeHidden=true`)
       if (!response.ok) {
         throw new Error('Failed to fetch FFE data')
@@ -146,7 +133,6 @@ export default function FFESettingsDepartment({
         setSections(ffeData.sections || [])
         calculateStats(ffeData.sections || [])
       } else {
-        // No FFE instance exists yet - show empty state
         setSections([])
         setStats({
           totalItems: 0,
@@ -202,7 +188,6 @@ export default function FFESettingsDepartment({
     }
     setStats(stats)
     
-    // Update progress for parent component
     if (onProgressUpdate) {
       const completedItems = allItems.filter(item => 
         item.visibility === 'VISIBLE' && item.state === 'COMPLETED'
@@ -215,7 +200,6 @@ export default function FFESettingsDepartment({
   }
 
   const handleVisibilityChange = async (itemId: string, newVisibility: FFEItemVisibility) => {
-    // Optimistic update - update UI immediately
     const previousSections = sections
     setSections(prevSections => 
       prevSections.map(section => ({
@@ -228,7 +212,6 @@ export default function FFESettingsDepartment({
       }))
     )
     
-    // Immediately recalculate stats for instant feedback
     const updatedSections = sections.map(section => ({
       ...section,
       items: section.items.map(item => 
@@ -252,10 +235,9 @@ export default function FFESettingsDepartment({
 
     } catch (error) {
       console.error('Error updating item visibility:', error)
-      // Revert optimistic update on error
       setSections(previousSections)
       calculateStats(previousSections)
-      throw error // Re-throw to let the component handle the toast
+      throw error
     }
   }
 
@@ -276,7 +258,6 @@ export default function FFESettingsDepartment({
         throw new Error('Failed to update item state')
       }
 
-      // Update local state
       setSections(prevSections => 
         prevSections.map(section => ({
           ...section,
@@ -313,7 +294,6 @@ export default function FFESettingsDepartment({
         throw new Error('Failed to update item notes')
       }
 
-      // Update local state
       setSections(prevSections => 
         prevSections.map(section => ({
           ...section,
@@ -358,12 +338,11 @@ export default function FFESettingsDepartment({
 
       const result = await response.json()
       if (result.success) {
-        // Reload data to get the new section
         await loadFFEData()
         setShowAddSectionDialog(false)
         setNewSectionName('')
         setNewSectionDescription('')
-        toast.success('Section added successfully')
+        toast.success('Section added')
       }
 
     } catch (error) {
@@ -404,7 +383,6 @@ export default function FFESettingsDepartment({
         const createdItems = result.data
         const parentItem = createdItems[0]
         
-        // If there are linked items, add them
         if (newItemLinkedItems.length > 0) {
           for (const linkedItemName of newItemLinkedItems) {
             try {
@@ -426,7 +404,6 @@ export default function FFESettingsDepartment({
           }
         }
         
-        // Reload data to get the new item
         await loadFFEData()
         setShowAddItemDialog(false)
         setNewItemName('')
@@ -435,11 +412,7 @@ export default function FFESettingsDepartment({
         setNewItemLinkedItems([])
         setLinkedItemInputValue('')
         setSelectedSectionId('')
-        
-        const linkedMsg = newItemLinkedItems.length > 0 
-          ? ` with ${newItemLinkedItems.length} linked item${newItemLinkedItems.length > 1 ? 's' : ''}` 
-          : ''
-        toast.success(`Item added successfully${linkedMsg}`)
+        toast.success('Item added')
       }
 
     } catch (error) {
@@ -460,7 +433,6 @@ export default function FFESettingsDepartment({
     )
   }
   
-  // Helper function to get linked children IDs for a parent item
   const getLinkedChildrenIds = (parentItemName: string, sectionItems: any[]): string[] => {
     const children = sectionItems.filter(child =>
       child.customFields?.isLinkedItem && 
@@ -469,7 +441,6 @@ export default function FFESettingsDepartment({
     return children.map(child => child.id)
   }
   
-  // Linked items handlers
   const addLinkedItemToForm = () => {
     const trimmed = linkedItemInputValue.trim()
     if (!trimmed) {
@@ -534,7 +505,7 @@ export default function FFESettingsDepartment({
       })
       
       if (response.ok) {
-        toast.success(`Added linked item "${newLinkedItemName.trim()}"`)
+        toast.success(`Added linked item`)
         setNewLinkedItemName('')
         await loadFFEData()
         setShowAddLinkedItemDialog(false)
@@ -551,29 +522,9 @@ export default function FFESettingsDepartment({
     }
   }
 
-  const toggleAllVisibility = async (makeVisible: boolean) => {
-    const allItems = sections.flatMap(section => section.items)
-    const targetVisibility: FFEItemVisibility = makeVisible ? 'VISIBLE' : 'HIDDEN'
-    
-    try {
-      setSaving(true)
-      
-      // Update all items in parallel
-      const promises = allItems.map(item => 
-        handleVisibilityChange(item.id, targetVisibility)
-      )
-      
-      await Promise.all(promises)
-      toast.success(`All items ${makeVisible ? 'added to' : 'removed from'} workspace`)
-      
-    } catch (error) {
-      toast.error('Failed to update all items')
-    }
-  }
-
   const handleImportTemplate = async () => {
     if (!selectedTemplateId) {
-      toast.error('Please select a template to import')
+      toast.error('Please select a template')
       return
     }
     
@@ -593,11 +544,10 @@ export default function FFESettingsDepartment({
       
       const result = await response.json()
       if (result.success) {
-        // Reload data to show the new items
         await loadFFEData()
         setShowImportDialog(false)
         setSelectedTemplateId('')
-        toast.success('Template imported successfully!')
+        toast.success('Template imported!')
       }
       
     } catch (error) {
@@ -610,7 +560,7 @@ export default function FFESettingsDepartment({
   }
 
   const handleDeleteSection = async (sectionId: string, sectionName: string) => {
-    if (!confirm(`Are you sure you want to delete the "${sectionName}" section? All items in this section will also be permanently deleted.`)) {
+    if (!confirm(`Delete "${sectionName}" section and all its items?`)) {
       return
     }
 
@@ -627,13 +577,8 @@ export default function FFESettingsDepartment({
         throw new Error(errorData.error || 'Failed to delete section')
       }
 
-      const result = await response.json()
-      
-      // Reload data to reflect the deletion
       await loadFFEData()
-      
-      // Show success message from API
-      toast.success(result.message || 'Section deleted successfully')
+      toast.success('Section deleted')
       
     } catch (error) {
       console.error('Error deleting section:', error)
@@ -657,7 +602,6 @@ export default function FFESettingsDepartment({
         throw new Error('Failed to delete item')
       }
 
-      // Update local state to remove the item
       setSections(prevSections => 
         prevSections.map(section => ({
           ...section,
@@ -665,7 +609,6 @@ export default function FFESettingsDepartment({
         }))
       )
 
-      // Recalculate stats
       const updatedSections = sections.map(section => ({
         ...section,
         items: section.items.filter(item => item.id !== itemId)
@@ -674,7 +617,7 @@ export default function FFESettingsDepartment({
       
     } catch (error) {
       console.error('Error deleting item:', error)
-      throw error // Re-throw so FFEItemCard can handle the toast
+      throw error
     } finally {
       setSaving(false)
     }
@@ -698,624 +641,449 @@ export default function FFESettingsDepartment({
         throw new Error('Failed to include items with quantity')
       }
 
-      // Reload data to show the new quantities
       await loadFFEData()
       
     } catch (error) {
       console.error('Error including items with quantity:', error)
-      throw error // Re-throw so FFEItemCard can handle the toast
+      throw error
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDuplicateItem = async (itemId: string, itemName: string) => {
+  // AI Generate import handler
+  const handleAIImportItems = async (
+    categories: Array<{ name: string; items: Array<{ name: string; description?: string; category: string; confidence: string }> }>,
+    selectedItems: Set<string>
+  ) => {
     try {
       setSaving(true)
       
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/duplicate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to duplicate item')
-      }
-
-      const result = await response.json()
-      toast.success(result.message || `"${itemName}" duplicated successfully`)
+      const categoryMap = new Map<string, Array<{ name: string; description?: string }>>()
       
-      // Reload data to show the new item
+      for (const key of selectedItems) {
+        const [categoryName, itemName] = key.split('::')
+        const category = categories.find(c => c.name === categoryName)
+        const item = category?.items.find(i => i.name === itemName)
+        
+        if (item) {
+          if (!categoryMap.has(categoryName)) {
+            categoryMap.set(categoryName, [])
+          }
+          categoryMap.get(categoryName)!.push({
+            name: item.name,
+            description: item.description
+          })
+        }
+      }
+      
+      for (const [categoryName, items] of categoryMap) {
+        let existingSection = sections.find(s => 
+          s.name.toLowerCase() === categoryName.toLowerCase()
+        )
+        
+        let sectionId: string
+        
+        if (existingSection) {
+          sectionId = existingSection.id
+        } else {
+          const sectionResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: categoryName,
+              description: `AI-detected ${categoryName.toLowerCase()} items`,
+              order: sections.length
+            })
+          })
+          
+          if (!sectionResponse.ok) {
+            throw new Error(`Failed to create section: ${categoryName}`)
+          }
+          
+          const sectionResult = await sectionResponse.json()
+          sectionId = sectionResult.data?.section?.id || sectionResult.data?.id || sectionResult.id
+          
+          if (!sectionId) {
+            console.error('Section creation response:', sectionResult)
+            throw new Error(`Failed to get section ID for: ${categoryName}`)
+          }
+        }
+        
+        for (const item of items) {
+          const itemResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sectionId,
+              name: item.name,
+              description: item.description || '',
+              quantity: 1,
+              visibility: 'HIDDEN'
+            })
+          })
+          
+          if (!itemResponse.ok) {
+            console.error(`Failed to create item: ${item.name}`)
+          }
+        }
+      }
+      
       await loadFFEData()
       
     } catch (error) {
-      console.error('Error duplicating item:', error)
-      toast.error('Failed to duplicate item')
+      console.error('Error importing AI items:', error)
+      throw error
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleSaveAsTemplate = async () => {
-    if (!templateName.trim()) {
-      toast.error('Please enter a template name')
-      return
-    }
-
-    if (sections.length === 0) {
-      toast.error('No sections to save as template')
-      return
-    }
-
-    try {
-      setSavingTemplate(true)
-
-      // Format sections data for template creation
-      const sectionsData = sections.map((section, index) => ({
-        name: section.name,
-        description: section.description || '',
-        order: index,
-        items: section.items.map((item, itemIndex) => ({
-          name: item.name,
-          description: item.description || '',
-          defaultState: item.state,
-          isRequired: item.isRequired,
-          order: itemIndex,
-          notes: item.notes || ''
-        }))
-      }))
-
-      const response = await fetch('/api/ffe/v2/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: templateName.trim(),
-          description: templateDescription.trim(),
-          isDefault: false,
-          sections: sectionsData
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.details || 'Failed to save template')
-      }
-
-      const result = await response.json()
-      toast.success(`Template "${templateName}" created successfully`)
-      
-      // Reset form and close dialog
-      setTemplateName('')
-      setTemplateDescription('')
-      setShowSaveTemplateDialog(false)
-      
-      // Reload templates list
-      await loadTemplates()
-      
-    } catch (error) {
-      console.error('Error saving template:', error)
-      toast.error(error.message || 'Failed to save template')
-    } finally {
-      setSavingTemplate(false)
     }
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a657f0]"></div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Compact Settings Header - Like Other Phases */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {roomName} - FFE Settings
-            </h1>
-            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
-              {projectName && (
-                <>
-                  <span>{projectName}</span>
-                  <span>•</span>
-                </>
-              )}
-              <span>Manage sections, items, and workspace visibility</span>
-              {saving && (
-                <>
-                  <span>•</span>
-                  <div className="flex items-center gap-1 text-blue-600">
-                    <RefreshCw className="w-3 h-3 animate-spin" />
-                    <span className="text-xs">Saving...</span>
-                  </div>
-                </>
-              )}
+      {/* Clean Stats Bar */}
+      <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#a657f0]/10 flex items-center justify-center">
+              <FolderPlus className="w-4 h-4 text-[#a657f0]" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-gray-900">{stats.sectionsCount}</div>
+              <div className="text-xs text-gray-500">Sections</div>
+            </div>
+          </div>
+          
+          <div className="w-px h-8 bg-gray-200" />
+          
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#14b8a6]/10 flex items-center justify-center">
+              <Package className="w-4 h-4 text-[#14b8a6]" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-gray-900">{stats.totalItems}</div>
+              <div className="text-xs text-gray-500">Total Items</div>
+            </div>
+          </div>
+          
+          <div className="w-px h-8 bg-gray-200" />
+          
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#f6762e]/10 flex items-center justify-center">
+              <Eye className="w-4 h-4 text-[#f6762e]" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-gray-900">{stats.visibleItems}</div>
+              <div className="text-xs text-gray-500">In Workspace</div>
             </div>
           </div>
         </div>
-
-        {/* Compact Statistics Dashboard */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <FolderPlus className="w-4 h-4 text-slate-600" />
-              <div className="text-lg font-bold text-slate-900">{stats.sectionsCount}</div>
-            </div>
-            <div className="text-xs font-medium text-slate-700">Sections</div>
+        
+        {saving && (
+          <div className="flex items-center gap-2 text-[#a657f0]">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Saving...</span>
           </div>
-          
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-4 h-4 text-blue-600" />
-              <div className="text-lg font-bold text-blue-900">{stats.totalItems}</div>
-            </div>
-            <div className="text-xs font-medium text-blue-700">Total Items</div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Eye className="w-4 h-4 text-green-600" />
-              <div className="text-lg font-bold text-green-900">{stats.visibleItems}</div>
-            </div>
-            <div className="text-xs font-medium text-green-700">In Workspace</div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <EyeOff className="w-4 h-4 text-gray-600" />
-              <div className="text-lg font-bold text-gray-900">{stats.hiddenItems}</div>
-            </div>
-            <div className="text-xs font-medium text-gray-700">Not in Workspace</div>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Modern Action Panel */}
-      <div className="card-elevated">
-        <div className="p-6">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Primary Actions */}
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <button
-                  disabled={disabled}
-                  onClick={() => setShowImportDialog(true)}
-                  className="btn-primary h-auto p-4 flex flex-col items-center gap-2 text-left disabled:opacity-50"
-                >
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Import className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium">Import Template</div>
-                    <div className="text-xs opacity-75">Pre-built sections</div>
-                  </div>
-                </button>
-                
-                <button
-                  disabled={disabled}
-                  onClick={() => setShowAddSectionDialog(true)}
-                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-green-300 hover:bg-green-50 disabled:opacity-50"
-                >
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <FolderPlus className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-green-700">Add Section</div>
-                    <div className="text-xs text-green-600">Create category</div>
-                  </div>
-                </button>
-                
-                <button
-                  disabled={disabled || sections.length === 0}
-                  onClick={() => setShowAddItemDialog(true)}
-                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-purple-300 hover:bg-purple-50 disabled:opacity-50"
-                >
-                  <div className="p-2 bg-purple-50 rounded-lg">
-                    <Plus className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-purple-700">Add Item</div>
-                    <div className="text-xs text-purple-600">New FFE item</div>
-                  </div>
-                </button>
-                
-                <button
-                  disabled={disabled || sections.length === 0}
-                  onClick={() => setShowSaveTemplateDialog(true)}
-                  className="btn-secondary h-auto p-4 flex flex-col items-center gap-2 text-left hover:border-orange-300 hover:bg-orange-50 disabled:opacity-50"
-                >
-                  <div className="p-2 bg-orange-50 rounded-lg">
-                    <Save className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-orange-700">Save as Template</div>
-                    <div className="text-xs text-orange-600">Reuse later</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-            
-            {/* Bulk Operations */}
-            <div className="lg:border-l lg:pl-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Bulk Operations</h3>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => toggleAllVisibility(true)}
-                  disabled={disabled || saving || stats.totalItems === 0}
-                  className="btn-ghost justify-start px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <Eye className="w-4 h-4 mr-2 text-green-600" />
-                  Show All Items
-                </button>
-                <button
-                  onClick={() => toggleAllVisibility(false)}
-                  disabled={disabled || saving || stats.totalItems === 0}
-                  className="btn-ghost justify-start px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <EyeOff className="w-4 h-4 mr-2 text-gray-600" />
-                  Hide All Items
-                </button>
-                
-                {stats.totalItems > 0 && (
-                  <div className="mt-2 pt-2 border-t text-xs text-gray-500">
-                    {stats.visibleItems} of {stats.totalItems} items visible
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Action Buttons - Clean horizontal row */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          disabled={disabled}
+          onClick={() => setShowImportDialog(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#6366ea] text-white rounded-lg font-medium text-sm hover:bg-[#5558d9] transition-colors shadow-sm"
+        >
+          <Import className="w-4 h-4" />
+          Import Template
+        </button>
+        
+        <button
+          disabled={disabled}
+          onClick={() => setShowAddSectionDialog(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+        >
+          <FolderPlus className="w-4 h-4 text-[#14b8a6]" />
+          Add Section
+        </button>
+        
+        <button
+          disabled={disabled || sections.length === 0}
+          onClick={() => setShowAddItemDialog(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          <Plus className="w-4 h-4 text-[#a657f0]" />
+          Add Item
+        </button>
+        
+        <button
+          disabled={disabled}
+          onClick={() => setShowAIGenerateDialog(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#e94d97] to-[#f6762e] text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity shadow-sm"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI Generate
+        </button>
       </div>
 
-      {/* Modern Import Template Dialog */}
+      {/* Import Template Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-2xl animate-slide-in-right">
-          <DialogHeader className="pb-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <Import className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900">
-                  Import FFE Template
-                </DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Choose from pre-built templates to quickly setup your FFE items
-                </p>
-              </div>
-            </div>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Import className="h-5 w-5 text-[#6366ea]" />
+              Import Template
+            </DialogTitle>
           </DialogHeader>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
-            {/* Left Column - Form */}
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">
-                  Available Templates
-                </label>
-                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                  <SelectTrigger className="h-12 border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                    <SelectValue placeholder={templatesLoading ? "Loading templates..." : templates && templates.length > 0 ? "Choose a template..." : "No templates available"} />
-                  </SelectTrigger>
-                  <SelectContent className="animate-slide-in-right">
-                    {templatesLoading ? (
-                      <div className="px-4 py-8 text-center">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-blue-600" />
-                        <p className="text-sm text-gray-500">Loading templates...</p>
-                      </div>
-                    ) : templatesError ? (
-                      <div className="px-4 py-8 text-center">
-                        <AlertTriangle className="h-6 w-6 mx-auto mb-3 text-red-500" />
-                        <p className="text-sm text-red-600">Error loading templates</p>
-                      </div>
-                    ) : (templates || []).length === 0 ? (
-                      <div className="px-4 py-8 text-center">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                          <Import className="h-6 w-6 text-gray-400" />
-                        </div>
-                        <p className="text-sm text-gray-500">No templates available</p>
-                      </div>
-                    ) : (
-                      (templates || []).map(template => (
-                        <SelectItem key={template.id} value={template.id} className="p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                              <Package className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-900">{template.name}</div>
-                              {template.description && (
-                                <div className="text-sm text-gray-600 mt-1">{template.description}</div>
-                              )}
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Select Template</Label>
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder={templatesLoading ? "Loading..." : "Choose a template"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {templatesLoading ? (
+                    <div className="p-4 text-center">
+                      <RefreshCw className="h-5 w-5 animate-spin mx-auto text-gray-400" />
+                    </div>
+                  ) : templatesError ? (
+                    <div className="p-4 text-center text-red-500 text-sm">
+                      <AlertTriangle className="h-5 w-5 mx-auto mb-1" />
+                      Error loading templates
+                    </div>
+                  ) : (templates || []).length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      No templates available
+                    </div>
+                  ) : (
+                    (templates || []).map(template => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             
-            {/* Right Column - Preview/Help */}
-            <div className="bg-gray-50 rounded-xl p-6">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-700 mb-2">
-                  <Package className="h-4 w-4" />
-                  <span className="font-medium text-sm">Template Import</span>
-                </div>
-                <p className="text-sm text-blue-700">
-                  All template sections and items will be imported. Items are hidden by default - use the "Include" button to add them to your workspace.
-                </p>
-              </div>
+            <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
+              Items will be imported as hidden. Use "Include" to add them to your workspace.
             </div>
           </div>
           
-          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-            <button 
-              onClick={() => setShowImportDialog(false)}
-              className="btn-secondary"
-            >
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
               Cancel
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={handleImportTemplate} 
               disabled={!selectedTemplateId || saving}
-              className="btn-primary disabled:opacity-50"
+              className="bg-[#6366ea] hover:bg-[#5558d9]"
             >
-              {saving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Importing...</span>
-                </>
-              ) : (
-                <>
-                  <Import className="h-4 w-4" />
-                  <span>Import Template</span>
-                </>
-              )}
-            </button>
+              {saving ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+              Import
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modern Add Section Dialog */}
+      {/* Add Section Dialog */}
       <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
-        <DialogContent className="max-w-lg animate-slide-in-right">
-          <DialogHeader className="pb-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-50 rounded-xl">
-                <FolderPlus className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900">
-                  Add New Section
-                </DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Create a new category to organize your FFE items
-                </p>
-              </div>
-            </div>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-[#14b8a6]" />
+              Add Section
+            </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-6 py-6">
-            <div className="relative">
-              <input
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="section-name">Name</Label>
+              <Input
                 id="section-name"
-                type="text"
                 value={newSectionName}
                 onChange={(e) => setNewSectionName(e.target.value)}
-                placeholder=" "
-                className="floating-input peer"
-                required
+                placeholder="e.g., Flooring, Lighting, Fixtures"
+                className="mt-1.5"
               />
-              <label htmlFor="section-name" className="floating-label peer-focus:text-green-600">
-                Section Name *
-              </label>
-              <div className="mt-2">
-                <p className="text-xs text-gray-500">
-                  Examples: Flooring, Lighting, Fixtures, Furniture
-                </p>
-              </div>
             </div>
             
-            <div className="relative">
-              <textarea
+            <div>
+              <Label htmlFor="section-description">Description (optional)</Label>
+              <Textarea
                 id="section-description"
                 value={newSectionDescription}
                 onChange={(e) => setNewSectionDescription(e.target.value)}
-                placeholder=" "
-                rows={4}
-                className="floating-input peer resize-none"
+                placeholder="Brief description..."
+                rows={2}
+                className="mt-1.5"
               />
-              <label htmlFor="section-description" className="floating-label peer-focus:text-green-600">
-                Description (Optional)
-              </label>
-              <div className="mt-2">
-                <p className="text-xs text-gray-500">
-                  Brief description of what items belong in this section
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-green-700 mb-2">
-                <FolderPlus className="h-4 w-4" />
-                <span className="font-medium text-sm">What's next?</span>
-              </div>
-              <p className="text-xs text-green-700">
-                After creating the section, you can add FFE items to it or import them from templates.
-              </p>
             </div>
           </div>
           
-          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-            <button
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowAddSectionDialog(false)
                 setNewSectionName('')
                 setNewSectionDescription('')
               }}
-              className="btn-secondary"
             >
               Cancel
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={handleAddSection} 
               disabled={saving || !newSectionName.trim()}
-              className="btn-primary disabled:opacity-50"
+              className="bg-[#14b8a6] hover:bg-[#0d9488]"
             >
-              {saving ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <FolderPlus className="w-4 h-4" />
-                  <span>Add Section</span>
-                </>
-              )}
-            </button>
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+              Add Section
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-        {/* Add Item Dialog */}
-        <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Item</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="item-section">Section *</Label>
-                <select
-                  id="item-section"
-                  value={selectedSectionId}
-                  onChange={(e) => setSelectedSectionId(e.target.value)}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select a section...</option>
-                  {sections.map(section => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="item-name">Item Name *</Label>
-                <Input
-                  id="item-name"
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="e.g., Floor tiles, Pendant lights"
-                />
-              </div>
-              <div>
-                <Label htmlFor="item-description">Description</Label>
-                <Textarea
-                  id="item-description"
-                  value={newItemDescription}
-                  onChange={(e) => setNewItemDescription(e.target.value)}
-                  placeholder="Optional description..."
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label htmlFor="item-quantity">Quantity</Label>
-                <Input
-                  id="item-quantity"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={newItemQuantity}
-                  onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
-                />
-              </div>
-              
-              {/* Linked Items Section */}
-              <div>
-                <Label htmlFor="linked-items">Linked Items (Optional)</Label>
-                <p className="text-xs text-gray-500 mb-2">Add child items that will be grouped under this parent item</p>
-                
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    id="linked-items"
-                    value={linkedItemInputValue}
-                    onChange={(e) => setLinkedItemInputValue(e.target.value)}
-                    placeholder="Enter linked item name..."
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        addLinkedItemToForm()
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addLinkedItemToForm}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {newItemLinkedItems.length > 0 && (
-                  <div className="space-y-1 p-2 bg-gray-50 rounded border">
-                    <div className="text-xs text-gray-600 mb-1">Linked items ({newItemLinkedItems.length}):</div>
-                    {newItemLinkedItems.map((linkedItem, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-white rounded text-sm">
-                        <span>{linkedItem}</span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeLinkedItemFromForm(index)}
-                          className="h-6 w-6 p-0 text-red-500"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddItemDialog(false)
-                    setNewItemName('')
-                    setNewItemDescription('')
-                    setNewItemQuantity(1)
-                    setNewItemLinkedItems([])
-                    setLinkedItemInputValue('')
-                    setSelectedSectionId('')
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleAddItem} disabled={saving}>
-                  {saving ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Add Item
-                </Button>
-              </div>
+      {/* Add Item Dialog */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-[#a657f0]" />
+              Add Item
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="item-section">Section</Label>
+              <select
+                id="item-section"
+                value={selectedSectionId}
+                onChange={(e) => setSelectedSectionId(e.target.value)}
+                className="w-full mt-1.5 p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a657f0] focus:border-transparent"
+              >
+                <option value="">Select a section...</option>
+                {sections.map(section => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
             </div>
-          </DialogContent>
-        </Dialog>
+            
+            <div>
+              <Label htmlFor="item-name">Item Name</Label>
+              <Input
+                id="item-name"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="e.g., Floor tiles, Pendant lights"
+                className="mt-1.5"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="item-description">Description (optional)</Label>
+              <Textarea
+                id="item-description"
+                value={newItemDescription}
+                onChange={(e) => setNewItemDescription(e.target.value)}
+                placeholder="Optional description..."
+                rows={2}
+                className="mt-1.5"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="item-quantity">Quantity</Label>
+              <Input
+                id="item-quantity"
+                type="number"
+                min={1}
+                max={50}
+                value={newItemQuantity}
+                onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+                className="mt-1.5 w-24"
+              />
+            </div>
+            
+            {/* Linked Items */}
+            <div>
+              <Label>Linked Items (optional)</Label>
+              <div className="flex gap-2 mt-1.5">
+                <Input
+                  value={linkedItemInputValue}
+                  onChange={(e) => setLinkedItemInputValue(e.target.value)}
+                  placeholder="Add linked item..."
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addLinkedItemToForm()
+                    }
+                  }}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={addLinkedItemToForm}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {newItemLinkedItems.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {newItemLinkedItems.map((linkedItem, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                      <span>{linkedItem}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeLinkedItemFromForm(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddItemDialog(false)
+                setNewItemName('')
+                setNewItemDescription('')
+                setNewItemQuantity(1)
+                setNewItemLinkedItems([])
+                setLinkedItemInputValue('')
+                setSelectedSectionId('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddItem} 
+              disabled={saving || !newItemName.trim() || !selectedSectionId}
+              className="bg-[#a657f0] hover:bg-[#9645e0]"
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+              Add Item
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
         
       {/* Add Linked Item Dialog */}
       <Dialog open={showAddLinkedItemDialog} onOpenChange={(open) => {
@@ -1328,24 +1096,24 @@ export default function FFESettingsDepartment({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Link className="h-5 w-5" />
+              <Link className="h-5 w-5 text-[#6366ea]" />
               Add Linked Item
             </DialogTitle>
           </DialogHeader>
           
           {linkedItemDialogState && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm text-gray-600">Parent Item</Label>
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-xs text-gray-500">Parent Item</div>
                 <div className="font-medium text-gray-900">{linkedItemDialogState.parentName}</div>
               </div>
               
               {linkedItemDialogState.existingLinkedItems.length > 0 && (
                 <div>
-                  <Label className="text-sm text-gray-600">Existing Linked Items ({linkedItemDialogState.existingLinkedItems.length})</Label>
-                  <div className="space-y-1 mt-2 p-2 bg-gray-50 rounded border max-h-32 overflow-y-auto">
+                  <Label className="text-xs text-gray-500">Existing ({linkedItemDialogState.existingLinkedItems.length})</Label>
+                  <div className="mt-1 space-y-1 max-h-24 overflow-y-auto">
                     {linkedItemDialogState.existingLinkedItems.map((name, index) => (
-                      <div key={index} className="text-sm p-2 bg-white rounded">
+                      <div key={index} className="text-sm p-2 bg-gray-50 rounded">
                         {name}
                       </div>
                     ))}
@@ -1354,13 +1122,14 @@ export default function FFESettingsDepartment({
               )}
               
               <div>
-                <Label htmlFor="new-linked-item">New Linked Item Name *</Label>
+                <Label htmlFor="new-linked-item">New Linked Item</Label>
                 <Input
                   id="new-linked-item"
                   value={newLinkedItemName}
                   onChange={(e) => setNewLinkedItemName(e.target.value)}
-                  placeholder="e.g., Pendant Light Shade, Tile Grout"
+                  placeholder="e.g., Pendant Light Shade"
                   maxLength={200}
+                  className="mt-1.5"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
@@ -1368,146 +1137,110 @@ export default function FFESettingsDepartment({
                     }
                   }}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {newLinkedItemName.length}/200 characters
-                </p>
-              </div>
-              
-              <div className="flex gap-2 justify-end pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowAddLinkedItemDialog(false)
-                    setLinkedItemDialogState(null)
-                    setNewLinkedItemName('')
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleAddLinkedItem} disabled={saving}>
-                  {saving ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4 mr-2" />
-                  )}
-                  Add Linked Item
-                </Button>
               </div>
             </div>
           )}
+          
+          <div className="flex gap-3 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAddLinkedItemDialog(false)
+                setLinkedItemDialogState(null)
+                setNewLinkedItemName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddLinkedItem} 
+              disabled={saving || !newLinkedItemName.trim()}
+              className="bg-[#6366ea] hover:bg-[#5558d9]"
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+              Add
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modern Sections Display */}
-      <div className="space-y-4">
+      {/* Sections Display */}
+      <div className="space-y-3">
         {sections.length === 0 ? (
-          <div className="card-elevated">
-            <div className="p-12 text-center">
-              {/* Empty state icon */}
-              <div className="mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-2xl flex items-center justify-center mx-auto">
-                  <Settings className="h-10 w-10 text-indigo-600" />
-                </div>
-              </div>
-              
-              <h3 className="text-xl font-bold text-gray-900 mb-3">No FFE Sections Yet</h3>
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                Start by importing a template for quick setup, or create custom sections to organize your FFE items.
-              </p>
-              
-              <div className="flex justify-center gap-3">
-                <button 
-                  onClick={() => setShowImportDialog(true)}
-                  className="btn-primary"
-                >
-                  <Import className="w-4 h-4" />
-                  Import Template
-                </button>
-                <button 
-                  onClick={() => setShowAddSectionDialog(true)}
-                  className="btn-secondary"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                  Add Section
-                </button>
-              </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <div className="w-16 h-16 bg-[#a657f0]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Package className="h-8 w-8 text-[#a657f0]" />
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No FFE Sections Yet</h3>
+            <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+              Get started by importing a template or creating custom sections.
+            </p>
+            
+            <div className="flex justify-center gap-3">
+              <button 
+                onClick={() => setShowImportDialog(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#6366ea] text-white rounded-lg font-medium text-sm hover:bg-[#5558d9] transition-colors"
+              >
+                <Import className="w-4 h-4" />
+                Import Template
+              </button>
+              <button 
+                onClick={() => setShowAddSectionDialog(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+              >
+                <FolderPlus className="w-4 h-4" />
+                Add Section
+              </button>
             </div>
           </div>
         ) : (
           sections.map(section => {
             const visibleCount = section.items.filter(item => item.visibility === 'VISIBLE').length
-            const includedRate = section.items.length > 0 
-              ? `${visibleCount} of ${section.items.length}` 
-              : '0 of 0'
             
             return (
-              <div key={section.id} className="card-elevated">
-                {/* Modern Section Header */}
-                <div className="section-header">
-                  <div 
-                    className="flex items-center gap-4 flex-1 cursor-pointer"
-                    onClick={() => toggleSectionExpanded(section.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`transition-transform duration-200 ${
-                        section.isExpanded ? 'rotate-90' : 'rotate-0'
-                      }`}>
-                        <ChevronRight className="h-5 w-5 text-gray-500" />
-                      </div>
-                      
-                      <div className="p-2 bg-slate-50 rounded-lg">
-                        <FolderPlus className="h-5 w-5 text-slate-600" />
-                      </div>
+              <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {/* Section Header */}
+                <div 
+                  className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => toggleSectionExpanded(section.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`transition-transform duration-200 ${section.isExpanded ? 'rotate-90' : ''}`}>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
                     </div>
                     
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
-                        
-                        {/* Included count pill */}
-                        <div className="status-chip-completed">
-                          <span className="text-xs font-medium">{includedRate} included</span>
-                        </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">{section.name}</h3>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {visibleCount}/{section.items.length}
+                        </span>
                       </div>
-                      
                       {section.description && (
-                        <p className="text-sm text-gray-600">{section.description}</p>
+                        <p className="text-sm text-gray-500 mt-0.5">{section.description}</p>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="status-chip-pending">
-                        <Package className="h-3 w-3" />
-                        <span>{section.items.length}</span>
-                      </div>
-                      
-                      <div className="status-chip-completed">
-                        <Eye className="h-3 w-3" />
-                        <span>{visibleCount}</span>
-                      </div>
-                    </div>
-                    
-                    <button
-                      className="btn-ghost p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      disabled={disabled || saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteSection(section.id, section.name)
-                      }}
-                      title="Delete section"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    disabled={disabled || saving}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteSection(section.id, section.name)
+                    }}
+                    title="Delete section"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
                 
                 {/* Section Content */}
                 {section.isExpanded && (
-                  <div className="px-6 pb-6">
+                  <div className="border-t border-gray-100">
                     {section.items.length > 0 && (
-                      <div className="flex items-center gap-2 py-2 px-3 bg-gray-50 border-b border-gray-200">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
                         <Checkbox
                           id={`select-all-${section.id}`}
                           checked={section.items.every(item => selectedItemIds.has(item.id))}
@@ -1517,12 +1250,10 @@ export default function FFESettingsDepartment({
                               section.items.forEach(item => {
                                 if (checked) {
                                   newSet.add(item.id)
-                                  // Also select linked children
                                   const childIds = getLinkedChildrenIds(item.name, section.items)
                                   childIds.forEach(childId => newSet.add(childId))
                                 } else {
                                   newSet.delete(item.id)
-                                  // Also deselect linked children
                                   const childIds = getLinkedChildrenIds(item.name, section.items)
                                   childIds.forEach(childId => newSet.delete(childId))
                                 }
@@ -1531,39 +1262,32 @@ export default function FFESettingsDepartment({
                             })
                           }}
                         />
-                        <label htmlFor={`select-all-${section.id}`} className="text-sm font-medium cursor-pointer">
+                        <label htmlFor={`select-all-${section.id}`} className="text-sm text-gray-600 cursor-pointer">
                           Select All
                         </label>
-                        {selectedItemIds.size > 0 && (
-                          <span className="text-xs text-gray-500 ml-2">
-                            ({Array.from(selectedItemIds).filter(id => section.items.some(item => item.id === id)).length} selected)
-                          </span>
-                        )}
                       </div>
                     )}
+                    
                     {section.items.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                          <Package className="h-6 w-6 text-gray-400" />
-                        </div>
-                        <p className="text-gray-600 mb-4">No items in this section yet</p>
+                      <div className="p-8 text-center">
+                        <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm mb-3">No items yet</p>
                         <button
                           onClick={() => {
                             setSelectedSectionId(section.id)
                             setShowAddItemDialog(true)
                           }}
-                          className="btn-secondary"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#a657f0] hover:bg-[#a657f0]/10 rounded-lg transition-colors"
                         >
                           <Plus className="w-4 h-4" />
-                          Add First Item
+                          Add Item
                         </button>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="divide-y divide-gray-100">
                         {section.items
-                          .filter(item => !(item.customFields?.isLinkedItem)) // Don't render linked items here, they're shown under parent
+                          .filter(item => !(item.customFields?.isLinkedItem))
                           .map(item => {
-                            // Find linked children for this item
                             const linkedChildren = item.customFields?.hasChildren
                               ? section.items
                                   .filter(child => 
@@ -1600,12 +1324,10 @@ export default function FFESettingsDepartment({
                                     const newSet = new Set(prev)
                                     if (selected) {
                                       newSet.add(itemId)
-                                      // Also select all linked children
                                       const childIds = getLinkedChildrenIds(item.name, section.items)
                                       childIds.forEach(childId => newSet.add(childId))
                                     } else {
                                       newSet.delete(itemId)
-                                      // Also deselect all linked children
                                       const childIds = getLinkedChildrenIds(item.name, section.items)
                                       childIds.forEach(childId => newSet.delete(childId))
                                     }
@@ -1630,203 +1352,15 @@ export default function FFESettingsDepartment({
           })
         )}
       </div>
-      
-      {/* Manage Items Dialog */}
-      <Dialog open={showManageItemsDialog} onOpenChange={setShowManageItemsDialog}>
-        <DialogContent className="max-w-4xl animate-slide-in-right">
-          <DialogHeader className="pb-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-50 rounded-xl">
-                <Edit3 className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900">
-                  Manage FFE Items
-                </DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Duplicate or delete items across all sections
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="py-6">
-            {sections.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>No items to manage yet.</p>
-                <p className="text-sm">Import a template or add items manually first.</p>
-              </div>
-            ) : (
-              <div className="max-h-96 overflow-y-auto space-y-4">
-                {sections.map(section => (
-                  <div key={section.id} className="border rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <FolderPlus className="h-4 w-4" />
-                      {section.name}
-                      <Badge variant="outline" className="text-xs">
-                        {section.items?.length || 0} items
-                      </Badge>
-                    </h4>
-                    
-                    {!section.items || section.items.length === 0 ? (
-                      <p className="text-sm text-gray-500">No items in this section</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {section.items.map((item: any) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{item.name}</div>
-                              {item.description && (
-                                <div className="text-xs text-gray-600">{item.description}</div>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenLinkedItemDialog(item)}
-                                disabled={disabled || saving}
-                                className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                                title="Add linked item"
-                              >
-                                <Link className="h-3 w-3 mr-1" />
-                                Link
-                              </Button>
-                              
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDuplicateItem(item.id, item.name)}
-                                disabled={disabled || saving}
-                                className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                              >
-                                <Copy className="h-3 w-3 mr-1" />
-                                Duplicate
-                              </Button>
-                              
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteItem(item.id)}
-                                disabled={disabled || saving}
-                                className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="flex gap-2 justify-end pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowManageItemsDialog(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Save as Template Dialog */}
-      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
-        <DialogContent className="max-w-lg animate-slide-in-right">
-          <DialogHeader className="pb-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-50 rounded-xl">
-                <Save className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900">
-                  Save as Template
-                </DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Create a reusable template from current sections and items
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="py-6 space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Package className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">What will be saved:</p>
-                  <ul className="text-xs space-y-1 list-disc list-inside">
-                    <li>{stats.sectionsCount} section{stats.sectionsCount !== 1 ? 's' : ''}</li>
-                    <li>{stats.totalItems} item{stats.totalItems !== 1 ? 's' : ''} with descriptions and notes</li>
-                    <li>Item order and required status</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="template-name">Template Name *</Label>
-              <Input
-                id="template-name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="e.g., Master Bathroom Standard"
-                disabled={savingTemplate}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="template-description">Description (Optional)</Label>
-              <Textarea
-                id="template-description"
-                value={templateDescription}
-                onChange={(e) => setTemplateDescription(e.target.value)}
-                placeholder="Add notes about when to use this template..."
-                disabled={savingTemplate}
-                rows={3}
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 justify-end pt-4 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowSaveTemplateDialog(false)
-                setTemplateName('')
-                setTemplateDescription('')
-              }}
-              disabled={savingTemplate}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveAsTemplate}
-              disabled={!templateName.trim() || savingTemplate || sections.length === 0}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {savingTemplate ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Template
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* AI Generate FFE Dialog */}
+      <AIGenerateFFEDialog
+        open={showAIGenerateDialog}
+        onOpenChange={setShowAIGenerateDialog}
+        roomId={roomId}
+        roomName={roomName}
+        onImportItems={handleAIImportItems}
+      />
     </div>
   )
 }
