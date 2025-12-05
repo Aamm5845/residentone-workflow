@@ -1325,6 +1325,7 @@ model RoomFFEInstance {
   actualCompletionDate DateTime?
   notes                String?
   metadata             Json?
+  programaLink         String?           // Link to Programa.design schedule for this room's FFE items
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   createdById          String

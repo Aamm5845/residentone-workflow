@@ -21,7 +21,8 @@ import {
   Minus,
   ChevronRight,
   ChevronDown,
-  Link2
+  Link2,
+  Info
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
@@ -116,6 +117,7 @@ export default function FFEItemCard({
   const hasLinkedChildren = customFields?.hasChildren === true && linkedChildren.length > 0
   const allChildrenVisible = linkedChildren.every(child => child.visibility === 'VISIBLE')
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showDescription, setShowDescription] = useState(false)
   
   // Auto-expand parent items by default
   useEffect(() => {
@@ -639,7 +641,16 @@ export default function FFEItemCard({
             </div>
             
             {description && (
-              <p className="text-xs text-gray-600 line-clamp-2 mb-1">
+              <button 
+                onClick={() => setShowDescription(!showDescription)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+              >
+                <Info className="w-3 h-3" />
+                {showDescription ? 'Hide details' : 'Show details'}
+              </button>
+            )}
+            {description && showDescription && (
+              <p className="text-xs text-gray-500 mt-1 pl-3 border-l-2 border-gray-200">
                 {description}
               </p>
             )}

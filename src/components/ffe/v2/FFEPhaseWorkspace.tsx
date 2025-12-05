@@ -21,7 +21,11 @@ import {
   EyeOff,
   ArrowLeft,
   Home,
-  Briefcase
+  Briefcase,
+  Image as ImageIcon,
+  LinkIcon,
+  ExternalLink,
+  X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFFERoomStore } from '@/stores/ffe-room-store'
@@ -85,6 +89,12 @@ export default function FFEPhaseWorkspace({
   const [isCreatingInstance, setIsCreatingInstance] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'undecided' | 'completed'>('all')
   
+  // Rendering images and Programa link (from FFE settings)
+  const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
+  const [programaLink, setProgramaLink] = useState<string | null>(null)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  
   // Manual data loading to avoid session dependency
   const revalidate = async () => {
     try {
@@ -99,6 +109,10 @@ export default function FFEPhaseWorkspace({
       const result = await response.json()
       if (result.success && result.data) {
         setInstance(result.data)
+        // Load Programa link from instance data
+        if (result.data.programaLink) {
+          setProgramaLink(result.data.programaLink)
+        }
       } else {
         setInstance(null)
       }
@@ -111,9 +125,29 @@ export default function FFEPhaseWorkspace({
     }
   }
   
+  // Load rendering images
+  const loadRenderingImages = async () => {
+    try {
+      const response = await fetch(`/api/spec-books/room-renderings?roomId=${roomId}`)
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.renderings && result.renderings.length > 0) {
+          setRenderingImages(result.renderings.map((r: any) => ({
+            id: r.id,
+            url: r.url,
+            filename: r.filename || 'Rendering'
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('Error loading rendering images:', error)
+    }
+  }
+  
   // Load data on mount
   useEffect(() => {
     revalidate()
+    loadRenderingImages()
   }, [roomId])
   
   // Sync API data with store
@@ -402,6 +436,55 @@ export default function FFEPhaseWorkspace({
             </div>
           </div>
           
+          {/* Reference Section - Renderings & Programa Link */}
+          {(renderingImages.length > 0 || programaLink) && (
+            <div className="flex flex-wrap items-center gap-4 p-3 bg-white rounded-xl border border-gray-200 shadow-sm mb-4">
+              {/* 3D Rendering Gallery */}
+              {renderingImages.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-[#f6762e]/10 px-2 py-1 rounded-lg">
+                    <ImageIcon className="w-4 h-4 text-[#f6762e]" />
+                    <span className="text-xs font-medium text-[#f6762e]">3D Renderings</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {renderingImages.slice(0, 4).map((img, idx) => (
+                      <button 
+                        key={img.id}
+                        className="w-10 h-10 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden hover:border-[#f6762e] hover:scale-105 transition-all shadow-sm"
+                        onClick={() => { setSelectedImageIndex(idx); setShowImageModal(true) }}
+                        title={`Click to view ${img.filename}`}
+                      >
+                        <img src={img.url} alt={img.filename} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                    {renderingImages.length > 4 && (
+                      <button 
+                        className="w-10 h-10 rounded-lg border-2 border-[#f6762e]/30 bg-[#f6762e]/10 flex items-center justify-center hover:border-[#f6762e] transition-all"
+                        onClick={() => { setSelectedImageIndex(0); setShowImageModal(true) }}
+                      >
+                        <span className="text-xs font-bold text-[#f6762e]">+{renderingImages.length - 4}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Programa Link */}
+              {programaLink && (
+                <a 
+                  href={programaLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-700">Programa Specs</span>
+                  <ExternalLink className="w-3 h-3 text-purple-400" />
+                </a>
+              )}
+            </div>
+          )}
+
           {/* Progress Bar - More prominent with FFE pink */}
           <div className="bg-slate-100/80 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -533,6 +616,78 @@ export default function FFEPhaseWorkspace({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {showImageModal && renderingImages.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setShowImageModal(false)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black/50 rounded-full p-2"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          {/* Main image area */}
+          <div className="relative flex-1 w-full max-w-6xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {/* Previous button */}
+            {renderingImages.length > 1 && (
+              <button
+                onClick={() => setSelectedImageIndex((prev) => prev === 0 ? renderingImages.length - 1 : prev - 1)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6 rotate-180" />
+              </button>
+            )}
+            
+            {/* Current image */}
+            <img 
+              src={renderingImages[selectedImageIndex]?.url} 
+              alt={renderingImages[selectedImageIndex]?.filename || '3D Rendering'} 
+              className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+            />
+            
+            {/* Next button */}
+            {renderingImages.length > 1 && (
+              <button
+                onClick={() => setSelectedImageIndex((prev) => prev === renderingImages.length - 1 ? 0 : prev + 1)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+          
+          {/* Image info */}
+          <div className="text-center text-white mt-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-medium">{renderingImages[selectedImageIndex]?.filename || '3D Rendering'}</p>
+            <p className="text-white/60 text-sm">{roomName || 'Room'} • {selectedImageIndex + 1} of {renderingImages.length}</p>
+          </div>
+          
+          {/* Thumbnail strip */}
+          {renderingImages.length > 1 && (
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto max-w-full px-4 pb-2" onClick={(e) => e.stopPropagation()}>
+              {renderingImages.map((img, idx) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImageIndex(idx)}
+                  className={cn(
+                    "w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 transition-all",
+                    idx === selectedImageIndex 
+                      ? "ring-2 ring-[#f6762e] ring-offset-2 ring-offset-black scale-105" 
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  <img src={img.url} alt={img.filename} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

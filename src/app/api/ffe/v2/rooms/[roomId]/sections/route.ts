@@ -142,6 +142,88 @@ export async function POST(
   }
 }
 
+// Update section name/description
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user info from email if id/orgId are missing
+    let userId = session.user.id;
+    let orgId = session.user.orgId;
+    
+    if (!userId || !orgId) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      });
+      
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      
+      userId = user.id;
+      orgId = user.orgId;
+    }
+    
+    const { roomId } = await params
+    const { searchParams } = new URL(request.url)
+    const sectionId = searchParams.get('sectionId')
+    const { name, description } = await request.json()
+
+    if (!sectionId) {
+      return NextResponse.json({ error: 'Section ID is required' }, { status: 400 })
+    }
+
+    // Verify section exists and belongs to user's organization
+    const existingSection = await prisma.roomFFESection.findFirst({
+      where: {
+        id: sectionId,
+        instance: {
+          roomId,
+          room: {
+            project: {
+              orgId
+            }
+          }
+        }
+      }
+    })
+
+    if (!existingSection) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
+    // Update the section
+    const updatedSection = await prisma.roomFFESection.update({
+      where: { id: sectionId },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+        updatedAt: new Date()
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: updatedSection,
+      message: 'Section updated successfully'
+    })
+
+  } catch (error) {
+    console.error('Error updating section:', error)
+    return NextResponse.json(
+      { error: 'Failed to update section' },
+      { status: 500 }
+    )
+  }
+}
+
 // Delete section with item preservation
 export async function DELETE(
   request: NextRequest,

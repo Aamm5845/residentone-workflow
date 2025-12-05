@@ -11,6 +11,7 @@ import {
   getIPAddress,
   isValidAuthSession
 } from '@/lib/attribution'
+import { addWatermark, isWatermarkableImage } from '@/lib/watermark'
 
 // Configure route to handle larger file uploads
 export const runtime = 'nodejs'
@@ -95,7 +96,22 @@ export async function POST(
 
         // Convert file to buffer once
         const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
+        let buffer = Buffer.from(bytes)
+        
+        // Add watermark to images
+        if (isWatermarkableImage(file.type)) {
+          try {
+            buffer = await addWatermark(buffer, {
+              padding: 30,
+              logoHeightPercent: 8,
+              opacity: 0.85
+            })
+            console.log(`✅ Watermark added to ${file.name}`)
+          } catch (watermarkError) {
+            console.error(`⚠️ Failed to add watermark to ${file.name}:`, watermarkError)
+            // Continue with original image if watermark fails
+          }
+        }
         
         let fileUrl: string
         let storageProvider: string

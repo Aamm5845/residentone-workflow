@@ -29,7 +29,11 @@ import {
   ArrowRight,
   Lock,
   Image as ImageIcon,
-  LinkIcon
+  LinkIcon,
+  Pencil,
+  Check,
+  X,
+  Info
 } from 'lucide-react'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
 import toast from 'react-hot-toast'
@@ -85,7 +89,11 @@ export default function FFESettingsDepartment({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [renderingImage, setRenderingImage] = useState<string | null>(null)
+  const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [programaLink, setProgramaLink] = useState('')
+  const [editingProgramaLink, setEditingProgramaLink] = useState(false)
+  const [tempProgramaLink, setTempProgramaLink] = useState('')
 
   // Dialog states
   const [showImportDialog, setShowImportDialog] = useState(false)
@@ -111,6 +119,15 @@ export default function FFESettingsDepartment({
   const [linkedItemName, setLinkedItemName] = useState('')
   const [linkedItemDescription, setLinkedItemDescription] = useState('')
   const [showImageModal, setShowImageModal] = useState(false)
+  
+  // Edit states
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
+  const [editSectionName, setEditSectionName] = useState('')
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editItemName, setEditItemName] = useState('')
+  
+  // Description expansion state
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
 
   // Stats
   const [stats, setStats] = useState({
@@ -124,7 +141,7 @@ export default function FFESettingsDepartment({
   useEffect(() => {
     loadFFEData()
     loadTemplates()
-    loadRenderingImage()
+    loadRenderingImages()
   }, [roomId, orgId])
 
   const loadFFEData = async () => {
@@ -142,6 +159,10 @@ export default function FFESettingsDepartment({
         }))
         setSections(sectionsWithExpanded)
         calculateStats(sectionsWithExpanded)
+        // Load Programa link from instance data
+        if (ffeData.programaLink) {
+          setProgramaLink(ffeData.programaLink)
+        }
       } else {
         setSections([])
         setStats({ totalItems: 0, visibleItems: 0, hiddenItems: 0, sectionsCount: 0 })
@@ -154,19 +175,23 @@ export default function FFESettingsDepartment({
     }
   }
 
-  const loadRenderingImage = async () => {
+  const loadRenderingImages = async () => {
     try {
-      // Fetch the latest 3D rendering for this room
+      // Fetch all 3D renderings for this room
       const response = await fetch(`/api/spec-books/room-renderings?roomId=${roomId}`)
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.renderings && result.renderings.length > 0) {
-          // Get the first rendering URL
-          setRenderingImage(result.renderings[0].url)
+          // Get all rendering images
+          setRenderingImages(result.renderings.map((r: any) => ({
+            id: r.id,
+            url: r.url,
+            filename: r.filename || 'Rendering'
+          })))
         }
       }
     } catch (error) {
-      console.error('Error loading rendering image:', error)
+      console.error('Error loading rendering images:', error)
     }
   }
 
@@ -371,6 +396,68 @@ export default function FFESettingsDepartment({
     }
   }
 
+  const handleUpdateSectionName = async (sectionId: string) => {
+    if (!editSectionName.trim()) { toast.error('Section name is required'); return }
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editSectionName.trim() })
+      })
+      if (!response.ok) throw new Error('Failed to update section name')
+      await loadFFEData()
+      setEditingSectionId(null)
+      setEditSectionName('')
+      toast.success('Section name updated')
+    } catch (error) {
+      toast.error('Failed to update section name')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleUpdateItemName = async (itemId: string) => {
+    if (!editItemName.trim()) { toast.error('Item name is required'); return }
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editItemName.trim() })
+      })
+      if (!response.ok) throw new Error('Failed to update item name')
+      await loadFFEData()
+      setEditingItemId(null)
+      setEditItemName('')
+      toast.success('Item name updated')
+    } catch (error) {
+      toast.error('Failed to update item name')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveProgramaLink = async () => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programaLink: tempProgramaLink.trim() || null })
+      })
+      if (!response.ok) throw new Error('Failed to save Programa link')
+      setProgramaLink(tempProgramaLink.trim())
+      setEditingProgramaLink(false)
+      toast.success('Programa link saved')
+    } catch (error) {
+      console.error('Error saving Programa link:', error)
+      toast.error('Failed to save Programa link')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleAIImportItems = async (
     categories: Array<{ name: string; items: Array<{ name: string; description?: string }> }>,
     selectedItems: Set<string>
@@ -469,14 +556,33 @@ export default function FFESettingsDepartment({
                 </button>
               </div>
               
-              {/* 3D Rendering Thumbnail */}
-              {renderingImage && (
-                <div 
-                  className="w-16 h-16 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden cursor-pointer hover:border-[#f6762e] transition-all shadow-sm"
-                  onClick={() => setShowImageModal(true)}
-                  title="Click to view 3D rendering"
-                >
-                  <img src={renderingImage} alt="3D Rendering" className="w-full h-full object-cover" />
+              {/* 3D Rendering Gallery */}
+              {renderingImages.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-[#f6762e]/10 px-2 py-1 rounded-lg">
+                    <ImageIcon className="w-4 h-4 text-[#f6762e]" />
+                    <span className="text-xs font-medium text-[#f6762e]">3D Renderings</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {renderingImages.slice(0, 4).map((img, idx) => (
+                      <div 
+                        key={img.id}
+                        className="w-12 h-12 rounded-lg border-2 border-[#f6762e]/30 overflow-hidden cursor-pointer hover:border-[#f6762e] hover:scale-105 transition-all shadow-sm"
+                        onClick={() => { setSelectedImageIndex(idx); setShowImageModal(true) }}
+                        title={`Click to view ${img.filename}`}
+                      >
+                        <img src={img.url} alt={img.filename} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                    {renderingImages.length > 4 && (
+                      <div 
+                        className="w-12 h-12 rounded-lg border-2 border-[#f6762e]/30 bg-[#f6762e]/10 flex items-center justify-center cursor-pointer hover:border-[#f6762e] transition-all"
+                        onClick={() => { setSelectedImageIndex(0); setShowImageModal(true) }}
+                      >
+                        <span className="text-xs font-bold text-[#f6762e]">+{renderingImages.length - 4}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -540,6 +646,90 @@ export default function FFESettingsDepartment({
               <div className="text-xs font-medium text-[#f6762e] uppercase tracking-wide">Not in Workspace</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Programa Link Section */}
+          <div className="mb-5 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                  <LinkIcon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900">Programa Design Link</h4>
+                  <p className="text-xs text-gray-500">Link to your item specifications schedule</p>
+                </div>
+              </div>
+              
+              {editingProgramaLink ? (
+                <div className="flex items-center gap-2 flex-1 max-w-xl ml-4">
+                  <Input
+                    value={tempProgramaLink}
+                    onChange={(e) => setTempProgramaLink(e.target.value)}
+                    placeholder="https://app.programa.design/schedules2/schedules/..."
+                    className="flex-1 text-sm"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleSaveProgramaLink}
+                    disabled={saving}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Save'}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => { setEditingProgramaLink(false); setTempProgramaLink('') }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : programaLink ? (
+                <div className="flex items-center gap-2 flex-1 max-w-xl ml-4">
+                  <a 
+                    href={programaLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 text-sm text-purple-600 hover:text-purple-800 truncate hover:underline"
+                    title={programaLink}
+                  >
+                    {programaLink.replace('https://app.programa.design/', 'programa.design/')}
+                  </a>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => { setTempProgramaLink(programaLink); setEditingProgramaLink(true) }}
+                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  >
+                    Edit
+                  </Button>
+                  <a 
+                    href={programaLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    <Button 
+                      size="sm" 
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      Open
+                    </Button>
+                  </a>
+                </div>
+              ) : (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => { setTempProgramaLink(''); setEditingProgramaLink(true) }}
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  disabled={disabled}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Link
+                </Button>
+              )}
             </div>
           </div>
 
@@ -761,11 +951,38 @@ export default function FFESettingsDepartment({
                       <button className="p-1 hover:bg-gray-100 rounded">
                         {section.isExpanded ? <ChevronDown className="h-5 w-5 text-gray-500" /> : <ChevronRight className="h-5 w-5 text-gray-500" />}
                       </button>
-                      <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
-                        <Package className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{section.name}</h3>
+                      <div className="flex-1">
+                        {editingSectionId === section.id ? (
+                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                            <Input
+                              value={editSectionName}
+                              onChange={(e) => setEditSectionName(e.target.value)}
+                              className="h-8 w-48"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleUpdateSectionName(section.id)
+                                if (e.key === 'Escape') { setEditingSectionId(null); setEditSectionName('') }
+                              }}
+                            />
+                            <Button size="sm" variant="ghost" onClick={() => handleUpdateSectionName(section.id)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setEditingSectionId(null); setEditSectionName('') }} className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group/section">
+                            <h3 className="font-semibold text-gray-900">{section.name}</h3>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setEditingSectionId(section.id); setEditSectionName(section.name) }}
+                              className="opacity-0 group-hover/section:opacity-100 p-1 hover:bg-gray-100 rounded transition-opacity"
+                              title="Edit section name"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                            </button>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <span>{parentItems.length} items</span>
                           {visibleCount > 0 && (
@@ -825,7 +1042,37 @@ export default function FFESettingsDepartment({
                                       {isInWorkspace && (
                                         <Lock className="w-4 h-4 text-[#14b8a6]" />
                                       )}
-                                      <h4 className={cn("font-medium", isInWorkspace ? "text-gray-900" : "text-gray-500")}>{item.name}</h4>
+                                      {editingItemId === item.id ? (
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            value={editItemName}
+                                            onChange={(e) => setEditItemName(e.target.value)}
+                                            className="h-7 w-40 text-sm"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleUpdateItemName(item.id)
+                                              if (e.key === 'Escape') { setEditingItemId(null); setEditItemName('') }
+                                            }}
+                                          />
+                                          <Button size="sm" variant="ghost" onClick={() => handleUpdateItemName(item.id)} className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                            <Check className="w-3.5 h-3.5" />
+                                          </Button>
+                                          <Button size="sm" variant="ghost" onClick={() => { setEditingItemId(null); setEditItemName('') }} className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600">
+                                            <X className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1 group/item">
+                                          <h4 className={cn("font-medium", isInWorkspace ? "text-gray-900" : "text-gray-500")}>{item.name}</h4>
+                                          <button 
+                                            onClick={() => { setEditingItemId(item.id); setEditItemName(item.name) }}
+                                            className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:bg-gray-100 rounded transition-opacity"
+                                            title="Edit item name"
+                                          >
+                                            <Pencil className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                                          </button>
+                                        </div>
+                                      )}
                                       {item.quantity > 1 && (
                                         <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
                                       )}
@@ -843,7 +1090,26 @@ export default function FFESettingsDepartment({
                                       )}
                                     </div>
                                     {item.description && (
-                                      <p className="text-sm text-gray-500 mt-1">{item.description}</p>
+                                      <button 
+                                        onClick={() => {
+                                          setExpandedDescriptions(prev => {
+                                            const newSet = new Set(prev)
+                                            if (newSet.has(item.id)) {
+                                              newSet.delete(item.id)
+                                            } else {
+                                              newSet.add(item.id)
+                                            }
+                                            return newSet
+                                          })
+                                        }}
+                                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-0.5"
+                                      >
+                                        <Info className="w-3 h-3" />
+                                        {expandedDescriptions.has(item.id) ? 'Hide details' : 'Show details'}
+                                      </button>
+                                    )}
+                                    {item.description && expandedDescriptions.has(item.id) && (
+                                      <p className="text-xs text-gray-500 mt-1 pl-4 border-l-2 border-gray-200">{item.description}</p>
                                     )}
                                   </div>
                                   
@@ -942,27 +1208,74 @@ export default function FFESettingsDepartment({
       )}
 
       {/* Image Lightbox Modal */}
-      {showImageModal && renderingImage && (
+      {showImageModal && renderingImages.length > 0 && (
         <div 
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8"
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
           onClick={() => setShowImageModal(false)}
         >
-          <div className="relative max-w-5xl max-h-[90vh] w-full">
-            <button
-              onClick={() => setShowImageModal(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
-            >
-              <span className="text-sm mr-2">Close</span>
-              <span className="text-2xl">×</span>
-            </button>
+          {/* Close button */}
+          <button
+            onClick={() => setShowImageModal(false)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black/50 rounded-full p-2"
+          >
+            <span className="text-2xl leading-none">×</span>
+          </button>
+          
+          {/* Main image area */}
+          <div className="relative flex-1 w-full max-w-6xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {/* Previous button */}
+            {renderingImages.length > 1 && (
+              <button
+                onClick={() => setSelectedImageIndex((prev) => prev === 0 ? renderingImages.length - 1 : prev - 1)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6 rotate-180" />
+              </button>
+            )}
+            
+            {/* Current image */}
             <img 
-              src={renderingImage} 
-              alt="3D Rendering - Full View" 
-              className="w-full h-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
+              src={renderingImages[selectedImageIndex]?.url} 
+              alt={renderingImages[selectedImageIndex]?.filename || '3D Rendering'} 
+              className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
             />
-            <p className="text-center text-white/70 text-sm mt-4">3D Rendering - {roomName}</p>
+            
+            {/* Next button */}
+            {renderingImages.length > 1 && (
+              <button
+                onClick={() => setSelectedImageIndex((prev) => prev === renderingImages.length - 1 ? 0 : prev + 1)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
           </div>
+          
+          {/* Image info */}
+          <div className="text-center text-white mt-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-medium">{renderingImages[selectedImageIndex]?.filename || '3D Rendering'}</p>
+            <p className="text-white/60 text-sm">{roomName} • {selectedImageIndex + 1} of {renderingImages.length}</p>
+          </div>
+          
+          {/* Thumbnail strip */}
+          {renderingImages.length > 1 && (
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto max-w-full px-4 pb-2" onClick={(e) => e.stopPropagation()}>
+              {renderingImages.map((img, idx) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImageIndex(idx)}
+                  className={cn(
+                    "w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 transition-all",
+                    idx === selectedImageIndex 
+                      ? "ring-2 ring-[#f6762e] ring-offset-2 ring-offset-black scale-105" 
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                >
+                  <img src={img.url} alt={img.filename} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

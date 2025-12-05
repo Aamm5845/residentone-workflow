@@ -15,7 +15,8 @@ import {
   MoreVertical,
   Save,
   X,
-  Trash2
+  Trash2,
+  Info
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FFEItemState } from '@prisma/client'
@@ -78,6 +79,7 @@ export default function FFEItemCard({
   const [showNotesDialog, setShowNotesDialog] = useState(false)
   const [notes, setNotes] = useState(item.notes || '')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [showDescription, setShowDescription] = useState(false)
   
   const stateConfig = STATE_CONFIG[item.state]
   const StateIcon = stateConfig.icon
@@ -165,7 +167,16 @@ export default function FFEItemCard({
                       )}
                     </h4>
                     {item.description && (
-                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                      <button 
+                        onClick={() => setShowDescription(!showDescription)}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-0.5"
+                      >
+                        <Info className="w-3 h-3" />
+                        {showDescription ? 'Hide details' : 'Show details'}
+                      </button>
+                    )}
+                    {item.description && showDescription && (
+                      <p className="text-xs text-gray-500 mt-1 pl-3 border-l-2 border-gray-200">{item.description}</p>
                     )}
                   </div>
                   
