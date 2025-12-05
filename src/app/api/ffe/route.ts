@@ -105,9 +105,6 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    console.log(`🔍 Found ${customRoomTypes.length} custom room types linked to room type '${room.type}':`, 
-      customRoomTypes.map(rt => rt.name))
-    
     // Get organization library items that apply to this room type OR any linked custom room type
     const libraryItems = await prisma.fFELibraryItem.findMany({
       where: {
@@ -135,13 +132,6 @@ export async function GET(request: NextRequest) {
         { category: 'asc' },
         { name: 'asc' }
       ]
-    })
-    
-    console.log(`🔍 Found ${libraryItems.length} library items for room type '${libraryRoomType}' (original: '${room.type}')`, {
-      orgId: session.user.orgId,
-      roomType: room.type,
-      mappedRoomType: libraryRoomType,
-      itemIds: libraryItems.map(item => ({ id: item.itemId, name: item.name, category: item.category }))
     })
 
     // Convert library items to FFE item format and combine with room items

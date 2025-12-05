@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
 
     // Process selected sections - convert CAD files if needed
     const processedSections = []
-    console.log(`[DEBUG] Processing ${(selectedSections || []).length} project-level sections`)
     for (const sectionType of selectedSections || []) {
       // For FLOORPLANS section, check if we should use floorplan approval PDFs
       let floorplanApprovalAssets = []
@@ -110,7 +109,6 @@ export async function POST(request: NextRequest) {
         })
         
         if (floorplanApproval && floorplanApproval.assets.length > 0) {
-          console.log(`[DEBUG] Found ${floorplanApproval.assets.length} approved floorplan PDFs`)
           floorplanApprovalAssets = floorplanApproval.assets
             .filter(a => a.asset)
             .map(a => ({
@@ -161,11 +159,6 @@ export async function POST(request: NextRequest) {
       const allSectionFiles = sectionType === 'FLOORPLANS' 
         ? [...(section.dropboxFiles || []), ...floorplanApprovalAssets]
         : (section.dropboxFiles || [])
-      
-      console.log(`[DEBUG] Section ${sectionType} has ${allSectionFiles.length} files (${section.dropboxFiles?.length || 0} dropbox + ${floorplanApprovalAssets.length} approval PDFs)`)
-      allSectionFiles.forEach((file, index) => {
-        console.log(`[DEBUG] Section file ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl || file.uploadedPdfUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId || file.id}`)
-      })
       
       // Process CAD files for project-level sections (convert if not cached)
       for (const dropboxFile of allSectionFiles) {
@@ -225,9 +218,6 @@ export async function POST(request: NextRequest) {
         // Update section to only include files with content
         section.dropboxFiles = sectionsWithContent
         processedSections.push(section)
-        console.log(`[DEBUG] Added section ${section.name} with ${sectionsWithContent.length} files (converted + uploaded PDFs)`)
-      } else {
-        console.log(`[DEBUG] Skipped empty section ${section.name} (no converted CAD files or uploaded PDFs)`)
       }
     }
 
@@ -280,11 +270,6 @@ export async function POST(request: NextRequest) {
         ...(roomSection?.dropboxFiles || []),
         ...(drawingsSection?.dropboxFiles || [])
       ]
-      
-      console.log(`[DEBUG] Processing ${allDropboxFiles.length} dropbox files for room ${room.name}`)
-      allDropboxFiles.forEach((file, index) => {
-        console.log(`[DEBUG] File ${index + 1}: ${file.fileName}, cached: ${file.cadToPdfCacheUrl ? 'YES' : 'NO'}, fileId: ${file.dropboxFileId}`)
-      })
       
       for (const dropboxFile of allDropboxFiles) {
         if (dropboxFile.cadToPdfCacheUrl) {
@@ -369,25 +354,20 @@ export async function POST(request: NextRequest) {
       })
       
       if (approvedVersion && approvedVersion.assets.length > 0) {
-        console.log(`[DEBUG] Using ${approvedVersion.assets.length} approved rendering asset(s) for room ${room.name}`)
         for (const asset of approvedVersion.assets) {
           if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
             try {
               const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
               if (temporaryLink) {
                 renderingUrls.push(temporaryLink)
-              } else {
-                console.warn(`[DEBUG] No temporary link returned for ${asset.url}`)
               }
             } catch (error) {
-              console.error(`[DEBUG] Failed to get temporary link for ${asset.url}:`, error)
+              console.error(`Failed to get temporary link for ${asset.url}:`, error)
             }
           } else {
             renderingUrls.push(asset.url)
           }
         }
-      } else {
-        console.log(`[DEBUG] No approved renderings found for room ${room.name}`)
       }
       
       // Only add room if it has content (CAD files or rendering)
@@ -400,9 +380,6 @@ export async function POST(request: NextRequest) {
           renderingUrls: renderingUrls,
           cadFiles
         })
-        console.log(`[DEBUG] Added room ${room.name} with ${cadFiles.length} CAD files and ${renderingUrls.length} rendering(s)`)
-      } else {
-        console.log(`[DEBUG] Skipped empty room ${room.name} (no CAD files or rendering)`)
       }
     }
 
@@ -427,13 +404,6 @@ export async function POST(request: NextRequest) {
 
     try {
       // Generate PDF
-      console.log(`[DEBUG] Starting PDF generation with:`)
-      console.log(`[DEBUG] - ${processedSections.length} sections`)
-      console.log(`[DEBUG] - ${processedRooms.length} rooms`)
-      processedSections.forEach(section => {
-        console.log(`[DEBUG] Section ${section.name}: ${section.dropboxFiles?.length || 0} files`)
-      })
-      
       const generationResult = await pdfGenerationService.generateSpecBook({
         projectId,
         coverPageData,

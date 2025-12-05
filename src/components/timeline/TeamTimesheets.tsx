@@ -26,9 +26,6 @@ export function TeamTimesheets() {
   // Get selected user info
   const selectedUser = teamMembers.find((m: any) => m.id === selectedUserId)
 
-  // Debug: Always show this first
-  console.log('TeamTimesheets rendering, loadingTeam:', loadingTeam, 'teamMembers:', teamMembers.length)
-
   if (loadingTeam) {
     return (
       <div className="flex items-center justify-center py-12">

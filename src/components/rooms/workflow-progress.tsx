@@ -131,18 +131,6 @@ export default function WorkflowProgress({ room }: WorkflowProgressProps) {
         const isNotApplicable = status === 'NOT_APPLICABLE'
         const isStarting = isLoading === phaseStage?.id
         
-        // Debug logging
-        if (stageType === 'DESIGN_CONCEPT') {
-          console.log('🔍 DESIGN_CONCEPT stage debug:', { 
-            stageType, 
-            phaseStage, 
-            allStages: room.stages.map((s: any) => ({ id: s.id, type: s.type, status: s.status })), 
-            status, 
-            canStart, 
-            isStarting 
-          })
-        }
-        
         return (
           <div key={stageType} className={`flex-shrink-0 w-72 group ${
             isNotApplicable ? 'opacity-60' : ''

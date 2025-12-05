@@ -335,9 +335,6 @@ export default function FFELibraryManagement({ orgId, user }: FFELibraryManageme
             <p className="text-sm text-gray-600 mt-1">
               Manage your organization's custom FFE items that appear in all projects
             </p>
-            <p className="text-xs text-blue-600 mt-2">
-              Debug: orgId={orgId}, items count={items.length}, loading={loading.toString()}
-            </p>
           </div>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>

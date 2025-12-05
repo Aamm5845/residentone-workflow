@@ -68,17 +68,6 @@ export default function AddedItemCard({ item, onUpdate, viewMode, expanded, onTo
   const { isIPad, isTablet } = useDeviceType()
   const isTabletDevice = isIPad || isTablet
 
-  // Debug: Log item data
-  React.useEffect(() => {
-    console.log('[AddedItemCard] Rendering item:', {
-      id: item.id,
-      name: item.libraryItem?.name,
-      imageCount: item.images?.length || 0,
-      linkCount: item.links?.length || 0,
-      images: item.images
-    })
-  }, [item])
-
   const libraryItem = item.libraryItem
   const isCompleted = item.completedByRenderer
   const images = item.images || []

@@ -128,12 +128,7 @@ export async function PUT(
     }
 
     // Validate request body
-    
     const body = await request.json()
-    
-    console.log('🔍 Request body keys:', Object.keys(body))
-    console.log('📈 Request body size:', JSON.stringify(body).length, 'characters')
-
     const validatedData = updateProjectSchema.parse(body)
     
     // Check if project exists
@@ -226,8 +221,6 @@ export async function PUT(
     if (validatedData.hasProjectUpdates !== undefined) {
       updateData.hasProjectUpdates = validatedData.hasProjectUpdates
     }
-
-    console.log('🔍 Update data keys:', Object.keys(updateData))
 
     const updatedProject = await prisma.project.update({
       where: { id: params.id },
