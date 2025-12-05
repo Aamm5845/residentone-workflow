@@ -5,15 +5,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { 
   Sparkles, 
   RefreshCw, 
   AlertTriangle, 
   ChevronRight,
+  ChevronDown,
   Package,
   Import,
   Loader2,
-  Wand2
+  Wand2,
+  Edit3,
+  Check,
+  X,
+  Briefcase,
+  ArrowRight,
+  Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -37,6 +46,17 @@ interface AIFFEDetectionResult {
   totalItemsDetected: number
 }
 
+interface EditableItem extends DetectedFFEItem {
+  isEditing: boolean
+  editedName: string
+  editedDescription: string
+}
+
+interface EditableCategory {
+  name: string
+  items: EditableItem[]
+}
+
 interface AIGenerateFFEDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -55,6 +75,7 @@ export default function AIGenerateFFEDialog({
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<AIFFEDetectionResult | null>(null)
+  const [editableCategories, setEditableCategories] = useState<EditableCategory[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -64,6 +85,7 @@ export default function AIGenerateFFEDialog({
     setLoading(true)
     setError(null)
     setResult(null)
+    setEditableCategories([])
     setSelectedItems(new Set())
     setExpandedCategories(new Set())
 
@@ -83,7 +105,17 @@ export default function AIGenerateFFEDialog({
         setResult(data.data)
         setMeta(data.meta)
         
-        // Auto-select all high and medium confidence items
+        const editable: EditableCategory[] = data.data.categories.map((category: DetectedFFECategory) => ({
+          name: category.name,
+          items: category.items.map(item => ({
+            ...item,
+            isEditing: false,
+            editedName: item.name,
+            editedDescription: item.description || ''
+          }))
+        }))
+        setEditableCategories(editable)
+        
         const autoSelected = new Set<string>()
         data.data.categories.forEach((category: DetectedFFECategory) => {
           category.items.forEach((item) => {
@@ -93,16 +125,13 @@ export default function AIGenerateFFEDialog({
           })
         })
         setSelectedItems(autoSelected)
-        
-        // Auto-expand all categories
         setExpandedCategories(new Set(data.data.categories.map((c: DetectedFFECategory) => c.name)))
         
         if (data.data.totalItemsDetected === 0) {
-          setError('No items detected. Please ensure your 3D rendering images are uploaded and visible.')
+          setError('No items detected. Please ensure your 3D rendering images are uploaded.')
         }
       }
     } catch (err: any) {
-      console.error('AI analysis error:', err)
       setError(err.message || 'Failed to analyze images')
     } finally {
       setLoading(false)
@@ -113,11 +142,8 @@ export default function AIGenerateFFEDialog({
     const key = `${categoryName}::${itemName}`
     setSelectedItems(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(key)) {
-        newSet.delete(key)
-      } else {
-        newSet.add(key)
-      }
+      if (newSet.has(key)) newSet.delete(key)
+      else newSet.add(key)
       return newSet
     })
   }
@@ -125,28 +151,89 @@ export default function AIGenerateFFEDialog({
   const handleToggleCategory = (categoryName: string) => {
     setExpandedCategories(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(categoryName)) {
-        newSet.delete(categoryName)
-      } else {
-        newSet.add(categoryName)
-      }
+      if (newSet.has(categoryName)) newSet.delete(categoryName)
+      else newSet.add(categoryName)
       return newSet
     })
   }
 
-  const handleSelectAllInCategory = (category: DetectedFFECategory, select: boolean) => {
+  const handleSelectAllInCategory = (category: EditableCategory, select: boolean) => {
     setSelectedItems(prev => {
       const newSet = new Set(prev)
       category.items.forEach(item => {
         const key = `${category.name}::${item.name}`
-        if (select) {
-          newSet.add(key)
-        } else {
-          newSet.delete(key)
-        }
+        if (select) newSet.add(key)
+        else newSet.delete(key)
       })
       return newSet
     })
+  }
+
+  const handleStartEdit = (categoryIndex: number, itemIndex: number) => {
+    setEditableCategories(prev => prev.map((cat, cIdx) => ({
+      ...cat,
+      items: cat.items.map((item, iIdx) => ({
+        ...item,
+        isEditing: cIdx === categoryIndex && iIdx === itemIndex
+      }))
+    })))
+  }
+
+  const handleSaveEdit = (categoryIndex: number, itemIndex: number) => {
+    setEditableCategories(prev => {
+      const updated = [...prev]
+      const item = updated[categoryIndex].items[itemIndex]
+      const oldKey = `${updated[categoryIndex].name}::${item.name}`
+      const newKey = `${updated[categoryIndex].name}::${item.editedName}`
+      
+      if (selectedItems.has(oldKey) && item.name !== item.editedName) {
+        setSelectedItems(prevSelected => {
+          const newSet = new Set(prevSelected)
+          newSet.delete(oldKey)
+          newSet.add(newKey)
+          return newSet
+        })
+      }
+      
+      item.name = item.editedName
+      item.description = item.editedDescription
+      item.isEditing = false
+      return updated
+    })
+    toast.success('Item updated')
+  }
+
+  const handleCancelEdit = (categoryIndex: number, itemIndex: number) => {
+    setEditableCategories(prev => prev.map((cat, cIdx) => ({
+      ...cat,
+      items: cat.items.map((item, iIdx) => {
+        if (cIdx === categoryIndex && iIdx === itemIndex) {
+          return { ...item, isEditing: false, editedName: item.name, editedDescription: item.description || '' }
+        }
+        return item
+      })
+    })))
+  }
+
+  const handleDeleteItem = (categoryIndex: number, itemIndex: number) => {
+    const category = editableCategories[categoryIndex]
+    const item = category.items[itemIndex]
+    const key = `${category.name}::${item.name}`
+    
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(key)
+      return newSet
+    })
+    
+    setEditableCategories(prev => prev.map((cat, cIdx) => {
+      if (cIdx === categoryIndex) {
+        return { ...cat, items: cat.items.filter((_, iIdx) => iIdx !== itemIndex) }
+      }
+      return cat
+    }).filter(cat => cat.items.length > 0))
+    
+    toast.success('Item removed')
   }
 
   const handleImport = async () => {
@@ -157,11 +244,20 @@ export default function AIGenerateFFEDialog({
 
     setImporting(true)
     try {
-      await onImportItems(result.categories, selectedItems)
-      toast.success(`Successfully imported ${selectedItems.size} FFE items`)
+      const categoriesForImport: DetectedFFECategory[] = editableCategories.map(cat => ({
+        name: cat.name,
+        items: cat.items.map(item => ({
+          name: item.name,
+          description: item.description,
+          category: cat.name,
+          confidence: item.confidence
+        }))
+      }))
+      
+      await onImportItems(categoriesForImport, selectedItems)
+      toast.success(`${selectedItems.size} items imported to workspace!`)
       onOpenChange(false)
     } catch (err: any) {
-      console.error('Import error:', err)
       toast.error(err.message || 'Failed to import items')
     } finally {
       setImporting(false)
@@ -169,90 +265,70 @@ export default function AIGenerateFFEDialog({
   }
 
   const selectedCount = selectedItems.size
-  const totalCount = result?.totalItemsDetected || 0
+  const totalCount = editableCategories.reduce((acc, cat) => acc + cat.items.length, 0)
+
+  const getConfidenceBadge = (confidence: string) => {
+    switch (confidence) {
+      case 'high': return <Badge className="bg-green-100 text-green-700 text-xs">High</Badge>
+      case 'medium': return <Badge className="bg-yellow-100 text-yellow-700 text-xs">Medium</Badge>
+      case 'low': return <Badge className="bg-gray-100 text-gray-600 text-xs">Low</Badge>
+      default: return null
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="pb-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-[#e94d97] rounded-xl">
-              <Sparkles className="h-6 w-6 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-[#e94d97] flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-gray-900">
-                AI FFE Detection
-              </DialogTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                Automatically detect items from your 3D renderings
-              </p>
+              <DialogTitle className="text-lg font-semibold text-gray-900">AI FFE Detection</DialogTitle>
+              <p className="text-sm text-gray-500">Detect and customize items from 3D renderings</p>
             </div>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-6">
-          {/* Initial State - No Analysis Yet */}
+          {/* Initial State */}
           {!loading && !result && !error && (
             <div className="text-center py-12">
-              <div className="w-20 h-20 bg-[#e94d97]/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Wand2 className="h-10 w-10 text-[#e94d97]" />
+              <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Wand2 className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Analyze {roomName} Renderings
-              </h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
-                AI will scan your latest 3D rendering images and identify all furniture, 
-                fixtures, finishes, and equipment visible in the space.
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyze {roomName}</h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                AI will scan your 3D rendering images and identify furniture, fixtures, finishes, and equipment. You can edit each item before importing.
               </p>
-              
-              <Button
-                onClick={handleAnalyze}
-                className="bg-[#e94d97] hover:bg-[#db2777] text-white px-8"
-                size="lg"
-              >
-                <Sparkles className="h-5 w-5 mr-2" />
+              <Button onClick={handleAnalyze} className="bg-[#e94d97] hover:bg-[#d63d87] text-white">
+                <Sparkles className="h-4 w-4 mr-2" />
                 Start AI Analysis
               </Button>
             </div>
           )}
 
-          {/* Loading State */}
+          {/* Loading */}
           {loading && (
             <div className="text-center py-12">
-              <div className="w-20 h-20 bg-[#e94d97]/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="h-10 w-10 text-[#e94d97] animate-spin" />
+              <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Analyzing Renderings...
-              </h3>
-              <p className="text-gray-600 mb-4">
-                AI is scanning your images for FFE items. This may take 15-30 seconds.
-              </p>
-              <div className="flex items-center justify-center gap-2 text-sm text-[#e94d97]">
-                <div className="w-2 h-2 bg-[#e94d97] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-[#e94d97] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-[#e94d97] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyzing Renderings...</h3>
+              <p className="text-gray-500">This may take 15-30 seconds.</p>
             </div>
           )}
 
-          {/* Error State */}
+          {/* Error */}
           {error && !loading && (
             <div className="text-center py-12">
-              <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <AlertTriangle className="h-10 w-10 text-red-500" />
+              <div className="w-16 h-16 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                {result ? 'No Items Found' : 'Analysis Failed'}
-              </h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                {error}
-              </p>
-              <Button
-                onClick={handleAnalyze}
-                variant="outline"
-                className="mr-2"
-              >
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Analysis Failed</h3>
+              <p className="text-gray-500 mb-6">{error}</p>
+              <Button variant="outline" onClick={handleAnalyze}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </Button>
@@ -260,141 +336,156 @@ export default function AIGenerateFFEDialog({
           )}
 
           {/* Results */}
-          {result && result.totalItemsDetected > 0 && !loading && (
-            <div className="space-y-6">
-              {/* Summary Card */}
-              <div className="bg-gradient-to-r from-[#e94d97]/10 to-[#e94d97]/20 border border-[#e94d97]/30 rounded-xl p-5">
+          {result && totalCount > 0 && !loading && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-[#e94d97]/20 text-[#db2777] border-[#e94d97]/30">
-                        {result.designStyle}
-                      </Badge>
-                      <Badge className="bg-green-100 text-green-800 border-green-200">
-                        {totalCount} items detected
-                      </Badge>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline">{result.designStyle}</Badge>
+                      <Badge className="bg-green-100 text-green-700">{totalCount} items detected</Badge>
                     </div>
-                    <p className="text-sm text-gray-700">{result.roomDescription}</p>
+                    <p className="text-sm text-gray-600">{result.roomDescription}</p>
                   </div>
                   {meta && (
-                    <div className="text-xs text-gray-500 text-right">
-                      <p>{meta.imagesAnalyzed} image(s) analyzed</p>
+                    <div className="text-xs text-gray-400 text-right">
+                      <p>{meta.imagesAnalyzed} image(s)</p>
                       <p>{(meta.processingTimeMs / 1000).toFixed(1)}s</p>
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Edit Info */}
+              <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700 border border-blue-200">
+                <Edit3 className="h-4 w-4 inline mr-2" />
+                Click the edit icon on any item to customize its name or description before importing.
+              </div>
+
               {/* Selection Summary */}
-              <div className="flex items-center justify-between px-1">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-900">{selectedCount}</span> of {totalCount} items selected
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{selectedCount}</span> of {totalCount} selected
+                </span>
                 <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const all = new Set<string>()
-                      result.categories.forEach(cat => {
-                        cat.items.forEach(item => {
-                          all.add(`${cat.name}::${item.name}`)
-                        })
-                      })
-                      setSelectedItems(all)
-                    }}
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedItems(new Set())}
-                  >
-                    Deselect All
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    const all = new Set<string>()
+                    editableCategories.forEach(cat => cat.items.forEach(item => all.add(`${cat.name}::${item.name}`)))
+                    setSelectedItems(all)
+                  }}>Select All</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedItems(new Set())}>Deselect All</Button>
                 </div>
               </div>
 
               {/* Categories */}
               <div className="space-y-3">
-                {result.categories.map((category) => {
+                {editableCategories.map((category, categoryIndex) => {
                   const isExpanded = expandedCategories.has(category.name)
-                  const selectedInCategory = category.items.filter(item => 
-                    selectedItems.has(`${category.name}::${item.name}`)
-                  ).length
-                  const allSelected = selectedInCategory === category.items.length
-                  const noneSelected = selectedInCategory === 0
+                  const selectedInCategory = category.items.filter(item => selectedItems.has(`${category.name}::${item.name}`)).length
 
                   return (
-                    <div 
-                      key={category.name}
-                      className="border border-gray-200 rounded-xl overflow-hidden bg-white"
-                    >
-                      {/* Category Header */}
+                    <div key={category.name} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                       <div 
-                        className="flex items-center gap-3 p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                        className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50"
                         onClick={() => handleToggleCategory(category.name)}
                       >
-                        <div className={cn(
-                          "transition-transform duration-200",
-                          isExpanded ? "rotate-90" : "rotate-0"
-                        )}>
-                          <ChevronRight className="h-5 w-5 text-gray-500" />
+                        {isExpanded ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
+                        <div className="w-8 h-8 rounded-lg bg-[#e94d97] flex items-center justify-center">
+                          <Package className="h-4 w-4 text-white" />
                         </div>
-                        
-                        <div className="p-2 bg-white rounded-lg border border-gray-200">
-                          <Package className="h-4 w-4 text-gray-600" />
-                        </div>
-                        
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{category.name}</h4>
-                          <p className="text-xs text-gray-500">
-                            {selectedInCategory} of {category.items.length} selected
-                          </p>
+                          <p className="text-xs text-gray-500">{selectedInCategory} of {category.items.length} selected</p>
                         </div>
-                        
-                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div onClick={(e) => e.stopPropagation()}>
                           <Checkbox
-                            checked={allSelected}
+                            checked={selectedInCategory === category.items.length}
                             onCheckedChange={(checked) => handleSelectAllInCategory(category, !!checked)}
-                            className={cn(
-                              !allSelected && !noneSelected && "data-[state=checked]:bg-gray-400"
-                            )}
                           />
                         </div>
                       </div>
 
-                      {/* Category Items */}
                       {isExpanded && (
-                        <div className="divide-y divide-gray-100">
-                          {category.items.map((item, index) => {
+                        <div className="border-t border-gray-100 divide-y divide-gray-100">
+                          {category.items.map((item, itemIndex) => {
                             const isSelected = selectedItems.has(`${category.name}::${item.name}`)
                             
                             return (
-                              <div 
-                                key={`${item.name}-${index}`}
-                                className={cn(
-                                  "flex items-center gap-3 p-4 pl-14 transition-colors cursor-pointer",
-                                  isSelected ? "bg-[#e94d97]/10" : "hover:bg-gray-50"
+                              <div key={`${item.name}-${itemIndex}`} className={cn("p-4 pl-14", isSelected && "bg-green-50/50")}>
+                                {item.isEditing ? (
+                                  <div className="space-y-3">
+                                    <div>
+                                      <label className="text-xs font-medium text-gray-500">Item Name</label>
+                                      <Input
+                                        value={item.editedName}
+                                        onChange={(e) => {
+                                          setEditableCategories(prev => prev.map((cat, cIdx) => ({
+                                            ...cat,
+                                            items: cat.items.map((it, iIdx) => {
+                                              if (cIdx === categoryIndex && iIdx === itemIndex) {
+                                                return { ...it, editedName: e.target.value }
+                                              }
+                                              return it
+                                            })
+                                          })))
+                                        }}
+                                        className="mt-1"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs font-medium text-gray-500">Description</label>
+                                      <Textarea
+                                        value={item.editedDescription}
+                                        onChange={(e) => {
+                                          setEditableCategories(prev => prev.map((cat, cIdx) => ({
+                                            ...cat,
+                                            items: cat.items.map((it, iIdx) => {
+                                              if (cIdx === categoryIndex && iIdx === itemIndex) {
+                                                return { ...it, editedDescription: e.target.value }
+                                              }
+                                              return it
+                                            })
+                                          })))
+                                        }}
+                                        rows={2}
+                                        className="mt-1"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button size="sm" onClick={() => handleSaveEdit(categoryIndex, itemIndex)}>
+                                        <Check className="h-4 w-4 mr-1" />
+                                        Save
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => handleCancelEdit(categoryIndex, itemIndex)}>
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-start gap-3">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleToggleItem(category.name, item.name)}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleItem(category.name, item.name)}>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-gray-900">{item.name}</span>
+                                        {getConfidenceBadge(item.confidence)}
+                                      </div>
+                                      {item.description && <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => handleStartEdit(categoryIndex, itemIndex)} className="text-gray-400 hover:text-gray-600">
+                                        <Edit3 className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteItem(categoryIndex, itemIndex)} className="text-gray-400 hover:text-red-500">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
                                 )}
-                                onClick={() => handleToggleItem(category.name, item.name)}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => handleToggleItem(category.name, item.name)}
-                                />
-                                
-                                <div className="flex-1 min-w-0">
-                                  <span className="font-medium text-gray-900 truncate block">
-                                    {item.name}
-                                  </span>
-                                  {item.description && (
-                                    <p className="text-xs text-gray-500 mt-0.5 truncate">
-                                      {item.description}
-                                    </p>
-                                  )}
-                                </div>
                               </div>
                             )
                           })}
@@ -409,30 +500,15 @@ export default function AIGenerateFFEDialog({
         </div>
 
         {/* Footer */}
-        {result && result.totalItemsDetected > 0 && (
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200 flex-shrink-0">
-            <Button
-              variant="outline"
-              onClick={handleAnalyze}
-              disabled={loading || importing}
-            >
+        {result && totalCount > 0 && (
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200 flex-shrink-0">
+            <Button variant="outline" onClick={handleAnalyze} disabled={loading || importing}>
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
               Re-analyze
             </Button>
-            
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={importing}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleImport}
-                disabled={selectedItems.size === 0 || importing}
-                className="bg-[#e94d97] hover:bg-[#db2777] text-white"
-              >
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={importing}>Cancel</Button>
+              <Button onClick={handleImport} disabled={selectedItems.size === 0 || importing} className="bg-[#e94d97] hover:bg-[#d63d87] text-white">
                 {importing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -440,8 +516,8 @@ export default function AIGenerateFFEDialog({
                   </>
                 ) : (
                   <>
-                    <Import className="h-4 w-4 mr-2" />
-                    Import {selectedCount} Items
+                    <Briefcase className="h-4 w-4 mr-2" />
+                    Import {selectedCount} to Workspace
                   </>
                 )}
               </Button>
