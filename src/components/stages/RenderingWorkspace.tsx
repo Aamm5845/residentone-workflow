@@ -114,6 +114,7 @@ export default function RenderingWorkspace({
   const [newNotes, setNewNotes] = useState<Record<string, string>>({})
   const [showActivityLog, setShowActivityLog] = useState(false)
   const [syncingVersionId, setSyncingVersionId] = useState<string | null>(null)
+  const [pushingToClientId, setPushingToClientId] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Sync files to Dropbox
@@ -336,6 +337,7 @@ export default function RenderingWorkspace({
 
   // Push version to client approval
   const pushToClient = async (versionId: string) => {
+    setPushingToClientId(versionId)
     try {
       const response = await fetch(`/api/renderings/${versionId}/push-to-client`, {
         method: 'POST'
@@ -344,23 +346,30 @@ export default function RenderingWorkspace({
       if (response.ok) {
         const result = await response.json()
         
-        // Log success for internal tracking
+        // Show success toast
+        toast.success(`Successfully pushed to Client Approval!`)
         
+        // Refresh the rendering versions to show updated status
+        await fetchRenderingVersions()
+        
+        // If phase transitions occurred, trigger a soft refresh of the page
+        // to update phase status in parent components (like room phase board)
         if (result.phaseTransitions && result.phaseTransitions.length > 0) {
-          
+          // Use router.refresh() pattern or call onComplete to notify parent
+          if (onComplete) {
+            onComplete()
+          }
         }
-        
-        // Force page refresh to ensure phase status is updated throughout the UI
-        // This is especially important because the push-to-client triggers automatic
-        // phase transitions that need to be reflected in the room phase board
-        window.location.reload()
       } else {
         const error = await response.json()
+        toast.error(`Failed to push to client: ${error.error}`)
         console.error(`Failed to push to client: ${error.error}`)
       }
     } catch (error) {
       console.error('Error pushing to client:', error)
-      console.error('Failed to push to client')
+      toast.error('Failed to push to client. Please try again.')
+    } finally {
+      setPushingToClientId(null)
     }
   }
 
@@ -626,10 +635,11 @@ export default function RenderingWorkspace({
                             e.stopPropagation()
                             pushToClient(version.id)
                           }}
+                          disabled={pushingToClientId === version.id}
                           className="bg-purple-600 hover:bg-purple-700"
                         >
-                          <Send className="w-4 h-4 mr-1" />
-                          Push to Client Approval
+                          <Send className={`w-4 h-4 mr-1 ${pushingToClientId === version.id ? 'animate-pulse' : ''}`} />
+                          {pushingToClientId === version.id ? 'Pushing...' : 'Push to Client Approval'}
                         </Button>
                         <Button
                           size="sm"

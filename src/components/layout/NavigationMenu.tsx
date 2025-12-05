@@ -14,7 +14,8 @@ import {
   Activity,
   BarChart3,
   Clock,
-  Sparkles
+  Sparkles,
+  CalendarDays
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
@@ -89,6 +90,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'My Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
+    { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
     { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },

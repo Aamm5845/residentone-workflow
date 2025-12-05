@@ -5,6 +5,11 @@ import InteractiveProjectsPage from '@/components/projects/interactive-projects-
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
 
+// Disable caching to ensure fresh data on every request
+// This is important for calendar view which needs up-to-date due dates
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function Projects({ searchParams }: { searchParams: Promise<{ status?: string, timeframe?: string }> }) {
   const session = await getSession() as Session & {
     user: {

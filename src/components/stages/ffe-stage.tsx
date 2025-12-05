@@ -90,7 +90,7 @@ export default function FFEStage({
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {room.type} FFE Phase
+                {room.name || room.type.replace('_', ' ')} FFE Phase
               </h2>
               <p className="text-gray-600 mt-1">{room.name || room.type} • {project.name}</p>
               <p className="text-sm text-emerald-600 mt-1">

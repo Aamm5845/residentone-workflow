@@ -418,8 +418,22 @@ export default function CalendarView({
                         ))}
                         
                         {/* Tasks */}
-                        {tasksForDay.slice(0, showHolidays ? 2 : 3).map((task, taskIndex) => (
-                          <Link key={task.id} href={`/stages/${task.id}`}>
+                        {tasksForDay.slice(0, showHolidays ? 2 : 3).map((task, taskIndex) => {
+                          // Build the correct link based on task type
+                          // Room-level tasks: id is like "roomId-room-start" or "roomId-room-due"
+                          // Stage start dates: id is like "stageId-start"  
+                          // Regular stage tasks: id is just the stageId
+                          let taskLink = `/stages/${task.id}`
+                          if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
+                            // Room-level task - link to room page (not supported yet, link to project)
+                            taskLink = '#' // Room tasks don't have a direct stage view
+                          } else if (task.id.includes('-start')) {
+                            // Stage start date - extract actual stage ID
+                            const stageId = task.id.replace('-start', '')
+                            taskLink = `/stages/${stageId}`
+                          }
+                          return (
+                          <Link key={task.id} href={taskLink}>
                             <div
                               className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${getTaskColor(task)} text-white relative`}
                               title={`${task.title} - ${task.projectName || task.project} - Due: ${formatDate(task.dueDate)}${task.assignedUser ? ` - Assigned to: ${task.assignedUser.name}` : ''}`}
@@ -442,7 +456,7 @@ export default function CalendarView({
                               </div>
                             </div>
                           </Link>
-                        ))}
+                        )})}
                         
                         {/* Show more indicator */}
                         {(tasksForDay.length > (showHolidays ? 2 : 3) || (showHolidays && holidaysForDay.length > 0 && tasksForDay.length > 2)) && (

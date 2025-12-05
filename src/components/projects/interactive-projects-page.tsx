@@ -1,15 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, Filter, MoreVertical, Building, Calendar, List, LayoutGrid, X, Check } from 'lucide-react'
+import { Plus, Search, Filter, MoreVertical, Building, List, LayoutGrid, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
-import { getPhaseUrgency } from '@/lib/validation/due-date-validation'
 import Link from 'next/link'
 import Image from 'next/image'
-import CalendarView from '@/components/calendar/calendar-view'
-
-type ViewMode = 'list' | 'board' | 'calendar'
+type ViewMode = 'list' | 'board'
 
 interface Project {
   id: string
@@ -150,88 +147,6 @@ export default function InteractiveProjectsPage({
         return 0
     }
   })
-
-  // Transform projects data into calendar tasks when in calendar view
-  const getCalendarTasks = () => {
-    const tasks: any[] = []
-    
-    projects.forEach(project => {
-      project.rooms?.forEach(room => {
-        room.stages?.forEach(stage => {
-          const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' : 
-                            stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-          
-          // Add start date entry if exists
-          if (stage.startDate && stage.status !== 'COMPLETED') {
-            tasks.push({
-              id: `${stage.id}-start`,
-              title: `🚀 ${phaseTitle} Start - ${room.name || room.type.replace('_', ' ')}`,
-              projectName: project.name,
-              clientName: project.client.name,
-              dueDate: stage.startDate.toISOString(),
-              status: stage.status,
-              type: 'stage' as const,
-              stageType: stage.type,
-              isStartDate: true,
-              assignedUser: (stage as any).assignedUser ? {
-                id: (stage as any).assignedUser.id,
-                name: (stage as any).assignedUser.name
-              } : undefined
-            })
-          }
-          
-          // Add due date entry if exists
-          if (stage.dueDate && stage.status !== 'COMPLETED') {
-            tasks.push({
-              id: stage.id,
-              title: `${phaseTitle} - ${room.name || room.type.replace('_', ' ')}`,
-              projectName: project.name,
-              clientName: project.client.name,
-              dueDate: stage.dueDate.toISOString(),
-              status: stage.status,
-              type: 'stage' as const,
-              stageType: stage.type,
-              urgencyLevel: getPhaseUrgency(stage.dueDate, stage.status) as 'critical' | 'high' | 'medium' | 'low',
-              isStartDate: false,
-              assignedUser: (stage as any).assignedUser ? {
-                id: (stage as any).assignedUser.id,
-                name: (stage as any).assignedUser.name
-              } : undefined
-            })
-          }
-        })
-        
-        // Add room-level start/due dates if they exist
-        if (room.startDate) {
-          tasks.push({
-            id: `${room.id}-room-start`,
-            title: `🏠 Room Start: ${room.name || room.type.replace('_', ' ')}`,
-            projectName: project.name,
-            clientName: project.client.name,
-            dueDate: room.startDate.toISOString(),
-            status: 'PENDING',
-            type: 'stage' as const,
-            stageType: 'ROOM_START',
-            isStartDate: true
-          })
-        }
-        if (room.dueDate) {
-          tasks.push({
-            id: `${room.id}-room-due`,
-            title: `🏠 Room Due: ${room.name || room.type.replace('_', ' ')}`,
-            projectName: project.name,
-            clientName: project.client.name,
-            dueDate: room.dueDate.toISOString(),
-            status: 'PENDING',
-            type: 'stage' as const,
-            stageType: 'ROOM_DUE'
-          })
-        }
-      })
-    })
-    
-    return tasks
-  }
 
   const renderProjectsList = () => (
     <div className="space-y-6">
@@ -626,45 +541,12 @@ export default function InteractiveProjectsPage({
             <LayoutGrid className="w-4 h-4 mr-1.5" />
             Board
           </button>
-          <button 
-            onClick={() => setViewMode('calendar')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center ${
-              viewMode === 'calendar' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4 mr-1.5" />
-            Calendar
-          </button>
         </div>
       </div>
 
       {/* Content Based on View Mode */}
       {viewMode === 'list' && renderProjectsList()}
       {viewMode === 'board' && renderProjectsBoard()}
-      {viewMode === 'calendar' && (
-        getCalendarTasks().length > 0 ? (
-          <CalendarView 
-            tasks={getCalendarTasks()} 
-            currentUserId={currentUser?.id}
-            currentUserName={currentUser?.name}
-          />
-        ) : (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
-              <Calendar className="w-24 h-24" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Scheduled Tasks</h3>
-            <p className="text-gray-600 mb-4">Add due dates to your project stages to see them on the calendar.</p>
-            <Button asChild variant="outline">
-              <Link href="/projects">
-                View Projects
-              </Link>
-            </Button>
-          </div>
-        )
-      )}
     </div>
   )
 }
