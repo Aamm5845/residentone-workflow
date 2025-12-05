@@ -4,8 +4,8 @@
   "description": "StudioFlow by Meisner Interiors - Interior Design Project Workflow Management System",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy; prisma generate; next build",
-    "build:vercel": "prisma migrate deploy; prisma generate; next build",
+    "build": "node scripts/prisma-deploy.js && next build",
+    "build:vercel": "node scripts/prisma-deploy.js && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
