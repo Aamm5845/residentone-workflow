@@ -91,6 +91,7 @@ export async function POST(
     }
 
     // Use database transaction to ensure consistency
+    // NOTE: Dropbox-to-Blob copy is done AFTER the transaction to avoid timeouts
     const result = await prisma.$transaction(async (tx) => {
       // Update rendering version status
       const updatedRenderingVersion = await tx.renderingVersion.update({
@@ -114,41 +115,10 @@ export async function POST(
       })
 
       // Create ClientApprovalAsset entries for each rendering asset
-      // Also copy assets from Dropbox to Blob for faster delivery
+      // Blob URLs will be added after the transaction completes
       const clientApprovalAssets = []
       for (let i = 0; i < renderingVersion.assets.length; i++) {
         const asset = renderingVersion.assets[i]
-        
-        // Copy asset from Dropbox to Blob for active use
-        let blobUrl = null
-        if (asset.provider === 'dropbox' && asset.url) {
-          try {
-            console.log(`[push-to-client] Copying asset ${asset.id} from Dropbox to Blob...`)
-            
-            // Download from Dropbox
-            const dropboxPath = asset.url.startsWith('/') ? asset.url : '/' + asset.url
-            const fileBuffer = await dropboxService.downloadFile(dropboxPath)
-            
-            // Upload to Blob with proper path structure
-            const blobPath = generateFilePath(
-              renderingVersion.room.project.orgId,
-              renderingVersion.room.project.id,
-              renderingVersion.roomId,
-              `client-approval-${clientApprovalVersion.id}`,
-              asset.filename
-            )
-            
-            const blobResult = await uploadToBlob(fileBuffer, blobPath, {
-              contentType: asset.mimeType || 'image/jpeg'
-            })
-            
-            blobUrl = blobResult.url
-            console.log(`[push-to-client] ✅ Copied to Blob: ${blobUrl}`)
-          } catch (copyError) {
-            console.error(`[push-to-client] ❌ Failed to copy asset ${asset.id} to Blob:`, copyError)
-            // Continue without Blob copy - will use Dropbox as fallback
-          }
-        }
         
         const clientApprovalAsset = await tx.clientApprovalAsset.create({
           data: {
@@ -156,48 +126,11 @@ export async function POST(
             assetId: asset.id,
             includeInEmail: true, // Include all assets by default
             displayOrder: i,
-            blobUrl: blobUrl // Store Blob URL for fast access
+            blobUrl: null // Will be updated after transaction
           }
         })
         clientApprovalAssets.push(clientApprovalAsset)
       }
-
-      // The automatic stage transition will be handled by the phase transition utility
-      // after the transaction completes
-
-      // Log activity for rendering version
-      await logActivity({
-        session,
-        action: ActivityActions.UPDATE,
-        entity: 'RENDERING_VERSION',
-        entityId: versionId,
-        details: {
-          action: 'push_to_client',
-          version: renderingVersion.version,
-          assetCount: renderingVersion.assets.length,
-          roomName: renderingVersion.room.name || renderingVersion.room.type,
-          projectName: renderingVersion.room.project.name,
-          message: `Version ${renderingVersion.version} pushed to Client Approval`
-        },
-        ipAddress
-      })
-
-      // Log activity for client approval creation
-      await logActivity({
-        session,
-        action: ActivityActions.CREATE,
-        entity: 'CLIENT_APPROVAL_VERSION',
-        entityId: clientApprovalVersion.id,
-        details: {
-          version: renderingVersion.version,
-          sourceRenderingVersionId: versionId,
-          assetCount: renderingVersion.assets.length,
-          roomName: renderingVersion.room.name || renderingVersion.room.type,
-          projectName: renderingVersion.room.project.name,
-          message: `Client Approval version created from ${renderingVersion.version}`
-        },
-        ipAddress
-      })
 
       // Add activity log to Client Approval stage
       await tx.activity.create({
@@ -216,6 +149,91 @@ export async function POST(
           assets: clientApprovalAssets
         }
       }
+    })
+
+    // Log activities OUTSIDE the transaction (non-critical)
+    try {
+      await logActivity({
+        session,
+        action: ActivityActions.UPDATE,
+        entity: 'RENDERING_VERSION',
+        entityId: versionId,
+        details: {
+          action: 'push_to_client',
+          version: renderingVersion.version,
+          assetCount: renderingVersion.assets.length,
+          roomName: renderingVersion.room.name || renderingVersion.room.type,
+          projectName: renderingVersion.room.project.name,
+          message: `Version ${renderingVersion.version} pushed to Client Approval`
+        },
+        ipAddress
+      })
+
+      await logActivity({
+        session,
+        action: ActivityActions.CREATE,
+        entity: 'CLIENT_APPROVAL_VERSION',
+        entityId: result.clientApprovalVersion.id,
+        details: {
+          version: renderingVersion.version,
+          sourceRenderingVersionId: versionId,
+          assetCount: renderingVersion.assets.length,
+          roomName: renderingVersion.room.name || renderingVersion.room.type,
+          projectName: renderingVersion.room.project.name,
+          message: `Client Approval version created from ${renderingVersion.version}`
+        },
+        ipAddress
+      })
+    } catch (logError) {
+      console.error('[push-to-client] Activity logging failed (non-critical):', logError)
+    }
+
+    // Copy assets from Dropbox to Blob AFTER the transaction (non-blocking)
+    // This runs in the background and updates the records when complete
+    const copyAssetsToBlob = async () => {
+      for (let i = 0; i < renderingVersion.assets.length; i++) {
+        const asset = renderingVersion.assets[i]
+        const clientApprovalAsset = result.clientApprovalVersion.assets[i]
+        
+        if (asset.provider === 'dropbox' && asset.url) {
+          try {
+            console.log(`[push-to-client] Copying asset ${asset.id} from Dropbox to Blob...`)
+            
+            // Download from Dropbox
+            const dropboxPath = asset.url.startsWith('/') ? asset.url : '/' + asset.url
+            const fileBuffer = await dropboxService.downloadFile(dropboxPath)
+            
+            // Upload to Blob with proper path structure
+            const blobPath = generateFilePath(
+              renderingVersion.room.project.orgId,
+              renderingVersion.room.project.id,
+              renderingVersion.roomId,
+              `client-approval-${result.clientApprovalVersion.id}`,
+              asset.filename
+            )
+            
+            const blobResult = await uploadToBlob(fileBuffer, blobPath, {
+              contentType: asset.mimeType || 'image/jpeg'
+            })
+            
+            // Update the ClientApprovalAsset with the Blob URL
+            await prisma.clientApprovalAsset.update({
+              where: { id: clientApprovalAsset.id },
+              data: { blobUrl: blobResult.url }
+            })
+            
+            console.log(`[push-to-client] ✅ Copied to Blob: ${blobResult.url}`)
+          } catch (copyError) {
+            console.error(`[push-to-client] ❌ Failed to copy asset ${asset.id} to Blob:`, copyError)
+            // Continue - email will use Dropbox URLs as fallback
+          }
+        }
+      }
+    }
+
+    // Start the Blob copy in the background (don't await - let it run async)
+    copyAssetsToBlob().catch(err => {
+      console.error('[push-to-client] Background Blob copy failed:', err)
     })
 
     // Auto-complete the 3D rendering stage when pushing to client
