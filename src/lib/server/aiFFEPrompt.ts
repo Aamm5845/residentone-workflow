@@ -15,6 +15,78 @@ export interface DetectedFFEItem {
   description?: string
   category: string
   confidence: 'high' | 'medium' | 'low'
+  customizable?: boolean // If true, user can choose standard or custom
+}
+
+/**
+ * Configuration for linked sub-items when an item is marked as "custom"
+ * Maps item type keywords to their linked component names
+ */
+export const CUSTOM_ITEM_LINKED_COMPONENTS: Record<string, string[]> = {
+  // Bedroom items
+  'bed': ['Fabric (Headboard)', 'Legs/Frame'],
+  'headboard': ['Fabric', 'Frame'],
+  
+  // Seating
+  'chair': ['Wood Color', 'Fabric'],
+  'armchair': ['Wood Color', 'Fabric'],
+  'dining chair': ['Wood Color', 'Fabric/Upholstery'],
+  'accent chair': ['Wood Color', 'Fabric'],
+  'lounge chair': ['Frame Finish', 'Fabric'],
+  'sofa': ['Fabric', 'Legs'],
+  'sectional': ['Fabric', 'Legs'],
+  'loveseat': ['Fabric', 'Legs'],
+  'ottoman': ['Fabric', 'Legs'],
+  'bench': ['Fabric/Seat Material', 'Frame/Legs'],
+  'stool': ['Seat Material', 'Frame Finish'],
+  'bar stool': ['Seat Material', 'Frame Finish'],
+  
+  // Bathroom items
+  'vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'bathroom vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'double vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'single vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  
+  // Kitchen items
+  'cabinet': ['Finish/Paint', 'Hardware/Handles'],
+  'kitchen cabinet': ['Finish/Paint', 'Hardware/Handles', 'Countertop'],
+  'kitchen island': ['Counter/Top', 'Cabinet Finish', 'Hardware'],
+  
+  // Storage
+  'wardrobe': ['Interior Configuration', 'Door Finish', 'Hardware'],
+  'closet': ['Interior Configuration', 'Door Finish', 'Hardware'],
+  'dresser': ['Finish', 'Hardware/Handles'],
+  'nightstand': ['Finish', 'Hardware'],
+  'bedside table': ['Finish', 'Hardware'],
+  
+  // Tables
+  'dining table': ['Top Material', 'Base/Legs'],
+  'coffee table': ['Top Material', 'Base/Legs'],
+  'side table': ['Top Material', 'Base/Legs'],
+  'console table': ['Top Material', 'Base/Legs'],
+  'desk': ['Top Material', 'Frame/Legs'],
+}
+
+/**
+ * Check if an item name matches any customizable item types
+ * Returns the linked components if found
+ */
+export function getLinkedComponentsForItem(itemName: string): string[] | null {
+  const normalizedName = itemName.toLowerCase().trim()
+  
+  // Direct match first
+  if (CUSTOM_ITEM_LINKED_COMPONENTS[normalizedName]) {
+    return CUSTOM_ITEM_LINKED_COMPONENTS[normalizedName]
+  }
+  
+  // Check if item name contains any of the keywords
+  for (const [keyword, components] of Object.entries(CUSTOM_ITEM_LINKED_COMPONENTS)) {
+    if (normalizedName.includes(keyword)) {
+      return components
+    }
+  }
+  
+  return null
 }
 
 export interface DetectedFFECategory {
@@ -60,6 +132,26 @@ Examine the provided 3D rendering image(s) and create a comprehensive list of AL
 13. **Electrical** - Outlets, switches, panels, etc.
 14. **Accessories** - Bathroom accessories, kitchen accessories, etc.
 
+**MULTI-IMAGE HANDLING**:
+When analyzing MULTIPLE images of the same room:
+- DEDUPLICATE items: If the same item appears in multiple images, list it ONLY ONCE
+- If you see a bed in image 1 and the same bed in image 2, add it to the list ONLY ONCE
+- Combine views: Use all images to get a complete picture, but avoid counting the same physical item twice
+- Different angles of the same item = ONE item in your list
+- Same type of item in different locations = MULTIPLE items (e.g., 2 bedside tables)
+
+**CUSTOMIZABLE ITEMS**:
+For certain items that are commonly custom-made, include a "customizable" flag set to true:
+- Beds (may have custom fabric headboard, custom legs, custom frame)
+- Chairs (may have custom wood color, custom fabric upholstery)
+- Sofas (may have custom fabric, custom legs)
+- Bathroom Vanities (may have custom counter, custom paint color, custom handles)
+- Kitchen Cabinets (may have custom finish, custom hardware, custom countertop)
+- Wardrobes/Closets (may have custom interior, custom doors, custom hardware)
+- Dining Tables (may have custom top material, custom base)
+- Headboards (may have custom fabric, custom shape)
+- Ottomans/Benches (may have custom fabric, custom legs)
+
 **RESPONSE FORMAT**:
 Respond ONLY with a valid JSON object in this exact format:
 {
@@ -73,7 +165,8 @@ Respond ONLY with a valid JSON object in this exact format:
           "name": "Item Name",
           "description": "Brief description with color, material, or other details",
           "category": "Category Name",
-          "confidence": "high|medium|low"
+          "confidence": "high|medium|low",
+          "customizable": true
         }
       ]
     }
@@ -89,7 +182,8 @@ Respond ONLY with a valid JSON object in this exact format:
 - LOW confidence = inferred from context or partially hidden
 - DO NOT include generic items that aren't visible
 - DO NOT make up items that aren't in the image
-- ONLY output valid JSON, no markdown code blocks or explanations`
+- ONLY output valid JSON, no markdown code blocks or explanations
+- DEDUPLICATE: Never list the same physical item twice, even if visible in multiple images`
 }
 
 /**
@@ -146,14 +240,21 @@ export function parseFFEDetectionResponse(responseText: string): AIFFEDetectionR
         if (cat.name && Array.isArray(cat.items)) {
           const items: DetectedFFEItem[] = cat.items
             .slice(0, MAX_ITEMS_PER_CATEGORY)
-            .map((item: any) => ({
-              name: String(item.name || 'Unknown Item'),
-              description: item.description ? String(item.description) : undefined,
-              category: String(cat.name),
-              confidence: ['high', 'medium', 'low'].includes(item.confidence) 
-                ? item.confidence 
-                : 'medium'
-            }))
+            .map((item: any) => {
+              const name = String(item.name || 'Unknown Item')
+              // Check if item is customizable based on AI response or our config
+              const isCustomizable = item.customizable === true || getLinkedComponentsForItem(name) !== null
+              
+              return {
+                name,
+                description: item.description ? String(item.description) : undefined,
+                category: String(cat.name),
+                confidence: ['high', 'medium', 'low'].includes(item.confidence) 
+                  ? item.confidence 
+                  : 'medium',
+                customizable: isCustomizable || undefined
+              }
+            })
           
           if (items.length > 0) {
             categories.push({

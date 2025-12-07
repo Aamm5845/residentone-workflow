@@ -92,11 +92,45 @@ export default async function Rooms({ searchParams }: { searchParams: Promise<{ 
   }
 
   // Calculate stats for each room and group by project
+  // Use 5-phase logic for consistency with room detail pages
+  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+  
   const roomsWithStats = rooms.map(room => {
-    const completedStages = room.stages.filter((s: any) => s.status === 'COMPLETED')
-    const applicableStages = room.stages.filter((s: any) => s.status !== 'NOT_APPLICABLE')
-    const totalStages = applicableStages.length
-    const progressPercent = totalStages > 0 ? Math.round((completedStages.length / totalStages) * 100) : 0
+    let completedCount = 0
+    let totalApplicable = 0
+    
+    phaseIds.forEach(phaseId => {
+      let matchingStage = null
+      
+      if (phaseId === 'DESIGN_CONCEPT') {
+        const designStage = room.stages.find((s: any) => s.type === 'DESIGN')
+        const designConceptStage = room.stages.find((s: any) => s.type === 'DESIGN_CONCEPT')
+        matchingStage = designConceptStage || designStage
+      } else {
+        matchingStage = room.stages.find((s: any) => s.type === phaseId)
+      }
+      
+      // Skip phases marked as not applicable
+      if (matchingStage?.status === 'NOT_APPLICABLE') {
+        return
+      }
+      
+      totalApplicable++
+      
+      if (phaseId === 'DESIGN_CONCEPT') {
+        const designStage = room.stages.find((s: any) => s.type === 'DESIGN')
+        const designConceptStage = room.stages.find((s: any) => s.type === 'DESIGN_CONCEPT')
+        if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+          completedCount++
+        }
+      } else {
+        if (matchingStage?.status === 'COMPLETED') {
+          completedCount++
+        }
+      }
+    })
+    
+    const progressPercent = totalApplicable > 0 ? Math.round((completedCount / totalApplicable) * 100) : 0
     
     // Get ALL active phases (not just the first one)
     const activeStages = room.stages.filter((s: any) => 
@@ -111,8 +145,8 @@ export default async function Rooms({ searchParams }: { searchParams: Promise<{ 
       projectName: room.project.name,
       clientName: room.project.client.name,
       progressPercent,
-      completedCount: completedStages.length,
-      totalCount: totalStages,
+      completedCount,
+      totalCount: totalApplicable,
       activePhases: activeStages.map((s: any) => ({
         type: s.type,
         label: PHASE_LABELS[s.type] || s.type,

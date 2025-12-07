@@ -22,7 +22,9 @@ import {
   X,
   Briefcase,
   ArrowRight,
-  Trash2
+  Trash2,
+  Link,
+  Settings2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -32,6 +34,74 @@ interface DetectedFFEItem {
   description?: string
   category: string
   confidence: 'high' | 'medium' | 'low'
+  customizable?: boolean // Items that can have linked sub-components
+}
+
+// Configuration for linked sub-items when an item is marked as "custom"
+const CUSTOM_ITEM_LINKED_COMPONENTS: Record<string, string[]> = {
+  // Bedroom items
+  'bed': ['Fabric (Headboard)', 'Legs/Frame'],
+  'headboard': ['Fabric', 'Frame'],
+  
+  // Seating
+  'chair': ['Wood Color', 'Fabric'],
+  'armchair': ['Wood Color', 'Fabric'],
+  'dining chair': ['Wood Color', 'Fabric/Upholstery'],
+  'accent chair': ['Wood Color', 'Fabric'],
+  'lounge chair': ['Frame Finish', 'Fabric'],
+  'sofa': ['Fabric', 'Legs'],
+  'sectional': ['Fabric', 'Legs'],
+  'loveseat': ['Fabric', 'Legs'],
+  'ottoman': ['Fabric', 'Legs'],
+  'bench': ['Fabric/Seat Material', 'Frame/Legs'],
+  'stool': ['Seat Material', 'Frame Finish'],
+  'bar stool': ['Seat Material', 'Frame Finish'],
+  
+  // Bathroom items
+  'vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'bathroom vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'double vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  'single vanity': ['Counter/Top', 'Paint Color', 'Handles/Hardware'],
+  
+  // Kitchen items
+  'cabinet': ['Finish/Paint', 'Hardware/Handles'],
+  'kitchen cabinet': ['Finish/Paint', 'Hardware/Handles', 'Countertop'],
+  'kitchen island': ['Counter/Top', 'Cabinet Finish', 'Hardware'],
+  
+  // Storage
+  'wardrobe': ['Interior Configuration', 'Door Finish', 'Hardware'],
+  'closet': ['Interior Configuration', 'Door Finish', 'Hardware'],
+  'dresser': ['Finish', 'Hardware/Handles'],
+  'nightstand': ['Finish', 'Hardware'],
+  'bedside table': ['Finish', 'Hardware'],
+  
+  // Tables
+  'dining table': ['Top Material', 'Base/Legs'],
+  'coffee table': ['Top Material', 'Base/Legs'],
+  'side table': ['Top Material', 'Base/Legs'],
+  'console table': ['Top Material', 'Base/Legs'],
+  'desk': ['Top Material', 'Frame/Legs'],
+}
+
+/**
+ * Get linked components for an item if it's customizable
+ */
+function getLinkedComponentsForItem(itemName: string): string[] | null {
+  const normalizedName = itemName.toLowerCase().trim()
+  
+  // Direct match first
+  if (CUSTOM_ITEM_LINKED_COMPONENTS[normalizedName]) {
+    return CUSTOM_ITEM_LINKED_COMPONENTS[normalizedName]
+  }
+  
+  // Check if item name contains any of the keywords
+  for (const [keyword, components] of Object.entries(CUSTOM_ITEM_LINKED_COMPONENTS)) {
+    if (normalizedName.includes(keyword)) {
+      return components
+    }
+  }
+  
+  return null
 }
 
 interface DetectedFFECategory {
@@ -50,6 +120,8 @@ interface EditableItem extends DetectedFFEItem {
   isEditing: boolean
   editedName: string
   editedDescription: string
+  isCustom?: boolean // User's choice: true = custom with linked items, false/undefined = standard
+  linkedComponents?: string[] // Components that will be added if custom
 }
 
 interface EditableCategory {
@@ -57,12 +129,23 @@ interface EditableCategory {
   items: EditableItem[]
 }
 
+// Extended category type for import that includes custom item info
+export interface ImportableCategory {
+  name: string
+  items: Array<{
+    name: string
+    description?: string
+    isCustom?: boolean
+    linkedItems?: string[] // Names of linked items to create
+  }>
+}
+
 interface AIGenerateFFEDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   roomId: string
   roomName: string
-  onImportItems: (categories: DetectedFFECategory[], selectedItems: Set<string>) => Promise<void>
+  onImportItems: (categories: ImportableCategory[], selectedItems: Set<string>) => Promise<void>
 }
 
 export default function AIGenerateFFEDialog({
@@ -79,6 +162,7 @@ export default function AIGenerateFFEDialog({
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [customItems, setCustomItems] = useState<Set<string>>(new Set()) // Track items marked as custom
   const [meta, setMeta] = useState<any>(null)
 
   const handleAnalyze = async () => {
@@ -88,6 +172,7 @@ export default function AIGenerateFFEDialog({
     setEditableCategories([])
     setSelectedItems(new Set())
     setExpandedCategories(new Set())
+    setCustomItems(new Set())
 
     try {
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/ai-generate`, {
@@ -107,12 +192,21 @@ export default function AIGenerateFFEDialog({
         
         const editable: EditableCategory[] = data.data.categories.map((category: DetectedFFECategory) => ({
           name: category.name,
-          items: category.items.map(item => ({
-            ...item,
-            isEditing: false,
-            editedName: item.name,
-            editedDescription: item.description || ''
-          }))
+          items: category.items.map(item => {
+            // Check if this item can be customizable
+            const linkedComponents = getLinkedComponentsForItem(item.name)
+            const isCustomizable = item.customizable === true || linkedComponents !== null
+            
+            return {
+              ...item,
+              isEditing: false,
+              editedName: item.name,
+              editedDescription: item.description || '',
+              customizable: isCustomizable,
+              isCustom: false, // Default to standard
+              linkedComponents: linkedComponents || undefined
+            }
+          })
         }))
         setEditableCategories(editable)
         
@@ -226,6 +320,12 @@ export default function AIGenerateFFEDialog({
       return newSet
     })
     
+    setCustomItems(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(key)
+      return newSet
+    })
+    
     setEditableCategories(prev => prev.map((cat, cIdx) => {
       if (cIdx === categoryIndex) {
         return { ...cat, items: cat.items.filter((_, iIdx) => iIdx !== itemIndex) }
@@ -236,6 +336,36 @@ export default function AIGenerateFFEDialog({
     toast.success('Item removed')
   }
 
+  // Toggle whether an item is custom (with linked items) or standard
+  const handleToggleCustom = (categoryName: string, itemName: string) => {
+    const key = `${categoryName}::${itemName}`
+    setCustomItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(key)) {
+        newSet.delete(key)
+      } else {
+        newSet.add(key)
+      }
+      return newSet
+    })
+    
+    // Update the editable categories to reflect the change
+    setEditableCategories(prev => prev.map(cat => {
+      if (cat.name === categoryName) {
+        return {
+          ...cat,
+          items: cat.items.map(item => {
+            if (item.name === itemName) {
+              return { ...item, isCustom: !item.isCustom }
+            }
+            return item
+          })
+        }
+      }
+      return cat
+    }))
+  }
+
   const handleImport = async () => {
     if (!result || selectedItems.size === 0) {
       toast.error('Please select items to import')
@@ -244,18 +374,40 @@ export default function AIGenerateFFEDialog({
 
     setImporting(true)
     try {
-      const categoriesForImport: DetectedFFECategory[] = editableCategories.map(cat => ({
+      // Build categories with custom item info and linked items
+      const categoriesForImport: ImportableCategory[] = editableCategories.map(cat => ({
         name: cat.name,
-        items: cat.items.map(item => ({
-          name: item.name,
-          description: item.description,
-          category: cat.name,
-          confidence: item.confidence
-        }))
+        items: cat.items.map(item => {
+          const key = `${cat.name}::${item.name}`
+          const isCustom = customItems.has(key)
+          
+          return {
+            name: item.name,
+            description: item.description,
+            isCustom,
+            // If custom, include the linked items that should be created
+            linkedItems: isCustom && item.linkedComponents ? item.linkedComponents : undefined
+          }
+        })
       }))
       
       await onImportItems(categoriesForImport, selectedItems)
-      toast.success(`${selectedItems.size} items imported to workspace!`)
+      
+      // Count linked items that will be added
+      let linkedCount = 0
+      for (const key of selectedItems) {
+        if (customItems.has(key)) {
+          const [categoryName, itemName] = key.split('::')
+          const cat = editableCategories.find(c => c.name === categoryName)
+          const item = cat?.items.find(i => i.name === itemName)
+          if (item?.linkedComponents) {
+            linkedCount += item.linkedComponents.length
+          }
+        }
+      }
+      
+      const linkedMsg = linkedCount > 0 ? ` (+ ${linkedCount} linked components)` : ''
+      toast.success(`${selectedItems.size} items imported to workspace${linkedMsg}!`)
       onOpenChange(false)
     } catch (err: any) {
       toast.error(err.message || 'Failed to import items')
@@ -266,6 +418,22 @@ export default function AIGenerateFFEDialog({
 
   const selectedCount = selectedItems.size
   const totalCount = editableCategories.reduce((acc, cat) => acc + cat.items.length, 0)
+  
+  // Calculate how many linked items will be added for custom items
+  const linkedItemsCount = React.useMemo(() => {
+    let count = 0
+    for (const key of selectedItems) {
+      if (customItems.has(key)) {
+        const [categoryName, itemName] = key.split('::')
+        const cat = editableCategories.find(c => c.name === categoryName)
+        const item = cat?.items.find(i => i.name === itemName)
+        if (item?.linkedComponents) {
+          count += item.linkedComponents.length
+        }
+      }
+    }
+    return count
+  }, [selectedItems, customItems, editableCategories])
 
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
@@ -365,9 +533,14 @@ export default function AIGenerateFFEDialog({
 
               {/* Selection Summary */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600">
                   <span className="font-semibold text-gray-900">{selectedCount}</span> of {totalCount} selected
-                </span>
+                  {linkedItemsCount > 0 && (
+                    <span className="ml-2 text-[#e94d97]">
+                      (+{linkedItemsCount} linked components)
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => {
                     const all = new Set<string>()
@@ -463,27 +636,104 @@ export default function AIGenerateFFEDialog({
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="flex items-start gap-3">
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={() => handleToggleItem(category.name, item.name)}
-                                      className="mt-1"
-                                    />
-                                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleItem(category.name, item.name)}>
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-gray-900">{item.name}</span>
-                                        {getConfidenceBadge(item.confidence)}
+                                  <div className="space-y-2">
+                                    <div className="flex items-start gap-3">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => handleToggleItem(category.name, item.name)}
+                                        className="mt-1"
+                                      />
+                                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleItem(category.name, item.name)}>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-gray-900">{item.name}</span>
+                                          {getConfidenceBadge(item.confidence)}
+                                          {item.customizable && (
+                                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-600 border-purple-200">
+                                              <Settings2 className="h-3 w-3 mr-1" />
+                                              Customizable
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {item.description && <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>}
                                       </div>
-                                      {item.description && <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>}
+                                      <div className="flex items-center gap-1">
+                                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit(categoryIndex, itemIndex)} className="text-gray-400 hover:text-gray-600">
+                                          <Edit3 className="h-4 w-4" />
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={() => handleDeleteItem(categoryIndex, itemIndex)} className="text-gray-400 hover:text-red-500">
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button size="sm" variant="ghost" onClick={() => handleStartEdit(categoryIndex, itemIndex)} className="text-gray-400 hover:text-gray-600">
-                                        <Edit3 className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteItem(categoryIndex, itemIndex)} className="text-gray-400 hover:text-red-500">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                    
+                                    {/* Custom vs Standard selection for customizable items */}
+                                    {item.customizable && isSelected && item.linkedComponents && (
+                                      <div className="ml-8 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-sm font-medium text-gray-700">Is this item custom-made?</span>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              size="sm"
+                                              variant={!customItems.has(`${category.name}::${item.name}`) ? "default" : "outline"}
+                                              className={cn(
+                                                "text-xs h-7 px-3",
+                                                !customItems.has(`${category.name}::${item.name}`) && "bg-gray-700 hover:bg-gray-800"
+                                              )}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                if (customItems.has(`${category.name}::${item.name}`)) {
+                                                  handleToggleCustom(category.name, item.name)
+                                                }
+                                              }}
+                                            >
+                                              Standard
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant={customItems.has(`${category.name}::${item.name}`) ? "default" : "outline"}
+                                              className={cn(
+                                                "text-xs h-7 px-3",
+                                                customItems.has(`${category.name}::${item.name}`) && "bg-[#e94d97] hover:bg-[#d63d87]"
+                                              )}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                if (!customItems.has(`${category.name}::${item.name}`)) {
+                                                  handleToggleCustom(category.name, item.name)
+                                                }
+                                              }}
+                                            >
+                                              Custom
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        
+                                        {customItems.has(`${category.name}::${item.name}`) && (
+                                          <div className="mt-2 pt-2 border-t border-gray-200">
+                                            <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                                              <Link className="h-3 w-3" />
+                                              <span>The following linked items will be added:</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {item.linkedComponents.map((component, idx) => (
+                                                <Badge 
+                                                  key={idx}
+                                                  variant="outline" 
+                                                  className="text-xs bg-[#e94d97]/10 text-[#e94d97] border-[#e94d97]/30"
+                                                >
+                                                  + {component}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {!customItems.has(`${category.name}::${item.name}`) && (
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            Standard: Only the main item will be added
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -517,7 +767,7 @@ export default function AIGenerateFFEDialog({
                 ) : (
                   <>
                     <Briefcase className="h-4 w-4 mr-2" />
-                    Import {selectedCount} to Workspace
+                    Import {selectedCount}{linkedItemsCount > 0 ? ` (+${linkedItemsCount})` : ''} to Workspace
                   </>
                 )}
               </Button>

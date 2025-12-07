@@ -459,12 +459,12 @@ export default function FFESettingsDepartment({
   }
 
   const handleAIImportItems = async (
-    categories: Array<{ name: string; items: Array<{ name: string; description?: string }> }>,
+    categories: Array<{ name: string; items: Array<{ name: string; description?: string; isCustom?: boolean; linkedItems?: string[] }> }>,
     selectedItems: Set<string>
   ) => {
     try {
       setSaving(true)
-      const categoryMap = new Map<string, Array<{ name: string; description?: string }>>()
+      const categoryMap = new Map<string, Array<{ name: string; description?: string; isCustom?: boolean; linkedItems?: string[] }>>()
       
       for (const key of selectedItems) {
         const [categoryName, itemName] = key.split('::')
@@ -472,9 +472,17 @@ export default function FFESettingsDepartment({
         const item = category?.items.find(i => i.name === itemName)
         if (item) {
           if (!categoryMap.has(categoryName)) categoryMap.set(categoryName, [])
-          categoryMap.get(categoryName)!.push({ name: item.name, description: item.description })
+          categoryMap.get(categoryName)!.push({ 
+            name: item.name, 
+            description: item.description,
+            isCustom: item.isCustom,
+            linkedItems: item.linkedItems
+          })
         }
       }
+      
+      let totalItemsCreated = 0
+      let linkedItemsCreated = 0
       
       for (const [categoryName, items] of categoryMap) {
         let existingSection = sections.find(s => s.name.toLowerCase() === categoryName.toLowerCase())
@@ -493,16 +501,60 @@ export default function FFESettingsDepartment({
         }
         
         for (const item of items) {
-          await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+          // Create the main item
+          const hasLinkedItems = item.isCustom && item.linkedItems && item.linkedItems.length > 0
+          
+          const createResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionId, name: item.name, description: item.description || '', quantity: 1, visibility: 'VISIBLE' })
+            body: JSON.stringify({ 
+              sectionId, 
+              name: item.name, 
+              description: item.description || '', 
+              quantity: 1, 
+              visibility: 'VISIBLE',
+              // If custom with linked items, mark as parent
+              customFields: hasLinkedItems ? {
+                hasChildren: true,
+                linkedItems: item.linkedItems
+              } : undefined
+            })
           })
+          
+          totalItemsCreated++
+          
+          // If this is a custom item with linked items, create them
+          if (hasLinkedItems && item.linkedItems) {
+            const createdItem = await createResponse.json()
+            const parentItemId = createdItem.data?.item?.id || createdItem.data?.id || createdItem.id
+            
+            if (parentItemId) {
+              // Add each linked item using the linked-items API
+              for (const linkedItemName of item.linkedItems) {
+                try {
+                  await fetch(`/api/ffe/v2/rooms/${roomId}/items/${parentItemId}/linked-items`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      action: 'add',
+                      name: linkedItemName
+                    })
+                  })
+                  linkedItemsCreated++
+                } catch (linkedError) {
+                  console.error(`Failed to add linked item "${linkedItemName}":`, linkedError)
+                  // Continue adding other linked items even if one fails
+                }
+              }
+            }
+          }
         }
       }
       
       await loadFFEData()
-      toast.success(`${selectedItems.size} items imported to workspace!`)
+      
+      const linkedMsg = linkedItemsCreated > 0 ? ` (+ ${linkedItemsCreated} linked components)` : ''
+      toast.success(`${totalItemsCreated} items imported to workspace${linkedMsg}!`)
       setTimeout(() => router.push(`/ffe/${roomId}/workspace`), 1500)
     } catch (error) {
       throw error

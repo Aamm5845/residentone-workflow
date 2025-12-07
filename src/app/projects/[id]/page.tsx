@@ -118,13 +118,49 @@ export default async function ProjectDetail({ params }: Props) {
   }
 
   // Calculate overall project progress (excluding NOT_APPLICABLE phases)
-  const totalApplicableStages = project.rooms.reduce((total: number, room: any) => {
-    return total + room.stages.filter((stage: any) => stage.status !== 'NOT_APPLICABLE').length
-  }, 0)
-  const completedStages = project.rooms.reduce((total: number, room: any) => {
-    return total + room.stages.filter((stage: any) => stage.status === 'COMPLETED').length
-  }, 0)
-  const overallProgress = totalApplicableStages > 0 ? Math.round((completedStages / totalApplicableStages) * 100) : 0
+  // Use the same 5-phase logic as room calculations for consistency
+  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+  
+  let totalApplicablePhases = 0
+  let completedPhases = 0
+  
+  project.rooms.forEach((room: any) => {
+    phaseIds.forEach(phaseId => {
+      let matchingStage = null
+      
+      if (phaseId === 'DESIGN_CONCEPT') {
+        // For DESIGN_CONCEPT, check both DESIGN and DESIGN_CONCEPT stages
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        matchingStage = designConceptStage || designStage
+      } else {
+        matchingStage = room.stages.find((stage: any) => stage.type === phaseId)
+      }
+      
+      // Skip phases marked as not applicable
+      if (matchingStage?.status === 'NOT_APPLICABLE') {
+        return
+      }
+      
+      totalApplicablePhases++
+      
+      if (phaseId === 'DESIGN_CONCEPT') {
+        // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed
+        const designStage = room.stages.find((stage: any) => stage.type === 'DESIGN')
+        const designConceptStage = room.stages.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+        
+        if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+          completedPhases++
+        }
+      } else {
+        if (matchingStage?.status === 'COMPLETED') {
+          completedPhases++
+        }
+      }
+    })
+  })
+  
+  const overallProgress = totalApplicablePhases > 0 ? Math.round((completedPhases / totalApplicablePhases) * 100) : 0
 
   const getPhaseIcon = (phaseType: string) => {
     return getStageIcon(phaseType)
