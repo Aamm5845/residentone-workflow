@@ -59,6 +59,23 @@ export async function POST(
         aaronApprovedById: approved ? session.user.id : null,
         notes: notes || null,
         status: approved ? 'READY_FOR_CLIENT' : 'DRAFT'
+      },
+      include: {
+        assets: {
+          include: {
+            asset: {
+              include: {
+                uploadedByUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     })
 
