@@ -48,7 +48,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
       fill="white" 
       textAnchor="middle" 
       dominantBaseline="central"
-      className="font-semibold text-sm"
+      className="font-semibold text-xs"
       style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
     >
       {`${(percent * 100).toFixed(0)}%`}

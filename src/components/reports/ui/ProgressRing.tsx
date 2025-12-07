@@ -66,7 +66,7 @@ export function ProgressRing({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <motion.span 
             className={`font-bold text-gray-900 drop-shadow-sm ${
-              size <= 80 ? 'text-lg' : 'text-3xl'
+              size <= 80 ? 'text-base' : 'text-xl'
             }`}
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}

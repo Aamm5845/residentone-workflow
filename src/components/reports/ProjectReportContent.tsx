@@ -59,11 +59,12 @@ export function ProjectReportContent({ projectId }: Props) {
     return Array.from(roomsMap.entries()).map(([id, name]) => ({ id, name }))
   }, [project])
 
-  // Calculate overall stats
+  // Calculate overall stats (excluding NOT_APPLICABLE phases)
   const stats = useMemo(() => {
     if (!project) return null
 
-    const totalTasks = Object.values(project.phases).reduce((sum: number, p: any) => sum + p.total, 0)
+    // Exclude NOT_APPLICABLE from total count
+    const totalTasks = Object.values(project.phases).reduce((sum: number, p: any) => sum + (p.total - (p.notApplicable || 0)), 0)
     const completedTasks = Object.values(project.phases).reduce((sum: number, p: any) => sum + p.completed, 0)
     const inProgressTasks = Object.values(project.phases).reduce((sum: number, p: any) => sum + p.inProgress, 0)
     const pendingTasks = Object.values(project.phases).reduce((sum: number, p: any) => sum + p.pending, 0)

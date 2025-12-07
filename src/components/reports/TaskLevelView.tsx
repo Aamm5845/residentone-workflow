@@ -197,6 +197,10 @@ export function TaskLevelView({ phases, filters }: Props) {
           const phaseData = phases[key]
           if (!phaseData) return null
           
+          // Skip phases that are entirely NOT_APPLICABLE (no applicable rooms)
+          const applicableRooms = phaseData.total - (phaseData.notApplicable || 0)
+          if (applicableRooms <= 0) return null
+          
           const PhaseIcon = config.icon
           const isFFE = key === 'FFE'
           
@@ -204,18 +208,15 @@ export function TaskLevelView({ phases, filters }: Props) {
           // For other phases, calculate from completed/total
           const completion = isFFE 
             ? phaseData.percentage
-            : (phaseData.total > 0 
-                ? Math.round((phaseData.completed / (phaseData.total - (phaseData.notApplicable || 0))) * 100) 
-                : 0)
+            : Math.round((phaseData.completed / applicableRooms) * 100)
           
           // Generate description text
           let descriptionText = ''
           if (isFFE) {
             const roomsWithItems = phaseData.ffeRoomsWithItems || 0
-            const totalRooms = phaseData.total - (phaseData.notApplicable || 0)
-            descriptionText = `${roomsWithItems}/${totalRooms} rooms started`
+            descriptionText = `${roomsWithItems}/${applicableRooms} rooms started`
           } else {
-            descriptionText = `${phaseData.completed} of ${phaseData.total - (phaseData.notApplicable || 0)} complete`
+            descriptionText = `${phaseData.completed} of ${applicableRooms} complete`
           }
           
           return (

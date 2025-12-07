@@ -118,6 +118,53 @@ export default function InteractiveProjectsPage({
     return true
   })
 
+  // Helper function to calculate project progress using the 5-phase display system
+  // This matches the room progress calculation in the project detail page
+  const calculateProjectProgress = (project: Project) => {
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+    
+    let totalApplicablePhases = 0
+    let completedPhases = 0
+    
+    project.rooms?.forEach((room: any) => {
+      phaseIds.forEach(phaseId => {
+        let matchingStage = null
+        
+        if (phaseId === 'DESIGN_CONCEPT') {
+          // For DESIGN_CONCEPT, check both DESIGN and DESIGN_CONCEPT stages
+          const designStage = room.stages?.find((stage: any) => stage.type === 'DESIGN')
+          const designConceptStage = room.stages?.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+          matchingStage = designConceptStage || designStage
+        } else {
+          matchingStage = room.stages?.find((stage: any) => stage.type === phaseId)
+        }
+        
+        // Skip phases marked as not applicable
+        if (matchingStage?.status === 'NOT_APPLICABLE') {
+          return
+        }
+        
+        totalApplicablePhases++
+        
+        if (phaseId === 'DESIGN_CONCEPT') {
+          // For DESIGN_CONCEPT phase, check if either DESIGN or DESIGN_CONCEPT is completed
+          const designStage = room.stages?.find((stage: any) => stage.type === 'DESIGN')
+          const designConceptStage = room.stages?.find((stage: any) => stage.type === 'DESIGN_CONCEPT')
+          
+          if (designConceptStage?.status === 'COMPLETED' || designStage?.status === 'COMPLETED') {
+            completedPhases++
+          }
+        } else {
+          if (matchingStage?.status === 'COMPLETED') {
+            completedPhases++
+          }
+        }
+      })
+    })
+    
+    return totalApplicablePhases > 0 ? Math.round((completedPhases / totalApplicablePhases) * 100) : 0
+  }
+
   // Sort projects based on selected option
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     switch (sortBy) {
@@ -133,16 +180,7 @@ export default function InteractiveProjectsPage({
         if (!b.dueDate) return -1
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       case 'progress':
-        const getProgress = (project: Project) => {
-          const completedStages = project.rooms?.reduce((total: number, room: any) => {
-            return total + (room.stages?.filter((stage: any) => stage.status === 'COMPLETED')?.length || 0)
-          }, 0) || 0
-          const totalStages = project.rooms?.reduce((total: number, room: any) => {
-            return total + (room.stages?.length || 0)
-          }, 0) || 0
-          return totalStages > 0 ? (completedStages / totalStages) * 100 : 0
-        }
-        return getProgress(b) - getProgress(a)
+        return calculateProjectProgress(b) - calculateProjectProgress(a)
       default:
         return 0
     }
@@ -172,13 +210,8 @@ export default function InteractiveProjectsPage({
       {/* Project Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {sortedProjects && sortedProjects.length > 0 && sortedProjects.map((project) => {
-          const completedStages = project.rooms?.reduce((total: number, room: any) => {
-            return total + (room.stages?.filter((stage: any) => stage.status === 'COMPLETED')?.length || 0)
-          }, 0) || 0
-          const totalStages = project.rooms?.reduce((total: number, room: any) => {
-            return total + (room.stages?.length || 0)
-          }, 0) || 0
-          const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0
+          // Use the 5-phase display system for consistent progress calculation
+          const progressPercent = calculateProjectProgress(project)
           
           // Get project status badge with colors
           const getProjectStatus = () => {

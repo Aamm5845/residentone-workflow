@@ -94,9 +94,12 @@ export async function POST(
     }
 
     // Get email assets - use Blob URLs (fast, reliable) with Dropbox as fallback
-    const emailAssets = currentVersion.assets
-      .filter(asset => selectedAssetIds?.includes(asset.id) || false)
-      .map((assetItem) => {
+    // If no selectedAssetIds provided, include ALL assets marked as includeInEmail
+    const assetsToInclude = selectedAssetIds && selectedAssetIds.length > 0
+      ? currentVersion.assets.filter(asset => selectedAssetIds.includes(asset.id))
+      : currentVersion.assets.filter(asset => asset.includeInEmail)
+    
+    const emailAssets = assetsToInclude.map((assetItem) => {
         // Prefer Blob URL (fast delivery), fallback to Dropbox path
         const viewableUrl = assetItem.blobUrl || assetItem.asset.url
         
@@ -110,6 +113,8 @@ export async function POST(
           includeInEmail: true
         }
       })
+    
+    console.log(`[send-to-client] Including ${emailAssets.length} assets in email (total available: ${currentVersion.assets.length})`)
 
     // Send the actual email
     try {
@@ -193,7 +198,7 @@ export async function POST(
       data: {
         stageId: currentVersion.stageId,
         type: 'EMAIL_SENT',
-        message: `${currentVersion.version} sent to client - Approval email sent to client by ${session.user.name} with ${selectedAssetIds?.length || 0} assets`,
+        message: `${currentVersion.version} sent to client - Approval email sent to client by ${session.user.name} with ${emailAssets.length} assets`,
         userId: session.user.id
       }
     })
