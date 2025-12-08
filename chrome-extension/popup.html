@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meisner FFE Clipper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="clipper-container">
+    <!-- Header -->
+    <header class="clipper-header">
+      <div class="logo">
+        <img src="icons/favicon-32x32.png" alt="Meisner" width="28" height="28" style="border-radius: 4px;">
+      </div>
+      <div class="header-actions">
+        <button id="collapseBtn" class="icon-btn" title="Collapse">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+        <button id="closeBtn" class="icon-btn" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Auth Section (shown when not logged in) -->
+    <section id="authSection" class="auth-section hidden">
+      <div class="auth-message">
+        <p>Please log in to StudioFlow to use the clipper</p>
+        <button id="loginBtn" class="btn btn-primary">Log In</button>
+      </div>
+    </section>
+
+    <!-- Main Content (shown when logged in) -->
+    <section id="mainSection" class="main-section">
+      <!-- Location Selectors -->
+      <div class="location-selectors">
+        <div class="selector-group">
+          <label>Project</label>
+          <select id="projectSelect" class="selector">
+            <option value="">Select Project...</option>
+          </select>
+        </div>
+
+        <div class="selector-group hidden" id="roomGroup">
+          <label>Room</label>
+          <select id="roomSelect" class="selector">
+            <option value="">Select Room...</option>
+          </select>
+        </div>
+
+        <div class="selector-group hidden" id="sectionGroup">
+          <label>Section</label>
+          <select id="sectionSelect" class="selector">
+            <option value="">Select Section...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Smart Fill Button -->
+      <button id="smartFillBtn" class="smart-fill-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        Smart fill from current page
+      </button>
+
+      <!-- Images Section -->
+      <div class="form-section">
+        <div class="section-header">
+          <span class="section-label">Images</span>
+          <button id="cropImageBtn" class="icon-btn-small" title="Crop tool">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            </svg>
+          </button>
+        </div>
+        <div id="imagesContainer" class="images-container">
+          <div class="image-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+        </div>
+        <p class="helper-text">Clip images with <em>right-click Clip Image</em> or use the crop tool</p>
+      </div>
+
+      <!-- Attachments -->
+      <div class="form-section">
+        <div class="section-header">
+          <span class="section-label">Attachments</span>
+          <button id="findAttachmentsBtn" class="icon-btn-small" title="Find downloadable files on page">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="attachmentsContainer" class="attachments-container">
+          <p class="helper-text-attachments">Click + to find PDFs and downloads on page</p>
+        </div>
+      </div>
+
+      <!-- Form Fields -->
+      <div class="form-fields">
+        <!-- Product Description -->
+        <div class="field-group">
+          <label>Product description</label>
+          <div class="field-input">
+            <input type="text" id="productDescription" placeholder="Product description">
+            <button class="add-btn" data-field="productDescription" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="field-group">
+          <label>Product details</label>
+          <div class="field-input">
+            <input type="text" id="productDetails" placeholder="Product details">
+            <button class="add-btn" data-field="productDetails" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Product Name -->
+        <div class="field-group">
+          <label>Product name</label>
+          <div class="field-input">
+            <input type="text" id="productName" placeholder="Product name">
+            <button class="add-btn" data-field="productName" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Brand -->
+        <div class="field-group">
+          <label>Brand</label>
+          <div class="field-input">
+            <input type="text" id="brand" placeholder="Brand">
+            <button class="add-btn" data-field="brand" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Product Website -->
+        <div class="field-group">
+          <label>Product website</label>
+          <div class="field-input">
+            <input type="text" id="productWebsite" placeholder="https://" readonly>
+            <button class="add-btn" data-field="productWebsite" title="Auto-filled from current page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Doc Code -->
+        <div class="field-group">
+          <label>Doc code</label>
+          <div class="field-input">
+            <input type="text" id="docCode" placeholder="Doc code">
+            <button class="add-btn" data-field="docCode" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+          <p class="helper-text-small">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Item will update if there is a matching doc code in your schedule
+          </p>
+        </div>
+
+        <!-- SKU -->
+        <div class="field-group">
+          <label>SKU</label>
+          <div class="field-input">
+            <input type="text" id="sku" placeholder="SKU">
+            <button class="add-btn" data-field="sku" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Colour -->
+        <div class="field-group">
+          <label>Colour</label>
+          <div class="field-input">
+            <input type="text" id="colour" placeholder="Colour">
+            <button class="add-btn" data-field="colour" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Finish -->
+        <div class="field-group">
+          <label>Finish</label>
+          <div class="field-input">
+            <input type="text" id="finish" placeholder="Finish">
+            <button class="add-btn" data-field="finish" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Material -->
+        <div class="field-group">
+          <label>Material</label>
+          <div class="field-input">
+            <input type="text" id="material" placeholder="Material">
+            <button class="add-btn" data-field="material" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Width -->
+        <div class="field-group">
+          <label>Width</label>
+          <div class="field-input">
+            <input type="text" id="width" placeholder="Width">
+            <button class="add-btn" data-field="width" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Length -->
+        <div class="field-group">
+          <label>Length</label>
+          <div class="field-input">
+            <input type="text" id="length" placeholder="Length">
+            <button class="add-btn" data-field="length" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Height -->
+        <div class="field-group">
+          <label>Height</label>
+          <div class="field-input">
+            <input type="text" id="height" placeholder="Height">
+            <button class="add-btn" data-field="height" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Depth -->
+        <div class="field-group">
+          <label>Depth</label>
+          <div class="field-input">
+            <input type="text" id="depth" placeholder="Depth">
+            <button class="add-btn" data-field="depth" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quantity -->
+        <div class="field-group">
+          <label>Quantity</label>
+          <div class="field-input">
+            <input type="number" id="quantity" placeholder="Quantity" min="1" value="1">
+            <button class="add-btn" data-field="quantity" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- RRP -->
+        <div class="field-group">
+          <label>
+            RRP
+            <svg class="info-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Recommended Retail Price">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </label>
+          <div class="field-input">
+            <input type="text" id="rrp" placeholder="RRP">
+            <button class="add-btn" data-field="rrp" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Trade Price -->
+        <div class="field-group">
+          <label>Trade price</label>
+          <div class="field-input">
+            <input type="text" id="tradePrice" placeholder="Trade price">
+            <button class="add-btn" data-field="tradePrice" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Lead Time -->
+        <div class="field-group">
+          <label>Lead Time</label>
+          <div class="field-input">
+            <input type="text" id="leadTime" placeholder="-">
+            <button class="add-btn" data-field="leadTime" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="field-group">
+          <label>Notes</label>
+          <div class="field-input">
+            <textarea id="notes" placeholder="Notes" rows="2"></textarea>
+            <button class="add-btn" data-field="notes" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="clipBtn" class="btn btn-primary btn-full" disabled>Select location first</button>
+        <button id="clearBtn" class="btn btn-secondary btn-full">Clear</button>
+      </div>
+
+      <!-- Version -->
+      <div class="version">v1.0.0</div>
+    </section>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <p id="loadingText">Loading...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
