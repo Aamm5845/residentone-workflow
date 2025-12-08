@@ -19,6 +19,14 @@
     "app/api/client-approval/**/*.ts": {
       "maxDuration": 60
     },
+    "app/api/renderings/*/push-to-client/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    },
+    "app/api/renderings/*/upload/route.ts": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
     "app/api/projects/*/sources/route.ts": {
       "maxDuration": 120,
       "memory": 1024

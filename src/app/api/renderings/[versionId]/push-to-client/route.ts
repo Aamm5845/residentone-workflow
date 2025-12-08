@@ -19,6 +19,10 @@ import { uploadFile as uploadToBlob, generateFilePath, isBlobConfigured } from '
 import { sendEmail } from '@/lib/email/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
 
+// Configure route to handle multiple large file copies to Blob
+export const runtime = 'nodejs'
+export const maxDuration = 300 // 5 minutes for copying many assets
+
 // POST /api/renderings/[versionId]/push-to-client - Push rendering version to client approval
 export async function POST(
   request: NextRequest,
