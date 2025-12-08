@@ -15,7 +15,7 @@ import {
   type WorkflowEvent
 } from '@/lib/phase-transitions'
 import { dropboxService } from '@/lib/dropbox-service'
-import { uploadFile as uploadToBlob, generateFilePath } from '@/lib/blob'
+import { uploadFile as uploadToBlob, generateFilePath, isBlobConfigured } from '@/lib/blob'
 import { sendEmail } from '@/lib/email/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
 
@@ -189,53 +189,60 @@ export async function POST(
       console.error('[push-to-client] Activity logging failed (non-critical):', logError)
     }
 
-    // Copy assets from Dropbox to Blob AFTER the transaction (non-blocking)
-    // This runs in the background and updates the records when complete
-    const copyAssetsToBlob = async () => {
-      for (let i = 0; i < renderingVersion.assets.length; i++) {
-        const asset = renderingVersion.assets[i]
-        const clientApprovalAsset = result.clientApprovalVersion.assets[i]
-        
-        if (asset.provider === 'dropbox' && asset.url) {
-          try {
-            console.log(`[push-to-client] Copying asset ${asset.id} from Dropbox to Blob...`)
-            
-            // Download from Dropbox
-            const dropboxPath = asset.url.startsWith('/') ? asset.url : '/' + asset.url
-            const fileBuffer = await dropboxService.downloadFile(dropboxPath)
-            
-            // Upload to Blob with proper path structure
-            const blobPath = generateFilePath(
-              renderingVersion.room.project.orgId,
-              renderingVersion.room.project.id,
-              renderingVersion.roomId,
-              `client-approval-${result.clientApprovalVersion.id}`,
-              asset.filename
-            )
-            
-            const blobResult = await uploadToBlob(fileBuffer, blobPath, {
-              contentType: asset.mimeType || 'image/jpeg'
-            })
-            
-            // Update the ClientApprovalAsset with the Blob URL
-            await prisma.clientApprovalAsset.update({
-              where: { id: clientApprovalAsset.id },
-              data: { blobUrl: blobResult.url }
-            })
-            
-            console.log(`[push-to-client] ✅ Copied to Blob: ${blobResult.url}`)
-          } catch (copyError) {
-            console.error(`[push-to-client] ❌ Failed to copy asset ${asset.id} to Blob:`, copyError)
-            // Continue - email will use Dropbox URLs as fallback
+    // Copy assets from Dropbox to Blob - SYNCHRONOUSLY to ensure URLs are ready for email
+    const blobConfigured = isBlobConfigured()
+    console.log(`[push-to-client] Blob storage configured: ${blobConfigured}`)
+    console.log(`[push-to-client] Starting Blob upload for ${renderingVersion.assets.length} assets...`)
+    
+    if (!blobConfigured) {
+      console.warn(`[push-to-client] ⚠️ Blob storage not configured (BLOB_READ_WRITE_TOKEN missing). Assets will use Dropbox temporary links.`)
+    }
+    
+    for (let i = 0; i < renderingVersion.assets.length; i++) {
+      const asset = renderingVersion.assets[i]
+      const clientApprovalAsset = result.clientApprovalVersion.assets[i]
+      
+      if (asset.provider === 'dropbox' && asset.url && blobConfigured) {
+        try {
+          console.log(`[push-to-client] Copying asset ${i + 1}/${renderingVersion.assets.length}: ${asset.filename}...`)
+          
+          // Download from Dropbox
+          const dropboxPath = asset.url.startsWith('/') ? asset.url : '/' + asset.url
+          const fileBuffer = await dropboxService.downloadFile(dropboxPath)
+          
+          if (!fileBuffer || fileBuffer.length === 0) {
+            console.error(`[push-to-client] ❌ Empty file buffer for asset ${asset.id}`)
+            continue
           }
+          
+          // Upload to Blob with proper path structure
+          const blobPath = generateFilePath(
+            renderingVersion.room.project.orgId,
+            renderingVersion.room.project.id,
+            renderingVersion.roomId,
+            `client-approval-${result.clientApprovalVersion.id}`,
+            asset.filename
+          )
+          
+          const blobResult = await uploadToBlob(fileBuffer, blobPath, {
+            contentType: asset.mimeType || 'image/jpeg'
+          })
+          
+          // Update the ClientApprovalAsset with the Blob URL
+          await prisma.clientApprovalAsset.update({
+            where: { id: clientApprovalAsset.id },
+            data: { blobUrl: blobResult.url }
+          })
+          
+          console.log(`[push-to-client] ✅ Copied to Blob: ${blobResult.url}`)
+        } catch (copyError) {
+          console.error(`[push-to-client] ❌ Failed to copy asset ${asset.id} to Blob:`, copyError)
+          // Continue with other assets - email fallback will handle missing blob URLs
         }
       }
     }
-
-    // Start the Blob copy in the background (don't await - let it run async)
-    copyAssetsToBlob().catch(err => {
-      console.error('[push-to-client] Background Blob copy failed:', err)
-    })
+    
+    console.log(`[push-to-client] ✅ Blob upload complete`)
 
     // Auto-complete the 3D rendering stage when pushing to client
     try {

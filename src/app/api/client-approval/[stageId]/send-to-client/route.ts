@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendClientApprovalEmail, sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
 export async function POST(
@@ -93,28 +94,56 @@ export async function POST(
       })
     }
 
-    // Get email assets - use Blob URLs (fast, reliable) with Dropbox as fallback
+    // Get email assets - use Blob URLs (fast, reliable) with Dropbox temporary links as fallback
     // If no selectedAssetIds provided, include ALL assets marked as includeInEmail
     const assetsToInclude = selectedAssetIds && selectedAssetIds.length > 0
       ? currentVersion.assets.filter(asset => selectedAssetIds.includes(asset.id))
       : currentVersion.assets.filter(asset => asset.includeInEmail)
     
-    const emailAssets = assetsToInclude.map((assetItem) => {
-        // Prefer Blob URL (fast delivery), fallback to Dropbox path
-        const viewableUrl = assetItem.blobUrl || assetItem.asset.url
-        
-        if (!assetItem.blobUrl) {
-          console.warn(`[send-to-client] ⚠️ Asset ${assetItem.id} has no Blob URL, using Dropbox path (may not work in email)`);
+    // Generate proper URLs for each asset (async because Dropbox needs API call)
+    const emailAssets = await Promise.all(assetsToInclude.map(async (assetItem) => {
+        // Prefer Blob URL (fast delivery)
+        if (assetItem.blobUrl) {
+          return {
+            id: assetItem.id,
+            url: assetItem.blobUrl,
+            includeInEmail: true
+          }
         }
         
+        // If no Blob URL, try to get Dropbox temporary link
+        if (assetItem.asset.provider === 'dropbox' && assetItem.asset.url) {
+          try {
+            const dropboxPath = assetItem.asset.url.startsWith('/') 
+              ? assetItem.asset.url 
+              : '/' + assetItem.asset.url
+            const temporaryLink = await dropboxService.getTemporaryLink(dropboxPath)
+            if (temporaryLink) {
+              console.log(`[send-to-client] ✅ Generated Dropbox temp link for asset ${assetItem.id}`)
+              return {
+                id: assetItem.id,
+                url: temporaryLink,
+                includeInEmail: true
+              }
+            }
+          } catch (error) {
+            console.error(`[send-to-client] ❌ Failed to get Dropbox link for asset ${assetItem.id}:`, error)
+          }
+        }
+        
+        // Last resort: use existing URL (may not work)
+        console.warn(`[send-to-client] ⚠️ Asset ${assetItem.id} has no valid URL, email images may not display`);
         return {
           id: assetItem.id,
-          url: viewableUrl,
+          url: assetItem.asset.url || '',
           includeInEmail: true
         }
-      })
+      }))
     
-    console.log(`[send-to-client] Including ${emailAssets.length} assets in email (total available: ${currentVersion.assets.length})`)
+    // Filter out any assets without valid URLs
+    const validEmailAssets = emailAssets.filter(a => a.url && a.url.startsWith('http'))
+    
+    console.log(`[send-to-client] Including ${validEmailAssets.length} assets with valid URLs in email (total selected: ${emailAssets.length})`)
 
     // Send the actual email
     try {
@@ -156,7 +185,7 @@ export async function POST(
           clientEmail: client.email,
           clientName: client.name,
           projectName: currentVersion.stage.room.project.name,
-          assets: emailAssets
+          assets: validEmailAssets
         })
       }
     } catch (emailError) {
@@ -198,7 +227,7 @@ export async function POST(
       data: {
         stageId: currentVersion.stageId,
         type: 'EMAIL_SENT',
-        message: `${currentVersion.version} sent to client - Approval email sent to client by ${session.user.name} with ${emailAssets.length} assets`,
+        message: `${currentVersion.version} sent to client - Approval email sent to client by ${session.user.name} with ${validEmailAssets.length} assets`,
         userId: session.user.id
       }
     })

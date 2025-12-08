@@ -195,9 +195,9 @@ export function getContentType(filename: string): string {
 export function isBlobConfigured(): boolean {
   const hasToken = !!process.env.BLOB_READ_WRITE_TOKEN
 
-  // In production, blob storage is required
+  // In production, log a warning but don't throw - we have Dropbox fallback
   if (process.env.NODE_ENV === "production" && !hasToken) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is required in production environment")
+    console.warn("[blob] BLOB_READ_WRITE_TOKEN not configured - using Dropbox fallback for assets")
   }
 
   return hasToken
