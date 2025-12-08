@@ -2,7 +2,7 @@
 
 // Environment Configuration
 // Set to 'local' for development, 'production' for live site
-const ENVIRONMENT = 'production'; // Change to 'local' for development
+const ENVIRONMENT = 'local'; // Change to 'local' for development
 
 // Configuration
 const CONFIG = {
@@ -107,12 +107,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     case 'authComplete':
       // Store auth credentials when received from auth page
+      console.log('[FFE Clipper Background] Received authComplete message');
       if (message.apiKey) {
         chrome.storage.local.set({ 
           apiKey: message.apiKey, 
           user: message.user 
+        }, () => {
+          console.log('[FFE Clipper Background] Auth credentials stored successfully');
         });
-        console.log('Extension authenticated successfully');
+      } else {
+        console.log('[FFE Clipper Background] No apiKey in message');
       }
       sendResponse({ ok: true });
       break;

@@ -38,8 +38,37 @@
 
     <!-- Main Content (shown when logged in) -->
     <section id="mainSection" class="main-section">
-      <!-- Location Selectors -->
-      <div class="location-selectors">
+      <!-- Destination Selector -->
+      <div class="destination-selector">
+        <label>Save to</label>
+        <div class="destination-buttons">
+          <button id="destRoom" class="dest-btn active" data-dest="room">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            Room
+          </button>
+          <button id="destLibrary" class="dest-btn" data-dest="library">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Library
+          </button>
+          <button id="destBoth" class="dest-btn" data-dest="both">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="17 1 21 5 17 9"/>
+              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+              <polyline points="7 23 3 19 7 15"/>
+              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+            Both
+          </button>
+        </div>
+      </div>
+
+      <!-- Location Selectors (for Room destination) -->
+      <div class="location-selectors" id="locationSelectors">
         <div class="selector-group">
           <label>Project</label>
           <select id="projectSelect" class="selector">
@@ -58,6 +87,16 @@
           <label>Section</label>
           <select id="sectionSelect" class="selector">
             <option value="">Select Section...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Category Selector (for Library destination) -->
+      <div class="category-selector hidden" id="categorySelector">
+        <div class="selector-group">
+          <label>Category</label>
+          <select id="categorySelect" class="selector">
+            <option value="">Select Category...</option>
           </select>
         </div>
       </div>

@@ -273,11 +273,25 @@ export async function DELETE(
     // Delete from Dropbox if project has dropboxFolder configured
     if (renderingVersion.room.project.dropboxFolder) {
       try {
-        const roomName = renderingVersion.room.name || renderingVersion.room.type
-        const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+        // Use custom room name if provided, otherwise use room type (matching upload pattern)
+        let roomName = renderingVersion.room.name && renderingVersion.room.name.trim()
+        if (!roomName) {
+          // Convert enum value to readable format: LIVING_ROOM -> Living Room
+          roomName = renderingVersion.room.type
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ')
+        }
         
-        // Delete folder path: /ProjectFolder/3-RENDERING/RoomName/Version
-        const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3-RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
+        // Sanitize folder name (matching upload pattern exactly)
+        const sanitizedRoomName = roomName
+          .replace(/[<>:\"\/\\|?*]/g, ' ') // replace invalid chars with space (same as upload)
+          .replace(/\s+/g, ' ')            // collapse multiple spaces
+          .replace(/\.$/, '')              // remove trailing period
+          .trim()
+        
+        // Delete folder path: /ProjectFolder/3- RENDERING/RoomName/Version (note: "3- RENDERING" with space)
+        const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
         
         await dropboxService.deleteFolder(dropboxFolderPath)
         console.log(`✅ Dropbox folder deleted: ${dropboxFolderPath}`)

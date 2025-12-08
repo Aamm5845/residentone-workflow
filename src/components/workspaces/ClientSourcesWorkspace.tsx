@@ -173,6 +173,10 @@ function formatRelativeTime(dateString: string): string {
   return formatDate(dateString)
 }
 
+// File upload limits
+const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5MB - Vercel serverless limit
+const MAX_FILE_SIZE_DISPLAY = '4.5MB'
+
 interface ClientSourcesWorkspaceProps {
   project: Project
 }
@@ -248,8 +252,25 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   const handleFilesSelected = (category: string, files: FileList | null) => {
     if (!files || files.length === 0) return
     
+    const fileArray = Array.from(files)
+    
+    // Check for oversized files
+    const oversizedFiles = fileArray.filter(f => f.size > MAX_FILE_SIZE)
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => `${f.name} (${formatFileSize(f.size)})`).join('\n')
+      alert(`The following files exceed the ${MAX_FILE_SIZE_DISPLAY} limit:\n\n${fileNames}\n\nPlease compress these files or upload smaller versions.`)
+      // Filter out oversized files but still allow valid ones
+      const validFiles = fileArray.filter(f => f.size <= MAX_FILE_SIZE)
+      if (validFiles.length === 0) return
+      setUploadCategory(category)
+      setPendingFiles(validFiles)
+      setFileDescriptions({})
+      setShowUploadModal(true)
+      return
+    }
+    
     setUploadCategory(category)
-    setPendingFiles(Array.from(files))
+    setPendingFiles(fileArray)
     setFileDescriptions({})
     setShowUploadModal(true)
   }
@@ -275,7 +296,15 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
         })
 
         if (!response.ok) {
-          const errorData = await response.json()
+          // Handle 413 Payload Too Large specifically
+          if (response.status === 413) {
+            throw new Error(`File "${file.name}" is too large. Maximum file size is ${MAX_FILE_SIZE_DISPLAY}. Please compress the file or use a file sharing service.`)
+          }
+          const errorData = await response.json().catch(() => ({}))
+          // Handle 403 Forbidden (permission errors)
+          if (response.status === 403) {
+            throw new Error(errorData.details || 'Dropbox permission error. Please verify the project has a valid Dropbox folder configured.')
+          }
           throw new Error(errorData.error || errorData.details || 'Upload failed')
         }
       }

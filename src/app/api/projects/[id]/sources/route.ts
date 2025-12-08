@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { DropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service'
 import { logActivity, ActivityActions, EntityTypes, getIPAddress, getUserAgent, AuthSession } from '@/lib/attribution'
+
+// Configure route to handle larger file uploads
+export const runtime = 'nodejs'
+export const maxDuration = 60 // seconds
+
+// Configure body parser for larger files (50MB)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+}
 
 // Source category configurations
 const SOURCE_CATEGORIES = {
@@ -179,29 +192,60 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Verify project has Dropbox integration (matching renderings upload pattern)
+    if (!project.dropboxFolder) {
+      return NextResponse.json({ 
+        error: 'Dropbox not configured',
+        details: 'This project does not have a Dropbox folder configured. Please set up Dropbox integration in project settings before uploading files.'
+      }, { status: 400 })
+    }
+
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Create Dropbox path
+    // Create Dropbox path (using project's configured dropboxFolder, like renderings)
     const categoryConfig = SOURCE_CATEGORIES[category as keyof typeof SOURCE_CATEGORIES]
-    const basePath = project.dropboxFolder || `/Projects/${project.name}`
+    const basePath = project.dropboxFolder
     const sourcesPath = `${basePath}/7- SOURCES/${categoryConfig.folder}`
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const dropboxPath = `${sourcesPath}/${fileName}`
 
-    // Upload to Dropbox
-    const dropboxService = new DropboxService()
+    // Ensure folder structure exists (matching renderings pattern with separate try/catch blocks)
+    try {
+      await dropboxService.createFolder(`${basePath}/7- SOURCES`)
+    } catch (err) {
+      console.warn('[sources] Could not create 7- SOURCES folder (may exist):', `${basePath}/7- SOURCES`)
+    }
     
     try {
-      // Ensure folder structure exists
-      await dropboxService.createFolder(`${basePath}/7- SOURCES`)
       await dropboxService.createFolder(sourcesPath)
-    } catch (folderError) {
-      console.log('[sources] Folders already exist or created')
+    } catch (err) {
+      console.warn('[sources] Could not create category folder (may exist):', sourcesPath)
     }
 
-    const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+    // Upload file to Dropbox
+    let uploadResult
+    try {
+      uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
+      console.log(`[sources] ✅ File uploaded to Dropbox: ${dropboxPath}`)
+    } catch (uploadError: any) {
+      const errorMessage = uploadError?.message || String(uploadError)
+      const isPermissionError = errorMessage.includes('no_write_permission') || 
+                                errorMessage.includes('permission')
+      
+      if (isPermissionError) {
+        console.error('[sources] Dropbox permission error uploading file:', errorMessage)
+        return NextResponse.json({ 
+          error: 'Dropbox permission error',
+          details: `Cannot upload file to "${dropboxPath}". The Dropbox integration does not have write permission to this folder. Please check that the project's Dropbox folder exists and is accessible.`
+        }, { status: 403 })
+      }
+      
+      console.error('[sources] Dropbox upload error:', errorMessage)
+      throw new Error(`Failed to upload to Dropbox: ${errorMessage}`)
+    }
+    
     const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
 
     // Save to database
@@ -304,7 +348,6 @@ export async function DELETE(
     // Optionally delete from Dropbox
     if (source.dropboxPath) {
       try {
-        const dropboxService = new DropboxService()
         await dropboxService.deleteFile(source.dropboxPath)
       } catch (dropboxError) {
         console.error('[sources] Failed to delete from Dropbox:', dropboxError)

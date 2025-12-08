@@ -314,14 +314,16 @@ async function seedFFESystem() {
 // Export for use in main seed file
 export { seedFFESystem, seedFFESectionLibrary, seedSampleTemplates }
 
-// Run directly if this file is executed
-// Main execution block for direct running
-seedFFESystem()
-  .then(() => {
-    console.log('✅ Seed completed successfully!')
-    process.exit(0)
-  })
-  .catch((error) => {
-    console.error('❌ Seed failed:', error)
-    process.exit(1)
-  })
+// Only run directly if this file is the entry point
+const isMainModule = import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
+if (isMainModule) {
+  seedFFESystem()
+    .then(() => {
+      console.log('✅ Seed completed successfully!')
+      process.exit(0)
+    })
+    .catch((error) => {
+      console.error('❌ Seed failed:', error)
+      process.exit(1)
+    })
+}

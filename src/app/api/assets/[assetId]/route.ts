@@ -116,8 +116,23 @@ export async function DELETE(
     // Delete from Dropbox if this is a rendering asset and project has dropboxFolder
     if (existingAsset.renderingVersion && existingAsset.renderingVersion.room.project.dropboxFolder) {
       try {
-        const roomName = existingAsset.renderingVersion.room.name || existingAsset.renderingVersion.room.type
-        const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
+        // Use custom room name if provided, otherwise use room type (matching upload pattern)
+        let roomName = existingAsset.renderingVersion.room.name && existingAsset.renderingVersion.room.name.trim()
+        if (!roomName) {
+          // Convert enum value to readable format: LIVING_ROOM -> Living Room
+          roomName = existingAsset.renderingVersion.room.type
+            .split('_')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ')
+        }
+        
+        // Sanitize folder name (matching upload pattern exactly)
+        const sanitizedRoomName = roomName
+          .replace(/[<>:\"\/\\|?*]/g, ' ') // replace invalid chars with space (same as upload)
+          .replace(/\s+/g, ' ')            // collapse multiple spaces
+          .replace(/\.$/, '')              // remove trailing period
+          .trim()
+        
         const projectFolder = existingAsset.renderingVersion.room.project.dropboxFolder
         const version = existingAsset.renderingVersion.version
         
@@ -128,6 +143,17 @@ export async function DELETE(
         console.log(`✅ File deleted from Dropbox: ${dropboxFilePath}`)
       } catch (dropboxError) {
         console.error('❌ Failed to delete from Dropbox:', dropboxError)
+        // Continue with database deletion even if Dropbox deletion fails
+      }
+    }
+    
+    // Also try to delete using the asset's stored URL path if it's a Dropbox asset
+    if (existingAsset.provider === 'dropbox' && existingAsset.url && existingAsset.url.startsWith('/')) {
+      try {
+        await dropboxService.deleteFile(existingAsset.url)
+        console.log(`✅ File deleted from Dropbox using stored URL: ${existingAsset.url}`)
+      } catch (dropboxError) {
+        console.error('⚠️ Failed to delete from Dropbox using stored URL:', dropboxError)
         // Continue with database deletion even if Dropbox deletion fails
       }
     }

@@ -2,7 +2,7 @@
 
 // Environment Configuration
 // Set to 'local' for development, 'production' for live site
-const ENVIRONMENT = 'production'; // Change to 'local' for development
+const ENVIRONMENT = 'local'; // Change to 'local' for development
 
 // Configuration
 const CONFIG = {
@@ -22,7 +22,8 @@ const CONFIG = {
     ROOMS: '/api/extension/rooms',
     SECTIONS: '/api/extension/sections',
     CLIP: '/api/extension/clip',
-    SMART_FILL: '/api/extension/smart-fill'
+    SMART_FILL: '/api/extension/smart-fill',
+    PENDING_ITEMS: '/api/extension/pending-items'
   }
 };
 
@@ -34,9 +35,14 @@ let state = {
   projects: [],
   rooms: [],
   sections: [],
+  categories: [], // Product categories for library
+  pendingItems: [], // Items from Settings that need specs
+  destination: 'room', // 'room', 'library', or 'both'
   selectedProject: null,
   selectedRoom: null,
   selectedSection: null,
+  selectedCategory: null, // For library destination
+  selectedLinkItem: null, // Item to link clipped spec to
   clippedData: {
     images: [],
     attachments: [],
@@ -151,6 +157,14 @@ function initEventListeners() {
   // Login button
   elements.loginBtn?.addEventListener('click', handleLogin);
 
+  // Destination buttons
+  document.querySelectorAll('.dest-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => handleDestinationChange(e.currentTarget.dataset.dest));
+  });
+
+  // Category selection
+  document.getElementById('categorySelect')?.addEventListener('change', handleCategoryChange);
+
   // Project selection
   elements.projectSelect?.addEventListener('change', handleProjectChange);
 
@@ -227,6 +241,7 @@ async function checkAuth() {
 async function handleLogin() {
   // Open the login page in a new tab
   const loginUrl = `${CONFIG.API_BASE_URL}/extension-auth`;
+  console.log('[FFE Clipper] Opening auth page:', loginUrl);
   const tab = await chrome.tabs.create({ url: loginUrl });
   
   showLoading('Waiting for sign in...');
@@ -240,12 +255,22 @@ async function handleLogin() {
     
     // Check if we got the auth key
     const stored = await chrome.storage.local.get(['apiKey', 'user']);
+    console.log('[FFE Clipper] Poll attempt', attempts, '- apiKey found:', !!stored.apiKey);
     
     if (stored.apiKey) {
       clearInterval(pollInterval);
       state.apiKey = stored.apiKey;
       state.user = stored.user;
       state.isAuthenticated = true;
+      
+      console.log('[FFE Clipper] Auth successful! User:', stored.user?.email);
+      
+      // Try to close the auth tab
+      try {
+        await chrome.tabs.remove(tab.id);
+      } catch (e) {
+        // Tab might already be closed
+      }
       
       hideLoading();
       showMainSection();
@@ -254,11 +279,24 @@ async function handleLogin() {
       return;
     }
     
-    // Check if tab was closed
+    // Check if tab was closed without auth
     try {
       await chrome.tabs.get(tab.id);
     } catch (e) {
-      // Tab was closed
+      // Tab was closed - check one more time for auth
+      const finalCheck = await chrome.storage.local.get(['apiKey', 'user']);
+      if (finalCheck.apiKey) {
+        clearInterval(pollInterval);
+        state.apiKey = finalCheck.apiKey;
+        state.user = finalCheck.user;
+        state.isAuthenticated = true;
+        hideLoading();
+        showMainSection();
+        showToast('Signed in successfully!', 'success');
+        await loadProjects();
+        return;
+      }
+      
       clearInterval(pollInterval);
       hideLoading();
       showAuthSection();
@@ -304,17 +342,139 @@ async function handleRoomChange(e) {
   const roomId = e.target.value;
   state.selectedRoom = roomId;
   state.selectedSection = null;
+  state.selectedLinkItem = null;
 
   // Reset and hide section select
   elements.sectionSelect.innerHTML = '<option value="">Select Section...</option>';
   document.getElementById('sectionGroup')?.classList.add('hidden');
+  
+  // Reset link items
+  const linkGroup = document.getElementById('linkItemGroup');
+  if (linkGroup) linkGroup.classList.add('hidden');
 
   if (roomId) {
     await loadSections(roomId);
+    await loadPendingItems(roomId);
     // Show section group after loading
     document.getElementById('sectionGroup')?.classList.remove('hidden');
   }
 
+  updateClipButton();
+}
+
+// Load items that need specs for linking
+async function loadPendingItems(roomId) {
+  try {
+    const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
+    
+    if (response.ok && response.items) {
+      state.pendingItems = response.items;
+      renderLinkItemsSelector();
+    } else {
+      state.pendingItems = [];
+    }
+  } catch (error) {
+    console.error('Failed to load pending items:', error);
+    state.pendingItems = [];
+  }
+}
+
+// Render the link items selector
+function renderLinkItemsSelector() {
+  let linkGroup = document.getElementById('linkItemGroup');
+  
+  // Create the group if it doesn't exist
+  if (!linkGroup) {
+    const sectionGroup = document.getElementById('sectionGroup');
+    if (sectionGroup) {
+      linkGroup = document.createElement('div');
+      linkGroup.id = 'linkItemGroup';
+      linkGroup.className = 'field-group hidden';
+      linkGroup.innerHTML = `
+        <label class="field-label">
+          <span class="label-icon">🔗</span>
+          Link to existing item (optional)
+        </label>
+        <select id="linkItemSelect" class="field-select">
+          <option value="">Create new item</option>
+        </select>
+        <div id="linkItemHint" class="field-hint"></div>
+      `;
+      sectionGroup.insertAdjacentElement('afterend', linkGroup);
+      
+      // Add event listener
+      document.getElementById('linkItemSelect')?.addEventListener('change', handleLinkItemChange);
+    }
+  }
+  
+  const select = document.getElementById('linkItemSelect');
+  const hint = document.getElementById('linkItemHint');
+  
+  if (!select) return;
+  
+  // Populate the select
+  select.innerHTML = '<option value="">➕ Create new item</option>';
+  
+  const needsSpecItems = state.pendingItems.filter(i => i.needsSpec);
+  const hasSpecItems = state.pendingItems.filter(i => !i.needsSpec);
+  
+  if (needsSpecItems.length > 0) {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `⚠️ Needs Spec (${needsSpecItems.length})`;
+    needsSpecItems.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = `${item.name} (${item.sectionName})`;
+      optgroup.appendChild(option);
+    });
+    select.appendChild(optgroup);
+  }
+  
+  if (hasSpecItems.length > 0) {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `✅ Has Spec (${hasSpecItems.length})`;
+    hasSpecItems.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = `${item.name} (${item.sectionName}) - update`;
+      optgroup.appendChild(option);
+    });
+    select.appendChild(optgroup);
+  }
+  
+  // Show hint
+  if (hint) {
+    if (needsSpecItems.length > 0) {
+      hint.textContent = `${needsSpecItems.length} items from Settings need specs`;
+      hint.style.color = '#d97706';
+    } else if (state.pendingItems.length > 0) {
+      hint.textContent = 'All items have specs ✓';
+      hint.style.color = '#10b981';
+    } else {
+      hint.textContent = 'No items in Settings yet';
+      hint.style.color = '#6b7280';
+    }
+  }
+  
+  // Show the group
+  if (linkGroup && state.pendingItems.length > 0) {
+    linkGroup.classList.remove('hidden');
+  }
+}
+
+// Handle link item selection
+function handleLinkItemChange(e) {
+  state.selectedLinkItem = e.target.value || null;
+  
+  // If linking to existing item, auto-select its section
+  if (state.selectedLinkItem) {
+    const item = state.pendingItems.find(i => i.id === state.selectedLinkItem);
+    if (item && elements.sectionSelect) {
+      elements.sectionSelect.value = item.sectionId;
+      state.selectedSection = item.sectionId;
+    }
+  }
+  
   updateClipButton();
 }
 
@@ -324,12 +484,123 @@ function handleSectionChange(e) {
   updateClipButton();
 }
 
-// Update clip button state - enabled only when location is fully selected
+// Handle destination change (room, library, or both)
+function handleDestinationChange(dest) {
+  state.destination = dest;
+  
+  // Update button active states
+  document.querySelectorAll('.dest-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.dest === dest);
+  });
+  
+  // Show/hide appropriate selectors
+  const locationSelectors = document.getElementById('locationSelectors');
+  const categorySelector = document.getElementById('categorySelector');
+  
+  if (dest === 'library') {
+    // Library only - show category, hide room selection
+    locationSelectors?.classList.add('hidden');
+    categorySelector?.classList.remove('hidden');
+    loadCategories();
+  } else if (dest === 'both') {
+    // Both - show category and room selection
+    locationSelectors?.classList.remove('hidden');
+    categorySelector?.classList.remove('hidden');
+    loadCategories();
+  } else {
+    // Room only (default) - show room selection, hide category
+    locationSelectors?.classList.remove('hidden');
+    categorySelector?.classList.add('hidden');
+  }
+  
+  updateClipButton();
+}
+
+// Handle category change
+function handleCategoryChange(e) {
+  state.selectedCategory = e.target.value || null;
+  updateClipButton();
+}
+
+// Load categories for library
+async function loadCategories() {
+  if (state.categories.length > 0) {
+    return; // Already loaded
+  }
+  
+  try {
+    const response = await apiRequest('GET', '/api/products/categories');
+    
+    if (response.ok && response.data && response.data.categories) {
+      // Flatten the hierarchical structure - categories come with children nested
+      const allCategories = [];
+      response.data.categories.forEach(parent => {
+        allCategories.push(parent);
+        if (parent.children && parent.children.length > 0) {
+          parent.children.forEach(child => {
+            allCategories.push({ ...child, parentId: parent.id });
+          });
+        }
+      });
+      state.categories = allCategories;
+      
+      const select = document.getElementById('categorySelect');
+      if (select) {
+        select.innerHTML = '<option value="">Select Category (optional)...</option>';
+        
+        // Use the original hierarchical data for display
+        response.data.categories.forEach(parent => {
+          // Add parent as optgroup
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = parent.name;
+          
+          // Add parent itself as an option
+          const parentOpt = document.createElement('option');
+          parentOpt.value = parent.id;
+          parentOpt.textContent = `${parent.name} (General)`;
+          optgroup.appendChild(parentOpt);
+          
+          // Add children
+          if (parent.children && parent.children.length > 0) {
+            parent.children.forEach(child => {
+              const opt = document.createElement('option');
+              opt.value = child.id;
+              opt.textContent = child.name;
+              optgroup.appendChild(opt);
+            });
+          }
+          
+          select.appendChild(optgroup);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load categories:', error);
+  }
+}
+
+// Update clip button state - enabled based on destination and selections
 function updateClipButton() {
-  const isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
+  let isReady = false;
+  let buttonText = 'Select location first';
+  
+  if (state.destination === 'library') {
+    // Library only - no room selection required
+    isReady = true;
+    buttonText = state.selectedCategory ? 'Save to Library' : 'Save to Library (uncategorized)';
+  } else if (state.destination === 'both') {
+    // Both - need room selection
+    isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
+    buttonText = isReady ? 'Save to Room & Library' : 'Select room first';
+  } else {
+    // Room only
+    isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
+    buttonText = isReady ? 'Clip to Room' : 'Select location first';
+  }
+  
   if (elements.clipBtn) {
     elements.clipBtn.disabled = !isReady;
-    elements.clipBtn.textContent = isReady ? 'Clip' : 'Select location first';
+    elements.clipBtn.textContent = buttonText;
   }
 }
 
@@ -557,18 +828,41 @@ function renderAttachments() {
   container.innerHTML = '';
   
   if (state.clippedData.attachments.length === 0) {
+    container.innerHTML = '<p class="helper-text-attachments">Click + to find PDFs and downloads on page</p>';
     return;
   }
   
   state.clippedData.attachments.forEach((att, index) => {
     const item = document.createElement('div');
-    item.className = 'attachment-item';
+    const isPdf = att.type === 'PDF' || att.url?.toLowerCase().includes('.pdf');
+    const isSpec = att.isSpec;
+    
+    // Add appropriate classes for styling
+    let className = 'attachment-item';
+    if (isSpec) className += ' spec-sheet';
+    else if (isPdf) className += ' pdf';
+    
+    item.className = className;
+    
+    // Get appropriate icon
+    const icon = isPdf 
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <path d="M9 15h6M9 11h6"></path>
+         </svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+         </svg>`;
+    
+    // Truncate name if too long
+    const displayName = att.name?.length > 40 ? att.name.substring(0, 37) + '...' : att.name;
+    
     item.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-      </svg>
-      <span title="${att.url}">${att.name}</span>
+      ${icon}
+      <a href="${att.url}" target="_blank" title="${att.name}\n${att.url}">${displayName}</a>
+      <span class="attachment-type">${isSpec ? 'SPEC' : att.type || 'FILE'}</span>
       <button class="attachment-delete" onclick="removeAttachment(${index})">×</button>
     `;
     container.appendChild(item);
@@ -632,12 +926,15 @@ async function handleSmartFill() {
       console.log('Could not get page content:', e);
     }
     
-    // Send to AI endpoint
+    // Send to AI endpoint with enhanced data
     const response = await apiRequest('POST', CONFIG.ENDPOINTS.SMART_FILL, {
       url: tab.url,
       title: tab.title,
-      pageContent: pageContent.substring(0, 10000), // Limit content size
-      images: pageData?.images || []
+      pageContent: pageContent.substring(0, 12000), // Limit content size
+      images: pageData?.images || [],
+      mainImage: pageData?.mainImage || null,
+      specSheets: pageData?.specSheets || [],
+      pdfLinks: pageData?.pdfLinks || []
     });
     
     // Check the response - API returns { success: true, data: {...} }
@@ -715,6 +1012,44 @@ function processSmartFillData(data) {
       }
     }
     renderImages();
+  }
+  
+  // Handle spec sheets / PDFs
+  if (data.specSheets && data.specSheets.length > 0) {
+    // Add spec sheets as attachments
+    for (const spec of data.specSheets) {
+      if (!state.clippedData.attachments.some(a => a.url === spec.url)) {
+        state.clippedData.attachments.push({
+          name: spec.name || 'Spec Sheet',
+          url: spec.url,
+          type: spec.type || 'PDF',
+          isSpec: spec.isSpec || false
+        });
+      }
+    }
+    renderAttachments();
+    
+    // Show toast about found spec sheets
+    const specCount = data.specSheets.filter((s) => s.isSpec).length;
+    if (specCount > 0) {
+      showToast(`Found ${specCount} spec sheet(s)!`, 'success');
+    }
+  }
+  
+  // Handle PDF links separately if specSheets not populated
+  if (data.pdfLinks && data.pdfLinks.length > 0 && (!data.specSheets || data.specSheets.length === 0)) {
+    for (const pdfUrl of data.pdfLinks) {
+      if (!state.clippedData.attachments.some(a => a.url === pdfUrl)) {
+        // Extract filename from URL
+        const fileName = pdfUrl.split('/').pop()?.split('?')[0] || 'Document.pdf';
+        state.clippedData.attachments.push({
+          name: fileName,
+          url: pdfUrl,
+          type: 'PDF'
+        });
+      }
+    }
+    renderAttachments();
   }
 }
 
@@ -1083,28 +1418,41 @@ async function handleClip() {
     return;
   }
   
-  if (!state.selectedProject) {
-    showToast('Please select a project', 'error');
-    return;
+  // For room or both destinations, need room selection
+  const needsRoom = state.destination === 'room' || state.destination === 'both';
+  
+  if (needsRoom) {
+    if (!state.selectedProject) {
+      showToast('Please select a project', 'error');
+      return;
+    }
+    
+    if (!state.selectedRoom) {
+      showToast('Please select a room', 'error');
+      return;
+    }
+    
+    if (!state.selectedSection) {
+      showToast('Please select a section', 'error');
+      return;
+    }
   }
   
-  if (!state.selectedRoom) {
-    showToast('Please select a room', 'error');
-    return;
-  }
-  
-  if (!state.selectedSection) {
-    showToast('Please select a section', 'error');
-    return;
-  }
-  
-  showLoading('Saving item...');
+  const loadingMsg = state.destination === 'library' 
+    ? 'Adding to library...' 
+    : state.destination === 'both' 
+      ? 'Saving to room & library...' 
+      : 'Saving item...';
+  showLoading(loadingMsg);
   
   try {
     // Prepare the data
     const clipData = {
-      roomId: state.selectedRoom,
-      sectionId: state.selectedSection,
+      destination: state.destination,
+      categoryId: state.selectedCategory || null,
+      roomId: needsRoom ? state.selectedRoom : null,
+      sectionId: needsRoom ? state.selectedSection : null,
+      linkItemId: state.selectedLinkItem || null, // Link to existing item if selected
       item: {
         name: state.clippedData.productName,
         description: state.clippedData.productDescription,
@@ -1137,8 +1485,26 @@ async function handleClip() {
     const response = await apiRequest('POST', CONFIG.ENDPOINTS.CLIP, clipData);
     
     if (response.ok) {
-      showToast('Item saved successfully!', 'success');
+      // Success message based on destination
+      let successMsg = '';
+      if (state.destination === 'library') {
+        successMsg = `"${state.clippedData.productName}" added to library!`;
+      } else if (state.destination === 'both') {
+        successMsg = `"${state.clippedData.productName}" saved to room & library!`;
+      } else {
+        const action = state.selectedLinkItem ? 'linked' : 'saved';
+        successMsg = `Item ${action} successfully!`;
+      }
+      showToast(successMsg, 'success');
       handleClear();
+      // Reset link selection
+      state.selectedLinkItem = null;
+      const linkSelect = document.getElementById('linkItemSelect');
+      if (linkSelect) linkSelect.value = '';
+      // Reload pending items to update the list
+      if (state.selectedRoom) {
+        await loadPendingItems(state.selectedRoom);
+      }
     } else {
       showToast(response.error || 'Failed to save item', 'error');
     }

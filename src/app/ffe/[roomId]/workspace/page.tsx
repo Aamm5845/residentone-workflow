@@ -121,6 +121,13 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
               
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {/* V2 Test Link */}
+                <Button asChild variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100">
+                  <Link href={`/ffe/${roomId}/workspace-v2`} className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></svg>
+                    Test V2 Workspace
+                  </Link>
+                </Button>
                 <WorkspaceTimerButton
                   projectId={room.project?.id || ''}
                   roomId={roomId}

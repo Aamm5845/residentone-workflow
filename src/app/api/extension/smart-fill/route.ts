@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { url, pageContent, title, images } = body
+    const { url, pageContent, title, images, mainImage, specSheets, pdfLinks } = body
 
     if (!pageContent && !url) {
       return NextResponse.json({ 
@@ -111,7 +111,10 @@ IMPORTANT RULES:
 - Only extract information that is clearly about the main product
 - Do NOT include site logos, brand logos, or icons as product images
 - Be very accurate - if you're not sure about a field, leave it empty
-- For dimensions, only include if they are clearly specified for this product
+- For dimensions, extract ALL dimension info you can find (W x D x H, or individual measurements)
+- For prices, distinguish between RRP/retail and trade/wholesale prices
+- Look for material composition, finish types, and color options
+- Extract any lead time, delivery time, or stock availability info
 
 Return ONLY a valid JSON object with this structure:
 
@@ -120,30 +123,37 @@ Return ONLY a valid JSON object with this structure:
   "brand": "string - brand or manufacturer name",
   "description": "string - product description focused on the item (max 500 chars)",
   "sku": "string - SKU, model number, article number, or product code",
-  "price": "string - retail price with currency symbol",
+  "price": "string - retail price with currency symbol (e.g., '$1,299.00' or '£850')",
   "tradePrice": "string - trade/wholesale price if shown",
-  "material": "string - main material(s) of the product",
-  "colour": "string - color/colour of the product",
-  "finish": "string - finish type (e.g., matte, gloss, brushed, natural)",
+  "material": "string - main material(s) of the product (e.g., 'Solid Oak', 'Velvet upholstery')",
+  "colour": "string - color/colour of the product (e.g., 'Natural Oak', 'Midnight Blue')",
+  "finish": "string - finish type (e.g., 'Matte Black', 'Brushed Brass', 'Lacquered')",
   "dimensions": {
-    "width": "string - width with unit (e.g., '120cm')",
+    "width": "string - width with unit (e.g., '120cm' or '47 inches')",
     "height": "string - height with unit",
     "depth": "string - depth with unit",
-    "length": "string - length with unit"
+    "length": "string - length with unit",
+    "diameter": "string - diameter if circular",
+    "seatHeight": "string - seat height for chairs/stools"
   },
-  "leadTime": "string - delivery/lead time if mentioned",
-  "notes": "string - other relevant product details"
+  "leadTime": "string - delivery/lead time if mentioned (e.g., '4-6 weeks', 'In stock')",
+  "notes": "string - other relevant product details like warranty, care instructions, certifications"
 }
 
 Only include fields where you found clear, accurate data. Omit fields if unsure.`
 
+    // Build context about available spec sheets
+    const specSheetInfo = specSheets && specSheets.length > 0 
+      ? `\n\nAvailable Spec Sheets/Downloads found on page:\n${specSheets.slice(0, 5).map((s: any) => `- ${s.name}: ${s.url}`).join('\n')}`
+      : ''
+
     const userMessage = `Extract the MAIN PRODUCT information from this page. Focus only on the primary product being sold.
 
 URL: ${url || 'Not provided'}
-Page Title: ${title || 'Not provided'}
+Page Title: ${title || 'Not provided'}${specSheetInfo}
 
 Page Content (focus on product details, ignore navigation/headers):
-${pageContent?.substring(0, 10000) || 'No content provided'}`
+${pageContent?.substring(0, 12000) || 'No content provided'}`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Use mini for faster/cheaper extraction
@@ -165,6 +175,20 @@ ${pageContent?.substring(0, 10000) || 'No content provided'}`
       extractedData = {}
     }
 
+    // Combine dimensions into a single string if individual fields exist
+    let dimensionString = ''
+    const dims = extractedData.dimensions || {}
+    if (dims.width || dims.height || dims.depth || dims.length) {
+      const parts = []
+      if (dims.width) parts.push(`W: ${dims.width}`)
+      if (dims.depth) parts.push(`D: ${dims.depth}`)
+      if (dims.height) parts.push(`H: ${dims.height}`)
+      if (dims.length) parts.push(`L: ${dims.length}`)
+      if (dims.diameter) parts.push(`Ø: ${dims.diameter}`)
+      if (dims.seatHeight) parts.push(`Seat H: ${dims.seatHeight}`)
+      dimensionString = parts.join(' × ')
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -177,15 +201,21 @@ ${pageContent?.substring(0, 10000) || 'No content provided'}`
         material: extractedData.material || '',
         colour: extractedData.colour || '',
         finish: extractedData.finish || '',
-        width: extractedData.dimensions?.width || '',
-        height: extractedData.dimensions?.height || '',
-        depth: extractedData.dimensions?.depth || '',
-        length: extractedData.dimensions?.length || '',
+        width: dims.width || '',
+        height: dims.height || '',
+        depth: dims.depth || '',
+        length: dims.length || '',
+        dimensions: dimensionString,
         leadTime: extractedData.leadTime || '',
         notes: extractedData.notes || '',
         productWebsite: url || '',
-        // Return filtered product images
-        images: productImages.slice(0, 10)
+        // Return filtered product images - prioritize mainImage if provided
+        images: mainImage 
+          ? [mainImage, ...productImages.filter((img: string) => img !== mainImage)].slice(0, 10)
+          : productImages.slice(0, 10),
+        // Include spec sheets/PDFs found on page
+        specSheets: (specSheets || []).slice(0, 5),
+        pdfLinks: (pdfLinks || []).slice(0, 5)
       },
       meta: {
         model: completion.model,

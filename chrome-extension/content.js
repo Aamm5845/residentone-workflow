@@ -28,27 +28,43 @@
     });
   }
   
-  // Check if we're on the extension-auth page
-  if (window.location.pathname === '/extension-auth') {
+  // Check if we're on the extension-auth page (more flexible matching)
+  if (window.location.pathname.startsWith('/extension-auth')) {
+    console.log('[FFE Clipper] Auth page detected, starting auth sync...');
+    
     // Monitor localStorage for auth data
-    const checkAuth = () => {
+    const checkAuth = async () => {
       const authData = localStorage.getItem('extension_auth');
+      console.log('[FFE Clipper] Checking for auth data:', !!authData);
+      
       if (authData) {
         try {
           const { apiKey, user } = JSON.parse(authData);
           if (apiKey) {
+            console.log('[FFE Clipper] Found API key, sending to extension...');
+            
             // Send to extension background
-            safeSendMessage({
+            const result = await safeSendMessage({
               action: 'authComplete',
               apiKey,
               user
             });
+            console.log('[FFE Clipper] Message send result:', result);
+            
+            // Also store directly in chrome.storage as backup
+            try {
+              await chrome.storage.local.set({ apiKey, user });
+              console.log('[FFE Clipper] Stored directly in chrome.storage');
+            } catch (e) {
+              console.log('[FFE Clipper] Direct storage failed:', e.message);
+            }
+            
             // Clear the localStorage item
             localStorage.removeItem('extension_auth');
-            console.log('Auth synced to extension');
+            console.log('[FFE Clipper] Auth synced to extension successfully!');
           }
         } catch (e) {
-          console.error('Failed to parse auth data:', e);
+          console.error('[FFE Clipper] Failed to parse auth data:', e);
         }
       }
     };
@@ -544,8 +560,116 @@
     const data = {
       url: window.location.href,
       title: document.title,
-      images: []
+      images: [],
+      pdfLinks: [],
+      specSheets: []
     };
+    
+    // Helper to score how likely an image is the main product image
+    function scoreProductImage(img, index) {
+      let score = 100 - index; // Earlier images get higher base score
+      const src = (img.src || '').toLowerCase();
+      const alt = (img.alt || '').toLowerCase();
+      const className = (img.className || '').toLowerCase();
+      const parent = img.closest('[class]');
+      const parentClass = parent ? (parent.className || '').toLowerCase() : '';
+      
+      // Boost for product-related classes/attributes
+      if (className.includes('product') || className.includes('main') || className.includes('hero')) score += 50;
+      if (parentClass.includes('product') || parentClass.includes('gallery') || parentClass.includes('main')) score += 40;
+      if (alt && alt.length > 10) score += 20; // Has meaningful alt text
+      if (src.includes('product') || src.includes('main')) score += 30;
+      
+      // Boost for larger images
+      if (img.naturalWidth >= 500 || img.width >= 500) score += 40;
+      if (img.naturalWidth >= 800 || img.width >= 800) score += 30;
+      
+      // Check if image is in a gallery/carousel (likely product image)
+      if (img.closest('.swiper, .carousel, .gallery, .slider, [data-gallery]')) score += 35;
+      
+      // Penalize for non-product patterns
+      if (src.includes('logo')) score -= 100;
+      if (src.includes('icon')) score -= 100;
+      if (src.includes('banner')) score -= 50;
+      if (src.includes('avatar')) score -= 100;
+      if (src.includes('placeholder')) score -= 80;
+      if (src.includes('loading')) score -= 80;
+      if (src.includes('social')) score -= 100;
+      if (src.includes('payment')) score -= 100;
+      if (src.includes('badge')) score -= 80;
+      if (src.includes('flag')) score -= 100;
+      if (className.includes('logo')) score -= 100;
+      if (className.includes('icon')) score -= 100;
+      
+      // Skip tiny images
+      if (img.naturalWidth && img.naturalWidth < 100) score -= 200;
+      if (img.naturalHeight && img.naturalHeight < 100) score -= 200;
+      
+      return score;
+    }
+    
+    // Find PDF spec sheets and documents
+    function findSpecSheets() {
+      const pdfs = [];
+      const seen = new Set();
+      
+      // Keywords that suggest spec sheets
+      const specKeywords = ['spec', 'specification', 'datasheet', 'data sheet', 'technical', 'brochure', 
+                            'catalog', 'catalogue', 'download', 'pdf', 'manual', 'guide', 'instruction',
+                            'dimensions', 'drawing', 'cad', 'dwg', '2d', '3d'];
+      
+      // Find all links
+      document.querySelectorAll('a[href]').forEach(link => {
+        const href = link.href.toLowerCase();
+        const text = (link.textContent || link.title || '').toLowerCase();
+        
+        if (seen.has(link.href)) return;
+        
+        // Check if it's a PDF link
+        const isPdf = href.endsWith('.pdf') || href.includes('.pdf?') || href.includes('/pdf/');
+        
+        // Check if text/href suggests it's a spec sheet
+        const isSpecRelated = specKeywords.some(kw => text.includes(kw) || href.includes(kw));
+        
+        if (isPdf || isSpecRelated) {
+          seen.add(link.href);
+          pdfs.push({
+            url: link.href,
+            name: link.textContent?.trim() || link.title || 'Download',
+            type: isPdf ? 'PDF' : 'LINK',
+            isSpec: isSpecRelated
+          });
+        }
+      });
+      
+      // Also check for buttons that might trigger downloads
+      document.querySelectorAll('button, [role="button"]').forEach(btn => {
+        const text = (btn.textContent || btn.title || '').toLowerCase();
+        const onClick = btn.getAttribute('onclick') || '';
+        const dataUrl = btn.dataset.url || btn.dataset.href || '';
+        
+        if (specKeywords.some(kw => text.includes(kw))) {
+          // Try to extract URL from data attributes or onclick
+          let url = dataUrl;
+          if (!url && onClick.includes('.pdf')) {
+            // Simple extraction - look for URL in onclick
+            const pdfMatch = onClick.match(/https?:\/\/[^\s'"]+\.pdf[^\s'"]*/i);
+            if (pdfMatch) url = pdfMatch[0];
+          }
+          if (url && !seen.has(url)) {
+            seen.add(url);
+            pdfs.push({
+              url: url,
+              name: btn.textContent?.trim() || 'Download',
+              type: 'PDF',
+              isSpec: true
+            });
+          }
+        }
+      });
+      
+      return pdfs;
+    }
     
     // Try to extract structured data (JSON-LD)
     const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -680,36 +804,11 @@
       }
     }
     
-    // Helper to check if image is likely a product image
-    const isProductImage = (img) => {
-      if (!img || !img.src) return false;
-      const src = img.src.toLowerCase();
-      
-      // Skip data URIs, tiny images, logos, icons
-      if (src.includes('data:')) return false;
-      if (src.includes('logo')) return false;
-      if (src.includes('icon')) return false;
-      if (src.includes('favicon')) return false;
-      if (src.includes('sprite')) return false;
-      if (src.includes('avatar')) return false;
-      if (src.includes('placeholder')) return false;
-      if (src.includes('loading')) return false;
-      if (src.includes('banner')) return false;
-      if (src.includes('social')) return false;
-      if (src.includes('payment')) return false;
-      if (src.includes('badge')) return false;
-      if (src.includes('1x1')) return false;
-      if (src.includes('pixel')) return false;
-      
-      // Check image dimensions if available
-      if (img.naturalWidth && img.naturalWidth < 100) return false;
-      if (img.naturalHeight && img.naturalHeight < 100) return false;
-      
-      return true;
-    };
-
-    // Extract images if not found in structured data
+    // Extract and score images to find best product images
     if (data.images.length === 0) {
+      const allImages = [];
+      const seen = new Set();
+      
       // Priority selectors for product images
       const imageSelectors = [
         '.product-image img',
@@ -721,24 +820,44 @@
         '.swiper-slide img',
         '.carousel img',
         '[class*="product"] img',
-        'main img'
+        'main img',
+        'article img',
+        '.content img'
       ];
       
+      // Collect all candidate images
       for (const selector of imageSelectors) {
         try {
           const imgs = document.querySelectorAll(selector);
-          imgs.forEach(img => {
-            if (isProductImage(img) && !data.images.includes(img.src)) {
-              data.images.push(img.src);
+          imgs.forEach((img, idx) => {
+            if (!img.src || seen.has(img.src)) return;
+            if (img.src.includes('data:') && img.src.length < 100) return; // Skip tiny data URIs
+            
+            seen.add(img.src);
+            const score = scoreProductImage(img, idx);
+            if (score > 0) {
+              allImages.push({ src: img.src, score, alt: img.alt });
             }
           });
         } catch (e) {
           // Selector might be invalid, skip
         }
-        
-        if (data.images.length >= 10) break;
+      }
+      
+      // Sort by score and take top images
+      allImages.sort((a, b) => b.score - a.score);
+      data.images = allImages.slice(0, 10).map(img => img.src);
+      
+      // Store the best image info separately
+      if (allImages.length > 0) {
+        data.mainImage = allImages[0].src;
+        data.mainImageAlt = allImages[0].alt;
       }
     }
+    
+    // Find spec sheets and PDFs
+    data.specSheets = findSpecSheets();
+    data.pdfLinks = data.specSheets.filter(s => s.type === 'PDF').map(s => s.url);
     
     // Try to extract dimensions
     const dimensionPatterns = [

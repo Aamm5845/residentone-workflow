@@ -1,6 +1,7 @@
 import { PrismaClient, UserRole, RoomType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { seedFFESectionLibrary } from './seeds/ffe-system-seed'
+import { seedProductCategories } from './seeds/product-categories-seed'
 
 const prisma = new PrismaClient()
 
@@ -29,6 +30,10 @@ async function main() {
   // Seed FFE Section Library with preset items
   await seedFFESectionLibrary()
   console.log('✅ Seeded FFE Section Library with preset items')
+
+  // Seed Product Categories
+  await seedProductCategories(prisma)
+  console.log('✅ Seeded Product Categories')
 
   console.log('🎉 Database seeding completed!')
   console.log('\n👥 Team members should be set up using: npm run setup-team-members')

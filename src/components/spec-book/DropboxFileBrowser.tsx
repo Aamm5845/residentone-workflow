@@ -48,6 +48,7 @@ interface DropboxFileBrowserProps {
   variant?: 'default' | 'settings' | 'ctb-selector'
   allowMultiple?: boolean
   maxSelections?: number
+  allowFolderSelection?: boolean // Allow selecting folders instead of just files
 }
 
 export function DropboxFileBrowser({ 
@@ -61,7 +62,8 @@ export function DropboxFileBrowser({
   mode = 'link',
   variant = 'default', 
   allowMultiple = true,
-  maxSelections
+  maxSelections,
+  allowFolderSelection = false
 }: DropboxFileBrowserProps) {
   
   // Fetch project data to get dropboxFolder path
@@ -374,6 +376,33 @@ export function DropboxFileBrowser({
           </div>
         )}
 
+        {/* Select Current Folder Button - when folder selection is enabled */}
+        {allowFolderSelection && currentPath && currentPath !== 'Search Results' && (
+          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Folder className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">Current folder: {currentPath.split('/').pop() || 'Root'}</span>
+            </div>
+            <Button 
+              size="sm"
+              onClick={() => {
+                const folderData: DropboxFile = {
+                  id: `folder-${currentPath}`,
+                  name: currentPath.split('/').pop() || 'Root',
+                  path: currentPath,
+                  size: 0,
+                  lastModified: new Date(),
+                  revision: '',
+                  isFolder: true
+                }
+                onFileSelected?.(folderData)
+              }}
+            >
+              Select This Folder
+            </Button>
+          </div>
+        )}
+
         {/* File Browser */}
         {currentFolder && (
           <ScrollArea className="h-96 border rounded">
@@ -403,7 +432,7 @@ export function DropboxFileBrowser({
                   return (
                     <div 
                       key={folder.id}
-                      className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                      className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer group"
                       onClick={(e) => {
                         console.log('[DropboxFileBrowser] Folder div clicked!', folder.name)
                         e.preventDefault()
@@ -413,6 +442,20 @@ export function DropboxFileBrowser({
                     >
                       <Folder className="w-4 h-4 text-blue-500" />
                       <span className="flex-1">{folder.name}</span>
+                      {/* Quick select button for folders when folder selection is enabled */}
+                      {allowFolderSelection && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="opacity-0 group-hover:opacity-100 h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onFileSelected?.(folder)
+                          }}
+                        >
+                          Select
+                        </Button>
+                      )}
                     </div>
                   )
                 })}

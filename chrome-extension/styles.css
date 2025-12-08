@@ -105,6 +105,75 @@ body {
   padding: 16px;
 }
 
+/* Destination Selector */
+.destination-selector {
+  margin-bottom: 12px;
+}
+
+.destination-selector > label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.destination-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.dest-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-gray-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dest-btn:hover {
+  background: var(--bg-gray);
+  border-color: var(--border-dark);
+  color: var(--text-primary);
+}
+
+.dest-btn.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
+.dest-btn.active svg {
+  stroke: white;
+}
+
+.dest-btn svg {
+  flex-shrink: 0;
+}
+
+/* Category Selector */
+.category-selector {
+  background: var(--bg-gray);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.category-selector .selector-group {
+  margin-bottom: 0;
+}
+
 /* Location Selectors */
 .location-selectors {
   background: var(--bg-gray);
@@ -370,6 +439,39 @@ body {
 .attachment-item:hover .attachment-delete {
   opacity: 1;
   color: var(--error);
+}
+
+.attachment-item.spec-sheet {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+}
+
+.attachment-item.pdf {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid #f87171;
+}
+
+.attachment-item .attachment-type {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.1);
+  color: var(--text-secondary);
+}
+
+.attachment-item a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-item a:hover {
+  text-decoration: underline;
 }
 
 /* Form Fields */

@@ -383,7 +383,7 @@ export default function RenderingWorkspace({
     }
   }
 
-  // Link source file (Max file) from Dropbox
+  // Link source file or folder from Dropbox
   const linkSourceFile = async (versionId: string, filePath: string, fileName: string) => {
     setLinkingSourceFile(true)
     try {
@@ -402,14 +402,14 @@ export default function RenderingWorkspace({
       if (response.ok) {
         await fetchRenderingVersions()
         setShowSourceFileDialog(null)
-        toast.success(`Linked Max file: ${fileName}`)
+        toast.success(`Linked source: ${fileName}`)
       } else {
         const error = await response.json()
-        toast.error(`Failed to link file: ${error.error}`)
+        toast.error(`Failed to link: ${error.error}`)
       }
     } catch (error) {
       console.error('Error linking source file:', error)
-      toast.error('Failed to link source file')
+      toast.error('Failed to link source')
     } finally {
       setLinkingSourceFile(false)
     }
@@ -417,7 +417,7 @@ export default function RenderingWorkspace({
 
   // Unlink source file
   const unlinkSourceFile = async (versionId: string) => {
-    if (!window.confirm('Unlink the source Max file from this version?')) return
+    if (!window.confirm('Unlink the source file/folder from this version?')) return
 
     try {
       const response = await fetch(`/api/renderings/${versionId}`, {
@@ -756,12 +756,12 @@ export default function RenderingWorkspace({
                     </div>
                   )}
                   
-                  {/* Source Max File Section */}
+                  {/* Source File/Folder Section */}
                   <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <FileBox className="w-5 h-5 text-orange-600" />
-                        <h5 className="font-medium text-gray-900">Source Max File</h5>
+                        <h5 className="font-medium text-gray-900">Source File</h5>
                       </div>
                       {!version.sourceFilePath && (
                         <Button
@@ -771,7 +771,7 @@ export default function RenderingWorkspace({
                           className="border-orange-300 text-orange-600 hover:bg-orange-50"
                         >
                           <Link2 className="w-4 h-4 mr-1" />
-                          Link Max File
+                          Link Source
                         </Button>
                       )}
                     </div>
@@ -784,7 +784,7 @@ export default function RenderingWorkspace({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 truncate" title={version.sourceFileName || ''}>
-                              {version.sourceFileName || 'Max File'}
+                              {version.sourceFileName || 'Source File'}
                             </p>
                             <p className="text-xs text-gray-500 truncate" title={version.sourceFilePath}>
                               {version.sourceFilePath}
@@ -797,14 +797,14 @@ export default function RenderingWorkspace({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-orange-600 hover:text-orange-700 p-1"
-                            title="Open folder in Dropbox"
+                            title="Open in Dropbox"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
                           <button
                             onClick={() => unlinkSourceFile(version.id)}
                             className="text-gray-400 hover:text-red-600 p-1"
-                            title="Unlink file"
+                            title="Unlink"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -812,7 +812,7 @@ export default function RenderingWorkspace({
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500">
-                        Link the source 3ds Max file from Dropbox for this rendering version
+                        Link the source file (.max, .zip, etc.) or folder from Dropbox for this rendering version
                       </p>
                     )}
                   </div>
@@ -1318,27 +1318,28 @@ export default function RenderingWorkspace({
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <FileBox className="w-5 h-5 text-orange-600" />
-              <span>Link Source Max File from Dropbox</span>
+              <span>Link Source File or Folder from Dropbox</span>
             </DialogTitle>
           </DialogHeader>
           
           {showSourceFileDialog && (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Select the 3ds Max (.max) source file for this rendering version. The browser starts from the project's linked Dropbox folder.
+                Select the source file or folder for this rendering version. Supported formats: 3ds Max (.max, .3ds), archives (.zip, .rar, .7z), or select an entire folder.
               </p>
               <DropboxFileBrowser
                 roomId={null}
                 projectId={project.id}
                 sectionType="RENDERING"
-                sectionName="Source Max File"
+                sectionName="Source File"
                 onFileSelected={(file) => {
-                  linkSourceFile(showSourceFileDialog, file.path, file.name)
+                  linkSourceFile(showSourceFileDialog, file.path, file.name + (file.isFolder ? ' (folder)' : ''))
                 }}
-                allowedExtensions={['.max', '.3ds']}
+                allowedExtensions={['.max', '.3ds', '.zip', '.rar', '.7z', '.blend', '.skp', '.c4d', '.fbx', '.obj']}
                 mode="select"
                 variant="settings"
                 allowMultiple={false}
+                allowFolderSelection={true}
               />
               <div className="flex justify-end pt-4 border-t">
                 <Button 

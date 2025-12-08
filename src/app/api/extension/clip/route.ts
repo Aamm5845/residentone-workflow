@@ -54,7 +54,7 @@ async function getAuthenticatedUser(request: NextRequest) {
   return user
 }
 
-// POST: Save a clipped item to FFE
+// POST: Save a clipped item to FFE and/or Product Library
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser(request)
@@ -68,19 +68,36 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { roomId, sectionId, item } = body
+    const { roomId, sectionId, linkItemId, item, destination = 'room', categoryId } = body
     
-    // Validate required fields
-    if (!roomId) {
+    // destination can be: 'room', 'library', or 'both'
+    const addToLibrary = destination === 'library' || destination === 'both'
+    const addToRoom = destination === 'room' || destination === 'both'
+    
+    // If only adding to library, we don't need roomId/sectionId
+    if (addToLibrary && !addToRoom) {
+      return await addToProductLibrary(user, item, categoryId)
+    }
+    
+    // Validate required fields for room
+    if (addToRoom && !roomId) {
       return NextResponse.json({ error: 'roomId is required' }, { status: 400 })
     }
     
-    if (!sectionId) {
-      return NextResponse.json({ error: 'sectionId is required' }, { status: 400 })
+    // sectionId only required if not linking to existing item
+    if (addToRoom && !sectionId && !linkItemId) {
+      return NextResponse.json({ error: 'sectionId is required when not linking to existing item' }, { status: 400 })
     }
     
-    if (!item?.name) {
-      return NextResponse.json({ error: 'item.name is required' }, { status: 400 })
+    if (!item?.name && !linkItemId) {
+      return NextResponse.json({ error: 'item.name is required when not linking to existing item' }, { status: 400 })
+    }
+    
+    // If adding to both, first add to library
+    let libraryProduct = null
+    if (addToLibrary) {
+      const libraryResult = await createLibraryProduct(user, item, categoryId)
+      libraryProduct = libraryResult
     }
     
     // Verify room belongs to user's organization
@@ -100,7 +117,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
     
-    // Create or get FFE instance for the room
+    // If linking to existing item, update that item instead of creating new
+    if (linkItemId) {
+      // Verify the item exists and belongs to this room
+      const existingItem = await prisma.roomFFEItem.findFirst({
+        where: {
+          id: linkItemId,
+          section: {
+            instance: {
+              roomId: room.id
+            }
+          }
+        }
+      })
+      
+      if (!existingItem) {
+        return NextResponse.json({ error: 'Item to link not found' }, { status: 404 })
+      }
+      
+      // Update the existing item with spec data
+      const updatedItem = await prisma.roomFFEItem.update({
+        where: { id: linkItemId },
+        data: {
+          // Keep the original name, update everything else
+          description: item.description || existingItem.description,
+          supplierName: item.supplierName || null,
+          supplierLink: item.supplierLink || null,
+          modelNumber: item.modelNumber || null,
+          quantity: item.quantity || existingItem.quantity,
+          unitCost: item.unitCost ? parseFloat(item.unitCost) : null,
+          notes: item.notes || existingItem.notes,
+          customFields: {
+            ...(existingItem.customFields as object || {}),
+            ...(item.customFields || {}),
+            brand: item.supplierName || item.customFields?.brand
+          },
+          attachments: item.attachments || {},
+          updatedById: user.id
+        }
+      })
+      
+      // Update FFE instance progress
+      const instanceId = (await prisma.roomFFESection.findUnique({
+        where: { id: existingItem.sectionId },
+        select: { instanceId: true }
+      }))?.instanceId
+      
+      if (instanceId) {
+        await updateFFEProgress(instanceId)
+      }
+      
+      return NextResponse.json({
+        ok: true,
+        linked: true,
+        item: {
+          id: updatedItem.id,
+          name: updatedItem.name,
+          sectionId: existingItem.sectionId
+        },
+        message: `Spec linked to "${updatedItem.name}" successfully`
+      })
+    }
+    
+    // Create or get FFE instance for the room (for new items)
     let ffeInstance = room.ffeInstance
     
     if (!ffeInstance) {
@@ -203,12 +282,68 @@ export async function POST(request: NextRequest) {
         name: newItem.name,
         sectionId: targetSectionId
       },
-      message: `Item "${item.name}" saved successfully`
+      libraryProduct: libraryProduct,
+      message: libraryProduct 
+        ? `Item "${item.name}" saved to room and library`
+        : `Item "${item.name}" saved successfully`
     })
     
   } catch (error) {
     console.error('Extension clip error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// Helper to add item to product library only
+async function addToProductLibrary(user: any, item: any, categoryId?: string) {
+  const product = await createLibraryProduct(user, item, categoryId)
+  
+  return NextResponse.json({
+    ok: true,
+    libraryProduct: product,
+    message: `Product "${item.name}" added to library`
+  })
+}
+
+// Helper to create a product in the library
+async function createLibraryProduct(user: any, item: any, categoryId?: string) {
+  const product = await prisma.productLibraryItem.create({
+    data: {
+      orgId: user.orgId,
+      categoryId: categoryId || null,
+      name: item.name,
+      description: item.description || null,
+      brand: item.supplierName || item.customFields?.brand || null,
+      sku: item.customFields?.sku || item.modelNumber || null,
+      modelNumber: item.modelNumber || null,
+      color: item.customFields?.colour || item.customFields?.color || null,
+      finish: item.customFields?.finish || null,
+      material: item.customFields?.material || null,
+      width: item.customFields?.width || null,
+      height: item.customFields?.height || null,
+      depth: item.customFields?.depth || null,
+      length: item.customFields?.length || null,
+      rrp: item.unitCost ? parseFloat(item.unitCost) : null,
+      tradePrice: item.customFields?.tradePrice ? parseFloat(item.customFields.tradePrice) : null,
+      supplierName: item.supplierName || null,
+      supplierLink: item.supplierLink || null,
+      leadTime: item.customFields?.leadTime || null,
+      images: item.attachments?.images || [],
+      thumbnailUrl: item.attachments?.images?.[0] || null,
+      attachments: item.attachments?.files ? { files: item.attachments.files } : null,
+      notes: item.notes || null,
+      customFields: item.customFields || null,
+      tags: [],
+      status: 'ACTIVE',
+      createdById: user.id,
+      updatedById: user.id
+    }
+  })
+  
+  return {
+    id: product.id,
+    name: product.name,
+    categoryId: product.categoryId
   }
 }
 

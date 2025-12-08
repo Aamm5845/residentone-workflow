@@ -1,0 +1,172 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/auth'
+import { prisma } from '@/lib/prisma'
+
+// Helper to get user from API key or session
+async function getAuthenticatedUser(request: NextRequest) {
+  const apiKey = request.headers.get('X-Extension-Key')
+  
+  if (apiKey) {
+    const token = await prisma.clientAccessToken.findFirst({
+      where: {
+        token: apiKey,
+        active: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            orgId: true,
+            role: true
+          }
+        }
+      }
+    })
+    
+    if (token?.createdBy) {
+      return token.createdBy
+    }
+  }
+  
+  const session = await getSession()
+  
+  if (!session?.user?.email) {
+    return null
+  }
+  
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      orgId: true,
+      role: true
+    }
+  })
+  
+  return user
+}
+
+// GET: Get items that need specs for a room (for linking in extension)
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser(request)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (!user.orgId) {
+      return NextResponse.json({ error: 'User has no organization' }, { status: 400 })
+    }
+    
+    const { searchParams } = new URL(request.url)
+    const roomId = searchParams.get('roomId')
+    
+    if (!roomId) {
+      return NextResponse.json({ error: 'roomId is required' }, { status: 400 })
+    }
+    
+    // Verify room belongs to user's organization
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        project: {
+          orgId: user.orgId
+        }
+      },
+      include: {
+        ffeInstance: {
+          include: {
+            sections: {
+              orderBy: { order: 'asc' },
+              include: {
+                items: {
+                  where: {
+                    visibility: 'VISIBLE'
+                  },
+                  orderBy: { order: 'asc' }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+    
+    if (!room.ffeInstance) {
+      return NextResponse.json({ 
+        ok: true,
+        items: [],
+        message: 'No FFE instance for this room yet'
+      })
+    }
+    
+    // Get all items, marking which ones need specs
+    const items: Array<{
+      id: string
+      name: string
+      sectionId: string
+      sectionName: string
+      hasSpec: boolean
+      needsSpec: boolean
+    }> = []
+    
+    room.ffeInstance.sections.forEach(section => {
+      section.items.forEach(item => {
+        const customFields = (item.customFields as any) || {}
+        
+        // Check if item has spec data
+        const hasSpec = !!(
+          item.supplierName || 
+          item.supplierLink || 
+          customFields.brand ||
+          customFields.colour ||
+          customFields.finish ||
+          customFields.material
+        )
+        
+        items.push({
+          id: item.id,
+          name: item.name,
+          sectionId: section.id,
+          sectionName: section.name,
+          hasSpec,
+          needsSpec: !hasSpec
+        })
+      })
+    })
+    
+    // Sort: items that need spec first
+    items.sort((a, b) => {
+      if (a.needsSpec && !b.needsSpec) return -1
+      if (!a.needsSpec && b.needsSpec) return 1
+      return 0
+    })
+    
+    return NextResponse.json({
+      ok: true,
+      items,
+      stats: {
+        total: items.length,
+        needsSpec: items.filter(i => i.needsSpec).length,
+        hasSpec: items.filter(i => i.hasSpec).length
+      }
+    })
+    
+  } catch (error) {
+    console.error('Extension pending-items error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
