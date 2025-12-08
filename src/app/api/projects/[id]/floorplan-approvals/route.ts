@@ -113,6 +113,8 @@ export async function GET(
       clientDecidedAt: v.clientDecidedAt,
       clientMessage: v.clientMessage,
       notes: v.notes,
+      sourceFilePath: v.sourceFilePath,
+      sourceFileName: v.sourceFileName,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       assets: v.assets.map(a => ({
@@ -387,6 +389,16 @@ export async function PATCH(
         activityType = 'notes_updated'
         break
 
+      case 'link_source_file':
+        const { sourceFilePath, sourceFileName } = data
+        updateData.sourceFilePath = sourceFilePath || null
+        updateData.sourceFileName = sourceFileName || null
+        activityMessage = sourceFilePath 
+          ? `Linked source CAD file: ${sourceFileName}`
+          : 'Unlinked source CAD file'
+        activityType = 'source_file_linked'
+        break
+
       default:
         return NextResponse.json({
           error: 'Invalid action'
@@ -458,6 +470,8 @@ export async function PATCH(
         clientDecidedAt: updatedVersion.clientDecidedAt,
         clientMessage: updatedVersion.clientMessage,
         notes: updatedVersion.notes,
+        sourceFilePath: updatedVersion.sourceFilePath,
+        sourceFileName: updatedVersion.sourceFileName,
         createdAt: updatedVersion.createdAt,
         updatedAt: updatedVersion.updatedAt
       }

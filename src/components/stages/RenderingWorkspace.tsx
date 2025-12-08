@@ -30,9 +30,15 @@ import {
   Eye,
   Clock,
   FileText,
-  RefreshCw
+  RefreshCw,
+  HardDrive,
+  Link2,
+  ExternalLink,
+  FileBox
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropboxFileBrowser } from '@/components/spec-book/DropboxFileBrowser'
 
 interface RenderingVersion {
   id: string
@@ -42,6 +48,8 @@ interface RenderingVersion {
   createdAt: string
   completedAt: string | null
   pushedToClientAt: string | null
+  sourceFilePath: string | null
+  sourceFileName: string | null
   createdBy: { id: string; name: string; email: string }
   completedBy: { id: string; name: string; email: string } | null
   assets: Array<{
@@ -115,6 +123,8 @@ export default function RenderingWorkspace({
   const [showActivityLog, setShowActivityLog] = useState(false)
   const [syncingVersionId, setSyncingVersionId] = useState<string | null>(null)
   const [pushingToClientId, setPushingToClientId] = useState<string | null>(null)
+  const [showSourceFileDialog, setShowSourceFileDialog] = useState<string | null>(null)
+  const [linkingSourceFile, setLinkingSourceFile] = useState(false)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Sync files to Dropbox
@@ -370,6 +380,68 @@ export default function RenderingWorkspace({
       toast.error('Failed to push to client. Please try again.')
     } finally {
       setPushingToClientId(null)
+    }
+  }
+
+  // Link source file (Max file) from Dropbox
+  const linkSourceFile = async (versionId: string, filePath: string, fileName: string) => {
+    setLinkingSourceFile(true)
+    try {
+      const response = await fetch(`/api/renderings/${versionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          action: 'link_source_file',
+          sourceFilePath: filePath,
+          sourceFileName: fileName
+        })
+      })
+
+      if (response.ok) {
+        await fetchRenderingVersions()
+        setShowSourceFileDialog(null)
+        toast.success(`Linked Max file: ${fileName}`)
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to link file: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error linking source file:', error)
+      toast.error('Failed to link source file')
+    } finally {
+      setLinkingSourceFile(false)
+    }
+  }
+
+  // Unlink source file
+  const unlinkSourceFile = async (versionId: string) => {
+    if (!window.confirm('Unlink the source Max file from this version?')) return
+
+    try {
+      const response = await fetch(`/api/renderings/${versionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          action: 'link_source_file',
+          sourceFilePath: null,
+          sourceFileName: null
+        })
+      })
+
+      if (response.ok) {
+        await fetchRenderingVersions()
+        toast.success('Source file unlinked')
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to unlink: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error unlinking source file:', error)
+      toast.error('Failed to unlink source file')
     }
   }
 
@@ -684,6 +756,67 @@ export default function RenderingWorkspace({
                     </div>
                   )}
                   
+                  {/* Source Max File Section */}
+                  <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <FileBox className="w-5 h-5 text-orange-600" />
+                        <h5 className="font-medium text-gray-900">Source Max File</h5>
+                      </div>
+                      {!version.sourceFilePath && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowSourceFileDialog(version.id)}
+                          className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                        >
+                          <Link2 className="w-4 h-4 mr-1" />
+                          Link Max File
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {version.sourceFilePath ? (
+                      <div className="bg-white border border-orange-200 rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <HardDrive className="w-5 h-5 text-orange-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate" title={version.sourceFileName || ''}>
+                              {version.sourceFileName || 'Max File'}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate" title={version.sourceFilePath}>
+                              {version.sourceFilePath}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 ml-3">
+                          <a
+                            href={`https://www.dropbox.com/home${version.sourceFilePath.replace(/\/[^/]+$/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-orange-600 hover:text-orange-700 p-1"
+                            title="Open folder in Dropbox"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => unlinkSourceFile(version.id)}
+                            className="text-gray-400 hover:text-red-600 p-1"
+                            title="Unlink file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Link the source 3ds Max file from Dropbox for this rendering version
+                      </p>
+                    )}
+                  </div>
+
                   {/* Upload Area */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
@@ -1175,6 +1308,51 @@ export default function RenderingWorkspace({
           />
         </div>
       </div>
+
+      {/* Source File Link Dialog */}
+      <Dialog 
+        open={showSourceFileDialog !== null} 
+        onOpenChange={(open) => !open && setShowSourceFileDialog(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <FileBox className="w-5 h-5 text-orange-600" />
+              <span>Link Source Max File from Dropbox</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {showSourceFileDialog && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Select the 3ds Max (.max) source file for this rendering version. The browser starts from the project's linked Dropbox folder.
+              </p>
+              <DropboxFileBrowser
+                roomId={null}
+                projectId={project.id}
+                sectionType="RENDERING"
+                sectionName="Source Max File"
+                onFileSelected={(file) => {
+                  linkSourceFile(showSourceFileDialog, file.path, file.name)
+                }}
+                allowedExtensions={['.max', '.3ds']}
+                mode="select"
+                variant="settings"
+                allowMultiple={false}
+              />
+              <div className="flex justify-end pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSourceFileDialog(null)}
+                  disabled={linkingSourceFile}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

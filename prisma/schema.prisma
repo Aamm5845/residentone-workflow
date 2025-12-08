@@ -654,6 +654,8 @@ model FloorplanApprovalVersion {
   clientMessage       String?
   notes               String?
   followUpSentAt      DateTime?
+  sourceFilePath      String?                     // Dropbox path to source CAD file
+  sourceFileName      String?                     // Name of the source file
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
   activityLogs        FloorplanApprovalActivity[]
@@ -976,6 +978,8 @@ model RenderingVersion {
   customName            String?
   status                RenderingVersionStatus @default(IN_PROGRESS)
   pushedToClientAt      DateTime?
+  sourceFilePath        String?                // Dropbox path to source Max file
+  sourceFileName        String?                // Name of the source file
   createdById           String
   updatedById           String?
   completedById         String?
@@ -1361,39 +1365,55 @@ model RoomFFESection {
 }
 
 model RoomFFEItem {
-  id             String            @id @default(cuid())
-  sectionId      String
-  templateItemId String?
-  name           String
-  description    String?
-  state          FFEItemState      @default(PENDING)
-  visibility     FFEItemVisibility @default(HIDDEN)
-  isRequired     Boolean           @default(false)
-  isCustom       Boolean           @default(false)
-  order          Int               @default(0)
-  quantity       Int               @default(1)
-  unitCost       Decimal?
-  totalCost      Decimal?
-  supplierName   String?
-  supplierLink   String?
-  modelNumber    String?
-  notes          String?
-  completedAt    DateTime?
-  completedById  String?
-  attachments    Json?
-  customFields   Json?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  createdById    String
-  updatedById    String
-  section        RoomFFESection    @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
-  templateItem   FFETemplateItem?  @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
+  id               String              @id @default(cuid())
+  sectionId        String
+  templateItemId   String?
+  libraryProductId String?             // Link to Product Library
+  name             String
+  description      String?
+  state            FFEItemState        @default(PENDING)
+  visibility       FFEItemVisibility   @default(HIDDEN)
+  specStatus       FFESpecStatus       @default(NEEDS_SPEC)
+  isRequired       Boolean             @default(false)
+  isCustom         Boolean             @default(false)
+  order            Int                 @default(0)
+  quantity         Int                 @default(1)
+  unitCost         Decimal?
+  totalCost        Decimal?
+  supplierName     String?
+  supplierLink     String?
+  modelNumber      String?
+  // Additional spec fields
+  brand            String?
+  sku              String?
+  color            String?
+  finish           String?
+  material         String?
+  leadTime         String?
+  width            String?
+  height           String?
+  depth            String?
+  images           String[]
+  notes            String?
+  completedAt      DateTime?
+  completedById    String?
+  attachments      Json?
+  customFields     Json?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  createdById      String
+  updatedById      String
+  section          RoomFFESection      @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
+  templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
+  libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
 
   @@index([sectionId, order])
   @@index([state])
   @@index([visibility])
+  @@index([specStatus])
   @@index([sectionId, visibility])
   @@index([isRequired])
+  @@index([libraryProductId])
 }
 
 model FFEChangeLog {
@@ -1426,6 +1446,95 @@ model FFESectionLibrary {
   applicableRoomTypes RoomType[]
   isGlobal            Boolean    @default(true)
   createdAt           DateTime   @default(now())
+}
+
+// ============================================
+// PRODUCT LIBRARY SYSTEM
+// ============================================
+
+model ProductCategory {
+  id          String               @id @default(cuid())
+  orgId       String?              // null = global/default category
+  name        String
+  slug        String
+  description String?
+  icon        String?              // Lucide icon name
+  color       String?              // Hex color for UI
+  parentId    String?              // For subcategories
+  order       Int                  @default(0)
+  isDefault   Boolean              @default(false) // Pre-seeded categories
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  parent      ProductCategory?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ProductCategory[]    @relation("CategoryHierarchy")
+  products    ProductLibraryItem[] @relation("ProductToCategory")
+
+  @@unique([orgId, slug])
+  @@index([orgId])
+  @@index([parentId])
+  @@index([isActive])
+  @@index([order])
+}
+
+model ProductLibraryItem {
+  id             String              @id @default(cuid())
+  orgId          String
+  categoryId     String?
+  name           String
+  description    String?
+  brand          String?
+  sku            String?
+  modelNumber    String?
+  // Specifications
+  color          String?
+  finish         String?
+  material       String?
+  // Dimensions
+  width          String?
+  height         String?
+  depth          String?
+  length         String?
+  dimensionUnit  String?             @default("cm")
+  // Pricing
+  rrp            Decimal?
+  tradePrice     Decimal?
+  currency       String?             @default("USD")
+  // Supplier info
+  supplierName   String?
+  supplierPhone  String?
+  supplierEmail  String?
+  supplierAddress String?
+  supplierLink   String?
+  leadTime       String?
+  isTaxable      Boolean?            @default(true)
+  // Media
+  images         String[]            // Array of image URLs
+  thumbnailUrl   String?             // Primary image for display
+  attachments    Json?               // PDFs, spec sheets, etc.
+  // Metadata
+  tags           String[]
+  customFields   Json?
+  notes          String?
+  status         ProductLibraryStatus @default(ACTIVE)
+  // Tracking
+  usageCount     Int                 @default(0) // How many times added to rooms
+  lastUsedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  createdById    String
+  updatedById    String
+  // Relations
+  category       ProductCategory?    @relation("ProductToCategory", fields: [categoryId], references: [id])
+  roomItems      RoomFFEItem[]       @relation("RoomItemToLibraryProduct")
+
+  @@index([orgId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([orgId, categoryId])
+  @@index([orgId, status])
+  @@index([brand])
+  @@index([createdAt])
 }
 
 model ProjectUpdate {
@@ -2050,6 +2159,22 @@ enum FFEStatus {
   DELIVERED
   COMPLETED
   NOT_NEEDED
+}
+
+enum FFESpecStatus {
+  NEEDS_SPEC
+  SPEC_ADDED
+  QUOTED
+  ORDERED
+  SHIPPED
+  DELIVERED
+  INSTALLED
+}
+
+enum ProductLibraryStatus {
+  ACTIVE
+  ARCHIVED
+  DISCONTINUED
 }
 
 enum ApprovalStatus {

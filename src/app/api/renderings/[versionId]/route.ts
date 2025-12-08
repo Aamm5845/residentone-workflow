@@ -164,6 +164,16 @@ export async function PATCH(
       activityMessage = customName 
         ? `Version ${renderingVersion.version} renamed to "${customName}"`
         : `Version ${renderingVersion.version} name reset to default`
+    } else if (action === 'link_source_file') {
+      const { sourceFilePath, sourceFileName } = data
+      updateData = withUpdateAttribution(session, {
+        sourceFilePath: sourceFilePath || null,
+        sourceFileName: sourceFileName || null
+      })
+      activityAction = ActivityActions.UPDATE
+      activityMessage = sourceFilePath
+        ? `Linked source file "${sourceFileName}" to ${renderingVersion.version}`
+        : `Unlinked source file from ${renderingVersion.version}`
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }

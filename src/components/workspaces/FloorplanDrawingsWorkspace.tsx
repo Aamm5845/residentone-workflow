@@ -23,13 +23,20 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
-  Box
+  Box,
+  HardDrive,
+  Link2,
+  ExternalLink,
+  X,
+  FileBox
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'react-hot-toast'
 import EnhancedFilePreviewModal from '@/components/ui/enhanced-file-preview-modal'
 import CreateVersionModal from '@/components/modals/CreateVersionModal'
 import { FloorplanChat } from '@/components/chat/FloorplanChat'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropboxFileBrowser } from '@/components/spec-book/DropboxFileBrowser'
 
 interface FloorplanDrawingsWorkspaceProps {
   project: any
@@ -47,6 +54,8 @@ interface FloorplanVersion {
   version: string
   status: string
   notes?: string
+  sourceFilePath?: string | null
+  sourceFileName?: string | null
   createdAt: string
   updatedAt?: string
   assets: Array<{
@@ -119,6 +128,10 @@ export default function FloorplanDrawingsWorkspace({
   // Version creation modal state
   const [showCreateVersionModal, setShowCreateVersionModal] = useState(false)
   const [nextVersionNumber, setNextVersionNumber] = useState('v1')
+  
+  // Source file linking state
+  const [showSourceFileDialog, setShowSourceFileDialog] = useState<string | null>(null)
+  const [linkingSourceFile, setLinkingSourceFile] = useState(false)
 
   // Fetch floorplan versions from API
   useEffect(() => {
@@ -329,6 +342,66 @@ export default function FloorplanDrawingsWorkspace({
     }
   }
 
+  // Link source CAD file from Dropbox
+  const linkSourceFile = async (versionId: string, filePath: string, fileName: string) => {
+    setLinkingSourceFile(true)
+    try {
+      const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionId,
+          action: 'link_source_file',
+          sourceFilePath: filePath,
+          sourceFileName: fileName
+        })
+      })
+
+      if (response.ok) {
+        await fetchVersions()
+        setShowSourceFileDialog(null)
+        toast.success(`Linked CAD file: ${fileName}`)
+      } else {
+        const error = await response.json()
+        toast.error(`Failed: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error linking source file:', error)
+      toast.error('Failed to link file')
+    } finally {
+      setLinkingSourceFile(false)
+    }
+  }
+
+  // Unlink source CAD file
+  const unlinkSourceFile = async (versionId: string) => {
+    if (!confirm('Unlink the source CAD file from this version?')) return
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionId,
+          action: 'link_source_file',
+          sourceFilePath: null,
+          sourceFileName: null
+        })
+      })
+
+      if (response.ok) {
+        await fetchVersions()
+        toast.success('Source file unlinked')
+      } else {
+        const error = await response.json()
+        toast.error(`Failed: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error unlinking source file:', error)
+      toast.error('Failed to unlink')
+    }
+  }
+
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -495,6 +568,67 @@ export default function FloorplanDrawingsWorkspace({
                   {/* Version Content (Expanded) */}
                   {isExpanded && (
                     <div className="p-6 border-t border-gray-200">
+                      {/* Source CAD File Section */}
+                      <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <FileBox className="w-5 h-5 text-blue-600" />
+                            <h5 className="font-medium text-gray-900">Source CAD File</h5>
+                          </div>
+                          {!version.sourceFilePath && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowSourceFileDialog(version.id)}
+                              className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                            >
+                              <Link2 className="w-4 h-4 mr-1" />
+                              Link CAD File
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {version.sourceFilePath ? (
+                          <div className="bg-white border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <HardDrive className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate" title={version.sourceFileName || ''}>
+                                  {version.sourceFileName || 'CAD File'}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate" title={version.sourceFilePath}>
+                                  {version.sourceFilePath}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-3">
+                              <a
+                                href={`https://www.dropbox.com/home${version.sourceFilePath.replace(/\/[^/]+$/, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 p-1"
+                                title="Open folder in Dropbox"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                              <button
+                                onClick={() => unlinkSourceFile(version.id)}
+                                className="text-gray-400 hover:text-red-600 p-1"
+                                title="Unlink file"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            Link the source CAD file (.dwg, .dxf) from Dropbox for this floorplan version
+                          </p>
+                        )}
+                      </div>
+
                       {/* Upload Area - only for DRAFT versions */}
                       {version.status === 'DRAFT' ? (
                         <div className="mb-6">
@@ -661,6 +795,51 @@ export default function FloorplanDrawingsWorkspace({
         loading={creatingVersion}
         versionNumber={nextVersionNumber}
       />
+
+      {/* Source CAD File Link Dialog */}
+      <Dialog 
+        open={showSourceFileDialog !== null} 
+        onOpenChange={(open) => !open && setShowSourceFileDialog(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <FileBox className="w-5 h-5 text-blue-600" />
+              <span>Link Source CAD File from Dropbox</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {showSourceFileDialog && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Select the source CAD file (.dwg, .dxf) for this floorplan version. The browser starts from the project's linked Dropbox folder.
+              </p>
+              <DropboxFileBrowser
+                roomId={null}
+                projectId={project.id}
+                sectionType="FLOORPLAN"
+                sectionName="Source CAD File"
+                onFileSelected={(file) => {
+                  linkSourceFile(showSourceFileDialog, file.path, file.name)
+                }}
+                allowedExtensions={['.dwg', '.dxf']}
+                mode="select"
+                variant="settings"
+                allowMultiple={false}
+              />
+              <div className="flex justify-end pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSourceFileDialog(null)}
+                  disabled={linkingSourceFile}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
