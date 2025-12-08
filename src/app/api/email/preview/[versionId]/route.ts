@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { generateMeisnerDeliveryEmailTemplate } from '@/lib/email-templates'
 import { generateClientApprovalToken } from '@/lib/jwt'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET /api/email/preview/[versionId] - Preview email for a client approval version
 export async function GET(
@@ -65,7 +66,7 @@ export async function GET(
       projectId: version.stage.room.project.id
     })
 
-    const approvalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/approve/${token}`
+    const approvalUrl = `${getBaseUrl()}/approve/${token}`
 
     // Transform assets for the template - use Blob URLs (fast, reliable)
     const templateAssets = version.assets.map((assetItem) => {
@@ -92,7 +93,7 @@ export async function GET(
       roomName: version.stage.room.name || version.stage.room.type,
       designPhase: 'Client Approval',
       projectAddress: version.stage.room.project.address,
-      trackingPixelUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/preview`
+      trackingPixelUrl: `${getBaseUrl()}/api/email/track/preview`
     })
 
     const { searchParams } = new URL(request.url)

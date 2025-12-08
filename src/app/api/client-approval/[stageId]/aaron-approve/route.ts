@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/client-approval/[stageId]/aaron-approve - Aaron approves renderings for client approval
 export async function POST(
@@ -108,9 +109,10 @@ export async function POST(
         })
 
         if (shaya && shaya.emailNotificationsEnabled) {
+          const baseUrl = getBaseUrl()
           const roomName = currentVersion.stage.room.name || currentVersion.stage.room.type.replace('_', ' ').toLowerCase()
           const projectName = currentVersion.stage.room.project.name
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${currentVersion.stageId}`
+          const roomUrl = `${baseUrl}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${currentVersion.stageId}`
           const approverName = session.user.name || 'Aaron'
 
           console.log(`[Email] Sending Aaron approval notification to Shaya for ${roomName} (${projectName})...`)
@@ -128,7 +130,7 @@ export async function POST(
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${baseUrl}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Aaron Approved</h1>

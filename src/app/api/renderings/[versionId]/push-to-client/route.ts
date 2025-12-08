@@ -17,6 +17,7 @@ import {
 import { dropboxService } from '@/lib/dropbox-service'
 import { uploadFile as uploadToBlob, generateFilePath } from '@/lib/blob'
 import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/renderings/[versionId]/push-to-client - Push rendering version to client approval
 export async function POST(
@@ -272,9 +273,10 @@ export async function POST(
       })
 
       if (shaya && shaya.emailNotificationsEnabled) {
+        const baseUrl = getBaseUrl()
         const roomName = renderingVersion.room.name || renderingVersion.room.type.replace('_', ' ').toLowerCase()
         const projectName = renderingVersion.room.project.name
-        const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${renderingVersion.room.project.id}/rooms/${renderingVersion.roomId}?stage=${clientApprovalStage.id}`
+        const roomUrl = `${baseUrl}/projects/${renderingVersion.room.project.id}/rooms/${renderingVersion.roomId}?stage=${clientApprovalStage.id}`
         const pushedByName = session.user.name || 'A team member'
 
         console.log(`[Email] Sending Client Approval notification to Shaya for ${roomName} (${projectName})...`)
@@ -292,7 +294,7 @@ export async function POST(
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${baseUrl}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Ready for Client Approval</h1>

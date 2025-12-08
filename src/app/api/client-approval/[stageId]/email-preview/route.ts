@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { generateMeisnerDeliveryEmailTemplate } from '@/lib/email-templates'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET /api/client-approval/[stageId]/email-preview - Get email preview before sending
 export async function GET(
@@ -86,7 +87,7 @@ export async function GET(
       })
 
     // Generate placeholder approval URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const placeholderApprovalUrl = `${baseUrl}/client-progress/placeholder`
 
     // Generate email template

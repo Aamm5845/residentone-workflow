@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { handleWorkflowTransition, type WorkflowEvent } from '@/lib/phase-transitions'
 import { getIPAddress } from '@/lib/attribution'
 import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/client-approval/[stageId]/client-decision - Record client's approval decision
 export async function POST(
@@ -190,7 +191,7 @@ export async function POST(
           const projectName = currentVersion.stage.room.project.name
           const clientName = currentVersion.stage.room.project.client?.name || 'The client'
           const renderingStageId = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'THREE_D' }, select: { id: true } }).then(s => s?.id)
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${renderingStageId || currentVersion.stageId}`
+          const roomUrl = `${getBaseUrl()}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${renderingStageId || currentVersion.stageId}`
 
           console.log(`[Email] Sending revision notification to Vitor for ${roomName} (${projectName})...`)
           
@@ -207,7 +208,7 @@ export async function POST(
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Client Requested Changes</h1>
@@ -316,8 +317,8 @@ export async function POST(
       // Get stage IDs for Drawings and FFE phases
       const drawingsStage = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'DRAWINGS' }, select: { id: true } })
       const ffeStage = await prisma.stage.findFirst({ where: { roomId: currentVersion.stage.roomId, type: 'FFE' }, select: { id: true } })
-      const drawingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${drawingsStage?.id || currentVersion.stageId}`
-      const ffeUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${ffeStage?.id || currentVersion.stageId}`
+      const drawingsUrl = `${getBaseUrl()}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${drawingsStage?.id || currentVersion.stageId}`
+      const ffeUrl = `${getBaseUrl()}/projects/${currentVersion.stage.room.project.id}/rooms/${currentVersion.stage.roomId}?stage=${ffeStage?.id || currentVersion.stageId}`
 
       // Notify Sami for Drawings phase
       try {
@@ -349,7 +350,7 @@ export async function POST(
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Drawings Phase Ready</h1>
@@ -438,7 +439,7 @@ export async function POST(
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">FFE Phase Ready</h1>

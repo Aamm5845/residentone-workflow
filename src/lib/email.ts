@@ -3,6 +3,7 @@
  * This file maintains backward compatibility while using the new Resend-based email service
  */
 import { sendEmail as sendResendEmail } from '@/lib/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 interface SendEmailOptions {
   to: string
@@ -31,7 +32,7 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
 }
 
 export const sendPasswordResetEmail = async (email: string, resetToken: string): Promise<boolean> => {
-  const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`
+  const resetUrl = `${getBaseUrl()}/auth/reset-password?token=${resetToken}`
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   
   const html = `

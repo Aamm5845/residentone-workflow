@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email/email-service'
 import { getPhaseDisplayName } from '@/lib/utils/phase-utils'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export interface TeamNotificationResult {
   success: boolean
@@ -366,7 +367,7 @@ export class TeamNotificationService {
     const subject = `🚀 Next Step Ready: ${project.name} - ${nextPhaseNames}`
     
     // Generate project URL (adjust based on your routing)
-    const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${project.id}`
+    const projectUrl = `${getBaseUrl()}/projects/${project.id}`
     
     const html = this.generateEmailHTML({
       recipientName: recipient.name,
@@ -417,6 +418,7 @@ ${actorName} and the team`
     projectUrl: string
     customMessage?: string
   }) {
+    const baseUrl = getBaseUrl()
     
     return `<!DOCTYPE html>
 <html lang="en">
@@ -432,7 +434,7 @@ ${actorName} and the team`
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${baseUrl}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 

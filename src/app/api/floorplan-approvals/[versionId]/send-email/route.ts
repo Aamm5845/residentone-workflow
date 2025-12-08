@@ -11,6 +11,7 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export async function POST(
   request: NextRequest,
@@ -107,14 +108,14 @@ export async function POST(
           type: a.asset.type,
           size: a.asset.size
         })),
-        approvalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/floorplan-approval/${version.id}`,
+        approvalUrl: `${getBaseUrl()}/floorplan-approval/${version.id}`,
         companyName: process.env.COMPANY_NAME || 'Your Interior Design Studio'
       })
     }
 
     // Generate tracking pixel ID and URL
     const trackingPixelId = `floorplan_${version.id}_${Date.now()}`
-    const trackingPixelUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email-tracking/${trackingPixelId}/pixel.png`
+    const trackingPixelUrl = `${getBaseUrl()}/api/email-tracking/${trackingPixelId}/pixel.png`
     
     // Replace tracking pixel placeholder in HTML with actual tracking URL
     const finalEmailHtml = emailHtml.replace(

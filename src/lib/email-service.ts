@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { generateClientApprovalToken } from './jwt';
 import { generateMeisnerDeliveryEmailTemplate, generateFollowUpEmailTemplate, generateConfirmationEmailTemplate } from './email-templates';
 import { prisma } from './prisma';
+import { getBaseUrl } from './get-base-url';
 
 // Initialize Resend
 if (!process.env.RESEND_API_KEY) {
@@ -239,10 +240,10 @@ export async function sendClientApprovalEmail(options: SendClientApprovalEmailOp
     });
 
     // Generate tracking pixel URL
-    const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
+    const trackingPixelUrl = `${getBaseUrl()}/api/email/track/${emailLog.id}`;
 
     // Generate a placeholder approval URL for template compatibility
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const placeholderApprovalUrl = `${baseUrl}/client-progress/placeholder`;
     
     
@@ -381,7 +382,7 @@ export async function sendFollowUpEmail(versionId: string): Promise<void> {
       projectId: version.stage.room.project.id
     });
 
-    const approvalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/approve/${token}`;
+    const approvalUrl = `${getBaseUrl()}/approve/${token}`;
 
     // Create follow-up email log
     const emailLog = await prisma.emailLog.create({
@@ -395,7 +396,7 @@ export async function sendFollowUpEmail(versionId: string): Promise<void> {
       }
     });
 
-    const trackingPixelUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/track/${emailLog.id}`;
+    const trackingPixelUrl = `${getBaseUrl()}/api/email/track/${emailLog.id}`;
 
     // Generate follow-up email template
     const { subject, html } = generateFollowUpEmailTemplate({

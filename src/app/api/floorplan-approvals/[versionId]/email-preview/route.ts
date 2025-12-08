@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidAuthSession } from '@/lib/attribution'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET /api/floorplan-approvals/[versionId]/email-preview - Get email preview before sending
 export async function GET(
@@ -77,7 +78,7 @@ export async function GET(
         type: a.asset.type,
         size: a.asset.size
       })),
-      approvalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/floorplan-approval/${version.id}`,
+      approvalUrl: `${getBaseUrl()}/floorplan-approval/${version.id}`,
       companyName: process.env.COMPANY_NAME || 'Your Interior Design Studio'
     })
 
