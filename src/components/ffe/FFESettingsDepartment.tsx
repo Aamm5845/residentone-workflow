@@ -119,6 +119,9 @@ export default function FFESettingsDepartment({
   const [linkedItemName, setLinkedItemName] = useState('')
   const [linkedItemDescription, setLinkedItemDescription] = useState('')
   const [showImageModal, setShowImageModal] = useState(false)
+  const [linkMode, setLinkMode] = useState<'create' | 'existing'>('create')
+  const [existingItemSearch, setExistingItemSearch] = useState('')
+  const [selectedExistingItem, setSelectedExistingItem] = useState<{id: string, name: string, description?: string} | null>(null)
   
   // Edit states
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
@@ -309,34 +312,91 @@ export default function FFESettingsDepartment({
   }
 
   const handleAddLinkedItem = async () => {
-    if (!linkedItemName.trim() || !selectedParentItem) { toast.error('Linked item name is required'); return }
+    if (!selectedParentItem) { toast.error('Parent item is required'); return }
+    
+    // Handle linking existing item
+    if (linkMode === 'existing') {
+      if (!selectedExistingItem) { toast.error('Please select an item to link'); return }
+      try {
+        setSaving(true)
+        
+        // First, update the existing item to mark it as linked
+        const updateChildResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedExistingItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customFields: {
+              isLinkedItem: true,
+              parentName: selectedParentItem.name,
+              parentId: selectedParentItem.id
+            }
+          })
+        })
+        if (!updateChildResponse.ok) throw new Error('Failed to link item')
+        
+        // Then update the parent item to track this child in its linkedItems array
+        const parentCustomFields = selectedParentItem.customFields || {}
+        const currentLinkedItems = Array.isArray(parentCustomFields.linkedItems) 
+          ? parentCustomFields.linkedItems 
+          : []
+        
+        const updateParentResponse = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedParentItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customFields: {
+              ...parentCustomFields,
+              hasChildren: true,
+              linkedItems: [...currentLinkedItems, selectedExistingItem.name]
+            }
+          })
+        })
+        if (!updateParentResponse.ok) {
+          console.error('Warning: Failed to update parent item customFields')
+        }
+        
+        await loadFFEData()
+        setShowAddLinkedItemDialog(false)
+        setSelectedExistingItem(null)
+        setExistingItemSearch('')
+        setLinkMode('create')
+        setSelectedParentItem(null)
+        toast.success(`"${selectedExistingItem.name}" linked to "${selectedParentItem.name}"`)
+        return
+      } catch (error) {
+        toast.error('Failed to link item')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    
+    // Handle creating new linked item using the linked-items API
+    // This properly updates both the parent and creates the child atomically
+    if (!linkedItemName.trim()) { toast.error('Linked item name is required'); return }
     try {
       setSaving(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
-        method: 'POST',
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedParentItem.id}/linked-items`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          sectionId: selectedParentItem.sectionId, 
-          name: linkedItemName.trim(), 
-          description: linkedItemDescription.trim() || undefined, 
-          quantity: 1, 
-          visibility: 'HIDDEN',
-          customFields: {
-            isLinkedItem: true,
-            parentName: selectedParentItem.name,
-            parentId: selectedParentItem.id
-          }
+          action: 'add',
+          name: linkedItemName.trim()
         })
       })
-      if (!response.ok) throw new Error('Failed to add linked item')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add linked item')
+      }
       await loadFFEData()
       setShowAddLinkedItemDialog(false)
       setLinkedItemName('')
       setLinkedItemDescription('')
       setSelectedParentItem(null)
+      setLinkMode('create')
       toast.success('Linked item added')
-    } catch (error) {
-      toast.error('Failed to add linked item')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add linked item')
     } finally {
       setSaving(false)
     }
@@ -925,12 +985,22 @@ export default function FFESettingsDepartment({
         </Dialog>
 
         {/* Add Linked Item Dialog */}
-        <Dialog open={showAddLinkedItemDialog} onOpenChange={setShowAddLinkedItemDialog}>
-          <DialogContent className="max-w-md">
+        <Dialog open={showAddLinkedItemDialog} onOpenChange={(open) => {
+          setShowAddLinkedItemDialog(open)
+          if (!open) {
+            setLinkedItemName('')
+            setLinkedItemDescription('')
+            setSelectedParentItem(null)
+            setLinkMode('create')
+            setExistingItemSearch('')
+            setSelectedExistingItem(null)
+          }
+        }}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <LinkIcon className="h-5 w-5 text-[#6366ea]" />
-                Add Linked Item
+                Link Item
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -940,20 +1010,120 @@ export default function FFESettingsDepartment({
                   <p className="font-medium text-gray-900">{selectedParentItem.name}</p>
                 </div>
               )}
-              <div>
-                <Label>Linked Item Name</Label>
-                <Input value={linkedItemName} onChange={(e) => setLinkedItemName(e.target.value)} placeholder="e.g., Hardware, Installation" className="mt-1.5" />
+              
+              {/* Mode Toggle */}
+              <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+                <button
+                  onClick={() => setLinkMode('existing')}
+                  className={cn(
+                    "flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    linkMode === 'existing' 
+                      ? "bg-white text-[#6366ea] shadow-sm" 
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Link Existing Item
+                </button>
+                <button
+                  onClick={() => setLinkMode('create')}
+                  className={cn(
+                    "flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    linkMode === 'create' 
+                      ? "bg-white text-[#6366ea] shadow-sm" 
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Create New Item
+                </button>
               </div>
-              <div>
-                <Label>Description (optional)</Label>
-                <Textarea value={linkedItemDescription} onChange={(e) => setLinkedItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
-              </div>
+
+              {linkMode === 'existing' ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Search existing items</Label>
+                    <Input 
+                      value={existingItemSearch} 
+                      onChange={(e) => setExistingItemSearch(e.target.value)} 
+                      placeholder="Type to search items in this room..." 
+                      className="mt-1.5" 
+                    />
+                  </div>
+                  
+                  {/* List of existing items to link */}
+                  <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                    {sections.flatMap(section => 
+                      section.items
+                        .filter(item => 
+                          // Don't show the parent item itself
+                          item.id !== selectedParentItem?.id &&
+                          // Don't show items already linked to this parent
+                          !(item.customFields?.isLinkedItem && item.customFields?.parentName === selectedParentItem?.name) &&
+                          // Filter by search
+                          (existingItemSearch === '' || item.name.toLowerCase().includes(existingItemSearch.toLowerCase()))
+                        )
+                        .map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => setSelectedExistingItem({ id: item.id, name: item.name, description: item.description })}
+                            className={cn(
+                              "p-3 cursor-pointer hover:bg-gray-50 transition-colors",
+                              selectedExistingItem?.id === item.id && "bg-[#6366ea]/10 border-l-2 border-l-[#6366ea]"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm text-gray-900">{item.name}</p>
+                                <p className="text-xs text-gray-500">{section.name}</p>
+                              </div>
+                              {selectedExistingItem?.id === item.id && (
+                                <Check className="w-4 h-4 text-[#6366ea]" />
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    )}
+                    {sections.flatMap(s => s.items).filter(item => 
+                      item.id !== selectedParentItem?.id &&
+                      (existingItemSearch === '' || item.name.toLowerCase().includes(existingItemSearch.toLowerCase()))
+                    ).length === 0 && (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        No items found. Try creating a new linked item instead.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>New Linked Item Name</Label>
+                    <Input value={linkedItemName} onChange={(e) => setLinkedItemName(e.target.value)} placeholder="e.g., Hardware, Installation" className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label>Description (optional)</Label>
+                    <Textarea value={linkedItemDescription} onChange={(e) => setLinkedItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => { setShowAddLinkedItemDialog(false); setLinkedItemName(''); setLinkedItemDescription(''); setSelectedParentItem(null) }}>Cancel</Button>
-              <Button onClick={handleAddLinkedItem} disabled={saving || !linkedItemName.trim()} className="bg-[#6366ea] hover:bg-[#6366ea]/90">
+              <Button variant="outline" onClick={() => { 
+                setShowAddLinkedItemDialog(false)
+                setLinkedItemName('')
+                setLinkedItemDescription('')
+                setSelectedParentItem(null)
+                setLinkMode('create')
+                setExistingItemSearch('')
+                setSelectedExistingItem(null)
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddLinkedItem} 
+                disabled={saving || (linkMode === 'create' ? !linkedItemName.trim() : !selectedExistingItem)} 
+                className="bg-[#6366ea] hover:bg-[#6366ea]/90"
+              >
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-                Add Linked Item
+                {linkMode === 'existing' ? 'Link Selected Item' : 'Create & Link Item'}
               </Button>
             </div>
           </DialogContent>
@@ -1087,9 +1257,12 @@ export default function FFESettingsDepartment({
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      {isInWorkspace && (
-                                        <Lock className="w-4 h-4 text-[#14b8a6]" />
-                                      )}
+                                      {/* Lock icon or spacer for consistent alignment */}
+                                      <div className="w-4 h-4 flex-shrink-0">
+                                        {isInWorkspace && (
+                                          <Lock className="w-4 h-4 text-[#14b8a6]" />
+                                        )}
+                                      </div>
                                       {editingItemId === item.id ? (
                                         <div className="flex items-center gap-2">
                                           <Input

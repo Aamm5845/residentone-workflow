@@ -1070,7 +1070,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                     Track and manage issues reported by team members
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="px-6 py-4">
                   <IssueList />
                 </CardContent>
               </Card>

@@ -166,7 +166,7 @@ export async function DELETE(
   }
 }
 
-// Move item to different section
+// Move item to different section OR update customFields (for linking)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ roomId: string; itemId: string }> }
@@ -197,11 +197,62 @@ export async function PATCH(
 
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
-    const { targetSectionId } = await request.json()
+    const body = await request.json()
+    const { targetSectionId, customFields } = body
 
-    if (!roomId || !itemId || !targetSectionId) {
+    if (!roomId || !itemId) {
       return NextResponse.json({ 
-        error: 'Room ID, Item ID, and target section ID are required' 
+        error: 'Room ID and Item ID are required' 
+      }, { status: 400 })
+    }
+    
+    // If customFields is provided, update the item's customFields (for linking)
+    if (customFields !== undefined) {
+      // Verify item exists and belongs to user's organization
+      const existingItem = await prisma.roomFFEItem.findFirst({
+        where: {
+          id: itemId,
+          section: {
+            instance: {
+              roomId,
+              room: {
+                project: {
+                  orgId: orgId
+                }
+              }
+            }
+          }
+        }
+      })
+
+      if (!existingItem) {
+        return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+      }
+
+      // Merge new customFields with existing ones
+      const existingCustomFields = (existingItem.customFields as any) || {}
+      const mergedCustomFields = { ...existingCustomFields, ...customFields }
+
+      const updatedItem = await prisma.roomFFEItem.update({
+        where: { id: itemId },
+        data: {
+          customFields: mergedCustomFields,
+          updatedById: userId,
+          updatedAt: new Date()
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: updatedItem,
+        message: 'Item custom fields updated successfully'
+      })
+    }
+
+    // Handle moving to different section (original functionality)
+    if (!targetSectionId) {
+      return NextResponse.json({ 
+        error: 'Target section ID is required for moving items' 
       }, { status: 400 })
     }
 
