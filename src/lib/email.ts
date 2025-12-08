@@ -239,6 +239,157 @@ export const sendPasswordChangedEmail = async (email: string, name: string): Pro
   })
 }
 
+export const sendIssueResolvedEmail = async (
+  email: string, 
+  reporterName: string,
+  issueTitle: string,
+  resolverName: string
+): Promise<boolean> => {
+  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
+  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Issue Resolved - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #22c55e; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .success-icon { 
+            width: 60px; 
+            height: 60px; 
+            background-color: #22c55e; 
+            border-radius: 50%; 
+            margin: 0 auto 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+          }
+          .success-icon::after {
+            content: "✓";
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+          }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .issue-title {
+            background-color: #f1f5f9;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 15px 0;
+            font-weight: 500;
+            color: #1e293b;
+          }
+          .info-box {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .info-box p {
+            color: #1e40af;
+            margin: 0;
+            font-size: 14px;
+          }
+          .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #22c55e; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+            font-weight: 500;
+          }
+          .footer { 
+            background-color: #1e293b; 
+            padding: 20px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>🎉 Issue Resolved!</h1>
+          </div>
+          <div class="content">
+            <div class="success-icon"></div>
+            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Good News!</h2>
+            
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${reporterName},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                The issue you reported has been marked as <strong style="color: #22c55e;">Resolved</strong> by ${resolverName}.
+              </p>
+              
+              <div class="issue-title">
+                "${issueTitle}"
+              </div>
+            </div>
+
+            <div class="info-box">
+              <p>
+                <strong>📋 Please verify:</strong> Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
+              </p>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${appUrl}/issues" class="button">View Issues</a>
+            </div>
+            
+            <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 20px;">
+              Thank you for reporting this issue and helping us improve ${companyName}!
+            </p>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from ${companyName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+    Issue Resolved! - ${companyName}
+    
+    Hi ${reporterName},
+    
+    Good news! The issue you reported has been marked as Resolved by ${resolverName}.
+    
+    Issue: "${issueTitle}"
+    
+    Please verify: Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
+    
+    View issues at: ${appUrl}/issues
+    
+    Thank you for reporting this issue and helping us improve ${companyName}!
+  `
+
+  return sendEmail({
+    to: email,
+    subject: `✅ Issue Resolved: "${issueTitle}" - ${companyName}`,
+    html,
+    text
+  })
+}
+
 export const sendWelcomeEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   const appUrl = process.env.APP_URL || 'http://localhost:3000'

@@ -366,8 +366,9 @@ export default function IssueList({ currentUser }: IssueListProps) {
       ) : (
         <div className="space-y-4">
           {filteredIssues.map((issue) => {
-            const TypeIcon = ISSUE_TYPES[issue.type].icon
-            const StatusIcon = STATUS_ICONS[issue.status]
+            const typeConfig = ISSUE_TYPES[issue.type] || ISSUE_TYPES.GENERAL
+            const TypeIcon = typeConfig.icon
+            const StatusIcon = STATUS_ICONS[issue.status] || STATUS_ICONS.OPEN
             
             return (
               <div
@@ -388,8 +389,8 @@ export default function IssueList({ currentUser }: IssueListProps) {
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="flex items-center space-x-2">
                         <TypeIcon className="w-4 h-4 text-gray-500" />
-                        <Badge className={ISSUE_TYPES[issue.type].color}>
-                          {ISSUE_TYPES[issue.type].label}
+                        <Badge className={typeConfig.color}>
+                          {typeConfig.label}
                         </Badge>
                       </div>
                       <Badge className={PRIORITY_COLORS[issue.priority]}>

@@ -187,13 +187,10 @@ export function DropboxFileBrowser({
   }
 
   const handleFileSelect = (file: DropboxFile) => {
-    // For select mode with single selection, handle differently
+    // For select mode with single selection - just highlight, don't auto-select
     if (mode === 'select' && !allowMultiple) {
       setSelectedFiles([file])
-      // Immediately call the selection callback if provided
-      if (onFileSelected) {
-        onFileSelected(file)
-      }
+      // Don't immediately call the callback - wait for user to click "Select File" button
       return
     }
 
@@ -209,15 +206,16 @@ export function DropboxFileBrowser({
           return prev
         }
         const newSelection = [...prev, file]
-        
-        // For select mode with multiple selection, call callback with all selected
-        if (mode === 'select' && onFileSelected && newSelection.length === 1) {
-          onFileSelected(file)
-        }
-        
         return newSelection
       }
     })
+  }
+  
+  // Confirm file selection (for single-select mode)
+  const confirmFileSelection = () => {
+    if (selectedFiles.length > 0 && onFileSelected) {
+      onFileSelected(selectedFiles[0])
+    }
   }
 
   const handleLinkFiles = async () => {
@@ -502,18 +500,26 @@ export function DropboxFileBrowser({
         {selectedFiles.length > 0 && (
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Selected Files ({selectedFiles.length})</span>
-              <Button onClick={handleLinkFiles}>
-                Link Selected Files
-              </Button>
+              <span className="font-medium">Selected: {selectedFiles[0]?.name}</span>
+              {mode === 'select' && !allowMultiple ? (
+                <Button onClick={confirmFileSelection} className="bg-blue-600 hover:bg-blue-700">
+                  Select This File
+                </Button>
+              ) : (
+                <Button onClick={handleLinkFiles}>
+                  Link Selected Files
+                </Button>
+              )}
             </div>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {selectedFiles.map((file) => (
-                <div key={file.id} className="text-sm text-gray-600">
-                  📄 {file.name}
-                </div>
-              ))}
-            </div>
+            {(allowMultiple || mode !== 'select') && (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {selectedFiles.map((file) => (
+                  <div key={file.id} className="text-sm text-gray-600">
+                    📄 {file.name}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -648,8 +654,17 @@ export function DropboxFileBrowser({
               {selectedFiles.length > 0 && (
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">Selected Files ({selectedFiles.length})</span>
-                    {mode === 'link' ? (
+                    <span className="font-medium">
+                      {mode === 'select' && !allowMultiple 
+                        ? `Selected: ${selectedFiles[0]?.name}` 
+                        : `Selected Files (${selectedFiles.length})`
+                      }
+                    </span>
+                    {mode === 'select' && !allowMultiple ? (
+                      <Button onClick={confirmFileSelection} className="bg-blue-600 hover:bg-blue-700">
+                        Select This File
+                      </Button>
+                    ) : mode === 'link' ? (
                       <Button onClick={handleLinkFiles}>
                         Link Selected Files
                       </Button>
@@ -659,13 +674,15 @@ export function DropboxFileBrowser({
                       </Button>
                     )}
                   </div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {selectedFiles.map((file) => (
-                      <div key={file.id} className="text-sm text-gray-600">
-                        📄 {file.name}
-                      </div>
-                    ))}
-                  </div>
+                  {(allowMultiple || mode !== 'select') && (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {selectedFiles.map((file) => (
+                        <div key={file.id} className="text-sm text-gray-600">
+                          📄 {file.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

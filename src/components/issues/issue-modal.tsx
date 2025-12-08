@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -328,6 +328,9 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               </Button>
             )}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {viewOnly ? 'View issue details' : isEditing ? 'Edit or manage the issue' : 'Report a new issue or bug'}
+          </DialogDescription>
         </DialogHeader>
 
         {viewOnly ? (
@@ -354,7 +357,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               <div>
                 <Label>Type</Label>
                 <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
-                  {ISSUE_TYPES[type].label}
+                  {ISSUE_TYPES[type]?.label || type || 'Unknown'}
                 </div>
               </div>
 

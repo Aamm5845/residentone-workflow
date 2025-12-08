@@ -11,6 +11,7 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { sendIssueResolvedEmail } from '@/lib/email'
 
 // Get a specific issue
 export async function GET(
@@ -260,6 +261,25 @@ export async function PATCH(
       },
       ipAddress
     })
+
+    // Send email notification to reporter when issue is resolved
+    if (status === 'RESOLVED' && currentIssue.status !== 'RESOLVED') {
+      try {
+        // Only send if reporter has an email
+        if (updatedIssue.reporter?.email) {
+          await sendIssueResolvedEmail(
+            updatedIssue.reporter.email,
+            updatedIssue.reporter.name || 'User',
+            updatedIssue.title,
+            session.user.name || 'Team Member'
+          )
+          console.log(`✅ Issue resolved email sent to ${updatedIssue.reporter.email}`)
+        }
+      } catch (emailError) {
+        // Don't fail the request if email fails
+        console.error('❌ Failed to send issue resolved email:', emailError)
+      }
+    }
 
     return NextResponse.json(updatedIssue)
   } catch (error) {
