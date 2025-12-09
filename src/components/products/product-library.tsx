@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Search, 
   Filter, 
@@ -27,7 +27,9 @@ import {
   Archive,
   X,
   Save,
-  Eye
+  Eye,
+  BookUser,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -137,6 +139,19 @@ interface NewProductForm {
   notes: string
   categoryId: string
   images: string[]
+  supplierId: string
+}
+
+interface Supplier {
+  id: string
+  name: string          // Business name
+  contactName: string | null  // Contact person name
+  logo: string | null   // Logo URL
+  phone: string | null
+  email: string         // Required
+  address: string | null
+  website: string | null
+  notes: string | null
 }
 
 interface ProductLibraryProps {
@@ -335,27 +350,81 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
     isTaxable: true,
     notes: '',
     categoryId: '',
-    images: []
+    images: [],
+    supplierId: ''
   })
   const [creatingProduct, setCreatingProduct] = useState(false)
+  
+  // Supplier phonebook
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false)
+  const [showAddSupplier, setShowAddSupplier] = useState(false)
+  const [newSupplier, setNewSupplier] = useState<Omit<Supplier, 'id'>>({
+    name: '',
+    contactName: '',
+    logo: '',
+    phone: '',
+    email: '',
+    address: '',
+    website: '',
+    notes: ''
+  })
+  const [uploadingSupplierLogo, setUploadingSupplierLogo] = useState(false)
+  const supplierLogoInputRef = useRef<HTMLInputElement>(null)
+  const [savingSupplier, setSavingSupplier] = useState(false)
+  
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
-  // Load categories
+  // Load categories (with auto-initialization for production)
   useEffect(() => {
     async function loadCategories() {
       try {
         const res = await fetch('/api/products/categories')
         const data = await res.json()
-        if (data.categories) {
+        
+        if (data.categories && data.categories.length > 0) {
           setCategories(data.categories)
           // Expand all parent categories by default
           const parents = data.categories.filter((c: Category) => !c.parentId).map((c: Category) => c.id)
           setExpandedCategories(new Set(parents))
+        } else {
+          // No categories found - try to initialize them
+          console.log('No categories found, initializing...')
+          const initRes = await fetch('/api/products/categories/init', { method: 'POST' })
+          if (initRes.ok) {
+            // Reload categories after initialization
+            const reloadRes = await fetch('/api/products/categories')
+            const reloadData = await reloadRes.json()
+            if (reloadData.categories) {
+              setCategories(reloadData.categories)
+              const parents = reloadData.categories.filter((c: Category) => !c.parentId).map((c: Category) => c.id)
+              setExpandedCategories(new Set(parents))
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load categories:', error)
       }
     }
     loadCategories()
+  }, [])
+  
+  // Load suppliers
+  useEffect(() => {
+    async function loadSuppliers() {
+      try {
+        const res = await fetch('/api/suppliers')
+        const data = await res.json()
+        if (data.suppliers) {
+          setSuppliers(data.suppliers)
+        }
+      } catch (error) {
+        console.error('Failed to load suppliers:', error)
+      }
+    }
+    loadSuppliers()
   }, [])
 
   // Load products
@@ -570,6 +639,124 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
     }
   }
 
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    
+    setUploadingImage(true)
+    
+    try {
+      const uploadPromises = Array.from(files).slice(0, 3 - newProduct.images.length).map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'products')
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (res.ok) {
+          const data = await res.json()
+          return data.url
+        }
+        return null
+      })
+      
+      const urls = await Promise.all(uploadPromises)
+      const validUrls = urls.filter(Boolean) as string[]
+      
+      if (validUrls.length > 0) {
+        setNewProduct(prev => ({
+          ...prev,
+          images: [...prev.images, ...validUrls].slice(0, 3)
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to upload images:', error)
+    } finally {
+      setUploadingImage(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+  
+  // Handle supplier selection
+  const handleSelectSupplier = (supplier: Supplier) => {
+    setNewProduct(prev => ({
+      ...prev,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      supplierPhone: supplier.phone || '',
+      supplierEmail: supplier.email,
+      supplierAddress: supplier.address || '',
+      supplierLink: supplier.website || ''
+    }))
+    setShowSupplierDropdown(false)
+  }
+  
+  // Handle supplier logo upload
+  const handleSupplierLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setUploadingSupplierLogo(true)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'suppliers')
+      
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setNewSupplier(prev => ({ ...prev, logo: data.url }))
+      }
+    } catch (error) {
+      console.error('Failed to upload logo:', error)
+    } finally {
+      setUploadingSupplierLogo(false)
+      if (supplierLogoInputRef.current) {
+        supplierLogoInputRef.current.value = ''
+      }
+    }
+  }
+  
+  // Create new supplier
+  const handleCreateSupplier = async () => {
+    if (!newSupplier.name || !newSupplier.email) return
+    setSavingSupplier(true)
+    
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSupplier)
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        // Add to suppliers list
+        setSuppliers(prev => [...prev, data.supplier])
+        // Select this supplier
+        handleSelectSupplier(data.supplier)
+        // Reset and close
+        setNewSupplier({ name: '', contactName: '', logo: '', phone: '', email: '', address: '', website: '', notes: '' })
+        setShowAddSupplier(false)
+      }
+    } catch (error) {
+      console.error('Failed to create supplier:', error)
+    } finally {
+      setSavingSupplier(false)
+    }
+  }
+
   const handleCreateProduct = async () => {
     if (!newProduct.name) return
     setCreatingProduct(true)
@@ -614,7 +801,8 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
           isTaxable: true,
           notes: '',
           categoryId: '',
-          images: []
+          images: [],
+          supplierId: ''
         })
         setAddProductModal(false)
         loadProducts()
@@ -1392,19 +1580,61 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
               <ScrollArea className="flex-1 p-6">
                 <div className="space-y-6">
                   {/* Image Upload Area */}
-                  <div className="flex gap-4">
-                    <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                      {newProduct.images[0] ? (
-                        <img src={newProduct.images[0]} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      {/* Image thumbnails */}
+                      {newProduct.images.map((url, idx) => (
+                        <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden group">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setNewProduct(prev => ({
+                              ...prev,
+                              images: prev.images.filter((_, i) => i !== idx)
+                            }))}
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <X className="w-5 h-5 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                      {/* Placeholder slots */}
+                      {Array.from({ length: Math.max(0, 3 - newProduct.images.length) }).map((_, idx) => (
+                        <div key={`empty-${idx}`} className="w-20 h-20 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                          <ImageIcon className="w-6 h-6 text-gray-300" />
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Upload button area */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage || newProduct.images.length >= 3}
+                      className="w-full bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors flex flex-col items-center justify-center text-center p-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-8 h-8 text-emerald-500 mb-2 animate-spin" />
                       ) : (
-                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
                       )}
-                    </div>
-                    <div className="flex-1 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-4">
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600">Drag & drop or <span className="text-emerald-600 font-medium">browse files</span></p>
-                      <p className="text-xs text-gray-400 mt-1">Upload up to 3 images</p>
-                    </div>
+                      <p className="text-sm text-gray-600">
+                        {uploadingImage ? 'Uploading...' : (
+                          <>Click to <span className="text-emerald-600 font-medium">browse files</span></>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {newProduct.images.length >= 3 ? 'Maximum 3 images reached' : `Upload up to ${3 - newProduct.images.length} more images`}
+                      </p>
+                    </button>
                   </div>
 
                   {/* Product Name */}
@@ -1645,50 +1875,117 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
 
             {/* Supplier Details Sidebar */}
             <div className="w-80 bg-gray-50 border-l flex flex-col">
-              <div className="p-6 border-b bg-white">
+              {/* Supplier Selection Header */}
+              <div className="p-4 border-b bg-white">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <BookUser className="w-4 h-4" />
+                    Supplier
+                  </Label>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowAddSupplier(true)}
+                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add New
+                  </Button>
+                </div>
+                
+                {/* Supplier Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowSupplierDropdown(!showSupplierDropdown)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <span className={newProduct.supplierName ? 'text-gray-900' : 'text-gray-500'}>
+                      {newProduct.supplierName || 'Select a supplier...'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                  
+                  {showSupplierDropdown && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {suppliers.length === 0 ? (
+                        <div className="p-3 text-sm text-gray-500 text-center">
+                          No suppliers yet. Add one above.
+                        </div>
+                      ) : (
+                        suppliers.map(supplier => (
+                          <button
+                            key={supplier.id}
+                            type="button"
+                            onClick={() => handleSelectSupplier(supplier)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                          >
+                            {supplier.logo ? (
+                              <img src={supplier.logo} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-medium">
+                                {supplier.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{supplier.name}</div>
+                              {supplier.contactName && (
+                                <div className="text-xs text-gray-500 truncate">{supplier.contactName}</div>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Supplier Details */}
+              <div className="p-4 border-b bg-white">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-2xl font-bold text-gray-500 mb-3">
-                    {newProduct.supplierName ? newProduct.supplierName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : <User className="w-8 h-8" />}
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-xl font-bold text-emerald-700 mb-2">
+                    {newProduct.supplierName ? newProduct.supplierName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : <User className="w-6 h-6 text-gray-400" />}
                   </div>
                   <Input
                     value={newProduct.supplierName}
                     onChange={(e) => setNewProduct({ ...newProduct, supplierName: e.target.value })}
                     placeholder="Supplier Name"
-                    className="text-center font-semibold border-0 bg-transparent text-lg h-auto py-1 focus-visible:ring-0"
+                    className="text-center font-semibold border-0 bg-transparent text-base h-auto py-1 focus-visible:ring-0"
                   />
                 </div>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-3 flex-1 overflow-y-auto">
                 <div className="flex items-start gap-3">
-                  <Phone className="w-4 h-4 text-gray-400 mt-2.5" />
+                  <Phone className="w-4 h-4 text-gray-400 mt-2" />
                   <div className="flex-1">
                     <Label className="text-xs text-gray-500">Phone</Label>
                     <Input
                       value={newProduct.supplierPhone}
                       onChange={(e) => setNewProduct({ ...newProduct, supplierPhone: e.target.value })}
                       placeholder="e.g. 514-416-7701"
-                      className="border-0 bg-transparent px-0 h-auto focus-visible:ring-0"
+                      className="border-0 bg-transparent px-0 h-8 text-sm focus-visible:ring-0"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Mail className="w-4 h-4 text-gray-400 mt-2.5" />
+                  <Mail className="w-4 h-4 text-gray-400 mt-2" />
                   <div className="flex-1">
-                    <Label className="text-xs text-gray-500">Email Address</Label>
+                    <Label className="text-xs text-gray-500">Email</Label>
                     <Input
                       type="email"
                       value={newProduct.supplierEmail}
                       onChange={(e) => setNewProduct({ ...newProduct, supplierEmail: e.target.value })}
-                      placeholder="e.g. info@supplier.com"
-                      className="border-0 bg-transparent px-0 h-auto focus-visible:ring-0"
+                      placeholder="info@supplier.com"
+                      className="border-0 bg-transparent px-0 h-8 text-sm focus-visible:ring-0"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-gray-400 mt-2.5" />
+                  <MapPin className="w-4 h-4 text-gray-400 mt-2" />
                   <div className="flex-1">
                     <Label className="text-xs text-gray-500">Address</Label>
                     <Textarea
@@ -1696,26 +1993,168 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                       onChange={(e) => setNewProduct({ ...newProduct, supplierAddress: e.target.value })}
                       placeholder="Enter address..."
                       rows={2}
-                      className="border-0 bg-transparent px-0 resize-none focus-visible:ring-0"
+                      className="border-0 bg-transparent px-0 text-sm resize-none focus-visible:ring-0"
                     />
                   </div>
                 </div>
-
-                <Button variant="outline" className="w-full mt-4">
-                  Edit Contact Details
-                </Button>
-              </div>
-
-              {/* Notes */}
-              <div className="p-6 pt-0 flex-1">
-                <Label className="text-xs text-gray-500">Notes</Label>
-                <Textarea
-                  placeholder="Add notes here..."
-                  rows={4}
-                  className="mt-1 resize-none"
-                />
+                
+                <div className="flex items-start gap-3">
+                  <LinkIcon className="w-4 h-4 text-gray-400 mt-2" />
+                  <div className="flex-1">
+                    <Label className="text-xs text-gray-500">Website</Label>
+                    <Input
+                      type="url"
+                      value={newProduct.supplierLink}
+                      onChange={(e) => setNewProduct({ ...newProduct, supplierLink: e.target.value })}
+                      placeholder="https://..."
+                      className="border-0 bg-transparent px-0 h-8 text-sm focus-visible:ring-0"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+            
+            {/* Add New Supplier Modal */}
+            {showAddSupplier && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white">
+                    <h3 className="font-semibold text-lg">Add New Supplier</h3>
+                    <Button variant="ghost" size="sm" onClick={() => setShowAddSupplier(false)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {/* Logo Upload */}
+                    <div className="flex items-center gap-4">
+                      <input
+                        ref={supplierLogoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSupplierLogoUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => supplierLogoInputRef.current?.click()}
+                        disabled={uploadingSupplierLogo}
+                        className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors flex items-center justify-center overflow-hidden"
+                      >
+                        {newSupplier.logo ? (
+                          <img src={newSupplier.logo} alt="Logo" className="w-full h-full object-cover" />
+                        ) : uploadingSupplierLogo ? (
+                          <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-5 h-5 text-gray-400 mx-auto" />
+                            <span className="text-xs text-gray-500 mt-1">Logo</span>
+                          </div>
+                        )}
+                      </button>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-700">Company Logo</p>
+                        <p className="text-xs text-gray-500">Click to upload (optional)</p>
+                        {newSupplier.logo && (
+                          <button
+                            type="button"
+                            onClick={() => setNewSupplier(prev => ({ ...prev, logo: '' }))}
+                            className="text-xs text-red-500 hover:text-red-600 mt-1"
+                          >
+                            Remove logo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Business Name */}
+                    <div>
+                      <Label>Business Name *</Label>
+                      <Input
+                        value={newSupplier.name}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                        placeholder="Enter business/company name"
+                      />
+                    </div>
+                    
+                    {/* Contact Name */}
+                    <div>
+                      <Label>Contact Name <span className="text-gray-400 text-xs font-normal">(optional)</span></Label>
+                      <Input
+                        value={newSupplier.contactName || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, contactName: e.target.value })}
+                        placeholder="Contact person name"
+                      />
+                    </div>
+                    
+                    {/* Email - Required */}
+                    <div>
+                      <Label>Email *</Label>
+                      <Input
+                        type="email"
+                        value={newSupplier.email || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                        placeholder="supplier@email.com"
+                      />
+                    </div>
+                    
+                    {/* Phone */}
+                    <div>
+                      <Label>Phone <span className="text-gray-400 text-xs font-normal">(optional)</span></Label>
+                      <Input
+                        value={newSupplier.phone || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                        placeholder="Phone number"
+                      />
+                    </div>
+                    
+                    {/* Address */}
+                    <div>
+                      <Label>Address <span className="text-gray-400 text-xs font-normal">(optional)</span></Label>
+                      <Textarea
+                        value={newSupplier.address || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                        placeholder="Enter address"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    {/* Website */}
+                    <div>
+                      <Label>Website <span className="text-gray-400 text-xs font-normal">(optional)</span></Label>
+                      <Input
+                        type="url"
+                        value={newSupplier.website || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, website: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    
+                    {/* Notes */}
+                    <div>
+                      <Label>Notes <span className="text-gray-400 text-xs font-normal">(optional)</span></Label>
+                      <Textarea
+                        value={newSupplier.notes || ''}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, notes: e.target.value })}
+                        placeholder="Additional notes about this supplier..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="p-4 border-t flex gap-2 justify-end sticky bottom-0 bg-white">
+                    <Button variant="outline" onClick={() => setShowAddSupplier(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleCreateSupplier}
+                      disabled={savingSupplier || !newSupplier.name || !newSupplier.email}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {savingSupplier ? 'Saving...' : 'Save Supplier'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

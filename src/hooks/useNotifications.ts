@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { sendMentionNotification, requestNotificationPermission } from '@/lib/notifications'
 
@@ -43,6 +43,10 @@ export function useNotifications({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [previousUnreadCount, setPreviousUnreadCount] = useState(0)
+  
+  // Track which notification IDs have already triggered desktop notifications
+  // This persists across renders to prevent duplicate desktop alerts
+  const shownDesktopNotificationIds = useRef<Set<string>>(new Set())
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -70,11 +74,13 @@ export function useNotifications({
       if (enableDesktopNotifications && data.notifications.length > 0) {
         const newMentions = data.notifications.filter(
           n => n.type === 'MENTION' && !n.read && 
-          !notifications.find(existing => existing.id === n.id)
+          !shownDesktopNotificationIds.current.has(n.id)
         )
         
         // Send desktop notification for each new mention
         newMentions.forEach(mention => {
+          // Mark as shown BEFORE sending to prevent race conditions
+          shownDesktopNotificationIds.current.add(mention.id)
           const mentionedBy = mention.title.replace(' mentioned you', '')
           const link = mention.relatedId ? `/stages/${mention.relatedId}` : undefined
           sendMentionNotification(mentionedBy, mention.message, link)
@@ -91,7 +97,7 @@ export function useNotifications({
     } finally {
       setLoading(false)
     }
-  }, [session, unreadOnly, limit])
+  }, [session, unreadOnly, limit, enableDesktopNotifications])
 
   // Create notification
   const createNotification = useCallback(async (notificationData: {

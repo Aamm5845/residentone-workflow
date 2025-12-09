@@ -1477,6 +1477,26 @@ model ProductCategory {
   @@index([order])
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String   // Business name
+  contactName String?  // Contact person name (optional)
+  logo        String?  // Logo URL
+  phone       String?
+  email       String   // Required
+  address     String?
+  website     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  
+  @@index([orgId])
+  @@index([orgId, isActive])
+}
+
 model ProductLibraryItem {
   id             String              @id @default(cuid())
   orgId          String

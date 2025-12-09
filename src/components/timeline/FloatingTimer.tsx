@@ -30,7 +30,7 @@ export function FloatingTimer() {
   } = useTimer()
 
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true) // Start minimized/collapsed by default
 
   // Don't show if no active timer
   if (!activeEntry) return null
