@@ -1380,6 +1380,9 @@ model RoomFFEItem {
   quantity         Int                 @default(1)
   unitCost         Decimal?
   totalCost        Decimal?
+  tradePrice       Decimal?
+  rrp              Decimal?
+  tradeDiscount    Decimal?            // Percentage discount
   supplierName     String?
   supplierLink     String?
   modelNumber      String?

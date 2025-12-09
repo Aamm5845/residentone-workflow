@@ -336,10 +336,10 @@ export function SpecBookBuilder({ project, session }: SpecBookBuilderProps) {
         <div className="max-w-[1600px] mx-auto px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href={`/projects/${project.id}`}>
+              <Link href={`/projects/${project.id}/specs`}>
                 <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  Back to Specs
                 </Button>
               </Link>
               <div className="h-8 w-px bg-gray-200" />
