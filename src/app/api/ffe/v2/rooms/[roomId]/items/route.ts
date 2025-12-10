@@ -100,7 +100,29 @@ export async function POST(
 
     const resolvedParams = await params
     const { roomId } = resolvedParams
-    const { sectionId, name, description, quantity = 1 } = await request.json()
+    const { 
+      sectionId, 
+      name, 
+      description, 
+      quantity = 1,
+      // If isSpec is true, this is an actual spec (from All Spec view) not a task
+      isSpec = false,
+      // Additional spec fields
+      brand,
+      sku,
+      material,
+      color,
+      finish,
+      width,
+      height,
+      depth,
+      leadTime,
+      supplierName,
+      supplierLink,
+      unitCost,
+      images,
+      libraryProductId
+    } = await request.json()
 
     if (!roomId || !sectionId || !name?.trim()) {
       return NextResponse.json({ 
@@ -148,17 +170,35 @@ export async function POST(
       for (let i = 1; i <= quantity; i++) {
         const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
         
+        // If isSpec is true (from All Spec view), set visibility to VISIBLE and specStatus to SELECTED
+        // Otherwise (FFE Workspace task), use HIDDEN and DRAFT (default)
         const newItem = await tx.roomFFEItem.create({
           data: {
             sectionId,
             name: itemName,
             description: description?.trim() || null,
             state: 'PENDING',
-            visibility: 'HIDDEN', // Default to hidden - items must be explicitly added to workspace
+            visibility: isSpec ? 'VISIBLE' : 'HIDDEN',
+            specStatus: isSpec ? 'SELECTED' : 'DRAFT',
             isRequired: false,
             isCustom: true,
             order: nextOrder + i - 1,
             quantity: 1, // Each created item has quantity 1
+            // Include spec fields if provided
+            brand: brand || null,
+            sku: sku || null,
+            material: material || null,
+            color: color || null,
+            finish: finish || null,
+            width: width || null,
+            height: height || null,
+            depth: depth || null,
+            leadTime: leadTime || null,
+            supplierName: supplierName || null,
+            supplierLink: supplierLink || null,
+            unitCost: unitCost ? parseFloat(unitCost) : null,
+            images: images || [],
+            libraryProductId: libraryProductId || null,
             notes: null,
             createdById: session.user.id,
             updatedById: session.user.id

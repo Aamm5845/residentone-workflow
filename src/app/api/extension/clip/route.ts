@@ -248,7 +248,8 @@ export async function POST(request: NextRequest) {
     
     const nextOrder = existingItems.length > 0 ? existingItems[0].order + 1 : 1
     
-    // Create the FFE item
+    // Create the FFE item - This is an actual spec (not a task/requirement)
+    // Set specStatus to 'SELECTED' so it shows in All Spec view
     const newItem = await prisma.roomFFEItem.create({
       data: {
         sectionId: targetSectionId,
@@ -256,6 +257,7 @@ export async function POST(request: NextRequest) {
         description: item.description || null,
         state: 'PENDING',
         visibility: 'VISIBLE',
+        specStatus: 'SELECTED', // Actual spec from Chrome extension
         isRequired: false,
         isCustom: true,
         order: nextOrder,

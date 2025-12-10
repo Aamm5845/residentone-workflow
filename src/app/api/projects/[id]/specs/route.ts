@@ -96,8 +96,12 @@ export async function GET(
       ) : []
     )
 
-    // Filter to only visible items
-    const visibleSpecs = specs.filter(spec => spec.visibility === 'VISIBLE')
+    // Filter to only visible items that are actual specs (not DRAFT tasks from FFE Workspace)
+    // DRAFT = tasks/requirements that need spec selection
+    // SELECTED, QUOTING, etc. = actual specified items
+    const visibleSpecs = specs.filter(spec => 
+      spec.visibility === 'VISIBLE' && spec.specStatus !== 'DRAFT'
+    )
 
     // Calculate stats
     const totalItems = visibleSpecs.length

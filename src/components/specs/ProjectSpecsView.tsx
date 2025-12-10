@@ -537,7 +537,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         throw new Error('Failed to load room data')
       }
       
-      // Add item to the section
+      // Add item to the section - this is an actual spec (not a task)
       const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -559,7 +559,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           quantity: itemData.quantity || 1,
           unitCost: itemData.rrp ? parseFloat(itemData.rrp.replace(/[^0-9.]/g, '')) : undefined,
           images: itemData.images || [],
-          libraryProductId: itemData.libraryProductId
+          libraryProductId: itemData.libraryProductId,
+          isSpec: true // This is an actual spec from All Spec view, not a task
         })
       })
       
