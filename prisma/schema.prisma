@@ -1373,7 +1373,7 @@ model RoomFFEItem {
   description      String?
   state            FFEItemState        @default(PENDING)
   visibility       FFEItemVisibility   @default(HIDDEN)
-  specStatus       FFESpecStatus       @default(NEEDS_SPEC)
+  specStatus       FFESpecStatus       @default(DRAFT)
   isRequired       Boolean             @default(false)
   isCustom         Boolean             @default(false)
   order            Int                 @default(0)
@@ -2185,13 +2185,28 @@ enum FFEStatus {
 }
 
 enum FFESpecStatus {
+  // New statuses
+  DRAFT
+  HIDDEN
+  SELECTED
+  QUOTING
+  INTERNAL_REVIEW
+  CLIENT_REVIEW
+  RESUBMIT
+  CLOSED
+  REJECTED
+  APPROVED
+  ORDERED
+  PAYMENT_DUE
+  IN_PRODUCTION
+  IN_TRANSIT
+  INSTALLED
+  DELIVERED
+  // Legacy statuses (kept for backward compatibility)
   NEEDS_SPEC
   SPEC_ADDED
   QUOTED
-  ORDERED
   SHIPPED
-  DELIVERED
-  INSTALLED
 }
 
 enum ProductLibraryStatus {

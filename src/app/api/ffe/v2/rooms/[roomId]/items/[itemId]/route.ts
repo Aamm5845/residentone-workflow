@@ -166,7 +166,7 @@ export async function DELETE(
   }
 }
 
-// Move item to different section OR update customFields (for linking)
+// Update item fields OR move to different section
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ roomId: string; itemId: string }> }
@@ -198,7 +198,31 @@ export async function PATCH(
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
     const body = await request.json()
-    const { targetSectionId, customFields } = body
+    const { 
+      targetSectionId, 
+      customFields,
+      // Field updates
+      name,
+      sku,
+      productName,
+      modelNumber,
+      brand,
+      supplierName,
+      supplierLink,
+      specStatus,
+      state,
+      visibility,
+      quantity,
+      tradePrice,
+      rrp,
+      tradeDiscount,
+      unitCost,
+      description,
+      color,
+      finish,
+      material,
+      leadTime
+    } = body
 
     if (!roomId || !itemId) {
       return NextResponse.json({ 
@@ -206,56 +230,6 @@ export async function PATCH(
       }, { status: 400 })
     }
     
-    // If customFields is provided, update the item's customFields (for linking)
-    if (customFields !== undefined) {
-      // Verify item exists and belongs to user's organization
-      const existingItem = await prisma.roomFFEItem.findFirst({
-        where: {
-          id: itemId,
-          section: {
-            instance: {
-              roomId,
-              room: {
-                project: {
-                  orgId: orgId
-                }
-              }
-            }
-          }
-        }
-      })
-
-      if (!existingItem) {
-        return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-      }
-
-      // Merge new customFields with existing ones
-      const existingCustomFields = (existingItem.customFields as any) || {}
-      const mergedCustomFields = { ...existingCustomFields, ...customFields }
-
-      const updatedItem = await prisma.roomFFEItem.update({
-        where: { id: itemId },
-        data: {
-          customFields: mergedCustomFields,
-          updatedById: userId,
-          updatedAt: new Date()
-        }
-      })
-
-      return NextResponse.json({
-        success: true,
-        data: updatedItem,
-        message: 'Item custom fields updated successfully'
-      })
-    }
-
-    // Handle moving to different section (original functionality)
-    if (!targetSectionId) {
-      return NextResponse.json({ 
-        error: 'Target section ID is required for moving items' 
-      }, { status: 400 })
-    }
-
     // Verify item exists and belongs to user's organization
     const existingItem = await prisma.roomFFEItem.findFirst({
       where: {
@@ -283,66 +257,98 @@ export async function PATCH(
     if (!existingItem) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
-
-    // Verify target section exists and belongs to same room instance
-    const targetSection = await prisma.roomFFESection.findFirst({
-      where: {
-        id: targetSectionId,
-        instance: {
-          roomId,
-          room: {
-            project: {
-              orgId: orgId
+    
+    // Build update data object with only provided fields
+    const updateData: any = {
+      updatedById: userId,
+      updatedAt: new Date()
+    }
+    
+    // Add field updates if provided
+    if (name !== undefined) updateData.name = name
+    if (sku !== undefined) updateData.sku = sku
+    if (productName !== undefined) updateData.modelNumber = productName // productName maps to modelNumber
+    if (modelNumber !== undefined) updateData.modelNumber = modelNumber
+    if (brand !== undefined) updateData.brand = brand
+    if (supplierName !== undefined) updateData.supplierName = supplierName
+    if (supplierLink !== undefined) updateData.supplierLink = supplierLink
+    if (specStatus !== undefined) updateData.specStatus = specStatus
+    if (state !== undefined) updateData.state = state
+    if (visibility !== undefined) updateData.visibility = visibility
+    if (quantity !== undefined) updateData.quantity = parseInt(quantity) || 1
+    if (tradePrice !== undefined) updateData.tradePrice = tradePrice ? parseFloat(tradePrice) : null
+    if (rrp !== undefined) updateData.rrp = rrp ? parseFloat(rrp) : null
+    if (tradeDiscount !== undefined) updateData.tradeDiscount = tradeDiscount ? parseFloat(tradeDiscount) : null
+    if (unitCost !== undefined) updateData.unitCost = unitCost ? parseFloat(unitCost) : null
+    if (description !== undefined) updateData.description = description
+    if (color !== undefined) updateData.color = color
+    if (finish !== undefined) updateData.finish = finish
+    if (material !== undefined) updateData.material = material
+    if (leadTime !== undefined) updateData.leadTime = leadTime
+    
+    // Handle customFields merge
+    if (customFields !== undefined) {
+      const existingCustomFields = (existingItem.customFields as any) || {}
+      updateData.customFields = { ...existingCustomFields, ...customFields }
+    }
+    
+    // Handle moving to different section
+    if (targetSectionId && targetSectionId !== existingItem.sectionId) {
+      // Verify target section exists
+      const targetSection = await prisma.roomFFESection.findFirst({
+        where: {
+          id: targetSectionId,
+          instance: {
+            roomId,
+            room: {
+              project: {
+                orgId: orgId
+              }
             }
           }
         }
+      })
+
+      if (!targetSection) {
+        return NextResponse.json({ error: 'Target section not found' }, { status: 404 })
       }
-    })
-
-    if (!targetSection) {
-      return NextResponse.json({ error: 'Target section not found' }, { status: 404 })
+      
+      // Get the highest order in target section
+      const targetSectionItems = await prisma.roomFFEItem.findMany({
+        where: { sectionId: targetSectionId },
+        orderBy: { order: 'desc' },
+        take: 1
+      })
+      
+      updateData.sectionId = targetSectionId
+      updateData.order = targetSectionItems.length > 0 ? targetSectionItems[0].order + 1 : 1
     }
+    
+    // If we have any updates to make (beyond just userId/updatedAt)
+    if (Object.keys(updateData).length > 2) {
+      const updatedItem = await prisma.roomFFEItem.update({
+        where: { id: itemId },
+        data: updateData,
+        include: {
+          section: {
+            select: {
+              name: true
+            }
+          }
+        }
+      })
 
-    // Don't move if already in the target section
-    if (existingItem.sectionId === targetSectionId) {
       return NextResponse.json({
         success: true,
-        message: 'Item is already in the target section'
+        data: updatedItem,
+        message: 'Item updated successfully'
       })
     }
 
-    // Get the highest order in target section for positioning
-    const targetSectionItems = await prisma.roomFFEItem.findMany({
-      where: { sectionId: targetSectionId },
-      orderBy: { order: 'desc' },
-      take: 1
-    })
-
-    const newOrder = targetSectionItems.length > 0 ? targetSectionItems[0].order + 1 : 1
-
-    // Move the item
-    const updatedItem = await prisma.roomFFEItem.update({
-      where: { id: itemId },
-      data: {
-        sectionId: targetSectionId,
-        order: newOrder,
-        updatedById: userId,
-        updatedAt: new Date()
-      },
-      include: {
-        section: {
-          select: {
-            name: true
-          }
-        }
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: updatedItem,
-      message: `Item "${updatedItem.name}" moved from "${existingItem.section.name}" to "${updatedItem.section.name}"`
-    })
+    // No updates provided
+    return NextResponse.json({ 
+      error: 'No update fields provided' 
+    }, { status: 400 })
 
   } catch (error) {
     console.error('Error moving item:', error)

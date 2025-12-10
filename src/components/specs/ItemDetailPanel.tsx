@@ -1,0 +1,976 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+
+interface Supplier {
+  id: string
+  name: string
+  contactName?: string
+  email: string
+  phone?: string
+}
+
+interface ItemDetailPanelProps {
+  isOpen: boolean
+  onClose: () => void
+  item?: {
+    id: string
+    name: string
+    roomId?: string
+    sectionId?: string
+    roomName?: string
+    sectionName?: string
+    description?: string
+    sku?: string
+    productName?: string
+    brand?: string
+    quantity?: number
+    supplierName?: string
+    supplierLink?: string
+    supplierId?: string
+    thumbnailUrl?: string
+    images?: string[]
+    unitCost?: number
+    tradePrice?: number
+    rrp?: number
+    tradeDiscount?: number
+    specStatus?: string
+    leadTime?: string
+    color?: string
+    finish?: string
+    material?: string
+    width?: string
+    height?: string
+    depth?: string
+    length?: string
+  } | null
+  mode: 'view' | 'edit' | 'create'
+  sectionId?: string
+  roomId?: string
+  onSave?: () => void
+  onNavigate?: (direction: 'prev' | 'next') => void
+  hasNext?: boolean
+  hasPrev?: boolean
+}
+
+const LEAD_TIME_OPTIONS = [
+  { value: '1-2 weeks', label: '1-2 Weeks' },
+  { value: '2-4 weeks', label: '2-4 Weeks' },
+  { value: '4-6 weeks', label: '4-6 Weeks' },
+  { value: '6-8 weeks', label: '6-8 Weeks' },
+  { value: '8-12 weeks', label: '8-12 Weeks' },
+  { value: '12+ weeks', label: '12+ Weeks' },
+]
+
+const CATEGORY_OPTIONS = [
+  { value: 'flooring', label: 'Flooring' },
+  { value: 'lighting', label: 'Lighting' },
+  { value: 'plumbing', label: 'Plumbing' },
+  { value: 'furniture', label: 'Furniture' },
+  { value: 'hardware', label: 'Hardware' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'textiles', label: 'Textiles' },
+  { value: 'other', label: 'Other' },
+]
+
+export function ItemDetailPanel({
+  isOpen,
+  onClose,
+  item,
+  mode,
+  sectionId,
+  roomId,
+  onSave,
+  onNavigate,
+  hasNext = false,
+  hasPrev = false,
+}: ItemDetailPanelProps) {
+  const [activeTab, setActiveTab] = useState('summary')
+  const [saving, setSaving] = useState(false)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false)
+  
+  // Add New Supplier modal
+  const [showAddSupplier, setShowAddSupplier] = useState(false)
+  const [savingSupplier, setSavingSupplier] = useState(false)
+  const [newSupplier, setNewSupplier] = useState({
+    name: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    address: '',
+    website: '',
+    notes: ''
+  })
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    sku: '',
+    productName: '',
+    brand: '',
+    quantity: 1,
+    supplierName: '',
+    supplierLink: '',
+    supplierId: '',
+    leadTime: '',
+    color: '',
+    finish: '',
+    material: '',
+    width: '',
+    height: '',
+    depth: '',
+    length: '',
+    category: '',
+    tradePrice: '',
+    rrp: '',
+    tradeDiscount: '',
+    notes: '',
+  })
+  
+  const [images, setImages] = useState<string[]>([])
+  
+  // Load suppliers
+  useEffect(() => {
+    const loadSuppliers = async () => {
+      setLoadingSuppliers(true)
+      try {
+        const res = await fetch('/api/suppliers')
+        const data = await res.json()
+        if (data.suppliers) {
+          setSuppliers(data.suppliers)
+        }
+      } catch (error) {
+        console.error('Failed to load suppliers:', error)
+      } finally {
+        setLoadingSuppliers(false)
+      }
+    }
+    
+    if (isOpen) {
+      loadSuppliers()
+    }
+  }, [isOpen])
+  
+  // Create new supplier
+  const handleCreateSupplier = async () => {
+    if (!newSupplier.name || !newSupplier.email) {
+      toast.error('Business name and email are required')
+      return
+    }
+    
+    setSavingSupplier(true)
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSupplier)
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        // Add to local suppliers list
+        setSuppliers(prev => [...prev, data.supplier])
+        // Select the new supplier
+        setFormData(prev => ({
+          ...prev,
+          supplierId: data.supplier.id,
+          supplierName: data.supplier.contactName 
+            ? `${data.supplier.name} / ${data.supplier.contactName}`
+            : data.supplier.name
+        }))
+        // Reset and close modal
+        setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '' })
+        setShowAddSupplier(false)
+        toast.success('Supplier added to phonebook')
+      } else {
+        throw new Error('Failed to create supplier')
+      }
+    } catch (error) {
+      console.error('Failed to create supplier:', error)
+      toast.error('Failed to create supplier')
+    } finally {
+      setSavingSupplier(false)
+    }
+  }
+  
+  // Initialize form with item data
+  useEffect(() => {
+    if (item && (mode === 'view' || mode === 'edit')) {
+      setFormData({
+        name: item.name || '',
+        description: item.description || '',
+        sku: item.sku || '',
+        productName: item.productName || '',
+        brand: item.brand || '',
+        quantity: item.quantity || 1,
+        supplierName: item.supplierName || '',
+        supplierLink: item.supplierLink || '',
+        supplierId: item.supplierId || '',
+        leadTime: item.leadTime || '',
+        color: item.color || '',
+        finish: item.finish || '',
+        material: item.material || '',
+        width: item.width || '',
+        height: item.height || '',
+        depth: item.depth || '',
+        length: item.length || '',
+        category: '',
+        tradePrice: item.tradePrice?.toString() || '',
+        rrp: item.rrp?.toString() || '',
+        tradeDiscount: item.tradeDiscount?.toString() || '',
+        notes: (item as any).notes || '',
+      })
+      setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
+    } else if (mode === 'create') {
+      // Reset form for new item
+      setFormData({
+        name: '',
+        description: '',
+        sku: '',
+        productName: '',
+        brand: '',
+        quantity: 1,
+        supplierName: '',
+        supplierLink: '',
+        supplierId: '',
+        leadTime: '',
+        color: '',
+        finish: '',
+        material: '',
+        width: '',
+        height: '',
+        depth: '',
+        length: '',
+        category: '',
+        tradePrice: '',
+        rrp: '',
+        tradeDiscount: '',
+        notes: '',
+      })
+      setImages([])
+    }
+  }, [item, mode])
+  
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Product name is required')
+      return
+    }
+    
+    setSaving(true)
+    try {
+      const targetRoomId = item?.roomId || roomId
+      const targetSectionId = item?.sectionId || sectionId
+      
+      if (mode === 'create' && targetRoomId && targetSectionId) {
+        // Create new item
+        const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sectionId: targetSectionId,
+            name: formData.name,
+            description: formData.description,
+            sku: formData.sku,
+            brand: formData.brand,
+            supplierName: formData.supplierName,
+            supplierLink: formData.supplierLink,
+            quantity: formData.quantity,
+            leadTime: formData.leadTime,
+            color: formData.color,
+            finish: formData.finish,
+            material: formData.material,
+            images: images,
+          })
+        })
+        
+        if (res.ok) {
+          toast.success('Item created successfully')
+          onSave?.()
+          onClose()
+        } else {
+          throw new Error('Failed to create item')
+        }
+      } else if ((mode === 'edit' || mode === 'view') && item?.id && targetRoomId) {
+        // Update existing item
+        const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            sku: formData.sku,
+            productName: formData.productName,
+            brand: formData.brand,
+            supplierName: formData.supplierName,
+            supplierLink: formData.supplierLink,
+            quantity: formData.quantity,
+            leadTime: formData.leadTime,
+            color: formData.color,
+            finish: formData.finish,
+            material: formData.material,
+            tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
+            rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
+            tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+          })
+        })
+        
+        if (res.ok) {
+          toast.success('Item updated successfully')
+          onSave?.()
+        } else {
+          throw new Error('Failed to update item')
+        }
+      }
+    } catch (error) {
+      console.error('Save error:', error)
+      toast.error('Failed to save item')
+    } finally {
+      setSaving(false)
+    }
+  }
+  
+  const handleSelectSupplier = (supplierId: string) => {
+    const supplier = suppliers.find(s => s.id === supplierId)
+    if (supplier) {
+      setFormData(prev => ({
+        ...prev,
+        supplierId: supplier.id,
+        supplierName: supplier.contactName 
+          ? `${supplier.name} / ${supplier.contactName}`
+          : supplier.name
+      }))
+    }
+  }
+  
+  if (!isOpen) return null
+  
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/20 z-40"
+        onClick={onClose}
+      />
+      
+      {/* Panel */}
+      <div className="fixed right-0 top-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            {/* Navigation Arrows */}
+            {(hasNext || hasPrev) && (
+              <div className="flex flex-col gap-0.5">
+                <button 
+                  onClick={() => onNavigate?.('prev')}
+                  disabled={!hasPrev}
+                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => onNavigate?.('next')}
+                  disabled={!hasNext}
+                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            
+            <h2 className="text-lg font-semibold text-gray-900 truncate max-w-[300px]">
+              {mode === 'create' ? 'Add New Item' : formData.name || 'Item Details'}
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {formData.supplierLink && (
+              <a 
+                href={formData.supplierLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-blue-600"
+                title="Open product link"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 px-5">
+          {['Summary', 'Financial', 'Attachments', 'Approvals'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab.toLowerCase())}
+              className={cn(
+                "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
+                activeTab === tab.toLowerCase()
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        
+        {/* Content */}
+        <ScrollArea className="flex-1">
+          <div className="p-5 space-y-6">
+            {activeTab === 'summary' && (
+              <>
+                {/* Image Upload */}
+                <div className="space-y-2">
+                  <div className="flex gap-3">
+                    {images.length > 0 ? (
+                      images.map((img, idx) => (
+                        <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
+                          <img src={img} alt="" className="w-full h-full object-cover" />
+                          <button 
+                            onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                            className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                      <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">
+                        Drag & drop or <span className="text-blue-600 cursor-pointer hover:underline">browse files</span>
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Product Name */}
+                <div className="space-y-2">
+                  <Label>Product Name</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter product name"
+                  />
+                </div>
+                
+                {/* Description & Doc Code */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Product Description</Label>
+                    <Input
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Description"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Doc Code</Label>
+                    <Input
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      placeholder="Doc Code"
+                    />
+                  </div>
+                </div>
+                
+                {/* Product Details & Quantity */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Product Details</Label>
+                    <Input
+                      value={formData.productName}
+                      onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                      placeholder="Room / Location"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                
+                {/* Brand & Lead Time */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Brand</Label>
+                    <Input
+                      value={formData.brand}
+                      onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                      placeholder="Brand name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lead Time</Label>
+                    <Select value={formData.leadTime} onValueChange={(v) => setFormData({ ...formData, leadTime: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="-" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LEAD_TIME_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* SKU */}
+                <div className="space-y-2">
+                  <Label>SKU</Label>
+                  <Input
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    placeholder="SKU / Model number"
+                  />
+                </div>
+                
+                {/* Product URL */}
+                <div className="space-y-2">
+                  <Label>Product URL</Label>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      value={formData.supplierLink}
+                      onChange={(e) => setFormData({ ...formData, supplierLink: e.target.value })}
+                      placeholder="https://..."
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                
+                {/* Supplier */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Supplier</Label>
+                    <button 
+                      onClick={() => setShowAddSupplier(true)}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      Add New
+                    </button>
+                  </div>
+                  {formData.supplierName ? (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
+                        {formData.supplierName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{formData.supplierName}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <button 
+                          className="text-xs text-red-600 hover:underline"
+                          onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '' })}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Select onValueChange={handleSelectSupplier}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select from phonebook" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {loadingSuppliers ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            </div>
+                          ) : suppliers.length === 0 ? (
+                            <div className="text-center p-4 text-sm text-gray-500">
+                              No suppliers in phonebook
+                              <button 
+                                onClick={() => setShowAddSupplier(true)}
+                                className="block mx-auto mt-2 text-blue-600 hover:underline"
+                              >
+                                Add your first supplier
+                              </button>
+                            </div>
+                          ) : (
+                            suppliers.map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                    {supplier.name.charAt(0)}
+                                  </div>
+                                  <span>{supplier.name}</span>
+                                  {supplier.contactName && (
+                                    <span className="text-gray-400">/ {supplier.contactName}</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <div className="text-xs text-gray-400 text-center">or</div>
+                      <Input
+                        value={formData.supplierName}
+                        onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
+                        placeholder="Enter supplier name manually"
+                      />
+                    </>
+                  )}
+                </div>
+                
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Internal notes about this item..."
+                    rows={3}
+                  />
+                </div>
+                
+                {/* Product Specifications */}
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Product Specifications</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Height</Label>
+                      <Input
+                        value={formData.height}
+                        onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Depth</Label>
+                      <Input
+                        value={formData.depth}
+                        onChange={(e) => setFormData({ ...formData, depth: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Width</Label>
+                      <Input
+                        value={formData.width}
+                        onChange={(e) => setFormData({ ...formData, width: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Length</Label>
+                      <Input
+                        value={formData.length}
+                        onChange={(e) => setFormData({ ...formData, length: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Colour</Label>
+                      <Input
+                        value={formData.color}
+                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Finish</Label>
+                      <Input
+                        value={formData.finish}
+                        onChange={(e) => setFormData({ ...formData, finish: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Material</Label>
+                      <Input
+                        value={formData.material}
+                        onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                        placeholder="-"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Product Category</Label>
+                      <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Download PDF */}
+                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download PDF
+                </button>
+              </>
+            )}
+            
+            {activeTab === 'financial' && (
+              <div className="space-y-6">
+                {/* RRP & Quantity Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>RRP</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.rrp}
+                        onChange={(e) => setFormData({ ...formData, rrp: e.target.value })}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                
+                {/* Trade Price & Trade Discount Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Trade Price</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.tradePrice}
+                        onChange={(e) => setFormData({ ...formData, tradePrice: e.target.value })}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trade Discount</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={formData.tradeDiscount}
+                        onChange={(e) => setFormData({ ...formData, tradeDiscount: e.target.value })}
+                        placeholder="0"
+                        className="pr-7"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* TOTALS Section */}
+                <div className="border-t border-gray-200 pt-4 mt-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">TOTALS</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600">TRADE PRICE</span>
+                      <span className="font-semibold text-lg">
+                        ${((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 0) * (1 - (parseFloat(formData.tradeDiscount) || 0) / 100)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'attachments' && (
+              <div className="text-center py-12 text-gray-500">
+                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No attachments yet</p>
+                <Button variant="outline" className="mt-4">
+                  Upload Files
+                </Button>
+              </div>
+            )}
+            
+            {activeTab === 'approvals' && (
+              <div className="text-center py-12 text-gray-500">
+                <p>No approval workflow set up</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="text-xs text-gray-500">
+            {item?.roomName && <span>{item.roomName}</span>}
+            {item?.sectionName && <span> / {item.sectionName}</span>}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Add New Supplier Modal */}
+      <Dialog open={showAddSupplier} onOpenChange={setShowAddSupplier}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-emerald-600" />
+              Add New Supplier
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Business Name *</Label>
+              <Input
+                value={newSupplier.name}
+                onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                placeholder="Company name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Contact Name</Label>
+              <Input
+                value={newSupplier.contactName}
+                onChange={(e) => setNewSupplier({ ...newSupplier, contactName: e.target.value })}
+                placeholder="Optional"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={newSupplier.email}
+                onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                placeholder="supplier@example.com"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  value={newSupplier.phone}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Website</Label>
+                <Input
+                  value={newSupplier.website}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, website: e.target.value })}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={newSupplier.address}
+                onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                placeholder="Optional"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={newSupplier.notes}
+                onChange={(e) => setNewSupplier({ ...newSupplier, notes: e.target.value })}
+                placeholder="Internal notes about this supplier"
+                rows={2}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddSupplier(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateSupplier}
+              disabled={savingSupplier || !newSupplier.name || !newSupplier.email}
+            >
+              {savingSupplier ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Add to Phonebook'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
