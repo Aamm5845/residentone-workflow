@@ -91,17 +91,25 @@ export async function GET(
           totalCost: item.totalCost ? Number(item.totalCost) : null,
           tradePrice: item.tradePrice ? Number(item.tradePrice) : null,
           rrp: item.rrp ? Number(item.rrp) : null,
-          tradeDiscount: item.tradeDiscount ? Number(item.tradeDiscount) : null
+          tradeDiscount: item.tradeDiscount ? Number(item.tradeDiscount) : null,
+          libraryProductId: item.libraryProductId
         }))
       ) : []
     )
 
-    // Filter to only visible items that are actual specs (not DRAFT tasks from FFE Workspace)
-    // DRAFT = tasks/requirements that need spec selection
-    // SELECTED, QUOTING, etc. = actual specified items
-    const visibleSpecs = specs.filter(spec => 
-      spec.visibility === 'VISIBLE' && spec.specStatus !== 'DRAFT'
-    )
+    // Filter to only show ACTUAL SPECS (not tasks from FFE Workspace)
+    // Task items have specStatus: 'DRAFT' or 'NEEDS_SPEC' - these are FFE Workspace tasks
+    // Only show items that have been explicitly spec'd (SELECTED, QUOTING, APPROVED, etc.)
+    const visibleSpecs = specs.filter(spec => {
+      // Must be visible
+      if (spec.visibility !== 'VISIBLE') return false
+      
+      // FFE Workspace task statuses - these should NOT appear in All Spec
+      const taskStatuses = ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
+      if (!spec.specStatus || taskStatuses.includes(spec.specStatus)) return false
+      
+      return true
+    })
 
     // Calculate stats
     const totalItems = visibleSpecs.length

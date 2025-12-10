@@ -155,7 +155,7 @@ function getEntityUrl(activity: Activity): string | null {
       if (stageId) return `/stages/${stageId}`
       break
     
-    // Issue activities
+    // Issue activities - issues are displayed in preferences page
     case 'ISSUE_CREATED':
     case 'ISSUE_UPDATED':
     case 'ISSUE_ASSIGNED':
@@ -163,9 +163,7 @@ function getEntityUrl(activity: Activity): string | null {
     case 'ISSUE_RESOLVED':
     case 'ISSUE_REOPENED':
     case 'ISSUE_COMMENT_ADDED':
-      if (details.issueId) return `/issues/${details.issueId}`
-      if (projectId) return `/projects/${projectId}/issues`
-      break
+      return `/preferences?tab=issues`
     
     // Room activities
     case 'ROOM_CREATED':
@@ -198,9 +196,7 @@ function getEntityUrl(activity: Activity): string | null {
       if (roomId) return `/ffe/${roomId}/workspace`
       break
     case 'Issue':
-      if (details.issueId) return `/issues/${details.issueId}`
-      if (projectId) return `/projects/${projectId}/issues`
-      break
+      return `/preferences?tab=issues`
   }
   
   // Last resort: go to project

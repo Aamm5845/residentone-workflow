@@ -352,7 +352,7 @@ export const sendIssueResolvedEmail = async (
             </div>
 
             <div style="text-align: center;">
-              <a href="${appUrl}/issues" class="button">View Issues</a>
+              <a href="${appUrl}/preferences?tab=issues" class="button">View Issues</a>
             </div>
             
             <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 20px;">
@@ -378,7 +378,7 @@ export const sendIssueResolvedEmail = async (
     
     Please verify: Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
     
-    View issues at: ${appUrl}/issues
+    View issues at: ${appUrl}/preferences?tab=issues
     
     Thank you for reporting this issue and helping us improve ${companyName}!
   `
@@ -386,6 +386,180 @@ export const sendIssueResolvedEmail = async (
   return sendEmail({
     to: email,
     subject: `✅ Issue Resolved: "${issueTitle}" - ${companyName}`,
+    html,
+    text
+  })
+}
+
+export const sendIssueCreatedEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  issueTitle: string,
+  issueDescription: string,
+  reporterName: string,
+  priority: string,
+  projectName?: string
+): Promise<boolean> => {
+  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
+  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  
+  const priorityColors: Record<string, string> = {
+    'LOW': '#22c55e',
+    'MEDIUM': '#f59e0b', 
+    'HIGH': '#ef4444',
+    'URGENT': '#dc2626'
+  }
+  
+  const priorityColor = priorityColors[priority] || '#6b7280'
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>New Issue Reported - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #ef4444; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .bug-icon { 
+            width: 60px; 
+            height: 60px; 
+            background-color: #ef4444; 
+            border-radius: 50%; 
+            margin: 0 auto 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+          }
+          .bug-icon::after {
+            content: "🐛";
+            font-size: 30px;
+          }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .issue-title {
+            background-color: #f1f5f9;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin: 15px 0;
+            font-weight: 500;
+            color: #1e293b;
+          }
+          .issue-description {
+            background-color: #fafafa;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background-color: ${priorityColor};
+          }
+          .meta-info {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+            font-size: 14px;
+            color: #64748b;
+          }
+          .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #1e293b; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+            font-weight: 500;
+          }
+          .footer { 
+            background-color: #1e293b; 
+            padding: 20px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>🐛 New Issue Reported</h1>
+          </div>
+          <div class="content">
+            <div class="bug-icon"></div>
+            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Issue Alert</h2>
+            
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${recipientName},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                A new issue has been reported by <strong>${reporterName}</strong>${projectName ? ` for project <strong>${projectName}</strong>` : ''}.
+              </p>
+              
+              <div class="issue-title">
+                "${issueTitle}"
+              </div>
+              
+              <div class="meta-info">
+                <span>Priority: <span class="priority-badge">${priority}</span></span>
+                <span>Reported: ${new Date().toLocaleString()}</span>
+              </div>
+              
+              <div class="issue-description">
+                ${issueDescription.length > 300 ? issueDescription.substring(0, 300) + '...' : issueDescription}
+              </div>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${appUrl}/preferences?tab=issues" class="button">View Issue</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from ${companyName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+    New Issue Reported - ${companyName}
+    
+    Hi ${recipientName},
+    
+    A new issue has been reported by ${reporterName}${projectName ? ` for project ${projectName}` : ''}.
+    
+    Issue: "${issueTitle}"
+    Priority: ${priority}
+    
+    Description:
+    ${issueDescription.length > 300 ? issueDescription.substring(0, 300) + '...' : issueDescription}
+    
+    View the issue at: ${appUrl}/preferences?tab=issues
+  `
+
+  return sendEmail({
+    to: recipientEmail,
+    subject: `🐛 New Issue: "${issueTitle}" [${priority}] - ${companyName}`,
     html,
     text
   })

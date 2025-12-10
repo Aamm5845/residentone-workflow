@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { sendMentionNotification, requestNotificationPermission } from '@/lib/notifications'
 
@@ -45,8 +45,37 @@ export function useNotifications({
   const [previousUnreadCount, setPreviousUnreadCount] = useState(0)
   
   // Track which notification IDs have already triggered desktop notifications
-  // This persists across renders to prevent duplicate desktop alerts
-  const shownDesktopNotificationIds = useRef<Set<string>>(new Set())
+  // Use localStorage to persist across all component instances and prevent duplicates
+  const getShownNotificationIds = useCallback((): Set<string> => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem('shownDesktopNotificationIds')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        // Clean old entries (keep last 200 to prevent memory bloat)
+        if (Array.isArray(parsed) && parsed.length > 200) {
+          const trimmed = parsed.slice(-200)
+          localStorage.setItem('shownDesktopNotificationIds', JSON.stringify(trimmed))
+          return new Set(trimmed)
+        }
+        return new Set(parsed)
+      }
+    } catch (e) {
+      console.error('Error reading shown notification IDs:', e)
+    }
+    return new Set()
+  }, [])
+  
+  const addShownNotificationId = useCallback((id: string) => {
+    if (typeof window === 'undefined') return
+    try {
+      const current = getShownNotificationIds()
+      current.add(id)
+      localStorage.setItem('shownDesktopNotificationIds', JSON.stringify([...current]))
+    } catch (e) {
+      console.error('Error storing shown notification ID:', e)
+    }
+  }, [getShownNotificationIds])
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -72,15 +101,16 @@ export function useNotifications({
       
       // Check for new mention notifications for desktop alerts
       if (enableDesktopNotifications && data.notifications.length > 0) {
+        const shownIds = getShownNotificationIds()
         const newMentions = data.notifications.filter(
           n => n.type === 'MENTION' && !n.read && 
-          !shownDesktopNotificationIds.current.has(n.id)
+          !shownIds.has(n.id)
         )
         
         // Send desktop notification for each new mention
         newMentions.forEach(mention => {
           // Mark as shown BEFORE sending to prevent race conditions
-          shownDesktopNotificationIds.current.add(mention.id)
+          addShownNotificationId(mention.id)
           const mentionedBy = mention.title.replace(' mentioned you', '')
           const link = mention.relatedId ? `/stages/${mention.relatedId}` : undefined
           sendMentionNotification(mentionedBy, mention.message, link)
@@ -97,7 +127,7 @@ export function useNotifications({
     } finally {
       setLoading(false)
     }
-  }, [session, unreadOnly, limit, enableDesktopNotifications])
+  }, [session, unreadOnly, limit, enableDesktopNotifications, getShownNotificationIds, addShownNotificationId])
 
   // Create notification
   const createNotification = useCallback(async (notificationData: {

@@ -11,6 +11,7 @@ import {
 import { logIssueActivity, ActivityActions } from '@/lib/activity-logger'
 import { put } from '@vercel/blob'
 import { syncIssuesToCursor } from '@/lib/cursor-issues'
+import { sendIssueCreatedEmail } from '@/lib/email'
 
 // Get all issues for the organization
 export async function GET(request: NextRequest) {
@@ -333,9 +334,40 @@ export async function POST(request: NextRequest) {
           stageId: updatedIssue.stageId || undefined,
           stageName: updatedIssue.stage?.type,
           priority: updatedIssue.priority,
-          entityUrl: updatedIssue.projectId ? `/projects/${updatedIssue.projectId}` : '/issues',
+          entityUrl: '/preferences?tab=issues',
           ipAddress
         })
+
+        // Send email notification to admins/owners about the new issue
+        try {
+          const admins = await prisma.user.findMany({
+            where: {
+              role: { in: ['ADMIN', 'OWNER'] },
+              id: { not: session.user.id } // Don't notify the reporter
+            },
+            select: { id: true, name: true, email: true }
+          })
+          
+          const reporterName = session.user.name || session.user.email || 'A team member'
+          
+          // Send email to each admin in parallel
+          await Promise.allSettled(
+            admins.map(admin => 
+              sendIssueCreatedEmail(
+                admin.email,
+                admin.name || 'Admin',
+                updatedIssue.title,
+                updatedIssue.description,
+                reporterName,
+                updatedIssue.priority,
+                updatedIssue.project?.name
+              )
+            )
+          )
+        } catch (emailError) {
+          // Log but don't fail the request if email fails
+          console.error('[Issues API] Failed to send email notifications:', emailError)
+        }
 
         // Sync issues to .cursor/issues.json for Cursor AI access
         syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
@@ -358,9 +390,40 @@ export async function POST(request: NextRequest) {
       stageId: issue.stageId || undefined,
       stageName: issue.stage?.type,
       priority: issue.priority,
-      entityUrl: issue.projectId ? `/projects/${issue.projectId}` : '/issues',
+      entityUrl: '/preferences?tab=issues',
       ipAddress
     })
+
+    // Send email notification to admins/owners about the new issue
+    try {
+      const admins = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'OWNER'] },
+          id: { not: session.user.id } // Don't notify the reporter
+        },
+        select: { id: true, name: true, email: true }
+      })
+      
+      const reporterName = session.user.name || session.user.email || 'A team member'
+      
+      // Send email to each admin in parallel
+      await Promise.allSettled(
+        admins.map(admin => 
+          sendIssueCreatedEmail(
+            admin.email,
+            admin.name || 'Admin',
+            issue.title,
+            issue.description,
+            reporterName,
+            issue.priority,
+            issue.project?.name
+          )
+        )
+      )
+    } catch (emailError) {
+      // Log but don't fail the request if email fails
+      console.error('[Issues API] Failed to send email notifications:', emailError)
+    }
 
     // Sync issues to .cursor/issues.json for Cursor AI access
     syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))

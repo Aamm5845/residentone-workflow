@@ -29,7 +29,7 @@ import { IssueModal } from '@/components/issues/issue-modal'
 import { NavigationMenu } from './NavigationMenu'
 import { GlobalSearch } from './GlobalSearch'
 import { TimerButton } from '@/components/timeline/TimerButton'
-import { FloatingTimer } from '@/components/timeline/FloatingTimer'
+// FloatingTimer removed - timer is already visible in header
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -304,8 +304,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
           onClose={() => setIssueModalOpen(false)} 
         />
         
-        {/* Floating Timer - Shows at bottom right when timer is active */}
-        <FloatingTimer />
+        {/* Floating Timer removed - timer is already visible in header */}
       </div>
     </Providers>
   )
