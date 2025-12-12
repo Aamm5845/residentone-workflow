@@ -366,8 +366,9 @@ export class TeamNotificationService {
     
     const subject = `🚀 Next Step Ready: ${project.name} - ${nextPhaseNames}`
     
-    // Generate project URL (adjust based on your routing)
-    const projectUrl = `${getBaseUrl()}/projects/${project.id}`
+    // Generate URL to the room with the first next phase stage selected
+    const nextStageId = nextPhases[0]?.id || stage.id
+    const projectUrl = `${getBaseUrl()}/projects/${project.id}/rooms/${room.id}?stage=${nextStageId}`
     
     const html = this.generateEmailHTML({
       recipientName: recipient.name,

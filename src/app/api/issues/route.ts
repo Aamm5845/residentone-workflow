@@ -360,7 +360,8 @@ export async function POST(request: NextRequest) {
                 updatedIssue.description,
                 reporterName,
                 updatedIssue.priority,
-                updatedIssue.project?.name
+                updatedIssue.project?.name,
+                updatedIssue.id
               )
             )
           )
@@ -416,7 +417,8 @@ export async function POST(request: NextRequest) {
             issue.description,
             reporterName,
             issue.priority,
-            issue.project?.name
+            issue.project?.name,
+            issue.id
           )
         )
       )

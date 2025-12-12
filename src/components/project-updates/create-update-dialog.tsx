@@ -194,15 +194,15 @@ export default function CreateUpdateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Create Project Update</DialogTitle>
           <DialogDescription>
             Add a new update to track project progress, issues, or milestones.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg">
               <AlertCircle className="w-4 h-4" />
@@ -341,27 +341,28 @@ export default function CreateUpdateDialog({
             )}
           </div>
 
-          <DialogFooter className="px-4 pb-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {uploadProgress || 'Creating...'}
-                </>
-              ) : (
-                `Create Update${selectedFiles.length > 0 ? ` (${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''})` : ''}`
-              )}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="px-4 py-3 border-t flex-shrink-0 bg-white">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {uploadProgress || 'Creating...'}
+              </>
+            ) : (
+              `Create Update${selectedFiles.length > 0 ? ` (${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''})` : ''}`
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

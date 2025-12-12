@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email/email-service'
 import { getPhaseConfig } from '@/lib/constants/room-phases'
+import { getBaseUrl } from '@/lib/get-base-url'
 import type { AuthSession } from '@/lib/attribution'
 
 export interface PhaseNotificationResult {
@@ -329,7 +330,9 @@ export class PhaseNotificationService {
           clientName: project.client?.name,
           completedByName: completedByUser.name,
           completedAt: completedStage.completedAt,
-          stageId: completedStage.id
+          stageId: completedStage.id,
+          projectId: project.id,
+          roomId: room.id
         }),
         text: this.generatePhaseCompletionEmailText({
           phaseDisplayName,
@@ -379,7 +382,9 @@ export class PhaseNotificationService {
           roomDisplayName,
           projectName: project.name,
           clientName: project.client?.name,
-          stageId: nextStage.id
+          stageId: nextStage.id,
+          projectId: project.id,
+          roomId: room.id
         }),
         text: this.generatePhaseReadyEmailText({
           assigneeName: assignedUser.name,
@@ -457,6 +462,8 @@ export class PhaseNotificationService {
     completedByName: string
     completedAt: Date
     stageId: string
+    projectId: string
+    roomId: string
   }): string {
     const formattedDate = new Date(data.completedAt).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -466,6 +473,9 @@ export class PhaseNotificationService {
       hour: '2-digit',
       minute: '2-digit'
     })
+
+    const baseUrl = getBaseUrl()
+    const phaseUrl = `${baseUrl}/projects/${data.projectId}/rooms/${data.roomId}?stage=${data.stageId}`
 
     return `
       <!DOCTYPE html>
@@ -506,8 +516,8 @@ export class PhaseNotificationService {
               <p>This phase completion may trigger the next phase to become available for work.</p>
               
               <p style="margin-top: 30px;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/stages/${data.stageId}" class="button">
-                  View Project Details
+                <a href="${phaseUrl}" class="button">
+                  View Phase
                 </a>
               </p>
             </div>
@@ -566,7 +576,12 @@ ResidentOne Workflow Team
     projectName: string
     clientName?: string
     stageId: string
+    projectId: string
+    roomId: string
   }): string {
+    const baseUrl = getBaseUrl()
+    const phaseUrl = `${baseUrl}/projects/${data.projectId}/rooms/${data.roomId}?stage=${data.stageId}`
+
     return `
       <!DOCTYPE html>
       <html>
@@ -608,7 +623,7 @@ ResidentOne Workflow Team
               <p>The previous phase has been completed, and you can now start working on your assigned phase.</p>
               
               <p style="margin-top: 30px;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/stages/${data.stageId}" class="button">
+                <a href="${phaseUrl}" class="button">
                   Start Working on ${data.nextPhaseDisplayName}
                 </a>
               </p>

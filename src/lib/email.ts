@@ -109,7 +109,7 @@ export const sendPasswordResetEmail = async (email: string, resetToken: string):
 
 export const sendPasswordChangedEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = getBaseUrl()
   
   const html = `
     <!DOCTYPE html>
@@ -244,10 +244,12 @@ export const sendIssueResolvedEmail = async (
   email: string, 
   reporterName: string,
   issueTitle: string,
-  resolverName: string
+  resolverName: string,
+  issueId?: string
 ): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = getBaseUrl()
+  const issueUrl = issueId ? `${appUrl}/preferences?tab=issues&issue=${issueId}` : `${appUrl}/preferences?tab=issues`
   
   const html = `
     <!DOCTYPE html>
@@ -352,7 +354,7 @@ export const sendIssueResolvedEmail = async (
             </div>
 
             <div style="text-align: center;">
-              <a href="${appUrl}/preferences?tab=issues" class="button">View Issues</a>
+              <a href="${issueUrl}" class="button">View Issue</a>
             </div>
             
             <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 20px;">
@@ -378,7 +380,7 @@ export const sendIssueResolvedEmail = async (
     
     Please verify: Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
     
-    View issues at: ${appUrl}/preferences?tab=issues
+    View issue at: ${issueUrl}
     
     Thank you for reporting this issue and helping us improve ${companyName}!
   `
@@ -398,10 +400,12 @@ export const sendIssueCreatedEmail = async (
   issueDescription: string,
   reporterName: string,
   priority: string,
-  projectName?: string
+  projectName?: string,
+  issueId?: string
 ): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = getBaseUrl()
+  const issueUrl = issueId ? `${appUrl}/preferences?tab=issues&issue=${issueId}` : `${appUrl}/preferences?tab=issues`
   
   const priorityColors: Record<string, string> = {
     'LOW': '#22c55e',
@@ -530,7 +534,7 @@ export const sendIssueCreatedEmail = async (
             </div>
 
             <div style="text-align: center;">
-              <a href="${appUrl}/preferences?tab=issues" class="button">View Issue</a>
+              <a href="${issueUrl}" class="button">View Issue</a>
             </div>
           </div>
           <div class="footer">
@@ -554,7 +558,7 @@ export const sendIssueCreatedEmail = async (
     Description:
     ${issueDescription.length > 300 ? issueDescription.substring(0, 300) + '...' : issueDescription}
     
-    View the issue at: ${appUrl}/preferences?tab=issues
+    View the issue at: ${issueUrl}
   `
 
   return sendEmail({
@@ -567,7 +571,7 @@ export const sendIssueCreatedEmail = async (
 
 export const sendWelcomeEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = getBaseUrl()
   
   const html = `
     <!DOCTYPE html>

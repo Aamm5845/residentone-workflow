@@ -271,7 +271,8 @@ export async function PATCH(
             updatedIssue.reporter.email,
             updatedIssue.reporter.name || 'User',
             updatedIssue.title,
-            session.user.name || 'Team Member'
+            session.user.name || 'Team Member',
+            updatedIssue.id
           )
           console.log(`✅ Issue resolved email sent to ${updatedIssue.reporter.email}`)
         }
