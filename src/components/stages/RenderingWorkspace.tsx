@@ -126,6 +126,11 @@ export default function RenderingWorkspace({
   const [showSourceFileDialog, setShowSourceFileDialog] = useState<string | null>(null)
   const [linkingSourceFile, setLinkingSourceFile] = useState(false)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  
+  // Image lightbox state
+  const [showImageLightbox, setShowImageLightbox] = useState(false)
+  const [lightboxImages, setLightboxImages] = useState<Array<{url: string; title: string}>>([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   // Sync files to Dropbox
   const syncToDropbox = async (versionId: string) => {
@@ -412,6 +417,22 @@ export default function RenderingWorkspace({
       toast.error('Failed to link source')
     } finally {
       setLinkingSourceFile(false)
+    }
+  }
+
+  // Open image in lightbox
+  const openImageLightbox = (assets: any[], startIndex: number) => {
+    const imageAssets = assets
+      .filter(asset => asset.type === 'RENDER' || asset.type === 'IMAGE')
+      .map(asset => ({
+        url: asset.temporaryUrl || `/api/assets/${asset.id}/view`,
+        title: asset.title
+      }))
+    
+    if (imageAssets.length > 0) {
+      setLightboxImages(imageAssets)
+      setCurrentImageIndex(startIndex >= 0 && startIndex < imageAssets.length ? startIndex : 0)
+      setShowImageLightbox(true)
     }
   }
 
@@ -864,13 +885,24 @@ export default function RenderingWorkspace({
                                 <img
                                   src={asset.temporaryUrl || `/api/assets/${asset.id}/view`}
                                   alt={asset.title}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => {
+                                    const imageIndex = version.assets
+                                      .filter(a => a.type === 'RENDER' || a.type === 'IMAGE')
+                                      .findIndex(a => a.id === asset.id)
+                                    openImageLightbox(version.assets, imageIndex)
+                                  }}
                                 />
                               )}
                               {asset.type === 'PDF' && (
-                                <div className="w-full h-full flex items-center justify-center">
+                                <a 
+                                  href={asset.temporaryUrl || `/api/assets/${asset.id}/view`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
+                                >
                                   <FileText className="w-12 h-12 text-gray-400" />
-                                </div>
+                                </a>
                               )}
                               {/* Delete button - only show when not pushed to client */}
                               {!isPushedToClient && (
@@ -878,7 +910,10 @@ export default function RenderingWorkspace({
                                   size="sm"
                                   variant="destructive"
                                   className="absolute top-2 right-2 opacity-0 group-hover/asset:opacity-100 transition-opacity h-8 w-8 p-0 bg-red-600 hover:bg-red-700"
-                                  onClick={() => deleteAsset(asset.id, asset.title, isPushedToClient)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    deleteAsset(asset.id, asset.title, isPushedToClient)
+                                  }}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -1308,6 +1343,95 @@ export default function RenderingWorkspace({
           />
         </div>
       </div>
+
+      {/* Image Lightbox Modal */}
+      {showImageLightbox && lightboxImages.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+          onClick={() => setShowImageLightbox(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setShowImageLightbox(false)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors z-10 bg-black/50 rounded-full p-3"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          {/* Image counter */}
+          <div className="absolute top-4 left-4 text-white/80 text-sm bg-black/50 px-3 py-1 rounded-full">
+            {currentImageIndex + 1} / {lightboxImages.length}
+          </div>
+          
+          {/* Main image area */}
+          <div className="relative flex-1 w-full flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+            {/* Previous button */}
+            {lightboxImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCurrentImageIndex((prev) => prev === 0 ? lightboxImages.length - 1 : prev - 1)
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronDown className="w-6 h-6 rotate-90" />
+              </button>
+            )}
+            
+            {/* Current image */}
+            <img 
+              src={lightboxImages[currentImageIndex]?.url} 
+              alt={lightboxImages[currentImageIndex]?.title || '3D Rendering'} 
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            
+            {/* Next button */}
+            {lightboxImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCurrentImageIndex((prev) => prev === lightboxImages.length - 1 ? 0 : prev + 1)
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+              >
+                <ChevronDown className="w-6 h-6 -rotate-90" />
+              </button>
+            )}
+          </div>
+          
+          {/* Image title */}
+          <div className="text-white text-center pb-4">
+            <p className="text-lg font-medium">{lightboxImages[currentImageIndex]?.title}</p>
+          </div>
+          
+          {/* Thumbnails strip */}
+          {lightboxImages.length > 1 && (
+            <div className="flex gap-2 pb-4 px-4 overflow-x-auto max-w-full">
+              {lightboxImages.map((img, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setCurrentImageIndex(index)
+                  }}
+                  className={`w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                    index === currentImageIndex 
+                      ? 'border-white scale-105' 
+                      : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img 
+                    src={img.url} 
+                    alt={img.title}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Source File Link Dialog */}
       <Dialog 

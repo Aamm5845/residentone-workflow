@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/daily-backup",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-resolved-issues",
+      "schedule": "0 3 * * *"
     }
   ],
   "headers": [

@@ -132,6 +132,18 @@ export async function GET(
       ? ((totalRRP - totalTradePrice) / totalRRP * 100)
       : 0
 
+    // Build available rooms list for adding new specs
+    const availableRooms = rooms
+      .filter(room => room.ffeInstance && room.ffeInstance.sections.length > 0)
+      .map(room => ({
+        id: room.id,
+        name: room.name || room.type.replace(/_/g, ' '),
+        sections: room.ffeInstance!.sections.map(section => ({
+          id: section.id,
+          name: section.name
+        }))
+      }))
+
     return NextResponse.json({
       specs: visibleSpecs,
       stats: {
@@ -143,7 +155,8 @@ export async function GET(
         totalTradePrice,
         totalRRP,
         avgTradeDiscount: Math.round(avgTradeDiscount * 100) / 100
-      }
+      },
+      availableRooms
     })
 
   } catch (error) {

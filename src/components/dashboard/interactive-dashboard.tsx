@@ -216,8 +216,8 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
         <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#6366ea] rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-[#a657f0] rounded-xl flex items-center justify-center">
+              <Layers3 className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">My Active Stages</h2>

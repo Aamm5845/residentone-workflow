@@ -180,6 +180,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
   
+  // Available rooms/sections for adding new specs
+  const [availableRooms, setAvailableRooms] = useState<Array<{ id: string; name: string; sections: Array<{ id: string; name: string }> }>>([])
+  
   // Add from URL modal
   const [addFromUrlModal, setAddFromUrlModal] = useState<{ open: boolean; sectionId: string | null; roomId: string | null }>({ open: false, sectionId: null, roomId: null })
   const [urlInput, setUrlInput] = useState('')
@@ -208,6 +211,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Add Section modal
   const [addSectionModal, setAddSectionModal] = useState<{ open: boolean; categoryName: string | null }>({ open: false, categoryName: null })
   const [newSectionName, setNewSectionName] = useState('')
+  const [creatingSectionLoading, setCreatingSectionLoading] = useState(false)
   
   const [savingItem, setSavingItem] = useState(false)
   
@@ -247,6 +251,47 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     roomId?: string
   }>({ isOpen: false, mode: 'view', item: null })
 
+  // Create new section
+  const handleCreateSection = async () => {
+    if (!newSectionName.trim()) {
+      toast.error('Please enter a section name')
+      return
+    }
+    
+    // Need at least one room to create a section
+    if (availableRooms.length === 0) {
+      toast.error('Please create a room first before adding sections')
+      return
+    }
+    
+    setCreatingSectionLoading(true)
+    try {
+      // Create section in the first available room's FFE instance
+      const firstRoomId = availableRooms[0].id
+      const res = await fetch(`/api/ffe/v2/rooms/${firstRoomId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSectionName.trim() })
+      })
+      
+      if (res.ok) {
+        toast.success('Section created successfully')
+        setAddSectionModal({ open: false, categoryName: null })
+        setNewSectionName('')
+        // Refresh data
+        fetchSpecs()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to create section')
+      }
+    } catch (error) {
+      console.error('Error creating section:', error)
+      toast.error('Failed to create section')
+    } finally {
+      setCreatingSectionLoading(false)
+    }
+  }
+  
   // Load suppliers
   const loadSuppliers = useCallback(async () => {
     try {
@@ -345,6 +390,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       }
       if (data.financials) {
         setFinancials(data.financials)
+      }
+      // Also set available rooms from the data
+      if (data.availableRooms) {
+        setAvailableRooms(data.availableRooms)
       }
     } catch (error) {
       console.error('Failed to fetch specs:', error)
@@ -990,10 +1039,118 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {/* Content */}
       <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No specs found</h3>
-            <p className="text-gray-500 mb-4">Add items to your rooms to see them here.</p>
+          <div className="bg-white rounded-xl border border-gray-200 p-8">
+            {/* Show available sections if any */}
+            {availableRooms.some(r => r.sections.length > 0) ? (
+              <div className="space-y-4">
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to add specs</h3>
+                  <p className="text-gray-500">Click on a section below to add items, or use the Chrome extension.</p>
+                </div>
+                
+                {availableRooms.filter(r => r.sections.length > 0).map(room => (
+                  <div key={room.id} className="space-y-2">
+                    {room.sections.map(section => (
+                      <div 
+                        key={section.id}
+                        className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Layers className="w-5 h-5 text-gray-400" />
+                          <div>
+                            <p className="font-medium text-gray-900">{section.name}</p>
+                            <p className="text-sm text-gray-500">No items yet</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                            onClick={() => openLibraryModal(section.id, room.id)}
+                          >
+                            <Library className="w-3.5 h-3.5" />
+                            From Library
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
+                            onClick={() => setAddFromUrlModal({ open: true, sectionId: section.id, roomId: room.id })}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            From URL
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
+                            onClick={() => setDetailPanel({
+                              isOpen: true,
+                              mode: 'create',
+                              item: null,
+                              sectionId: section.id,
+                              roomId: room.id
+                            })}
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Custom Item
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                
+                <div className="text-center pt-4 border-t border-gray-200 mt-6">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setAddSectionModal({ open: true, categoryName: null })}
+                    className="gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Another Section
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No specs found</h3>
+                <p className="text-gray-500 mb-6">Add product specifications using the Chrome extension or manually below.</p>
+                
+                <div className="flex justify-center gap-3">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setAddSectionModal({ open: true, categoryName: null })}
+                    className="gap-2"
+                  >
+                    <Layers className="w-4 h-4" />
+                    Add Section
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // If we have available rooms/sections, use the first one
+                      if (availableRooms.length > 0 && availableRooms[0].sections.length > 0) {
+                        setDetailPanel({
+                          isOpen: true,
+                          mode: 'create',
+                          item: null,
+                          sectionId: availableRooms[0].sections[0].id,
+                          roomId: availableRooms[0].id
+                        })
+                      } else {
+                        toast.error('Please add a section first')
+                      }
+                    }}
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Item
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -1897,6 +2054,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         mode={detailPanel.mode}
         sectionId={detailPanel.sectionId}
         roomId={detailPanel.roomId}
+        availableRooms={availableRooms}
         onSave={() => {
           fetchSpecs()
           if (detailPanel.mode === 'create') {
@@ -2060,6 +2218,58 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 </>
               ) : (
                 'Add to Phonebook'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Section Modal */}
+      <Dialog open={addSectionModal.open} onOpenChange={(open) => {
+        if (!open) {
+          setAddSectionModal({ open: false, categoryName: null })
+          setNewSectionName('')
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-600" />
+              Add New Section
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Section Name *</Label>
+              <Input
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                placeholder="e.g., Lighting, Flooring, Furniture"
+                autoFocus
+              />
+              <p className="text-xs text-gray-500">Sections help organize your specs by category</p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAddSectionModal({ open: false, categoryName: null })
+              setNewSectionName('')
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateSection}
+              disabled={creatingSectionLoading || !newSectionName.trim()}
+            >
+              {creatingSectionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Section'
               )}
             </Button>
           </DialogFooter>

@@ -41,7 +41,8 @@ import {
   Clock,
   User,
   Folder,
-  FolderPlus
+  FolderPlus,
+  Edit2
 } from 'lucide-react'
 
 interface Project {
@@ -215,6 +216,10 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   
   // Note viewing state
   const [viewingNote, setViewingNote] = useState<SourceFile | null>(null)
+  const [editingNote, setEditingNote] = useState(false)
+  const [editNoteTitle, setEditNoteTitle] = useState('')
+  const [editNoteContent, setEditNoteContent] = useState('')
+  const [savingEditedNote, setSavingEditedNote] = useState(false)
 
   const { data, error, mutate, isLoading } = useSWR<SourcesResponse>(
     `/api/projects/${project.id}/sources`,
@@ -425,6 +430,62 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
     } finally {
       setSavingNote(false)
     }
+  }
+
+  // Start editing a note
+  const startEditingNote = (note: SourceFile) => {
+    setEditNoteTitle(note.title)
+    setEditNoteContent(note.description || '')
+    setEditingNote(true)
+  }
+
+  // Save edited note
+  const handleSaveEditedNote = async () => {
+    if (!viewingNote || !editNoteTitle.trim()) {
+      alert('Please enter a note title')
+      return
+    }
+
+    setSavingEditedNote(true)
+    try {
+      const response = await fetch(`/api/projects/${project.id}/sources/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: viewingNote.id,
+          title: editNoteTitle,
+          content: editNoteContent
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.details || 'Failed to update note')
+      }
+
+      // Refresh data and exit edit mode
+      mutate()
+      setEditingNote(false)
+      
+      // Update the viewingNote with new values
+      setViewingNote({
+        ...viewingNote,
+        title: editNoteTitle,
+        description: editNoteContent
+      })
+    } catch (error) {
+      console.error('Update note error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update note')
+    } finally {
+      setSavingEditedNote(false)
+    }
+  }
+
+  // Cancel editing note
+  const cancelEditingNote = () => {
+    setEditingNote(false)
+    setEditNoteTitle('')
+    setEditNoteContent('')
   }
 
   const totalFiles = data?.totalFiles || 0
@@ -1182,17 +1243,35 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
       )}
       
       {/* Note Viewing Dialog */}
-      <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
+      <Dialog open={!!viewingNote} onOpenChange={(open) => {
+        if (!open) {
+          setViewingNote(null)
+          setEditingNote(false)
+          setEditNoteTitle('')
+          setEditNoteContent('')
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <StickyNote className="w-5 h-5 text-purple-600" />
               </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold text-gray-900">
-                  {viewingNote?.title}
-                </DialogTitle>
+              <div className="flex-1">
+                {editingNote ? (
+                  <input
+                    type="text"
+                    value={editNoteTitle}
+                    onChange={(e) => setEditNoteTitle(e.target.value)}
+                    className="text-lg font-semibold text-gray-900 w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none"
+                    placeholder="Note title..."
+                    autoFocus
+                  />
+                ) : (
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    {viewingNote?.title}
+                  </DialogTitle>
+                )}
                 <DialogDescription className="text-sm text-gray-500 mt-0.5">
                   {viewingNote && (
                     <>
@@ -1206,7 +1285,14 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto px-1 py-4">
-            {viewingNote?.description ? (
+            {editingNote ? (
+              <textarea
+                value={editNoteContent}
+                onChange={(e) => setEditNoteContent(e.target.value)}
+                className="w-full h-64 border border-gray-300 rounded-lg px-4 py-3 text-gray-700 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none resize-none"
+                placeholder="Note content..."
+              />
+            ) : viewingNote?.description ? (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                 <RichTextDisplay 
                   content={viewingNote.description} 
@@ -1221,26 +1307,71 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
             )}
           </div>
           
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setViewingNote(null)}
-            >
-              Close
-            </Button>
-            <Button
-              variant="outline"
-              className="border-red-200 text-red-600 hover:bg-red-50"
-              onClick={() => {
-                if (viewingNote) {
-                  handleDelete(viewingNote.id)
-                  setViewingNote(null)
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Note
-            </Button>
+          <div className="flex justify-between gap-2 pt-4 border-t">
+            <div>
+              {!editingNote && (
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    if (viewingNote) {
+                      handleDelete(viewingNote.id)
+                      setViewingNote(null)
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {editingNote ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={cancelEditingNote}
+                    disabled={savingEditedNote}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-[#a657f0] hover:bg-[#a657f0]/90 text-white"
+                    onClick={handleSaveEditedNote}
+                    disabled={savingEditedNote || !editNoteTitle.trim()}
+                  >
+                    {savingEditedNote ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingNote(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-[#a657f0]/30 text-[#a657f0] hover:bg-[#a657f0]/10"
+                    onClick={() => viewingNote && startEditingNote(viewingNote)}
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Note
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

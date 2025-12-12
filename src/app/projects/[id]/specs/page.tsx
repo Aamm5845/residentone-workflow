@@ -71,7 +71,9 @@ export default async function SpecsPage({ params }: Props) {
     redirect(`/projects/${id}`)
   }
 
-  // Calculate spec stats
+  // Calculate spec stats - only count actual specs (not FFE Workspace tasks)
+  // Task statuses (DRAFT, NEEDS_SPEC, HIDDEN) should NOT be counted
+  const taskStatuses = ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
   let totalItems = 0
   let completedItems = 0
 
@@ -79,6 +81,10 @@ export default async function SpecsPage({ params }: Props) {
     if (room.ffeInstance) {
       room.ffeInstance.sections.forEach((section: any) => {
         section.items.forEach((item: any) => {
+          // Only count items that are actual specs (not tasks)
+          if (!item.specStatus || taskStatuses.includes(item.specStatus)) {
+            return // Skip task items
+          }
           totalItems++
           if (item.specStatus === 'SPECIFIED') {
             completedItems++

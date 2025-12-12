@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,6 +18,12 @@ interface Supplier {
   contactName?: string
   email: string
   phone?: string
+}
+
+interface AvailableRoom {
+  id: string
+  name: string
+  sections: Array<{ id: string; name: string }>
 }
 
 interface ItemDetailPanelProps {
@@ -53,10 +59,12 @@ interface ItemDetailPanelProps {
     height?: string
     depth?: string
     length?: string
+    roomIds?: string[]
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
   roomId?: string
+  availableRooms?: AvailableRoom[]
   onSave?: () => void
   onNavigate?: (direction: 'prev' | 'next') => void
   hasNext?: boolean
@@ -90,6 +98,7 @@ export function ItemDetailPanel({
   mode,
   sectionId,
   roomId,
+  availableRooms = [],
   onSave,
   onNavigate,
   hasNext = false,
@@ -140,6 +149,66 @@ export function ItemDetailPanel({
   })
   
   const [images, setImages] = useState<string[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
+  
+  // Handle file upload
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    if (images.length >= 2) {
+      toast.error('Maximum 2 images allowed')
+      return
+    }
+    
+    const file = files[0]
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB')
+      return
+    }
+    
+    setUploadingImage(true)
+    try {
+      // Convert to base64 for now (can be replaced with actual upload)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setImages(prev => [...prev, result].slice(0, 2))
+        setUploadingImage(false)
+      }
+      reader.onerror = () => {
+        toast.error('Failed to read image')
+        setUploadingImage(false)
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      toast.error('Failed to upload image')
+      setUploadingImage(false)
+    }
+  }
+  
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    handleFileUpload(e.dataTransfer.files)
+  }
   
   // Load suppliers
   useEffect(() => {
@@ -233,6 +302,8 @@ export function ItemDetailPanel({
         notes: (item as any).notes || '',
       })
       setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
+      // Set rooms - either from roomIds array or from single roomId
+      setSelectedRoomIds(item.roomIds || (item.roomId ? [item.roomId] : []))
     } else if (mode === 'create') {
       // Reset form for new item
       setFormData({
@@ -260,8 +331,10 @@ export function ItemDetailPanel({
         notes: '',
       })
       setImages([])
+      // Set initial room from prop if provided
+      setSelectedRoomIds(roomId ? [roomId] : [])
     }
-  }, [item, mode])
+  }, [item, mode, roomId])
   
   const handleSave = async () => {
     if (!formData.name.trim()) {
@@ -441,31 +514,51 @@ export function ItemDetailPanel({
               <>
                 {/* Image Upload */}
                 <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                  />
                   <div className="flex gap-3">
-                    {images.length > 0 ? (
-                      images.map((img, idx) => (
-                        <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                          <button 
-                            onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                            className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
-                        <Upload className="w-6 h-6 text-gray-400" />
+                    {images.length > 0 && images.map((img, idx) => (
+                      <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <button 
+                          onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {images.length < 2 && (
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={cn(
+                          "flex-1 min-w-[200px] border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                          isDragging 
+                            ? "border-emerald-500 bg-emerald-50" 
+                            : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                        )}
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                        ) : (
+                          <>
+                            <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-500">
+                              Drag & drop or <span className="text-blue-600 hover:underline">browse files</span>
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
+                          </>
+                        )}
                       </div>
                     )}
-                    <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                      <Upload className="w-6 h-6 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">
-                        Drag & drop or <span className="text-blue-600 cursor-pointer hover:underline">browse files</span>
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
-                    </div>
                   </div>
                 </div>
                 
@@ -499,15 +592,43 @@ export function ItemDetailPanel({
                   </div>
                 </div>
                 
-                {/* Product Details & Quantity */}
+                {/* Rooms & Quantity */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Product Details</Label>
-                    <Input
-                      value={formData.productName}
-                      onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                      placeholder="Room / Location"
-                    />
+                    <Label>Location / Rooms</Label>
+                    {availableRooms.length > 0 ? (
+                      <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                        {availableRooms.map(room => (
+                          <label 
+                            key={room.id} 
+                            className="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedRoomIds.includes(room.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedRoomIds(prev => [...prev, room.id])
+                                } else {
+                                  setSelectedRoomIds(prev => prev.filter(id => id !== room.id))
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="text-sm">{room.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <Input
+                        value={formData.productName}
+                        onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                        placeholder="Enter location"
+                      />
+                    )}
+                    {selectedRoomIds.length > 0 && (
+                      <p className="text-xs text-gray-500">{selectedRoomIds.length} room(s) selected</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Quantity</Label>
