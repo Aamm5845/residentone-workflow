@@ -138,7 +138,7 @@ export default function CreateUpdateDialog({
 
       const update = await response.json()
 
-      // Upload files if any
+      // Upload files if any - use survey-photos endpoint for images/videos to go to Site Photos folder
       if (selectedFiles.length > 0) {
         setUploadProgress(`Uploading files (0/${selectedFiles.length})...`)
         
@@ -148,20 +148,45 @@ export default function CreateUpdateDialog({
           
           const fileFormData = new FormData()
           fileFormData.append('file', file)
-          fileFormData.append('projectId', projectId)
-          fileFormData.append('updateId', update.id)
-          if (formData.roomId) {
-            fileFormData.append('roomId', formData.roomId)
-          }
-          fileFormData.append('description', `Uploaded with update: ${formData.title || update.type}`)
+          
+          // Check if this is an image or video - use survey-photos endpoint
+          const isMediaFile = file.type.startsWith('image/') || file.type.startsWith('video/')
+          
+          if (isMediaFile) {
+            // Use survey-photos endpoint - uploads to 7- SOURCES/Site Photos/
+            fileFormData.append('caption', formData.title || '')
+            fileFormData.append('notes', formData.description || '')
+            fileFormData.append('tags', JSON.stringify([]))
+            fileFormData.append('takenAt', new Date().toISOString())
+            if (formData.roomId) {
+              fileFormData.append('roomId', formData.roomId)
+            }
 
-          try {
-            await fetch('/api/upload', {
-              method: 'POST',
-              body: fileFormData
-            })
-          } catch (uploadError) {
-            console.error('File upload error:', uploadError)
+            try {
+              await fetch(`/api/projects/${projectId}/updates/${update.id}/survey-photos`, {
+                method: 'POST',
+                body: fileFormData
+              })
+            } catch (uploadError) {
+              console.error('File upload error:', uploadError)
+            }
+          } else {
+            // Use general upload for non-media files (PDFs, documents, etc.)
+            fileFormData.append('projectId', projectId)
+            fileFormData.append('updateId', update.id)
+            if (formData.roomId) {
+              fileFormData.append('roomId', formData.roomId)
+            }
+            fileFormData.append('description', `Uploaded with update: ${formData.title || update.type}`)
+
+            try {
+              await fetch('/api/upload', {
+                method: 'POST',
+                body: fileFormData
+              })
+            } catch (uploadError) {
+              console.error('File upload error:', uploadError)
+            }
           }
         }
       }
