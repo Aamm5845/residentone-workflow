@@ -27,7 +27,8 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  KeyRound
+  KeyRound,
+  HardDrive
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +36,7 @@ import { Badge } from '@/components/ui/badge'
 import IssueList from '@/components/issues/issue-list'
 import FFEManagementV2 from '@/components/preferences/ffe-management-v2'
 import ContractorsManagement from '@/components/preferences/contractors-management'
+import AssetStorageChecker from '@/components/preferences/asset-storage-checker'
 
 interface PreferencesClientProps {
   user: {
@@ -461,6 +463,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
   const tabs = [
     { id: 'backup', name: 'Backup & Recovery', icon: Database },
     { id: 'database', name: 'Database Statistics', icon: RefreshCw },
+    { id: 'asset-storage', name: 'Asset Storage', icon: HardDrive },
     { id: 'contractors', name: 'Contractors', icon: Building },
     { id: 'ffe', name: 'FFE Management', icon: Package },
     { id: 'issues', name: 'Issues', icon: Bug },
@@ -1281,6 +1284,11 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {/* Asset Storage Tab */}
+          {activeTab === 'asset-storage' && (
+            <AssetStorageChecker />
           )}
         </div>
       </div>
