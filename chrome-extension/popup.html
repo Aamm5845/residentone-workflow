@@ -67,40 +67,6 @@
         </div>
       </div>
 
-      <!-- Location Selectors (for Room destination) -->
-      <div class="location-selectors" id="locationSelectors">
-        <div class="selector-group">
-          <label>Project</label>
-          <select id="projectSelect" class="selector">
-            <option value="">Select Project...</option>
-          </select>
-        </div>
-
-        <div class="selector-group hidden" id="roomGroup">
-          <label>Room</label>
-          <select id="roomSelect" class="selector">
-            <option value="">Select Room...</option>
-          </select>
-        </div>
-
-        <div class="selector-group hidden" id="sectionGroup">
-          <label>Section</label>
-          <select id="sectionSelect" class="selector">
-            <option value="">Select Section...</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Category Selector (for Library destination) -->
-      <div class="category-selector hidden" id="categorySelector">
-        <div class="selector-group">
-          <label>Category</label>
-          <select id="categorySelect" class="selector">
-            <option value="">Select Category...</option>
-          </select>
-        </div>
-      </div>
-
       <!-- Smart Fill Button -->
       <button id="smartFillBtn" class="smart-fill-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -149,6 +115,20 @@
 
       <!-- Form Fields -->
       <div class="form-fields">
+        <!-- Product Name -->
+        <div class="field-group">
+          <label>Product name *</label>
+          <div class="field-input">
+            <input type="text" id="productName" placeholder="Product name">
+            <button class="add-btn" data-field="productName" title="Click then select text on page">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <!-- Product Description -->
         <div class="field-group">
           <label>Product description</label>
@@ -163,39 +143,11 @@
           </div>
         </div>
 
-        <!-- Product Details -->
-        <div class="field-group">
-          <label>Product details</label>
-          <div class="field-input">
-            <input type="text" id="productDetails" placeholder="Product details">
-            <button class="add-btn" data-field="productDetails" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Product Name -->
-        <div class="field-group">
-          <label>Product name</label>
-          <div class="field-input">
-            <input type="text" id="productName" placeholder="Product name">
-            <button class="add-btn" data-field="productName" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <!-- Brand -->
         <div class="field-group">
           <label>Brand</label>
           <div class="field-input">
-            <input type="text" id="brand" placeholder="Brand">
+            <input type="text" id="brand" placeholder="Brand name">
             <button class="add-btn" data-field="brand" title="Click then select text on page">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -205,6 +157,23 @@
           </div>
         </div>
 
+        <!-- Supplier -->
+        <div class="field-group">
+          <label>Supplier</label>
+          <div class="field-input supplier-input">
+            <select id="supplierSelect" class="selector supplier-selector">
+              <option value="">Select supplier or add new...</option>
+            </select>
+            <button id="addSupplierBtn" class="add-btn" title="Add new supplier">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+          <p id="supplierHint" class="helper-text-small"></p>
+        </div>
+
         <!-- Product Website -->
         <div class="field-group">
           <label>Product website</label>
@@ -212,8 +181,9 @@
             <input type="text" id="productWebsite" placeholder="https://" readonly>
             <button class="add-btn" data-field="productWebsite" title="Auto-filled from current page">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
               </svg>
             </button>
           </div>
@@ -245,7 +215,7 @@
         <div class="field-group">
           <label>SKU</label>
           <div class="field-input">
-            <input type="text" id="sku" placeholder="SKU">
+            <input type="text" id="sku" placeholder="SKU / Model number">
             <button class="add-btn" data-field="sku" title="Click then select text on page">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -297,59 +267,31 @@
           </div>
         </div>
 
-        <!-- Width -->
-        <div class="field-group">
-          <label>Width</label>
-          <div class="field-input">
-            <input type="text" id="width" placeholder="Width">
-            <button class="add-btn" data-field="width" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+        <!-- Dimensions Row -->
+        <div class="field-row">
+          <div class="field-group small">
+            <label>Width</label>
+            <div class="field-input">
+              <input type="text" id="width" placeholder="W">
+            </div>
           </div>
-        </div>
-
-        <!-- Length -->
-        <div class="field-group">
-          <label>Length</label>
-          <div class="field-input">
-            <input type="text" id="length" placeholder="Length">
-            <button class="add-btn" data-field="length" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+          <div class="field-group small">
+            <label>Height</label>
+            <div class="field-input">
+              <input type="text" id="height" placeholder="H">
+            </div>
           </div>
-        </div>
-
-        <!-- Height -->
-        <div class="field-group">
-          <label>Height</label>
-          <div class="field-input">
-            <input type="text" id="height" placeholder="Height">
-            <button class="add-btn" data-field="height" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+          <div class="field-group small">
+            <label>Depth</label>
+            <div class="field-input">
+              <input type="text" id="depth" placeholder="D">
+            </div>
           </div>
-        </div>
-
-        <!-- Depth -->
-        <div class="field-group">
-          <label>Depth</label>
-          <div class="field-input">
-            <input type="text" id="depth" placeholder="Depth">
-            <button class="add-btn" data-field="depth" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+          <div class="field-group small">
+            <label>Length</label>
+            <div class="field-input">
+              <input type="text" id="length" placeholder="L">
+            </div>
           </div>
         </div>
 
@@ -358,25 +300,12 @@
           <label>Quantity</label>
           <div class="field-input">
             <input type="number" id="quantity" placeholder="Quantity" min="1" value="1">
-            <button class="add-btn" data-field="quantity" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
           </div>
         </div>
 
         <!-- RRP -->
         <div class="field-group">
-          <label>
-            RRP
-            <svg class="info-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Recommended Retail Price">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-          </label>
+          <label>RRP</label>
           <div class="field-input">
             <input type="text" id="rrp" placeholder="RRP">
             <button class="add-btn" data-field="rrp" title="Click then select text on page">
@@ -406,7 +335,7 @@
         <div class="field-group">
           <label>Lead Time</label>
           <div class="field-input">
-            <input type="text" id="leadTime" placeholder="-">
+            <input type="text" id="leadTime" placeholder="e.g. 2-3 weeks">
             <button class="add-btn" data-field="leadTime" title="Click then select text on page">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -431,6 +360,110 @@
         </div>
       </div>
 
+      <!-- Location Selection Section (at bottom) -->
+      <div class="location-section" id="locationSection">
+        <div class="section-header location-header">
+          <span class="section-label">📍 Link to FFE Workspace</span>
+        </div>
+        
+        <!-- Breadcrumb Display - Shows selected items as tags -->
+        <div id="locationBreadcrumb" class="location-breadcrumb hidden">
+          <div id="breadcrumbTags" class="breadcrumb-tags">
+            <!-- Filled dynamically -->
+          </div>
+          <button id="clearLocationBtn" class="clear-location-btn" title="Start over">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Cascading Location Selectors - Only one visible at a time -->
+        <div id="locationSelectors" class="location-selectors">
+          <!-- Step 1: Project Selection -->
+          <div class="cascade-step" id="projectStep">
+            <div class="cascade-header" id="projectHeader">
+              <span class="step-number">1</span>
+              <span class="step-label">Project</span>
+            </div>
+            <select id="projectSelect" class="selector cascade-selector">
+              <option value="">Select Project...</option>
+            </select>
+          </div>
+
+          <!-- Step 2: Room Selection (shows after project) -->
+          <div class="cascade-step hidden" id="roomStep">
+            <div class="cascade-header" id="roomHeader">
+              <span class="step-number">2</span>
+              <span class="step-label">Room</span>
+            </div>
+            <select id="roomSelect" class="selector cascade-selector">
+              <option value="">Select Room...</option>
+            </select>
+          </div>
+
+          <!-- Step 3: Category/Section Selection (shows after room) -->
+          <div class="cascade-step hidden" id="sectionStep">
+            <div class="cascade-header" id="sectionHeader">
+              <span class="step-number">3</span>
+              <span class="step-label">Category</span>
+            </div>
+            <select id="sectionSelect" class="selector cascade-selector">
+              <option value="">Select Category...</option>
+            </select>
+          </div>
+
+          <!-- Step 4: FFE Item Selection (shows after section) -->
+          <div class="cascade-step hidden" id="ffeItemStep">
+            <div class="cascade-header">
+              <span class="step-number">4</span>
+              <span class="step-label">Link to Item</span>
+            </div>
+            <div class="ffe-items-list" id="ffeItemsList">
+              <!-- FFE items will be populated here -->
+            </div>
+            <p id="ffeItemHint" class="helper-text-small"></p>
+          </div>
+        </div>
+        
+        <!-- Link to Similar Items Button (shows after selecting an item) -->
+        <div id="linkSimilarSection" class="link-similar-section hidden">
+          <button id="linkSimilarBtn" class="link-similar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            Link to similar items in other rooms
+          </button>
+        </div>
+        
+        <!-- Similar Items Panel (modal-like panel) -->
+        <div id="similarItemsPanel" class="similar-items-panel hidden">
+          <div class="similar-items-header">
+            <span>🔗 Link to Similar Items</span>
+            <button id="closeSimilarPanel" class="close-panel-btn">×</button>
+          </div>
+          <p class="similar-items-description">Select additional items to link this product to:</p>
+          <div id="similarItemsList" class="similar-items-list">
+            <!-- Similar items will be populated here -->
+          </div>
+          <div class="similar-items-actions">
+            <button id="confirmLinkSimilar" class="btn btn-primary btn-small">Link Selected Items</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Selector (for Library destination) -->
+      <div class="category-selector hidden" id="categorySelector">
+        <div class="selector-group">
+          <label>Library Category</label>
+          <select id="categorySelect" class="selector">
+            <option value="">Select Category (optional)...</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Action Buttons -->
       <div class="action-buttons">
         <button id="clipBtn" class="btn btn-primary btn-full" disabled>Select location first</button>
@@ -438,7 +471,7 @@
       </div>
 
       <!-- Version -->
-      <div class="version">v1.0.0</div>
+      <div class="version">v1.2.0</div>
     </section>
 
     <!-- Loading Overlay -->

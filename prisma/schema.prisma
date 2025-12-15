@@ -236,6 +236,7 @@ model Project {
   hasFloorplanApproval      Boolean                    @default(true)
   hasSpecBook               Boolean                    @default(true)
   hasProjectUpdates         Boolean                    @default(true)
+  shareSettings             Json?
   approvals                 Approval[]
   assets                    Asset[]                    @relation("ProjectAssets")
   clientAccessTokens        ClientAccessToken[]        @relation("ClientAccessTokenProject")
@@ -1389,6 +1390,7 @@ model RoomFFEItem {
   // Additional spec fields
   brand            String?
   sku              String?
+  docCode          String?             // Document code (separate from SKU)
   color            String?
   finish           String?
   material         String?
@@ -1406,9 +1408,23 @@ model RoomFFEItem {
   updatedAt        DateTime            @updatedAt
   createdById      String
   updatedById      String
+  
+  // NEW: FFE Workspace <-> All Specs linking
+  // For FFE Workspace items (requirements): ffeRequirementId is null, isSpecItem is false
+  // For All Specs items (products): ffeRequirementId points to the requirement, isSpecItem is true
+  ffeRequirementId String?             // Links spec item back to its FFE requirement
+  isSpecItem       Boolean             @default(false)  // True if this is an actual product spec
+  isOption         Boolean             @default(false)  // True if this is an option (multiple products for same FFE item)
+  optionNumber     Int?                // Option number (1, 2, 3, etc.) when multiple options exist
+  
+  // Relations
   section          RoomFFESection      @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
   templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
   libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
+  
+  // Self-relation for FFE requirement <-> Spec items
+  ffeRequirement   RoomFFEItem?        @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
+  linkedSpecs      RoomFFEItem[]       @relation("FFERequirementSpecs")
 
   @@index([sectionId, order])
   @@index([state])
@@ -1417,6 +1433,8 @@ model RoomFFEItem {
   @@index([sectionId, visibility])
   @@index([isRequired])
   @@index([libraryProductId])
+  @@index([ffeRequirementId])
+  @@index([isSpecItem])
 }
 
 model FFEChangeLog {

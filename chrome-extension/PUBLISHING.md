@@ -1,6 +1,81 @@
-# Publishing Meisner FFE Clipper to Chrome Web Store
+# Publishing & Distributing Meisner FFE Clipper
 
-## Quick Setup
+## Quick Team Distribution (Recommended for Internal Use)
+
+### Step 1: Build the Release Package
+
+Run the build script in PowerShell:
+
+```powershell
+cd c:\Users\ADMIN\Desktop\residentone-workflow\chrome-extension
+
+# For local/development testing
+.\build-release.ps1
+
+# For production release
+.\build-release.ps1 -Production
+```
+
+This creates: `meisner-ffe-clipper-v1.2.0.zip` in the parent folder
+
+### Step 2: Share with Your Team
+
+**Option A: Shared Drive**
+1. Upload `meisner-ffe-clipper-v1.2.0.zip` to a shared Google Drive / OneDrive folder
+2. Share the folder link with your team
+3. When you release updates, upload the new ZIP to the same folder
+
+**Option B: Email**
+1. Email the ZIP file to team members
+2. Include installation instructions (see README.md)
+
+**Option C: StudioFlow Downloads Page**
+1. Add the ZIP to a downloads page in your app
+2. Team members can download from Settings → Extensions
+
+### Step 3: Update Notifications
+
+The extension automatically checks for updates when opened. To enable this:
+
+1. Create an API endpoint at `/api/extension/version` that returns:
+   ```json
+   {
+     "latestVersion": "1.2.0",
+     "downloadUrl": "https://your-domain.com/downloads/meisner-ffe-clipper.zip"
+   }
+   ```
+
+2. When you release a new version, update this endpoint
+3. Users will see an "Update available" notification in the extension
+
+---
+
+## Updating the Extension
+
+### For Developers
+
+1. Make your changes
+2. Update version in `manifest.json` (e.g., "1.2.1")
+3. Update version in `popup.js` (`EXTENSION_VERSION`)
+4. Update version comment at top of `popup.js`
+5. Run `.\build-release.ps1 -Production`
+6. Upload new ZIP to distribution channel
+7. Update the version API endpoint
+
+### For Team Members
+
+See the README.md for detailed update instructions. Quick version:
+1. Download new ZIP
+2. Extract over existing folder
+3. Go to `chrome://extensions/`
+4. Click refresh icon on Meisner FFE Clipper
+5. Refresh any open web pages
+
+---
+
+## Chrome Web Store Publishing
+
+For public distribution or managed installations:
 
 ### 1. Create Developer Account
 - Go to: https://chrome.google.com/webstore/devconsole/
@@ -10,24 +85,10 @@
 ### 2. Prepare the Extension
 
 Before uploading, verify:
-- `background.js` has `ENVIRONMENT = 'production'`
-- Icons are in the `icons/` folder
+- `popup.js` has `ENVIRONMENT = 'production'`
+- Run `.\build-release.ps1 -Production`
 
-### 3. Create ZIP Package
-
-**Windows (PowerShell):**
-```powershell
-cd c:\Users\ADMIN\Desktop\residentone-workflow
-Compress-Archive -Path .\chrome-extension\* -DestinationPath .\meisner-ffe-clipper.zip -Force
-```
-
-**Or manually:**
-1. Open the `chrome-extension` folder
-2. Select ALL files inside (not the folder itself)
-3. Right-click → Send to → Compressed (zipped) folder
-4. Name it `meisner-ffe-clipper.zip`
-
-### 4. Upload to Chrome Web Store
+### 3. Upload to Chrome Web Store
 
 1. Go to https://chrome.google.com/webstore/devconsole/
 2. Click "New Item"
@@ -48,7 +109,8 @@ Compress-Archive -Path .\chrome-extension\* -DestinationPath .\meisner-ffe-clipp
   • Crop tool for capturing specific areas
   • Attachment detection for PDFs and downloads
   • Drag-to-reorder images
-  • Direct integration with StudioFlow FFE workspace
+  • Link products to FFE items in your workspace
+  • Multi-room product linking
   
   Perfect for interior designers and procurement teams managing furniture, fixtures, and equipment schedules.
   ```
@@ -63,39 +125,19 @@ Compress-Archive -Path .\chrome-extension\* -DestinationPath .\meisner-ffe-clipp
 - Required: At least 1 screenshot (1280x800 or 640x400)
 - Take screenshots showing the extension in action
 
-### 5. Visibility Options
+### 4. Visibility Options
 
 **Public:** Anyone can find and install it
 **Unlisted:** Only people with the direct link can install (recommended for internal tools)
 
-For unlisted:
-- Select "Unlisted" in visibility settings
-- Share the direct link with your team
-
-### 6. Submit for Review
-
+### 5. Submit for Review
 - Click "Submit for Review"
 - Review typically takes 1-3 business days
 - You'll receive email when approved
 
 ---
 
-## Option 2: Direct Installation (For Testing/Small Teams)
-
-For quick team testing without Chrome Web Store:
-
-1. Share the `chrome-extension` folder with team members
-2. Each person:
-   - Opens `chrome://extensions/`
-   - Enables "Developer mode" (top right toggle)
-   - Clicks "Load unpacked"
-   - Selects the `chrome-extension` folder
-
-**Note:** This requires manual updates when you release new versions.
-
----
-
-## Option 3: Enterprise Deployment (Google Workspace)
+## Enterprise Deployment (Google Workspace)
 
 If you use Google Workspace for your organization:
 
@@ -106,25 +148,16 @@ If you use Google Workspace for your organization:
 
 ---
 
-## After Publishing
+## Version Checklist
 
-Share the installation link with your team:
-```
-https://chrome.google.com/webstore/detail/meisner-ffe-clipper/[EXTENSION_ID]
-```
+Before each release:
 
-The extension ID will be shown in the developer dashboard after publishing.
-
----
-
-## Updating the Extension
-
-1. Make changes to the code
-2. Update version in `manifest.json` (e.g., "1.0.1")
-3. Create new ZIP
-4. Go to Developer Dashboard
-5. Click on your extension
-6. Click "Package" → "Upload new package"
-7. Submit for review
-
-Updates for existing users are automatic once approved.
+- [ ] Update version in `manifest.json`
+- [ ] Update `EXTENSION_VERSION` in `popup.js`
+- [ ] Update version comment at top of `popup.js`
+- [ ] Update VERSION HISTORY in `README.md`
+- [ ] Run `.\build-release.ps1 -Production`
+- [ ] Test the production build
+- [ ] Upload to distribution channel
+- [ ] Update version API endpoint
+- [ ] Notify team of update

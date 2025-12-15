@@ -1,21 +1,20 @@
-// Meisner FFE Clipper - Popup Script
+// Meisner FFE Clipper - Popup Script v1.2.0
 
 // Environment Configuration
-// Set to 'local' for development, 'production' for live site
-const ENVIRONMENT = 'local'; // Change to 'local' for development
+const ENVIRONMENT = 'local'; // Change to 'production' for live site
+
+// Extension Version
+const EXTENSION_VERSION = '1.2.0';
 
 // Configuration
 const CONFIG = {
-  // API URLs for different environments
   API_URLS: {
     local: 'http://localhost:3000',
     production: 'https://app.meisnerinteriors.com'
   },
-  // Current API URL based on environment
   get API_BASE_URL() {
     return this.API_URLS[ENVIRONMENT] || this.API_URLS.local;
   },
-  // API endpoints
   ENDPOINTS: {
     AUTH: '/api/extension/auth',
     PROJECTS: '/api/extension/projects',
@@ -23,7 +22,10 @@ const CONFIG = {
     SECTIONS: '/api/extension/sections',
     CLIP: '/api/extension/clip',
     SMART_FILL: '/api/extension/smart-fill',
-    PENDING_ITEMS: '/api/extension/pending-items'
+    PENDING_ITEMS: '/api/extension/pending-items',
+    SUPPLIERS: '/api/extension/suppliers',
+    SIMILAR_ITEMS: '/api/extension/similar-items',
+    VERSION: '/api/extension/version'
   }
 };
 
@@ -35,20 +37,24 @@ let state = {
   projects: [],
   rooms: [],
   sections: [],
+  ffeItems: [], // FFE items in selected section for linking
+  similarItems: [], // Similar items across project for multi-linking
+  selectedSimilarItems: [], // IDs of similar items selected for linking
+  suppliers: [], // Suppliers from phonebook
   categories: [], // Product categories for library
-  pendingItems: [], // Items from Settings that need specs
   destination: 'room', // 'room', 'library', or 'both'
   selectedProject: null,
   selectedRoom: null,
   selectedSection: null,
-  selectedCategory: null, // For library destination
-  selectedLinkItem: null, // Item to link clipped spec to
+  selectedCategory: null,
+  selectedFfeItem: null, // FFE item to link to
+  selectedFfeItemName: null, // Name of selected FFE item (for finding similar)
+  selectedSupplier: null, // Selected supplier from phonebook
   clippedData: {
     images: [],
     attachments: [],
-    productDescription: '',
-    productDetails: '',
     productName: '',
+    productDescription: '',
     brand: '',
     productWebsite: '',
     docCode: '',
@@ -57,9 +63,9 @@ let state = {
     finish: '',
     material: '',
     width: '',
-    length: '',
     height: '',
     depth: '',
+    length: '',
     quantity: 1,
     rrp: '',
     tradePrice: '',
@@ -70,22 +76,7 @@ let state = {
 };
 
 // DOM Elements
-const elements = {
-  authSection: null,
-  mainSection: null,
-  loginBtn: null,
-  projectSelect: null,
-  roomSelect: null,
-  sectionSelect: null,
-  smartFillBtn: null,
-  clipBtn: null,
-  clearBtn: null,
-  loadingOverlay: null,
-  loadingText: null,
-  toast: null,
-  toastMessage: null,
-  imagesContainer: null
-};
+const elements = {};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -96,43 +87,79 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadPendingImages();
   await loadFormState();
   
-  // Listen for storage changes (for picker updates)
+  // Check for updates (non-blocking)
+  checkForUpdates();
+  
+  // Listen for storage changes
   chrome.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName === 'local') {
-      // Check if picker result was updated
       if (changes.pickerResult?.newValue) {
-        // Get both values from storage to be sure
         const stored = await chrome.storage.local.get(['pickerResult', 'pickerField']);
         const pickerResult = stored.pickerResult;
         const pickerField = stored.pickerField;
         
         if (pickerResult && pickerField) {
-          console.log('Picker update received:', pickerField, pickerResult.substring(0, 50));
-          
-          // Update state
           state.clippedData[pickerField] = pickerResult;
-          
-          // Update input field
           const input = document.getElementById(pickerField);
-          if (input) {
-            input.value = pickerResult;
-            console.log('Updated input field:', pickerField);
-          }
-          
+          if (input) input.value = pickerResult;
           showToast(`Text captured for ${formatFieldLabel(pickerField)}!`, 'success');
-          
-          // Clear the picker result from storage
           chrome.storage.local.remove(['pickerResult', 'pickerField', 'pickerFieldName']);
         }
       }
       
-      // Check if pending images were updated
       if (changes.pendingImages?.newValue?.length > 0) {
         loadPendingImages();
       }
     }
   });
 });
+
+// Check for extension updates
+async function checkForUpdates() {
+  try {
+    const response = await apiRequest('GET', CONFIG.ENDPOINTS.VERSION);
+    
+    if (response.ok && response.data?.latestVersion) {
+      const latestVersion = response.data.latestVersion;
+      
+      if (isNewerVersion(latestVersion, EXTENSION_VERSION)) {
+        showUpdateAvailable(latestVersion, response.data.downloadUrl);
+      }
+    }
+  } catch (error) {
+    // Silently fail - version check is non-critical
+    console.log('Version check skipped:', error.message);
+  }
+}
+
+// Compare version strings (returns true if v1 > v2)
+function isNewerVersion(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return true;
+    if (p1 < p2) return false;
+  }
+  return false;
+}
+
+// Show update available notification
+function showUpdateAvailable(newVersion, downloadUrl) {
+  const versionEl = document.querySelector('.version');
+  if (versionEl) {
+    versionEl.innerHTML = `
+      <div class="update-available">
+        <span>🎉 Update available: v${newVersion}</span>
+        <a href="${downloadUrl || CONFIG.API_BASE_URL + '/settings'}" target="_blank" class="update-link">Download</a>
+      </div>
+      <span class="current-version">Current: v${EXTENSION_VERSION}</span>
+    `;
+    versionEl.classList.add('has-update');
+  }
+}
 
 // Initialize DOM elements
 function initElements() {
@@ -142,6 +169,8 @@ function initElements() {
   elements.projectSelect = document.getElementById('projectSelect');
   elements.roomSelect = document.getElementById('roomSelect');
   elements.sectionSelect = document.getElementById('sectionSelect');
+  elements.ffeItemsList = document.getElementById('ffeItemsList');
+  elements.supplierSelect = document.getElementById('supplierSelect');
   elements.smartFillBtn = document.getElementById('smartFillBtn');
   elements.clipBtn = document.getElementById('clipBtn');
   elements.clearBtn = document.getElementById('clearBtn');
@@ -150,11 +179,26 @@ function initElements() {
   elements.toast = document.getElementById('toast');
   elements.toastMessage = document.getElementById('toastMessage');
   elements.imagesContainer = document.getElementById('imagesContainer');
+  elements.locationSelectors = document.getElementById('locationSelectors');
+  // Breadcrumb
+  elements.locationBreadcrumb = document.getElementById('locationBreadcrumb');
+  elements.breadcrumbTags = document.getElementById('breadcrumbTags');
+  // Cascade steps
+  elements.projectStep = document.getElementById('projectStep');
+  elements.roomStep = document.getElementById('roomStep');
+  elements.sectionStep = document.getElementById('sectionStep');
+  elements.ffeItemStep = document.getElementById('ffeItemStep');
+  // Similar items
+  elements.linkSimilarSection = document.getElementById('linkSimilarSection');
+  elements.linkSimilarBtn = document.getElementById('linkSimilarBtn');
+  elements.similarItemsPanel = document.getElementById('similarItemsPanel');
+  elements.similarItemsList = document.getElementById('similarItemsList');
+  elements.closeSimilarPanel = document.getElementById('closeSimilarPanel');
+  elements.confirmLinkSimilar = document.getElementById('confirmLinkSimilar');
 }
 
 // Initialize event listeners
 function initEventListeners() {
-  // Login button
   elements.loginBtn?.addEventListener('click', handleLogin);
 
   // Destination buttons
@@ -162,7 +206,7 @@ function initEventListeners() {
     btn.addEventListener('click', (e) => handleDestinationChange(e.currentTarget.dataset.dest));
   });
 
-  // Category selection
+  // Category selection (for library)
   document.getElementById('categorySelect')?.addEventListener('change', handleCategoryChange);
 
   // Project selection
@@ -174,14 +218,21 @@ function initEventListeners() {
   // Section selection
   elements.sectionSelect?.addEventListener('change', handleSectionChange);
 
+  // Supplier selection
+  elements.supplierSelect?.addEventListener('change', handleSupplierChange);
+  document.getElementById('addSupplierBtn')?.addEventListener('click', handleAddSupplier);
+
   // Smart fill button
   elements.smartFillBtn?.addEventListener('click', handleSmartFill);
 
-  // Clip button - directly saves the item
+  // Clip button
   elements.clipBtn?.addEventListener('click', handleClip);
 
   // Clear button
   elements.clearBtn?.addEventListener('click', handleClear);
+
+  // Clear location button
+  document.getElementById('clearLocationBtn')?.addEventListener('click', clearLocationSelection);
 
   // Crop tool button
   document.getElementById('cropImageBtn')?.addEventListener('click', handleCropTool);
@@ -197,6 +248,11 @@ function initEventListeners() {
   // Close button
   document.getElementById('closeBtn')?.addEventListener('click', () => window.close());
 
+  // Similar items functionality
+  elements.linkSimilarBtn?.addEventListener('click', handleLinkSimilarClick);
+  elements.closeSimilarPanel?.addEventListener('click', closeSimilarPanel);
+  elements.confirmLinkSimilar?.addEventListener('click', confirmLinkSimilarItems);
+
   // Listen for messages from content script
   chrome.runtime.onMessage.addListener(handleMessage);
 }
@@ -206,23 +262,20 @@ async function checkAuth() {
   showLoading('Checking authentication...');
   
   try {
-    // Try to get stored API key
     const stored = await chrome.storage.local.get(['apiKey', 'user']);
     
     if (stored.apiKey) {
       state.apiKey = stored.apiKey;
       state.user = stored.user;
       
-      // Verify the key is still valid
       const response = await apiRequest('GET', CONFIG.ENDPOINTS.AUTH);
       
       if (response.ok) {
         state.isAuthenticated = true;
         state.user = response.data.user;
         showMainSection();
-        await loadProjects();
+        await Promise.all([loadProjects(), loadSuppliers()]);
       } else {
-        // Key is invalid, clear it
         await chrome.storage.local.remove(['apiKey', 'user']);
         showAuthSection();
       }
@@ -237,25 +290,20 @@ async function checkAuth() {
   hideLoading();
 }
 
-// Handle login - opens sign in page and polls for result
+// Handle login
 async function handleLogin() {
-  // Open the login page in a new tab
   const loginUrl = `${CONFIG.API_BASE_URL}/extension-auth`;
-  console.log('[FFE Clipper] Opening auth page:', loginUrl);
   const tab = await chrome.tabs.create({ url: loginUrl });
   
   showLoading('Waiting for sign in...');
   
-  // Poll for auth completion
   let attempts = 0;
-  const maxAttempts = 120; // 2 minutes max
+  const maxAttempts = 120;
   
   const pollInterval = setInterval(async () => {
     attempts++;
     
-    // Check if we got the auth key
     const stored = await chrome.storage.local.get(['apiKey', 'user']);
-    console.log('[FFE Clipper] Poll attempt', attempts, '- apiKey found:', !!stored.apiKey);
     
     if (stored.apiKey) {
       clearInterval(pollInterval);
@@ -263,27 +311,18 @@ async function handleLogin() {
       state.user = stored.user;
       state.isAuthenticated = true;
       
-      console.log('[FFE Clipper] Auth successful! User:', stored.user?.email);
-      
-      // Try to close the auth tab
-      try {
-        await chrome.tabs.remove(tab.id);
-      } catch (e) {
-        // Tab might already be closed
-      }
+      try { await chrome.tabs.remove(tab.id); } catch (e) {}
       
       hideLoading();
       showMainSection();
       showToast('Signed in successfully!', 'success');
-      await loadProjects();
+      await Promise.all([loadProjects(), loadSuppliers()]);
       return;
     }
     
-    // Check if tab was closed without auth
     try {
       await chrome.tabs.get(tab.id);
     } catch (e) {
-      // Tab was closed - check one more time for auth
       const finalCheck = await chrome.storage.local.get(['apiKey', 'user']);
       if (finalCheck.apiKey) {
         clearInterval(pollInterval);
@@ -293,7 +332,7 @@ async function handleLogin() {
         hideLoading();
         showMainSection();
         showToast('Signed in successfully!', 'success');
-        await loadProjects();
+        await Promise.all([loadProjects(), loadSuppliers()]);
         return;
       }
       
@@ -303,7 +342,6 @@ async function handleLogin() {
       return;
     }
     
-    // Timeout
     if (attempts >= maxAttempts) {
       clearInterval(pollInterval);
       hideLoading();
@@ -313,27 +351,121 @@ async function handleLogin() {
   }, 1000);
 }
 
+// Load suppliers from phonebook
+async function loadSuppliers() {
+  try {
+    const response = await apiRequest('GET', CONFIG.ENDPOINTS.SUPPLIERS);
+    
+    if (response.ok && response.data.suppliers) {
+      state.suppliers = response.data.suppliers;
+      renderSupplierSelect();
+    }
+  } catch (error) {
+    console.error('Failed to load suppliers:', error);
+  }
+}
+
+// Render supplier select options
+function renderSupplierSelect() {
+  if (!elements.supplierSelect) return;
+  
+  elements.supplierSelect.innerHTML = '<option value="">Select supplier or type name...</option>';
+  
+  state.suppliers.forEach(supplier => {
+    const option = document.createElement('option');
+    option.value = supplier.id;
+    option.textContent = supplier.name;
+    if (supplier.website) {
+      option.dataset.website = supplier.website;
+    }
+    elements.supplierSelect.appendChild(option);
+  });
+  
+  // Add "Add new" option
+  const addNewOption = document.createElement('option');
+  addNewOption.value = '_add_new';
+  addNewOption.textContent = '➕ Add new supplier...';
+  elements.supplierSelect.appendChild(addNewOption);
+  
+  // Show hint
+  const hint = document.getElementById('supplierHint');
+  if (hint && state.suppliers.length > 0) {
+    hint.textContent = `${state.suppliers.length} suppliers in phonebook`;
+    hint.style.color = '#6b7280';
+  }
+}
+
+// Handle supplier selection
+function handleSupplierChange(e) {
+  const value = e.target.value;
+  
+  if (value === '_add_new') {
+    handleAddSupplier();
+    e.target.value = '';
+    return;
+  }
+  
+  state.selectedSupplier = value || null;
+  
+  // If supplier selected, get their website
+  if (value) {
+    const supplier = state.suppliers.find(s => s.id === value);
+    if (supplier?.website && !state.clippedData.productWebsite) {
+      // Optionally auto-fill supplier website
+    }
+  }
+}
+
+// Handle add new supplier
+function handleAddSupplier() {
+  const name = prompt('Enter supplier name:');
+  if (!name) return;
+  
+  // For now, just add as a custom option - in future could create via API
+  const option = document.createElement('option');
+  option.value = `_custom_${name}`;
+  option.textContent = name;
+  option.selected = true;
+  elements.supplierSelect.insertBefore(option, elements.supplierSelect.lastElementChild);
+  
+  state.selectedSupplier = `_custom_${name}`;
+  showToast(`Supplier "${name}" added`, 'success');
+}
+
 // Handle project change
 async function handleProjectChange(e) {
   const projectId = e.target.value;
   state.selectedProject = projectId;
   state.selectedRoom = null;
   state.selectedSection = null;
+  state.selectedFfeItem = null;
+  state.selectedFfeItemName = null;
+  state.selectedSimilarItems = [];
 
-  // Reset and hide room and section selects
+  // Reset downstream selects
   elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
-  elements.sectionSelect.innerHTML = '<option value="">Select Section...</option>';
+  elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
+  if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
   
-  // Hide room and section groups
-  document.getElementById('roomGroup')?.classList.add('hidden');
-  document.getElementById('sectionGroup')?.classList.add('hidden');
-
+  // Hide all steps and similar panel
+  elements.projectStep?.classList.add('hidden');
+  elements.roomStep?.classList.add('hidden');
+  elements.sectionStep?.classList.add('hidden');
+  elements.ffeItemStep?.classList.add('hidden');
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
+  
   updateClipButton();
 
   if (projectId) {
     await loadRooms(projectId);
-    // Show room group after loading
-    document.getElementById('roomGroup')?.classList.remove('hidden');
+    // Show room step (project step is now hidden, shown in breadcrumb)
+    elements.roomStep?.classList.remove('hidden');
+    updateBreadcrumb();
+  } else {
+    // If cleared, show project step again
+    elements.projectStep?.classList.remove('hidden');
+    hideBreadcrumb();
   }
 }
 
@@ -342,174 +474,496 @@ async function handleRoomChange(e) {
   const roomId = e.target.value;
   state.selectedRoom = roomId;
   state.selectedSection = null;
-  state.selectedLinkItem = null;
+  state.selectedFfeItem = null;
+  state.selectedFfeItemName = null;
+  state.selectedSimilarItems = [];
 
-  // Reset and hide section select
-  elements.sectionSelect.innerHTML = '<option value="">Select Section...</option>';
-  document.getElementById('sectionGroup')?.classList.add('hidden');
+  elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
+  if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
   
-  // Reset link items
-  const linkGroup = document.getElementById('linkItemGroup');
-  if (linkGroup) linkGroup.classList.add('hidden');
+  // Hide room step and downstream steps
+  elements.roomStep?.classList.add('hidden');
+  elements.sectionStep?.classList.add('hidden');
+  elements.ffeItemStep?.classList.add('hidden');
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
 
   if (roomId) {
     await loadSections(roomId);
-    await loadPendingItems(roomId);
-    // Show section group after loading
-    document.getElementById('sectionGroup')?.classList.remove('hidden');
+    // Show section step (room step is now hidden, shown in breadcrumb)
+    elements.sectionStep?.classList.remove('hidden');
+    updateBreadcrumb();
+  } else {
+    // If cleared, show room step again
+    elements.roomStep?.classList.remove('hidden');
   }
 
-  updateClipButton();
-}
-
-// Load items that need specs for linking
-async function loadPendingItems(roomId) {
-  try {
-    const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
-    
-    if (response.ok && response.items) {
-      state.pendingItems = response.items;
-      renderLinkItemsSelector();
-    } else {
-      state.pendingItems = [];
-    }
-  } catch (error) {
-    console.error('Failed to load pending items:', error);
-    state.pendingItems = [];
-  }
-}
-
-// Render the link items selector
-function renderLinkItemsSelector() {
-  let linkGroup = document.getElementById('linkItemGroup');
-  
-  // Create the group if it doesn't exist
-  if (!linkGroup) {
-    const sectionGroup = document.getElementById('sectionGroup');
-    if (sectionGroup) {
-      linkGroup = document.createElement('div');
-      linkGroup.id = 'linkItemGroup';
-      linkGroup.className = 'field-group hidden';
-      linkGroup.innerHTML = `
-        <label class="field-label">
-          <span class="label-icon">🔗</span>
-          Link to existing item (optional)
-        </label>
-        <select id="linkItemSelect" class="field-select">
-          <option value="">Create new item</option>
-        </select>
-        <div id="linkItemHint" class="field-hint"></div>
-      `;
-      sectionGroup.insertAdjacentElement('afterend', linkGroup);
-      
-      // Add event listener
-      document.getElementById('linkItemSelect')?.addEventListener('change', handleLinkItemChange);
-    }
-  }
-  
-  const select = document.getElementById('linkItemSelect');
-  const hint = document.getElementById('linkItemHint');
-  
-  if (!select) return;
-  
-  // Populate the select
-  select.innerHTML = '<option value="">➕ Create new item</option>';
-  
-  const needsSpecItems = state.pendingItems.filter(i => i.needsSpec);
-  const hasSpecItems = state.pendingItems.filter(i => !i.needsSpec);
-  
-  if (needsSpecItems.length > 0) {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = `⚠️ Needs Spec (${needsSpecItems.length})`;
-    needsSpecItems.forEach(item => {
-      const option = document.createElement('option');
-      option.value = item.id;
-      option.textContent = `${item.name} (${item.sectionName})`;
-      optgroup.appendChild(option);
-    });
-    select.appendChild(optgroup);
-  }
-  
-  if (hasSpecItems.length > 0) {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = `✅ Has Spec (${hasSpecItems.length})`;
-    hasSpecItems.forEach(item => {
-      const option = document.createElement('option');
-      option.value = item.id;
-      option.textContent = `${item.name} (${item.sectionName}) - update`;
-      optgroup.appendChild(option);
-    });
-    select.appendChild(optgroup);
-  }
-  
-  // Show hint
-  if (hint) {
-    if (needsSpecItems.length > 0) {
-      hint.textContent = `${needsSpecItems.length} items from Settings need specs`;
-      hint.style.color = '#d97706';
-    } else if (state.pendingItems.length > 0) {
-      hint.textContent = 'All items have specs ✓';
-      hint.style.color = '#10b981';
-    } else {
-      hint.textContent = 'No items in Settings yet';
-      hint.style.color = '#6b7280';
-    }
-  }
-  
-  // Show the group
-  if (linkGroup && state.pendingItems.length > 0) {
-    linkGroup.classList.remove('hidden');
-  }
-}
-
-// Handle link item selection
-function handleLinkItemChange(e) {
-  state.selectedLinkItem = e.target.value || null;
-  
-  // If linking to existing item, auto-select its section
-  if (state.selectedLinkItem) {
-    const item = state.pendingItems.find(i => i.id === state.selectedLinkItem);
-    if (item && elements.sectionSelect) {
-      elements.sectionSelect.value = item.sectionId;
-      state.selectedSection = item.sectionId;
-    }
-  }
-  
   updateClipButton();
 }
 
 // Handle section change
-function handleSectionChange(e) {
-  state.selectedSection = e.target.value;
+async function handleSectionChange(e) {
+  const sectionId = e.target.value;
+  state.selectedSection = sectionId;
+  state.selectedFfeItem = null;
+  state.selectedFfeItemName = null;
+  state.selectedSimilarItems = [];
+
+  if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
+  
+  // Hide section step and downstream
+  elements.sectionStep?.classList.add('hidden');
+  elements.ffeItemStep?.classList.add('hidden');
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
+
+  if (sectionId) {
+    await loadFfeItems(state.selectedRoom, sectionId);
+    // Show FFE items step (section step is now hidden, shown in breadcrumb)
+    elements.ffeItemStep?.classList.remove('hidden');
+    updateBreadcrumb();
+  } else {
+    // If cleared, show section step again
+    elements.sectionStep?.classList.remove('hidden');
+  }
+
   updateClipButton();
 }
 
-// Handle destination change (room, library, or both)
+// Handle FFE item selection (card click)
+function handleFfeItemSelect(itemId, itemName) {
+  // Deselect if clicking the same item
+  if (state.selectedFfeItem === itemId) {
+    state.selectedFfeItem = null;
+    state.selectedFfeItemName = null;
+  } else {
+    state.selectedFfeItem = itemId;
+    state.selectedFfeItemName = itemName;
+  }
+  
+  state.selectedSimilarItems = [];
+  closeSimilarPanel();
+  
+  // Update card selection state
+  renderFfeItemCards();
+  
+  // Show/hide link similar button based on selection
+  if (state.selectedFfeItem && state.selectedFfeItemName) {
+    elements.linkSimilarSection?.classList.remove('hidden');
+  } else {
+    elements.linkSimilarSection?.classList.add('hidden');
+  }
+  
+  // Update breadcrumb with item if selected
+  updateBreadcrumb();
+  updateClipButton();
+}
+
+// Load FFE items for a section
+async function loadFfeItems(roomId, sectionId) {
+  try {
+    const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
+    
+    // API returns items directly on response, not in response.data
+    const items = response.items || response.data?.items || [];
+    
+    if (response.ok && items.length >= 0) {
+      // Filter items by section
+      const sectionItems = items.filter(item => item.sectionId === sectionId);
+      state.ffeItems = sectionItems;
+      
+      // Render items as cards
+      renderFfeItemCards();
+      
+      // Update hint
+      const hint = document.getElementById('ffeItemHint');
+      const needsSpec = sectionItems.filter(i => i.needsSpec);
+      if (hint) {
+        if (needsSpec.length > 0) {
+          hint.textContent = `${needsSpec.length} item${needsSpec.length > 1 ? 's' : ''} need products`;
+          hint.style.color = '#d97706';
+        } else if (sectionItems.length > 0) {
+          hint.textContent = 'All items have products ✓';
+          hint.style.color = '#10b981';
+        } else {
+          hint.textContent = 'No items yet - select "Create new item"';
+          hint.style.color = '#6b7280';
+        }
+      }
+    } else {
+      // No items or error, still show the create new option
+      state.ffeItems = [];
+      renderFfeItemCards();
+    }
+  } catch (error) {
+    console.error('Failed to load FFE items:', error);
+    state.ffeItems = [];
+    renderFfeItemCards();
+  }
+}
+
+// Render FFE items as clickable cards
+function renderFfeItemCards() {
+  if (!elements.ffeItemsList) return;
+  
+  elements.ffeItemsList.innerHTML = '';
+  
+  // Add "Create new item" card first
+  const createNewCard = document.createElement('div');
+  createNewCard.className = `ffe-item-card create-new ${state.selectedFfeItem === null ? 'selected' : ''}`;
+  createNewCard.innerHTML = `
+    <span class="item-icon">➕</span>
+    <div class="item-info">
+      <div class="item-name">Create new item</div>
+      <div class="item-status">Add a new FFE item to this category</div>
+    </div>
+    <div class="item-check">${state.selectedFfeItem === null ? '✓' : ''}</div>
+  `;
+  createNewCard.onclick = () => handleFfeItemSelect(null, null);
+  elements.ffeItemsList.appendChild(createNewCard);
+  
+  // Sort: items needing spec first
+  const sortedItems = [...state.ffeItems].sort((a, b) => {
+    if (a.needsSpec && !b.needsSpec) return -1;
+    if (!a.needsSpec && b.needsSpec) return 1;
+    return 0;
+  });
+  
+  // Add item cards
+  sortedItems.forEach(item => {
+    const card = document.createElement('div');
+    const isSelected = state.selectedFfeItem === item.id;
+    const statusClass = item.needsSpec ? 'needs-spec' : 'has-spec';
+    
+    card.className = `ffe-item-card ${statusClass} ${isSelected ? 'selected' : ''}`;
+    card.innerHTML = `
+      <span class="item-icon">${item.needsSpec ? '📦' : '✅'}</span>
+      <div class="item-info">
+        <div class="item-name">${escapeHtml(item.name)}</div>
+        <div class="item-status">${item.needsSpec ? 'Needs product spec' : 'Has product linked'}</div>
+      </div>
+      <div class="item-check">${isSelected ? '✓' : ''}</div>
+    `;
+    card.onclick = () => handleFfeItemSelect(item.id, item.name);
+    elements.ffeItemsList.appendChild(card);
+  });
+}
+
+// Helper to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Handle click on "Link to similar items" button
+async function handleLinkSimilarClick() {
+  if (!state.selectedProject || !state.selectedFfeItemName) {
+    showToast('Please select an FFE item first', 'error');
+    return;
+  }
+  
+  // Show the panel with loading state
+  elements.similarItemsPanel?.classList.remove('hidden');
+  elements.similarItemsList.innerHTML = `
+    <div class="panel-loading">
+      <div class="spinner-small"></div>
+      <span>Finding similar items...</span>
+    </div>
+  `;
+  
+  try {
+    // Fetch similar items from API
+    const response = await apiRequest('GET', 
+      `${CONFIG.ENDPOINTS.SIMILAR_ITEMS}?projectId=${state.selectedProject}&searchTerm=${encodeURIComponent(state.selectedFfeItemName)}&excludeItemId=${state.selectedFfeItem || ''}`
+    );
+    
+    // API may return similarItems directly or in data
+    const similarItems = response.similarItems || response.data?.similarItems || [];
+    
+    if (response.ok && similarItems.length > 0) {
+      state.similarItems = similarItems;
+      renderSimilarItems();
+    } else {
+      elements.similarItemsList.innerHTML = `
+        <div class="no-similar-items">
+          No similar items found in other rooms
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Failed to find similar items:', error);
+    elements.similarItemsList.innerHTML = `
+      <div class="no-similar-items">
+        Failed to search for similar items
+      </div>
+    `;
+  }
+}
+
+// Render similar items in the panel
+function renderSimilarItems() {
+  if (!elements.similarItemsList) return;
+  
+  if (state.similarItems.length === 0) {
+    elements.similarItemsList.innerHTML = `
+      <div class="no-similar-items">
+        No similar items found in other rooms.<br>
+        Items with similar names will appear here.
+      </div>
+    `;
+    return;
+  }
+  
+  elements.similarItemsList.innerHTML = '';
+  
+  state.similarItems.forEach(item => {
+    const div = document.createElement('div');
+    const isChecked = state.selectedSimilarItems.includes(item.id);
+    
+    div.className = `similar-item ${isChecked ? 'selected' : ''}`;
+    div.innerHTML = `
+      <input type="checkbox" ${isChecked ? 'checked' : ''} data-item-id="${item.id}">
+      <div class="similar-item-info">
+        <div class="similar-item-name">${escapeHtml(item.name)}</div>
+        <div class="similar-item-location">${escapeHtml(item.roomName)} → ${escapeHtml(item.sectionName)}</div>
+      </div>
+      <span class="similar-item-status ${item.hasSpec ? 'has-spec' : 'needs-spec'}">
+        ${item.hasSpec ? 'Has spec' : 'Needs spec'}
+      </span>
+    `;
+    
+    // Handle checkbox toggle
+    const checkbox = div.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (!state.selectedSimilarItems.includes(item.id)) {
+          state.selectedSimilarItems.push(item.id);
+        }
+        div.classList.add('selected');
+      } else {
+        state.selectedSimilarItems = state.selectedSimilarItems.filter(id => id !== item.id);
+        div.classList.remove('selected');
+      }
+    });
+    
+    // Click on the row toggles the checkbox
+    div.addEventListener('click', (e) => {
+      if (e.target.type !== 'checkbox') {
+        checkbox.click();
+      }
+    });
+    
+    elements.similarItemsList.appendChild(div);
+  });
+}
+
+// Close similar items panel
+function closeSimilarPanel() {
+  elements.similarItemsPanel?.classList.add('hidden');
+  state.similarItems = [];
+  state.selectedSimilarItems = [];
+}
+
+// Confirm linking to similar items
+function confirmLinkSimilarItems() {
+  if (state.selectedSimilarItems.length === 0) {
+    showToast('Please select at least one item to link', 'error');
+    return;
+  }
+  
+  // Close the panel - the selected items will be used during clip
+  closeSimilarPanel();
+  
+  // Keep the selection for the clip action
+  const count = state.selectedSimilarItems.length;
+  showToast(`${count} additional item${count > 1 ? 's' : ''} will be linked`, 'success');
+  
+  updateClipButton();
+}
+
+// Update breadcrumb display with selected items as tags
+function updateBreadcrumb() {
+  if (!elements.breadcrumbTags) return;
+  
+  const tags = [];
+  
+  // Project tag
+  if (state.selectedProject) {
+    const project = state.projects.find(p => p.id === state.selectedProject);
+    if (project) {
+      tags.push({ type: 'project', label: project.name, icon: '📁' });
+    }
+  }
+  
+  // Room tag
+  if (state.selectedRoom) {
+    const room = state.rooms.find(r => r.id === state.selectedRoom);
+    if (room) {
+      tags.push({ type: 'room', label: room.name || room.type, icon: '🏠' });
+    }
+  }
+  
+  // Section tag
+  if (state.selectedSection) {
+    const section = state.sections.find(s => s.id === state.selectedSection);
+    if (section) {
+      tags.push({ type: 'section', label: section.name, icon: '📦' });
+    }
+  }
+  
+  // FFE Item tag
+  if (state.selectedFfeItem) {
+    const item = state.ffeItems.find(i => i.id === state.selectedFfeItem);
+    if (item) {
+      tags.push({ type: 'item', label: item.name, icon: '🔗' });
+    }
+  }
+  
+  if (tags.length > 0) {
+    elements.breadcrumbTags.innerHTML = tags.map((tag, index) => `
+      <div class="breadcrumb-tag" data-type="${tag.type}">
+        <span class="tag-icon">${tag.icon}</span>
+        <span class="tag-label">${escapeHtml(tag.label)}</span>
+        ${index === tags.length - 1 ? `<button class="tag-back" data-step="${tag.type}" title="Go back">✕</button>` : ''}
+      </div>
+      ${index < tags.length - 1 ? '<span class="breadcrumb-arrow">→</span>' : ''}
+    `).join('');
+    
+    // Add click handlers for back buttons
+    elements.breadcrumbTags.querySelectorAll('.tag-back').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleBreadcrumbBack(btn.dataset.step);
+      });
+    });
+    
+    elements.locationBreadcrumb?.classList.remove('hidden');
+  } else {
+    hideBreadcrumb();
+  }
+}
+
+// Handle clicking back on a breadcrumb tag
+function handleBreadcrumbBack(step) {
+  switch (step) {
+    case 'project':
+      // Clear project and reset to project selection
+      state.selectedProject = null;
+      state.selectedRoom = null;
+      state.selectedSection = null;
+      state.selectedFfeItem = null;
+      state.selectedFfeItemName = null;
+      elements.projectSelect.value = '';
+      elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
+      elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
+      if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
+      // Show project step
+      elements.projectStep?.classList.remove('hidden');
+      elements.roomStep?.classList.add('hidden');
+      elements.sectionStep?.classList.add('hidden');
+      elements.ffeItemStep?.classList.add('hidden');
+      hideBreadcrumb();
+      break;
+      
+    case 'room':
+      // Go back to room selection
+      state.selectedRoom = null;
+      state.selectedSection = null;
+      state.selectedFfeItem = null;
+      state.selectedFfeItemName = null;
+      elements.roomSelect.value = '';
+      elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
+      if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
+      // Show room step
+      elements.roomStep?.classList.remove('hidden');
+      elements.sectionStep?.classList.add('hidden');
+      elements.ffeItemStep?.classList.add('hidden');
+      updateBreadcrumb();
+      break;
+      
+    case 'section':
+      // Go back to section selection
+      state.selectedSection = null;
+      state.selectedFfeItem = null;
+      state.selectedFfeItemName = null;
+      elements.sectionSelect.value = '';
+      if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
+      // Show section step
+      elements.sectionStep?.classList.remove('hidden');
+      elements.ffeItemStep?.classList.add('hidden');
+      updateBreadcrumb();
+      break;
+      
+    case 'item':
+      // Go back to item selection
+      state.selectedFfeItem = null;
+      state.selectedFfeItemName = null;
+      state.selectedSimilarItems = [];
+      // Keep showing items step, just deselect
+      renderFfeItemCards();
+      updateBreadcrumb();
+      break;
+  }
+  
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
+  updateClipButton();
+}
+
+// Hide breadcrumb display
+function hideBreadcrumb() {
+  elements.locationBreadcrumb?.classList.add('hidden');
+}
+
+// Clear location selection (start over)
+function clearLocationSelection() {
+  state.selectedProject = null;
+  state.selectedRoom = null;
+  state.selectedSection = null;
+  state.selectedFfeItem = null;
+  state.selectedFfeItemName = null;
+  state.selectedSimilarItems = [];
+  state.similarItems = [];
+  
+  elements.projectSelect.value = '';
+  elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
+  elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
+  if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
+  
+  // Show project step, hide all others
+  elements.projectStep?.classList.remove('hidden');
+  elements.roomStep?.classList.add('hidden');
+  elements.sectionStep?.classList.add('hidden');
+  elements.ffeItemStep?.classList.add('hidden');
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
+  
+  hideBreadcrumb();
+  updateClipButton();
+}
+
+// Handle destination change
 function handleDestinationChange(dest) {
   state.destination = dest;
   
-  // Update button active states
   document.querySelectorAll('.dest-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.dest === dest);
   });
   
-  // Show/hide appropriate selectors
-  const locationSelectors = document.getElementById('locationSelectors');
+  const locationSection = document.getElementById('locationSection');
   const categorySelector = document.getElementById('categorySelector');
   
   if (dest === 'library') {
-    // Library only - show category, hide room selection
-    locationSelectors?.classList.add('hidden');
+    locationSection?.classList.add('hidden');
     categorySelector?.classList.remove('hidden');
     loadCategories();
   } else if (dest === 'both') {
-    // Both - show category and room selection
-    locationSelectors?.classList.remove('hidden');
+    locationSection?.classList.remove('hidden');
     categorySelector?.classList.remove('hidden');
     loadCategories();
   } else {
-    // Room only (default) - show room selection, hide category
-    locationSelectors?.classList.remove('hidden');
+    locationSection?.classList.remove('hidden');
     categorySelector?.classList.add('hidden');
   }
   
@@ -524,19 +978,16 @@ function handleCategoryChange(e) {
 
 // Load categories for library
 async function loadCategories() {
-  if (state.categories.length > 0) {
-    return; // Already loaded
-  }
+  if (state.categories.length > 0) return;
   
   try {
     const response = await apiRequest('GET', '/api/products/categories');
     
-    if (response.ok && response.data && response.data.categories) {
-      // Flatten the hierarchical structure - categories come with children nested
+    if (response.ok && response.data?.categories) {
       const allCategories = [];
       response.data.categories.forEach(parent => {
         allCategories.push(parent);
-        if (parent.children && parent.children.length > 0) {
+        if (parent.children?.length > 0) {
           parent.children.forEach(child => {
             allCategories.push({ ...child, parentId: parent.id });
           });
@@ -548,20 +999,16 @@ async function loadCategories() {
       if (select) {
         select.innerHTML = '<option value="">Select Category (optional)...</option>';
         
-        // Use the original hierarchical data for display
         response.data.categories.forEach(parent => {
-          // Add parent as optgroup
           const optgroup = document.createElement('optgroup');
           optgroup.label = parent.name;
           
-          // Add parent itself as an option
           const parentOpt = document.createElement('option');
           parentOpt.value = parent.id;
           parentOpt.textContent = `${parent.name} (General)`;
           optgroup.appendChild(parentOpt);
           
-          // Add children
-          if (parent.children && parent.children.length > 0) {
+          if (parent.children?.length > 0) {
             parent.children.forEach(child => {
               const opt = document.createElement('option');
               opt.value = child.id;
@@ -579,23 +1026,30 @@ async function loadCategories() {
   }
 }
 
-// Update clip button state - enabled based on destination and selections
+// Update clip button state
 function updateClipButton() {
   let isReady = false;
   let buttonText = 'Select location first';
   
   if (state.destination === 'library') {
-    // Library only - no room selection required
     isReady = true;
     buttonText = state.selectedCategory ? 'Save to Library' : 'Save to Library (uncategorized)';
   } else if (state.destination === 'both') {
-    // Both - need room selection
     isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
     buttonText = isReady ? 'Save to Room & Library' : 'Select room first';
   } else {
-    // Room only
     isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
-    buttonText = isReady ? 'Clip to Room' : 'Select location first';
+    if (isReady && state.selectedFfeItem) {
+      // Check if additional items are selected
+      const additionalCount = state.selectedSimilarItems.length;
+      if (additionalCount > 0) {
+        buttonText = `Link to ${1 + additionalCount} Items`;
+      } else {
+        buttonText = 'Link Product to FFE Item';
+      }
+    } else if (isReady) {
+      buttonText = 'Clip to Room';
+    }
   }
   
   if (elements.clipBtn) {
@@ -617,294 +1071,28 @@ async function getCurrentPageUrl() {
   }
 }
 
-// Handle crop tool - allows user to screenshot/crop part of page
-async function handleCropTool() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Inject crop tool into page
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: initCropTool
-    });
-    
-    showToast('Draw a rectangle to capture an area', 'info');
-  } catch (error) {
-    console.error('Failed to start crop tool:', error);
-    showToast('Could not start crop tool on this page', 'error');
-  }
-}
-
-// Crop tool function to inject into page
-function initCropTool() {
-  // Remove any existing crop tool
-  document.getElementById('ffe-crop-overlay')?.remove();
-  
-  const overlay = document.createElement('div');
-  overlay.id = 'ffe-crop-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.3);
-    cursor: crosshair;
-    z-index: 2147483647;
-  `;
-  
-  const selection = document.createElement('div');
-  selection.style.cssText = `
-    position: absolute;
-    border: 2px dashed #4361ee;
-    background: rgba(67, 97, 238, 0.1);
-    display: none;
-  `;
-  overlay.appendChild(selection);
-  
-  const instructions = document.createElement('div');
-  instructions.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #4361ee;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 14px;
-    z-index: 2147483647;
-  `;
-  instructions.textContent = 'Click and drag to select area (ESC to cancel)';
-  overlay.appendChild(instructions);
-  
-  let startX, startY, isDrawing = false;
-  
-  overlay.addEventListener('mousedown', (e) => {
-    startX = e.clientX;
-    startY = e.clientY;
-    isDrawing = true;
-    selection.style.display = 'block';
-    selection.style.left = startX + 'px';
-    selection.style.top = startY + 'px';
-    selection.style.width = '0';
-    selection.style.height = '0';
-  });
-  
-  overlay.addEventListener('mousemove', (e) => {
-    if (!isDrawing) return;
-    const currentX = e.clientX;
-    const currentY = e.clientY;
-    const width = Math.abs(currentX - startX);
-    const height = Math.abs(currentY - startY);
-    selection.style.left = Math.min(startX, currentX) + 'px';
-    selection.style.top = Math.min(startY, currentY) + 'px';
-    selection.style.width = width + 'px';
-    selection.style.height = height + 'px';
-  });
-  
-  overlay.addEventListener('mouseup', async (e) => {
-    if (!isDrawing) return;
-    isDrawing = false;
-    
-    const rect = selection.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) {
-      overlay.remove();
-      return;
-    }
-    
-    // Capture the area
-    overlay.style.display = 'none';
-    
-    try {
-      // Use html2canvas or capture visible tab
-      const canvas = document.createElement('canvas');
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      const ctx = canvas.getContext('2d');
-      
-      // Create a screenshot using the Offscreen API or capture
-      const response = await chrome.runtime.sendMessage({
-        action: 'captureVisibleTab'
-      });
-      
-      if (response?.dataUrl) {
-        const img = new Image();
-        img.onload = () => {
-          // Account for device pixel ratio
-          const dpr = window.devicePixelRatio || 1;
-          ctx.drawImage(img, 
-            rect.left * dpr, rect.top * dpr, rect.width * dpr, rect.height * dpr,
-            0, 0, rect.width, rect.height
-          );
-          const croppedDataUrl = canvas.toDataURL('image/png');
-          
-          // Send to extension
-          chrome.runtime.sendMessage({
-            action: 'imageClipped',
-            imageUrl: croppedDataUrl
-          });
-          
-          // Store in pending images
-          chrome.storage.local.get(['pendingImages'], (result) => {
-            const pendingImages = result.pendingImages || [];
-            pendingImages.push(croppedDataUrl);
-            chrome.storage.local.set({ pendingImages });
-          });
-          
-          // Show feedback
-          const feedback = document.createElement('div');
-          feedback.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #10b981;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 14px;
-            z-index: 2147483647;
-          `;
-          feedback.textContent = '✓ Area captured! Open extension to see it.';
-          document.body.appendChild(feedback);
-          setTimeout(() => feedback.remove(), 2000);
-        };
-        img.src = response.dataUrl;
-      }
-    } catch (err) {
-      console.error('Failed to capture:', err);
-    }
-    
-    overlay.remove();
-  });
-  
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      overlay.remove();
-    }
-  }, { once: true });
-  
-  document.body.appendChild(overlay);
-}
-
-// Handle attachment download capture
-async function handleAttachmentCapture() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Send message to content script to find downloadable files
-    chrome.tabs.sendMessage(tab.id, { action: 'findDownloads' }, (response) => {
-      if (response?.downloads && response.downloads.length > 0) {
-        // Add downloads to attachments
-        response.downloads.forEach(dl => {
-          if (!state.clippedData.attachments.some(a => a.url === dl.url)) {
-            state.clippedData.attachments.push({
-              name: dl.name,
-              url: dl.url,
-              type: dl.type
-            });
-          }
-        });
-        renderAttachments();
-        showToast(`Found ${response.downloads.length} downloadable file(s)`, 'success');
-      } else {
-        showToast('No downloadable files found on this page', 'info');
-      }
-    });
-  } catch (error) {
-    console.error('Failed to find downloads:', error);
-    showToast('Could not scan page for downloads', 'error');
-  }
-}
-
-// Render attachments
-function renderAttachments() {
-  const container = document.getElementById('attachmentsContainer');
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (state.clippedData.attachments.length === 0) {
-    container.innerHTML = '<p class="helper-text-attachments">Click + to find PDFs and downloads on page</p>';
-    return;
-  }
-  
-  state.clippedData.attachments.forEach((att, index) => {
-    const item = document.createElement('div');
-    const isPdf = att.type === 'PDF' || att.url?.toLowerCase().includes('.pdf');
-    const isSpec = att.isSpec;
-    
-    // Add appropriate classes for styling
-    let className = 'attachment-item';
-    if (isSpec) className += ' spec-sheet';
-    else if (isPdf) className += ' pdf';
-    
-    item.className = className;
-    
-    // Get appropriate icon
-    const icon = isPdf 
-      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <path d="M9 15h6M9 11h6"></path>
-         </svg>`
-      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-         </svg>`;
-    
-    // Truncate name if too long
-    const displayName = att.name?.length > 40 ? att.name.substring(0, 37) + '...' : att.name;
-    
-    item.innerHTML = `
-      ${icon}
-      <a href="${att.url}" target="_blank" title="${att.name}\n${att.url}">${displayName}</a>
-      <span class="attachment-type">${isSpec ? 'SPEC' : att.type || 'FILE'}</span>
-      <button class="attachment-delete" onclick="removeAttachment(${index})">×</button>
-    `;
-    container.appendChild(item);
-  });
-}
-
-// Remove attachment (make global for onclick)
-window.removeAttachment = function(index) {
-  state.clippedData.attachments.splice(index, 1);
-  renderAttachments();
-}
-
-// Handle smart fill - uses AI to extract product information
+// Handle smart fill
 async function handleSmartFill() {
   showLoading('AI is analyzing the page...');
   
   try {
-    // Get the current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // First, extract raw page content via content script
     let pageData = null;
     
     try {
-      // Try to get page content from content script
       pageData = await new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tab.id, { action: 'extractPageData' }, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(response?.data);
-          }
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve(response?.data);
         });
       });
     } catch (e) {
-      // Content script might not be loaded, inject it
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['content.js']
       });
       
-      // Wait a bit and try again
       await new Promise(r => setTimeout(r, 200));
       
       pageData = await new Promise((resolve) => {
@@ -914,7 +1102,6 @@ async function handleSmartFill() {
       });
     }
     
-    // Get page text content
     let pageContent = '';
     try {
       const results = await chrome.scripting.executeScript({
@@ -922,33 +1109,26 @@ async function handleSmartFill() {
         func: () => document.body.innerText
       });
       pageContent = results[0]?.result || '';
-    } catch (e) {
-      console.log('Could not get page content:', e);
-    }
+    } catch (e) {}
     
-    // Send to AI endpoint with enhanced data
     const response = await apiRequest('POST', CONFIG.ENDPOINTS.SMART_FILL, {
       url: tab.url,
       title: tab.title,
-      pageContent: pageContent.substring(0, 12000), // Limit content size
+      pageContent: pageContent.substring(0, 12000),
       images: pageData?.images || [],
       mainImage: pageData?.mainImage || null,
       specSheets: pageData?.specSheets || [],
       pdfLinks: pageData?.pdfLinks || []
     });
     
-    // Check the response - API returns { success: true, data: {...} }
     if (response.ok && response.data?.success && response.data?.data) {
       processSmartFillData(response.data.data);
       showToast('AI extracted product information!', 'success');
+    } else if (pageData) {
+      processSmartFillData(pageData);
+      showToast('Basic extraction completed', 'success');
     } else {
-      // Fallback to basic extraction if AI fails
-      if (pageData) {
-        processSmartFillData(pageData);
-        showToast('Basic extraction completed', 'success');
-      } else {
-        showToast(response.data?.error || response.error || 'Could not extract data', 'error');
-      }
+      showToast(response.data?.error || 'Could not extract data', 'error');
     }
   } catch (error) {
     console.error('Smart fill failed:', error);
@@ -958,19 +1138,19 @@ async function handleSmartFill() {
   hideLoading();
 }
 
-// Process smart fill data (from AI or basic extraction)
+// Process smart fill data
 function processSmartFillData(data) {
-  // Field mappings - maps various source keys to our field IDs
   const fieldMappings = {
-    // AI endpoint fields
     productName: 'productName',
     productDescription: 'productDescription',
     brand: 'brand',
     sku: 'sku',
+    docCode: 'docCode',
     rrp: 'rrp',
     tradePrice: 'tradePrice',
     material: 'material',
     colour: 'colour',
+    color: 'colour',
     finish: 'finish',
     width: 'width',
     height: 'height',
@@ -979,12 +1159,10 @@ function processSmartFillData(data) {
     leadTime: 'leadTime',
     notes: 'notes',
     productWebsite: 'productWebsite',
-    // Basic extraction fields
     title: 'productName',
     name: 'productName',
     description: 'productDescription',
     price: 'rrp',
-    color: 'colour',
     url: 'productWebsite'
   };
   
@@ -992,19 +1170,11 @@ function processSmartFillData(data) {
     if (data[key] && !state.clippedData[fieldId]) {
       state.clippedData[fieldId] = data[key];
       const input = document.getElementById(fieldId);
-      if (input) {
-        if (input.tagName === 'TEXTAREA') {
-          input.value = data[key];
-        } else {
-          input.value = data[key];
-        }
-      }
+      if (input) input.value = data[key];
     }
   }
   
-  // Handle images
-  if (data.images && data.images.length > 0) {
-    // Merge with existing images, avoid duplicates
+  if (data.images?.length > 0) {
     const existingUrls = new Set(state.clippedData.images);
     for (const img of data.images) {
       if (!existingUrls.has(img)) {
@@ -1014,9 +1184,7 @@ function processSmartFillData(data) {
     renderImages();
   }
   
-  // Handle spec sheets / PDFs
-  if (data.specSheets && data.specSheets.length > 0) {
-    // Add spec sheets as attachments
+  if (data.specSheets?.length > 0) {
     for (const spec of data.specSheets) {
       if (!state.clippedData.attachments.some(a => a.url === spec.url)) {
         state.clippedData.attachments.push({
@@ -1028,19 +1196,11 @@ function processSmartFillData(data) {
       }
     }
     renderAttachments();
-    
-    // Show toast about found spec sheets
-    const specCount = data.specSheets.filter((s) => s.isSpec).length;
-    if (specCount > 0) {
-      showToast(`Found ${specCount} spec sheet(s)!`, 'success');
-    }
   }
   
-  // Handle PDF links separately if specSheets not populated
-  if (data.pdfLinks && data.pdfLinks.length > 0 && (!data.specSheets || data.specSheets.length === 0)) {
+  if (data.pdfLinks?.length > 0 && (!data.specSheets || data.specSheets.length === 0)) {
     for (const pdfUrl of data.pdfLinks) {
       if (!state.clippedData.attachments.some(a => a.url === pdfUrl)) {
-        // Extract filename from URL
         const fileName = pdfUrl.split('/').pop()?.split('?')[0] || 'Document.pdf';
         state.clippedData.attachments.push({
           name: fileName,
@@ -1053,372 +1213,13 @@ function processSmartFillData(data) {
   }
 }
 
-// Load any pending images from right-click clips
-async function loadPendingImages() {
-  try {
-    // First, check storage directly for pending images
-    const stored = await chrome.storage.local.get(['pendingImages']);
-    
-    if (stored.pendingImages && stored.pendingImages.length > 0) {
-      let addedCount = 0;
-      for (const imageUrl of stored.pendingImages) {
-        if (!state.clippedData.images.includes(imageUrl)) {
-          state.clippedData.images.push(imageUrl);
-          addedCount++;
-        }
-      }
-      
-      // Clear pending images from storage
-      await chrome.storage.local.remove(['pendingImages']);
-      
-      // Clear badge
-      chrome.runtime.sendMessage({ action: 'clearBadge' }).catch(() => {});
-      
-      if (addedCount > 0) {
-        renderImages();
-        showToast(`Added ${addedCount} clipped image(s)!`, 'success');
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load pending images:', error);
-  }
-}
-
-// Render clipped images with drag-to-reorder
-function renderImages() {
-  if (!elements.imagesContainer) return;
-  
-  elements.imagesContainer.innerHTML = '';
-  
-  if (state.clippedData.images.length === 0) {
-    elements.imagesContainer.innerHTML = `
-      <div class="image-placeholder">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg>
-        <span style="font-size:10px;color:#999;margin-top:4px;">No images</span>
-      </div>
-    `;
-    return;
-  }
-  
-  state.clippedData.images.forEach((imgUrl, index) => {
-    const imgWrapper = document.createElement('div');
-    imgWrapper.className = 'image-wrapper';
-    imgWrapper.draggable = true;
-    imgWrapper.dataset.index = index;
-    
-    // First image indicator
-    if (index === 0) {
-      const badge = document.createElement('span');
-      badge.className = 'main-image-badge';
-      badge.textContent = 'Main';
-      imgWrapper.appendChild(badge);
-    }
-    
-    const img = document.createElement('img');
-    img.src = imgUrl;
-    img.className = 'clipped-image';
-    img.title = 'Click to remove, drag to reorder';
-    
-    // Delete button
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'image-delete-btn';
-    deleteBtn.innerHTML = '×';
-    deleteBtn.onclick = (e) => {
-      e.stopPropagation();
-      removeImage(index);
-    };
-    
-    imgWrapper.appendChild(img);
-    imgWrapper.appendChild(deleteBtn);
-    
-    // Drag events
-    imgWrapper.addEventListener('dragstart', handleDragStart);
-    imgWrapper.addEventListener('dragover', handleDragOver);
-    imgWrapper.addEventListener('drop', handleDrop);
-    imgWrapper.addEventListener('dragend', handleDragEnd);
-    
-    elements.imagesContainer.appendChild(imgWrapper);
-  });
-}
-
-// Drag and drop handlers for image reordering
-let draggedImageIndex = null;
-
-function handleDragStart(e) {
-  draggedImageIndex = parseInt(e.currentTarget.dataset.index);
-  e.currentTarget.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const wrapper = e.currentTarget;
-  wrapper.classList.add('drag-over');
-}
-
-function handleDrop(e) {
-  e.preventDefault();
-  const targetIndex = parseInt(e.currentTarget.dataset.index);
-  e.currentTarget.classList.remove('drag-over');
-  
-  if (draggedImageIndex !== null && draggedImageIndex !== targetIndex) {
-    // Reorder images
-    const images = [...state.clippedData.images];
-    const [draggedImage] = images.splice(draggedImageIndex, 1);
-    images.splice(targetIndex, 0, draggedImage);
-    state.clippedData.images = images;
-    renderImages();
-    showToast('Images reordered', 'success');
-  }
-}
-
-function handleDragEnd(e) {
-  e.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  draggedImageIndex = null;
-}
-
-// Remove image
-function removeImage(index) {
-  state.clippedData.images.splice(index, 1);
-  renderImages();
-}
-
-// Handle + button click - start picker mode on page
-async function handleAddButtonClick(e, fieldId) {
-  e.preventDefault();
-  
-  const fieldNames = {
-    productDescription: 'Product Description',
-    productDetails: 'Product Details',
-    productName: 'Product Name',
-    brand: 'Brand',
-    productWebsite: 'Product Website',
-    docCode: 'Doc Code',
-    sku: 'SKU',
-    colour: 'Colour',
-    finish: 'Finish',
-    material: 'Material',
-    width: 'Width',
-    length: 'Length',
-    height: 'Height',
-    depth: 'Depth',
-    quantity: 'Quantity',
-    rrp: 'RRP',
-    tradePrice: 'Trade Price',
-    leadTime: 'Lead Time',
-    notes: 'Notes'
-  };
-  
-  try {
-    // First, check if there's already selected text on the page
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => window.getSelection()?.toString() || ''
-    });
-    
-    const selectedText = results[0]?.result?.trim();
-    
-    if (selectedText) {
-      // Use selected text directly
-      state.clippedData[fieldId] = selectedText;
-      const input = document.getElementById(fieldId);
-      if (input) input.value = selectedText;
-      showToast(`Added to ${fieldNames[fieldId] || fieldId}`, 'success');
-    } else {
-      // No selection - save current state and start picker mode
-      await saveFormState();
-      
-      // Store which field we're picking for
-      await chrome.storage.local.set({ 
-        pickerField: fieldId,
-        pickerFieldName: fieldNames[fieldId] || fieldId
-      });
-      
-      // Try to start picker mode on the page
-      try {
-        // First try to send message to existing content script
-        chrome.tabs.sendMessage(tab.id, { action: 'startPicker', field: fieldId }, (response) => {
-          if (chrome.runtime.lastError || !response?.ok) {
-            console.log('Content script not ready, injecting...');
-            // Content script not loaded - inject it first
-            chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['content.js']
-            }).then(() => {
-              // Wait a moment for script to initialize
-              setTimeout(() => {
-                chrome.tabs.sendMessage(tab.id, { action: 'startPicker', field: fieldId });
-              }, 100);
-            }).catch(err => {
-              console.error('Failed to inject content script:', err);
-              showToast('Could not access this page', 'error');
-            });
-          }
-        });
-      } catch (err) {
-        console.error('Failed to start picker:', err);
-        showToast('Could not access this page', 'error');
-      }
-      
-      // Show instruction toast
-      showToast('Click on text in the page to capture it', 'info');
-    }
-  } catch (error) {
-    console.error('Failed to start picker:', error);
-    showToast('Could not access page. Try refreshing.', 'error');
-  }
-}
-
-// Save current form state to storage
-async function saveFormState() {
-  await chrome.storage.local.set({
-    savedFormState: {
-      clippedData: state.clippedData,
-      selectedProject: state.selectedProject,
-      selectedRoom: state.selectedRoom,
-      selectedSection: state.selectedSection
-    }
-  });
-}
-
-// Load saved form state from storage
-async function loadFormState() {
-  try {
-    const stored = await chrome.storage.local.get([
-      'savedFormState',
-      'pickerResult',
-      'pickerField'
-    ]);
-    
-    const { savedFormState, pickerResult, pickerField } = stored;
-    
-    console.log('Loading form state:', { savedFormState: !!savedFormState, pickerResult, pickerField });
-
-    // First, check if there's a picker result to apply (higher priority)
-    if (pickerResult && pickerField) {
-      console.log(`Applying picker result to field: ${pickerField}`);
-      state.clippedData[pickerField] = pickerResult;
-      
-      // Wait a moment for DOM to be ready
-      setTimeout(() => {
-        const input = document.getElementById(pickerField);
-        if (input) {
-          input.value = pickerResult;
-          console.log(`Set value for ${pickerField}:`, pickerResult.substring(0, 50));
-        } else {
-          console.log(`Input not found: ${pickerField}`);
-        }
-      }, 100);
-      
-      showToast(`Text captured for ${formatFieldLabel(pickerField)}!`, 'success');
-
-      // Clear the picker result
-      await chrome.storage.local.remove(['pickerResult', 'pickerField', 'pickerFieldName']);
-    }
-
-    // Restore form state if exists
-    if (savedFormState) {
-      // Merge clipped data
-      if (savedFormState.clippedData) {
-        state.clippedData = { ...state.clippedData, ...savedFormState.clippedData };
-      }
-      state.selectedProject = savedFormState.selectedProject;
-      state.selectedRoom = savedFormState.selectedRoom;
-      state.selectedSection = savedFormState.selectedSection;
-
-      // Update form fields
-      populateFormFromState();
-
-      // Restore selectors
-      if (state.selectedProject && elements.projectSelect) {
-        elements.projectSelect.value = state.selectedProject;
-        await loadRooms(state.selectedProject);
-
-        if (state.selectedRoom && elements.roomSelect) {
-          elements.roomSelect.value = state.selectedRoom;
-          document.getElementById('roomGroup')?.classList.remove('hidden');
-          await loadSections(state.selectedRoom);
-
-          if (state.selectedSection && elements.sectionSelect) {
-            elements.sectionSelect.value = state.selectedSection;
-            document.getElementById('sectionGroup')?.classList.remove('hidden');
-          }
-        }
-      }
-      
-      // Clear saved state after restoring
-      await chrome.storage.local.remove(['savedFormState']);
-    }
-
-    updateClipButton();
-  } catch (error) {
-    console.error('Failed to load form state:', error);
-  }
-}
-
-// Format field label for display
-function formatFieldLabel(field) {
-  const labels = {
-    productDescription: 'Product Description',
-    productDetails: 'Product Details',
-    productName: 'Product Name',
-    brand: 'Brand',
-    productWebsite: 'Website',
-    docCode: 'Doc Code',
-    sku: 'SKU',
-    colour: 'Colour',
-    finish: 'Finish',
-    material: 'Material',
-    width: 'Width',
-    length: 'Length',
-    height: 'Height',
-    depth: 'Depth',
-    quantity: 'Quantity',
-    rrp: 'RRP',
-    tradePrice: 'Trade Price',
-    leadTime: 'Lead Time',
-    notes: 'Notes'
-  };
-  return labels[field] || field;
-}
-
-// Populate form fields from state
-function populateFormFromState() {
-  const fields = [
-    'productDescription', 'productDetails', 'productName', 'brand', 
-    'productWebsite', 'docCode', 'sku', 'colour', 'finish', 'material',
-    'width', 'length', 'height', 'depth', 'quantity', 'rrp', 
-    'tradePrice', 'leadTime', 'notes'
-  ];
-  
-  fields.forEach(field => {
-    const input = document.getElementById(field);
-    if (input && state.clippedData[field]) {
-      input.value = state.clippedData[field];
-    }
-  });
-  
-  // Render images
-  renderImages();
-}
-
-// Handle clip button - directly saves the item
+// Handle clip button
 async function handleClip() {
-  // Validate required fields
   if (!state.clippedData.productName) {
     showToast('Please add a product name', 'error');
     return;
   }
   
-  // For room or both destinations, need room selection
   const needsRoom = state.destination === 'room' || state.destination === 'both';
   
   if (needsRoom) {
@@ -1426,84 +1227,105 @@ async function handleClip() {
       showToast('Please select a project', 'error');
       return;
     }
-    
     if (!state.selectedRoom) {
       showToast('Please select a room', 'error');
       return;
     }
-    
     if (!state.selectedSection) {
-      showToast('Please select a section', 'error');
+      showToast('Please select a category', 'error');
       return;
     }
+  }
+  
+  // Build list of all items to link (primary + similar)
+  const allLinkItemIds = [];
+  if (state.selectedFfeItem) {
+    allLinkItemIds.push(state.selectedFfeItem);
+  }
+  if (state.selectedSimilarItems.length > 0) {
+    allLinkItemIds.push(...state.selectedSimilarItems);
   }
   
   const loadingMsg = state.destination === 'library' 
     ? 'Adding to library...' 
     : state.destination === 'both' 
       ? 'Saving to room & library...' 
-      : 'Saving item...';
+      : allLinkItemIds.length > 1
+        ? `Linking to ${allLinkItemIds.length} items...`
+        : 'Saving item...';
   showLoading(loadingMsg);
   
   try {
-    // Prepare the data
+    // Get supplier name from selection
+    let supplierName = null;
+    let supplierId = null;
+    if (state.selectedSupplier) {
+      if (state.selectedSupplier.startsWith('_custom_')) {
+        supplierName = state.selectedSupplier.replace('_custom_', '');
+      } else {
+        const supplier = state.suppliers.find(s => s.id === state.selectedSupplier);
+        if (supplier) {
+          supplierName = supplier.name;
+          supplierId = supplier.id;
+        }
+      }
+    }
+    
+    // Prepare the data with proper field mapping
     const clipData = {
       destination: state.destination,
       categoryId: state.selectedCategory || null,
       roomId: needsRoom ? state.selectedRoom : null,
       sectionId: needsRoom ? state.selectedSection : null,
-      linkItemId: state.selectedLinkItem || null, // Link to existing item if selected
+      linkItemId: state.selectedFfeItem || null,
+      // Array of additional item IDs to link the same product to
+      additionalLinkItemIds: state.selectedSimilarItems.length > 0 ? state.selectedSimilarItems : null,
       item: {
         name: state.clippedData.productName,
         description: state.clippedData.productDescription,
-        supplierName: state.clippedData.brand,
+        brand: state.clippedData.brand,
+        sku: state.clippedData.sku,
+        docCode: state.clippedData.docCode,
+        supplierName: supplierName,
+        supplierId: supplierId,
         supplierLink: state.clippedData.productWebsite,
-        modelNumber: state.clippedData.sku,
+        colour: state.clippedData.colour,
+        finish: state.clippedData.finish,
+        material: state.clippedData.material,
+        width: state.clippedData.width,
+        height: state.clippedData.height,
+        depth: state.clippedData.depth,
+        length: state.clippedData.length,
         quantity: parseInt(state.clippedData.quantity) || 1,
-        unitCost: parsePrice(state.clippedData.rrp),
+        rrp: parsePrice(state.clippedData.rrp),
+        tradePrice: parsePrice(state.clippedData.tradePrice),
+        leadTime: state.clippedData.leadTime,
         notes: state.clippedData.notes,
-        customFields: {
-          productDetails: state.clippedData.productDetails,
-          docCode: state.clippedData.docCode,
-          colour: state.clippedData.colour,
-          finish: state.clippedData.finish,
-          material: state.clippedData.material,
-          width: state.clippedData.width,
-          length: state.clippedData.length,
-          height: state.clippedData.height,
-          depth: state.clippedData.depth,
-          tradePrice: state.clippedData.tradePrice,
-          leadTime: state.clippedData.leadTime
-        },
-        attachments: {
-          images: state.clippedData.images,
-          files: state.clippedData.attachments
-        }
+        images: state.clippedData.images,
+        attachments: state.clippedData.attachments
       }
     };
     
     const response = await apiRequest('POST', CONFIG.ENDPOINTS.CLIP, clipData);
     
     if (response.ok) {
-      // Success message based on destination
       let successMsg = '';
       if (state.destination === 'library') {
         successMsg = `"${state.clippedData.productName}" added to library!`;
       } else if (state.destination === 'both') {
         successMsg = `"${state.clippedData.productName}" saved to room & library!`;
+      } else if (allLinkItemIds.length > 1) {
+        successMsg = `Product linked to ${allLinkItemIds.length} items!`;
       } else {
-        const action = state.selectedLinkItem ? 'linked' : 'saved';
+        const action = state.selectedFfeItem ? 'linked' : 'saved';
         successMsg = `Item ${action} successfully!`;
       }
       showToast(successMsg, 'success');
       handleClear();
-      // Reset link selection
-      state.selectedLinkItem = null;
-      const linkSelect = document.getElementById('linkItemSelect');
-      if (linkSelect) linkSelect.value = '';
-      // Reload pending items to update the list
-      if (state.selectedRoom) {
-        await loadPendingItems(state.selectedRoom);
+      
+      // Reload FFE items if we were linking
+      if (state.selectedRoom && state.selectedSection) {
+        await loadFfeItems(state.selectedRoom, state.selectedSection);
       }
     } else {
       showToast(response.error || 'Failed to save item', 'error');
@@ -1518,24 +1340,22 @@ async function handleClip() {
 
 // Handle clear
 function handleClear() {
-  // Reset clipped data
   state.clippedData = {
     images: [],
     attachments: [],
-    productDescription: '',
-    productDetails: '',
     productName: '',
+    productDescription: '',
     brand: '',
-    productWebsite: state.clippedData.productWebsite, // Keep the URL
+    productWebsite: state.clippedData.productWebsite,
     docCode: '',
     sku: '',
     colour: '',
     finish: '',
     material: '',
     width: '',
-    length: '',
     height: '',
     depth: '',
+    length: '',
     quantity: 1,
     rrp: '',
     tradePrice: '',
@@ -1543,68 +1363,31 @@ function handleClear() {
     notes: ''
   };
   
-  // Clear all input fields
+  state.selectedFfeItem = null;
+  state.selectedFfeItemName = null;
+  state.selectedSupplier = null;
+  state.selectedSimilarItems = [];
+  state.similarItems = [];
+  
   document.querySelectorAll('.field-input input, .field-input textarea').forEach(input => {
     if (input.id !== 'productWebsite') {
       input.value = input.type === 'number' ? '1' : '';
     }
   });
   
-  // Clear images
+  if (elements.supplierSelect) elements.supplierSelect.value = '';
+  
+  // Re-render FFE items to clear selection
+  renderFfeItemCards();
+  
+  // Hide similar items section
+  elements.linkSimilarSection?.classList.add('hidden');
+  closeSimilarPanel();
+  
   renderImages();
+  renderAttachments();
   
   showToast('Form cleared', 'info');
-}
-
-// Handle messages from content script
-function handleMessage(message, sender, sendResponse) {
-  switch (message.action) {
-    case 'textSelected':
-      // Use field from message or from state
-      const field = message.field || state.activePickerField;
-      if (field && message.text) {
-        console.log('Received textSelected message:', field, message.text.substring(0, 50));
-        state.clippedData[field] = message.text;
-        const input = document.getElementById(field);
-        if (input) {
-          input.value = message.text;
-        }
-
-        // Deactivate picker
-        document.querySelectorAll('.add-btn').forEach(b => b.classList.remove('active'));
-        state.activePickerField = null;
-        showToast(`Text captured for ${formatFieldLabel(field)}!`, 'success');
-        
-        // Clear picker data from storage
-        chrome.storage.local.remove(['pickerResult', 'pickerField', 'pickerFieldName']);
-      }
-      sendResponse({ ok: true });
-      break;
-      
-    case 'imageClipped':
-      if (message.imageUrl) {
-        state.clippedData.images.push(message.imageUrl);
-        renderImages();
-        showToast('Image captured!', 'success');
-      }
-      sendResponse({ ok: true });
-      break;
-      
-    case 'authComplete':
-      if (message.apiKey && message.user) {
-        chrome.storage.local.set({ apiKey: message.apiKey, user: message.user });
-        state.apiKey = message.apiKey;
-        state.user = message.user;
-        state.isAuthenticated = true;
-        showMainSection();
-        loadProjects();
-        showToast('Logged in successfully!', 'success');
-      }
-      sendResponse({ ok: true });
-      break;
-  }
-  
-  return true; // Keep the message channel open for async response
 }
 
 // Load projects
@@ -1617,7 +1400,6 @@ async function loadProjects() {
     if (response.ok && response.data.projects) {
       state.projects = response.data.projects;
       
-      // Populate project select
       elements.projectSelect.innerHTML = '<option value="">Select Project...</option>';
       state.projects.forEach(project => {
         const option = document.createElement('option');
@@ -1644,7 +1426,6 @@ async function loadRooms(projectId) {
     if (response.ok && response.data.rooms) {
       state.rooms = response.data.rooms;
 
-      // Populate room select
       elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
       state.rooms.forEach(room => {
         const option = document.createElement('option');
@@ -1663,7 +1444,7 @@ async function loadRooms(projectId) {
 
 // Load sections for a room
 async function loadSections(roomId) {
-  showLoading('Loading sections...');
+  showLoading('Loading categories...');
 
   try {
     const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.SECTIONS}?roomId=${roomId}`);
@@ -1671,8 +1452,7 @@ async function loadSections(roomId) {
     if (response.ok && response.data.sections) {
       state.sections = response.data.sections;
 
-      // Populate section select
-      elements.sectionSelect.innerHTML = '<option value="">Select Section...</option>';
+      elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
       state.sections.forEach(section => {
         const option = document.createElement('option');
         option.value = section.id;
@@ -1682,10 +1462,508 @@ async function loadSections(roomId) {
     }
   } catch (error) {
     console.error('Failed to load sections:', error);
-    showToast('Failed to load sections', 'error');
+    showToast('Failed to load categories', 'error');
   }
 
   hideLoading();
+}
+
+// Render images
+function renderImages() {
+  if (!elements.imagesContainer) return;
+  
+  elements.imagesContainer.innerHTML = '';
+  
+  if (state.clippedData.images.length === 0) {
+    elements.imagesContainer.innerHTML = `
+      <div class="image-placeholder">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span style="font-size:10px;color:#999;margin-top:4px;">No images</span>
+      </div>
+    `;
+    return;
+  }
+  
+  state.clippedData.images.forEach((imgUrl, index) => {
+    const imgWrapper = document.createElement('div');
+    imgWrapper.className = 'image-wrapper';
+    imgWrapper.draggable = true;
+    imgWrapper.dataset.index = index;
+    
+    if (index === 0) {
+      const badge = document.createElement('span');
+      badge.className = 'main-image-badge';
+      badge.textContent = 'Main';
+      imgWrapper.appendChild(badge);
+    }
+    
+    const img = document.createElement('img');
+    img.src = imgUrl;
+    img.className = 'clipped-image';
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'image-delete-btn';
+    deleteBtn.innerHTML = '×';
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      state.clippedData.images.splice(index, 1);
+      renderImages();
+    };
+    
+    imgWrapper.appendChild(img);
+    imgWrapper.appendChild(deleteBtn);
+    
+    imgWrapper.addEventListener('dragstart', handleDragStart);
+    imgWrapper.addEventListener('dragover', handleDragOver);
+    imgWrapper.addEventListener('drop', handleDrop);
+    imgWrapper.addEventListener('dragend', handleDragEnd);
+    
+    elements.imagesContainer.appendChild(imgWrapper);
+  });
+}
+
+// Drag handlers
+let draggedImageIndex = null;
+
+function handleDragStart(e) {
+  draggedImageIndex = parseInt(e.currentTarget.dataset.index);
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const targetIndex = parseInt(e.currentTarget.dataset.index);
+  e.currentTarget.classList.remove('drag-over');
+  
+  if (draggedImageIndex !== null && draggedImageIndex !== targetIndex) {
+    const images = [...state.clippedData.images];
+    const [draggedImage] = images.splice(draggedImageIndex, 1);
+    images.splice(targetIndex, 0, draggedImage);
+    state.clippedData.images = images;
+    renderImages();
+  }
+}
+
+function handleDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  draggedImageIndex = null;
+}
+
+// Render attachments
+function renderAttachments() {
+  const container = document.getElementById('attachmentsContainer');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (state.clippedData.attachments.length === 0) {
+    container.innerHTML = '<p class="helper-text-attachments">Click + to find PDFs and downloads on page</p>';
+    return;
+  }
+  
+  state.clippedData.attachments.forEach((att, index) => {
+    const item = document.createElement('div');
+    const isPdf = att.type === 'PDF' || att.url?.toLowerCase().includes('.pdf');
+    
+    let className = 'attachment-item';
+    if (att.isSpec) className += ' spec-sheet';
+    else if (isPdf) className += ' pdf';
+    
+    item.className = className;
+    
+    const icon = isPdf 
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+         </svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+         </svg>`;
+    
+    const displayName = att.name?.length > 40 ? att.name.substring(0, 37) + '...' : att.name;
+    
+    item.innerHTML = `
+      ${icon}
+      <a href="${att.url}" target="_blank" title="${att.name}">${displayName}</a>
+      <span class="attachment-type">${att.isSpec ? 'SPEC' : att.type || 'FILE'}</span>
+      <button class="attachment-delete" onclick="removeAttachment(${index})">×</button>
+    `;
+    container.appendChild(item);
+  });
+}
+
+window.removeAttachment = function(index) {
+  state.clippedData.attachments.splice(index, 1);
+  renderAttachments();
+}
+
+// Load pending images
+async function loadPendingImages() {
+  try {
+    const stored = await chrome.storage.local.get(['pendingImages']);
+    
+    if (stored.pendingImages?.length > 0) {
+      let addedCount = 0;
+      for (const imageUrl of stored.pendingImages) {
+        if (!state.clippedData.images.includes(imageUrl)) {
+          state.clippedData.images.push(imageUrl);
+          addedCount++;
+        }
+      }
+      
+      await chrome.storage.local.remove(['pendingImages']);
+      chrome.runtime.sendMessage({ action: 'clearBadge' }).catch(() => {});
+      
+      if (addedCount > 0) {
+        renderImages();
+        showToast(`Added ${addedCount} clipped image(s)!`, 'success');
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load pending images:', error);
+  }
+}
+
+// Handle crop tool
+async function handleCropTool() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: initCropTool
+    });
+    
+    showToast('Draw a rectangle to capture an area', 'info');
+  } catch (error) {
+    console.error('Failed to start crop tool:', error);
+    showToast('Could not start crop tool on this page', 'error');
+  }
+}
+
+function initCropTool() {
+  document.getElementById('ffe-crop-overlay')?.remove();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'ffe-crop-overlay';
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.3); cursor: crosshair; z-index: 2147483647;
+  `;
+  
+  const selection = document.createElement('div');
+  selection.style.cssText = `
+    position: absolute; border: 2px dashed #4361ee;
+    background: rgba(67, 97, 238, 0.1); display: none;
+  `;
+  overlay.appendChild(selection);
+  
+  let startX, startY, isDrawing = false;
+  
+  overlay.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    isDrawing = true;
+    selection.style.display = 'block';
+    selection.style.left = startX + 'px';
+    selection.style.top = startY + 'px';
+    selection.style.width = '0';
+    selection.style.height = '0';
+  });
+  
+  overlay.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+    selection.style.left = Math.min(startX, e.clientX) + 'px';
+    selection.style.top = Math.min(startY, e.clientY) + 'px';
+    selection.style.width = Math.abs(e.clientX - startX) + 'px';
+    selection.style.height = Math.abs(e.clientY - startY) + 'px';
+  });
+  
+  overlay.addEventListener('mouseup', async () => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    
+    const rect = selection.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) {
+      overlay.remove();
+      return;
+    }
+    
+    overlay.style.display = 'none';
+    
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' });
+      
+      if (response?.dataUrl) {
+        const canvas = document.createElement('canvas');
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        img.onload = () => {
+          const dpr = window.devicePixelRatio || 1;
+          ctx.drawImage(img, 
+            rect.left * dpr, rect.top * dpr, rect.width * dpr, rect.height * dpr,
+            0, 0, rect.width, rect.height
+          );
+          const croppedDataUrl = canvas.toDataURL('image/png');
+          
+          chrome.storage.local.get(['pendingImages'], (result) => {
+            const pendingImages = result.pendingImages || [];
+            pendingImages.push(croppedDataUrl);
+            chrome.storage.local.set({ pendingImages });
+          });
+        };
+        img.src = response.dataUrl;
+      }
+    } catch (err) {
+      console.error('Failed to capture:', err);
+    }
+    
+    overlay.remove();
+  });
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') overlay.remove();
+  }, { once: true });
+  
+  document.body.appendChild(overlay);
+}
+
+// Handle attachment capture
+async function handleAttachmentCapture() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    chrome.tabs.sendMessage(tab.id, { action: 'findDownloads' }, (response) => {
+      if (response?.downloads?.length > 0) {
+        response.downloads.forEach(dl => {
+          if (!state.clippedData.attachments.some(a => a.url === dl.url)) {
+            state.clippedData.attachments.push({ name: dl.name, url: dl.url, type: dl.type });
+          }
+        });
+        renderAttachments();
+        showToast(`Found ${response.downloads.length} downloadable file(s)`, 'success');
+      } else {
+        showToast('No downloadable files found on this page', 'info');
+      }
+    });
+  } catch (error) {
+    console.error('Failed to find downloads:', error);
+    showToast('Could not scan page for downloads', 'error');
+  }
+}
+
+// Handle add button click
+async function handleAddButtonClick(e, fieldId) {
+  e.preventDefault();
+  
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.getSelection()?.toString() || ''
+    });
+    
+    const selectedText = results[0]?.result?.trim();
+    
+    if (selectedText) {
+      state.clippedData[fieldId] = selectedText;
+      const input = document.getElementById(fieldId);
+      if (input) input.value = selectedText;
+      showToast(`Added to ${formatFieldLabel(fieldId)}`, 'success');
+    } else {
+      await saveFormState();
+      await chrome.storage.local.set({ pickerField: fieldId, pickerFieldName: formatFieldLabel(fieldId) });
+      
+      try {
+        chrome.tabs.sendMessage(tab.id, { action: 'startPicker', field: fieldId }, (response) => {
+          if (chrome.runtime.lastError || !response?.ok) {
+            chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            }).then(() => {
+              setTimeout(() => {
+                chrome.tabs.sendMessage(tab.id, { action: 'startPicker', field: fieldId });
+              }, 100);
+            });
+          }
+        });
+      } catch (err) {
+        showToast('Could not access this page', 'error');
+      }
+      
+      showToast('Click on text in the page to capture it', 'info');
+    }
+  } catch (error) {
+    console.error('Failed to start picker:', error);
+    showToast('Could not access page', 'error');
+  }
+}
+
+// Save form state
+async function saveFormState() {
+  await chrome.storage.local.set({
+    savedFormState: {
+      clippedData: state.clippedData,
+      selectedProject: state.selectedProject,
+      selectedRoom: state.selectedRoom,
+      selectedSection: state.selectedSection
+    }
+  });
+}
+
+// Load form state
+async function loadFormState() {
+  try {
+    const stored = await chrome.storage.local.get(['savedFormState', 'pickerResult', 'pickerField']);
+    const { savedFormState, pickerResult, pickerField } = stored;
+
+    if (pickerResult && pickerField) {
+      state.clippedData[pickerField] = pickerResult;
+      setTimeout(() => {
+        const input = document.getElementById(pickerField);
+        if (input) input.value = pickerResult;
+      }, 100);
+      showToast(`Text captured for ${formatFieldLabel(pickerField)}!`, 'success');
+      await chrome.storage.local.remove(['pickerResult', 'pickerField', 'pickerFieldName']);
+    }
+
+    if (savedFormState) {
+      if (savedFormState.clippedData) {
+        state.clippedData = { ...state.clippedData, ...savedFormState.clippedData };
+      }
+      state.selectedProject = savedFormState.selectedProject;
+      state.selectedRoom = savedFormState.selectedRoom;
+      state.selectedSection = savedFormState.selectedSection;
+
+      populateFormFromState();
+
+      if (state.selectedProject && elements.projectSelect) {
+        elements.projectSelect.value = state.selectedProject;
+        await loadRooms(state.selectedProject);
+
+        if (state.selectedRoom && elements.roomSelect) {
+          elements.roomSelect.value = state.selectedRoom;
+          elements.roomStep?.classList.remove('hidden');
+          await loadSections(state.selectedRoom);
+
+          if (state.selectedSection && elements.sectionSelect) {
+            elements.sectionSelect.value = state.selectedSection;
+            elements.sectionStep?.classList.remove('hidden');
+            await loadFfeItems(state.selectedRoom, state.selectedSection);
+            elements.ffeItemStep?.classList.remove('hidden');
+          }
+        }
+      }
+      
+      await chrome.storage.local.remove(['savedFormState']);
+    }
+
+    updateClipButton();
+  } catch (error) {
+    console.error('Failed to load form state:', error);
+  }
+}
+
+// Format field label
+function formatFieldLabel(field) {
+  const labels = {
+    productName: 'Product Name',
+    productDescription: 'Description',
+    brand: 'Brand',
+    productWebsite: 'Website',
+    docCode: 'Doc Code',
+    sku: 'SKU',
+    colour: 'Colour',
+    finish: 'Finish',
+    material: 'Material',
+    width: 'Width',
+    length: 'Length',
+    height: 'Height',
+    depth: 'Depth',
+    quantity: 'Quantity',
+    rrp: 'RRP',
+    tradePrice: 'Trade Price',
+    leadTime: 'Lead Time',
+    notes: 'Notes'
+  };
+  return labels[field] || field;
+}
+
+// Populate form from state
+function populateFormFromState() {
+  const fields = [
+    'productName', 'productDescription', 'brand', 'productWebsite', 'docCode', 
+    'sku', 'colour', 'finish', 'material', 'width', 'length', 'height', 'depth', 
+    'quantity', 'rrp', 'tradePrice', 'leadTime', 'notes'
+  ];
+  
+  fields.forEach(field => {
+    const input = document.getElementById(field);
+    if (input && state.clippedData[field]) {
+      input.value = state.clippedData[field];
+    }
+  });
+  
+  renderImages();
+  renderAttachments();
+}
+
+// Handle messages
+function handleMessage(message, sender, sendResponse) {
+  switch (message.action) {
+    case 'textSelected':
+      const field = message.field || state.activePickerField;
+      if (field && message.text) {
+        state.clippedData[field] = message.text;
+        const input = document.getElementById(field);
+        if (input) input.value = message.text;
+        showToast(`Text captured for ${formatFieldLabel(field)}!`, 'success');
+        chrome.storage.local.remove(['pickerResult', 'pickerField', 'pickerFieldName']);
+      }
+      sendResponse({ ok: true });
+      break;
+      
+    case 'imageClipped':
+      if (message.imageUrl) {
+        state.clippedData.images.push(message.imageUrl);
+        renderImages();
+        showToast('Image captured!', 'success');
+      }
+      sendResponse({ ok: true });
+      break;
+      
+    case 'authComplete':
+      if (message.apiKey && message.user) {
+        chrome.storage.local.set({ apiKey: message.apiKey, user: message.user });
+        state.apiKey = message.apiKey;
+        state.user = message.user;
+        state.isAuthenticated = true;
+        showMainSection();
+        Promise.all([loadProjects(), loadSuppliers()]);
+        showToast('Logged in successfully!', 'success');
+      }
+      sendResponse({ ok: true });
+      break;
+  }
+  
+  return true;
 }
 
 // API request helper
@@ -1694,9 +1972,7 @@ async function apiRequest(method, endpoint, body = null) {
   
   const options = {
     method,
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' }
   };
   
   if (state.apiKey) {
@@ -1711,33 +1987,13 @@ async function apiRequest(method, endpoint, body = null) {
     const response = await fetch(url, options);
     const data = await response.json();
     
-    return {
-      ok: response.ok,
-      status: response.status,
-      data,
-      error: data.error
-    };
+    return { ok: response.ok, status: response.status, data, error: data.error };
   } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      data: null,
-      error: error.message
-    };
+    return { ok: false, status: 0, data: null, error: error.message };
   }
 }
 
-// Send message to content script
-async function sendToContentScript(message) {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    chrome.tabs.sendMessage(tab.id, message);
-  } catch (error) {
-    console.error('Failed to send message to content script:', error);
-  }
-}
-
-// Parse price string to number
+// Parse price
 function parsePrice(priceStr) {
   if (!priceStr) return null;
   const cleaned = priceStr.replace(/[^0-9.]/g, '');
@@ -1775,3 +2031,4 @@ function showToast(message, type = 'info') {
     elements.toast.classList.add('hidden');
   }, 3000);
 }
+

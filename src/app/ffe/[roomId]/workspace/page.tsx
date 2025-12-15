@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
-import FFEDepartmentRouter from '@/components/ffe/FFEDepartmentRouter'
+import FFEUnifiedWorkspace from '@/components/ffe/FFEUnifiedWorkspace'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -153,17 +153,14 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
 
         {/* FFE Content with Chat Sidebar */}
         <div className="flex h-[calc(100vh-64px)]">
-          {/* Main FFE Workspace */}
-          <div className="flex-1 overflow-auto px-6 py-6">
-            <FFEDepartmentRouter
+          {/* Main FFE Workspace - Unified */}
+          <div className="flex-1 overflow-auto">
+            <FFEUnifiedWorkspace
               roomId={roomId}
               roomName={room.name || 'Room'}
               orgId={room.project?.orgId}
               projectId={room.project?.id}
               projectName={room.project?.name}
-              initialMode="workspace"
-              userRole={session.user.role}
-              showModeToggle={false}
             />
           </div>
 

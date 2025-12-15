@@ -107,21 +107,36 @@ export async function POST(
       quantity = 1,
       // If isSpec is true, this is an actual spec (from All Spec view) not a task
       isSpec = false,
+      // NEW: FFE Workspace <-> All Specs linking
+      isSpecItem = false, // True if this is a product spec (not a requirement)
+      ffeRequirementId = null, // Links spec item back to its FFE requirement
+      isOption = false, // True if this is an option (multiple products for same FFE item)
+      optionNumber = null, // Option number when multiple options exist
+      specStatus = null, // Override spec status (SELECTED, DRAFT, etc.)
+      visibility = null, // Override visibility
       // Additional spec fields
       brand,
       sku,
+      docCode,
       material,
       color,
       finish,
       width,
       height,
       depth,
+      length,
       leadTime,
       supplierName,
       supplierLink,
+      supplierId,
       unitCost,
+      tradePrice,
+      rrp,
+      tradeDiscount,
       images,
-      libraryProductId
+      notes,
+      libraryProductId,
+      customFields
     } = await request.json()
 
     if (!roomId || !sectionId || !name?.trim()) {
@@ -170,16 +185,22 @@ export async function POST(
       for (let i = 1; i <= quantity; i++) {
         const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
         
-        // If isSpec is true (from All Spec view), set visibility to VISIBLE and specStatus to SELECTED
-        // Otherwise (FFE Workspace task), use HIDDEN and DRAFT (default)
+        // Determine visibility and specStatus based on item type:
+        // - isSpecItem = true: This is a product spec (from All Specs view), linked to FFE requirement
+        // - isSpec = true (legacy): This is an actual spec, should be visible
+        // - Otherwise: FFE Workspace requirement, starts as visible
+        const isActualSpec = isSpecItem || isSpec
+        const finalVisibility = visibility || (isActualSpec ? 'VISIBLE' : 'VISIBLE')
+        const finalSpecStatus = specStatus || (isActualSpec ? 'SELECTED' : 'DRAFT')
+        
         const newItem = await tx.roomFFEItem.create({
           data: {
             sectionId,
             name: itemName,
             description: description?.trim() || null,
             state: 'PENDING',
-            visibility: isSpec ? 'VISIBLE' : 'HIDDEN',
-            specStatus: isSpec ? 'SELECTED' : 'DRAFT',
+            visibility: finalVisibility,
+            specStatus: finalSpecStatus,
             isRequired: false,
             isCustom: true,
             order: nextOrder + i - 1,
@@ -187,6 +208,7 @@ export async function POST(
             // Include spec fields if provided
             brand: brand || null,
             sku: sku || null,
+            docCode: docCode || null,
             material: material || null,
             color: color || null,
             finish: finish || null,
@@ -197,9 +219,18 @@ export async function POST(
             supplierName: supplierName || null,
             supplierLink: supplierLink || null,
             unitCost: unitCost ? parseFloat(unitCost) : null,
+            tradePrice: tradePrice ? parseFloat(tradePrice) : null,
+            rrp: rrp ? parseFloat(rrp) : null,
+            tradeDiscount: tradeDiscount ? parseFloat(tradeDiscount) : null,
             images: images || [],
             libraryProductId: libraryProductId || null,
-            notes: null,
+            notes: notes || null,
+            // NEW: FFE Workspace <-> All Specs linking
+            isSpecItem: isSpecItem || false,
+            ffeRequirementId: ffeRequirementId || null,
+            isOption: isOption || false,
+            optionNumber: optionNumber || null,
+            customFields: customFields || null,
             createdById: session.user.id,
             updatedById: session.user.id
           }

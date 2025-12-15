@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import { 
   ArrowLeft, 
   Search,
@@ -61,11 +63,21 @@ import {
   Truck,
   CreditCard,
   Factory,
-  PackageCheck
+  PackageCheck,
+  Flag,
+  Archive,
+  Copy,
+  FolderInput,
+  RefreshCw,
+  Trash2,
+  BookPlus,
+  Share2,
+  QrCode,
+  ClipboardCopy,
+  HelpCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Checkbox } from '@/components/ui/checkbox'
-import { cn } from '@/lib/utils'
 import { ItemDetailPanel } from './ItemDetailPanel'
 
 // Item status options based on the screenshot
@@ -169,6 +181,7 @@ interface ProjectSpecsViewProps {
 
 export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [specs, setSpecs] = useState<SpecItem[]>([])
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
@@ -179,6 +192,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
+  
+  // Team-only: Show unchosen FFE items (not visible in shared view)
+  const [showUnchosenItems, setShowUnchosenItems] = useState(false)
+  const [unchosenItemsSort, setUnchosenItemsSort] = useState<'category' | 'room'>('category')
   
   // Available rooms/sections for adding new specs
   const [availableRooms, setAvailableRooms] = useState<Array<{ id: string; name: string; sections: Array<{ id: string; name: string }> }>>([])
@@ -250,6 +267,82 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     sectionId?: string
     roomId?: string
   }>({ isOpen: false, mode: 'view', item: null })
+  
+  // FFE Item Linking - for connecting specs to FFE Workspace requirements
+  const [ffeItems, setFfeItems] = useState<Array<{
+    roomId: string
+    roomName: string
+    sections: Array<{
+      sectionId: string
+      sectionName: string
+      items: Array<{
+        id: string
+        name: string
+        description?: string
+        hasLinkedSpecs: boolean
+        linkedSpecsCount: number
+        status: string
+      }>
+    }>
+  }>>([])
+  
+  // Cascading selection state for FFE linking
+  const [selectedFfeRoom, setSelectedFfeRoom] = useState<string>('')
+  const [selectedFfeSection, setSelectedFfeSection] = useState<string>('')
+  const [selectedFfeItemId, setSelectedFfeItemId] = useState<string>('')
+  
+  const [selectedFfeItem, setSelectedFfeItem] = useState<{
+    roomId: string
+    roomName: string
+    sectionId: string
+    sectionName: string
+    itemId: string
+    itemName: string
+    hasLinkedSpecs: boolean
+    linkedSpecsCount: number
+  } | null>(null)
+  const [ffeItemsLoading, setFfeItemsLoading] = useState(false)
+  const [showAlreadyChosenWarning, setShowAlreadyChosenWarning] = useState(false)
+  
+  // Move to section modal
+  const [moveToSectionModal, setMoveToSectionModal] = useState<{ open: boolean; item: SpecItem | null }>({ open: false, item: null })
+  const [selectedMoveSection, setSelectedMoveSection] = useState<string>('')
+  
+  // Copy to project modal
+  const [copyToProjectModal, setCopyToProjectModal] = useState<{ open: boolean; item: SpecItem | null }>({ open: false, item: null })
+  const [projectsList, setProjectsList] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedCopyProject, setSelectedCopyProject] = useState<string>('')
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  
+  // Flag modal
+  const [flagModal, setFlagModal] = useState<{ open: boolean; item: SpecItem | null }>({ open: false, item: null })
+  const [flagColor, setFlagColor] = useState<string>('red')
+  const [flagNote, setFlagNote] = useState<string>('')
+  
+  // Share modal state
+  const [shareModal, setShareModal] = useState(false)
+  const [shareSettings, setShareSettings] = useState({
+    isPublished: false,
+    shareUrl: '',
+    showSupplier: false,
+    showBrand: true,
+    showPricing: false,
+    showDetails: true
+  })
+  const [savingShareSettings, setSavingShareSettings] = useState(false)
+  
+  // Section filter
+  const [filterSection, setFilterSection] = useState<string>('all')
+  
+  // Get filtered sections based on selected room
+  const filteredFfeSections = selectedFfeRoom 
+    ? ffeItems.find(r => r.roomId === selectedFfeRoom)?.sections || []
+    : []
+  
+  // Get filtered items based on selected section
+  const filteredFfeItemsList = selectedFfeSection
+    ? filteredFfeSections.find(s => s.sectionId === selectedFfeSection)?.items || []
+    : []
 
   // Create new section
   const handleCreateSection = async () => {
@@ -402,10 +495,67 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }, [project.id])
 
+  // Load FFE items for linking
+  const loadFfeItems = useCallback(async () => {
+    setFfeItemsLoading(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/ffe-items`)
+      const data = await res.json()
+      if (data.success && data.ffeItems) {
+        setFfeItems(data.ffeItems)
+      }
+    } catch (error) {
+      console.error('Failed to load FFE items:', error)
+    } finally {
+      setFfeItemsLoading(false)
+    }
+  }, [project.id])
+
   useEffect(() => {
     fetchSpecs()
     loadSuppliers()
-  }, [fetchSpecs, loadSuppliers])
+    loadFfeItems()
+  }, [fetchSpecs, loadSuppliers, loadFfeItems])
+  
+  // Handle URL parameters for pre-selecting FFE item (from FFE Workspace "Choose" action)
+  useEffect(() => {
+    const linkFfeItemId = searchParams.get('linkFfeItem')
+    const roomIdParam = searchParams.get('roomId')
+    const sectionIdParam = searchParams.get('sectionId')
+    
+    if (linkFfeItemId && ffeItems.length > 0) {
+      // Find the FFE item in the loaded data
+      for (const room of ffeItems) {
+        if (roomIdParam && room.roomId !== roomIdParam) continue
+        for (const section of room.sections) {
+          if (sectionIdParam && section.sectionId !== sectionIdParam) continue
+          const item = section.items.find(i => i.id === linkFfeItemId)
+          if (item) {
+            // Pre-select the FFE item
+            setSelectedFfeRoom(room.roomId)
+            setSelectedFfeSection(section.sectionId)
+            setSelectedFfeItemId(item.id)
+            if (item.hasLinkedSpecs) {
+              setShowAlreadyChosenWarning(true)
+            }
+            // Open the detail panel in create mode for the first available section
+            if (availableRooms.length > 0 && availableRooms[0].sections.length > 0) {
+              setDetailPanel({
+                isOpen: true,
+                mode: 'create',
+                item: null,
+                sectionId: section.sectionId,
+                roomId: room.roomId
+              })
+            }
+            // Clear URL params
+            router.replace(`/projects/${project.id}/specs/all`, { scroll: false })
+            break
+          }
+        }
+      }
+    }
+  }, [searchParams, ffeItems, availableRooms, project.id, router])
 
   // Get unique rooms for filter
   const uniqueRooms = Array.from(new Set(specs.map(s => s.roomName))).sort()
@@ -435,6 +585,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     if (filterRoom !== 'all') {
       filtered = filtered.filter(spec => spec.roomName === filterRoom)
     }
+    
+    // Apply section filter
+    if (filterSection !== 'all') {
+      filtered = filtered.filter(spec => spec.sectionId === filterSection)
+    }
 
     // Group by category or room, preserving sectionId and roomId
     const groups: Record<string, CategoryGroup> = {}
@@ -458,7 +613,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }))
 
     setGroupedSpecs(groupedArray.sort((a, b) => a.name.localeCompare(b.name)))
-  }, [specs, searchQuery, filterStatus, filterRoom, sortBy])
+  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, sortBy])
   
   // Load library products
   const loadLibraryProducts = useCallback(async () => {
@@ -574,7 +729,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
   
-  // Add item to section
+  // Add item to section with FFE linking
   const handleAddItem = async (sectionId: string, roomId: string, itemData: any) => {
     setSavingItem(true)
     try {
@@ -586,7 +741,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         throw new Error('Failed to load room data')
       }
       
-      // Add item to the section - this is an actual spec (not a task)
+      // Determine if this is an option (FFE item already has specs)
+      const isOption = selectedFfeItem?.hasLinkedSpecs || false
+      const optionNumber = selectedFfeItem?.linkedSpecsCount ? selectedFfeItem.linkedSpecsCount + 1 : undefined
+      
+      // Add item to the section - this is an actual spec linked to FFE requirement
       const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -609,13 +768,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           unitCost: itemData.rrp ? parseFloat(itemData.rrp.replace(/[^0-9.]/g, '')) : undefined,
           images: itemData.images || [],
           libraryProductId: itemData.libraryProductId,
-          isSpec: true // This is an actual spec from All Spec view, not a task
+          // NEW: FFE Linking fields
+          isSpecItem: true, // This is an actual spec from All Spec view
+          ffeRequirementId: selectedFfeItem?.itemId || null, // Link to FFE Workspace item
+          isOption: isOption,
+          optionNumber: optionNumber,
+          specStatus: 'SELECTED', // Mark as selected (not draft)
+          visibility: 'VISIBLE'
         })
       })
       
       if (res.ok) {
-        toast.success('Item added successfully')
+        const linkedMsg = selectedFfeItem 
+          ? ` and linked to "${selectedFfeItem.itemName}"${isOption ? ` as Option #${optionNumber}` : ''}`
+          : ''
+        toast.success(`Product added${linkedMsg}`)
         fetchSpecs() // Refresh the list
+        loadFfeItems() // Refresh FFE items to update chosen status
         // Close all modals
         setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
         setLibraryModal({ open: false, sectionId: null, roomId: null })
@@ -624,6 +793,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         setExtractedData(null)
         setUrlInput('')
         setSelectedLibraryProduct(null)
+        // Reset FFE selection
+        setSelectedFfeRoom('')
+        setSelectedFfeSection('')
+        setSelectedFfeItemId('')
+        setSelectedFfeItem(null)
+        setShowAlreadyChosenWarning(false)
         setCustomProductForm({ name: '', brand: '', sku: '', description: '', supplierName: '', supplierLink: '', quantity: 1 })
       } else {
         throw new Error('Failed to add item')
@@ -634,6 +809,61 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     } finally {
       setSavingItem(false)
     }
+  }
+  
+  // Handle cascading FFE room selection
+  const handleFfeRoomSelect = (roomId: string) => {
+    setSelectedFfeRoom(roomId)
+    setSelectedFfeSection('')
+    setSelectedFfeItemId('')
+    setSelectedFfeItem(null)
+    setShowAlreadyChosenWarning(false)
+  }
+  
+  // Handle cascading FFE section selection
+  const handleFfeSectionSelect = (sectionId: string) => {
+    setSelectedFfeSection(sectionId)
+    setSelectedFfeItemId('')
+    setSelectedFfeItem(null)
+    setShowAlreadyChosenWarning(false)
+  }
+  
+  // Handle FFE item selection with "already chosen" check
+  const handleFfeItemSelect = (itemId: string) => {
+    const room = ffeItems.find(r => r.roomId === selectedFfeRoom)
+    const section = room?.sections.find(s => s.sectionId === selectedFfeSection)
+    const item = section?.items.find(i => i.id === itemId)
+    
+    if (!room || !section || !item) return
+    
+    setSelectedFfeItemId(itemId)
+    const newSelection = {
+      roomId: room.roomId,
+      roomName: room.roomName,
+      sectionId: section.sectionId,
+      sectionName: section.sectionName,
+      itemId: item.id,
+      itemName: item.name,
+      hasLinkedSpecs: item.hasLinkedSpecs,
+      linkedSpecsCount: item.linkedSpecsCount
+    }
+    setSelectedFfeItem(newSelection)
+    
+    // Show warning if item already has specs
+    if (item.hasLinkedSpecs) {
+      setShowAlreadyChosenWarning(true)
+    } else {
+      setShowAlreadyChosenWarning(false)
+    }
+  }
+  
+  // Reset FFE selection state
+  const resetFfeSelection = () => {
+    setSelectedFfeRoom('')
+    setSelectedFfeSection('')
+    setSelectedFfeItemId('')
+    setSelectedFfeItem(null)
+    setShowAlreadyChosenWarning(false)
   }
   
   // Open library modal
@@ -724,10 +954,17 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       })
       
       if (res.ok) {
-        // Update local state
+        // Update local state - handle numeric fields properly
+        let parsedValue: any = editValue
+        if (editingField.field === 'quantity') {
+          parsedValue = parseInt(editValue) || 1
+        } else if (editingField.field === 'tradePrice' || editingField.field === 'rrp' || editingField.field === 'unitCost' || editingField.field === 'tradeDiscount') {
+          parsedValue = editValue ? parseFloat(editValue) : null
+        }
+        
         setSpecs(prev => prev.map(s => 
           s.id === editingField.itemId 
-            ? { ...s, [editingField.field]: editValue }
+            ? { ...s, [editingField.field]: parsedValue }
             : s
         ))
         toast.success('Updated')
@@ -756,6 +993,398 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
+  // Load projects for Copy to... functionality
+  const loadProjects = async () => {
+    setProjectsLoading(true)
+    try {
+      const res = await fetch('/api/projects')
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        // Filter out current project
+        setProjectsList(data.filter((p: any) => p.id !== project.id).map((p: any) => ({ id: p.id, name: p.name })))
+      }
+    } catch (error) {
+      console.error('Failed to load projects:', error)
+    } finally {
+      setProjectsLoading(false)
+    }
+  }
+
+  // Duplicate item in the same section
+  const handleDuplicateItem = async (item: SpecItem) => {
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: item.sectionId,
+          name: `${item.name} (Copy)`,
+          description: item.description,
+          brand: item.brand,
+          sku: item.sku,
+          material: item.material,
+          color: item.color,
+          finish: item.finish,
+          width: item.width,
+          height: item.height,
+          depth: item.depth,
+          leadTime: item.leadTime,
+          supplierName: item.supplierName,
+          supplierLink: item.supplierLink,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+          tradePrice: item.tradePrice,
+          rrp: item.rrp,
+          tradeDiscount: item.tradeDiscount,
+          images: item.images,
+          isSpecItem: true,
+          specStatus: 'DRAFT',
+          visibility: 'VISIBLE'
+        })
+      })
+      
+      if (res.ok) {
+        toast.success('Item duplicated')
+        fetchSpecs()
+      } else {
+        throw new Error('Failed to duplicate')
+      }
+    } catch (error) {
+      console.error('Error duplicating item:', error)
+      toast.error('Failed to duplicate item')
+    }
+  }
+
+  // Move item to a different section
+  const handleMoveToSection = async () => {
+    if (!moveToSectionModal.item || !selectedMoveSection) return
+    
+    const item = moveToSectionModal.item
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetSectionId: selectedMoveSection })
+      })
+      
+      if (res.ok) {
+        toast.success('Item moved to new section')
+        fetchSpecs()
+        setMoveToSectionModal({ open: false, item: null })
+        setSelectedMoveSection('')
+      } else {
+        throw new Error('Failed to move')
+      }
+    } catch (error) {
+      console.error('Error moving item:', error)
+      toast.error('Failed to move item')
+    }
+  }
+
+  // Copy item to another project
+  const handleCopyToProject = async () => {
+    if (!copyToProjectModal.item || !selectedCopyProject) return
+    
+    const item = copyToProjectModal.item
+    try {
+      // First, get the target project's rooms to find a section
+      const roomsRes = await fetch(`/api/projects/${selectedCopyProject}/specs`)
+      const roomsData = await roomsRes.json()
+      
+      if (!roomsData.availableRooms || roomsData.availableRooms.length === 0) {
+        toast.error('Target project has no rooms to copy to')
+        return
+      }
+      
+      const targetRoom = roomsData.availableRooms[0]
+      const targetSection = targetRoom.sections?.[0]
+      
+      if (!targetSection) {
+        toast.error('Target project has no sections to copy to')
+        return
+      }
+      
+      // Create the item in the target project
+      const res = await fetch(`/api/ffe/v2/rooms/${targetRoom.id}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: targetSection.id,
+          name: item.name,
+          description: item.description,
+          brand: item.brand,
+          sku: item.sku,
+          material: item.material,
+          color: item.color,
+          finish: item.finish,
+          width: item.width,
+          height: item.height,
+          depth: item.depth,
+          leadTime: item.leadTime,
+          supplierName: item.supplierName,
+          supplierLink: item.supplierLink,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+          tradePrice: item.tradePrice,
+          rrp: item.rrp,
+          tradeDiscount: item.tradeDiscount,
+          images: item.images,
+          isSpecItem: true,
+          specStatus: 'DRAFT',
+          visibility: 'VISIBLE'
+        })
+      })
+      
+      if (res.ok) {
+        toast.success('Item copied to project')
+        setCopyToProjectModal({ open: false, item: null })
+        setSelectedCopyProject('')
+      } else {
+        throw new Error('Failed to copy')
+      }
+    } catch (error) {
+      console.error('Error copying item:', error)
+      toast.error('Failed to copy item to project')
+    }
+  }
+
+  // Add flag to item
+  const handleAddFlag = async () => {
+    if (!flagModal.item) return
+    
+    const item = flagModal.item
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          customFields: { 
+            flag: { color: flagColor, note: flagNote, addedAt: new Date().toISOString() }
+          }
+        })
+      })
+      
+      if (res.ok) {
+        toast.success('Flag added')
+        fetchSpecs()
+        setFlagModal({ open: false, item: null })
+        setFlagColor('red')
+        setFlagNote('')
+      } else {
+        throw new Error('Failed to add flag')
+      }
+    } catch (error) {
+      console.error('Error adding flag:', error)
+      toast.error('Failed to add flag')
+    }
+  }
+
+  // Add item to product library
+  const handleAddToLibrary = async (item: SpecItem) => {
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: item.productName || item.name,
+          brand: item.brand,
+          sku: item.sku,
+          description: item.description,
+          thumbnailUrl: item.thumbnailUrl || item.images?.[0] || null,
+          images: item.images || [],
+          color: item.color,
+          finish: item.finish,
+          material: item.material,
+          width: item.width,
+          height: item.height,
+          depth: item.depth,
+          leadTime: item.leadTime,
+          tradePrice: item.tradePrice,
+          rrp: item.rrp
+        })
+      })
+      
+      if (res.ok) {
+        toast.success('Added to product library')
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to add to library')
+      }
+    } catch (error) {
+      console.error('Error adding to library:', error)
+      toast.error('Failed to add to library')
+    }
+  }
+
+  // Update item from URL (re-scrape)
+  const handleUpdateFromUrl = async (item: SpecItem) => {
+    if (!item.supplierLink) {
+      toast.error('No product URL to update from')
+      return
+    }
+    
+    try {
+      // Fetch page content from the URL
+      const fetchRes = await fetch('/api/link-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: item.supplierLink })
+      })
+      
+      if (!fetchRes.ok) {
+        throw new Error('Failed to fetch page content')
+      }
+      
+      const pageData = await fetchRes.json()
+      
+      // Use AI to extract product info
+      const aiRes = await fetch('/api/ai/extract-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: item.supplierLink,
+          pageContent: pageData.textContent || pageData.description || '',
+          title: pageData.title || '',
+          images: pageData.image ? [pageData.image] : []
+        })
+      })
+      
+      if (aiRes.ok) {
+        const result = await aiRes.json()
+        if (result.success && result.data) {
+          // Update the item with extracted data
+          const updateRes = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productName: result.data.productName,
+              brand: result.data.brand,
+              description: result.data.productDescription,
+              sku: result.data.sku,
+              rrp: result.data.rrp ? parseFloat(result.data.rrp.replace(/[^0-9.]/g, '')) : undefined,
+              tradePrice: result.data.tradePrice ? parseFloat(result.data.tradePrice.replace(/[^0-9.]/g, '')) : undefined,
+              material: result.data.material,
+              color: result.data.colour,
+              finish: result.data.finish,
+              width: result.data.width,
+              height: result.data.height,
+              depth: result.data.depth,
+              leadTime: result.data.leadTime,
+              images: result.data.images?.length ? result.data.images : undefined
+            })
+          })
+          
+          if (updateRes.ok) {
+            toast.success('Item updated from URL')
+            fetchSpecs()
+          } else {
+            throw new Error('Failed to update item')
+          }
+        }
+      } else {
+        toast.error('Could not extract data from URL')
+      }
+    } catch (error) {
+      console.error('Error updating from URL:', error)
+      toast.error('Failed to update from URL')
+    }
+  }
+
+  // Remove item from schedule (delete)
+  const handleRemoveFromSchedule = async (item: SpecItem) => {
+    if (!confirm('Are you sure you want to remove this item from the schedule?')) return
+    
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (res.ok) {
+        toast.success('Item removed from schedule')
+        fetchSpecs()
+      } else {
+        throw new Error('Failed to remove')
+      }
+    } catch (error) {
+      console.error('Error removing item:', error)
+      toast.error('Failed to remove item')
+    }
+  }
+
+  // Load share settings
+  const loadShareSettings = async () => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}/share-settings`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.settings) {
+          setShareSettings({
+            isPublished: data.settings.isPublished || false,
+            shareUrl: data.settings.shareUrl || `${window.location.origin}/shared/specs/${project.id}`,
+            showSupplier: data.settings.showSupplier ?? false,
+            showBrand: data.settings.showBrand ?? true,
+            showPricing: data.settings.showPricing ?? false,
+            showDetails: data.settings.showDetails ?? true
+          })
+        } else {
+          // Set default URL if no settings exist
+          setShareSettings(prev => ({
+            ...prev,
+            shareUrl: `${window.location.origin}/shared/specs/${project.id}`
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load share settings:', error)
+      // Set default URL on error
+      setShareSettings(prev => ({
+        ...prev,
+        shareUrl: `${window.location.origin}/shared/specs/${project.id}`
+      }))
+    }
+  }
+
+  // Save share settings
+  const handleSaveShareSettings = async (newSettings: typeof shareSettings) => {
+    setSavingShareSettings(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/share-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setShareSettings({
+          ...newSettings,
+          shareUrl: data.shareUrl || newSettings.shareUrl
+        })
+        toast.success(newSettings.isPublished ? 'Published to web' : 'Share settings updated')
+      } else {
+        throw new Error('Failed to save')
+      }
+    } catch (error) {
+      console.error('Error saving share settings:', error)
+      toast.error('Failed to save share settings')
+    } finally {
+      setSavingShareSettings(false)
+    }
+  }
+
+  // Toggle publish status
+  const handleTogglePublish = async (isPublished: boolean) => {
+    const newSettings = { ...shareSettings, isPublished }
+    setShareSettings(newSettings)
+    await handleSaveShareSettings(newSettings)
+  }
+
+  // Copy share URL to clipboard
+  const copyShareUrl = () => {
+    navigator.clipboard.writeText(shareSettings.shareUrl)
+    toast.success('Link copied to clipboard')
+  }
+
   const toggleCategory = (categoryName: string) => {
     setExpandedCategories(prev => {
       const newSet = new Set(prev)
@@ -775,7 +1404,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       case 'IN_PROGRESS':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">In Progress</Badge>
       case 'NEEDS_SPEC':
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Needs Spec</Badge>
+        return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">Needs Spec</Badge>
       default:
         return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">Draft</Badge>
     }
@@ -838,8 +1467,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <Button variant="outline" size="sm">
                 Bulk Quotes
               </Button>
-              <Button variant="default" size="sm" className="bg-gray-900 hover:bg-gray-800">
-                <ExternalLink className="w-4 h-4 mr-1.5" />
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="bg-gray-900 hover:bg-gray-800"
+                onClick={() => {
+                  loadShareSettings()
+                  setShareModal(true)
+                }}
+              >
+                <Share2 className="w-4 h-4 mr-1.5" />
                 Share
               </Button>
               <DropdownMenu>
@@ -856,52 +1493,107 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
-          {/* Tabs Row */}
+          {/* Tabs Row - Modern Pill Style */}
           <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center gap-6">
-              <button
-                onClick={() => setActiveTab('summary')}
-                className={cn(
-                  "pb-2 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === 'summary'
-                    ? "border-gray-900 text-gray-900"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                )}
-              >
-                Summary
-              </button>
-              <button
-                onClick={() => setActiveTab('financial')}
-                className={cn(
-                  "pb-2 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === 'financial'
-                    ? "border-gray-900 text-gray-900"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                )}
-              >
-                Financial
-              </button>
+            <div className="flex items-center gap-4">
+              {/* Primary Tabs */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('summary')}
+                  className={cn(
+                    "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                    activeTab === 'summary'
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  )}
+                >
+                  Summary
+                </button>
+                <button
+                  onClick={() => setActiveTab('financial')}
+                  className={cn(
+                    "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                    activeTab === 'financial'
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  )}
+                >
+                  Financial
+                </button>
+              </div>
               
-              {/* Navigate to Section */}
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 pb-2">
-                  Navigate to Section
-                  <ChevronDown className="w-4 h-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {groupedSpecs.map((group) => (
-                    <DropdownMenuItem 
-                      key={group.name}
-                      onClick={() => {
-                        const element = document.getElementById(`section-${group.name.replace(/\s+/g, '-')}`)
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      }}
-                    >
-                      {group.name} ({group.items.length})
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="h-6 w-px bg-gray-200" />
+              
+              {/* Section Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto max-w-[400px]">
+                <button
+                  onClick={() => setFilterSection('all')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap",
+                    filterSection === 'all'
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  All Sections
+                </button>
+                {groupedSpecs.slice(0, 5).map((group) => (
+                  <button
+                    key={group.sectionId || group.name}
+                    onClick={() => setFilterSection(group.sectionId || 'all')}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap",
+                      filterSection === group.sectionId
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    )}
+                  >
+                    {group.name}
+                  </button>
+                ))}
+                {groupedSpecs.length > 5 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                      +{groupedSpecs.length - 5} more
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {groupedSpecs.slice(5).map((group) => (
+                        <DropdownMenuItem 
+                          key={group.sectionId || group.name}
+                          onClick={() => setFilterSection(group.sectionId || 'all')}
+                        >
+                          {group.name} ({group.items.length})
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              
+              <div className="h-6 w-px bg-gray-200" />
+              
+              {/* Team-only: View Unchosen Items */}
+              <button
+                onClick={() => setShowUnchosenItems(!showUnchosenItems)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                  showUnchosenItems 
+                    ? "bg-gray-100 text-gray-900" 
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                <Circle className="w-3.5 h-3.5" />
+                Needs Selection
+                {ffeItems.length > 0 && (
+                  <Badge variant="outline" className="ml-1 text-xs bg-gray-100 text-gray-700 border-gray-200">
+                    {ffeItems.reduce((acc, room) => 
+                      acc + room.sections.reduce((sAcc, section) => 
+                        sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                      ), 0
+                    )}
+                  </Badge>
+                )}
+              </button>
             </div>
             
             <div className="flex items-center gap-3">
@@ -921,13 +1613,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
                     "h-8",
-                    (filterStatus !== 'all' || filterRoom !== 'all') ? "text-blue-600" : "text-gray-500"
+                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') ? "text-blue-600" : "text-gray-500"
                   )}>
                     <Filter className="w-4 h-4 mr-1.5" />
                     Filter
-                    {(filterStatus !== 'all' || filterRoom !== 'all') && (
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') && (
                       <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-blue-100 text-blue-600">
-                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0)}
+                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0)}
                       </Badge>
                     )}
                   </Button>
@@ -1035,6 +1727,195 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           )}
         </div>
       </div>
+
+      {/* Unchosen Items Panel - Team Only */}
+      {showUnchosenItems && (
+        <div className="max-w-full mx-auto px-4 py-4">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <Circle className="w-5 h-5 text-gray-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">FFE Items Needing Selection</h3>
+                  <p className="text-sm text-gray-600">
+                    These items from FFE Workspace don&apos;t have products chosen yet
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-gray-600">Sort by:</Label>
+                <Select value={unchosenItemsSort} onValueChange={(v: 'category' | 'room') => setUnchosenItemsSort(v)}>
+                  <SelectTrigger className="w-32 h-8 bg-white border-gray-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="category">Category</SelectItem>
+                    <SelectItem value="room">Room</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowUnchosenItems(false)}
+                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Unchosen Items List */}
+            <div className="space-y-3">
+              {unchosenItemsSort === 'category' ? (
+                // Group by category/section
+                (() => {
+                  const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; item: any }>>()
+                  ffeItems.forEach(room => {
+                    room.sections.forEach(section => {
+                      // Include all unchosen items (both parent and linked items)
+                      section.items.filter(item => !item.hasLinkedSpecs).forEach(item => {
+                        const key = section.sectionName
+                        if (!byCategory.has(key)) byCategory.set(key, [])
+                        byCategory.get(key)!.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
+                      })
+                    })
+                  })
+                  return Array.from(byCategory.entries()).map(([category, items]) => (
+                    <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="bg-gray-100/50 px-4 py-2 border-b border-gray-200">
+                        <span className="font-medium text-gray-900">{category}</span>
+                        <span className="text-sm text-gray-500 ml-2">({items.length} items)</span>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {items.map(({ roomName, roomId, sectionId, item }) => (
+                          <div 
+                            key={item.id} 
+                            className={cn(
+                              "flex items-center justify-between py-3 hover:bg-gray-50",
+                              item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              {item.isLinkedItem && (
+                                <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                              )}
+                              <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900">{item.name}</p>
+                                  {item.isLinkedItem && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
+                                      linked to {item.parentName}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">{roomName}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                              onClick={() => {
+                                // Pre-select FFE item and open create panel
+                                setSelectedFfeRoom(roomId)
+                                setSelectedFfeSection(sectionId)
+                                setSelectedFfeItemId(item.id)
+                                setDetailPanel({
+                                  isOpen: true,
+                                  mode: 'create',
+                                  item: null,
+                                  sectionId: sectionId,
+                                  roomId: roomId
+                                })
+                              }}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Choose
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()
+              ) : (
+                // Group by room
+                ffeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
+                  <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="bg-gray-100/50 px-4 py-2 border-b border-gray-200">
+                      <span className="font-medium text-gray-900">{room.roomName}</span>
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({room.sections.reduce((acc, s) => acc + s.items.filter(i => !i.hasLinkedSpecs).length, 0)} items)
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {room.sections.flatMap(section => 
+                        section.items.filter(item => !item.hasLinkedSpecs).map(item => (
+                          <div 
+                            key={item.id} 
+                            className={cn(
+                              "flex items-center justify-between py-3 hover:bg-gray-50",
+                              item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              {item.isLinkedItem && (
+                                <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                              )}
+                              <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900">{item.name}</p>
+                                  {item.isLinkedItem && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
+                                      linked to {item.parentName}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">{section.sectionName}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                              onClick={() => {
+                                setSelectedFfeRoom(room.roomId)
+                                setSelectedFfeSection(section.sectionId)
+                                setSelectedFfeItemId(item.id)
+                                setDetailPanel({
+                                  isOpen: true,
+                                  mode: 'create',
+                                  item: null,
+                                  sectionId: section.sectionId,
+                                  roomId: room.roomId
+                                })
+                              }}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Choose
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              
+              {ffeItems.every(room => room.sections.every(s => s.items.every(i => i.hasLinkedSpecs))) && (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
+                  <p className="font-medium text-emerald-700">All FFE items have products selected!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="max-w-full mx-auto px-4 py-4">
@@ -1194,20 +2075,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         <div 
                           key={item.id} 
                           className={cn(
-                            "group/item relative flex items-center transition-colors border-l-2 cursor-pointer",
+                            "group/item relative flex items-center transition-colors border-l-2",
                             selectedItems.has(item.id) 
                               ? "bg-blue-50 border-blue-500" 
                               : "hover:bg-gray-50 border-transparent hover:border-blue-400"
                           )}
                           onMouseEnter={() => setHoveredItem(item.id)}
                           onMouseLeave={() => setHoveredItem(null)}
-                          onDoubleClick={() => setDetailPanel({
-                            isOpen: true,
-                            mode: 'view',
-                            item: item,
-                            sectionId: item.sectionId,
-                            roomId: item.roomId
-                          })}
                         >
                           {/* Hover Actions - Fixed on left side, always show if selected */}
                           <div className={cn(
@@ -1363,6 +2237,52 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'brand', item.brand || '') }}
                                 >
                                   {item.brand || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* QTY - Fixed width */}
+                            <div className="flex-shrink-0 w-12 text-center">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'quantity' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs text-center"
+                                  autoFocus
+                                  type="number"
+                                  min="1"
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'quantity', item.quantity?.toString() || '1') }}
+                                >
+                                  {item.quantity || 1}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Lead Time - Fixed width */}
+                            <div className="flex-shrink-0 w-20">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'leadTime' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'leadTime', item.leadTime || '') }}
+                                >
+                                  {item.leadTime || '-'}
                                 </p>
                               )}
                             </div>
@@ -1532,6 +2452,38 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                               
+                              {/* Details Button - Outside 3 dots */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2.5"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDetailPanel({
+                                    isOpen: true,
+                                    mode: 'view',
+                                    item: item,
+                                    sectionId: item.sectionId,
+                                    roomId: item.roomId
+                                  })
+                                }}
+                              >
+                                Details
+                              </Button>
+                              
+                              {/* Quote Button - Outside 3 dots */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2.5 text-gray-500"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toast('Quote feature coming soon')
+                                }}
+                              >
+                                Quote
+                              </Button>
+                              
                               {/* 3 Dots Menu */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -1544,23 +2496,98 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <MoreVertical className="w-4 h-4 text-gray-400" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuItem 
                                     className="text-xs"
-                                    onClick={() => setDetailPanel({
-                                      isOpen: true,
-                                      mode: 'view',
-                                      item: item,
-                                      sectionId: item.sectionId,
-                                      roomId: item.roomId
-                                    })}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setFlagModal({ open: true, item: item })
+                                    }}
                                   >
-                                    <Eye className="w-3.5 h-3.5 mr-2" />
-                                    View Details
+                                    <Flag className="w-3.5 h-3.5 mr-2" />
+                                    Add a Flag
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-xs">
+                                  <DropdownMenuItem 
+                                    className="text-xs text-gray-400"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toast('Archive feature coming soon')
+                                    }}
+                                  >
+                                    <Archive className="w-3.5 h-3.5 mr-2" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleAddToLibrary(item)
+                                    }}
+                                  >
+                                    <BookPlus className="w-3.5 h-3.5 mr-2" />
+                                    Add to Product Library
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDuplicateItem(item)
+                                    }}
+                                  >
+                                    <Copy className="w-3.5 h-3.5 mr-2" />
+                                    Duplicate
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      loadProjects()
+                                      setCopyToProjectModal({ open: true, item: item })
+                                    }}
+                                  >
+                                    <FolderInput className="w-3.5 h-3.5 mr-2" />
+                                    Copy to...
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setMoveToSectionModal({ open: true, item: item })
+                                    }}
+                                  >
+                                    <Layers className="w-3.5 h-3.5 mr-2" />
+                                    Move to section...
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs text-gray-400"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toast('PDF export coming soon')
+                                    }}
+                                  >
                                     <FileText className="w-3.5 h-3.5 mr-2" />
-                                    Generate Quote
+                                    Export PDF Spec Sheet
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleUpdateFromUrl(item)
+                                    }}
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                                    Update from URL
+                                  </DropdownMenuItem>
+                                  <div className="border-t border-gray-100 my-1" />
+                                  <DropdownMenuItem 
+                                    className="text-xs text-red-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleRemoveFromSchedule(item)
+                                    }}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                    Remove From Schedule
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -1806,6 +2833,119 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 )}
               </div>
             )}
+            
+            {/* FFE Item Selector - Cascading: Room → Section → Item */}
+            {extractedData && (
+              <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-blue-600" />
+                  <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+                </div>
+                <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
+                
+                {ffeItemsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading FFE items...
+                  </div>
+                ) : ffeItems.length === 0 ? (
+                  <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Step 1: Select Room */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-blue-700">1. Select Room</Label>
+                      <Select value={selectedFfeRoom} onValueChange={handleFfeRoomSelect}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Choose a room..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ffeItems.map(room => (
+                            <SelectItem key={room.roomId} value={room.roomId}>
+                              {room.roomName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Step 2: Select Section/Category */}
+                    {selectedFfeRoom && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-blue-700">2. Select Category</Label>
+                        <Select value={selectedFfeSection} onValueChange={handleFfeSectionSelect}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Choose a category..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredFfeSections.map(section => (
+                              <SelectItem key={section.sectionId} value={section.sectionId}>
+                                {section.sectionName} ({section.items.length} items)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Step 3: Select FFE Item */}
+                    {selectedFfeSection && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
+                        <Select value={selectedFfeItemId} onValueChange={handleFfeItemSelect}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Choose an item..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredFfeItemsList.map(item => (
+                              <SelectItem key={item.id} value={item.id}>
+                                <div className="flex items-center gap-2">
+                                  {item.hasLinkedSpecs ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                  )}
+                                  <span>{item.name}</span>
+                                  {item.hasLinkedSpecs && (
+                                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700">
+                                      {item.linkedSpecsCount} chosen
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Confirmation */}
+                    {selectedFfeItem && (
+                      <div className={cn(
+                        "p-3 rounded-lg border text-sm",
+                        showAlreadyChosenWarning 
+                          ? "bg-amber-50 border-amber-200" 
+                          : "bg-emerald-50 border-emerald-200"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          {showAlreadyChosenWarning ? (
+                            <AlertCircle className="w-4 h-4 text-amber-600" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          )}
+                          <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
+                            {showAlreadyChosenWarning 
+                              ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
+                              : `Will link to: ${selectedFfeItem.roomName} → ${selectedFfeItem.sectionName} → ${selectedFfeItem.itemName}`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           <DialogFooter>
@@ -1813,6 +2953,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
               setExtractedData(null)
               setUrlInput('')
+              resetFfeSelection()
             }}>
               Cancel
             </Button>
@@ -1825,7 +2966,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               disabled={!extractedData || savingItem}
               className="bg-purple-600 hover:bg-purple-700"
             >
-              {savingItem ? 'Adding...' : 'Add Product'}
+              {savingItem ? 'Adding...' : (selectedFfeItem ? 'Add & Link Product' : 'Add Product')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1906,6 +3047,119 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 </div>
               )}
             </ScrollArea>
+            
+            {/* FFE Item Selector - Cascading: Room → Section → Item */}
+            {selectedLibraryProduct && (
+              <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-blue-600" />
+                  <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+                </div>
+                <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
+                
+                {ffeItemsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading FFE items...
+                  </div>
+                ) : ffeItems.length === 0 ? (
+                  <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Step 1: Select Room */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-blue-700">1. Select Room</Label>
+                      <Select value={selectedFfeRoom} onValueChange={handleFfeRoomSelect}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Choose a room..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ffeItems.map(room => (
+                            <SelectItem key={room.roomId} value={room.roomId}>
+                              {room.roomName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Step 2: Select Section/Category */}
+                    {selectedFfeRoom && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-blue-700">2. Select Category</Label>
+                        <Select value={selectedFfeSection} onValueChange={handleFfeSectionSelect}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Choose a category..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredFfeSections.map(section => (
+                              <SelectItem key={section.sectionId} value={section.sectionId}>
+                                {section.sectionName} ({section.items.length} items)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Step 3: Select FFE Item */}
+                    {selectedFfeSection && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
+                        <Select value={selectedFfeItemId} onValueChange={handleFfeItemSelect}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Choose an item..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredFfeItemsList.map(item => (
+                              <SelectItem key={item.id} value={item.id}>
+                                <div className="flex items-center gap-2">
+                                  {item.hasLinkedSpecs ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                  )}
+                                  <span>{item.name}</span>
+                                  {item.hasLinkedSpecs && (
+                                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700">
+                                      {item.linkedSpecsCount} chosen
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Confirmation */}
+                    {selectedFfeItem && (
+                      <div className={cn(
+                        "p-3 rounded-lg border text-sm",
+                        showAlreadyChosenWarning 
+                          ? "bg-amber-50 border-amber-200" 
+                          : "bg-emerald-50 border-emerald-200"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          {showAlreadyChosenWarning ? (
+                            <AlertCircle className="w-4 h-4 text-amber-600" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          )}
+                          <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
+                            {showAlreadyChosenWarning 
+                              ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
+                              : `Will link to: ${selectedFfeItem.roomName} → ${selectedFfeItem.sectionName} → ${selectedFfeItem.itemName}`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           <DialogFooter>
@@ -1913,6 +3167,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               setLibraryModal({ open: false, sectionId: null, roomId: null })
               setSelectedLibraryProduct(null)
               setLibrarySearch('')
+              resetFfeSelection()
             }}>
               Cancel
             </Button>
@@ -1930,7 +3185,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               disabled={!selectedLibraryProduct || savingItem}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {savingItem ? 'Adding...' : 'Add Product'}
+              {savingItem ? 'Adding...' : (selectedFfeItem ? 'Add & Link Product' : 'Add Product')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2023,12 +3278,124 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 placeholder="https://..."
               />
             </div>
+            
+            {/* FFE Item Selector - Cascading: Room → Section → Item */}
+            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-blue-600" />
+                <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+              </div>
+              <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
+              
+              {ffeItemsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading FFE items...
+                </div>
+              ) : ffeItems.length === 0 ? (
+                <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Step 1: Select Room */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-blue-700">1. Select Room</Label>
+                    <Select value={selectedFfeRoom} onValueChange={handleFfeRoomSelect}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Choose a room..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ffeItems.map(room => (
+                          <SelectItem key={room.roomId} value={room.roomId}>
+                            {room.roomName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Step 2: Select Section/Category */}
+                  {selectedFfeRoom && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-blue-700">2. Select Category</Label>
+                      <Select value={selectedFfeSection} onValueChange={handleFfeSectionSelect}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Choose a category..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredFfeSections.map(section => (
+                            <SelectItem key={section.sectionId} value={section.sectionId}>
+                              {section.sectionName} ({section.items.length} items)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* Step 3: Select FFE Item */}
+                  {selectedFfeSection && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
+                      <Select value={selectedFfeItemId} onValueChange={handleFfeItemSelect}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Choose an item..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredFfeItemsList.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              <div className="flex items-center gap-2">
+                                {item.hasLinkedSpecs ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                )}
+                                <span>{item.name}</span>
+                                {item.hasLinkedSpecs && (
+                                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700">
+                                    {item.linkedSpecsCount} chosen
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* Confirmation */}
+                  {selectedFfeItem && (
+                    <div className={cn(
+                      "p-3 rounded-lg border text-sm",
+                      showAlreadyChosenWarning 
+                        ? "bg-amber-50 border-amber-200" 
+                        : "bg-emerald-50 border-emerald-200"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        {showAlreadyChosenWarning ? (
+                          <AlertCircle className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        )}
+                        <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
+                          {showAlreadyChosenWarning 
+                            ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
+                            : `Will link to: ${selectedFfeItem.roomName} → ${selectedFfeItem.sectionName} → ${selectedFfeItem.itemName}`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setCustomProductModal({ open: false, sectionId: null, roomId: null })
               setCustomProductForm({ name: '', brand: '', sku: '', description: '', supplierName: '', supplierLink: '', quantity: 1 })
+              resetFfeSelection()
             }}>
               Cancel
             </Button>
@@ -2040,7 +3407,309 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               }}
               disabled={!customProductForm.name || savingItem}
             >
-              {savingItem ? 'Adding...' : 'Add Product'}
+              {savingItem ? 'Adding...' : (selectedFfeItem ? 'Add & Link Product' : 'Add Product')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Move to Section Modal */}
+      <Dialog open={moveToSectionModal.open} onOpenChange={(open) => !open && setMoveToSectionModal({ open: false, item: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-600" />
+              Move to Section
+            </DialogTitle>
+            <DialogDescription>
+              Select a section to move "{moveToSectionModal.item?.name}" to.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <Select value={selectedMoveSection} onValueChange={setSelectedMoveSection}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a section" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRooms.flatMap(room => 
+                  room.sections.map(section => (
+                    <SelectItem 
+                      key={section.id} 
+                      value={section.id}
+                      disabled={section.id === moveToSectionModal.item?.sectionId}
+                    >
+                      {room.name} - {section.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveToSectionModal({ open: false, item: null })}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleMoveToSection}
+              disabled={!selectedMoveSection}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Move Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Copy to Project Modal */}
+      <Dialog open={copyToProjectModal.open} onOpenChange={(open) => !open && setCopyToProjectModal({ open: false, item: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderInput className="w-5 h-5 text-purple-600" />
+              Copy to Project
+            </DialogTitle>
+            <DialogDescription>
+              Select a project to copy "{copyToProjectModal.item?.name}" to.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {projectsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              </div>
+            ) : projectsList.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">No other projects available</p>
+            ) : (
+              <Select value={selectedCopyProject} onValueChange={setSelectedCopyProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectsList.map(proj => (
+                    <SelectItem key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyToProjectModal({ open: false, item: null })}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCopyToProject}
+              disabled={!selectedCopyProject || projectsLoading}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Copy Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Flag Modal */}
+      <Dialog open={flagModal.open} onOpenChange={(open) => !open && setFlagModal({ open: false, item: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flag className="w-5 h-5 text-red-500" />
+              Add a Flag
+            </DialogTitle>
+            <DialogDescription>
+              Add a flag to "{flagModal.item?.name}" for attention or follow-up.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Flag Color</Label>
+              <div className="flex items-center gap-2">
+                {['red', 'orange', 'yellow', 'green', 'blue', 'purple'].map(color => (
+                  <button
+                    key={color}
+                    className={cn(
+                      "w-8 h-8 rounded-full transition-all",
+                      color === 'red' && "bg-red-500",
+                      color === 'orange' && "bg-orange-500",
+                      color === 'yellow' && "bg-yellow-500",
+                      color === 'green' && "bg-green-500",
+                      color === 'blue' && "bg-blue-500",
+                      color === 'purple' && "bg-purple-500",
+                      flagColor === color ? "ring-2 ring-offset-2 ring-gray-400" : "hover:scale-110"
+                    )}
+                    onClick={() => setFlagColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="flag-note">Note (optional)</Label>
+              <Textarea
+                id="flag-note"
+                value={flagNote}
+                onChange={(e) => setFlagNote(e.target.value)}
+                placeholder="Add a note about this flag..."
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFlagModal({ open: false, item: null })}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddFlag}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Add Flag
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Share Modal */}
+      <Dialog open={shareModal} onOpenChange={setShareModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-gray-700" />
+              Share Schedule
+            </DialogTitle>
+            <DialogDescription>
+              Generate a shareable link for clients and collaborators.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Publish Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900">Publish to Web</h4>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Generate a live link to your online schedule
+                </p>
+              </div>
+              <Switch
+                checked={shareSettings.isPublished}
+                onCheckedChange={handleTogglePublish}
+                disabled={savingShareSettings}
+              />
+            </div>
+            
+            {shareSettings.isPublished && (
+              <>
+                {/* Help Link */}
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Help guide</span>
+                </div>
+                
+                {/* Share URL */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                      <Input
+                        value={shareSettings.shareUrl}
+                        readOnly
+                        className="pr-24 text-sm bg-gray-50"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={copyShareUrl}
+                      title="Copy link"
+                    >
+                      <ClipboardCopy className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => window.open(shareSettings.shareUrl, '_blank')}
+                      title="Open link"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => toast('QR code feature coming soon')}
+                      title="Show QR code"
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Visibility Options */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-700">View supplier</span>
+                    <Switch
+                      checked={shareSettings.showSupplier}
+                      onCheckedChange={(checked) => {
+                        const newSettings = { ...shareSettings, showSupplier: checked }
+                        setShareSettings(newSettings)
+                        handleSaveShareSettings(newSettings)
+                      }}
+                      disabled={savingShareSettings}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-700">View brand</span>
+                    <Switch
+                      checked={shareSettings.showBrand}
+                      onCheckedChange={(checked) => {
+                        const newSettings = { ...shareSettings, showBrand: checked }
+                        setShareSettings(newSettings)
+                        handleSaveShareSettings(newSettings)
+                      }}
+                      disabled={savingShareSettings}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-700">View pricing</span>
+                    <Switch
+                      checked={shareSettings.showPricing}
+                      onCheckedChange={(checked) => {
+                        const newSettings = { ...shareSettings, showPricing: checked }
+                        setShareSettings(newSettings)
+                        handleSaveShareSettings(newSettings)
+                      }}
+                      disabled={savingShareSettings}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-700">View details</span>
+                    <Switch
+                      checked={shareSettings.showDetails}
+                      onCheckedChange={(checked) => {
+                        const newSettings = { ...shareSettings, showDetails: checked }
+                        setShareSettings(newSettings)
+                        handleSaveShareSettings(newSettings)
+                      }}
+                      disabled={savingShareSettings}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareModal(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2055,8 +3724,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         sectionId={detailPanel.sectionId}
         roomId={detailPanel.roomId}
         availableRooms={availableRooms}
+        ffeItems={ffeItems}
+        ffeItemsLoading={ffeItemsLoading}
         onSave={() => {
           fetchSpecs()
+          loadFfeItems() // Refresh FFE items to update chosen status
           if (detailPanel.mode === 'create') {
             setDetailPanel({ isOpen: false, mode: 'view', item: null })
           }

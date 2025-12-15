@@ -204,11 +204,13 @@ export async function PATCH(
       // Field updates
       name,
       sku,
+      docCode,
       productName,
       modelNumber,
       brand,
       supplierName,
       supplierLink,
+      supplierId,
       specStatus,
       state,
       visibility,
@@ -221,7 +223,13 @@ export async function PATCH(
       color,
       finish,
       material,
-      leadTime
+      leadTime,
+      width,
+      height,
+      depth,
+      length,
+      notes,
+      images
     } = body
 
     if (!roomId || !itemId) {
@@ -267,11 +275,13 @@ export async function PATCH(
     // Add field updates if provided
     if (name !== undefined) updateData.name = name
     if (sku !== undefined) updateData.sku = sku
+    if (docCode !== undefined) updateData.docCode = docCode
     if (productName !== undefined) updateData.modelNumber = productName // productName maps to modelNumber
     if (modelNumber !== undefined) updateData.modelNumber = modelNumber
     if (brand !== undefined) updateData.brand = brand
     if (supplierName !== undefined) updateData.supplierName = supplierName
     if (supplierLink !== undefined) updateData.supplierLink = supplierLink
+    if (supplierId !== undefined) updateData.supplierId = supplierId || null
     if (specStatus !== undefined) updateData.specStatus = specStatus
     if (state !== undefined) updateData.state = state
     if (visibility !== undefined) updateData.visibility = visibility
@@ -285,6 +295,11 @@ export async function PATCH(
     if (finish !== undefined) updateData.finish = finish
     if (material !== undefined) updateData.material = material
     if (leadTime !== undefined) updateData.leadTime = leadTime
+    if (width !== undefined) updateData.width = width
+    if (height !== undefined) updateData.height = height
+    if (depth !== undefined) updateData.depth = depth
+    if (notes !== undefined) updateData.notes = notes
+    if (images !== undefined) updateData.images = images
     
     // Handle customFields merge
     if (customFields !== undefined) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon, CheckCircle2, Circle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -24,6 +25,28 @@ interface AvailableRoom {
   id: string
   name: string
   sections: Array<{ id: string; name: string }>
+}
+
+// FFE Item structure for linking
+interface FFEItem {
+  id: string
+  name: string
+  description?: string
+  hasLinkedSpecs: boolean
+  linkedSpecsCount: number
+  status: string
+}
+
+interface FFESection {
+  sectionId: string
+  sectionName: string
+  items: FFEItem[]
+}
+
+interface FFERoom {
+  roomId: string
+  roomName: string
+  sections: FFESection[]
 }
 
 interface ItemDetailPanelProps {
@@ -60,11 +83,15 @@ interface ItemDetailPanelProps {
     depth?: string
     length?: string
     roomIds?: string[]
+    ffeRequirementId?: string
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
   roomId?: string
   availableRooms?: AvailableRoom[]
+  // FFE linking props
+  ffeItems?: FFERoom[]
+  ffeItemsLoading?: boolean
   onSave?: () => void
   onNavigate?: (direction: 'prev' | 'next') => void
   hasNext?: boolean
@@ -80,16 +107,6 @@ const LEAD_TIME_OPTIONS = [
   { value: '12+ weeks', label: '12+ Weeks' },
 ]
 
-const CATEGORY_OPTIONS = [
-  { value: 'flooring', label: 'Flooring' },
-  { value: 'lighting', label: 'Lighting' },
-  { value: 'plumbing', label: 'Plumbing' },
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'hardware', label: 'Hardware' },
-  { value: 'accessories', label: 'Accessories' },
-  { value: 'textiles', label: 'Textiles' },
-  { value: 'other', label: 'Other' },
-]
 
 export function ItemDetailPanel({
   isOpen,
@@ -99,6 +116,8 @@ export function ItemDetailPanel({
   sectionId,
   roomId,
   availableRooms = [],
+  ffeItems = [],
+  ffeItemsLoading = false,
   onSave,
   onNavigate,
   hasNext = false,
@@ -108,6 +127,44 @@ export function ItemDetailPanel({
   const [saving, setSaving] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loadingSuppliers, setLoadingSuppliers] = useState(false)
+  
+  // FFE Linking state - cascading selection
+  const [selectedFfeRoom, setSelectedFfeRoom] = useState<string>('')
+  const [selectedFfeSection, setSelectedFfeSection] = useState<string>('')
+  const [selectedFfeItemId, setSelectedFfeItemId] = useState<string>('')
+  const [showAlreadyChosenWarning, setShowAlreadyChosenWarning] = useState(false)
+  
+  // Get filtered sections based on selected room
+  const filteredFfeSections = selectedFfeRoom 
+    ? ffeItems.find(r => r.roomId === selectedFfeRoom)?.sections || []
+    : []
+  
+  // Get filtered items based on selected section
+  const filteredFfeItemsList = selectedFfeSection
+    ? filteredFfeSections.find(s => s.sectionId === selectedFfeSection)?.items || []
+    : []
+  
+  // Get selected FFE item details
+  const selectedFfeItem = selectedFfeItemId && selectedFfeRoom && selectedFfeSection
+    ? (() => {
+        const room = ffeItems.find(r => r.roomId === selectedFfeRoom)
+        const section = room?.sections.find(s => s.sectionId === selectedFfeSection)
+        const item = section?.items.find(i => i.id === selectedFfeItemId)
+        if (room && section && item) {
+          return {
+            roomId: room.roomId,
+            roomName: room.roomName,
+            sectionId: section.sectionId,
+            sectionName: section.sectionName,
+            itemId: item.id,
+            itemName: item.name,
+            hasLinkedSpecs: item.hasLinkedSpecs,
+            linkedSpecsCount: item.linkedSpecsCount
+          }
+        }
+        return null
+      })()
+    : null
   
   // Add New Supplier modal
   const [showAddSupplier, setShowAddSupplier] = useState(false)
@@ -126,7 +183,8 @@ export function ItemDetailPanel({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    sku: '',
+    sku: '',         // SKU / Model number
+    docCode: '',     // Document Code (separate from SKU)
     productName: '',
     brand: '',
     quantity: 1,
@@ -141,7 +199,6 @@ export function ItemDetailPanel({
     height: '',
     depth: '',
     length: '',
-    category: '',
     tradePrice: '',
     rrp: '',
     tradeDiscount: '',
@@ -280,7 +337,8 @@ export function ItemDetailPanel({
       setFormData({
         name: item.name || '',
         description: item.description || '',
-        sku: item.sku || '',
+        sku: (item as any).sku || '',
+        docCode: (item as any).docCode || '',
         productName: item.productName || '',
         brand: item.brand || '',
         quantity: item.quantity || 1,
@@ -295,7 +353,6 @@ export function ItemDetailPanel({
         height: item.height || '',
         depth: item.depth || '',
         length: item.length || '',
-        category: '',
         tradePrice: item.tradePrice?.toString() || '',
         rrp: item.rrp?.toString() || '',
         tradeDiscount: item.tradeDiscount?.toString() || '',
@@ -310,6 +367,7 @@ export function ItemDetailPanel({
         name: '',
         description: '',
         sku: '',
+        docCode: '',
         productName: '',
         brand: '',
         quantity: 1,
@@ -324,7 +382,6 @@ export function ItemDetailPanel({
         height: '',
         depth: '',
         length: '',
-        category: '',
         tradePrice: '',
         rrp: '',
         tradeDiscount: '',
@@ -333,6 +390,11 @@ export function ItemDetailPanel({
       setImages([])
       // Set initial room from prop if provided
       setSelectedRoomIds(roomId ? [roomId] : [])
+      // Reset FFE selection
+      setSelectedFfeRoom('')
+      setSelectedFfeSection('')
+      setSelectedFfeItemId('')
+      setShowAlreadyChosenWarning(false)
     }
   }, [item, mode, roomId])
   
@@ -348,29 +410,56 @@ export function ItemDetailPanel({
       const targetSectionId = item?.sectionId || sectionId
       
       if (mode === 'create' && targetRoomId && targetSectionId) {
-        // Create new item
-        const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items`, {
+        // Determine if this is an option (FFE item already has specs)
+        const isOption = selectedFfeItem?.hasLinkedSpecs || false
+        const optionNumber = isOption ? (selectedFfeItem?.linkedSpecsCount || 0) + 1 : null
+        
+        // Use the section from FFE item if linked, otherwise use the target section
+        const finalSectionId = selectedFfeItem?.sectionId || targetSectionId
+        
+        // Create new item with FFE linking if selected
+        const res = await fetch(`/api/ffe/v2/rooms/${selectedFfeItem?.roomId || targetRoomId}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sectionId: targetSectionId,
+            sectionId: finalSectionId,
             name: formData.name,
             description: formData.description,
             sku: formData.sku,
+            docCode: formData.docCode,
             brand: formData.brand,
             supplierName: formData.supplierName,
             supplierLink: formData.supplierLink,
+            supplierId: formData.supplierId || undefined,
             quantity: formData.quantity,
             leadTime: formData.leadTime,
             color: formData.color,
             finish: formData.finish,
             material: formData.material,
+            width: formData.width,
+            height: formData.height,
+            depth: formData.depth,
+            length: formData.length,
+            notes: formData.notes,
+            tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
+            rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
+            tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
             images: images,
+            // FFE Linking fields
+            isSpecItem: true,
+            ffeRequirementId: selectedFfeItem?.itemId || null,
+            isOption: isOption,
+            optionNumber: optionNumber,
+            specStatus: 'SELECTED',
+            visibility: 'VISIBLE',
           })
         })
         
         if (res.ok) {
-          toast.success('Item created successfully')
+          const linkedMsg = selectedFfeItem 
+            ? ` and linked to "${selectedFfeItem.itemName}"${isOption ? ` as Option #${optionNumber}` : ''}`
+            : ''
+          toast.success(`Item created${linkedMsg}`)
           onSave?.()
           onClose()
         } else {
@@ -385,18 +474,26 @@ export function ItemDetailPanel({
             name: formData.name,
             description: formData.description,
             sku: formData.sku,
+            docCode: formData.docCode,
             productName: formData.productName,
             brand: formData.brand,
             supplierName: formData.supplierName,
             supplierLink: formData.supplierLink,
+            supplierId: formData.supplierId || undefined,
             quantity: formData.quantity,
             leadTime: formData.leadTime,
             color: formData.color,
             finish: formData.finish,
             material: formData.material,
+            width: formData.width,
+            height: formData.height,
+            depth: formData.depth,
+            length: formData.length,
+            notes: formData.notes,
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            images: images,
           })
         })
         
@@ -585,51 +682,152 @@ export function ItemDetailPanel({
                   <div className="space-y-2">
                     <Label>Doc Code</Label>
                     <Input
-                      value={formData.sku}
-                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                      placeholder="Doc Code"
+                      value={formData.docCode}
+                      onChange={(e) => setFormData({ ...formData, docCode: e.target.value })}
+                      placeholder="Document code"
                     />
                   </div>
                 </div>
                 
-                {/* Rooms & Quantity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Location / Rooms</Label>
-                    {availableRooms.length > 0 ? (
-                      <div className="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
-                        {availableRooms.map(room => (
-                          <label 
-                            key={room.id} 
-                            className="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedRoomIds.includes(room.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedRoomIds(prev => [...prev, room.id])
-                                } else {
-                                  setSelectedRoomIds(prev => prev.filter(id => id !== room.id))
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <span className="text-sm">{room.name}</span>
-                          </label>
-                        ))}
+                {/* FFE Linking Section - Cascading: Room → Section → Item */}
+                {mode === 'create' && ffeItems.length > 0 && (
+                  <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-blue-600" />
+                      <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+                    </div>
+                    <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
+                    
+                    {ffeItemsLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading FFE items...
                       </div>
                     ) : (
-                      <Input
-                        value={formData.productName}
-                        onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                        placeholder="Enter location"
-                      />
-                    )}
-                    {selectedRoomIds.length > 0 && (
-                      <p className="text-xs text-gray-500">{selectedRoomIds.length} room(s) selected</p>
+                      <div className="space-y-3">
+                        {/* Step 1: Select Room */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-blue-700">1. Select Room</Label>
+                          <Select 
+                            value={selectedFfeRoom} 
+                            onValueChange={(v) => {
+                              setSelectedFfeRoom(v)
+                              setSelectedFfeSection('')
+                              setSelectedFfeItemId('')
+                              setShowAlreadyChosenWarning(false)
+                            }}
+                          >
+                            <SelectTrigger className="bg-white">
+                              <SelectValue placeholder="Choose a room..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ffeItems.map(room => (
+                                <SelectItem key={room.roomId} value={room.roomId}>
+                                  {room.roomName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Step 2: Select Section/Category */}
+                        {selectedFfeRoom && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-blue-700">2. Select Category</Label>
+                            <Select 
+                              value={selectedFfeSection} 
+                              onValueChange={(v) => {
+                                setSelectedFfeSection(v)
+                                setSelectedFfeItemId('')
+                                setShowAlreadyChosenWarning(false)
+                              }}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Choose a category..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {filteredFfeSections.map(section => (
+                                  <SelectItem key={section.sectionId} value={section.sectionId}>
+                                    {section.sectionName} ({section.items.length} items)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        
+                        {/* Step 3: Select FFE Item */}
+                        {selectedFfeSection && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
+                            <Select 
+                              value={selectedFfeItemId} 
+                              onValueChange={(v) => {
+                                setSelectedFfeItemId(v)
+                                const item = filteredFfeItemsList.find(i => i.id === v)
+                                if (item?.hasLinkedSpecs) {
+                                  setShowAlreadyChosenWarning(true)
+                                } else {
+                                  setShowAlreadyChosenWarning(false)
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Choose an item..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {filteredFfeItemsList.map(item => (
+                                  <SelectItem key={item.id} value={item.id}>
+                                    <div className="flex items-center gap-2">
+                                      {item.hasLinkedSpecs ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                      ) : (
+                                        <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                      )}
+                                      <span>{item.name}</span>
+                                      {item.hasLinkedSpecs && (
+                                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700">
+                                          {item.linkedSpecsCount} chosen
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        
+                        {/* Confirmation */}
+                        {selectedFfeItem && (
+                          <div className={cn(
+                            "p-3 rounded-lg border text-sm",
+                            showAlreadyChosenWarning 
+                              ? "bg-amber-50 border-amber-200" 
+                              : "bg-emerald-50 border-emerald-200"
+                          )}>
+                            <div className="flex items-center gap-2">
+                              {showAlreadyChosenWarning ? (
+                                <AlertCircle className="w-4 h-4 text-amber-600" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              )}
+                              <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
+                                {showAlreadyChosenWarning 
+                                  ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
+                                  : `Will link to: ${selectedFfeItem.roomName} → ${selectedFfeItem.sectionName} → ${selectedFfeItem.itemName}`
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
+                )}
+                
+                {/* Quantity */}
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Quantity</Label>
                     <Input
@@ -840,38 +1038,26 @@ export function ItemDetailPanel({
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-500">Material</Label>
-                      <Input
-                        value={formData.material}
-                        onChange={(e) => setFormData({ ...formData, material: e.target.value })}
-                        placeholder="-"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-gray-500">Product Category</Label>
-                      <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CATEGORY_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Material</Label>
+                    <Input
+                      value={formData.material}
+                      onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                      placeholder="-"
+                    />
                   </div>
                 </div>
                 
-                {/* Download PDF */}
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download PDF
-                </button>
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-500">Notes</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    rows={3}
+                  />
+                </div>
               </>
             )}
             

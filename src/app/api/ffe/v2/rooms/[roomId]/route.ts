@@ -65,7 +65,19 @@ export async function GET(
             items: {
               ...(onlyVisible ? { where: { visibility: 'VISIBLE' } } : {}),
               include: {
-                templateItem: true
+                templateItem: true,
+                // Include linked specs for "chosen" status in FFE Workspace
+                linkedSpecs: {
+                  select: {
+                    id: true,
+                    name: true,
+                    brand: true,
+                    sku: true,
+                    isOption: true,
+                    optionNumber: true,
+                    specStatus: true
+                  }
+                }
               },
               orderBy: { order: 'asc' }
             }

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { roomId, sectionId, linkItemId, item, destination = 'room', categoryId } = body
+    const { roomId, sectionId, linkItemId, additionalLinkItemIds, item, destination = 'room', categoryId } = body
     
     // destination can be: 'room', 'library', or 'both'
     const addToLibrary = destination === 'library' || destination === 'both'
@@ -117,65 +117,123 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
     
-    // If linking to existing item, update that item instead of creating new
+    // If linking to existing item(s), update those items instead of creating new
     if (linkItemId) {
-      // Verify the item exists and belongs to this room
-      const existingItem = await prisma.roomFFEItem.findFirst({
+      // Collect all item IDs to update (primary + additional)
+      const allItemIdsToLink = [linkItemId]
+      if (additionalLinkItemIds && Array.isArray(additionalLinkItemIds)) {
+        allItemIdsToLink.push(...additionalLinkItemIds)
+      }
+      
+      // Get unique IDs
+      const uniqueItemIds = [...new Set(allItemIdsToLink)]
+      
+      // Verify all items exist and belong to user's org
+      const existingItems = await prisma.roomFFEItem.findMany({
         where: {
-          id: linkItemId,
+          id: { in: uniqueItemIds },
           section: {
             instance: {
-              roomId: room.id
+              room: {
+                project: {
+                  orgId: user.orgId
+                }
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          sectionId: true,
+          description: true,
+          quantity: true,
+          notes: true,
+          customFields: true,
+          section: {
+            select: {
+              instanceId: true
             }
           }
         }
       })
       
-      if (!existingItem) {
-        return NextResponse.json({ error: 'Item to link not found' }, { status: 404 })
+      if (existingItems.length === 0) {
+        return NextResponse.json({ error: 'No valid items to link found' }, { status: 404 })
       }
       
-      // Update the existing item with spec data
-      const updatedItem = await prisma.roomFFEItem.update({
-        where: { id: linkItemId },
-        data: {
-          // Keep the original name, update everything else
-          description: item.description || existingItem.description,
-          supplierName: item.supplierName || null,
-          supplierLink: item.supplierLink || null,
-          modelNumber: item.modelNumber || null,
-          quantity: item.quantity || existingItem.quantity,
-          unitCost: item.unitCost ? parseFloat(item.unitCost) : null,
-          notes: item.notes || existingItem.notes,
-          customFields: {
-            ...(existingItem.customFields as object || {}),
-            ...(item.customFields || {}),
-            brand: item.supplierName || item.customFields?.brand
-          },
-          attachments: item.attachments || {},
-          updatedById: user.id
-        }
-      })
+      // Track affected FFE instances for progress update
+      const affectedInstanceIds = new Set<string>()
+      const linkedItems: Array<{ id: string; name: string; sectionId: string }> = []
       
-      // Update FFE instance progress
-      const instanceId = (await prisma.roomFFESection.findUnique({
-        where: { id: existingItem.sectionId },
-        select: { instanceId: true }
-      }))?.instanceId
-      
-      if (instanceId) {
-        await updateFFEProgress(instanceId)
-      }
-      
-      return NextResponse.json({
-        ok: true,
-        linked: true,
-        item: {
+      // Update each item with the spec data
+      for (const existingItem of existingItems) {
+        affectedInstanceIds.add(existingItem.section.instanceId)
+        
+        const updatedItem = await prisma.roomFFEItem.update({
+          where: { id: existingItem.id },
+          data: {
+            // Keep the original name, update everything else
+            description: item.description || existingItem.description,
+            // Supplier
+            supplierName: item.supplierName || null,
+            supplierLink: item.supplierLink || null,
+            // Product details
+            brand: item.brand || null,
+            sku: item.sku || null,
+            docCode: item.docCode || null,
+            modelNumber: item.sku || null,
+            color: item.colour || null,
+            finish: item.finish || null,
+            material: item.material || null,
+            leadTime: item.leadTime || null,
+            // Dimensions
+            width: item.width || null,
+            height: item.height || null,
+            depth: item.depth || null,
+            // Pricing
+            quantity: item.quantity || existingItem.quantity,
+            unitCost: item.rrp ? parseFloat(item.rrp) : null,
+            rrp: item.rrp ? parseFloat(item.rrp) : null,
+            tradePrice: item.tradePrice ? parseFloat(item.tradePrice) : null,
+            // Images and attachments
+            images: item.images || [],
+            notes: item.notes || existingItem.notes,
+            attachments: item.attachments ? { files: item.attachments } : {},
+            // Custom fields
+            customFields: {
+              ...(existingItem.customFields as object || {}),
+              length: item.length || null,
+              supplierId: item.supplierId || null
+            },
+            // Mark as selected spec
+            specStatus: 'SELECTED',
+            updatedById: user.id
+          }
+        })
+        
+        linkedItems.push({
           id: updatedItem.id,
           name: updatedItem.name,
           sectionId: existingItem.sectionId
-        },
-        message: `Spec linked to "${updatedItem.name}" successfully`
+        })
+      }
+      
+      // Update progress for all affected FFE instances
+      for (const instanceId of affectedInstanceIds) {
+        await updateFFEProgress(instanceId)
+      }
+      
+      const linkedCount = linkedItems.length
+      return NextResponse.json({
+        ok: true,
+        linked: true,
+        linkedCount,
+        items: linkedItems,
+        item: linkedItems[0], // Primary item for backwards compatibility
+        message: linkedCount > 1 
+          ? `Spec linked to ${linkedCount} items successfully`
+          : `Spec linked to "${linkedItems[0].name}" successfully`
       })
     }
     
@@ -262,13 +320,35 @@ export async function POST(request: NextRequest) {
         isCustom: true,
         order: nextOrder,
         quantity: item.quantity || 1,
-        unitCost: item.unitCost ? parseFloat(item.unitCost) : null,
+        // Pricing
+        unitCost: item.rrp ? parseFloat(item.rrp) : null,
+        rrp: item.rrp ? parseFloat(item.rrp) : null,
+        tradePrice: item.tradePrice ? parseFloat(item.tradePrice) : null,
+        // Supplier
         supplierName: item.supplierName || null,
         supplierLink: item.supplierLink || null,
-        modelNumber: item.modelNumber || null,
+        // Product details - mapped to actual fields
+        brand: item.brand || null,
+        sku: item.sku || null,
+        docCode: item.docCode || null,
+        modelNumber: item.sku || null, // SKU can also be model number
+        color: item.colour || null,
+        finish: item.finish || null,
+        material: item.material || null,
+        leadTime: item.leadTime || null,
+        // Dimensions
+        width: item.width || null,
+        height: item.height || null,
+        depth: item.depth || null,
+        // Images and attachments
+        images: item.images || [],
         notes: item.notes || null,
-        customFields: item.customFields || {},
-        attachments: item.attachments || {},
+        attachments: item.attachments ? { files: item.attachments } : {},
+        // Custom fields for any extras
+        customFields: {
+          length: item.length || null,
+          supplierId: item.supplierId || null
+        },
         createdById: user.id,
         updatedById: user.id
       }
@@ -315,26 +395,35 @@ async function createLibraryProduct(user: any, item: any, categoryId?: string) {
       categoryId: categoryId || null,
       name: item.name,
       description: item.description || null,
-      brand: item.supplierName || item.customFields?.brand || null,
-      sku: item.customFields?.sku || item.modelNumber || null,
-      modelNumber: item.modelNumber || null,
-      color: item.customFields?.colour || item.customFields?.color || null,
-      finish: item.customFields?.finish || null,
-      material: item.customFields?.material || null,
-      width: item.customFields?.width || null,
-      height: item.customFields?.height || null,
-      depth: item.customFields?.depth || null,
-      length: item.customFields?.length || null,
-      rrp: item.unitCost ? parseFloat(item.unitCost) : null,
-      tradePrice: item.customFields?.tradePrice ? parseFloat(item.customFields.tradePrice) : null,
+      // Product details - direct from item
+      brand: item.brand || null,
+      sku: item.sku || null,
+      modelNumber: item.sku || null,
+      color: item.colour || null,
+      finish: item.finish || null,
+      material: item.material || null,
+      // Dimensions
+      width: item.width || null,
+      height: item.height || null,
+      depth: item.depth || null,
+      length: item.length || null,
+      // Pricing
+      rrp: item.rrp ? parseFloat(item.rrp) : null,
+      tradePrice: item.tradePrice ? parseFloat(item.tradePrice) : null,
+      // Supplier
       supplierName: item.supplierName || null,
       supplierLink: item.supplierLink || null,
-      leadTime: item.customFields?.leadTime || null,
-      images: item.attachments?.images || [],
-      thumbnailUrl: item.attachments?.images?.[0] || null,
-      attachments: item.attachments?.files ? { files: item.attachments.files } : null,
+      leadTime: item.leadTime || null,
+      // Images and attachments
+      images: item.images || [],
+      thumbnailUrl: item.images?.[0] || null,
+      attachments: item.attachments?.length > 0 ? { files: item.attachments } : null,
       notes: item.notes || null,
-      customFields: item.customFields || null,
+      // Custom fields for extras
+      customFields: {
+        docCode: item.docCode || null,
+        supplierId: item.supplierId || null
+      },
       tags: [],
       status: 'ACTIVE',
       createdById: user.id,

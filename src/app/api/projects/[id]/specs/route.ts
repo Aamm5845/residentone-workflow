@@ -44,6 +44,14 @@ export async function GET(
                       include: {
                         category: true
                       }
+                    },
+                    // Include the FFE requirement this spec is linked to
+                    ffeRequirement: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true
+                      }
                     }
                   }
                 }
@@ -92,7 +100,13 @@ export async function GET(
           tradePrice: item.tradePrice ? Number(item.tradePrice) : null,
           rrp: item.rrp ? Number(item.rrp) : null,
           tradeDiscount: item.tradeDiscount ? Number(item.tradeDiscount) : null,
-          libraryProductId: item.libraryProductId
+          libraryProductId: item.libraryProductId,
+          // FFE Linking info
+          isSpecItem: item.isSpecItem,
+          ffeRequirementId: item.ffeRequirementId,
+          ffeRequirementName: item.ffeRequirement?.name || null,
+          isOption: item.isOption,
+          optionNumber: item.optionNumber
         }))
       ) : []
     )
