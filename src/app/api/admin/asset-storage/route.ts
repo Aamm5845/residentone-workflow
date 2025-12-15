@@ -20,10 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only allow OWNER and ADMIN roles
-    if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // All authenticated team members can access this
 
     const searchParams = request.nextUrl.searchParams
     const projectId = searchParams.get('projectId')
