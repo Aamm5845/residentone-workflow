@@ -435,15 +435,6 @@ export default function AIGenerateFFEDialog({
     return count
   }, [selectedItems, customItems, editableCategories])
 
-  const getConfidenceBadge = (confidence: string) => {
-    switch (confidence) {
-      case 'high': return <Badge className="bg-[#14b8a6]/10 text-[#14b8a6] text-xs">High</Badge>
-      case 'medium': return <Badge className="bg-[#f6762e]/10 text-[#f6762e] text-xs">Medium</Badge>
-      case 'low': return <Badge className="bg-gray-100 text-gray-600 text-xs">Low</Badge>
-      default: return null
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -646,7 +637,6 @@ export default function AIGenerateFFEDialog({
                                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleItem(category.name, item.name)}>
                                         <div className="flex items-center gap-2">
                                           <span className="font-medium text-gray-900">{item.name}</span>
-                                          {getConfidenceBadge(item.confidence)}
                                           {item.customizable && (
                                             <Badge variant="outline" className="text-xs bg-purple-50 text-purple-600 border-purple-200">
                                               <Settings2 className="h-3 w-3 mr-1" />

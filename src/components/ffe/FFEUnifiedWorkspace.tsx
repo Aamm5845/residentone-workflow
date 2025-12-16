@@ -123,6 +123,7 @@ export default function FFEUnifiedWorkspace({
   const [editSectionName, setEditSectionName] = useState('')
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editItemName, setEditItemName] = useState('')
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null)
 
   // Generate from URL states
   const [showUrlGenerateDialog, setShowUrlGenerateDialog] = useState(false)
@@ -134,6 +135,40 @@ export default function FFEUnifiedWorkspace({
   const [showNotesInput, setShowNotesInput] = useState(false)
   const [showSupplierInput, setShowSupplierInput] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+
+  // Choose Product dialog states (add new product linked to FFE item)
+  const [showChooseProductDialog, setShowChooseProductDialog] = useState(false)
+  const [chooseProductItem, setChooseProductItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
+  const [newProductData, setNewProductData] = useState({
+    name: '',
+    description: '',
+    brand: '',
+    sku: '',
+    unitCost: '',
+    tradePrice: '',
+    rrp: '',
+    sourceUrl: '',
+    images: [] as string[],
+    notes: '',
+    material: '',
+    color: '',
+    finish: '',
+    width: '',
+    height: '',
+    depth: '',
+    leadTime: '',
+    supplierName: '',
+    supplierLink: '',
+    supplierId: '',
+    length: ''
+  })
+  const [savingProduct, setSavingProduct] = useState(false)
+  const [productPanelTab, setProductPanelTab] = useState('summary')
+  const [uploadingProductImage, setUploadingProductImage] = useState(false)
+  const [productSuppliers, setProductSuppliers] = useState<Array<{id: string, name: string, website?: string}>>([])
+  const [productSupplierSearch, setProductSupplierSearch] = useState('')
+  const [loadingProductSuppliers, setLoadingProductSuppliers] = useState(false)
+  const [showProductSupplierDropdown, setShowProductSupplierDropdown] = useState(false)
 
   // Stats
   const [stats, setStats] = useState({
@@ -515,6 +550,173 @@ export default function FFEUnifiedWorkspace({
     } finally {
       setSaving(false)
     }
+  }
+
+  // Handle product image upload
+  const handleProductImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    if (newProductData.images.length >= 5) {
+      toast.error('Maximum 5 images allowed')
+      return
+    }
+    
+    setUploadingProductImage(true)
+    try {
+      for (const file of Array.from(files)) {
+        if (newProductData.images.length >= 5) break
+        
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const response = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.url) {
+            setNewProductData(prev => ({
+              ...prev,
+              images: [...prev.images, data.url]
+            }))
+          }
+        }
+      }
+      toast.success('Image uploaded')
+    } catch (error) {
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingProductImage(false)
+    }
+  }
+
+  // Search suppliers for product dialog
+  const searchProductSuppliers = async (query: string) => {
+    if (!query.trim()) {
+      setProductSuppliers([])
+      return
+    }
+    
+    setLoadingProductSuppliers(true)
+    try {
+      const response = await fetch(`/api/suppliers/search?q=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setProductSuppliers(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error searching suppliers:', error)
+    } finally {
+      setLoadingProductSuppliers(false)
+    }
+  }
+
+  // Create product directly (Add New option)
+  const handleCreateProductDirect = async () => {
+    if (!chooseProductItem || !newProductData.name.trim()) {
+      toast.error('Please enter a product name')
+      return
+    }
+    
+    try {
+      setSavingProduct(true)
+      
+      // Check if this FFE item already has specs (to determine if this is an option)
+      const currentItem = sections
+        .flatMap(s => s.items)
+        .flatMap(i => [i, ...(i.linkedSpecs || [])])
+        .find(i => i.id === chooseProductItem.id)
+      
+      const parentItem = sections
+        .flatMap(s => s.items)
+        .find(i => i.id === chooseProductItem.id || i.linkedSpecs?.some(ls => ls.id === chooseProductItem.id))
+      
+      const isOption = parentItem?.linkedSpecs && parentItem.linkedSpecs.length > 0
+      const optionNumber = isOption ? (parentItem.linkedSpecs?.length || 0) + 1 : undefined
+      
+      // Create a linked spec item with all fields
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: chooseProductItem.sectionId,
+          name: newProductData.name.trim(),
+          description: newProductData.description.trim() || undefined,
+          brand: newProductData.brand.trim() || undefined,
+          sku: newProductData.sku.trim() || undefined,
+          material: newProductData.material.trim() || undefined,
+          color: newProductData.color.trim() || undefined,
+          finish: newProductData.finish.trim() || undefined,
+          width: newProductData.width.trim() || undefined,
+          height: newProductData.height.trim() || undefined,
+          depth: newProductData.depth.trim() || undefined,
+          leadTime: newProductData.leadTime.trim() || undefined,
+          unitCost: newProductData.unitCost ? parseFloat(newProductData.unitCost.replace(/[^0-9.]/g, '')) : undefined,
+          tradePrice: newProductData.tradePrice ? parseFloat(newProductData.tradePrice.replace(/[^0-9.]/g, '')) : undefined,
+          rrp: newProductData.rrp ? parseFloat(newProductData.rrp.replace(/[^0-9.]/g, '')) : undefined,
+          supplierName: newProductData.supplierName.trim() || undefined,
+          supplierLink: newProductData.supplierLink.trim() || newProductData.sourceUrl.trim() || undefined,
+          images: newProductData.images,
+          notes: newProductData.notes.trim() || undefined,
+          quantity: 1,
+          // FFE Linking fields
+          isSpecItem: true,
+          ffeRequirementId: chooseProductItem.id,
+          isOption: isOption,
+          optionNumber: optionNumber,
+          specStatus: 'SELECTED',
+          visibility: 'VISIBLE'
+        })
+      })
+      
+      if (res.ok) {
+        const linkedMsg = isOption ? ` as Option #${optionNumber}` : ''
+        toast.success(`Product linked to "${chooseProductItem.name}"${linkedMsg}`)
+        await loadFFEData()
+        resetProductDialog()
+      } else {
+        throw new Error('Failed to create product')
+      }
+    } catch (error) {
+      console.error('Error creating product:', error)
+      toast.error('Failed to create product')
+    } finally {
+      setSavingProduct(false)
+    }
+  }
+
+  // Reset product dialog state
+  const resetProductDialog = () => {
+    setShowChooseProductDialog(false)
+    setChooseProductItem(null)
+    setNewProductData({
+      name: '',
+      description: '',
+      brand: '',
+      sku: '',
+      unitCost: '',
+      tradePrice: '',
+      rrp: '',
+      sourceUrl: '',
+      images: [],
+      notes: '',
+      material: '',
+      color: '',
+      finish: '',
+      width: '',
+      height: '',
+      depth: '',
+      leadTime: '',
+      supplierName: '',
+      supplierLink: '',
+      supplierId: '',
+      length: ''
+    })
+    setProductSupplierSearch('')
+    setProductSuppliers([])
+    setShowProductSupplierDropdown(false)
+    setProductPanelTab('summary')
   }
 
   const toggleSectionExpanded = (sectionId: string) => {
@@ -1029,13 +1231,21 @@ export default function FFEUnifiedWorkspace({
                                       </Badge>
                                     )}
                                     
-                                    {/* Description info button */}
+                                    {/* Description toggle */}
                                     {item.description && (
-                                      <button className="p-1 text-gray-400 hover:text-gray-600" title={item.description}>
-                                        <Info className="w-4 h-4" />
+                                      <button 
+                                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                        onClick={() => setExpandedDescriptionId(expandedDescriptionId === item.id ? null : item.id)}
+                                      >
+                                        <ChevronDown className={cn("w-4 h-4 transition-transform", expandedDescriptionId === item.id && "rotate-180")} />
                                       </button>
                                     )}
                                   </div>
+                                  
+                                  {/* Expanded Description */}
+                                  {item.description && expandedDescriptionId === item.id && (
+                                    <p className="text-xs text-gray-500 mt-1 pl-9 pr-4 pb-1">{item.description}</p>
+                                  )}
                                   
                                   {/* Status and Actions */}
                                   <div className="flex items-center gap-2">
@@ -1066,15 +1276,37 @@ export default function FFEUnifiedWorkspace({
                                         </Button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end">
-                                        {/* Quick choose - navigate to All Specs with this item pre-selected */}
+                                        {/* Add New Product - opens dialog to create product linked to this FFE item */}
                                         <DropdownMenuItem onClick={() => {
-                                          // Navigate to All Specs page with FFE item context
-                                          if (projectId) {
-                                            router.push(`/projects/${projectId}/specs/all?linkFfeItem=${item.id}&roomId=${roomId}&sectionId=${section.id}`)
-                                          }
+                                          setChooseProductItem({ id: item.id, name: item.name, sectionId: section.id })
+                                          setNewProductData({
+                                            name: '',
+                                            description: '',
+                                            brand: '',
+                                            sku: '',
+                                            unitCost: '',
+                                            tradePrice: '',
+                                            rrp: '',
+                                            sourceUrl: '',
+                                            images: [],
+                                            notes: '',
+                                            material: '',
+                                            color: '',
+                                            finish: '',
+                                            width: '',
+                                            height: '',
+                                            depth: '',
+                                            leadTime: '',
+                                            supplierName: '',
+                                            supplierLink: '',
+                                            supplierId: '',
+                                            length: ''
+                                          })
+                                          setProductPanelTab('summary')
+                                          setShowChooseProductDialog(true)
                                         }}>
-                                          <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
-                                          Choose Product for This
+                                          <Plus className="w-4 h-4 mr-2 text-emerald-600" />
+                                          Add New Product
                                         </DropdownMenuItem>
                                         {/* Generate from URL - AI extract product info */}
                                         <DropdownMenuItem onClick={() => {
@@ -1137,12 +1369,35 @@ export default function FFEUnifiedWorkspace({
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={() => {
-                                                  if (projectId) {
-                                                    router.push(`/projects/${projectId}/specs/all?linkFfeItem=${child.id}&roomId=${roomId}&sectionId=${section.id}`)
-                                                  }
+                                                  setChooseProductItem({ id: child.id, name: child.name, sectionId: section.id })
+                                                  setNewProductData({
+                                                    name: '',
+                                                    description: '',
+                                                    brand: '',
+                                                    sku: '',
+                                                    unitCost: '',
+                                                    tradePrice: '',
+                                                    rrp: '',
+                                                    sourceUrl: '',
+                                                    images: [],
+                                                    notes: '',
+                                                    material: '',
+                                                    color: '',
+                                                    finish: '',
+                                                    width: '',
+                                                    height: '',
+                                                    depth: '',
+                                                    leadTime: '',
+                                                    supplierName: '',
+                                                    supplierLink: '',
+                                                    supplierId: '',
+                                                    length: ''
+                                                  })
+                                                  setProductPanelTab('summary')
+                                                  setShowChooseProductDialog(true)
                                                 }}>
-                                                  <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
-                                                  Choose Product for This
+                                                  <Plus className="w-4 h-4 mr-2 text-emerald-600" />
+                                                  Add New Product
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => {
                                                   setUrlGenerateItem({ id: child.id, name: child.name, sectionId: section.id })
@@ -1813,6 +2068,469 @@ export default function FFEUnifiedWorkspace({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add New Product Panel (Choose Product for This) - Slide out panel like All Specs */}
+      {showChooseProductDialog && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40"
+            onClick={resetProductDialog}
+          />
+          
+          {/* Panel */}
+          <div className="fixed right-0 top-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Add New Product</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {newProductData.sourceUrl && (
+                  <a 
+                    href={newProductData.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-blue-600"
+                    title="Open product link"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+                <button 
+                  onClick={resetProductDialog}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 px-5">
+              {['Summary', 'Financial'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setProductPanelTab(tab.toLowerCase())}
+                  className={cn(
+                    "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
+                    productPanelTab === tab.toLowerCase()
+                      ? "border-emerald-500 text-emerald-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            
+            {/* Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-5 space-y-6">
+                {productPanelTab === 'summary' && (
+                  <>
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <div className="flex gap-3">
+                        {newProductData.images.map((img, idx) => (
+                          <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
+                            <img src={img} alt="" className="w-full h-full object-cover" />
+                            <button 
+                              onClick={() => setNewProductData(prev => ({
+                                ...prev,
+                                images: prev.images.filter((_, i) => i !== idx)
+                              }))}
+                              className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {newProductData.images.length < 2 && (
+                          <label className={cn(
+                            "flex-1 min-w-[200px] border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                            "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                          )}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleProductImageUpload(e.target.files)}
+                              disabled={uploadingProductImage}
+                            />
+                            {uploadingProductImage ? (
+                              <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                            ) : (
+                              <>
+                                <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  Drag & drop or <span className="text-blue-600 hover:underline">browse files</span>
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
+                              </>
+                            )}
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* FFE Linking Info */}
+                    {chooseProductItem && (
+                      <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-emerald-600 font-medium mb-0.5">Linking to FFE Item</p>
+                            <p className="text-sm font-medium text-emerald-900">{chooseProductItem.name}</p>
+                          </div>
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Product Name */}
+                    <div className="space-y-2">
+                      <Label>Product Name</Label>
+                      <Input
+                        value={newProductData.name}
+                        onChange={(e) => setNewProductData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter product name"
+                      />
+                    </div>
+                    
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <Label>Product Description</Label>
+                      <Input
+                        value={newProductData.description}
+                        onChange={(e) => setNewProductData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Description"
+                      />
+                    </div>
+                    
+                    {/* Brand & Lead Time */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Brand</Label>
+                        <Input
+                          value={newProductData.brand}
+                          onChange={(e) => setNewProductData(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="Brand name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Lead Time</Label>
+                        <Select 
+                          value={newProductData.leadTime} 
+                          onValueChange={(v) => setNewProductData(prev => ({ ...prev, leadTime: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="-" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="In Stock">In Stock</SelectItem>
+                            <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
+                            <SelectItem value="2-4 weeks">2-4 weeks</SelectItem>
+                            <SelectItem value="4-6 weeks">4-6 weeks</SelectItem>
+                            <SelectItem value="6-8 weeks">6-8 weeks</SelectItem>
+                            <SelectItem value="8-12 weeks">8-12 weeks</SelectItem>
+                            <SelectItem value="12+ weeks">12+ weeks</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    {/* SKU */}
+                    <div className="space-y-2">
+                      <Label>SKU</Label>
+                      <Input
+                        value={newProductData.sku}
+                        onChange={(e) => setNewProductData(prev => ({ ...prev, sku: e.target.value }))}
+                        placeholder="SKU / Model number"
+                      />
+                    </div>
+                    
+                    {/* Product URL */}
+                    <div className="space-y-2">
+                      <Label>Product URL</Label>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          value={newProductData.sourceUrl}
+                          onChange={(e) => setNewProductData(prev => ({ ...prev, sourceUrl: e.target.value }))}
+                          placeholder="https://..."
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Supplier */}
+                    <div className="space-y-2">
+                      <Label>Supplier</Label>
+                      {newProductData.supplierName ? (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
+                            {newProductData.supplierName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{newProductData.supplierName}</p>
+                            {newProductData.supplierLink && (
+                              <a 
+                                href={newProductData.supplierLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline truncate block"
+                              >
+                                {newProductData.supplierLink}
+                              </a>
+                            )}
+                          </div>
+                          <button 
+                            className="text-xs text-red-600 hover:underline"
+                            onClick={() => setNewProductData(prev => ({ 
+                              ...prev, 
+                              supplierName: '', 
+                              supplierId: '', 
+                              supplierLink: '' 
+                            }))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Input
+                              value={productSupplierSearch}
+                              onChange={(e) => {
+                                setProductSupplierSearch(e.target.value)
+                                searchProductSuppliers(e.target.value)
+                                setShowProductSupplierDropdown(true)
+                              }}
+                              onFocus={() => {
+                                if (productSupplierSearch) setShowProductSupplierDropdown(true)
+                              }}
+                              placeholder="Search suppliers..."
+                            />
+                            {showProductSupplierDropdown && productSuppliers.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                {productSuppliers.map((supplier) => (
+                                  <button
+                                    key={supplier.id}
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                                    onClick={() => {
+                                      setNewProductData(prev => ({
+                                        ...prev,
+                                        supplierName: supplier.name,
+                                        supplierLink: supplier.website || '',
+                                        supplierId: supplier.id
+                                      }))
+                                      setProductSupplierSearch('')
+                                      setShowProductSupplierDropdown(false)
+                                    }}
+                                  >
+                                    <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                      {supplier.name.charAt(0)}
+                                    </div>
+                                    <span>{supplier.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button 
+                            type="button"
+                            className="w-full text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1.5 py-2 border border-dashed border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                            onClick={() => {
+                              // For now, allow manual entry
+                              const name = prompt('Enter supplier name:')
+                              if (name) {
+                                setNewProductData(prev => ({ ...prev, supplierName: name }))
+                              }
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add New Supplier
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Notes */}
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={newProductData.notes}
+                        onChange={(e) => setNewProductData(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Internal notes about this item..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    {/* Product Specifications */}
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900">Product Specifications</h3>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Height</Label>
+                          <Input
+                            value={newProductData.height}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, height: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Depth</Label>
+                          <Input
+                            value={newProductData.depth}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, depth: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Width</Label>
+                          <Input
+                            value={newProductData.width}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, width: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Length</Label>
+                          <Input
+                            value={newProductData.length || ''}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, length: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Colour</Label>
+                          <Input
+                            value={newProductData.color}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, color: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Finish</Label>
+                          <Input
+                            value={newProductData.finish}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, finish: e.target.value }))}
+                            placeholder="-"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-500">Material</Label>
+                        <Input
+                          value={newProductData.material}
+                          onChange={(e) => setNewProductData(prev => ({ ...prev, material: e.target.value }))}
+                          placeholder="-"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {productPanelTab === 'financial' && (
+                  <div className="space-y-6">
+                    {/* RRP & Quantity Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>RRP</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newProductData.rrp}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, rrp: e.target.value }))}
+                            placeholder="0.00"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value="1"
+                          disabled
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Trade Price & Unit Cost Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Trade Price</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newProductData.tradePrice}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, tradePrice: e.target.value }))}
+                            placeholder="0.00"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Unit Cost</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newProductData.unitCost}
+                            onChange={(e) => setNewProductData(prev => ({ ...prev, unitCost: e.target.value }))}
+                            placeholder="0.00"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            
+            {/* Footer */}
+            <div className="border-t border-gray-200 px-5 py-4 flex justify-end gap-3">
+              <Button variant="outline" onClick={resetProductDialog}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateProductDirect} 
+                disabled={savingProduct || !newProductData.name.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {savingProduct ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Create & Link
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* AI Generate Dialog */}
       <AIGenerateFFEDialog

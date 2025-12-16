@@ -95,6 +95,10 @@ interface ItemDetailPanelProps {
   // FFE linking props
   ffeItems?: FFERoom[]
   ffeItemsLoading?: boolean
+  // Pre-selected FFE item (from FFE Workspace "Choose Product for This" action)
+  initialFfeRoomId?: string
+  initialFfeSectionId?: string
+  initialFfeItemId?: string
   onSave?: () => void
   onNavigate?: (direction: 'prev' | 'next') => void
   hasNext?: boolean
@@ -122,6 +126,9 @@ export function ItemDetailPanel({
   availableRooms = [],
   ffeItems = [],
   ffeItemsLoading = false,
+  initialFfeRoomId,
+  initialFfeSectionId,
+  initialFfeItemId,
   onSave,
   onNavigate,
   hasNext = false,
@@ -138,14 +145,55 @@ export function ItemDetailPanel({
   const [selectedFfeItemId, setSelectedFfeItemId] = useState<string>('')
   const [showAlreadyChosenWarning, setShowAlreadyChosenWarning] = useState(false)
   
-  // Get filtered sections based on selected room
-  const filteredFfeSections = selectedFfeRoom 
-    ? ffeItems.find(r => r.roomId === selectedFfeRoom)?.sections || []
+  // Track if FFE selection has been initialized for current panel session
+  const ffeInitializedRef = useRef(false)
+  
+  // Reset initialization flag when panel closes
+  useEffect(() => {
+    if (!isOpen) {
+      ffeInitializedRef.current = false
+      setSelectedFfeRoom('')
+      setSelectedFfeSection('')
+      setSelectedFfeItemId('')
+      setShowAlreadyChosenWarning(false)
+    }
+  }, [isOpen])
+  
+  // Initialize FFE selection when panel opens with initial values
+  useEffect(() => {
+    // Only run when panel is open, in create mode, has initial values, AND ffeItems are loaded
+    if (isOpen && mode === 'create' && !ffeInitializedRef.current && initialFfeRoomId && ffeItems.length > 0) {
+      // Verify the initialFfeRoomId exists in the ffeItems
+      const roomExists = ffeItems.some(r => r.roomId === initialFfeRoomId)
+      if (!roomExists) {
+        return // Don't initialize yet, ffeItems might not be fully loaded
+      }
+      
+      ffeInitializedRef.current = true
+      setSelectedFfeRoom(initialFfeRoomId)
+      setSelectedFfeSection(initialFfeSectionId || '')
+      setSelectedFfeItemId(initialFfeItemId || '')
+      
+      // Check if item already has linked specs to show warning
+      if (initialFfeItemId) {
+        const room = ffeItems.find(r => r.roomId === initialFfeRoomId)
+        const section = room?.sections.find(s => s.sectionId === initialFfeSectionId)
+        const ffeItem = section?.items.find(i => i.id === initialFfeItemId)
+        setShowAlreadyChosenWarning(ffeItem?.hasLinkedSpecs || false)
+      }
+    }
+  }, [isOpen, mode, initialFfeRoomId, initialFfeSectionId, initialFfeItemId, ffeItems])
+  
+  // Get filtered sections based on selected room (with fallback to initial value)
+  const effectiveRoomId = selectedFfeRoom || initialFfeRoomId
+  const filteredFfeSections = effectiveRoomId 
+    ? ffeItems.find(r => r.roomId === effectiveRoomId)?.sections || []
     : []
   
-  // Get filtered items based on selected section
-  const filteredFfeItemsList = selectedFfeSection
-    ? filteredFfeSections.find(s => s.sectionId === selectedFfeSection)?.items || []
+  // Get filtered items based on selected section (with fallback to initial value)
+  const effectiveSectionId = selectedFfeSection || initialFfeSectionId
+  const filteredFfeItemsList = effectiveSectionId
+    ? filteredFfeSections.find(s => s.sectionId === effectiveSectionId)?.items || []
     : []
   
   // Get selected FFE item details
@@ -735,7 +783,8 @@ export function ItemDetailPanel({
                         <div className="space-y-1.5">
                           <Label className="text-xs text-blue-700">1. Select Room</Label>
                           <Select 
-                            value={selectedFfeRoom} 
+                            key={`room-select-${initialFfeRoomId || 'none'}`}
+                            value={selectedFfeRoom || initialFfeRoomId || ''} 
                             onValueChange={(v) => {
                               setSelectedFfeRoom(v)
                               setSelectedFfeSection('')
@@ -757,11 +806,12 @@ export function ItemDetailPanel({
                         </div>
                         
                         {/* Step 2: Select Section/Category */}
-                        {selectedFfeRoom && (
+                        {(selectedFfeRoom || initialFfeRoomId) && (
                           <div className="space-y-1.5">
                             <Label className="text-xs text-blue-700">2. Select Category</Label>
                             <Select 
-                              value={selectedFfeSection} 
+                              key={`section-select-${initialFfeSectionId || 'none'}`}
+                              value={selectedFfeSection || initialFfeSectionId || ''} 
                               onValueChange={(v) => {
                                 setSelectedFfeSection(v)
                                 setSelectedFfeItemId('')
@@ -783,11 +833,12 @@ export function ItemDetailPanel({
                         )}
                         
                         {/* Step 3: Select FFE Item */}
-                        {selectedFfeSection && (
+                        {(selectedFfeSection || initialFfeSectionId) && (
                           <div className="space-y-1.5">
                             <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
                             <Select 
-                              value={selectedFfeItemId} 
+                              key={`item-select-${initialFfeItemId || 'none'}`}
+                              value={selectedFfeItemId || initialFfeItemId || ''} 
                               onValueChange={(v) => {
                                 setSelectedFfeItemId(v)
                                 const item = filteredFfeItemsList.find(i => i.id === v)

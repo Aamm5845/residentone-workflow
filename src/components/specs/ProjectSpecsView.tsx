@@ -4738,7 +4738,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {/* Item Detail Panel */}
       <ItemDetailPanel
         isOpen={detailPanel.isOpen}
-        onClose={() => setDetailPanel({ isOpen: false, mode: 'view', item: null })}
+        onClose={() => {
+          setDetailPanel({ isOpen: false, mode: 'view', item: null })
+          // Clear FFE pre-selection when closing
+          setSelectedFfeRoom('')
+          setSelectedFfeSection('')
+          setSelectedFfeItemId('')
+        }}
         projectId={project.id}
         item={detailPanel.item}
         mode={detailPanel.mode}
@@ -4747,6 +4753,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         availableRooms={availableRooms}
         ffeItems={ffeItems}
         ffeItemsLoading={ffeItemsLoading}
+        initialFfeRoomId={selectedFfeRoom}
+        initialFfeSectionId={selectedFfeSection}
+        initialFfeItemId={selectedFfeItemId}
         onSave={() => {
           fetchSpecs()
           loadFfeItems() // Refresh FFE items to update chosen status
