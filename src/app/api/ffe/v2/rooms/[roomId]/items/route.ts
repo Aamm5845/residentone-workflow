@@ -240,6 +240,74 @@ export async function POST(
       }
     })
 
+    // Log activity if linking a product to an FFE requirement
+    if (ffeRequirementId && createdItems.length > 0) {
+      try {
+        // Get the FFE requirement details and room/project info
+        const ffeRequirement = await prisma.roomFFEItem.findUnique({
+          where: { id: ffeRequirementId },
+          select: {
+            name: true,
+            section: {
+              select: {
+                name: true,
+                instance: {
+                  select: {
+                    room: {
+                      select: {
+                        id: true,
+                        name: true,
+                        project: {
+                          select: {
+                            id: true,
+                            name: true,
+                            orgId: true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        if (ffeRequirement) {
+          const room = ffeRequirement.section.instance.room
+          const project = room.project
+          
+          await prisma.activityLog.create({
+            data: {
+              actorId: session.user.id,
+              action: 'FFE_PRODUCT_CHOSEN',
+              entity: 'FFE_ITEM',
+              entityId: ffeRequirementId,
+              orgId: project?.orgId,
+              details: {
+                roomId: room.id,
+                roomName: room.name,
+                projectId: project?.id,
+                projectName: project?.name,
+                stageName: 'FFE',
+                itemId: ffeRequirementId,
+                itemName: ffeRequirement.name,
+                sectionName: ffeRequirement.section.name,
+                productName: name.trim(),
+                productBrand: brand || null,
+                productSku: sku || null,
+                isOption: isOption || false,
+                optionNumber: optionNumber || null
+              }
+            }
+          })
+        }
+      } catch (logError) {
+        console.error('Failed to log FFE product chosen activity:', logError)
+        // Don't fail the request if logging fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: createdItems,

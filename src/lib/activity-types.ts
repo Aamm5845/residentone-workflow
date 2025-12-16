@@ -88,6 +88,7 @@ export type ActivityType =
   | 'STATE_CHANGE'
   | 'FFE_ITEM_STATUS_CHANGED'
   | 'FFE_ITEM_DELETED'
+  | 'FFE_PRODUCT_CHOSEN'
   // Approval activities
   | 'CLIENT_APPROVAL_SENT'
   | 'CLIENT_APPROVAL_RECEIVED'
@@ -587,6 +588,12 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, ActivityTypeMeta> = {
     color: 'text-red-600',
     category: 'FFE'
   },
+  FFE_PRODUCT_CHOSEN: {
+    label: 'Product chosen for FFE item',
+    icon: 'CheckCircle2',
+    color: 'text-emerald-600',
+    category: 'FFE'
+  },
 
   // Approvals
   CLIENT_APPROVAL_SENT: {
@@ -873,6 +880,16 @@ export function formatDescription(activity: {
         ? ` from ${details.previousStatus} to ${details.newStatus}` 
         : ''
       return `${actorName} changed FFE item${itemInfo} status${statusChange}${context}`
+
+    case 'FFE_PRODUCT_CHOSEN':
+      const productDisplay = details.productBrand 
+        ? `${details.productName} (${details.productBrand})` 
+        : details.productName || 'a product'
+      const ffeItemName = details.itemName || 'FFE item'
+      const optionText = details.isOption && details.optionNumber 
+        ? ` as Option #${details.optionNumber}` 
+        : ''
+      return `${actorName} chose "${productDisplay}"${optionText} for "${ffeItemName}"${context}`
 
     case 'PROJECT_UPDATED':
       // Check if this is actually a floorplan email that was logged with wrong action

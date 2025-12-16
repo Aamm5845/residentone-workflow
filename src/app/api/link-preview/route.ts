@@ -86,10 +86,72 @@ export async function POST(request: NextRequest) {
         result.description = decodeHtml(ogDescMatch[1]).trim()
       }
 
-      // Extract image
-      const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
-      if (ogImageMatch) {
-        result.image = resolveUrl(ogImageMatch[1], urlObj)
+      // Extract images - collect multiple sources
+      const images: string[] = []
+      
+      // Open Graph image (usually the main product image)
+      const ogImageMatches = html.matchAll(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/gi)
+      for (const match of ogImageMatches) {
+        const imgUrl = resolveUrl(match[1], urlObj)
+        if (imgUrl && !images.includes(imgUrl)) {
+          images.push(imgUrl)
+        }
+      }
+      
+      // Twitter card image
+      const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i)
+      if (twitterImageMatch) {
+        const imgUrl = resolveUrl(twitterImageMatch[1], urlObj)
+        if (imgUrl && !images.includes(imgUrl)) {
+          images.push(imgUrl)
+        }
+      }
+      
+      // Product images from common e-commerce patterns
+      // Look for large images in product containers
+      const productImgPatterns = [
+        /<img[^>]+(?:class|id)=["'][^"']*(?:product|gallery|main|primary|hero)[^"']*["'][^>]*src=["']([^"']+)["']/gi,
+        /<img[^>]+src=["']([^"']+)["'][^>]+(?:class|id)=["'][^"']*(?:product|gallery|main|primary|hero)[^"']*["']/gi,
+        /<img[^>]+data-src=["']([^"']+)["'][^>]*(?:class|id)=["'][^"']*(?:product|gallery)[^"']*["']/gi,
+        /<img[^>]+(?:class|id)=["'][^"']*(?:zoom|large|full)[^"']*["'][^>]*src=["']([^"']+)["']/gi,
+      ]
+      
+      for (const pattern of productImgPatterns) {
+        const matches = html.matchAll(pattern)
+        for (const match of matches) {
+          const imgUrl = resolveUrl(match[1], urlObj)
+          if (imgUrl && !images.includes(imgUrl) && isValidImageUrl(imgUrl)) {
+            images.push(imgUrl)
+          }
+        }
+      }
+      
+      // Also look for JSON-LD structured data which often contains product images
+      const jsonLdMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+      for (const match of jsonLdMatches) {
+        try {
+          const jsonData = JSON.parse(match[1])
+          if (jsonData.image) {
+            const imgArray = Array.isArray(jsonData.image) ? jsonData.image : [jsonData.image]
+            for (const img of imgArray) {
+              const imgUrl = typeof img === 'string' ? img : img?.url
+              if (imgUrl) {
+                const resolved = resolveUrl(imgUrl, urlObj)
+                if (resolved && !images.includes(resolved)) {
+                  images.push(resolved)
+                }
+              }
+            }
+          }
+        } catch {
+          // Invalid JSON, skip
+        }
+      }
+      
+      // Set first image as main and include all in images array
+      if (images.length > 0) {
+        result.image = images[0]
+        result.images = images.slice(0, 10) // Limit to 10 images
       }
 
       // Extract main text content (remove scripts, styles, etc)
@@ -155,5 +217,31 @@ function resolveUrl(urlString: string, baseUrl: URL): string {
   } catch {
     return urlString
   }
+}
+
+function isValidImageUrl(url: string): boolean {
+  // Filter out tracking pixels, icons, and very small images
+  const invalidPatterns = [
+    /pixel/i,
+    /tracking/i,
+    /analytics/i,
+    /beacon/i,
+    /\.gif$/i, // Often used for tracking
+    /sprite/i,
+    /icon/i,
+    /logo/i,
+    /thumb(?:nail)?/i,
+    /1x1/i,
+    /spacer/i,
+  ]
+  
+  for (const pattern of invalidPatterns) {
+    if (pattern.test(url)) {
+      return false
+    }
+  }
+  
+  // Must be a common image format
+  return /\.(jpg|jpeg|png|webp|avif)(\?|$)/i.test(url) || url.includes('image')
 }
 

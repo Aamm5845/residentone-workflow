@@ -109,6 +109,7 @@ function getEntityUrl(activity: Activity): string | null {
     case 'STATE_CHANGE':
     case 'STATUS_CHANGE':
     case 'FFE_ITEM_DELETED':
+    case 'FFE_PRODUCT_CHOSEN':
       if (roomId) return `/ffe/${roomId}/workspace`
       break
     
@@ -389,6 +390,14 @@ function getActivityText(activity: Activity): {
       }
     case 'FFE_ITEM_DELETED':
       return { action: 'Deleted FFE item', itemName }
+    case 'FFE_PRODUCT_CHOSEN':
+      const productInfo = details.productBrand ? `${details.productName} (${details.productBrand})` : details.productName
+      const optionInfo = details.isOption && details.optionNumber ? ` as Option #${details.optionNumber}` : ''
+      return { 
+        action: `Chose product`, 
+        itemName: productInfo, 
+        extraDetails: `for "${itemName}"${optionInfo}`
+      }
 
     // Approval activities
     case 'CLIENT_APPROVAL_SENT':

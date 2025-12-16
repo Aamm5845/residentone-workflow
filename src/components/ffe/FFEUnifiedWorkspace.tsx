@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,13 @@ import {
   Pencil,
   Check,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Globe,
+  Loader2,
+  ClipboardPaste,
+  Building2,
+  StickyNote,
+  Upload
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -81,6 +87,7 @@ export default function FFEUnifiedWorkspace({
   disabled = false
 }: FFEUnifiedWorkspaceProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [sections, setSections] = useState<FFESection[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -88,15 +95,14 @@ export default function FFEUnifiedWorkspace({
   const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showImageModal, setShowImageModal] = useState(false)
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
 
   // Dialog states
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false)
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showAIGenerateDialog, setShowAIGenerateDialog] = useState(false)
-  const [showAddLinkedItemDialog, setShowAddLinkedItemDialog] = useState(false)
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
-  const [selectedParentItem, setSelectedParentItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
   
   // Template states
   const [templates, setTemplates] = useState<any[]>([])
@@ -109,13 +115,25 @@ export default function FFEUnifiedWorkspace({
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
-  const [linkedItemName, setLinkedItemName] = useState('')
+  const [linkToParent, setLinkToParent] = useState(false)
+  const [selectedParentItemId, setSelectedParentItemId] = useState<string>('')
   
   // Edit states
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
   const [editSectionName, setEditSectionName] = useState('')
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editItemName, setEditItemName] = useState('')
+
+  // Generate from URL states
+  const [showUrlGenerateDialog, setShowUrlGenerateDialog] = useState(false)
+  const [urlGenerateItem, setUrlGenerateItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
+  const [urlInput, setUrlInput] = useState('')
+  const [extracting, setExtracting] = useState(false)
+  const [extractedData, setExtractedData] = useState<any>(null)
+  const [editingExtractedData, setEditingExtractedData] = useState(false)
+  const [showNotesInput, setShowNotesInput] = useState(false)
+  const [showSupplierInput, setShowSupplierInput] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // Stats
   const [stats, setStats] = useState({
@@ -131,6 +149,32 @@ export default function FFEUnifiedWorkspace({
     loadTemplates()
     loadRenderingImages()
   }, [roomId, orgId])
+
+  // Handle highlight parameter from URL (when navigating from All Specs)
+  useEffect(() => {
+    const highlightParam = searchParams.get('highlight')
+    if (highlightParam && !loading && sections.length > 0) {
+      setHighlightedItemId(highlightParam)
+      // Expand all sections to ensure the item is visible
+      setSections(prev => prev.map(s => ({ ...s, isExpanded: true })))
+      
+      // Scroll to the item after a short delay
+      setTimeout(() => {
+        const element = document.getElementById(`ffe-item-${highlightParam}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 300)
+      
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        setHighlightedItemId(null)
+        // Clear the URL parameter
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      }, 3000)
+    }
+  }, [searchParams, loading, sections.length])
 
   const loadFFEData = async () => {
     try {
@@ -238,61 +282,236 @@ export default function FFEUnifiedWorkspace({
 
   const handleAddItem = async () => {
     if (!newItemName.trim() || !selectedSectionId) { toast.error('Item name and section are required'); return }
+    
+    // If linking to parent, validate parent selection
+    if (linkToParent && !selectedParentItemId) { toast.error('Please select a parent item to link to'); return }
+    
     try {
       setSaving(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sectionId: selectedSectionId, 
-          name: newItemName.trim(), 
-          description: newItemDescription.trim() || undefined, 
-          quantity: newItemQuantity, 
-          visibility: 'VISIBLE',
-          isSpecItem: false // This is a requirement, not a spec
+      
+      if (linkToParent && selectedParentItemId) {
+        // Create as linked child item
+        const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedParentItemId}/linked-items`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'add',
+            name: newItemName.trim()
+          })
         })
-      })
-      if (!response.ok) throw new Error('Failed to add item')
+        if (!response.ok) {
+          const errData = await response.json()
+          throw new Error(errData.error || 'Failed to add linked item')
+        }
+        toast.success(`Linked item "${newItemName.trim()}" added`)
+      } else {
+        // Create as standalone item
+        const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sectionId: selectedSectionId, 
+            name: newItemName.trim(), 
+            description: newItemDescription.trim() || undefined, 
+            quantity: newItemQuantity, 
+            visibility: 'VISIBLE',
+            isSpecItem: false // This is a requirement, not a spec
+          })
+        })
+        if (!response.ok) throw new Error('Failed to add item')
+        toast.success('Item added')
+      }
+      
       await loadFFEData()
       setShowAddItemDialog(false)
       setNewItemName('')
       setNewItemDescription('')
       setNewItemQuantity(1)
       setSelectedSectionId('')
-      toast.success('Item added')
-    } catch (error) {
-      toast.error('Failed to add item')
+      setLinkToParent(false)
+      setSelectedParentItemId('')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add item')
     } finally {
       setSaving(false)
     }
   }
 
-  const handleAddLinkedItem = async () => {
-    if (!selectedParentItem || !linkedItemName.trim()) { 
-      toast.error('Parent item and name are required'); 
-      return 
+  // Extract product info from URL using AI
+  const handleExtractFromUrl = async () => {
+    if (!urlInput.trim()) {
+      toast.error('Please enter a URL')
+      return
     }
+    
+    setExtracting(true)
     try {
-      setSaving(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedParentItem.id}/linked-items`, {
-        method: 'PATCH',
+      // Fetch page content from the URL
+      const fetchRes = await fetch('/api/link-preview', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'add',
-          name: linkedItemName.trim()
+        body: JSON.stringify({ url: urlInput })
+      })
+      
+      if (!fetchRes.ok) {
+        throw new Error('Failed to fetch page content')
+      }
+      
+      const pageData = await fetchRes.json()
+      
+      // Collect all available images from link preview
+      const availableImages = pageData.images?.length ? pageData.images : (pageData.image ? [pageData.image] : [])
+      
+      // Use AI to extract product info
+      const aiRes = await fetch('/api/ai/extract-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: urlInput,
+          pageContent: pageData.textContent || pageData.description || '',
+          title: pageData.title || '',
+          images: availableImages
         })
       })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to add linked item')
+      
+      if (aiRes.ok) {
+        const result = await aiRes.json()
+        if (result.success && result.data) {
+          // Merge AI extracted images with preview images, preferring AI's selection
+          const aiImages = result.data.images || []
+          const allImages = [...new Set([...aiImages, ...availableImages])].slice(0, 10)
+          
+          // Don't auto-populate notes - user should add manually
+          const { notes: _notes, productDescription: _desc, ...cleanData } = result.data
+          
+          setExtractedData({
+            ...cleanData,
+            productWebsite: urlInput,
+            images: allImages.length > 0 ? allImages : availableImages,
+            notes: '' // Notes should always be manually added
+          })
+          toast.success('Product info extracted!')
+        } else {
+          // Fallback with basic data - no auto notes
+          setExtractedData({
+            productName: pageData.title || '',
+            brand: '',
+            sku: '',
+            rrp: '',
+            tradePrice: '',
+            material: '',
+            colour: '',
+            finish: '',
+            width: '',
+            height: '',
+            depth: '',
+            length: '',
+            leadTime: '',
+            productWebsite: urlInput,
+            images: availableImages
+          })
+          toast.success('Basic info extracted')
+        }
+      } else {
+        // If AI fails, still provide basic extraction - no auto notes
+        setExtractedData({
+          productName: pageData.title || '',
+          brand: '',
+          sku: '',
+          rrp: '',
+          tradePrice: '',
+          material: '',
+          colour: '',
+          finish: '',
+          width: '',
+          height: '',
+          depth: '',
+          length: '',
+          leadTime: '',
+          productWebsite: urlInput,
+          images: availableImages
+        })
+        toast.success('Basic info extracted')
       }
-      await loadFFEData()
-      setShowAddLinkedItemDialog(false)
-      setLinkedItemName('')
-      setSelectedParentItem(null)
-      toast.success('Linked item added')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add linked item')
+    } catch (error) {
+      console.error('Error extracting from URL:', error)
+      toast.error('Failed to extract product info')
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  // Create linked spec from extracted URL data
+  const handleCreateSpecFromUrl = async () => {
+    if (!urlGenerateItem || !extractedData) {
+      toast.error('Missing item or extracted data')
+      return
+    }
+    
+    try {
+      setSaving(true)
+      
+      // Check if this FFE item already has specs (to determine if this is an option)
+      const currentItem = sections
+        .flatMap(s => s.items)
+        .find(i => i.id === urlGenerateItem.id)
+      
+      const isOption = currentItem?.linkedSpecs && currentItem.linkedSpecs.length > 0
+      const optionNumber = isOption ? (currentItem.linkedSpecs?.length || 0) + 1 : undefined
+      
+      // Create a linked spec item with the extracted data
+      // Note: We don't auto-set supplier or notes - user adds manually
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: urlGenerateItem.sectionId,
+          name: extractedData.productName || `Product for ${urlGenerateItem.name}`,
+          brand: extractedData.brand,
+          sku: extractedData.sku,
+          material: extractedData.material,
+          color: extractedData.colour || extractedData.color,
+          finish: extractedData.finish,
+          width: extractedData.width,
+          height: extractedData.height,
+          depth: extractedData.depth,
+          leadTime: extractedData.leadTime,
+          // Supplier only if user manually added it
+          supplierName: extractedData.supplierName || undefined,
+          supplierLink: extractedData.supplierLink || extractedData.productWebsite || undefined,
+          quantity: 1,
+          unitCost: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
+          rrp: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
+          tradePrice: extractedData.tradePrice ? parseFloat(String(extractedData.tradePrice).replace(/[^0-9.]/g, '')) : undefined,
+          images: extractedData.images || [],
+          notes: extractedData.notes || undefined, // Only if user adds notes manually
+          // FFE Linking fields
+          isSpecItem: true,
+          ffeRequirementId: urlGenerateItem.id,
+          isOption: isOption,
+          optionNumber: optionNumber,
+          specStatus: 'SELECTED',
+          visibility: 'VISIBLE'
+        })
+      })
+      
+      if (res.ok) {
+        const linkedMsg = isOption ? ` as Option #${optionNumber}` : ''
+        toast.success(`Product linked to "${urlGenerateItem.name}"${linkedMsg}`)
+        await loadFFEData()
+        setShowUrlGenerateDialog(false)
+        setUrlInput('')
+        setExtractedData(null)
+        setUrlGenerateItem(null)
+        setEditingExtractedData(false)
+        setShowNotesInput(false)
+        setShowSupplierInput(false)
+      } else {
+        throw new Error('Failed to create linked spec')
+      }
+    } catch (error) {
+      console.error('Error creating spec from URL:', error)
+      toast.error('Failed to create linked spec')
     } finally {
       setSaving(false)
     }
@@ -748,11 +967,12 @@ export default function FFEUnifiedWorkspace({
                             const linkedChildren = getLinkedChildren(item, section)
                             
                             return (
-                              <div key={item.id} className="group">
+                              <div key={item.id} id={`ffe-item-${item.id}`} className="group">
                                 {/* Main Item Row */}
                                 <div className={cn(
-                                  "flex items-center justify-between p-4 transition-colors",
-                                  isChosen ? "bg-emerald-50/50" : "hover:bg-gray-50"
+                                  "flex items-center justify-between p-4 transition-all",
+                                  isChosen ? "bg-emerald-50/50" : "hover:bg-gray-50",
+                                  highlightedItemId === item.id && "ring-2 ring-blue-500 ring-inset bg-blue-50"
                                 )}>
                                   <div className="flex items-center gap-3 flex-1">
                                     {/* Chosen Indicator */}
@@ -820,8 +1040,18 @@ export default function FFEUnifiedWorkspace({
                                   {/* Status and Actions */}
                                   <div className="flex items-center gap-2">
                                     {isChosen ? (
-                                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                      <Badge 
+                                        className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors"
+                                        onClick={() => {
+                                          // Navigate to All Specs with this specific item's linked spec
+                                          if (projectId && item.linkedSpecs?.length) {
+                                            const specId = item.linkedSpecs[0].id
+                                            router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
+                                          }
+                                        }}
+                                      >
                                         {item.linkedSpecs?.length === 1 ? 'Chosen' : `${item.linkedSpecs?.length} options`}
+                                        <ExternalLink className="w-3 h-3 ml-1" />
                                       </Badge>
                                     ) : (
                                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
@@ -846,12 +1076,15 @@ export default function FFEUnifiedWorkspace({
                                           <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
                                           Choose Product for This
                                         </DropdownMenuItem>
+                                        {/* Generate from URL - AI extract product info */}
                                         <DropdownMenuItem onClick={() => {
-                                          setSelectedParentItem({ id: item.id, name: item.name, sectionId: section.id })
-                                          setShowAddLinkedItemDialog(true)
+                                          setUrlGenerateItem({ id: item.id, name: item.name, sectionId: section.id })
+                                          setUrlInput('')
+                                          setExtractedData(null)
+                                          setShowUrlGenerateDialog(true)
                                         }}>
-                                          <LinkIcon className="w-4 h-4 mr-2" />
-                                          Add Linked Item
+                                          <Globe className="w-4 h-4 mr-2 text-blue-600" />
+                                          Generate from URL
                                         </DropdownMenuItem>
                                         <DropdownMenuItem 
                                           onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }}
@@ -871,7 +1104,14 @@ export default function FFEUnifiedWorkspace({
                                     {linkedChildren.map(child => {
                                       const childIsChosen = hasSpecs(child)
                                       return (
-                                        <div key={child.id} className="group flex items-center justify-between py-2 px-4 hover:bg-blue-50/50">
+                                        <div 
+                                          key={child.id} 
+                                          id={`ffe-item-${child.id}`}
+                                          className={cn(
+                                            "group flex items-center justify-between py-2 px-4 hover:bg-blue-50/50 transition-all",
+                                            highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
+                                          )}
+                                        >
                                           <div className="flex items-center gap-2">
                                             {childIsChosen ? (
                                               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -880,32 +1120,48 @@ export default function FFEUnifiedWorkspace({
                                             )}
                                             <LinkIcon className="w-3 h-3 text-blue-500" />
                                             <span className="text-sm text-gray-700">{child.name}</span>
-                                            {childIsChosen && (
-                                              <Badge className="bg-emerald-100 text-emerald-700 text-xs">Chosen</Badge>
-                                            )}
                                           </div>
-                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                                            {!childIsChosen && projectId && (
-                                              <Button 
-                                                size="sm" 
-                                                variant="outline"
-                                                onClick={() => {
-                                                  router.push(`/projects/${projectId}/specs/all?linkFfeItem=${child.id}&roomId=${roomId}&sectionId=${section.id}`)
-                                                }}
-                                                className="h-6 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                              >
-                                                <CheckCircle2 className="w-3 h-3" />
-                                                Choose
-                                              </Button>
+                                          <div className="flex items-center gap-2">
+                                            {childIsChosen ? (
+                                              <Badge className="bg-emerald-100 text-emerald-700 text-xs">Chosen</Badge>
+                                            ) : (
+                                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                                Needs Selection
+                                              </Badge>
                                             )}
-                                            <Button 
-                                              size="sm" 
-                                              variant="ghost" 
-                                              onClick={() => handleDeleteItem(child.id)} 
-                                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
-                                            >
-                                              <Trash2 className="w-3 h-3" />
-                                            </Button>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
+                                                  <MoreHorizontal className="w-4 h-4" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => {
+                                                  if (projectId) {
+                                                    router.push(`/projects/${projectId}/specs/all?linkFfeItem=${child.id}&roomId=${roomId}&sectionId=${section.id}`)
+                                                  }
+                                                }}>
+                                                  <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
+                                                  Choose Product for This
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => {
+                                                  setUrlGenerateItem({ id: child.id, name: child.name, sectionId: section.id })
+                                                  setUrlInput('')
+                                                  setExtractedData(null)
+                                                  setShowUrlGenerateDialog(true)
+                                                }}>
+                                                  <Globe className="w-4 h-4 mr-2 text-blue-600" />
+                                                  Generate from URL
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                  onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
+                                                  className="text-red-600"
+                                                >
+                                                  <Trash2 className="w-4 h-4 mr-2" />
+                                                  Delete
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
                                           </div>
                                         </div>
                                       )
@@ -988,7 +1244,17 @@ export default function FFEUnifiedWorkspace({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+      <Dialog open={showAddItemDialog} onOpenChange={(open) => {
+        setShowAddItemDialog(open)
+        if (!open) {
+          setNewItemName('')
+          setNewItemDescription('')
+          setNewItemQuantity(1)
+          setSelectedSectionId('')
+          setLinkToParent(false)
+          setSelectedParentItemId('')
+        }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1002,7 +1268,11 @@ export default function FFEUnifiedWorkspace({
           <div className="space-y-4 py-4">
             <div>
               <Label>Section</Label>
-              <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+              <Select value={selectedSectionId} onValueChange={(val) => { 
+                setSelectedSectionId(val)
+                setLinkToParent(false)
+                setSelectedParentItemId('')
+              }}>
                 <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Select a section..." />
                 </SelectTrigger>
@@ -1013,60 +1283,532 @@ export default function FFEUnifiedWorkspace({
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Link to Parent Option */}
+            {selectedSectionId && (() => {
+              const sectionItems = sections.find(s => s.id === selectedSectionId)?.items.filter(item => !item.customFields?.isLinkedItem) || []
+              return sectionItems.length > 0 ? (
+                <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="linkToParent"
+                      checked={linkToParent}
+                      onChange={(e) => {
+                        setLinkToParent(e.target.checked)
+                        if (!e.target.checked) setSelectedParentItemId('')
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="linkToParent" className="text-sm cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <LinkIcon className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Link to existing item (create as sub-item)</span>
+                      </div>
+                    </Label>
+                  </div>
+                  
+                  {linkToParent && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Select parent item</Label>
+                      <Select value={selectedParentItemId} onValueChange={setSelectedParentItemId}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select a parent item..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sectionItems.map(item => (
+                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              ) : null
+            })()}
+            
             <div>
               <Label>Item Name</Label>
               <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g., Floor tiles, Pendant lights" className="mt-1.5" />
             </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Quantity</Label>
-              <Input type="number" min={1} max={50} value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} className="mt-1.5 w-24" />
-            </div>
+            
+            {!linkToParent && (
+              <>
+                <div>
+                  <Label>Description (optional)</Label>
+                  <Textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Optional description..." rows={2} className="mt-1.5" />
+                </div>
+                <div>
+                  <Label>Quantity</Label>
+                  <Input type="number" min={1} max={50} value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} className="mt-1.5 w-24" />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId('') }}>Cancel</Button>
-            <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId}>
+            <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId(''); setLinkToParent(false); setSelectedParentItemId('') }}>Cancel</Button>
+            <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId || (linkToParent && !selectedParentItemId)}>
               {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Add Item
+              {linkToParent ? 'Add Linked Item' : 'Add Item'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddLinkedItemDialog} onOpenChange={(open) => {
-        setShowAddLinkedItemDialog(open)
+      {/* Generate from URL Dialog */}
+      <Dialog open={showUrlGenerateDialog} onOpenChange={(open) => {
+        setShowUrlGenerateDialog(open)
         if (!open) {
-          setLinkedItemName('')
-          setSelectedParentItem(null)
+          setUrlInput('')
+          setExtractedData(null)
+          setUrlGenerateItem(null)
+          setEditingExtractedData(false)
+          setShowNotesInput(false)
+          setShowSupplierInput(false)
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LinkIcon className="h-5 w-5 text-blue-600" />
-              Add Linked Item
+              <Globe className="h-5 w-5 text-blue-600" />
+              Generate from URL
             </DialogTitle>
+            <DialogDescription>
+              Paste a product URL to automatically extract product information using AI.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedParentItem && (
+            {urlGenerateItem && (
               <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                <p className="text-xs text-blue-600 font-medium mb-1">Linking to:</p>
-                <p className="font-medium text-gray-900">{selectedParentItem.name}</p>
+                <p className="text-xs text-blue-600 font-medium mb-1">Creating product for:</p>
+                <p className="font-medium text-gray-900">{urlGenerateItem.name}</p>
               </div>
             )}
-            <div>
-              <Label>Linked Item Name</Label>
-              <Input value={linkedItemName} onChange={(e) => setLinkedItemName(e.target.value)} placeholder="e.g., Hardware, Installation" className="mt-1.5" />
+            
+            {/* URL Input */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input 
+                  value={urlInput} 
+                  onChange={(e) => setUrlInput(e.target.value)} 
+                  placeholder="https://example.com/product-page" 
+                  className="w-full pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText()
+                      if (text) {
+                        setUrlInput(text)
+                        toast.success('URL pasted')
+                      }
+                    } catch {
+                      toast.error('Could not access clipboard')
+                    }
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Paste from clipboard"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </button>
+              </div>
+              <Button 
+                onClick={handleExtractFromUrl} 
+                disabled={extracting || !urlInput.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {extracting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Extract
+                  </>
+                )}
+              </Button>
             </div>
+            
+            {/* Extracted Data */}
+            {extractedData && (
+              <div className="border rounded-lg p-4 space-y-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Product Info Extracted
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingExtractedData(!editingExtractedData)}
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                    {editingExtractedData ? 'Done' : 'Edit'}
+                  </Button>
+                </div>
+                
+                {/* Product Images */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs text-gray-500">Images</Label>
+                  </div>
+                  <div className="flex gap-2 flex-wrap items-center">
+                    {extractedData.images?.map((img: string, idx: number) => (
+                      <div key={idx} className="relative group">
+                        <img 
+                          src={img} 
+                          alt="Product" 
+                          className="w-16 h-16 object-cover rounded border bg-white"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExtractedData((prev: any) => ({
+                              ...prev,
+                              images: prev.images.filter((_: string, i: number) => i !== idx)
+                            }))
+                          }}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {/* Add Image - Upload */}
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          
+                          if (file.size > 4 * 1024 * 1024) {
+                            toast.error('Image must be under 4MB')
+                            return
+                          }
+                          
+                          setUploadingImage(true)
+                          try {
+                            const formData = new FormData()
+                            formData.append('file', file)
+                            formData.append('imageType', 'general')
+                            
+                            const res = await fetch('/api/upload-image', {
+                              method: 'POST',
+                              body: formData
+                            })
+                            
+                            if (res.ok) {
+                              const data = await res.json()
+                              if (data.url) {
+                                setExtractedData((prev: any) => ({
+                                  ...prev,
+                                  images: [...(prev.images || []), data.url]
+                                }))
+                                toast.success('Image uploaded')
+                              }
+                            } else {
+                              toast.error('Failed to upload image')
+                            }
+                          } catch (error) {
+                            console.error('Upload error:', error)
+                            toast.error('Failed to upload image')
+                          } finally {
+                            setUploadingImage(false)
+                            e.target.value = '' // Reset input
+                          }
+                        }}
+                      />
+                      <div className={cn(
+                        "w-16 h-16 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors",
+                        uploadingImage && "opacity-50 pointer-events-none"
+                      )}>
+                        {uploadingImage ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5" />
+                            <span className="text-[10px] mt-0.5">Upload</span>
+                          </>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                {editingExtractedData ? (
+                  /* Edit Mode */
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <Label className="text-xs">Product Name</Label>
+                      <Input
+                        value={extractedData.productName || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, productName: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Brand</Label>
+                      <Input
+                        value={extractedData.brand || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, brand: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">SKU</Label>
+                      <Input
+                        value={extractedData.sku || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, sku: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Price (RRP)</Label>
+                      <Input
+                        value={extractedData.rrp || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, rrp: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Trade Price</Label>
+                      <Input
+                        value={extractedData.tradePrice || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, tradePrice: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Material</Label>
+                      <Input
+                        value={extractedData.material || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, material: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Color</Label>
+                      <Input
+                        value={extractedData.colour || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, colour: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Finish</Label>
+                      <Input
+                        value={extractedData.finish || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, finish: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Lead Time</Label>
+                      <Input
+                        value={extractedData.leadTime || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, leadTime: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Width</Label>
+                      <Input
+                        value={extractedData.width || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, width: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Height</Label>
+                      <Input
+                        value={extractedData.height || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, height: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Depth</Label>
+                      <Input
+                        value={extractedData.depth || ''}
+                        onChange={(e) => setExtractedData((prev: any) => ({ ...prev, depth: e.target.value }))}
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  /* View Mode */
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {extractedData.productName && (
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Product:</span>
+                        <span className="ml-2 font-medium">{extractedData.productName}</span>
+                      </div>
+                    )}
+                    {extractedData.brand && (
+                      <div>
+                        <span className="text-gray-500">Brand:</span>
+                        <span className="ml-2">{extractedData.brand}</span>
+                      </div>
+                    )}
+                    {extractedData.sku && (
+                      <div>
+                        <span className="text-gray-500">SKU:</span>
+                        <span className="ml-2">{extractedData.sku}</span>
+                      </div>
+                    )}
+                    {extractedData.rrp && (
+                      <div>
+                        <span className="text-gray-500">Price:</span>
+                        <span className="ml-2">{extractedData.rrp}</span>
+                      </div>
+                    )}
+                    {extractedData.tradePrice && (
+                      <div>
+                        <span className="text-gray-500">Trade:</span>
+                        <span className="ml-2">{extractedData.tradePrice}</span>
+                      </div>
+                    )}
+                    {extractedData.material && (
+                      <div>
+                        <span className="text-gray-500">Material:</span>
+                        <span className="ml-2">{extractedData.material}</span>
+                      </div>
+                    )}
+                    {extractedData.colour && (
+                      <div>
+                        <span className="text-gray-500">Color:</span>
+                        <span className="ml-2">{extractedData.colour}</span>
+                      </div>
+                    )}
+                    {extractedData.finish && (
+                      <div>
+                        <span className="text-gray-500">Finish:</span>
+                        <span className="ml-2">{extractedData.finish}</span>
+                      </div>
+                    )}
+                    {(extractedData.width || extractedData.height || extractedData.depth) && (
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Size:</span>
+                        <span className="ml-2">
+                          {[extractedData.width && `W: ${extractedData.width}`, 
+                            extractedData.height && `H: ${extractedData.height}`,
+                            extractedData.depth && `D: ${extractedData.depth}`
+                          ].filter(Boolean).join(' × ')}
+                        </span>
+                      </div>
+                    )}
+                    {extractedData.leadTime && (
+                      <div>
+                        <span className="text-gray-500">Lead:</span>
+                        <span className="ml-2">{extractedData.leadTime}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Add Note Section */}
+                {showNotesInput || extractedData.notes ? (
+                  <div>
+                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Textarea
+                      value={extractedData.notes || ''}
+                      onChange={(e) => setExtractedData((prev: any) => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1 text-sm"
+                      rows={2}
+                      placeholder="Add any notes about this product..."
+                    />
+                  </div>
+                ) : null}
+                
+                {/* Add Supplier Section */}
+                {showSupplierInput || extractedData.supplierName ? (
+                  <div className="border-t pt-3">
+                    <Label className="text-xs text-gray-500 mb-2 block">Supplier</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          value={extractedData.supplierName || ''}
+                          onChange={(e) => setExtractedData((prev: any) => ({ ...prev, supplierName: e.target.value }))}
+                          className="h-8 text-sm"
+                          placeholder="Supplier name"
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          value={extractedData.supplierLink || ''}
+                          onChange={(e) => setExtractedData((prev: any) => ({ ...prev, supplierLink: e.target.value }))}
+                          className="h-8 text-sm"
+                          placeholder="Supplier website"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                
+                {/* Action Buttons - Always visible */}
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  {!showNotesInput && !extractedData.notes && (
+                    <button
+                      type="button"
+                      onClick={() => setShowNotesInput(true)}
+                      className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-blue-600 transition-colors"
+                    >
+                      <StickyNote className="w-3.5 h-3.5" />
+                      Add Note
+                    </button>
+                  )}
+                  {!showSupplierInput && !extractedData.supplierName && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSupplierInput(true)}
+                      className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-blue-600 transition-colors"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      Add Supplier
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowAddLinkedItemDialog(false); setLinkedItemName(''); setSelectedParentItem(null) }}>Cancel</Button>
-            <Button onClick={handleAddLinkedItem} disabled={saving || !linkedItemName.trim()} className="bg-blue-600 hover:bg-blue-700">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Add Linked Item
+            <Button 
+              variant="outline" 
+              onClick={() => { 
+                setShowUrlGenerateDialog(false)
+                setUrlInput('')
+                setExtractedData(null)
+                setUrlGenerateItem(null)
+                setEditingExtractedData(false)
+                setShowNotesInput(false)
+                setShowSupplierInput(false)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateSpecFromUrl} 
+              disabled={saving || !extractedData}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Link Product
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

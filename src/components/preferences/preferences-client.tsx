@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { 
   Database, 
   Download, 
@@ -28,7 +29,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  HardDrive
+  HardDrive,
+  ArrowLeft
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -69,6 +71,8 @@ interface DatabaseStats {
 
 export default function PreferencesClient({ user }: PreferencesClientProps) {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const returnTo = searchParams.get('returnTo')
   const [activeTab, setActiveTab] = useState(() => {
     return searchParams.get('tab') || 'backup'
   })
@@ -474,6 +478,19 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Back Button when coming from FFE Workspace */}
+      {returnTo && (
+        <div className="mb-6">
+          <Link 
+            href={returnTo}
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Workspace
+          </Link>
+        </div>
+      )}
+      
       <div className="flex space-x-8">
         {/* Sidebar Navigation */}
         <div className="w-64 space-y-1">

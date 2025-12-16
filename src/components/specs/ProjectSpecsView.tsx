@@ -74,7 +74,10 @@ import {
   Share2,
   QrCode,
   ClipboardCopy,
-  HelpCircle
+  HelpCircle,
+  Upload,
+  ClipboardPaste,
+  Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -134,6 +137,9 @@ interface SpecItem {
   tradePrice: number | null
   rrp: number | null
   tradeDiscount: number | null
+  // FFE Linking fields
+  ffeRequirementId: string | null
+  ffeRequirementName: string | null
 }
 
 interface CategoryGroup {
@@ -189,6 +195,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterRoom, setFilterRoom] = useState<string>('all')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
@@ -196,6 +203,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Team-only: Show unchosen FFE items (not visible in shared view)
   const [showUnchosenItems, setShowUnchosenItems] = useState(false)
   const [unchosenItemsSort, setUnchosenItemsSort] = useState<'category' | 'room'>('category')
+  
+  // Generate from URL dialog for Needs Selection tab
+  const [urlGenerateDialog, setUrlGenerateDialog] = useState<{
+    open: boolean
+    ffeItem: { id: string; name: string; roomId: string; sectionId: string } | null
+  }>({ open: false, ffeItem: null })
+  const [urlGenerateInput, setUrlGenerateInput] = useState('')
+  const [urlGenerateExtracting, setUrlGenerateExtracting] = useState(false)
+  const [urlGenerateData, setUrlGenerateData] = useState<any>(null)
+  const [urlGenerateEditing, setUrlGenerateEditing] = useState(false)
+  const [urlGenerateUploadingImage, setUrlGenerateUploadingImage] = useState(false)
+  const [urlGenerateShowNotes, setUrlGenerateShowNotes] = useState(false)
+  const [urlGenerateShowSupplier, setUrlGenerateShowSupplier] = useState(false)
+  const [urlGenerateSupplierSearch, setUrlGenerateSupplierSearch] = useState('')
+  const [urlGenerateSupplierResults, setUrlGenerateSupplierResults] = useState<any[]>([])
+  const [urlGenerateSupplierLoading, setUrlGenerateSupplierLoading] = useState(false)
+  const [urlGenerateSelectedSupplier, setUrlGenerateSelectedSupplier] = useState<any>(null)
   
   // Available rooms/sections for adding new specs
   const [availableRooms, setAvailableRooms] = useState<Array<{ id: string; name: string; sections: Array<{ id: string; name: string }> }>>([])
@@ -557,6 +581,39 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }, [searchParams, ffeItems, availableRooms, project.id, router])
 
+  // Handle highlightItem parameter (from FFE Workspace "Chosen" badge click)
+  useEffect(() => {
+    const highlightItemId = searchParams.get('highlightItem')
+    
+    if (highlightItemId && specs.length > 0) {
+      // Find the spec to highlight
+      const spec = specs.find(s => s.id === highlightItemId)
+      if (spec) {
+        // Expand the category containing this item
+        setExpandedCategories(prev => new Set([...prev, spec.sectionName]))
+        
+        // Set highlighted item
+        setHighlightedItemId(highlightItemId)
+        
+        // Scroll to the item after a short delay for DOM update
+        setTimeout(() => {
+          const element = document.getElementById(`spec-item-${highlightItemId}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 100)
+        
+        // Clear highlight after 3 seconds
+        setTimeout(() => {
+          setHighlightedItemId(null)
+        }, 3000)
+        
+        // Clear URL param
+        router.replace(`/projects/${project.id}/specs/all`, { scroll: false })
+      }
+    }
+  }, [searchParams, specs, project.id, router])
+
   // Get unique rooms for filter
   const uniqueRooms = Array.from(new Set(specs.map(s => s.roomName))).sort()
   
@@ -726,6 +783,199 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       toast.error('Failed to extract product info')
     } finally {
       setExtracting(false)
+    }
+  }
+  
+  // Extract product info from URL for Needs Selection tab
+  const handleUrlGenerateExtract = async () => {
+    if (!urlGenerateInput.trim()) {
+      toast.error('Please enter a URL')
+      return
+    }
+    
+    setUrlGenerateExtracting(true)
+    try {
+      const fetchRes = await fetch('/api/link-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlGenerateInput })
+      })
+      
+      if (!fetchRes.ok) throw new Error('Failed to fetch page content')
+      
+      const pageData = await fetchRes.json()
+      
+      const aiRes = await fetch('/api/ai/extract-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: urlGenerateInput,
+          pageContent: pageData.textContent || pageData.description || '',
+          title: pageData.title || '',
+          images: pageData.images || (pageData.image ? [pageData.image] : [])
+        })
+      })
+      
+      if (aiRes.ok) {
+        const result = await aiRes.json()
+        if (result.success && result.data) {
+          setUrlGenerateData({
+            ...result.data,
+            productWebsite: urlGenerateInput,
+            images: result.data.images?.length ? result.data.images : (pageData.images || (pageData.image ? [pageData.image] : []))
+          })
+          toast.success('Product info extracted!')
+        } else {
+          setUrlGenerateData({
+            productName: pageData.title || '',
+            brand: '',
+            sku: '',
+            rrp: '',
+            tradePrice: '',
+            material: '',
+            colour: '',
+            finish: '',
+            width: '',
+            height: '',
+            depth: '',
+            length: '',
+            leadTime: '',
+            productWebsite: urlGenerateInput,
+            images: pageData.images || (pageData.image ? [pageData.image] : [])
+          })
+          toast.success('Basic info extracted')
+        }
+      } else {
+        setUrlGenerateData({
+          productName: pageData.title || '',
+          brand: '',
+          sku: '',
+          rrp: '',
+          tradePrice: '',
+          material: '',
+          colour: '',
+          finish: '',
+          width: '',
+          height: '',
+          depth: '',
+          length: '',
+          leadTime: '',
+          productWebsite: urlGenerateInput,
+          images: pageData.images || (pageData.image ? [pageData.image] : [])
+        })
+        toast.success('Basic info extracted')
+      }
+    } catch (error) {
+      console.error('Error extracting from URL:', error)
+      toast.error('Failed to extract product info')
+    } finally {
+      setUrlGenerateExtracting(false)
+    }
+  }
+  
+  // Create spec from URL generation for Needs Selection tab
+  const handleUrlGenerateCreate = async () => {
+    if (!urlGenerateData || !urlGenerateDialog.ffeItem) return
+    
+    setSavingItem(true)
+    try {
+      const { ffeItem } = urlGenerateDialog
+      
+      // Build dimensions string
+      const dims = []
+      if (urlGenerateData.width) dims.push(`W: ${urlGenerateData.width}`)
+      if (urlGenerateData.height) dims.push(`H: ${urlGenerateData.height}`)
+      if (urlGenerateData.depth) dims.push(`D: ${urlGenerateData.depth}`)
+      if (urlGenerateData.length) dims.push(`L: ${urlGenerateData.length}`)
+      
+      const payload = {
+        name: urlGenerateData.productName || 'Product from URL',
+        brand: urlGenerateData.brand || '',
+        sku: urlGenerateData.sku || '',
+        productWebsite: urlGenerateData.productWebsite || urlGenerateInput,
+        supplierLink: urlGenerateSelectedSupplier?.website || urlGenerateData.productWebsite || urlGenerateInput,
+        thumbnailUrl: urlGenerateData.images?.[0] || '',
+        images: urlGenerateData.images || [],
+        rrp: urlGenerateData.rrp ? parseFloat(urlGenerateData.rrp.replace(/[^0-9.]/g, '')) || 0 : 0,
+        tradePrice: urlGenerateData.tradePrice ? parseFloat(urlGenerateData.tradePrice.replace(/[^0-9.]/g, '')) || 0 : 0,
+        leadTime: urlGenerateData.leadTime || '',
+        material: urlGenerateData.material || '',
+        color: urlGenerateData.colour || urlGenerateData.color || '',
+        finish: urlGenerateData.finish || '',
+        width: urlGenerateData.width || '',
+        height: urlGenerateData.height || '',
+        depth: urlGenerateData.depth || '',
+        notes: urlGenerateShowNotes ? (urlGenerateData.notes || '') : '',
+        supplierName: urlGenerateSelectedSupplier?.name || '',
+        quantity: 1,
+        isSpecItem: true,
+        ffeRequirementId: ffeItem.id,
+        sectionId: ffeItem.sectionId,
+        specStatus: 'SELECTED',
+        visibility: 'VISIBLE'
+      }
+      
+      const res = await fetch(`/api/ffe/v2/rooms/${ffeItem.roomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      if (res.ok) {
+        toast.success('Product linked successfully!')
+        
+        // Reset dialog state
+        setUrlGenerateDialog({ open: false, ffeItem: null })
+        setUrlGenerateInput('')
+        setUrlGenerateData(null)
+        setUrlGenerateEditing(false)
+        setUrlGenerateShowNotes(false)
+        setUrlGenerateShowSupplier(false)
+        setUrlGenerateSelectedSupplier(null)
+        
+        // Refresh data
+        fetchSpecs()
+        loadFfeItems()
+      } else {
+        throw new Error('Failed to create linked spec')
+      }
+    } catch (error) {
+      console.error('Error creating spec:', error)
+      toast.error('Failed to link product')
+    } finally {
+      setSavingItem(false)
+    }
+  }
+  
+  // Search suppliers for URL generate dialog
+  const handleUrlGenerateSupplierSearch = async (query: string) => {
+    setUrlGenerateSupplierSearch(query)
+    if (!query.trim()) {
+      setUrlGenerateSupplierResults([])
+      return
+    }
+    
+    setUrlGenerateSupplierLoading(true)
+    try {
+      const res = await fetch(`/api/suppliers?search=${encodeURIComponent(query)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUrlGenerateSupplierResults(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error searching suppliers:', error)
+    } finally {
+      setUrlGenerateSupplierLoading(false)
+    }
+  }
+  
+  // Paste URL for generate dialog
+  const handleUrlGeneratePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      setUrlGenerateInput(text)
+    } catch (error) {
+      toast.error('Failed to paste from clipboard')
     }
   }
   
@@ -1814,27 +2064,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p className="text-xs text-gray-500">{roomName}</p>
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
-                              onClick={() => {
-                                // Pre-select FFE item and open create panel
-                                setSelectedFfeRoom(roomId)
-                                setSelectedFfeSection(sectionId)
-                                setSelectedFfeItemId(item.id)
-                                setDetailPanel({
-                                  isOpen: true,
-                                  mode: 'create',
-                                  item: null,
-                                  sectionId: sectionId,
-                                  roomId: roomId
-                                })
-                              }}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Choose
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Choose
+                                  <ChevronDown className="w-3 h-3 ml-0.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setUrlGenerateDialog({
+                                    open: true,
+                                    ffeItem: { id: item.id, name: item.name, roomId, sectionId }
+                                  })
+                                }}>
+                                  <Globe className="w-4 h-4 mr-2" />
+                                  Generate from URL
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedFfeRoom(roomId)
+                                  setSelectedFfeSection(sectionId)
+                                  setSelectedFfeItemId(item.id)
+                                  setDetailPanel({
+                                    isOpen: true,
+                                    mode: 'create',
+                                    item: null,
+                                    sectionId: sectionId,
+                                    roomId: roomId
+                                  })
+                                }}>
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add New
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         ))}
                       </div>
@@ -1878,26 +2146,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p className="text-xs text-gray-500">{section.sectionName}</p>
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
-                              onClick={() => {
-                                setSelectedFfeRoom(room.roomId)
-                                setSelectedFfeSection(section.sectionId)
-                                setSelectedFfeItemId(item.id)
-                                setDetailPanel({
-                                  isOpen: true,
-                                  mode: 'create',
-                                  item: null,
-                                  sectionId: section.sectionId,
-                                  roomId: room.roomId
-                                })
-                              }}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Choose
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Choose
+                                  <ChevronDown className="w-3 h-3 ml-0.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setUrlGenerateDialog({
+                                    open: true,
+                                    ffeItem: { id: item.id, name: item.name, roomId: room.roomId, sectionId: section.sectionId }
+                                  })
+                                }}>
+                                  <Globe className="w-4 h-4 mr-2" />
+                                  Generate from URL
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedFfeRoom(room.roomId)
+                                  setSelectedFfeSection(section.sectionId)
+                                  setSelectedFfeItemId(item.id)
+                                  setDetailPanel({
+                                    isOpen: true,
+                                    mode: 'create',
+                                    item: null,
+                                    sectionId: section.sectionId,
+                                    roomId: room.roomId
+                                  })
+                                }}>
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add New
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         ))
                       )}
@@ -2073,12 +2360,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <div className="divide-y divide-gray-100">
                       {group.items.map((item) => (
                         <div 
-                          key={item.id} 
+                          key={item.id}
+                          id={`spec-item-${item.id}`}
                           className={cn(
                             "group/item relative flex items-center transition-colors border-l-2",
-                            selectedItems.has(item.id) 
-                              ? "bg-blue-50 border-blue-500" 
-                              : "hover:bg-gray-50 border-transparent hover:border-blue-400"
+                            highlightedItemId === item.id
+                              ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300"
+                              : selectedItems.has(item.id) 
+                                ? "bg-blue-50 border-blue-500" 
+                                : "hover:bg-gray-50 border-transparent hover:border-blue-400"
                           )}
                           onMouseEnter={() => setHoveredItem(item.id)}
                           onMouseLeave={() => setHoveredItem(null)}
@@ -2136,6 +2426,17 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                               <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">{item.roomName}</p>
+                              {item.ffeRequirementName && (
+                                <a
+                                  href={`/ffe/${item.roomId}/workspace?highlight=${item.ffeRequirementId}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate"
+                                  title={`FFE: ${item.ffeRequirementName}`}
+                                >
+                                  <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                  {item.ffeRequirementName}
+                                </a>
+                              )}
                             </div>
                             
                             {/* Link Icon - Shows input when editing */}
@@ -2681,6 +2982,412 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DropdownMenu>
         </div>
       )}
+      
+      {/* URL Generate Dialog for Needs Selection */}
+      <Dialog 
+        open={urlGenerateDialog.open} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setUrlGenerateDialog({ open: false, ffeItem: null })
+            setUrlGenerateInput('')
+            setUrlGenerateData(null)
+            setUrlGenerateEditing(false)
+            setUrlGenerateShowNotes(false)
+            setUrlGenerateShowSupplier(false)
+            setUrlGenerateSelectedSupplier(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-blue-600" />
+              Generate Product from URL
+            </DialogTitle>
+            <DialogDescription>
+              Linking product to: <span className="font-medium text-gray-900">{urlGenerateDialog.ffeItem?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* URL Input */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  value={urlGenerateInput}
+                  onChange={(e) => setUrlGenerateInput(e.target.value)}
+                  placeholder="https://www.example.com/product-page"
+                  className="pl-9 pr-9"
+                  disabled={urlGenerateExtracting}
+                />
+                <button
+                  type="button"
+                  onClick={handleUrlGeneratePaste}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Paste from clipboard"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </button>
+              </div>
+              <Button 
+                onClick={handleUrlGenerateExtract}
+                disabled={urlGenerateExtracting || !urlGenerateInput.trim()}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                {urlGenerateExtracting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Extract
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {/* Extracted Data Preview */}
+            {urlGenerateData && (
+              <div className="border rounded-lg p-4 space-y-4">
+                {/* Header with Edit button */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Extracted Product</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUrlGenerateEditing(!urlGenerateEditing)}
+                    className="h-7 text-xs"
+                  >
+                    {urlGenerateEditing ? 'Done Editing' : 'Edit Details'}
+                  </Button>
+                </div>
+                
+                {/* Images */}
+                <div className="flex flex-wrap gap-2">
+                  {urlGenerateData.images?.map((img: string, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <img 
+                        src={img} 
+                        alt="Product" 
+                        className="w-16 h-16 object-cover rounded border bg-white"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUrlGenerateData((prev: any) => ({
+                            ...prev,
+                            images: prev.images.filter((_: string, i: number) => i !== idx)
+                          }))
+                        }}
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {/* Add Image Upload */}
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        
+                        if (file.size > 4 * 1024 * 1024) {
+                          toast.error('Image must be under 4MB')
+                          return
+                        }
+                        
+                        setUrlGenerateUploadingImage(true)
+                        try {
+                          const formData = new FormData()
+                          formData.append('file', file)
+                          formData.append('imageType', 'general')
+                          
+                          const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            body: formData
+                          })
+                          
+                          if (res.ok) {
+                            const data = await res.json()
+                            if (data.url) {
+                              setUrlGenerateData((prev: any) => ({
+                                ...prev,
+                                images: [...(prev.images || []), data.url]
+                              }))
+                              toast.success('Image uploaded')
+                            }
+                          } else {
+                            toast.error('Failed to upload image')
+                          }
+                        } catch (error) {
+                          console.error('Upload error:', error)
+                          toast.error('Failed to upload image')
+                        } finally {
+                          setUrlGenerateUploadingImage(false)
+                          e.target.value = ''
+                        }
+                      }}
+                    />
+                    <div className={cn(
+                      "w-16 h-16 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors",
+                      urlGenerateUploadingImage && "opacity-50 pointer-events-none"
+                    )}>
+                      {urlGenerateUploadingImage ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5" />
+                          <span className="text-[10px] mt-0.5">Upload</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+                
+                {/* Product Details */}
+                {urlGenerateEditing ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Product Name</Label>
+                      <Input
+                        value={urlGenerateData.productName || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, productName: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Brand</Label>
+                      <Input
+                        value={urlGenerateData.brand || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, brand: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">SKU</Label>
+                      <Input
+                        value={urlGenerateData.sku || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, sku: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">RRP</Label>
+                      <Input
+                        value={urlGenerateData.rrp || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, rrp: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Trade Price</Label>
+                      <Input
+                        value={urlGenerateData.tradePrice || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, tradePrice: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Lead Time</Label>
+                      <Input
+                        value={urlGenerateData.leadTime || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, leadTime: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Width</Label>
+                      <Input
+                        value={urlGenerateData.width || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, width: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Height</Label>
+                      <Input
+                        value={urlGenerateData.height || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, height: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Depth</Label>
+                      <Input
+                        value={urlGenerateData.depth || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, depth: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Material</Label>
+                      <Input
+                        value={urlGenerateData.material || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, material: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="font-medium text-gray-900">{urlGenerateData.productName || 'Untitled Product'}</p>
+                    {urlGenerateData.brand && (
+                      <p className="text-sm text-gray-600">Brand: {urlGenerateData.brand}</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      {urlGenerateData.sku && <span>SKU: {urlGenerateData.sku}</span>}
+                      {urlGenerateData.rrp && <span>RRP: {urlGenerateData.rrp}</span>}
+                      {urlGenerateData.leadTime && <span>Lead Time: {urlGenerateData.leadTime}</span>}
+                    </div>
+                    {(urlGenerateData.width || urlGenerateData.height || urlGenerateData.depth) && (
+                      <p className="text-xs text-gray-500">
+                        Dimensions: {[
+                          urlGenerateData.width && `W: ${urlGenerateData.width}`,
+                          urlGenerateData.height && `H: ${urlGenerateData.height}`,
+                          urlGenerateData.depth && `D: ${urlGenerateData.depth}`
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Add Note Button/Input */}
+                {!urlGenerateShowNotes ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUrlGenerateShowNotes(true)}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Note
+                  </Button>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Textarea
+                      value={urlGenerateData.notes || ''}
+                      onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, notes: e.target.value }))}
+                      className="min-h-[60px] text-sm"
+                      placeholder="Add notes about this product..."
+                    />
+                  </div>
+                )}
+                
+                {/* Add Supplier Button/Input */}
+                {!urlGenerateShowSupplier ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUrlGenerateShowSupplier(true)}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Supplier
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Supplier</Label>
+                    {urlGenerateSelectedSupplier ? (
+                      <div className="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                        <div>
+                          <p className="font-medium text-sm">{urlGenerateSelectedSupplier.name}</p>
+                          {urlGenerateSelectedSupplier.website && (
+                            <p className="text-xs text-gray-500">{urlGenerateSelectedSupplier.website}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUrlGenerateSelectedSupplier(null)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Input
+                          value={urlGenerateSupplierSearch}
+                          onChange={(e) => handleUrlGenerateSupplierSearch(e.target.value)}
+                          placeholder="Search suppliers..."
+                          className="h-8 text-sm"
+                        />
+                        {urlGenerateSupplierLoading && (
+                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                        )}
+                        {urlGenerateSupplierResults.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {urlGenerateSupplierResults.map((supplier) => (
+                              <button
+                                key={supplier.id}
+                                type="button"
+                                onClick={() => {
+                                  setUrlGenerateSelectedSupplier(supplier)
+                                  setUrlGenerateSupplierSearch('')
+                                  setUrlGenerateSupplierResults([])
+                                }}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm"
+                              >
+                                <p className="font-medium">{supplier.name}</p>
+                                {supplier.website && (
+                                  <p className="text-xs text-gray-500 truncate">{supplier.website}</p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUrlGenerateDialog({ open: false, ffeItem: null })
+                setUrlGenerateInput('')
+                setUrlGenerateData(null)
+                setUrlGenerateEditing(false)
+                setUrlGenerateShowNotes(false)
+                setUrlGenerateShowSupplier(false)
+                setUrlGenerateSelectedSupplier(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUrlGenerateCreate}
+              disabled={!urlGenerateData || savingItem}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {savingItem ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Linking...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Link Product
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Add from URL Modal */}
       <Dialog open={addFromUrlModal.open} onOpenChange={(open) => !open && setAddFromUrlModal({ open: false, sectionId: null, roomId: null })}>
@@ -3719,6 +4426,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       <ItemDetailPanel
         isOpen={detailPanel.isOpen}
         onClose={() => setDetailPanel({ isOpen: false, mode: 'view', item: null })}
+        projectId={project.id}
         item={detailPanel.item}
         mode={detailPanel.mode}
         sectionId={detailPanel.sectionId}

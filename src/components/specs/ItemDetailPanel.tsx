@@ -52,6 +52,7 @@ interface FFERoom {
 interface ItemDetailPanelProps {
   isOpen: boolean
   onClose: () => void
+  projectId?: string
   item?: {
     id: string
     name: string
@@ -84,6 +85,7 @@ interface ItemDetailPanelProps {
     length?: string
     roomIds?: string[]
     ffeRequirementId?: string
+    ffeRequirementName?: string
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
@@ -111,6 +113,7 @@ const LEAD_TIME_OPTIONS = [
 export function ItemDetailPanel({
   isOpen,
   onClose,
+  projectId,
   item,
   mode,
   sectionId,
@@ -658,6 +661,27 @@ export function ItemDetailPanel({
                     )}
                   </div>
                 </div>
+                
+                {/* FFE Requirement Link - Show when item is linked to FFE Workspace */}
+                {mode !== 'create' && item?.ffeRequirementId && item?.ffeRequirementName && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium mb-0.5">FFE Requirement</p>
+                        <p className="text-sm font-medium text-blue-900">{item.ffeRequirementName}</p>
+                      </div>
+                      {projectId && item.roomId && (
+                        <a
+                          href={`/ffe/${item.roomId}/workspace?highlight=${item.ffeRequirementId}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-white rounded-md border border-blue-200 hover:border-blue-300 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          View in FFE
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Product Name */}
                 <div className="space-y-2">
