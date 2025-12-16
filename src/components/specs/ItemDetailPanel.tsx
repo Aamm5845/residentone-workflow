@@ -195,6 +195,44 @@ export function ItemDetailPanel({
   const filteredFfeItemsList = effectiveSectionId
     ? filteredFfeSections.find(s => s.sectionId === effectiveSectionId)?.items || []
     : []
+
+  // Flatten all FFE items into a single list for single-dropdown selection
+  const allFfeItemsFlat = ffeItems.flatMap(room => 
+    room.sections.flatMap(section => 
+      section.items.map(item => ({
+        value: `${room.roomId}|${section.sectionId}|${item.id}`,
+        roomId: room.roomId,
+        roomName: room.roomName,
+        sectionId: section.sectionId,
+        sectionName: section.sectionName,
+        itemId: item.id,
+        itemName: item.name,
+        hasLinkedSpecs: item.hasLinkedSpecs,
+        linkedSpecsCount: item.linkedSpecsCount || 0,
+        label: `${room.roomName} > ${section.sectionName} > ${item.name}`
+      }))
+    )
+  )
+
+  // Handle single dropdown FFE item selection
+  const handleFlatFfeItemSelect = (compositeValue: string) => {
+    const [roomId, sectionId, itemId] = compositeValue.split('|')
+    const item = allFfeItemsFlat.find(i => i.value === compositeValue)
+    
+    if (item) {
+      setSelectedFfeRoom(roomId)
+      setSelectedFfeSection(sectionId)
+      setSelectedFfeItemId(itemId)
+      setShowAlreadyChosenWarning(item.hasLinkedSpecs)
+    }
+  }
+
+  // Get the composite value for the current selection
+  const currentFfeCompositeValue = (selectedFfeRoom || initialFfeRoomId) && 
+    (selectedFfeSection || initialFfeSectionId) && 
+    (selectedFfeItemId || initialFfeItemId)
+    ? `${selectedFfeRoom || initialFfeRoomId}|${selectedFfeSection || initialFfeSectionId}|${selectedFfeItemId || initialFfeItemId}`
+    : ''
   
   // Get selected FFE item details
   const selectedFfeItem = selectedFfeItemId && selectedFfeRoom && selectedFfeSection
@@ -763,14 +801,14 @@ export function ItemDetailPanel({
                   </div>
                 </div>
                 
-                {/* FFE Linking Section - Cascading: Room → Section → Item */}
+                {/* FFE Linking Section - Step by Step */}
                 {mode === 'create' && ffeItems.length > 0 && (
                   <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2">
                       <LinkIcon className="w-4 h-4 text-blue-600" />
-                      <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+                      <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item *</Label>
                     </div>
-                    <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
+                    <p className="text-xs text-blue-700">Select the FFE item this product fulfills.</p>
                     
                     {ffeItemsLoading ? (
                       <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -778,22 +816,17 @@ export function ItemDetailPanel({
                         Loading FFE items...
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {/* Step 1: Select Room */}
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-blue-700">1. Select Room</Label>
-                          <Select 
-                            key={`room-select-${initialFfeRoomId || 'none'}`}
-                            value={selectedFfeRoom || initialFfeRoomId || ''} 
-                            onValueChange={(v) => {
-                              setSelectedFfeRoom(v)
-                              setSelectedFfeSection('')
-                              setSelectedFfeItemId('')
-                              setShowAlreadyChosenWarning(false)
-                            }}
-                          >
+                        {!selectedFfeRoom && !initialFfeRoomId && (
+                          <Select value={selectedFfeRoom} onValueChange={(v) => {
+                            setSelectedFfeRoom(v)
+                            setSelectedFfeSection('')
+                            setSelectedFfeItemId('')
+                            setShowAlreadyChosenWarning(false)
+                          }}>
                             <SelectTrigger className="bg-white">
-                              <SelectValue placeholder="Choose a room..." />
+                              <SelectValue placeholder="Select room..." />
                             </SelectTrigger>
                             <SelectContent>
                               {ffeItems.map(room => (
@@ -803,23 +836,30 @@ export function ItemDetailPanel({
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
+                        )}
                         
-                        {/* Step 2: Select Section/Category */}
-                        {(selectedFfeRoom || initialFfeRoomId) && (
-                          <div className="space-y-1.5">
-                            <Label className="text-xs text-blue-700">2. Select Category</Label>
-                            <Select 
-                              key={`section-select-${initialFfeSectionId || 'none'}`}
-                              value={selectedFfeSection || initialFfeSectionId || ''} 
-                              onValueChange={(v) => {
-                                setSelectedFfeSection(v)
+                        {/* Step 2: Show selected room + Section dropdown */}
+                        {(selectedFfeRoom || initialFfeRoomId) && !(selectedFfeSection || initialFfeSectionId) && (
+                          <>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-500">Room:</span>
+                              <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                                setSelectedFfeRoom('')
+                                setSelectedFfeSection('')
                                 setSelectedFfeItemId('')
                                 setShowAlreadyChosenWarning(false)
-                              }}
-                            >
+                              }}>
+                                {ffeItems.find(r => r.roomId === (selectedFfeRoom || initialFfeRoomId))?.roomName}
+                                <X className="w-3 h-3 ml-1" />
+                              </Badge>
+                            </div>
+                            <Select value={selectedFfeSection} onValueChange={(v) => {
+                              setSelectedFfeSection(v)
+                              setSelectedFfeItemId('')
+                              setShowAlreadyChosenWarning(false)
+                            }}>
                               <SelectTrigger className="bg-white">
-                                <SelectValue placeholder="Choose a category..." />
+                                <SelectValue placeholder="Select category..." />
                               </SelectTrigger>
                               <SelectContent>
                                 {filteredFfeSections.map(section => (
@@ -829,28 +869,40 @@ export function ItemDetailPanel({
                                 ))}
                               </SelectContent>
                             </Select>
-                          </div>
+                          </>
                         )}
                         
-                        {/* Step 3: Select FFE Item */}
-                        {(selectedFfeSection || initialFfeSectionId) && (
-                          <div className="space-y-1.5">
-                            <Label className="text-xs text-blue-700">3. Select FFE Item to Link</Label>
-                            <Select 
-                              key={`item-select-${initialFfeItemId || 'none'}`}
-                              value={selectedFfeItemId || initialFfeItemId || ''} 
-                              onValueChange={(v) => {
-                                setSelectedFfeItemId(v)
-                                const item = filteredFfeItemsList.find(i => i.id === v)
-                                if (item?.hasLinkedSpecs) {
-                                  setShowAlreadyChosenWarning(true)
-                                } else {
-                                  setShowAlreadyChosenWarning(false)
-                                }
-                              }}
-                            >
+                        {/* Step 3: Show selected room + section + Item dropdown */}
+                        {(selectedFfeRoom || initialFfeRoomId) && (selectedFfeSection || initialFfeSectionId) && !(selectedFfeItemId || initialFfeItemId) && (
+                          <>
+                            <div className="flex items-center gap-2 text-sm flex-wrap">
+                              <span className="text-gray-500">Room:</span>
+                              <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                                setSelectedFfeRoom('')
+                                setSelectedFfeSection('')
+                                setSelectedFfeItemId('')
+                                setShowAlreadyChosenWarning(false)
+                              }}>
+                                {ffeItems.find(r => r.roomId === (selectedFfeRoom || initialFfeRoomId))?.roomName}
+                                <X className="w-3 h-3 ml-1" />
+                              </Badge>
+                              <span className="text-gray-500">Category:</span>
+                              <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                                setSelectedFfeSection('')
+                                setSelectedFfeItemId('')
+                                setShowAlreadyChosenWarning(false)
+                              }}>
+                                {filteredFfeSections.find(s => s.sectionId === (selectedFfeSection || initialFfeSectionId))?.sectionName}
+                                <X className="w-3 h-3 ml-1" />
+                              </Badge>
+                            </div>
+                            <Select value={selectedFfeItemId} onValueChange={(v) => {
+                              setSelectedFfeItemId(v)
+                              const item = filteredFfeItemsList.find(i => i.id === v)
+                              setShowAlreadyChosenWarning(item?.hasLinkedSpecs || false)
+                            }}>
                               <SelectTrigger className="bg-white">
-                                <SelectValue placeholder="Choose an item..." />
+                                <SelectValue placeholder="Select item..." />
                               </SelectTrigger>
                               <SelectContent>
                                 {filteredFfeItemsList.map(item => (
@@ -864,7 +916,7 @@ export function ItemDetailPanel({
                                       <span>{item.name}</span>
                                       {item.hasLinkedSpecs && (
                                         <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700">
-                                          {item.linkedSpecsCount} chosen
+                                          {item.linkedSpecsCount}
                                         </Badge>
                                       )}
                                     </div>
@@ -872,10 +924,10 @@ export function ItemDetailPanel({
                                 ))}
                               </SelectContent>
                             </Select>
-                          </div>
+                          </>
                         )}
                         
-                        {/* Confirmation */}
+                        {/* Final: Show all selections with confirmation */}
                         {selectedFfeItem && (
                           <div className={cn(
                             "p-3 rounded-lg border text-sm",
@@ -883,18 +935,32 @@ export function ItemDetailPanel({
                               ? "bg-amber-50 border-amber-200" 
                               : "bg-emerald-50 border-emerald-200"
                           )}>
-                            <div className="flex items-center gap-2">
-                              {showAlreadyChosenWarning ? (
-                                <AlertCircle className="w-4 h-4 text-amber-600" />
-                              ) : (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              )}
-                              <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
-                                {showAlreadyChosenWarning 
-                                  ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
-                                  : `Will link to: ${selectedFfeItem.roomName} → ${selectedFfeItem.sectionName} → ${selectedFfeItem.itemName}`
-                                }
-                              </span>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {showAlreadyChosenWarning ? (
+                                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                                ) : (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                )}
+                                <span className={showAlreadyChosenWarning ? "text-amber-800" : "text-emerald-800"}>
+                                  {showAlreadyChosenWarning 
+                                    ? `"${selectedFfeItem.itemName}" already has ${selectedFfeItem.linkedSpecsCount} product(s). This will be added as Option #${selectedFfeItem.linkedSpecsCount + 1}.`
+                                    : `${selectedFfeItem.roomName} > ${selectedFfeItem.sectionName} > ${selectedFfeItem.itemName}`
+                                  }
+                                </span>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSelectedFfeRoom('')
+                                  setSelectedFfeSection('')
+                                  setSelectedFfeItemId('')
+                                  setShowAlreadyChosenWarning(false)
+                                }}
+                                className="text-xs text-gray-500 hover:text-gray-700 underline"
+                              >
+                                Change
+                              </button>
                             </div>
                           </div>
                         )}
