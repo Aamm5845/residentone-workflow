@@ -197,7 +197,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
-  const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
   
   // Team-only: Show unchosen FFE items (not visible in shared view)
@@ -229,6 +229,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [urlInput, setUrlInput] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [extractedData, setExtractedData] = useState<AddFromUrlData | null>(null)
+  const [addFromUrlEditing, setAddFromUrlEditing] = useState(false)
+  const [addFromUrlUploadingImage, setAddFromUrlUploadingImage] = useState(false)
+  const [addFromUrlShowNotes, setAddFromUrlShowNotes] = useState(false)
+  const [addFromUrlShowSupplier, setAddFromUrlShowSupplier] = useState(false)
+  const [addFromUrlSupplierSearch, setAddFromUrlSupplierSearch] = useState('')
+  const [addFromUrlSupplierResults, setAddFromUrlSupplierResults] = useState<any[]>([])
+  const [addFromUrlSupplierLoading, setAddFromUrlSupplierLoading] = useState(false)
+  const [addFromUrlSelectedSupplier, setAddFromUrlSelectedSupplier] = useState<any>(null)
   
   // Product from Library modal
   const [libraryModal, setLibraryModal] = useState<{ open: boolean; sectionId: string | null; roomId: string | null }>({ open: false, sectionId: null, roomId: null })
@@ -710,6 +718,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       }
       
       const pageData = await fetchRes.json()
+      const pageImages = pageData.images || (pageData.image ? [pageData.image] : [])
       
       // Use AI to extract product info
       const aiRes = await fetch('/api/ai/extract-product', {
@@ -719,7 +728,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           url: urlInput,
           pageContent: pageData.textContent || pageData.description || '',
           title: pageData.title || '',
-          images: pageData.image ? [pageData.image] : []
+          images: pageImages
         })
       })
       
@@ -729,7 +738,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           setExtractedData({
             ...result.data,
             productWebsite: urlInput,
-            images: result.data.images?.length ? result.data.images : (pageData.image ? [pageData.image] : [])
+            images: result.data.images?.length ? result.data.images : pageImages,
+            notes: '' // Don't auto-populate notes
           })
           toast.success('Product info extracted!')
         } else {
@@ -737,7 +747,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           setExtractedData({
             productName: pageData.title || '',
             brand: '',
-            productDescription: pageData.description || '',
+            productDescription: '',
             sku: '',
             rrp: '',
             tradePrice: '',
@@ -751,16 +761,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             leadTime: '',
             notes: '',
             productWebsite: urlInput,
-            images: pageData.image ? [pageData.image] : []
+            images: pageImages
           })
-          toast.success('Basic info extracted - AI unavailable')
+          toast.success('Basic info extracted')
         }
       } else {
         // If AI fails, still provide basic extraction
         setExtractedData({
           productName: pageData.title || '',
           brand: '',
-          productDescription: pageData.description || '',
+          productDescription: '',
           sku: '',
           rrp: '',
           tradePrice: '',
@@ -774,15 +784,47 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           leadTime: '',
           notes: '',
           productWebsite: urlInput,
-          images: pageData.image ? [pageData.image] : []
+          images: pageImages
         })
-        toast.success('Basic info extracted - AI unavailable')
+        toast.success('Basic info extracted')
       }
     } catch (error) {
       console.error('Error extracting from URL:', error)
       toast.error('Failed to extract product info')
     } finally {
       setExtracting(false)
+    }
+  }
+  
+  // Paste URL for Add from URL dialog
+  const handleAddFromUrlPaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      setUrlInput(text)
+    } catch (error) {
+      toast.error('Failed to paste from clipboard')
+    }
+  }
+  
+  // Search suppliers for Add from URL dialog
+  const handleAddFromUrlSupplierSearch = async (query: string) => {
+    setAddFromUrlSupplierSearch(query)
+    if (!query.trim()) {
+      setAddFromUrlSupplierResults([])
+      return
+    }
+    
+    setAddFromUrlSupplierLoading(true)
+    try {
+      const res = await fetch(`/api/suppliers?search=${encodeURIComponent(query)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAddFromUrlSupplierResults(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error searching suppliers:', error)
+    } finally {
+      setAddFromUrlSupplierLoading(false)
     }
   }
   
@@ -1743,107 +1785,80 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
-          {/* Tabs Row - Modern Pill Style */}
+          {/* Tabs Row - Modern Style */}
           <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center gap-4">
-              {/* Primary Tabs */}
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center">
+              {/* Primary Tabs - Clean underline style */}
+              <div className="flex items-center border-b border-gray-200">
                 <button
                   onClick={() => setActiveTab('summary')}
                   className={cn(
-                    "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                    "relative px-5 py-3 text-sm font-medium transition-all",
                     activeTab === 'summary'
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "text-emerald-600"
+                      : "text-gray-500 hover:text-gray-700"
                   )}
                 >
-                  Summary
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    All Items
+                  </div>
+                  {activeTab === 'summary' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('financial')}
                   className={cn(
-                    "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                    "relative px-5 py-3 text-sm font-medium transition-all",
                     activeTab === 'financial'
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "text-emerald-600"
+                      : "text-gray-500 hover:text-gray-700"
                   )}
                 >
-                  Financial
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Financial
+                  </div>
+                  {activeTab === 'financial' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
+                  )}
                 </button>
-              </div>
-              
-              <div className="h-6 w-px bg-gray-200" />
-              
-              {/* Section Filter Pills */}
-              <div className="flex items-center gap-2 overflow-x-auto max-w-[400px]">
                 <button
-                  onClick={() => setFilterSection('all')}
+                  onClick={() => setActiveTab('needs')}
                   className={cn(
-                    "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap",
-                    filterSection === 'all'
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    activeTab === 'needs'
+                      ? "text-amber-600"
+                      : "text-gray-500 hover:text-gray-700"
                   )}
                 >
-                  All Sections
+                  <div className="flex items-center gap-2">
+                    <Circle className="w-4 h-4" />
+                    Needs Selection
+                    {ffeItems.length > 0 && (
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-xs px-1.5 py-0 h-5",
+                          activeTab === 'needs' 
+                            ? "bg-amber-100 text-amber-700 border-amber-300" 
+                            : "bg-gray-100 text-gray-600 border-gray-200"
+                        )}
+                      >
+                        {ffeItems.reduce((acc, room) => 
+                          acc + room.sections.reduce((sAcc, section) => 
+                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                          ), 0
+                        )}
+                      </Badge>
+                    )}
+                  </div>
+                  {activeTab === 'needs' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
+                  )}
                 </button>
-                {groupedSpecs.slice(0, 5).map((group) => (
-                  <button
-                    key={group.sectionId || group.name}
-                    onClick={() => setFilterSection(group.sectionId || 'all')}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap",
-                      filterSection === group.sectionId
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    )}
-                  >
-                    {group.name}
-                  </button>
-                ))}
-                {groupedSpecs.length > 5 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
-                      +{groupedSpecs.length - 5} more
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {groupedSpecs.slice(5).map((group) => (
-                        <DropdownMenuItem 
-                          key={group.sectionId || group.name}
-                          onClick={() => setFilterSection(group.sectionId || 'all')}
-                        >
-                          {group.name} ({group.items.length})
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
               </div>
-              
-              <div className="h-6 w-px bg-gray-200" />
-              
-              {/* Team-only: View Unchosen Items */}
-              <button
-                onClick={() => setShowUnchosenItems(!showUnchosenItems)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
-                  showUnchosenItems 
-                    ? "bg-gray-100 text-gray-900" 
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                )}
-              >
-                <Circle className="w-3.5 h-3.5" />
-                Needs Selection
-                {ffeItems.length > 0 && (
-                  <Badge variant="outline" className="ml-1 text-xs bg-gray-100 text-gray-700 border-gray-200">
-                    {ffeItems.reduce((acc, room) => 
-                      acc + room.sections.reduce((sAcc, section) => 
-                        sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                      ), 0
-                    )}
-                  </Badge>
-                )}
-              </button>
             </div>
             
             <div className="flex items-center gap-3">
@@ -1863,24 +1878,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
                     "h-8",
-                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') ? "text-blue-600" : "text-gray-500"
+                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') ? "text-emerald-600" : "text-gray-500"
                   )}>
                     <Filter className="w-4 h-4 mr-1.5" />
                     Filter
                     {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') && (
-                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-blue-100 text-blue-600">
+                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-emerald-100 text-emerald-600">
                         {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0)}
                       </Badge>
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 p-3">
+                <DropdownMenuContent align="end" className="w-72 p-4">
                   <div className="space-y-4">
+                    {/* Section Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Section</Label>
+                      <Select value={filterSection} onValueChange={setFilterSection}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Sections" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sections</SelectItem>
+                          {groupedSpecs.map((group) => (
+                            <SelectItem key={group.sectionId || group.name} value={group.sectionId || 'all'}>
+                              <div className="flex items-center justify-between w-full">
+                                <span>{group.name}</span>
+                                <span className="text-gray-400 text-xs ml-2">({group.items.length})</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
                     {/* Status Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500">Status</Label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="h-8 text-sm">
+                        <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1899,9 +1935,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     
                     {/* Room Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500">Room</Label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Room</Label>
                       <Select value={filterRoom} onValueChange={setFilterRoom}>
-                        <SelectTrigger className="h-8 text-sm">
+                        <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Rooms" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1914,17 +1950,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </div>
                     
                     {/* Clear Filters */}
-                    {(filterStatus !== 'all' || filterRoom !== 'all') && (
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="w-full h-8 text-xs text-gray-500"
+                        className="w-full h-8 text-xs text-gray-500 hover:text-gray-700"
                         onClick={() => {
                           setFilterStatus('all')
                           setFilterRoom('all')
+                          setFilterSection('all')
                         }}
                       >
-                        Clear Filters
+                        Clear All Filters
                       </Button>
                     )}
                   </div>
@@ -1978,26 +2015,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         </div>
       </div>
 
-      {/* Unchosen Items Panel - Team Only */}
-      {showUnchosenItems && (
+      {/* Needs Selection Tab Content */}
+      {activeTab === 'needs' && (
         <div className="max-w-full mx-auto px-4 py-4">
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                  <Circle className="w-5 h-5 text-gray-500" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
+                  <Circle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">FFE Items Needing Selection</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">FFE Items Needing Selection</h3>
                   <p className="text-sm text-gray-600">
-                    These items from FFE Workspace don&apos;t have products chosen yet
+                    Items from FFE Workspace that don&apos;t have products chosen yet
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Label className="text-sm text-gray-600">Sort by:</Label>
                 <Select value={unchosenItemsSort} onValueChange={(v: 'category' | 'room') => setUnchosenItemsSort(v)}>
-                  <SelectTrigger className="w-32 h-8 bg-white border-gray-300">
+                  <SelectTrigger className="w-36 h-9 bg-white border-amber-300 shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2005,14 +2042,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <SelectItem value="room">Room</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowUnchosenItems(false)}
-                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
               </div>
             </div>
             
@@ -2204,7 +2233,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         </div>
       )}
 
-      {/* Content */}
+      {/* Content - Show for Summary and Financial tabs */}
+      {activeTab !== 'needs' && (
       <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8">
@@ -2946,9 +2976,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </div>
         )}
       </div>
+      )}
       
-      {/* Floating Add Button */}
-      {groupedSpecs.length > 0 && groupedSpecs[0]?.sectionId && groupedSpecs[0]?.roomId && (
+      {/* Floating Add Button - Only show when not on needs tab */}
+      {activeTab !== 'needs' && groupedSpecs.length > 0 && groupedSpecs[0]?.sectionId && groupedSpecs[0]?.roomId && (
         <div className="fixed bottom-8 right-8 z-20">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -3282,73 +3313,101 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 )}
                 
-                {/* Add Supplier Button/Input */}
-                {!urlGenerateShowSupplier ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setUrlGenerateShowSupplier(true)}
-                    className="h-7 text-xs gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Supplier
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
+                {/* Supplier Section */}
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
                     <Label className="text-xs text-gray-500">Supplier</Label>
-                    {urlGenerateSelectedSupplier ? (
-                      <div className="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
-                        <div>
-                          <p className="font-medium text-sm">{urlGenerateSelectedSupplier.name}</p>
-                          {urlGenerateSelectedSupplier.website && (
-                            <p className="text-xs text-gray-500">{urlGenerateSelectedSupplier.website}</p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setUrlGenerateSelectedSupplier(null)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <Input
-                          value={urlGenerateSupplierSearch}
-                          onChange={(e) => handleUrlGenerateSupplierSearch(e.target.value)}
-                          placeholder="Search suppliers..."
-                          className="h-8 text-sm"
-                        />
-                        {urlGenerateSupplierLoading && (
-                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                        )}
-                        {urlGenerateSupplierResults.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {urlGenerateSupplierResults.map((supplier) => (
-                              <button
-                                key={supplier.id}
-                                type="button"
-                                onClick={() => {
-                                  setUrlGenerateSelectedSupplier(supplier)
-                                  setUrlGenerateSupplierSearch('')
-                                  setUrlGenerateSupplierResults([])
-                                }}
-                                className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm"
-                              >
-                                <p className="font-medium">{supplier.name}</p>
-                                {supplier.website && (
-                                  <p className="text-xs text-gray-500 truncate">{supplier.website}</p>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <button 
+                      type="button"
+                      onClick={() => setAddSupplierModal({ open: true, forItemId: null })}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add New
+                    </button>
                   </div>
-                )}
+                  {urlGenerateSelectedSupplier ? (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
+                        {urlGenerateSelectedSupplier.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{urlGenerateSelectedSupplier.name}</p>
+                        {urlGenerateSelectedSupplier.contactName && (
+                          <p className="text-xs text-gray-500">{urlGenerateSelectedSupplier.contactName}</p>
+                        )}
+                      </div>
+                      <button 
+                        type="button"
+                        className="text-xs text-red-600 hover:underline"
+                        onClick={() => setUrlGenerateSelectedSupplier(null)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Select 
+                        onValueChange={(supplierId) => {
+                          const supplier = suppliers.find(s => s.id === supplierId)
+                          if (supplier) {
+                            setUrlGenerateSelectedSupplier(supplier)
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select from phonebook" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.length === 0 ? (
+                            <div className="text-center p-4 text-sm text-gray-500">
+                              No suppliers in phonebook
+                              <button 
+                                type="button"
+                                onClick={() => setAddSupplierModal({ open: true, forItemId: null })}
+                                className="block mx-auto mt-2 text-blue-600 hover:underline"
+                              >
+                                Add your first supplier
+                              </button>
+                            </div>
+                          ) : (
+                            suppliers.map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                    {supplier.name.charAt(0)}
+                                  </div>
+                                  <span>{supplier.name}</span>
+                                  {supplier.contactName && (
+                                    <span className="text-gray-400">/ {supplier.contactName}</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <div className="text-xs text-gray-400 text-center">or enter manually</div>
+                      <Input
+                        value={urlGenerateSupplierSearch}
+                        onChange={(e) => {
+                          setUrlGenerateSupplierSearch(e.target.value)
+                          if (e.target.value.trim()) {
+                            setUrlGenerateSelectedSupplier({ 
+                              id: '', 
+                              name: e.target.value,
+                              email: ''
+                            })
+                          } else {
+                            setUrlGenerateSelectedSupplier(null)
+                          }
+                        }}
+                        placeholder="Enter supplier name manually"
+                        className="h-9 text-sm"
+                      />
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -3390,11 +3449,25 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       </Dialog>
       
       {/* Add from URL Modal */}
-      <Dialog open={addFromUrlModal.open} onOpenChange={(open) => !open && setAddFromUrlModal({ open: false, sectionId: null, roomId: null })}>
+      <Dialog 
+        open={addFromUrlModal.open} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
+            setExtractedData(null)
+            setUrlInput('')
+            setAddFromUrlEditing(false)
+            setAddFromUrlShowNotes(false)
+            setAddFromUrlShowSupplier(false)
+            setAddFromUrlSelectedSupplier(null)
+            resetFfeSelection()
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-600" />
+              <Globe className="w-5 h-5 text-purple-600" />
               Add Product from URL
             </DialogTitle>
             <DialogDescription>
@@ -3411,9 +3484,17 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://www.example.com/product-page"
-                  className="pl-9"
+                  className="pl-9 pr-9"
                   disabled={extracting}
                 />
+                <button
+                  type="button"
+                  onClick={handleAddFromUrlPaste}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Paste from clipboard"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </button>
               </div>
               <Button 
                 onClick={handleExtractFromUrl}
@@ -3436,106 +3517,318 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             
             {/* Extracted Data Preview */}
             {extractedData && (
-              <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 text-green-700">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-medium">Product Info Extracted</span>
+              <div className="border rounded-lg p-4 space-y-4">
+                {/* Header with Edit button */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Extracted Product</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAddFromUrlEditing(!addFromUrlEditing)}
+                    className="h-7 text-xs"
+                  >
+                    {addFromUrlEditing ? 'Done Editing' : 'Edit Details'}
+                  </Button>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Product Name</Label>
-                    <Input
-                      value={extractedData.productName}
-                      onChange={(e) => setExtractedData({ ...extractedData, productName: e.target.value })}
+                {/* Images */}
+                <div className="flex flex-wrap gap-2">
+                  {extractedData.images?.map((img, idx) => (
+                    <div key={idx} className="relative group">
+                      <img 
+                        src={img} 
+                        alt="Product" 
+                        className="w-16 h-16 object-cover rounded border bg-white"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExtractedData({
+                            ...extractedData,
+                            images: extractedData.images.filter((_, i) => i !== idx)
+                          })
+                        }}
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {/* Add Image Upload */}
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        
+                        if (file.size > 4 * 1024 * 1024) {
+                          toast.error('Image must be under 4MB')
+                          return
+                        }
+                        
+                        setAddFromUrlUploadingImage(true)
+                        try {
+                          const formData = new FormData()
+                          formData.append('file', file)
+                          formData.append('imageType', 'general')
+                          
+                          const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            body: formData
+                          })
+                          
+                          if (res.ok) {
+                            const data = await res.json()
+                            if (data.url) {
+                              setExtractedData({
+                                ...extractedData,
+                                images: [...(extractedData.images || []), data.url]
+                              })
+                              toast.success('Image uploaded')
+                            }
+                          } else {
+                            toast.error('Failed to upload image')
+                          }
+                        } catch (error) {
+                          console.error('Upload error:', error)
+                          toast.error('Failed to upload image')
+                        } finally {
+                          setAddFromUrlUploadingImage(false)
+                          e.target.value = ''
+                        }
+                      }}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Brand</Label>
-                    <Input
-                      value={extractedData.brand}
-                      onChange={(e) => setExtractedData({ ...extractedData, brand: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">SKU</Label>
-                    <Input
-                      value={extractedData.sku}
-                      onChange={(e) => setExtractedData({ ...extractedData, sku: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Price</Label>
-                    <Input
-                      value={extractedData.rrp}
-                      onChange={(e) => setExtractedData({ ...extractedData, rrp: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Material</Label>
-                    <Input
-                      value={extractedData.material}
-                      onChange={(e) => setExtractedData({ ...extractedData, material: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Color</Label>
-                    <Input
-                      value={extractedData.colour}
-                      onChange={(e) => setExtractedData({ ...extractedData, colour: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Finish</Label>
-                    <Input
-                      value={extractedData.finish}
-                      onChange={(e) => setExtractedData({ ...extractedData, finish: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Lead Time</Label>
-                    <Input
-                      value={extractedData.leadTime}
-                      onChange={(e) => setExtractedData({ ...extractedData, leadTime: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-2">
-                    <Label className="text-xs text-gray-500">Dimensions (W × H × D × L)</Label>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className={cn(
+                      "w-16 h-16 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:border-purple-400 hover:text-purple-500 transition-colors",
+                      addFromUrlUploadingImage && "opacity-50 pointer-events-none"
+                    )}>
+                      {addFromUrlUploadingImage ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5" />
+                          <span className="text-[10px] mt-0.5">Upload</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+                
+                {/* Product Details */}
+                {addFromUrlEditing ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Product Name</Label>
                       <Input
-                        placeholder="Width"
-                        value={extractedData.width}
+                        value={extractedData.productName || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, productName: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Brand</Label>
+                      <Input
+                        value={extractedData.brand || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, brand: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">SKU</Label>
+                      <Input
+                        value={extractedData.sku || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, sku: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">RRP</Label>
+                      <Input
+                        value={extractedData.rrp || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, rrp: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Trade Price</Label>
+                      <Input
+                        value={extractedData.tradePrice || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, tradePrice: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Lead Time</Label>
+                      <Input
+                        value={extractedData.leadTime || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, leadTime: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Width</Label>
+                      <Input
+                        value={extractedData.width || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, width: e.target.value })}
+                        className="h-8 text-sm"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Height</Label>
                       <Input
-                        placeholder="Height"
-                        value={extractedData.height}
+                        value={extractedData.height || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, height: e.target.value })}
+                        className="h-8 text-sm"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Depth</Label>
                       <Input
-                        placeholder="Depth"
-                        value={extractedData.depth}
+                        value={extractedData.depth || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, depth: e.target.value })}
+                        className="h-8 text-sm"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Material</Label>
                       <Input
-                        placeholder="Length"
-                        value={extractedData.length}
-                        onChange={(e) => setExtractedData({ ...extractedData, length: e.target.value })}
+                        value={extractedData.material || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, material: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Color</Label>
+                      <Input
+                        value={extractedData.colour || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, colour: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Finish</Label>
+                      <Input
+                        value={extractedData.finish || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, finish: e.target.value })}
+                        className="h-8 text-sm"
                       />
                     </div>
                   </div>
-                </div>
-                
-                {extractedData.images && extractedData.images.length > 0 && (
+                ) : (
                   <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Images</Label>
-                    <div className="flex gap-2">
-                      {extractedData.images.slice(0, 4).map((img, idx) => (
-                        <div key={idx} className="w-16 h-16 rounded border overflow-hidden bg-gray-100">
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      ))}
+                    <p className="font-medium text-gray-900">{extractedData.productName || 'Untitled Product'}</p>
+                    {extractedData.brand && (
+                      <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
+                      {extractedData.rrp && <span>RRP: {extractedData.rrp}</span>}
+                      {extractedData.leadTime && <span>Lead Time: {extractedData.leadTime}</span>}
                     </div>
+                    {(extractedData.width || extractedData.height || extractedData.depth) && (
+                      <p className="text-xs text-gray-500">
+                        Dimensions: {[
+                          extractedData.width && `W: ${extractedData.width}`,
+                          extractedData.height && `H: ${extractedData.height}`,
+                          extractedData.depth && `D: ${extractedData.depth}`
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Add Note Button/Input */}
+                {!addFromUrlShowNotes ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddFromUrlShowNotes(true)}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Note
+                  </Button>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Textarea
+                      value={extractedData.notes || ''}
+                      onChange={(e) => setExtractedData({ ...extractedData, notes: e.target.value })}
+                      className="min-h-[60px] text-sm"
+                      placeholder="Add notes about this product..."
+                    />
+                  </div>
+                )}
+                
+                {/* Add Supplier Button/Input */}
+                {!addFromUrlShowSupplier ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddFromUrlShowSupplier(true)}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Supplier
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Supplier</Label>
+                    {addFromUrlSelectedSupplier ? (
+                      <div className="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                        <div>
+                          <p className="font-medium text-sm">{addFromUrlSelectedSupplier.name}</p>
+                          {addFromUrlSelectedSupplier.website && (
+                            <p className="text-xs text-gray-500">{addFromUrlSelectedSupplier.website}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAddFromUrlSelectedSupplier(null)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Input
+                          value={addFromUrlSupplierSearch}
+                          onChange={(e) => handleAddFromUrlSupplierSearch(e.target.value)}
+                          placeholder="Search suppliers..."
+                          className="h-8 text-sm"
+                        />
+                        {addFromUrlSupplierLoading && (
+                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                        )}
+                        {addFromUrlSupplierResults.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {addFromUrlSupplierResults.map((supplier) => (
+                              <button
+                                key={supplier.id}
+                                type="button"
+                                onClick={() => {
+                                  setAddFromUrlSelectedSupplier(supplier)
+                                  setAddFromUrlSupplierSearch('')
+                                  setAddFromUrlSupplierResults([])
+                                }}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm"
+                              >
+                                <p className="font-medium">{supplier.name}</p>
+                                {supplier.website && (
+                                  <p className="text-xs text-gray-500 truncate">{supplier.website}</p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3546,7 +3839,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2">
                   <LinkIcon className="w-4 h-4 text-blue-600" />
-                  <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item</Label>
+                  <Label className="text-sm font-medium text-blue-900">Link to FFE Workspace Item (Optional)</Label>
                 </div>
                 <p className="text-xs text-blue-700">Select the room, category, and item this product fulfills.</p>
                 
@@ -3660,6 +3953,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
               setExtractedData(null)
               setUrlInput('')
+              setAddFromUrlEditing(false)
+              setAddFromUrlShowNotes(false)
+              setAddFromUrlShowSupplier(false)
+              setAddFromUrlSelectedSupplier(null)
               resetFfeSelection()
             }}>
               Cancel
@@ -3667,13 +3964,29 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             <Button 
               onClick={() => {
                 if (extractedData && addFromUrlModal.sectionId && addFromUrlModal.roomId) {
-                  handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, extractedData)
+                  // Pass supplier info if selected
+                  const dataWithSupplier = {
+                    ...extractedData,
+                    supplierName: addFromUrlSelectedSupplier?.name || '',
+                    supplierLink: addFromUrlSelectedSupplier?.website || extractedData.productWebsite || ''
+                  }
+                  handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, dataWithSupplier)
                 }
               }}
               disabled={!extractedData || savingItem}
               className="bg-purple-600 hover:bg-purple-700"
             >
-              {savingItem ? 'Adding...' : (selectedFfeItem ? 'Add & Link Product' : 'Add Product')}
+              {savingItem ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {selectedFfeItem ? 'Add & Link Product' : 'Add Product'}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,6 +19,7 @@ interface Supplier {
   contactName?: string
   email: string
   phone?: string
+  website?: string
 }
 
 interface AvailableRoom {
@@ -523,7 +524,8 @@ export function ItemDetailPanel({
         supplierId: supplier.id,
         supplierName: supplier.contactName 
           ? `${supplier.name} / ${supplier.contactName}`
-          : supplier.name
+          : supplier.name,
+        supplierLink: supplier.website || ''
       }))
     }
   }
@@ -914,16 +916,7 @@ export function ItemDetailPanel({
                 
                 {/* Supplier */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Supplier</Label>
-                    <button 
-                      onClick={() => setShowAddSupplier(true)}
-                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    >
-                      <UserPlus className="w-3 h-3" />
-                      Add New
-                    </button>
-                  </div>
+                  <Label>Supplier</Label>
                   {formData.supplierName ? (
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
                       <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
@@ -931,22 +924,29 @@ export function ItemDetailPanel({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{formData.supplierName}</p>
+                        {formData.supplierLink && (
+                          <a 
+                            href={formData.supplierLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline truncate block"
+                          >
+                            {formData.supplierLink}
+                          </a>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button className="text-xs text-blue-600 hover:underline">Edit</button>
-                        <button 
-                          className="text-xs text-red-600 hover:underline"
-                          onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '' })}
-                        >
-                          Remove
-                        </button>
-                      </div>
+                      <button 
+                        className="text-xs text-red-600 hover:underline"
+                        onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '' })}
+                      >
+                        Remove
+                      </button>
                     </div>
                   ) : (
-                    <>
+                    <div className="space-y-2">
                       <Select onValueChange={handleSelectSupplier}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select from phonebook" />
+                          <SelectValue placeholder="Choose from phonebook..." />
                         </SelectTrigger>
                         <SelectContent>
                           {loadingSuppliers ? (
@@ -956,12 +956,6 @@ export function ItemDetailPanel({
                           ) : suppliers.length === 0 ? (
                             <div className="text-center p-4 text-sm text-gray-500">
                               No suppliers in phonebook
-                              <button 
-                                onClick={() => setShowAddSupplier(true)}
-                                className="block mx-auto mt-2 text-blue-600 hover:underline"
-                              >
-                                Add your first supplier
-                              </button>
                             </div>
                           ) : (
                             suppliers.map(supplier => (
@@ -980,13 +974,14 @@ export function ItemDetailPanel({
                           )}
                         </SelectContent>
                       </Select>
-                      <div className="text-xs text-gray-400 text-center">or</div>
-                      <Input
-                        value={formData.supplierName}
-                        onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
-                        placeholder="Enter supplier name manually"
-                      />
-                    </>
+                      <button 
+                        onClick={() => setShowAddSupplier(true)}
+                        className="w-full text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1.5 py-2 border border-dashed border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Add New Supplier to Phonebook
+                      </button>
+                    </div>
                   )}
                 </div>
                 
