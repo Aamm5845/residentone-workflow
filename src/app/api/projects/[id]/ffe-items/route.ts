@@ -110,6 +110,7 @@ export async function GET(
                   id: item.id,
                   name: item.name,
                   description: item.description,
+                  notes: item.notes,
                   quantity: item.quantity,
                   hasLinkedSpecs: item.linkedSpecs.length > 0,
                   linkedSpecsCount: item.linkedSpecs.length,

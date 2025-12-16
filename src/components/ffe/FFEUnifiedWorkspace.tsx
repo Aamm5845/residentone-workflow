@@ -52,6 +52,7 @@ interface FFEItem {
   id: string
   name: string
   description?: string
+  notes?: string
   order: number
   quantity: number
   customFields?: any
@@ -124,6 +125,11 @@ export default function FFEUnifiedWorkspace({
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editItemName, setEditItemName] = useState('')
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null)
+  
+  // Notes editing state
+  const [editingNotesItemId, setEditingNotesItemId] = useState<string | null>(null)
+  const [editNotesValue, setEditNotesValue] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
 
   // Generate from URL states
   const [showUrlGenerateDialog, setShowUrlGenerateDialog] = useState(false)
@@ -135,6 +141,24 @@ export default function FFEUnifiedWorkspace({
   const [showNotesInput, setShowNotesInput] = useState(false)
   const [showSupplierInput, setShowSupplierInput] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  
+  // URL Generate Supplier states
+  const [urlSuppliers, setUrlSuppliers] = useState<Array<{id: string, name: string, contactName?: string, website?: string}>>([])
+  const [urlSupplierSearch, setUrlSupplierSearch] = useState('')
+  const [urlSupplierLoading, setUrlSupplierLoading] = useState(false)
+  const [showUrlSupplierDropdown, setShowUrlSupplierDropdown] = useState(false)
+  const [urlSelectedSupplier, setUrlSelectedSupplier] = useState<{id: string, name: string, website?: string} | null>(null)
+  const [showAddNewSupplierForm, setShowAddNewSupplierForm] = useState(false)
+  const [newSupplierData, setNewSupplierData] = useState({
+    name: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
+    notes: ''
+  })
+  const [savingNewSupplier, setSavingNewSupplier] = useState(false)
 
   // Choose Product dialog states (add new product linked to FFE item)
   const [showChooseProductDialog, setShowChooseProductDialog] = useState(false)
@@ -541,6 +565,13 @@ export default function FFEUnifiedWorkspace({
         setEditingExtractedData(false)
         setShowNotesInput(false)
         setShowSupplierInput(false)
+        // Reset supplier states
+        setUrlSuppliers([])
+        setUrlSupplierSearch('')
+        setShowUrlSupplierDropdown(false)
+        setUrlSelectedSupplier(null)
+        setShowAddNewSupplierForm(false)
+        setNewSupplierData({ name: '', contactName: '', email: '', phone: '', website: '', address: '', notes: '' })
       } else {
         throw new Error('Failed to create linked spec')
       }
@@ -609,6 +640,72 @@ export default function FFEUnifiedWorkspace({
       console.error('Error searching suppliers:', error)
     } finally {
       setLoadingProductSuppliers(false)
+    }
+  }
+  
+  // Search suppliers for URL generate dialog
+  const searchUrlSuppliers = async (query: string) => {
+    if (!query.trim()) {
+      setUrlSuppliers([])
+      return
+    }
+    
+    setUrlSupplierLoading(true)
+    try {
+      const response = await fetch(`/api/suppliers/search?q=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUrlSuppliers(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error searching suppliers:', error)
+    } finally {
+      setUrlSupplierLoading(false)
+    }
+  }
+  
+  // Create new supplier and save to phonebook (from URL generate dialog)
+  const handleCreateNewSupplier = async () => {
+    if (!newSupplierData.name.trim() || !newSupplierData.email.trim()) {
+      toast.error('Business name and email are required')
+      return
+    }
+    
+    setSavingNewSupplier(true)
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSupplierData)
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        // Select the newly created supplier
+        setUrlSelectedSupplier({
+          id: data.supplier.id,
+          name: data.supplier.name,
+          website: data.supplier.website
+        })
+        // Update extracted data with supplier info
+        setExtractedData((prev: any) => ({
+          ...prev,
+          supplierName: data.supplier.name,
+          supplierLink: data.supplier.website || prev?.supplierLink || '',
+          supplierId: data.supplier.id
+        }))
+        // Reset form and close
+        setShowAddNewSupplierForm(false)
+        setNewSupplierData({ name: '', contactName: '', email: '', phone: '', website: '', address: '', notes: '' })
+        toast.success('Supplier added to phonebook')
+      } else {
+        throw new Error('Failed to create supplier')
+      }
+    } catch (error) {
+      console.error('Failed to create supplier:', error)
+      toast.error('Failed to create supplier')
+    } finally {
+      setSavingNewSupplier(false)
     }
   }
 
@@ -812,6 +909,26 @@ export default function FFEUnifiedWorkspace({
       toast.error('Failed to update item name')
     } finally {
       setSaving(false)
+    }
+  }
+  
+  const handleUpdateItemNotes = async (itemId: string) => {
+    try {
+      setSavingNotes(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: editNotesValue.trim() || null })
+      })
+      if (!response.ok) throw new Error('Failed to update item notes')
+      await loadFFEData()
+      setEditingNotesItemId(null)
+      setEditNotesValue('')
+      toast.success('Notes updated')
+    } catch (error) {
+      toast.error('Failed to update notes')
+    } finally {
+      setSavingNotes(false)
     }
   }
 
@@ -1318,6 +1435,14 @@ export default function FFEUnifiedWorkspace({
                                           <Globe className="w-4 h-4 mr-2 text-blue-600" />
                                           Generate from URL
                                         </DropdownMenuItem>
+                                        {/* Add/Edit Note */}
+                                        <DropdownMenuItem onClick={() => {
+                                          setEditingNotesItemId(item.id)
+                                          setEditNotesValue(item.notes || '')
+                                        }}>
+                                          <StickyNote className="w-4 h-4 mr-2 text-amber-600" />
+                                          {item.notes ? 'Edit Note' : 'Add Note'}
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem 
                                           onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }}
                                           className="text-red-600"
@@ -1329,6 +1454,54 @@ export default function FFEUnifiedWorkspace({
                                     </DropdownMenu>
                                   </div>
                                 </div>
+                                
+                                {/* Notes Display/Edit */}
+                                {(item.notes || editingNotesItemId === item.id) && (
+                                  <div className="px-4 pb-3 pl-9">
+                                    {editingNotesItemId === item.id ? (
+                                      <div className="flex items-start gap-2">
+                                        <Textarea
+                                          value={editNotesValue}
+                                          onChange={(e) => setEditNotesValue(e.target.value)}
+                                          className="flex-1 text-sm min-h-[60px] resize-none"
+                                          placeholder="Add notes about this item..."
+                                          autoFocus
+                                        />
+                                        <div className="flex flex-col gap-1">
+                                          <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            onClick={() => handleUpdateItemNotes(item.id)} 
+                                            className="h-7 w-7 p-0 text-green-600"
+                                            disabled={savingNotes}
+                                          >
+                                            {savingNotes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            onClick={() => { setEditingNotesItemId(null); setEditNotesValue('') }} 
+                                            className="h-7 w-7 p-0 text-gray-400"
+                                            disabled={savingNotes}
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div 
+                                        className="flex items-start gap-2 bg-amber-50/50 rounded-lg p-2 cursor-pointer hover:bg-amber-50 transition-colors"
+                                        onClick={() => {
+                                          setEditingNotesItemId(item.id)
+                                          setEditNotesValue(item.notes || '')
+                                        }}
+                                      >
+                                        <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <p className="text-xs text-gray-600">{item.notes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                                 
                                 {/* Linked Children */}
                                 {linkedChildren.length > 0 && (
@@ -1983,27 +2156,179 @@ export default function FFEUnifiedWorkspace({
                 ) : null}
                 
                 {/* Add Supplier Section */}
-                {showSupplierInput || extractedData.supplierName ? (
+                {showSupplierInput || extractedData.supplierName || urlSelectedSupplier ? (
                   <div className="border-t pt-3">
                     <Label className="text-xs text-gray-500 mb-2 block">Supplier</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Input
-                          value={extractedData.supplierName || ''}
-                          onChange={(e) => setExtractedData((prev: any) => ({ ...prev, supplierName: e.target.value }))}
-                          className="h-8 text-sm"
-                          placeholder="Supplier name"
-                        />
+                    
+                    {/* Show selected supplier */}
+                    {(urlSelectedSupplier || extractedData.supplierName) && !showAddNewSupplierForm ? (
+                      <div className="flex items-center justify-between p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-emerald-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-emerald-900">{urlSelectedSupplier?.name || extractedData.supplierName}</p>
+                            {(urlSelectedSupplier?.website || extractedData.supplierLink) && (
+                              <p className="text-xs text-emerald-600">{urlSelectedSupplier?.website || extractedData.supplierLink}</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUrlSelectedSupplier(null)
+                            setExtractedData((prev: any) => ({ ...prev, supplierName: '', supplierLink: '', supplierId: '' }))
+                          }}
+                          className="text-xs text-gray-500 hover:text-red-500"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <div>
-                        <Input
-                          value={extractedData.supplierLink || ''}
-                          onChange={(e) => setExtractedData((prev: any) => ({ ...prev, supplierLink: e.target.value }))}
-                          className="h-8 text-sm"
-                          placeholder="Supplier website"
-                        />
+                    ) : showAddNewSupplierForm ? (
+                      /* Add New Supplier Form */
+                      <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Add New Supplier</Label>
+                          <button 
+                            type="button" 
+                            onClick={() => setShowAddNewSupplierForm(false)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-gray-500">Business Name *</Label>
+                            <Input
+                              value={newSupplierData.name}
+                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, name: e.target.value }))}
+                              className="h-8 text-sm mt-1"
+                              placeholder="Company name"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">Contact Name</Label>
+                            <Input
+                              value={newSupplierData.contactName}
+                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, contactName: e.target.value }))}
+                              className="h-8 text-sm mt-1"
+                              placeholder="Contact person"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-gray-500">Email *</Label>
+                            <Input
+                              type="email"
+                              value={newSupplierData.email}
+                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, email: e.target.value }))}
+                              className="h-8 text-sm mt-1"
+                              placeholder="email@company.com"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">Phone</Label>
+                            <Input
+                              value={newSupplierData.phone}
+                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, phone: e.target.value }))}
+                              className="h-8 text-sm mt-1"
+                              placeholder="Phone number"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500">Website</Label>
+                          <Input
+                            value={newSupplierData.website}
+                            onChange={(e) => setNewSupplierData(prev => ({ ...prev, website: e.target.value }))}
+                            className="h-8 text-sm mt-1"
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleCreateNewSupplier}
+                          disabled={savingNewSupplier || !newSupplierData.name.trim() || !newSupplierData.email.trim()}
+                          className="w-full h-8 text-sm bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {savingNewSupplier ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save to Phonebook'
+                          )}
+                        </Button>
                       </div>
-                    </div>
+                    ) : (
+                      /* Choose Supplier or Add New */
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            value={urlSupplierSearch}
+                            onChange={(e) => {
+                              setUrlSupplierSearch(e.target.value)
+                              searchUrlSuppliers(e.target.value)
+                              setShowUrlSupplierDropdown(true)
+                            }}
+                            onFocus={() => {
+                              if (urlSupplierSearch) setShowUrlSupplierDropdown(true)
+                            }}
+                            className="h-8 text-sm"
+                            placeholder="Search suppliers in phonebook..."
+                          />
+                          {showUrlSupplierDropdown && urlSuppliers.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                              {urlSuppliers.map((supplier) => (
+                                <button
+                                  key={supplier.id}
+                                  type="button"
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                                  onClick={() => {
+                                    setUrlSelectedSupplier(supplier)
+                                    setExtractedData((prev: any) => ({
+                                      ...prev,
+                                      supplierName: supplier.name,
+                                      supplierLink: supplier.website || '',
+                                      supplierId: supplier.id
+                                    }))
+                                    setUrlSupplierSearch('')
+                                    setShowUrlSupplierDropdown(false)
+                                  }}
+                                >
+                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                    {supplier.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium">{supplier.name}</p>
+                                    {supplier.contactName && (
+                                      <p className="text-xs text-gray-500">{supplier.contactName}</p>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {urlSupplierLoading && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <button 
+                          type="button"
+                          className="w-full text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1.5 py-2 border border-dashed border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                          onClick={() => setShowAddNewSupplierForm(true)}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add New Supplier (saves to phonebook)
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : null}
                 
@@ -2044,6 +2369,13 @@ export default function FFEUnifiedWorkspace({
                 setEditingExtractedData(false)
                 setShowNotesInput(false)
                 setShowSupplierInput(false)
+                // Reset supplier states
+                setUrlSuppliers([])
+                setUrlSupplierSearch('')
+                setShowUrlSupplierDropdown(false)
+                setUrlSelectedSupplier(null)
+                setShowAddNewSupplierForm(false)
+                setNewSupplierData({ name: '', contactName: '', email: '', phone: '', website: '', address: '', notes: '' })
               }}
             >
               Cancel

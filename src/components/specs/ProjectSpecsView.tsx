@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -77,7 +77,8 @@ import {
   HelpCircle,
   Upload,
   ClipboardPaste,
-  Check
+  Check,
+  StickyNote
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -202,7 +203,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   
   // Team-only: Show unchosen FFE items (not visible in shared view)
   const [showUnchosenItems, setShowUnchosenItems] = useState(false)
-  const [unchosenItemsSort, setUnchosenItemsSort] = useState<'category' | 'room'>('category')
   
   // Generate from URL dialog for Needs Selection tab
   const [urlGenerateDialog, setUrlGenerateDialog] = useState<{
@@ -311,6 +311,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         id: string
         name: string
         description?: string
+        notes?: string
         hasLinkedSpecs: boolean
         linkedSpecsCount: number
         status: string
@@ -727,6 +728,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
     setGroupedSpecs(groupedArray.sort((a, b) => a.name.localeCompare(b.name)))
   }, [specs, searchQuery, filterStatus, filterRoom, filterSection, sortBy])
+  
+  // Filter ffeItems based on room and section filters for Needs Selection tab
+  const filteredFfeItems = useMemo(() => {
+    let filtered = ffeItems
+    
+    // Apply room filter
+    if (filterRoom !== 'all') {
+      filtered = filtered.filter(room => room.roomName === filterRoom)
+    }
+    
+    // Apply section filter
+    if (filterSection !== 'all') {
+      filtered = filtered.map(room => ({
+        ...room,
+        sections: room.sections.filter(section => section.sectionId === filterSection)
+      })).filter(room => room.sections.length > 0)
+    }
+    
+    return filtered
+  }, [ffeItems, filterRoom, filterSection])
   
   // Load library products
   const loadLibraryProducts = useCallback(async () => {
@@ -2067,39 +2088,25 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {activeTab === 'needs' && (
         <div className="max-w-full mx-auto px-4 py-4">
           <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
-                  <Circle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">FFE Items Needing Selection</h3>
-                  <p className="text-sm text-gray-600">
-                    Items from FFE Workspace that don&apos;t have products chosen yet
-                  </p>
-                </div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
+                <Circle className="w-6 h-6 text-white" />
               </div>
-              <div className="flex items-center gap-3">
-                <Label className="text-sm text-gray-600">Sort by:</Label>
-                <Select value={unchosenItemsSort} onValueChange={(v: 'category' | 'room') => setUnchosenItemsSort(v)}>
-                  <SelectTrigger className="w-36 h-9 bg-white border-amber-300 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="category">Category</SelectItem>
-                    <SelectItem value="room">Room</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">FFE Items Needing Selection</h3>
+                <p className="text-sm text-gray-600">
+                  Items from FFE Workspace that don&apos;t have products chosen yet
+                </p>
               </div>
             </div>
             
             {/* Unchosen Items List */}
             <div className="space-y-3">
-              {unchosenItemsSort === 'category' ? (
+              {sortBy === 'category' ? (
                 // Group by category/section
                 (() => {
                   const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; item: any }>>()
-                  ffeItems.forEach(room => {
+                  filteredFfeItems.forEach(room => {
                     room.sections.forEach(section => {
                       // Include all unchosen items (both parent and linked items)
                       section.items.filter(item => !item.hasLinkedSpecs).forEach(item => {
@@ -2120,66 +2127,75 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           <div 
                             key={item.id} 
                             className={cn(
-                              "flex items-center justify-between py-3 hover:bg-gray-50",
+                              "py-3 hover:bg-gray-50",
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
                             )}
                           >
-                            <div className="flex items-center gap-3">
-                              {item.isLinkedItem && (
-                                <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
-                              )}
-                              <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-gray-900">{item.name}</p>
-                                  {item.isLinkedItem && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
-                                      linked to {item.parentName}
-                                    </Badge>
-                                  )}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {item.isLinkedItem && (
+                                  <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                                )}
+                                <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.isLinkedItem && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
+                                        linked to {item.parentName}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">{roomName}</p>
                                 </div>
-                                <p className="text-xs text-gray-500">{roomName}</p>
                               </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Choose
+                                    <ChevronDown className="w-3 h-3 ml-0.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    setUrlGenerateDialog({
+                                      open: true,
+                                      ffeItem: { id: item.id, name: item.name, roomId, sectionId }
+                                    })
+                                  }}>
+                                    <Globe className="w-4 h-4 mr-2" />
+                                    Generate from URL
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedFfeRoom(roomId)
+                                    setSelectedFfeSection(sectionId)
+                                    setSelectedFfeItemId(item.id)
+                                    setDetailPanel({
+                                      isOpen: true,
+                                      mode: 'create',
+                                      item: null,
+                                      sectionId: sectionId,
+                                      roomId: roomId
+                                    })
+                                  }}>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add New
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Choose
-                                  <ChevronDown className="w-3 h-3 ml-0.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setUrlGenerateDialog({
-                                    open: true,
-                                    ffeItem: { id: item.id, name: item.name, roomId, sectionId }
-                                  })
-                                }}>
-                                  <Globe className="w-4 h-4 mr-2" />
-                                  Generate from URL
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedFfeRoom(roomId)
-                                  setSelectedFfeSection(sectionId)
-                                  setSelectedFfeItemId(item.id)
-                                  setDetailPanel({
-                                    isOpen: true,
-                                    mode: 'create',
-                                    item: null,
-                                    sectionId: sectionId,
-                                    roomId: roomId
-                                  })
-                                }}>
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add New
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {/* Notes Display */}
+                            {item.notes && (
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-amber-50/50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -2188,7 +2204,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 })()
               ) : (
                 // Group by room
-                ffeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
+                filteredFfeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
                   <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                     <div className="bg-gray-100/50 px-4 py-2 border-b border-gray-200">
                       <span className="font-medium text-gray-900">{room.roomName}</span>
@@ -2202,66 +2218,75 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           <div 
                             key={item.id} 
                             className={cn(
-                              "flex items-center justify-between py-3 hover:bg-gray-50",
+                              "py-3 hover:bg-gray-50",
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
                             )}
                           >
-                            <div className="flex items-center gap-3">
-                              {item.isLinkedItem && (
-                                <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
-                              )}
-                              <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-gray-900">{item.name}</p>
-                                  {item.isLinkedItem && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
-                                      linked to {item.parentName}
-                                    </Badge>
-                                  )}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {item.isLinkedItem && (
+                                  <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                                )}
+                                <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.isLinkedItem && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
+                                        linked to {item.parentName}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">{section.sectionName}</p>
                                 </div>
-                                <p className="text-xs text-gray-500">{section.sectionName}</p>
                               </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Choose
+                                    <ChevronDown className="w-3 h-3 ml-0.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    setUrlGenerateDialog({
+                                      open: true,
+                                      ffeItem: { id: item.id, name: item.name, roomId: room.roomId, sectionId: section.sectionId }
+                                    })
+                                  }}>
+                                    <Globe className="w-4 h-4 mr-2" />
+                                    Generate from URL
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedFfeRoom(room.roomId)
+                                    setSelectedFfeSection(section.sectionId)
+                                    setSelectedFfeItemId(item.id)
+                                    setDetailPanel({
+                                      isOpen: true,
+                                      mode: 'create',
+                                      item: null,
+                                      sectionId: section.sectionId,
+                                      roomId: room.roomId
+                                    })
+                                  }}>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add New
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Choose
-                                  <ChevronDown className="w-3 h-3 ml-0.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setUrlGenerateDialog({
-                                    open: true,
-                                    ffeItem: { id: item.id, name: item.name, roomId: room.roomId, sectionId: section.sectionId }
-                                  })
-                                }}>
-                                  <Globe className="w-4 h-4 mr-2" />
-                                  Generate from URL
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedFfeRoom(room.roomId)
-                                  setSelectedFfeSection(section.sectionId)
-                                  setSelectedFfeItemId(item.id)
-                                  setDetailPanel({
-                                    isOpen: true,
-                                    mode: 'create',
-                                    item: null,
-                                    sectionId: section.sectionId,
-                                    roomId: room.roomId
-                                  })
-                                }}>
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add New
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {/* Notes Display */}
+                            {item.notes && (
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-amber-50/50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              </div>
+                            )}
                           </div>
                         ))
                       )}
@@ -2270,7 +2295,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 ))
               )}
               
-              {ffeItems.every(room => room.sections.every(s => s.items.every(i => i.hasLinkedSpecs))) && (
+              {filteredFfeItems.every(room => room.sections.every(s => s.items.every(i => i.hasLinkedSpecs))) && (
                 <div className="text-center py-8 text-gray-500">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
                   <p className="font-medium text-emerald-700">All FFE items have products selected!</p>
