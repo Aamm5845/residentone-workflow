@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidAuthSession } from '@/lib/attribution'
 import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/users/[userId]/email/test - Send a test notification email to a user
 export async function POST(
@@ -56,7 +57,7 @@ export async function POST(
     // Build a simple preview email to show how notifications will look
     const subject = 'Studio Flow: Test Notification Email'
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
 
     const html = `<!DOCTYPE html>
 <html lang="en">

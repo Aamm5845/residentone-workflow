@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { sendEmail } from '@/lib/email/email-service'
 import { sendMentionSMS } from '@/lib/twilio'
 import { getStageName } from '@/constants/workflow'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 const reactionSchema = z.object({
   emoji: z.string().min(1).max(10)
@@ -335,7 +336,7 @@ function generateReactionEmailHTML({
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 

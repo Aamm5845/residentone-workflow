@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/attribution'
 import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 const createUpdateSchema = z.object({
   type: z.enum(['GENERAL', 'PHOTO', 'TASK', 'DOCUMENT', 'COMMUNICATION', 'MILESTONE', 'INSPECTION', 'ISSUE']),
@@ -395,7 +396,7 @@ export async function POST(
       })
 
       if (teamMembers.length > 0) {
-        const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${projectId}/project-updates`
+        const projectUrl = `${getBaseUrl()}/projects/${projectId}/project-updates`
         const authorName = author?.name || session.user.name || 'A team member'
         const updateTypeDisplay = validatedData.type.charAt(0) + validatedData.type.slice(1).toLowerCase()
         

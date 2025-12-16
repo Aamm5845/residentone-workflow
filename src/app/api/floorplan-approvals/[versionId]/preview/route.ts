@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET /api/floorplan-approvals/[versionId]/preview - Preview email for a floorplan approval version
 export async function GET(
@@ -63,7 +64,7 @@ export async function GET(
         type: a.asset.type,
         size: a.asset.size
       })),
-      approvalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/floorplan-approval/${version.id}`,
+      approvalUrl: `${getBaseUrl()}/floorplan-approval/${version.id}`,
       companyName: process.env.COMPANY_NAME || 'Your Interior Design Studio'
     })
 
@@ -125,7 +126,7 @@ function generateFloorplanApprovalEmailHtml(data: {
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
-            <!-- <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/logo.png" 
+            <!-- <img src="${getBaseUrl()}/logo.png" 
                  alt="Interior Design Studio" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 

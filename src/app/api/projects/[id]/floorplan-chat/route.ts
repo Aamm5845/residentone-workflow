@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { DropboxService } from '@/lib/dropbox-service'
 import { v4 as uuidv4 } from 'uuid'
 import { sendEmail } from '@/lib/email'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // Generate email HTML for mention notifications
 function generateMentionNotificationEmail({
@@ -33,7 +34,7 @@ function generateMentionNotificationEmail({
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
             <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600;">💬 You were mentioned</h1>
@@ -453,7 +454,7 @@ export async function POST(
         }
       })
 
-      const projectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${project.id}/floorplan/drawings`
+      const projectUrl = `${getBaseUrl()}/projects/${project.id}/floorplan/drawings`
       const messagePreview = content.length > 150 ? content.substring(0, 150) + '...' : content
       const authorName = session.user.name || 'A team member'
 

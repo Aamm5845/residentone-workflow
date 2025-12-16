@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email-service';
 import { getTwilioClient } from '@/lib/twilio';
+import { getBaseUrl } from '@/lib/get-base-url';
 
 /**
  * Notify Vitor when a design concept item is added
@@ -74,7 +75,7 @@ export async function notifyItemAdded({
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/stages/${stageId}" 
+              <a href="${getBaseUrl()}/stages/${stageId}" 
                  style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">
                 View Design Concept
               </a>
@@ -171,7 +172,7 @@ export async function notifyItemCompleted({
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/stages/${stageId}" 
+              <a href="${getBaseUrl()}/stages/${stageId}" 
                  style="background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">
                 Review Design
               </a>

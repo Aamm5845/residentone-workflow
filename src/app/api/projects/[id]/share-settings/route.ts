@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET share settings for a project
 export async function GET(
@@ -55,7 +56,7 @@ export async function GET(
       showDetails: true
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    const baseUrl = getBaseUrl()
     
     return NextResponse.json({
       success: true,
@@ -134,7 +135,7 @@ export async function POST(
       }
     })
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const shareUrl = shareSettings.isPublished 
       ? `${baseUrl}/shared/specs/${projectId}`
       : null
@@ -153,3 +154,4 @@ export async function POST(
     )
   }
 }
+

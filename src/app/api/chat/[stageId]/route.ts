@@ -16,6 +16,7 @@ import { sendMentionSMS } from '@/lib/twilio'
 import { v4 as uuidv4 } from 'uuid'
 import { sendEmail } from '@/lib/email/email-service'
 import { DropboxService } from '@/lib/dropbox-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET /api/chat/[stageId] - Get all chat messages for a stage
 export async function GET(
@@ -499,7 +500,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
+          const roomUrl = `${getBaseUrl()}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
           
           const emailPromises = usersForEmail.map(async (user) => {
             try {
@@ -576,7 +577,7 @@ export async function POST(
           const stageName = getStageName(stage.type)
           const authorName = session.user.name || 'A team member'
           const messagePreview = content.trim() || '(Image attached)'
-          const roomUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
+          const roomUrl = `${getBaseUrl()}/projects/${stage.room.project.id}/rooms/${stage.roomId}?stage=${resolvedParams.stageId}`
 
           // Send email notification if enabled
           if (assignedUserDetails.emailNotificationsEnabled) {
@@ -699,7 +700,7 @@ function generateChatNotificationEmail({
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/meisnerinteriorlogo.png" 
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png" 
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 
