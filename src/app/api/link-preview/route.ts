@@ -317,10 +317,26 @@ export async function POST(request: NextRequest) {
       if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
         return NextResponse.json({ error: 'Could not connect to website - check the URL is correct' }, { status: 400 })
       }
+      // Connection timeout (undici/Node.js fetch)
+      if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || error.message?.includes('Connect Timeout')) {
+        return NextResponse.json({ error: 'Connection timed out - the website is not responding. It may be down or blocking requests.' }, { status: 408 })
+      }
+      // Other undici errors
+      if (error.cause?.code?.startsWith('UND_ERR_')) {
+        return NextResponse.json({ error: 'Could not connect to website - it may be blocking automated requests' }, { status: 400 })
+      }
       throw error
     }
   } catch (error: any) {
     console.error('[Link Preview] Error:', error)
+    // Check for connection timeout in outer catch as well
+    const errorCause = error.cause?.code || ''
+    if (errorCause === 'UND_ERR_CONNECT_TIMEOUT' || error.message?.includes('Connect Timeout')) {
+      return NextResponse.json(
+        { error: 'Connection timed out - the website is not responding. It may be down or blocking requests.' },
+        { status: 408 }
+      )
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to fetch URL - try using the Chrome extension instead' },
       { status: 500 }

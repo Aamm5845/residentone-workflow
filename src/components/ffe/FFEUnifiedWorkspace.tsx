@@ -540,9 +540,10 @@ export default function FFEUnifiedWorkspace({
           height: extractedData.height,
           depth: extractedData.depth,
           leadTime: extractedData.leadTime,
-          // Supplier only if user manually added it
+          // Supplier link = product URL (the URL we scraped from) - NOT the supplier's website
+          supplierLink: extractedData.productWebsite || undefined,
+          // Supplier name if user added one
           supplierName: extractedData.supplierName || undefined,
-          supplierLink: extractedData.supplierLink || extractedData.productWebsite || undefined,
           quantity: 1,
           unitCost: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
           rrp: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
@@ -2191,8 +2192,8 @@ export default function FFEUnifiedWorkspace({
                                 {urlSelectedSupplier?.email}
                               </p>
                             )}
-                            {(urlSelectedSupplier?.website || extractedData.supplierLink) && (
-                              <p className="text-xs text-emerald-600">{urlSelectedSupplier?.website || extractedData.supplierLink}</p>
+                            {urlSelectedSupplier?.website && (
+                              <p className="text-xs text-emerald-600">{urlSelectedSupplier.website}</p>
                             )}
                           </div>
                         </div>
@@ -2200,7 +2201,15 @@ export default function FFEUnifiedWorkspace({
                           type="button"
                           onClick={() => {
                             setUrlSelectedSupplier(null)
-                            setExtractedData((prev: any) => ({ ...prev, supplierName: '', supplierLink: '', supplierId: '' }))
+                            setExtractedData((prev: any) => ({ 
+                              ...prev, 
+                              supplierName: '', 
+                              supplierWebsite: '', 
+                              supplierId: '',
+                              supplierContactName: '',
+                              supplierEmail: '',
+                              supplierLogo: ''
+                            }))
                           }}
                           className="text-xs text-gray-500 hover:text-red-500"
                         >
@@ -2236,8 +2245,11 @@ export default function FFEUnifiedWorkspace({
                                     setExtractedData((prev: any) => ({
                                       ...prev,
                                       supplierName: supplier.name,
-                                      supplierLink: supplier.website || '',
-                                      supplierId: supplier.id
+                                      supplierWebsite: supplier.website || '',
+                                      supplierId: supplier.id,
+                                      supplierContactName: supplier.contactName || '',
+                                      supplierEmail: supplier.email || '',
+                                      supplierLogo: supplier.logo || ''
                                     }))
                                     setUrlSupplierSearch('')
                                     setShowUrlSupplierDropdown(false)
@@ -3057,12 +3069,15 @@ export default function FFEUnifiedWorkspace({
             logo: supplier.logo,
             website: supplier.website
           })
-          // Update extracted data with supplier info
+          // Update extracted data with supplier info (keep productWebsite separate)
           setExtractedData((prev: any) => prev ? ({
             ...prev,
             supplierName: supplier.name,
-            supplierLink: supplier.website || '',
-            supplierId: supplier.id
+            supplierWebsite: supplier.website || '',
+            supplierId: supplier.id,
+            supplierContactName: supplier.contactName || '',
+            supplierEmail: supplier.email || '',
+            supplierLogo: supplier.logo || ''
           }) : null)
         }}
       />

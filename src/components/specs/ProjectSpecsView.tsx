@@ -1011,8 +1011,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         name: urlGenerateData.productName || 'Product from URL',
         brand: urlGenerateData.brand || '',
         sku: urlGenerateData.sku || '',
-        productWebsite: urlGenerateData.productWebsite || urlGenerateInput,
-        supplierLink: urlGenerateSelectedSupplier?.website || urlGenerateData.productWebsite || urlGenerateInput,
+        // supplierLink = product URL (where we scraped from) - NOT the supplier's website
+        supplierLink: urlGenerateData.productWebsite || urlGenerateInput,
         thumbnailUrl: urlGenerateData.images?.[0] || '',
         images: urlGenerateData.images || [],
         rrp: urlGenerateData.rrp ? parseFloat(urlGenerateData.rrp.replace(/[^0-9.]/g, '')) || 0 : 0,
@@ -4151,11 +4151,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             <Button 
               onClick={() => {
                 if (extractedData && addFromUrlModal.sectionId && addFromUrlModal.roomId) {
-                  // Pass supplier info if selected
+                  // Pass supplier info if selected - supplierLink = product URL (not supplier website)
                   const dataWithSupplier = {
                     ...extractedData,
                     supplierName: addFromUrlSelectedSupplier?.name || '',
-                    supplierLink: addFromUrlSelectedSupplier?.website || extractedData.productWebsite || ''
+                    supplierLink: extractedData.productWebsite || ''
                   }
                   handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, dataWithSupplier)
                 }
