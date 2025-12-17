@@ -209,6 +209,33 @@ export async function POST(request: NextRequest) {
         }
       }
       
+      // Priority 6: Fallback - find any reasonable image on the page
+      if (images.length < MAX_IMAGES) {
+        // Look for any img with src containing common image paths
+        const fallbackPatterns = [
+          /<img[^>]+src=["']([^"']+(?:\/uploads\/|\/images\/|\/media\/|\/products\/|\/content\/)[^"']+)["']/gi,
+          /<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi,
+        ]
+        
+        for (const pattern of fallbackPatterns) {
+          if (images.length >= MAX_IMAGES) break
+          const matches = html.matchAll(pattern)
+          for (const match of matches) {
+            if (images.length >= MAX_IMAGES) break
+            addImage(match[1])
+          }
+        }
+      }
+      
+      // Priority 7: Last resort - any image that passes validation
+      if (images.length === 0) {
+        const allImgMatches = html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)
+        for (const match of allImgMatches) {
+          if (images.length >= MAX_IMAGES) break
+          addImage(match[1])
+        }
+      }
+      
       // Set first image as main
       if (images.length > 0) {
         result.image = images[0]
@@ -290,26 +317,17 @@ function isValidImageUrl(url: string): boolean {
     return false
   }
   
-  // Filter out tracking pixels, icons, placeholders, and small images
+  // Filter out clear non-images
   const invalidPatterns = [
     /pixel/i,
     /tracking/i,
     /analytics/i,
     /beacon/i,
     /sprite/i,
-    /1x1/i,
+    /1x1\./i,
     /spacer/i,
-    /blank/i,
     /placeholder/i,
-    /loading/i,
     /spinner/i,
-    /lazy/i, // lazy-load placeholder
-    /default[-_]?image/i,
-    /no[-_]?image/i,
-    /missing/i,
-    /empty/i,
-    /transparent/i,
-    /grey|gray/i, // grey placeholder
     /woocommerce-placeholder/i,
     /\/loader\./i,
     /\/ajax[-_]?loader/i,
@@ -321,19 +339,13 @@ function isValidImageUrl(url: string): boolean {
     }
   }
   
-  // Filter out tiny images (dimension in URL)
-  if (/[-_x](?:1|2|3|4|5|10|16|20|24|32)(?:x(?:1|2|3|4|5|10|16|20|24|32))?[-_\.]/i.test(url)) {
+  // Filter out tiny icon sizes in URL
+  if (/[-_](?:16|20|24|32)x(?:16|20|24|32)[-_\.]/i.test(url)) {
     return false
   }
   
-  // Filter out common icon sizes
-  if (/(?:favicon|icon).*\d+x\d+/i.test(url)) {
-    return false
-  }
-  
-  // Filter out .gif (often used for tracking, animations, or placeholders)
-  // But allow if it's clearly a product image
-  if (/\.gif(\?|$)/i.test(url) && !/product|gallery|main/i.test(url)) {
+  // Filter out favicons
+  if (/favicon/i.test(url)) {
     return false
   }
   
@@ -342,11 +354,32 @@ function isValidImageUrl(url: string): boolean {
     return false
   }
   
-  // Must be a common image format OR be from a CDN/image service
-  const hasImageExtension = /\.(jpg|jpeg|png|webp|avif|jpe)(\?|$)/i.test(url)
-  const isImageService = /(?:cloudinary|imgix|cloudfront|akamai|fastly|cdn|image|media|photo|upload|assets)/i.test(url)
-  const hasImageInPath = /\/(?:images?|photos?|media|uploads?|products?|gallery)\//i.test(url)
+  // Accept any URL that looks like an image
+  // Has image extension
+  if (/\.(jpg|jpeg|png|webp|avif|gif|jpe)(\?|#|$)/i.test(url)) {
+    return true
+  }
   
-  return hasImageExtension || isImageService || hasImageInPath
+  // Has image-related path
+  if (/\/(?:images?|photos?|media|uploads?|products?|gallery|content|wp-content)\//i.test(url)) {
+    return true
+  }
+  
+  // Is from a CDN or image service
+  if (/(?:cloudinary|imgix|cloudfront|akamai|fastly|cdn|\.img\.|image-)/i.test(url)) {
+    return true
+  }
+  
+  // Has common image query params (WordPress, etc)
+  if (/[?&](?:w|h|width|height|size|resize)=/i.test(url)) {
+    return true
+  }
+  
+  // Accept URLs that start with http and don't look like scripts/styles
+  if (url.startsWith('http') && !/\.(js|css|json|xml|txt|pdf|doc|zip)(\?|#|$)/i.test(url)) {
+    return true
+  }
+  
+  return false
 }
 
