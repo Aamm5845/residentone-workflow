@@ -108,132 +108,111 @@ export async function POST(request: NextRequest) {
         result.description = decodeHtml(ogDescMatch[1]).trim()
       }
 
-      // Extract images - collect multiple sources
+      // Extract images - focus on main product image, limit to 2 max
       const images: string[] = []
+      const MAX_IMAGES = 2
       
-      // Helper to add valid image
-      const addImage = (imgUrl: string | undefined | null) => {
-        if (!imgUrl) return
+      // Helper to add valid image (stops after MAX_IMAGES)
+      const addImage = (imgUrl: string | undefined | null): boolean => {
+        if (!imgUrl || images.length >= MAX_IMAGES) return false
         const resolved = resolveUrl(imgUrl, urlObj)
         if (resolved && !images.includes(resolved) && isValidImageUrl(resolved)) {
           images.push(resolved)
+          return true
         }
+        return false
       }
       
-      // 1. JSON-LD structured data (highest quality - often has the best product images)
-      const jsonLdMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
-      for (const match of jsonLdMatches) {
-        try {
-          const jsonData = JSON.parse(match[1])
-          // Handle Product schema
-          if (jsonData['@type'] === 'Product' || jsonData.image) {
-            const imgArray = Array.isArray(jsonData.image) ? jsonData.image : [jsonData.image]
-            for (const img of imgArray) {
-              const imgUrl = typeof img === 'string' ? img : img?.url || img?.contentUrl
+      // Priority 1: Open Graph image (this is almost always THE main product image)
+      const ogImagePatterns = [
+        /<meta\s+(?:property|name)=["']og:image(?::url)?["']\s+content=["']([^"']+)["']/i,
+        /<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image(?::url)?["']/i,
+      ]
+      for (const pattern of ogImagePatterns) {
+        if (images.length >= MAX_IMAGES) break
+        const match = html.match(pattern)
+        if (match) addImage(match[1])
+      }
+      
+      // Priority 2: JSON-LD Product schema (first image only - usually the main one)
+      if (images.length < MAX_IMAGES) {
+        const jsonLdMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+        for (const match of jsonLdMatches) {
+          if (images.length >= MAX_IMAGES) break
+          try {
+            const jsonData = JSON.parse(match[1])
+            // Handle Product schema - only get first image
+            if (jsonData['@type'] === 'Product' && jsonData.image) {
+              const firstImg = Array.isArray(jsonData.image) ? jsonData.image[0] : jsonData.image
+              const imgUrl = typeof firstImg === 'string' ? firstImg : firstImg?.url || firstImg?.contentUrl
               addImage(imgUrl)
             }
-          }
-          // Handle nested @graph structure
-          if (jsonData['@graph']) {
-            for (const item of jsonData['@graph']) {
-              if (item['@type'] === 'Product' || item['@type'] === 'ImageObject' || item.image) {
-                const imgArray = Array.isArray(item.image) ? item.image : [item.image]
-                for (const img of imgArray) {
-                  const imgUrl = typeof img === 'string' ? img : img?.url || img?.contentUrl
+            // Handle nested @graph structure
+            if (jsonData['@graph']) {
+              for (const item of jsonData['@graph']) {
+                if (images.length >= MAX_IMAGES) break
+                if (item['@type'] === 'Product' && item.image) {
+                  const firstImg = Array.isArray(item.image) ? item.image[0] : item.image
+                  const imgUrl = typeof firstImg === 'string' ? firstImg : firstImg?.url || firstImg?.contentUrl
                   addImage(imgUrl)
                 }
               }
             }
-          }
-        } catch {
-          // Invalid JSON, skip
-        }
-      }
-      
-      // 2. Open Graph images (usually good quality)
-      const ogImageMatches = html.matchAll(/<meta\s+(?:property|name)=["']og:image(?::url)?["']\s+content=["']([^"']+)["']/gi)
-      for (const match of ogImageMatches) {
-        addImage(match[1])
-      }
-      // Also match reverse order (content before property)
-      const ogImageMatches2 = html.matchAll(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image(?::url)?["']/gi)
-      for (const match of ogImageMatches2) {
-        addImage(match[1])
-      }
-      
-      // 3. Twitter card image
-      const twitterPatterns = [
-        /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/gi,
-        /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/gi,
-      ]
-      for (const pattern of twitterPatterns) {
-        const matches = html.matchAll(pattern)
-        for (const match of matches) {
-          addImage(match[1])
-        }
-      }
-      
-      // 4. Extract ALL data-* attributes for lazy-loaded images (this catches most lazy loading)
-      // Common lazy-load attributes: data-src, data-lazy-src, data-original, data-srcset, data-lazy, data-image
-      const lazyLoadPatterns = [
-        /data-(?:src|lazy-src|original|image|full|zoom|large|hi-res|hires)=["']([^"']+)["']/gi,
-        /data-srcset=["']([^\s"']+)/gi, // First URL from srcset
-      ]
-      
-      for (const pattern of lazyLoadPatterns) {
-        const matches = html.matchAll(pattern)
-        for (const match of matches) {
-          addImage(match[1])
-        }
-      }
-      
-      // 5. Product images from common e-commerce patterns (class/id based)
-      const productImgPatterns = [
-        // Images with product-related classes
-        /<img[^>]+(?:class|id)=["'][^"']*(?:product|gallery|main|primary|hero|featured|woocommerce-main)[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/gi,
-        /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]+(?:class|id)=["'][^"']*(?:product|gallery|main|primary|hero|featured)[^"']*["']/gi,
-        // Zoom/large images
-        /<img[^>]+(?:class|id)=["'][^"']*(?:zoom|large|full|magnify)[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/gi,
-        // WooCommerce specific
-        /<img[^>]+(?:class|id)=["'][^"']*wp-post-image[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/gi,
-        // Slick/swiper carousel images
-        /<img[^>]+(?:class|id)=["'][^"']*(?:slick|swiper|carousel|slide)[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/gi,
-      ]
-      
-      for (const pattern of productImgPatterns) {
-        const matches = html.matchAll(pattern)
-        for (const match of matches) {
-          addImage(match[1])
-        }
-      }
-      
-      // 6. Look for srcset and extract the largest image
-      const srcsetMatches = html.matchAll(/srcset=["']([^"']+)["']/gi)
-      for (const match of srcsetMatches) {
-        const srcset = match[1]
-        // Parse srcset and get the largest image
-        const sources = srcset.split(',').map(s => s.trim())
-        let largestUrl = ''
-        let largestSize = 0
-        for (const source of sources) {
-          const parts = source.split(/\s+/)
-          const url = parts[0]
-          const sizeStr = parts[1] || ''
-          const size = parseInt(sizeStr.replace(/[^\d]/g, '')) || 0
-          if (size > largestSize || (!largestSize && url)) {
-            largestSize = size
-            largestUrl = url
+          } catch {
+            // Invalid JSON, skip
           }
         }
-        if (largestUrl) {
-          addImage(largestUrl)
+      }
+      
+      // Priority 3: Twitter card image
+      if (images.length < MAX_IMAGES) {
+        const twitterPatterns = [
+          /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
+          /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/i,
+        ]
+        for (const pattern of twitterPatterns) {
+          if (images.length >= MAX_IMAGES) break
+          const match = html.match(pattern)
+          if (match) addImage(match[1])
         }
       }
       
-      // Set first image as main and include all in images array
+      // Priority 4: First main/primary product image from page
+      if (images.length < MAX_IMAGES) {
+        const mainImagePatterns = [
+          // Main/primary/hero product images (first match only)
+          /<img[^>]+(?:class|id)=["'][^"']*(?:main|primary|hero|featured)[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/i,
+          /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]+(?:class|id)=["'][^"']*(?:main|primary|hero|featured)[^"']*["']/i,
+          // WooCommerce main image
+          /<img[^>]+(?:class|id)=["'][^"']*wp-post-image[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/i,
+          // First product image
+          /<img[^>]+(?:class|id)=["'][^"']*product[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["']/i,
+        ]
+        
+        for (const pattern of mainImagePatterns) {
+          if (images.length >= MAX_IMAGES) break
+          const match = html.match(pattern)
+          if (match) addImage(match[1])
+        }
+      }
+      
+      // Priority 5: First data-src/data-zoom image (often the main lazy-loaded image)
+      if (images.length < MAX_IMAGES) {
+        const lazyPatterns = [
+          /data-(?:zoom|large|full|hi-res|hires)=["']([^"']+)["']/i,
+          /data-src=["']([^"']+)["']/i,
+        ]
+        for (const pattern of lazyPatterns) {
+          if (images.length >= MAX_IMAGES) break
+          const match = html.match(pattern)
+          if (match) addImage(match[1])
+        }
+      }
+      
+      // Set first image as main
       if (images.length > 0) {
         result.image = images[0]
-        result.images = images.slice(0, 10) // Limit to 10 images
+        result.images = images
       }
 
       // Extract main text content (remove scripts, styles, etc)
