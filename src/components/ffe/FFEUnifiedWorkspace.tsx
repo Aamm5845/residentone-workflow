@@ -159,6 +159,11 @@ export default function FFEUnifiedWorkspace({
     notes: ''
   })
   const [savingNewSupplier, setSavingNewSupplier] = useState(false)
+  
+  // Search Item dialog states
+  const [showSearchDialog, setShowSearchDialog] = useState(false)
+  const [searchItemName, setSearchItemName] = useState('')
+  const [searchRegion, setSearchRegion] = useState<'ca' | 'us'>('ca')
 
   // Choose Product dialog states (add new product linked to FFE item)
   const [showChooseProductDialog, setShowChooseProductDialog] = useState(false)
@@ -624,6 +629,24 @@ export default function FFEUnifiedWorkspace({
     } finally {
       setUploadingProductImage(false)
     }
+  }
+
+  // Handle search for FFE item online
+  const handleSearchItem = (region: 'ca' | 'us') => {
+    if (!searchItemName.trim()) return
+    
+    const query = encodeURIComponent(searchItemName.trim())
+    let searchUrl: string
+    
+    if (region === 'ca') {
+      // Search on Google Shopping Canada
+      searchUrl = `https://www.google.ca/search?q=${query}&tbm=shop&gl=ca`
+    } else {
+      // Search on Google Shopping US
+      searchUrl = `https://www.google.com/search?q=${query}&tbm=shop&gl=us`
+    }
+    
+    window.open(searchUrl, '_blank')
   }
 
   // Search suppliers for product dialog
@@ -1446,6 +1469,15 @@ export default function FFEUnifiedWorkspace({
                                         }}>
                                           <StickyNote className="w-4 h-4 mr-2 text-amber-600" />
                                           {item.notes ? 'Edit Note' : 'Add Note'}
+                                        </DropdownMenuItem>
+                                        {/* Search Item Online */}
+                                        <DropdownMenuItem onClick={() => {
+                                          setSearchItemName(item.name)
+                                          setSearchRegion('ca')
+                                          setShowSearchDialog(true)
+                                        }}>
+                                          <Search className="w-4 h-4 mr-2 text-purple-600" />
+                                          Search Item
                                         </DropdownMenuItem>
                                         <DropdownMenuItem 
                                           onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }}
@@ -2929,6 +2961,69 @@ export default function FFEUnifiedWorkspace({
           </div>
         </div>
       )}
+
+      {/* Search Item Dialog */}
+      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="w-5 h-5 text-purple-600" />
+              Search Item Online
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Search Term</Label>
+              <Input
+                value={searchItemName}
+                onChange={(e) => setSearchItemName(e.target.value)}
+                placeholder="e.g., pendant light, dining chair..."
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Edit the search term if needed to find more specific results
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Region</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant={searchRegion === 'ca' ? 'default' : 'outline'}
+                  onClick={() => setSearchRegion('ca')}
+                  className={searchRegion === 'ca' ? 'bg-red-600 hover:bg-red-700' : ''}
+                >
+                  🇨🇦 Canada
+                </Button>
+                <Button
+                  variant={searchRegion === 'us' ? 'default' : 'outline'}
+                  onClick={() => setSearchRegion('us')}
+                  className={searchRegion === 'us' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                >
+                  🇺🇸 United States
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Start with Canada, switch to US if you can't find what you need
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowSearchDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => handleSearchItem(searchRegion)}
+              disabled={!searchItemName.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Search {searchRegion === 'ca' ? 'Canada' : 'US'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
