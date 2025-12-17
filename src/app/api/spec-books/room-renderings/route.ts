@@ -117,7 +117,71 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // No approved renderings and no manual uploads - empty state
+    // No approved renderings - try to get the latest version's renderings as fallback
+    const latestVersion = await prisma.renderingVersion.findFirst({
+      where: {
+        roomId: roomId
+      },
+      include: {
+        assets: {
+          orderBy: {
+            createdAt: 'asc'
+          },
+          select: {
+            id: true,
+            url: true,
+            title: true,
+            filename: true,
+            mimeType: true,
+            size: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    if (latestVersion && latestVersion.assets.length > 0) {
+      const latestAssets = await Promise.all(
+        latestVersion.assets.map(async (asset) => {
+          const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
+          
+          // Convert Dropbox paths to temporary download links
+          let displayUrl = asset.url
+          if (asset.url && !asset.url.startsWith('http')) {
+            try {
+              const tempLink = await dropboxService.getTemporaryLink(asset.url)
+              if (tempLink) {
+                displayUrl = tempLink
+              }
+            } catch (error) {
+              console.error(`Failed to get temporary link for ${asset.url}:`, error)
+            }
+          }
+          
+          return {
+            id: asset.id,
+            url: displayUrl,
+            filename: filename,
+            mimeType: asset.mimeType,
+            fileSize: asset.size || 0,
+            source: 'LATEST' as const
+          }
+        })
+      )
+
+      return NextResponse.json({
+        success: true,
+        roomId: roomId,
+        source: 'LATEST',
+        approved: null,
+        renderings: latestAssets
+      })
+    }
+
+    // No renderings at all - empty state
     return NextResponse.json({
       success: true,
       roomId: roomId,
