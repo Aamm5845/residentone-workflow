@@ -146,11 +146,11 @@ export default function FFEUnifiedWorkspace({
   const [uploadingImage, setUploadingImage] = useState(false)
   
   // URL Generate Supplier states
-  const [urlSuppliers, setUrlSuppliers] = useState<Array<{id: string, name: string, contactName?: string, website?: string}>>([])
+  const [urlSuppliers, setUrlSuppliers] = useState<Array<{id: string, name: string, contactName?: string, email?: string, logo?: string, website?: string}>>([])
   const [urlSupplierSearch, setUrlSupplierSearch] = useState('')
   const [urlSupplierLoading, setUrlSupplierLoading] = useState(false)
   const [showUrlSupplierDropdown, setShowUrlSupplierDropdown] = useState(false)
-  const [urlSelectedSupplier, setUrlSelectedSupplier] = useState<{id: string, name: string, website?: string} | null>(null)
+  const [urlSelectedSupplier, setUrlSelectedSupplier] = useState<{id: string, name: string, contactName?: string, email?: string, logo?: string, website?: string} | null>(null)
   const [showAddNewSupplierForm, setShowAddNewSupplierForm] = useState(false)
   
   // Search Item dialog states
@@ -2170,11 +2170,27 @@ export default function FFEUnifiedWorkspace({
                     {(urlSelectedSupplier || extractedData.supplierName) && !showAddNewSupplierForm ? (
                       <div className="flex items-center justify-between p-2 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                            <Building2 className="w-4 h-4 text-emerald-600" />
-                          </div>
+                          {urlSelectedSupplier?.logo ? (
+                            <img 
+                              src={urlSelectedSupplier.logo} 
+                              alt={urlSelectedSupplier.name}
+                              className="w-8 h-8 rounded-lg object-cover border"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                              <Building2 className="w-4 h-4 text-emerald-600" />
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-medium text-emerald-900">{urlSelectedSupplier?.name || extractedData.supplierName}</p>
+                            {/* Contact Name and Email */}
+                            {(urlSelectedSupplier?.contactName || urlSelectedSupplier?.email) && (
+                              <p className="text-xs text-emerald-700">
+                                {urlSelectedSupplier?.contactName}
+                                {urlSelectedSupplier?.contactName && urlSelectedSupplier?.email ? ' • ' : ''}
+                                {urlSelectedSupplier?.email}
+                              </p>
+                            )}
                             {(urlSelectedSupplier?.website || extractedData.supplierLink) && (
                               <p className="text-xs text-emerald-600">{urlSelectedSupplier?.website || extractedData.supplierLink}</p>
                             )}
@@ -2227,13 +2243,21 @@ export default function FFEUnifiedWorkspace({
                                     setShowUrlSupplierDropdown(false)
                                   }}
                                 >
-                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
-                                    {supplier.name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium">{supplier.name}</p>
-                                    {supplier.contactName && (
-                                      <p className="text-xs text-gray-500">{supplier.contactName}</p>
+                                  {supplier.logo ? (
+                                    <img src={supplier.logo} alt={supplier.name} className="w-6 h-6 rounded object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                      {supplier.name.charAt(0)}
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{supplier.name}</p>
+                                    {(supplier.contactName || supplier.email) && (
+                                      <p className="text-xs text-gray-500 truncate">
+                                        {supplier.contactName}
+                                        {supplier.contactName && supplier.email ? ' • ' : ''}
+                                        {supplier.email}
+                                      </p>
                                     )}
                                   </div>
                                 </button>
@@ -3024,10 +3048,13 @@ export default function FFEUnifiedWorkspace({
         open={showAddNewSupplierForm}
         onOpenChange={setShowAddNewSupplierForm}
         onSupplierCreated={(supplier) => {
-          // Set the newly created supplier as selected
+          // Set the newly created supplier as selected with all details
           setUrlSelectedSupplier({
             id: supplier.id,
             name: supplier.name,
+            contactName: supplier.contactName,
+            email: supplier.email,
+            logo: supplier.logo,
             website: supplier.website
           })
           // Update extracted data with supplier info

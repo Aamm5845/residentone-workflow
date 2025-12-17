@@ -20,6 +20,7 @@ interface Supplier {
   email: string
   phone?: string
   website?: string
+  logo?: string
 }
 
 interface AvailableRoom {
@@ -281,6 +282,9 @@ export function ItemDetailPanel({
     supplierName: '',
     supplierLink: '',
     supplierId: '',
+    supplierContactName: '',
+    supplierEmail: '',
+    supplierLogo: '',
     leadTime: '',
     color: '',
     finish: '',
@@ -398,13 +402,15 @@ export function ItemDetailPanel({
         const data = await res.json()
         // Add to local suppliers list
         setSuppliers(prev => [...prev, data.supplier])
-        // Select the new supplier
+        // Select the new supplier with all details
         setFormData(prev => ({
           ...prev,
           supplierId: data.supplier.id,
-          supplierName: data.supplier.contactName 
-            ? `${data.supplier.name} / ${data.supplier.contactName}`
-            : data.supplier.name
+          supplierName: data.supplier.name,
+          supplierContactName: data.supplier.contactName || '',
+          supplierEmail: data.supplier.email || '',
+          supplierLogo: data.supplier.logo || '',
+          supplierLink: data.supplier.website || ''
         }))
         // Reset and close modal
         setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '' })
@@ -608,9 +614,10 @@ export function ItemDetailPanel({
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
-        supplierName: supplier.contactName 
-          ? `${supplier.name} / ${supplier.contactName}`
-          : supplier.name,
+        supplierName: supplier.name,
+        supplierContactName: supplier.contactName || '',
+        supplierEmail: supplier.email || '',
+        supplierLogo: supplier.logo || '',
         supplierLink: supplier.website || ''
       }))
     }
@@ -1036,17 +1043,43 @@ export function ItemDetailPanel({
                   <Label>Supplier</Label>
                   {formData.supplierName ? (
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
-                        {formData.supplierName.charAt(0).toUpperCase()}
-                      </div>
+                      {/* Logo or Initial */}
+                      {formData.supplierLogo ? (
+                        <img 
+                          src={formData.supplierLogo} 
+                          alt={formData.supplierName}
+                          className="w-10 h-10 rounded-lg object-cover border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
+                          {formData.supplierName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{formData.supplierName}</p>
+                        {/* Contact Name and Email */}
+                        <div className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+                          {formData.supplierContactName && (
+                            <span className="truncate">{formData.supplierContactName}</span>
+                          )}
+                          {formData.supplierContactName && formData.supplierEmail && (
+                            <span>•</span>
+                          )}
+                          {formData.supplierEmail && (
+                            <a 
+                              href={`mailto:${formData.supplierEmail}`}
+                              className="text-blue-600 hover:underline truncate"
+                            >
+                              {formData.supplierEmail}
+                            </a>
+                          )}
+                        </div>
                         {formData.supplierLink && (
                           <a 
                             href={formData.supplierLink} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline truncate block"
+                            className="text-xs text-blue-600 hover:underline truncate block mt-0.5"
                           >
                             {formData.supplierLink}
                           </a>
@@ -1054,7 +1087,7 @@ export function ItemDetailPanel({
                       </div>
                       <button 
                         className="text-xs text-red-600 hover:underline"
-                        onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '' })}
+                        onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '', supplierContactName: '', supplierEmail: '', supplierLogo: '' })}
                       >
                         Remove
                       </button>
@@ -1078,13 +1111,21 @@ export function ItemDetailPanel({
                             suppliers.map(supplier => (
                               <SelectItem key={supplier.id} value={supplier.id}>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
-                                    {supplier.name.charAt(0)}
-                                  </div>
-                                  <span>{supplier.name}</span>
-                                  {supplier.contactName && (
-                                    <span className="text-gray-400">/ {supplier.contactName}</span>
+                                  {supplier.logo ? (
+                                    <img src={supplier.logo} alt={supplier.name} className="w-6 h-6 rounded object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                      {supplier.name.charAt(0)}
+                                    </div>
                                   )}
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{supplier.name}</span>
+                                    {(supplier.contactName || supplier.email) && (
+                                      <span className="text-xs text-gray-400">
+                                        {supplier.contactName}{supplier.contactName && supplier.email ? ' • ' : ''}{supplier.email}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </SelectItem>
                             ))
