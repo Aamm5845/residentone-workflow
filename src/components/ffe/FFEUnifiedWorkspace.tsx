@@ -164,6 +164,8 @@ export default function FFEUnifiedWorkspace({
   const [showSearchDialog, setShowSearchDialog] = useState(false)
   const [searchItemName, setSearchItemName] = useState('')
   const [searchRegion, setSearchRegion] = useState<'ca' | 'us'>('ca')
+  const [searchMode, setSearchMode] = useState<'text' | 'image'>('image')
+  const [selectedRenderingForSearch, setSelectedRenderingForSearch] = useState<string>('')
 
   // Choose Product dialog states (add new product linked to FFE item)
   const [showChooseProductDialog, setShowChooseProductDialog] = useState(false)
@@ -632,21 +634,38 @@ export default function FFEUnifiedWorkspace({
   }
 
   // Handle search for FFE item online
-  const handleSearchItem = (region: 'ca' | 'us') => {
-    if (!searchItemName.trim()) return
-    
-    const query = encodeURIComponent(searchItemName.trim())
-    let searchUrl: string
-    
-    if (region === 'ca') {
-      // Search on Google Shopping Canada
-      searchUrl = `https://www.google.ca/search?q=${query}&tbm=shop&gl=ca`
+  const handleSearchItem = (mode: 'text' | 'image', region: 'ca' | 'us') => {
+    if (mode === 'text') {
+      if (!searchItemName.trim()) return
+      
+      const query = encodeURIComponent(searchItemName.trim())
+      let searchUrl: string
+      
+      if (region === 'ca') {
+        // Search on Google Shopping Canada
+        searchUrl = `https://www.google.ca/search?q=${query}&tbm=shop&gl=ca`
+      } else {
+        // Search on Google Shopping US
+        searchUrl = `https://www.google.com/search?q=${query}&tbm=shop&gl=us`
+      }
+      
+      window.open(searchUrl, '_blank')
     } else {
-      // Search on Google Shopping US
-      searchUrl = `https://www.google.com/search?q=${query}&tbm=shop&gl=us`
+      // Visual search using Google Lens
+      if (!selectedRenderingForSearch) {
+        toast.error('Please select a rendering image first')
+        return
+      }
+      
+      // Google Lens URL for image search
+      const imageUrl = encodeURIComponent(selectedRenderingForSearch)
+      const lensUrl = `https://lens.google.com/uploadbyurl?url=${imageUrl}`
+      
+      window.open(lensUrl, '_blank')
+      
+      // Also show instructions
+      toast.success('Google Lens opened! Select the specific item in the image to find exact matches.', { duration: 5000 })
     }
-    
-    window.open(searchUrl, '_blank')
   }
 
   // Search suppliers for product dialog
@@ -1474,6 +1493,8 @@ export default function FFEUnifiedWorkspace({
                                         <DropdownMenuItem onClick={() => {
                                           setSearchItemName(item.name)
                                           setSearchRegion('ca')
+                                          setSearchMode(renderingImages.length > 0 ? 'image' : 'text')
+                                          setSelectedRenderingForSearch(renderingImages.length > 0 ? renderingImages[0].url : '')
                                           setShowSearchDialog(true)
                                         }}>
                                           <Search className="w-4 h-4 mr-2 text-purple-600" />
@@ -2964,63 +2985,153 @@ export default function FFEUnifiedWorkspace({
 
       {/* Search Item Dialog */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Search className="w-5 h-5 text-purple-600" />
-              Search Item Online
+              Search for: {searchItemName}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Search Mode Toggle */}
             <div className="space-y-2">
-              <Label>Search Term</Label>
-              <Input
-                value={searchItemName}
-                onChange={(e) => setSearchItemName(e.target.value)}
-                placeholder="e.g., pendant light, dining chair..."
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground">
-                Edit the search term if needed to find more specific results
-              </p>
-            </div>
-            
-            <div className="space-y-3">
-              <Label>Region</Label>
+              <Label>Search Method</Label>
               <div className="grid grid-cols-2 gap-3">
                 <Button
-                  variant={searchRegion === 'ca' ? 'default' : 'outline'}
-                  onClick={() => setSearchRegion('ca')}
-                  className={searchRegion === 'ca' ? 'bg-red-600 hover:bg-red-700' : ''}
+                  variant={searchMode === 'image' ? 'default' : 'outline'}
+                  onClick={() => setSearchMode('image')}
+                  className={searchMode === 'image' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+                  disabled={renderingImages.length === 0}
                 >
-                  🇨🇦 Canada
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  Visual Search
                 </Button>
                 <Button
-                  variant={searchRegion === 'us' ? 'default' : 'outline'}
-                  onClick={() => setSearchRegion('us')}
-                  className={searchRegion === 'us' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  variant={searchMode === 'text' ? 'default' : 'outline'}
+                  onClick={() => setSearchMode('text')}
+                  className={searchMode === 'text' ? 'bg-purple-600 hover:bg-purple-700' : ''}
                 >
-                  🇺🇸 United States
+                  <Search className="w-4 h-4 mr-2" />
+                  Text Search
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Start with Canada, switch to US if you can't find what you need
-              </p>
             </div>
+
+            {searchMode === 'image' ? (
+              <>
+                {/* Visual Search - Rendering Images */}
+                <div className="space-y-3">
+                  <Label>Select Rendering Image</Label>
+                  {renderingImages.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {renderingImages.map((img) => (
+                        <div
+                          key={img.id}
+                          onClick={() => setSelectedRenderingForSearch(img.url)}
+                          className={cn(
+                            "relative rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
+                            selectedRenderingForSearch === img.url 
+                              ? "border-purple-500 ring-2 ring-purple-200" 
+                              : "border-gray-200 hover:border-purple-300"
+                          )}
+                        >
+                          <img 
+                            src={img.url} 
+                            alt={img.filename}
+                            className="w-full h-32 object-cover"
+                          />
+                          {selectedRenderingForSearch === img.url && (
+                            <div className="absolute top-2 right-2 bg-purple-600 text-white rounded-full p-1">
+                              <Check className="w-3 h-3" />
+                            </div>
+                          )}
+                          <p className="text-xs text-center py-1 bg-gray-50 truncate px-2">
+                            {img.filename}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed">
+                      <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No rendering images available for this room.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload renderings in the 3D Rendering phase first.
+                      </p>
+                    </div>
+                  )}
+                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-800">
+                      <strong>How it works:</strong> Google Lens will open with your rendering. 
+                      Click on the specific item (like a pendant light) to find exact matches online.
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Text Search */}
+                <div className="space-y-2">
+                  <Label>Search Term</Label>
+                  <Input
+                    value={searchItemName}
+                    onChange={(e) => setSearchItemName(e.target.value)}
+                    placeholder="e.g., pendant light, dining chair..."
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label>Region</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant={searchRegion === 'ca' ? 'default' : 'outline'}
+                      onClick={() => setSearchRegion('ca')}
+                      className={searchRegion === 'ca' ? 'bg-red-600 hover:bg-red-700' : ''}
+                    >
+                      🇨🇦 Canada
+                    </Button>
+                    <Button
+                      variant={searchRegion === 'us' ? 'default' : 'outline'}
+                      onClick={() => setSearchRegion('us')}
+                      className={searchRegion === 'us' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                    >
+                      🇺🇸 United States
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Start with Canada, switch to US if you can't find what you need
+                  </p>
+                </div>
+              </>
+            )}
           </div>
           
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowSearchDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={() => handleSearchItem(searchRegion)}
-              disabled={!searchItemName.trim()}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              Search {searchRegion === 'ca' ? 'Canada' : 'US'}
-            </Button>
+            {searchMode === 'image' ? (
+              <Button 
+                onClick={() => handleSearchItem('image', 'ca')}
+                disabled={!selectedRenderingForSearch}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Search with Google Lens
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => handleSearchItem('text', searchRegion)}
+                disabled={!searchItemName.trim()}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Search {searchRegion === 'ca' ? 'Canada' : 'US'}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
