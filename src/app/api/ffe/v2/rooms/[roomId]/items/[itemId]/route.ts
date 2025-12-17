@@ -214,6 +214,7 @@ export async function PATCH(
       specStatus,
       state,
       visibility,
+      clientApproved,
       quantity,
       tradePrice,
       rrp,
@@ -285,6 +286,7 @@ export async function PATCH(
     if (specStatus !== undefined) updateData.specStatus = specStatus
     if (state !== undefined) updateData.state = state
     if (visibility !== undefined) updateData.visibility = visibility
+    if (clientApproved !== undefined) updateData.clientApproved = clientApproved
     if (quantity !== undefined) updateData.quantity = parseInt(quantity) || 1
     if (tradePrice !== undefined) updateData.tradePrice = tradePrice ? parseFloat(tradePrice) : null
     if (rrp !== undefined) updateData.rrp = rrp ? parseFloat(rrp) : null

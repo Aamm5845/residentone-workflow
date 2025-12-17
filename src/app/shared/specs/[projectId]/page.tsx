@@ -27,17 +27,25 @@ import {
 const ITEM_STATUS_OPTIONS: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {
   'DRAFT': { label: 'Draft', icon: Circle, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
   'HIDDEN': { label: 'Hidden', icon: Circle, color: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-200' },
-  'SELECTED': { label: 'Selected', icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  'OPTION': { label: 'Option', icon: Circle, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200' },
+  'SELECTED': { label: 'Selected', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  'NEED_SAMPLE': { label: 'Need Sample', icon: Package, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
   'QUOTING': { label: 'Quoting', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+  'BETTER_PRICE': { label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+  'ISSUE': { label: 'Issue', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+  'NEED_TO_ORDER': { label: 'Need to Order', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  'CLIENT_TO_ORDER': { label: 'Client to Order', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  'ORDERED': { label: 'Ordered', icon: PackageCheck, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  'IN_PRODUCTION': { label: 'In Production', icon: Factory, color: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-200' },
+  'COMPLETED': { label: 'Completed', icon: CheckCheck, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+  // Legacy statuses for backward compatibility
   'INTERNAL_REVIEW': { label: 'In Review', icon: AlertCircle, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
   'CLIENT_REVIEW': { label: 'Awaiting Approval', icon: AlertCircle, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
   'RESUBMIT': { label: 'Resubmit', icon: AlertCircle, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
   'CLOSED': { label: 'Closed', icon: Ban, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
   'REJECTED': { label: 'Rejected', icon: Ban, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
   'APPROVED': { label: 'Approved', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  'ORDERED': { label: 'Ordered', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
   'PAYMENT_DUE': { label: 'Payment Due', icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-  'IN_PRODUCTION': { label: 'In Production', icon: Factory, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
   'IN_TRANSIT': { label: 'In Transit', icon: Truck, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
   'INSTALLED': { label: 'Installed', icon: CheckCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   'DELIVERED': { label: 'Delivered', icon: PackageCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
@@ -463,3 +471,4 @@ export default function SharedSpecsPage() {
     </div>
   )
 }
+

@@ -86,25 +86,25 @@ import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 
-// Item status options based on the screenshot
+// Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400' },
-  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-400' },
-  { value: 'SELECTED', label: 'Selected', icon: Circle, color: 'text-gray-400' },
-  { value: 'QUOTING', label: 'Quoting', icon: Circle, color: 'text-gray-400' },
-  { value: 'INTERNAL_REVIEW', label: 'Internal Review', icon: AlertCircle, color: 'text-amber-500' },
-  { value: 'CLIENT_REVIEW', label: 'Client Review', icon: AlertCircle, color: 'text-amber-500' },
-  { value: 'RESUBMIT', label: 'Resubmit', icon: AlertCircle, color: 'text-amber-500' },
-  { value: 'CLOSED', label: 'Closed', icon: Ban, color: 'text-red-500' },
-  { value: 'REJECTED', label: 'Rejected', icon: Ban, color: 'text-red-500' },
-  { value: 'APPROVED', label: 'Approved', icon: CheckCircle2, color: 'text-green-500' },
-  { value: 'ORDERED', label: 'Ordered', icon: Clock, color: 'text-blue-500' },
-  { value: 'PAYMENT_DUE', label: 'Payment Due', icon: CreditCard, color: 'text-blue-500' },
-  { value: 'IN_PRODUCTION', label: 'In Production', icon: Factory, color: 'text-blue-500' },
-  { value: 'IN_TRANSIT', label: 'In Transit', icon: Truck, color: 'text-blue-500' },
-  { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-500' },
-  { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-green-500' },
+  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
+  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
+  { value: 'OPTION', label: 'Option', icon: Circle, color: 'text-purple-400', requiresApproval: false },
+  { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
+  { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
+  { value: 'QUOTING', label: 'Quoting', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
+  { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
+  { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },
+  { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
+  { value: 'ORDERED', label: 'Ordered', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
+  { value: 'IN_PRODUCTION', label: 'In Production', icon: Factory, color: 'text-cyan-600', requiresApproval: true },
+  { value: 'COMPLETED', label: 'Completed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
 ]
+
+// Statuses that require client approval to select
+const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION', 'COMPLETED']
 
 interface SpecItem {
   id: string
@@ -131,6 +131,7 @@ interface SpecItem {
   supplierLink: string | null
   state: string
   specStatus: string
+  clientApproved: boolean
   images: string[]
   thumbnailUrl: string | null
   roomId: string
@@ -1268,6 +1269,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       const item = specs.find(s => s.id === itemId)
       if (!item) return
       
+      // Check if new status requires approval and item is not approved
+      if (APPROVAL_REQUIRED_STATUSES.includes(newStatus) && !item.clientApproved) {
+        toast.error('Client approval required for this status')
+        return
+      }
+      
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1284,6 +1291,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     } catch (error) {
       console.error('Error updating status:', error)
       toast.error('Failed to update status')
+    }
+  }
+  
+  // Toggle client approval
+  const handleToggleClientApproval = async (itemId: string, currentApproval: boolean) => {
+    try {
+      const item = specs.find(s => s.id === itemId)
+      if (!item) return
+      
+      const newApproval = !currentApproval
+      
+      // If unapproving and current status requires approval, revert to NEED_TO_ORDER
+      let statusUpdate: string | undefined = undefined
+      if (!newApproval && APPROVAL_REQUIRED_STATUSES.includes(item.specStatus)) {
+        statusUpdate = 'NEED_TO_ORDER'
+      }
+      
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          clientApproved: newApproval,
+          ...(statusUpdate && { specStatus: statusUpdate })
+        })
+      })
+      
+      if (res.ok) {
+        setSpecs(prev => prev.map(s => s.id === itemId ? { 
+          ...s, 
+          clientApproved: newApproval,
+          ...(statusUpdate && { specStatus: statusUpdate })
+        } : s))
+        toast.success(newApproval ? 'Client approved' : 'Approval removed')
+      } else {
+        toast.error('Failed to update approval')
+      }
+    } catch (error) {
+      console.error('Error updating approval:', error)
+      toast.error('Failed to update approval')
     }
   }
   
@@ -2097,6 +2143,42 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
+          {/* Client Approval Summary Bar - Always visible */}
+          {specs.length > 0 && (
+            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
+                  <p className="text-lg font-semibold text-emerald-600">{specs.filter(s => s.clientApproved).length}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Pending Approval</p>
+                  <p className="text-lg font-semibold text-amber-600">{specs.filter(s => !s.clientApproved).length}</p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-full max-w-[200px] h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+                    style={{ width: `${specs.length > 0 ? (specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-gray-500">
+                  {specs.length > 0 ? Math.round(specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}% approved
+                </span>
+              </div>
+            </div>
+          )}
+          
           {/* Financial Summary Bar - Only in Financial Tab */}
           {activeTab === 'financial' && (
             <div className="flex items-center gap-8 mt-3 pt-3 border-t border-gray-100">
@@ -2864,90 +2946,107 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Status & Actions - Fixed at right edge */}
-                            <div className="flex-shrink-0 flex items-center gap-1.5 ml-auto">
-                              {/* Status Dropdown */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button 
-                                    className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap min-w-[110px]"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {getItemStatusDisplay(item.specStatus || 'DRAFT')}
-                                    <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-auto" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                  {ITEM_STATUS_OPTIONS.map((option) => {
-                                    const IconComponent = option.icon
-                                    return (
-                                      <DropdownMenuItem 
-                                        key={option.value}
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleUpdateItemStatus(item.id, option.value)
-                                        }}
-                                        className="flex items-center gap-2 text-xs"
-                                      >
-                                        <IconComponent className={cn("w-3.5 h-3.5", option.color)} />
-                                        {option.label}
-                                      </DropdownMenuItem>
-                                    )
-                                  })}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                              
-                              {/* Details Button - Outside 3 dots */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs px-2.5"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setDetailPanel({
-                                    isOpen: true,
-                                    mode: 'view',
-                                    item: item,
-                                    sectionId: item.sectionId,
-                                    roomId: item.roomId
-                                  })
-                                }}
-                              >
-                                Details
-                              </Button>
-                              
-                              {/* Quote Button - Outside 3 dots */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs px-2.5 text-gray-500"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  toast('Quote feature coming soon')
-                                }}
-                              >
-                                Quote
-                              </Button>
-                              
-                              {/* 3 Dots Menu */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 w-7 p-0"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <MoreVertical className="w-4 h-4 text-gray-400" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem 
-                                    className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setFlagModal({ open: true, item: item })
-                                    }}
-                                  >
+                            <div className="flex-shrink-0 flex flex-col items-end gap-1 ml-auto">
+                              {/* Row 1: Approve + Status + Menu */}
+                              <div className="flex items-center gap-1.5">
+                                {/* Client Approved Checkbox */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleToggleClientApproval(item.id, item.clientApproved)
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-all",
+                                    item.clientApproved 
+                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" 
+                                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                                  )}
+                                  title={item.clientApproved ? "Client has approved this item" : "Click to mark as client approved"}
+                                >
+                                  {item.clientApproved ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                  )}
+                                  <span className="hidden sm:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
+                                </button>
+                                
+                                {/* Status Dropdown */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button 
+                                      className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap min-w-[110px]"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {getItemStatusDisplay(item.specStatus || 'DRAFT')}
+                                      <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-auto" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {ITEM_STATUS_OPTIONS.map((option) => {
+                                      const IconComponent = option.icon
+                                      const isDisabled = option.requiresApproval && !item.clientApproved
+                                      return (
+                                        <DropdownMenuItem 
+                                          key={option.value}
+                                          disabled={isDisabled}
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (!isDisabled) {
+                                              handleUpdateItemStatus(item.id, option.value)
+                                            }
+                                          }}
+                                          className={cn(
+                                            "flex items-center gap-2 text-xs",
+                                            isDisabled && "opacity-50 cursor-not-allowed"
+                                          )}
+                                        >
+                                          <IconComponent className={cn("w-3.5 h-3.5", option.color)} />
+                                          <span className="flex-1">{option.label}</span>
+                                          {isDisabled && (
+                                            <span className="text-[10px] text-amber-500 ml-1">Needs Approval</span>
+                                          )}
+                                        </DropdownMenuItem>
+                                      )
+                                    })}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                
+                                {/* 3-dots Menu */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-7 w-7 p-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MoreVertical className="w-4 h-4 text-gray-400" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {/* Quote */}
+                                    <DropdownMenuItem 
+                                      className="text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        toast('Quote feature coming soon')
+                                      }}
+                                    >
+                                      <FileText className="w-3.5 h-3.5 mr-2" />
+                                      Request Quote
+                                    </DropdownMenuItem>
+                                    
+                                    <div className="h-px bg-gray-100 my-1" />
+                                    
+                                    {/* Flag */}
+                                    <DropdownMenuItem 
+                                      className="text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFlagModal({ open: true, item: item })
+                                      }}
+                                    >
                                     <Flag className="w-3.5 h-3.5 mr-2" />
                                     Add a Flag
                                   </DropdownMenuItem>
@@ -3035,6 +3134,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
+                              </div>
+                              
+                              {/* Row 2: Details Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDetailPanel({
+                                    isOpen: true,
+                                    mode: 'view',
+                                    item: item,
+                                    sectionId: item.sectionId,
+                                    roomId: item.roomId
+                                  })
+                                }}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                View Details
+                              </Button>
                             </div>
                           </div>
                         </div>

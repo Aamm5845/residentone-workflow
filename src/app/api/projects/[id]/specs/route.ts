@@ -106,7 +106,8 @@ export async function GET(
           ffeRequirementId: item.ffeRequirementId,
           ffeRequirementName: item.ffeRequirement?.name || null,
           isOption: item.isOption,
-          optionNumber: item.optionNumber
+          optionNumber: item.optionNumber,
+          clientApproved: item.clientApproved || false
         }))
       ) : []
     )
@@ -127,7 +128,9 @@ export async function GET(
 
     // Calculate stats
     const totalItems = visibleSpecs.length
-    const completedItems = visibleSpecs.filter(s => s.specStatus === 'SPECIFIED').length
+    const completedItems = visibleSpecs.filter(s => s.specStatus === 'COMPLETED').length
+    const approvedItems = visibleSpecs.filter(s => s.clientApproved).length
+    const unapprovedItems = totalItems - approvedItems
     
     // Calculate financial totals
     const totalTradePrice = visibleSpecs.reduce((sum, s) => {
@@ -163,6 +166,8 @@ export async function GET(
       stats: {
         totalItems,
         completedItems,
+        approvedItems,
+        unapprovedItems,
         progress: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
       },
       financials: {
