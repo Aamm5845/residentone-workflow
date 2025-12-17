@@ -112,15 +112,67 @@ export async function POST(request: NextRequest) {
       const images: string[] = []
       const MAX_IMAGES = 2
       
+      // Detect if this is an Amazon URL
+      const isAmazon = /amazon\.(com|ca|co\.uk|de|fr|es|it|com\.au|co\.jp|in)/i.test(url)
+      
       // Helper to add valid image (stops after MAX_IMAGES)
-      const addImage = (imgUrl: string | undefined | null): boolean => {
+      const addImage = (imgUrl: string | undefined | null, skipValidation = false): boolean => {
         if (!imgUrl || images.length >= MAX_IMAGES) return false
         const resolved = resolveUrl(imgUrl, urlObj)
-        if (resolved && !images.includes(resolved) && isValidImageUrl(resolved)) {
+        if (resolved && !images.includes(resolved) && (skipValidation || isValidImageUrl(resolved))) {
           images.push(resolved)
           return true
         }
         return false
+      }
+      
+      // Special handling for Amazon - extract main product image
+      if (isAmazon && images.length < MAX_IMAGES) {
+        // Amazon uses data-a-dynamic-image with JSON containing image URLs
+        const dynamicImageMatch = html.match(/data-a-dynamic-image=["'](\{[^"']+\})["']/i)
+        if (dynamicImageMatch) {
+          try {
+            // Replace HTML entities and parse JSON
+            const jsonStr = dynamicImageMatch[1].replace(/&quot;/g, '"')
+            const imageObj = JSON.parse(jsonStr)
+            // Get the largest image (highest resolution key)
+            const imageUrls = Object.keys(imageObj)
+            if (imageUrls.length > 0) {
+              // Find the largest image by dimensions
+              let bestUrl = imageUrls[0]
+              let bestSize = 0
+              for (const imgUrl of imageUrls) {
+                const dims = imageObj[imgUrl]
+                if (Array.isArray(dims) && dims.length >= 2) {
+                  const size = dims[0] * dims[1]
+                  if (size > bestSize) {
+                    bestSize = size
+                    bestUrl = imgUrl
+                  }
+                }
+              }
+              addImage(bestUrl, true) // Skip validation for Amazon CDN images
+            }
+          } catch {
+            // Failed to parse, continue with other methods
+          }
+        }
+        
+        // Amazon landing image (main product image)
+        if (images.length < MAX_IMAGES) {
+          const landingImageMatch = html.match(/id=["']landingImage["'][^>]*src=["']([^"']+)["']/i)
+          if (landingImageMatch) {
+            addImage(landingImageMatch[1], true)
+          }
+        }
+        
+        // Amazon image from imgTagWrapperId
+        if (images.length < MAX_IMAGES) {
+          const wrapperMatch = html.match(/id=["']imgTagWrapperId["'][\s\S]*?<img[^>]*src=["']([^"']+)["']/i)
+          if (wrapperMatch) {
+            addImage(wrapperMatch[1], true)
+          }
+        }
       }
       
       // Priority 1: Open Graph image (this is almost always THE main product image)
