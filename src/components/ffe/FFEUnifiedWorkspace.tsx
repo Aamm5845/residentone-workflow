@@ -36,7 +36,8 @@ import {
   ClipboardPaste,
   Building2,
   StickyNote,
-  Upload
+  Upload,
+  Scissors
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
 import AddSupplierDialog from '@/components/suppliers/AddSupplierDialog'
+import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -187,6 +189,7 @@ export default function FFEUnifiedWorkspace({
   const [savingProduct, setSavingProduct] = useState(false)
   const [productPanelTab, setProductPanelTab] = useState('summary')
   const [uploadingProductImage, setUploadingProductImage] = useState(false)
+  const [showCropFromRenderingDialog, setShowCropFromRenderingDialog] = useState(false)
   const [productSuppliers, setProductSuppliers] = useState<Array<{id: string, name: string, website?: string}>>([])
   const [productSupplierSearch, setProductSupplierSearch] = useState('')
   const [loadingProductSuppliers, setLoadingProductSuppliers] = useState(false)
@@ -2403,29 +2406,42 @@ export default function FFEUnifiedWorkspace({
                           </div>
                         ))}
                         {newProductData.images.length < 2 && (
-                          <label className={cn(
-                            "flex-1 min-w-[200px] border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
-                            "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-                          )}>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleProductImageUpload(e.target.files)}
-                              disabled={uploadingProductImage}
-                            />
-                            {uploadingProductImage ? (
-                              <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
-                            ) : (
-                              <>
-                                <Upload className="w-6 h-6 text-gray-400 mb-2" />
-                                <p className="text-sm text-gray-500">
-                                  Drag & drop or <span className="text-blue-600 hover:underline">browse files</span>
-                                </p>
-                                <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
-                              </>
+                          <div className="flex-1 min-w-[200px] flex flex-col gap-2">
+                            <label className={cn(
+                              "flex-1 border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                              "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                            )}>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleProductImageUpload(e.target.files)}
+                                disabled={uploadingProductImage}
+                              />
+                              {uploadingProductImage ? (
+                                <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                              ) : (
+                                <>
+                                  <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                                  <p className="text-sm text-gray-500">
+                                    Drag & drop or <span className="text-blue-600 hover:underline">browse files</span>
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
+                                </>
+                              )}
+                            </label>
+                            {/* Crop from Rendering button */}
+                            {renderingImages.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setShowCropFromRenderingDialog(true)}
+                                className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium transition-colors"
+                              >
+                                <Scissors className="w-4 h-4" />
+                                Crop from 3D Rendering
+                              </button>
                             )}
-                          </label>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -3021,6 +3037,20 @@ export default function FFEUnifiedWorkspace({
             supplierLink: supplier.website || '',
             supplierId: supplier.id
           }) : null)
+        }}
+      />
+
+      {/* Crop from Rendering Dialog */}
+      <CropFromRenderingDialog
+        open={showCropFromRenderingDialog}
+        onOpenChange={setShowCropFromRenderingDialog}
+        renderingImages={renderingImages}
+        onImageCropped={(imageUrl) => {
+          // Add the cropped image to the product images
+          setNewProductData(prev => ({
+            ...prev,
+            images: [...prev.images.slice(0, 1), imageUrl].slice(0, 2)
+          }))
         }}
       />
     </div>

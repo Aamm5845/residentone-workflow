@@ -78,9 +78,11 @@ import {
   Upload,
   ClipboardPaste,
   Check,
-  StickyNote
+  StickyNote,
+  Scissors
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 
@@ -214,6 +216,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [urlGenerateData, setUrlGenerateData] = useState<any>(null)
   const [urlGenerateEditing, setUrlGenerateEditing] = useState(false)
   const [urlGenerateUploadingImage, setUrlGenerateUploadingImage] = useState(false)
+  const [showCropDialogForUrlGenerate, setShowCropDialogForUrlGenerate] = useState(false)
   const [urlGenerateShowNotes, setUrlGenerateShowNotes] = useState(false)
   const [urlGenerateShowSupplier, setUrlGenerateShowSupplier] = useState(false)
   const [urlGenerateSupplierSearch, setUrlGenerateSupplierSearch] = useState('')
@@ -231,6 +234,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [extractedData, setExtractedData] = useState<AddFromUrlData | null>(null)
   const [addFromUrlEditing, setAddFromUrlEditing] = useState(false)
   const [addFromUrlUploadingImage, setAddFromUrlUploadingImage] = useState(false)
+  const [showCropDialogForAddFromUrl, setShowCropDialogForAddFromUrl] = useState(false)
   const [addFromUrlShowNotes, setAddFromUrlShowNotes] = useState(false)
   const [addFromUrlShowSupplier, setAddFromUrlShowSupplier] = useState(false)
   const [addFromUrlSupplierSearch, setAddFromUrlSupplierSearch] = useState('')
@@ -263,6 +267,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [creatingSectionLoading, setCreatingSectionLoading] = useState(false)
   
   const [savingItem, setSavingItem] = useState(false)
+  
+  // Rendering images for crop feature
+  const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
+  const [loadingRenderingImages, setLoadingRenderingImages] = useState(false)
   
   // Hover states
   const [hoveredSection, setHoveredSection] = useState<string | null>(null)
@@ -1368,6 +1376,38 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       console.error('Failed to load projects:', error)
     } finally {
       setProjectsLoading(false)
+    }
+  }
+
+  // Load rendering images for a room (for crop from rendering feature)
+  const loadRenderingImages = async (roomId: string) => {
+    if (!roomId) {
+      setRenderingImages([])
+      return
+    }
+    
+    try {
+      setLoadingRenderingImages(true)
+      const response = await fetch(`/api/spec-books/room-renderings?roomId=${roomId}`)
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.renderings && result.renderings.length > 0) {
+          setRenderingImages(result.renderings.map((r: any) => ({
+            id: r.id,
+            url: r.url,
+            filename: r.filename || 'Rendering'
+          })))
+        } else {
+          setRenderingImages([])
+        }
+      } else {
+        setRenderingImages([])
+      }
+    } catch (error) {
+      console.error('Error loading rendering images:', error)
+      setRenderingImages([])
+    } finally {
+      setLoadingRenderingImages(false)
     }
   }
 
@@ -3254,6 +3294,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       )}
                     </div>
                   </label>
+                  {/* Crop from Rendering button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (urlGenerateModal.roomId) {
+                        loadRenderingImages(urlGenerateModal.roomId)
+                      }
+                      setShowCropDialogForUrlGenerate(true)
+                    }}
+                    className="w-16 h-16 border-2 border-dashed border-purple-300 rounded flex flex-col items-center justify-center text-purple-500 hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                    title="Crop from 3D Rendering"
+                  >
+                    <Scissors className="w-5 h-5" />
+                    <span className="text-[10px] mt-0.5">Crop</span>
+                  </button>
                 </div>
                 
                 {/* Product Details */}
@@ -3689,6 +3744,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       )}
                     </div>
                   </label>
+                  {/* Crop from Rendering button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (addFromUrlModal.roomId) {
+                        loadRenderingImages(addFromUrlModal.roomId)
+                      }
+                      setShowCropDialogForAddFromUrl(true)
+                    }}
+                    className="w-16 h-16 border-2 border-dashed border-purple-300 rounded flex flex-col items-center justify-center text-purple-500 hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                    title="Crop from 3D Rendering"
+                  >
+                    <Scissors className="w-5 h-5" />
+                    <span className="text-[10px] mt-0.5">Crop</span>
+                  </button>
                 </div>
                 
                 {/* Product Details */}
@@ -5182,6 +5252,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Crop from Rendering Dialog for URL Generate */}
+      <CropFromRenderingDialog
+        open={showCropDialogForUrlGenerate}
+        onOpenChange={setShowCropDialogForUrlGenerate}
+        renderingImages={renderingImages}
+        onImageCropped={(imageUrl) => {
+          setUrlGenerateData((prev: any) => ({
+            ...prev,
+            images: [...(prev?.images || []), imageUrl].slice(0, 5)
+          }))
+        }}
+      />
+
+      {/* Crop from Rendering Dialog for Add from URL */}
+      <CropFromRenderingDialog
+        open={showCropDialogForAddFromUrl}
+        onOpenChange={setShowCropDialogForAddFromUrl}
+        renderingImages={renderingImages}
+        onImageCropped={(imageUrl) => {
+          if (extractedData) {
+            setExtractedData({
+              ...extractedData,
+              images: [...(extractedData.images || []), imageUrl].slice(0, 5)
+            })
+          }
+        }}
+      />
     </div>
   )
 }
