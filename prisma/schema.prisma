@@ -1501,14 +1501,14 @@ model ProductCategory {
 model Supplier {
   id          String   @id @default(cuid())
   orgId       String
-  name        String   // Business name
-  contactName String?  // Contact person name (optional)
-  logo        String?  // Logo URL
-  phone       String?
-  email       String   // Required
-  address     String?
-  website     String?
-  notes       String?
+  name        String   // Business name (required)
+  contactName String   // Contact person name (required)
+  email       String   // Contact email (required)
+  logo        String?  // Logo URL (optional)
+  phone       String?  // Phone (optional)
+  address     String?  // Address (optional)
+  website     String?  // Website (optional)
+  notes       String?  // Notes (optional)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

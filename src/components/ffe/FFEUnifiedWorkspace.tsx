@@ -45,6 +45,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
+import AddSupplierDialog from '@/components/suppliers/AddSupplierDialog'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -149,16 +150,6 @@ export default function FFEUnifiedWorkspace({
   const [showUrlSupplierDropdown, setShowUrlSupplierDropdown] = useState(false)
   const [urlSelectedSupplier, setUrlSelectedSupplier] = useState<{id: string, name: string, website?: string} | null>(null)
   const [showAddNewSupplierForm, setShowAddNewSupplierForm] = useState(false)
-  const [newSupplierData, setNewSupplierData] = useState({
-    name: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    website: '',
-    address: '',
-    notes: ''
-  })
-  const [savingNewSupplier, setSavingNewSupplier] = useState(false)
   
   // Search Item dialog states
   const [showSearchDialog, setShowSearchDialog] = useState(false)
@@ -710,51 +701,6 @@ export default function FFEUnifiedWorkspace({
     }
   }
   
-  // Create new supplier and save to phonebook (from URL generate dialog)
-  const handleCreateNewSupplier = async () => {
-    if (!newSupplierData.name.trim() || !newSupplierData.email.trim()) {
-      toast.error('Business name and email are required')
-      return
-    }
-    
-    setSavingNewSupplier(true)
-    try {
-      const res = await fetch('/api/suppliers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSupplierData)
-      })
-      
-      if (res.ok) {
-        const data = await res.json()
-        // Select the newly created supplier
-        setUrlSelectedSupplier({
-          id: data.supplier.id,
-          name: data.supplier.name,
-          website: data.supplier.website
-        })
-        // Update extracted data with supplier info
-        setExtractedData((prev: any) => ({
-          ...prev,
-          supplierName: data.supplier.name,
-          supplierLink: data.supplier.website || prev?.supplierLink || '',
-          supplierId: data.supplier.id
-        }))
-        // Reset form and close
-        setShowAddNewSupplierForm(false)
-        setNewSupplierData({ name: '', contactName: '', email: '', phone: '', website: '', address: '', notes: '' })
-        toast.success('Supplier added to phonebook')
-      } else {
-        throw new Error('Failed to create supplier')
-      }
-    } catch (error) {
-      console.error('Failed to create supplier:', error)
-      toast.error('Failed to create supplier')
-    } finally {
-      setSavingNewSupplier(false)
-    }
-  }
-
   // Create product directly (Add New option)
   const handleCreateProductDirect = async () => {
     if (!chooseProductItem || !newProductData.name.trim()) {
@@ -2242,85 +2188,6 @@ export default function FFEUnifiedWorkspace({
                           Remove
                         </button>
                       </div>
-                    ) : showAddNewSupplierForm ? (
-                      /* Add New Supplier Form */
-                      <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">Add New Supplier</Label>
-                          <button 
-                            type="button" 
-                            onClick={() => setShowAddNewSupplierForm(false)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs text-gray-500">Business Name *</Label>
-                            <Input
-                              value={newSupplierData.name}
-                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, name: e.target.value }))}
-                              className="h-8 text-sm mt-1"
-                              placeholder="Company name"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Contact Name</Label>
-                            <Input
-                              value={newSupplierData.contactName}
-                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, contactName: e.target.value }))}
-                              className="h-8 text-sm mt-1"
-                              placeholder="Contact person"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs text-gray-500">Email *</Label>
-                            <Input
-                              type="email"
-                              value={newSupplierData.email}
-                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, email: e.target.value }))}
-                              className="h-8 text-sm mt-1"
-                              placeholder="email@company.com"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Phone</Label>
-                            <Input
-                              value={newSupplierData.phone}
-                              onChange={(e) => setNewSupplierData(prev => ({ ...prev, phone: e.target.value }))}
-                              className="h-8 text-sm mt-1"
-                              placeholder="Phone number"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">Website</Label>
-                          <Input
-                            value={newSupplierData.website}
-                            onChange={(e) => setNewSupplierData(prev => ({ ...prev, website: e.target.value }))}
-                            className="h-8 text-sm mt-1"
-                            placeholder="https://..."
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={handleCreateNewSupplier}
-                          disabled={savingNewSupplier || !newSupplierData.name.trim() || !newSupplierData.email.trim()}
-                          className="w-full h-8 text-sm bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          {savingNewSupplier ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            'Save to Phonebook'
-                          )}
-                        </Button>
-                      </div>
                     ) : (
                       /* Choose Supplier or Add New */
                       <div className="space-y-2">
@@ -2382,7 +2249,7 @@ export default function FFEUnifiedWorkspace({
                           onClick={() => setShowAddNewSupplierForm(true)}
                         >
                           <Plus className="w-4 h-4" />
-                          Add New Supplier (saves to phonebook)
+                          Add New Supplier
                         </button>
                       </div>
                     )}
@@ -3135,6 +3002,27 @@ export default function FFEUnifiedWorkspace({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Supplier Dialog */}
+      <AddSupplierDialog
+        open={showAddNewSupplierForm}
+        onOpenChange={setShowAddNewSupplierForm}
+        onSupplierCreated={(supplier) => {
+          // Set the newly created supplier as selected
+          setUrlSelectedSupplier({
+            id: supplier.id,
+            name: supplier.name,
+            website: supplier.website
+          })
+          // Update extracted data with supplier info
+          setExtractedData((prev: any) => prev ? ({
+            ...prev,
+            supplierName: supplier.name,
+            supplierLink: supplier.website || '',
+            supplierId: supplier.id
+          }) : null)
+        }}
+      />
     </div>
   )
 }

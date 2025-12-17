@@ -53,8 +53,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business name is required' }, { status: 400 })
     }
     
+    if (!contactName) {
+      return NextResponse.json({ error: 'Contact name is required' }, { status: 400 })
+    }
+    
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Contact email is required' }, { status: 400 })
     }
 
     const orgId = (session.user as any).orgId

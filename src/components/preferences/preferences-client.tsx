@@ -23,6 +23,7 @@ import {
   Bug,
   Package,
   Building,
+  Building2,
   Cloud,
   Calendar,
   ExternalLink,
@@ -39,6 +40,7 @@ import IssueList from '@/components/issues/issue-list'
 import FFEManagementV2 from '@/components/preferences/ffe-management-v2'
 import ContractorsManagement from '@/components/preferences/contractors-management'
 import AssetStorageChecker from '@/components/preferences/asset-storage-checker'
+import SuppliersPhonebook from '@/components/preferences/suppliers-phonebook'
 
 interface PreferencesClientProps {
   user: {
@@ -468,6 +470,7 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
     { id: 'backup', name: 'Backup & Recovery', icon: Database },
     { id: 'database', name: 'Database Statistics', icon: RefreshCw },
     { id: 'asset-storage', name: 'Asset Storage', icon: HardDrive },
+    { id: 'suppliers', name: 'Supplier Phonebook', icon: Building2 },
     { id: 'contractors', name: 'Contractors', icon: Building },
     { id: 'ffe', name: 'FFE Management', icon: Package },
     { id: 'issues', name: 'Issues', icon: Bug },
@@ -1060,6 +1063,13 @@ export default function PreferencesClient({ user }: PreferencesClientProps) {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Suppliers Tab */}
+          {activeTab === 'suppliers' && (
+            <div className="space-y-6">
+              <SuppliersPhonebook orgId={user.orgId} user={user} />
             </div>
           )}
 
