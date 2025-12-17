@@ -413,7 +413,11 @@ export default function FFEUnifiedWorkspace({
       })
       
       if (!fetchRes.ok) {
-        throw new Error('Failed to fetch page content')
+        const errorData = await fetchRes.json().catch(() => ({}))
+        const errorMessage = errorData.error || 'Failed to fetch page content'
+        toast.error(errorMessage)
+        setExtracting(false)
+        return
       }
       
       const pageData = await fetchRes.json()
