@@ -47,8 +47,8 @@ let state = {
   selectedRoom: null,
   selectedSection: null,
   selectedCategory: null,
-  selectedFfeItem: null, // FFE item to link to
-  selectedFfeItemName: null, // Name of selected FFE item (for finding similar)
+  selectedFfeItems: [], // FFE items to link to (multi-select)
+  createNewItem: true, // Whether to create a new item (default) or link to existing
   selectedSupplier: null, // Selected supplier from phonebook
   clippedData: {
     images: [],
@@ -438,8 +438,8 @@ async function handleProjectChange(e) {
   state.selectedProject = projectId;
   state.selectedRoom = null;
   state.selectedSection = null;
-  state.selectedFfeItem = null;
-  state.selectedFfeItemName = null;
+  state.selectedFfeItems = [];
+  state.createNewItem = true;
   state.selectedSimilarItems = [];
 
   // Reset downstream selects
@@ -474,8 +474,8 @@ async function handleRoomChange(e) {
   const roomId = e.target.value;
   state.selectedRoom = roomId;
   state.selectedSection = null;
-  state.selectedFfeItem = null;
-  state.selectedFfeItemName = null;
+  state.selectedFfeItems = [];
+  state.createNewItem = true;
   state.selectedSimilarItems = [];
 
   elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
@@ -505,8 +505,8 @@ async function handleRoomChange(e) {
 async function handleSectionChange(e) {
   const sectionId = e.target.value;
   state.selectedSection = sectionId;
-  state.selectedFfeItem = null;
-  state.selectedFfeItemName = null;
+  state.selectedFfeItems = [];
+  state.createNewItem = true;
   state.selectedSimilarItems = [];
 
   if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
@@ -530,15 +530,27 @@ async function handleSectionChange(e) {
   updateClipButton();
 }
 
-// Handle FFE item selection (card click)
-function handleFfeItemSelect(itemId, itemName) {
-  // Deselect if clicking the same item
-  if (state.selectedFfeItem === itemId) {
-    state.selectedFfeItem = null;
-    state.selectedFfeItemName = null;
-  } else {
-    state.selectedFfeItem = itemId;
-    state.selectedFfeItemName = itemName;
+// Handle FFE item selection (card click) - supports multi-select
+function handleFfeItemSelect(itemId, itemName, isCreateNew = false) {
+  if (isCreateNew) {
+    // User wants to create a new item
+    state.createNewItem = true;
+    state.selectedFfeItems = [];
+  } else if (itemId) {
+    // Toggle selection of existing item
+    state.createNewItem = false;
+    const index = state.selectedFfeItems.findIndex(i => i.id === itemId);
+    if (index >= 0) {
+      // Deselect
+      state.selectedFfeItems.splice(index, 1);
+      // If no items selected, default back to create new
+      if (state.selectedFfeItems.length === 0) {
+        state.createNewItem = true;
+      }
+    } else {
+      // Select
+      state.selectedFfeItems.push({ id: itemId, name: itemName });
+    }
   }
   
   state.selectedSimilarItems = [];
@@ -547,12 +559,8 @@ function handleFfeItemSelect(itemId, itemName) {
   // Update card selection state
   renderFfeItemCards();
   
-  // Show/hide link similar button based on selection
-  if (state.selectedFfeItem && state.selectedFfeItemName) {
-    elements.linkSimilarSection?.classList.remove('hidden');
-  } else {
-    elements.linkSimilarSection?.classList.add('hidden');
-  }
+  // Hide the link similar button (no longer needed with multi-select)
+  elements.linkSimilarSection?.classList.add('hidden');
   
   // Update breadcrumb with item if selected
   updateBreadcrumb();
@@ -602,7 +610,7 @@ async function loadFfeItems(roomId, sectionId) {
   }
 }
 
-// Render FFE items as clickable cards
+// Render FFE items as clickable cards with multi-select
 function renderFfeItemCards() {
   if (!elements.ffeItemsList) return;
   
@@ -610,16 +618,17 @@ function renderFfeItemCards() {
   
   // Add "Create new item" card first
   const createNewCard = document.createElement('div');
-  createNewCard.className = `ffe-item-card create-new ${state.selectedFfeItem === null ? 'selected' : ''}`;
+  const isCreateNewSelected = state.createNewItem && state.selectedFfeItems.length === 0;
+  createNewCard.className = `ffe-item-card create-new ${isCreateNewSelected ? 'selected' : ''}`;
   createNewCard.innerHTML = `
     <span class="item-icon">➕</span>
     <div class="item-info">
       <div class="item-name">Create new item</div>
       <div class="item-status">Add a new FFE item to this category</div>
     </div>
-    <div class="item-check">${state.selectedFfeItem === null ? '✓' : ''}</div>
+    <div class="item-check">${isCreateNewSelected ? '✓' : ''}</div>
   `;
-  createNewCard.onclick = () => handleFfeItemSelect(null, null);
+  createNewCard.onclick = () => handleFfeItemSelect(null, null, true);
   elements.ffeItemsList.appendChild(createNewCard);
   
   // Sort: items needing spec first
@@ -629,22 +638,37 @@ function renderFfeItemCards() {
     return 0;
   });
   
-  // Add item cards
+  // Show hint if there are items to select
+  if (sortedItems.length > 0) {
+    const hint = document.createElement('div');
+    hint.className = 'multi-select-hint';
+    hint.innerHTML = '<small>💡 Select multiple items to link the same product to all of them</small>';
+    hint.style.cssText = 'padding: 4px 8px; color: #6b7280; font-size: 11px; text-align: center;';
+    elements.ffeItemsList.appendChild(hint);
+  }
+  
+  // Add item cards with checkbox style
   sortedItems.forEach(item => {
     const card = document.createElement('div');
-    const isSelected = state.selectedFfeItem === item.id;
+    const isSelected = state.selectedFfeItems.some(i => i.id === item.id);
     const statusClass = item.needsSpec ? 'needs-spec' : 'has-spec';
     
     card.className = `ffe-item-card ${statusClass} ${isSelected ? 'selected' : ''}`;
     card.innerHTML = `
+      <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''} />
       <span class="item-icon">${item.needsSpec ? '📦' : '✅'}</span>
       <div class="item-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
         <div class="item-status">${item.needsSpec ? 'Needs product spec' : 'Has product linked'}</div>
       </div>
-      <div class="item-check">${isSelected ? '✓' : ''}</div>
     `;
-    card.onclick = () => handleFfeItemSelect(item.id, item.name);
+    
+    // Handle click on card or checkbox
+    card.onclick = (e) => {
+      e.preventDefault();
+      handleFfeItemSelect(item.id, item.name, false);
+    };
+    
     elements.ffeItemsList.appendChild(card);
   });
 }
@@ -656,12 +680,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Handle click on "Link to similar items" button
+// Handle click on "Link to similar items" button (legacy - no longer used with multi-select)
 async function handleLinkSimilarClick() {
-  if (!state.selectedProject || !state.selectedFfeItemName) {
+  if (!state.selectedProject || state.selectedFfeItems.length === 0) {
     showToast('Please select an FFE item first', 'error');
     return;
   }
+  
+  const firstSelectedItem = state.selectedFfeItems[0];
   
   // Show the panel with loading state
   elements.similarItemsPanel?.classList.remove('hidden');
@@ -674,8 +700,9 @@ async function handleLinkSimilarClick() {
   
   try {
     // Fetch similar items from API
+    const excludeIds = state.selectedFfeItems.map(i => i.id).join(',');
     const response = await apiRequest('GET', 
-      `${CONFIG.ENDPOINTS.SIMILAR_ITEMS}?projectId=${state.selectedProject}&searchTerm=${encodeURIComponent(state.selectedFfeItemName)}&excludeItemId=${state.selectedFfeItem || ''}`
+      `${CONFIG.ENDPOINTS.SIMILAR_ITEMS}?projectId=${state.selectedProject}&searchTerm=${encodeURIComponent(firstSelectedItem.name)}&excludeItemId=${excludeIds}`
     );
     
     // API may return similarItems directly or in data
@@ -812,11 +839,12 @@ function updateBreadcrumb() {
     }
   }
   
-  // FFE Item tag
-  if (state.selectedFfeItem) {
-    const item = state.ffeItems.find(i => i.id === state.selectedFfeItem);
-    if (item) {
-      tags.push({ type: 'item', label: item.name, icon: '🔗' });
+  // FFE Item tag(s)
+  if (state.selectedFfeItems.length > 0) {
+    if (state.selectedFfeItems.length === 1) {
+      tags.push({ type: 'item', label: state.selectedFfeItems[0].name, icon: '🔗' });
+    } else {
+      tags.push({ type: 'item', label: `${state.selectedFfeItems.length} items selected`, icon: '🔗' });
     }
   }
   
@@ -852,8 +880,8 @@ function handleBreadcrumbBack(step) {
       state.selectedProject = null;
       state.selectedRoom = null;
       state.selectedSection = null;
-      state.selectedFfeItem = null;
-      state.selectedFfeItemName = null;
+      state.selectedFfeItems = [];
+      state.createNewItem = true;
       elements.projectSelect.value = '';
       elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
       elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
@@ -870,8 +898,8 @@ function handleBreadcrumbBack(step) {
       // Go back to room selection
       state.selectedRoom = null;
       state.selectedSection = null;
-      state.selectedFfeItem = null;
-      state.selectedFfeItemName = null;
+      state.selectedFfeItems = [];
+      state.createNewItem = true;
       elements.roomSelect.value = '';
       elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
       if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
@@ -885,8 +913,8 @@ function handleBreadcrumbBack(step) {
     case 'section':
       // Go back to section selection
       state.selectedSection = null;
-      state.selectedFfeItem = null;
-      state.selectedFfeItemName = null;
+      state.selectedFfeItems = [];
+      state.createNewItem = true;
       elements.sectionSelect.value = '';
       if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
       // Show section step
@@ -897,8 +925,8 @@ function handleBreadcrumbBack(step) {
       
     case 'item':
       // Go back to item selection
-      state.selectedFfeItem = null;
-      state.selectedFfeItemName = null;
+      state.selectedFfeItems = [];
+      state.createNewItem = true;
       state.selectedSimilarItems = [];
       // Keep showing items step, just deselect
       renderFfeItemCards();
@@ -921,8 +949,8 @@ function clearLocationSelection() {
   state.selectedProject = null;
   state.selectedRoom = null;
   state.selectedSection = null;
-  state.selectedFfeItem = null;
-  state.selectedFfeItemName = null;
+  state.selectedFfeItems = [];
+  state.createNewItem = true;
   state.selectedSimilarItems = [];
   state.similarItems = [];
   
@@ -1039,11 +1067,11 @@ function updateClipButton() {
     buttonText = isReady ? 'Save to Room & Library' : 'Select room first';
   } else {
     isReady = state.selectedProject && state.selectedRoom && state.selectedSection;
-    if (isReady && state.selectedFfeItem) {
-      // Check if additional items are selected
-      const additionalCount = state.selectedSimilarItems.length;
-      if (additionalCount > 0) {
-        buttonText = `Link to ${1 + additionalCount} Items`;
+    if (isReady && state.selectedFfeItems.length > 0) {
+      // Items selected for linking
+      const totalCount = state.selectedFfeItems.length + state.selectedSimilarItems.length;
+      if (totalCount > 1) {
+        buttonText = `Link Product to ${totalCount} Items`;
       } else {
         buttonText = 'Link Product to FFE Item';
       }
@@ -1273,10 +1301,10 @@ async function handleClip() {
     }
   }
   
-  // Build list of all items to link (primary + similar)
+  // Build list of all items to link (selected items + similar items)
   const allLinkItemIds = [];
-  if (state.selectedFfeItem) {
-    allLinkItemIds.push(state.selectedFfeItem);
+  if (state.selectedFfeItems.length > 0) {
+    allLinkItemIds.push(...state.selectedFfeItems.map(i => i.id));
   }
   if (state.selectedSimilarItems.length > 0) {
     allLinkItemIds.push(...state.selectedSimilarItems);
@@ -1313,9 +1341,9 @@ async function handleClip() {
       categoryId: state.selectedCategory || null,
       roomId: needsRoom ? state.selectedRoom : null,
       sectionId: needsRoom ? state.selectedSection : null,
-      linkItemId: state.selectedFfeItem || null,
+      linkItemId: allLinkItemIds.length > 0 ? allLinkItemIds[0] : null,
       // Array of additional item IDs to link the same product to
-      additionalLinkItemIds: state.selectedSimilarItems.length > 0 ? state.selectedSimilarItems : null,
+      additionalLinkItemIds: allLinkItemIds.length > 1 ? allLinkItemIds.slice(1) : null,
       item: {
         name: state.clippedData.productName,
         description: state.clippedData.productDescription,
@@ -1353,16 +1381,17 @@ async function handleClip() {
       } else if (allLinkItemIds.length > 1) {
         successMsg = `Product linked to ${allLinkItemIds.length} items!`;
       } else {
-        const action = state.selectedFfeItem ? 'linked' : 'saved';
+        const action = allLinkItemIds.length > 0 ? 'linked' : 'saved';
         successMsg = `Item ${action} successfully!`;
       }
       showToast(successMsg, 'success');
-      handleClear();
       
-      // Reload FFE items if we were linking
-      if (state.selectedRoom && state.selectedSection) {
-        await loadFfeItems(state.selectedRoom, state.selectedSection);
-      }
+      // Close the extension after a brief delay to show the success message
+      hideLoading();
+      setTimeout(() => {
+        window.close();
+      }, 1500);
+      return;
     } else {
       showToast(response.error || 'Failed to save item', 'error');
     }
@@ -1399,8 +1428,8 @@ function handleClear() {
     notes: ''
   };
   
-  state.selectedFfeItem = null;
-  state.selectedFfeItemName = null;
+  state.selectedFfeItems = [];
+  state.createNewItem = true;
   state.selectedSupplier = null;
   state.selectedSimilarItems = [];
   state.similarItems = [];

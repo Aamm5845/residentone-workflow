@@ -125,16 +125,17 @@ export async function GET(request: NextRequest) {
     
     room.ffeInstance.sections.forEach(section => {
       section.items.forEach(item => {
-        const customFields = (item.customFields as any) || {}
-        
-        // Check if item has spec data
+        // Check if item has spec data - these are stored as direct fields on the item
         const hasSpec = !!(
           item.supplierName || 
-          item.supplierLink || 
-          customFields.brand ||
-          customFields.colour ||
-          customFields.finish ||
-          customFields.material
+          item.supplierLink ||
+          (item as any).brand ||
+          (item as any).color ||
+          (item as any).finish ||
+          (item as any).material ||
+          (item as any).sku ||
+          (item as any).specStatus === 'SELECTED' ||
+          ((item.images as any[])?.length > 0)
         )
         
         items.push({
