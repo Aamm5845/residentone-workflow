@@ -1063,6 +1063,25 @@ async function getCurrentPageUrl() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url) {
+      // Check if URL changed from what we had before
+      const previousUrl = state.clippedData.productWebsite;
+      const newUrl = tab.url;
+      
+      // If URL changed significantly (different page), clear attachments
+      if (previousUrl && newUrl) {
+        try {
+          const prevOrigin = new URL(previousUrl).origin + new URL(previousUrl).pathname;
+          const newOrigin = new URL(newUrl).origin + new URL(newUrl).pathname;
+          if (prevOrigin !== newOrigin) {
+            // Different page - clear attachments as they were from the old page
+            state.clippedData.attachments = [];
+            renderAttachments();
+          }
+        } catch (e) {
+          // URL parsing failed, just update
+        }
+      }
+      
       state.clippedData.productWebsite = tab.url;
       document.getElementById('productWebsite').value = tab.url;
     }
@@ -1157,7 +1176,7 @@ function processSmartFillData(data) {
     depth: 'depth',
     length: 'length',
     leadTime: 'leadTime',
-    notes: 'notes',
+    // Notes are intentionally NOT included - we don't want to auto-fill notes
     productWebsite: 'productWebsite',
     title: 'productName',
     name: 'productName',
@@ -1168,9 +1187,26 @@ function processSmartFillData(data) {
   
   for (const [key, fieldId] of Object.entries(fieldMappings)) {
     if (data[key] && !state.clippedData[fieldId]) {
-      state.clippedData[fieldId] = data[key];
+      let value = data[key];
+      
+      // Limit description length to keep it simple (max 200 characters)
+      if (fieldId === 'productDescription' && typeof value === 'string' && value.length > 200) {
+        // Find a good break point (end of sentence or word)
+        value = value.substring(0, 200);
+        const lastPeriod = value.lastIndexOf('.');
+        const lastSpace = value.lastIndexOf(' ');
+        if (lastPeriod > 150) {
+          value = value.substring(0, lastPeriod + 1);
+        } else if (lastSpace > 150) {
+          value = value.substring(0, lastSpace) + '...';
+        } else {
+          value = value + '...';
+        }
+      }
+      
+      state.clippedData[fieldId] = value;
       const input = document.getElementById(fieldId);
-      if (input) input.value = data[key];
+      if (input) input.value = value;
     }
   }
   
@@ -1569,7 +1605,7 @@ function renderAttachments() {
   container.innerHTML = '';
   
   if (state.clippedData.attachments.length === 0) {
-    container.innerHTML = '<p class="helper-text-attachments">Click + to find PDFs and downloads on page</p>';
+    container.innerHTML = '<p class="helper-text-attachments">Click + to find PDFs and downloads on this page</p>';
     return;
   }
   
@@ -1595,17 +1631,41 @@ function renderAttachments() {
     
     const displayName = att.name?.length > 40 ? att.name.substring(0, 37) + '...' : att.name;
     
-    item.innerHTML = `
-      ${icon}
-      <a href="${att.url}" target="_blank" title="${att.name}">${displayName}</a>
-      <span class="attachment-type">${att.isSpec ? 'SPEC' : att.type || 'FILE'}</span>
-      <button class="attachment-delete" onclick="removeAttachment(${index})">×</button>
-    `;
+    // Create link
+    const link = document.createElement('a');
+    link.href = att.url;
+    link.target = '_blank';
+    link.title = att.name;
+    link.textContent = displayName;
+    
+    // Create type badge
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'attachment-type';
+    typeBadge.textContent = att.isSpec ? 'SPEC' : att.type || 'FILE';
+    
+    // Create delete button with proper event listener
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'attachment-delete';
+    deleteBtn.innerHTML = '×';
+    deleteBtn.type = 'button';
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeAttachment(index);
+    });
+    
+    // Build the item
+    item.innerHTML = icon;
+    item.appendChild(link);
+    item.appendChild(typeBadge);
+    item.appendChild(deleteBtn);
+    
     container.appendChild(item);
   });
 }
 
-window.removeAttachment = function(index) {
+// Remove attachment by index
+function removeAttachment(index) {
   state.clippedData.attachments.splice(index, 1);
   renderAttachments();
 }
