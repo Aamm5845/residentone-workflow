@@ -1016,8 +1016,21 @@ export default function FFEUnifiedWorkspace({
   }
 
   // Check if item has specs selected
+  // Supports both new-style (linkedSpecs) and old-style (direct fields) linking
   const hasSpecs = (item: FFEItem) => {
-    return item.linkedSpecs && item.linkedSpecs.length > 0
+    // New style: linked specs from Chrome extension or product library
+    if (item.linkedSpecs && item.linkedSpecs.length > 0) {
+      return true
+    }
+    
+    // Old style: check if direct fields are set (for backwards compatibility)
+    const itemAny = item as any
+    if (itemAny.brand || itemAny.sku || itemAny.supplierName || itemAny.supplierLink ||
+        (itemAny.images && itemAny.images.length > 0) || itemAny.specStatus === 'SELECTED') {
+      return true
+    }
+    
+    return false
   }
 
   if (loading) {

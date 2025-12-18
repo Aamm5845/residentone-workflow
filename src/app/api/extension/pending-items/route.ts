@@ -90,7 +90,18 @@ export async function GET(request: NextRequest) {
               include: {
                 items: {
                   where: {
-                    visibility: 'VISIBLE'
+                    visibility: 'VISIBLE',
+                    // Only get requirement items, not spec items (those have isSpecItem = true)
+                    OR: [
+                      { isSpecItem: false },
+                      { isSpecItem: null }
+                    ]
+                  },
+                  include: {
+                    // Include linked specs to check if item has products linked
+                    linkedSpecs: {
+                      select: { id: true }
+                    }
                   },
                   orderBy: { order: 'asc' }
                 }
@@ -113,7 +124,7 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Get all items, marking which ones need specs
+    // Get all requirement items, marking which ones need specs
     const items: Array<{
       id: string
       name: string
@@ -125,18 +136,23 @@ export async function GET(request: NextRequest) {
     
     room.ffeInstance.sections.forEach(section => {
       section.items.forEach(item => {
-        // Check if item has spec data - these are stored as direct fields on the item
-        const hasSpec = !!(
-          item.supplierName || 
-          item.supplierLink ||
+        // An item has a spec if:
+        // 1. It has linkedSpecs (new-style: product items linked to it)
+        // 2. OR it has direct spec fields set (old-style: fields updated directly on the requirement)
+        const linkedSpecs = (item as any).linkedSpecs || []
+        const hasLinkedSpecs = linkedSpecs.length > 0
+        
+        // Fallback: check if direct fields are set (for backwards compatibility with old clips)
+        const hasDirectFields = !!(
           (item as any).brand ||
-          (item as any).color ||
-          (item as any).finish ||
-          (item as any).material ||
           (item as any).sku ||
-          (item as any).specStatus === 'SELECTED' ||
-          ((item.images as any[])?.length > 0)
+          (item as any).supplierName ||
+          (item as any).supplierLink ||
+          ((item as any).images && (item as any).images.length > 0) ||
+          (item as any).specStatus === 'SELECTED'
         )
+        
+        const hasSpec = hasLinkedSpecs || hasDirectFields
         
         items.push({
           id: item.id,

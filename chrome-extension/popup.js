@@ -611,6 +611,7 @@ async function loadFfeItems(roomId, sectionId) {
 }
 
 // Render FFE items as clickable cards with multi-select
+// Only shows items that NEED specs (unlinked items)
 function renderFfeItemCards() {
   if (!elements.ffeItemsList) return;
   
@@ -631,35 +632,37 @@ function renderFfeItemCards() {
   createNewCard.onclick = () => handleFfeItemSelect(null, null, true);
   elements.ffeItemsList.appendChild(createNewCard);
   
-  // Sort: items needing spec first
-  const sortedItems = [...state.ffeItems].sort((a, b) => {
-    if (a.needsSpec && !b.needsSpec) return -1;
-    if (!a.needsSpec && b.needsSpec) return 1;
-    return 0;
-  });
+  // Only show items that need specs (filter out already linked items)
+  const unlinkedItems = state.ffeItems.filter(item => item.needsSpec);
   
   // Show hint if there are items to select
-  if (sortedItems.length > 0) {
+  if (unlinkedItems.length > 0) {
     const hint = document.createElement('div');
     hint.className = 'multi-select-hint';
     hint.innerHTML = '<small>💡 Select multiple items to link the same product to all of them</small>';
     hint.style.cssText = 'padding: 4px 8px; color: #6b7280; font-size: 11px; text-align: center;';
     elements.ffeItemsList.appendChild(hint);
+  } else if (state.ffeItems.length > 0) {
+    // All items are already linked
+    const allLinkedMsg = document.createElement('div');
+    allLinkedMsg.className = 'all-linked-message';
+    allLinkedMsg.innerHTML = '<small>✅ All items in this category already have products linked</small>';
+    allLinkedMsg.style.cssText = 'padding: 8px; color: #10b981; font-size: 11px; text-align: center; background: #ecfdf5; border-radius: 4px; margin: 4px 0;';
+    elements.ffeItemsList.appendChild(allLinkedMsg);
   }
   
-  // Add item cards with checkbox style
-  sortedItems.forEach(item => {
+  // Add item cards with checkbox style (only unlinked items)
+  unlinkedItems.forEach(item => {
     const card = document.createElement('div');
     const isSelected = state.selectedFfeItems.some(i => i.id === item.id);
-    const statusClass = item.needsSpec ? 'needs-spec' : 'has-spec';
     
-    card.className = `ffe-item-card ${statusClass} ${isSelected ? 'selected' : ''}`;
+    card.className = `ffe-item-card needs-spec ${isSelected ? 'selected' : ''}`;
     card.innerHTML = `
       <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''} />
-      <span class="item-icon">${item.needsSpec ? '📦' : '✅'}</span>
+      <span class="item-icon">📦</span>
       <div class="item-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
-        <div class="item-status">${item.needsSpec ? 'Needs product spec' : 'Has product linked'}</div>
+        <div class="item-status">Needs product spec</div>
       </div>
     `;
     

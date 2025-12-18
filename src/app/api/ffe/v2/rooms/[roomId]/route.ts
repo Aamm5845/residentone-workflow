@@ -108,6 +108,26 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // Debug: Log items with their linkedSpecs for troubleshooting
+    let totalLinkedSpecs = 0
+    if (instance.sections) {
+      instance.sections.forEach(section => {
+        section.items.forEach((item: any) => {
+          if (item.linkedSpecs && item.linkedSpecs.length > 0) {
+            totalLinkedSpecs += item.linkedSpecs.length
+            console.log('[FFE API] Item with linkedSpecs:', {
+              itemId: item.id,
+              itemName: item.name,
+              isSpecItem: item.isSpecItem,
+              linkedSpecsCount: item.linkedSpecs.length,
+              linkedSpecs: item.linkedSpecs.map((s: any) => ({ id: s.id, name: s.name }))
+            })
+          }
+        })
+      })
+    }
+    console.log('[FFE API] Total items with linkedSpecs:', totalLinkedSpecs)
+
     return NextResponse.json({
       success: true,
       data: instance

@@ -117,9 +117,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
     
-    // If linking to existing item(s), update those items instead of creating new
+    // If linking to existing item(s), create linked spec items for each requirement
     if (linkItemId) {
-      // Collect all item IDs to update (primary + additional)
+      // Collect all item IDs to link (primary + additional)
       const allItemIdsToLink = [linkItemId]
       if (additionalLinkItemIds && Array.isArray(additionalLinkItemIds)) {
         allItemIdsToLink.push(...additionalLinkItemIds)
@@ -152,8 +152,13 @@ export async function POST(request: NextRequest) {
           customFields: true,
           section: {
             select: {
-              instanceId: true
+              instanceId: true,
+              id: true
             }
+          },
+          // Check how many specs are already linked
+          linkedSpecs: {
+            select: { id: true }
           }
         }
       })
@@ -164,17 +169,50 @@ export async function POST(request: NextRequest) {
       
       // Track affected FFE instances for progress update
       const affectedInstanceIds = new Set<string>()
-      const linkedItems: Array<{ id: string; name: string; sectionId: string }> = []
+      const linkedItems: Array<{ id: string; name: string; sectionId: string; specItemId: string }> = []
       
-      // Update each item with the spec data
+      // Create a linked spec item for each requirement
       for (const existingItem of existingItems) {
         affectedInstanceIds.add(existingItem.section.instanceId)
         
-        const updatedItem = await prisma.roomFFEItem.update({
-          where: { id: existingItem.id },
+        // Get next order in section
+        const lastItem = await prisma.roomFFEItem.findFirst({
+          where: { sectionId: existingItem.sectionId },
+          orderBy: { order: 'desc' },
+          select: { order: true }
+        })
+        const nextOrder = (lastItem?.order || 0) + 1
+        
+        // Check if this is an option (if requirement already has specs)
+        const existingSpecsCount = existingItem.linkedSpecs?.length || 0
+        const isOption = existingSpecsCount > 0
+        const optionNumber = isOption ? existingSpecsCount + 1 : null
+        
+        // Create a NEW spec item linked to the requirement
+        console.log('[Extension Clip] Creating spec item for requirement:', {
+          requirementId: existingItem.id,
+          requirementName: existingItem.name,
+          sectionId: existingItem.sectionId,
+          productName: item.name
+        })
+        
+        const specItem = await prisma.roomFFEItem.create({
           data: {
-            // Keep the original name, update everything else
-            description: item.description || existingItem.description,
+            sectionId: existingItem.sectionId,
+            // Use product name, not the requirement name
+            name: item.name,
+            description: item.description || null,
+            state: 'PENDING',
+            visibility: 'VISIBLE',
+            // Mark as a spec item linked to the requirement
+            isSpecItem: true,
+            ffeRequirementId: existingItem.id,
+            isOption: isOption,
+            optionNumber: optionNumber,
+            specStatus: 'SELECTED',
+            isRequired: false,
+            isCustom: true,
+            order: nextOrder,
             // Supplier
             supplierName: item.supplierName || null,
             supplierLink: item.supplierLink || null,
@@ -192,30 +230,50 @@ export async function POST(request: NextRequest) {
             height: item.height || null,
             depth: item.depth || null,
             // Pricing
-            quantity: item.quantity || existingItem.quantity,
+            quantity: item.quantity || 1,
             unitCost: item.rrp ? parseFloat(item.rrp) : null,
             rrp: item.rrp ? parseFloat(item.rrp) : null,
             tradePrice: item.tradePrice ? parseFloat(item.tradePrice) : null,
             // Images and attachments
             images: item.images || [],
-            notes: item.notes || existingItem.notes,
+            notes: item.notes || null,
             attachments: item.attachments ? { files: item.attachments } : {},
             // Custom fields
             customFields: {
-              ...(existingItem.customFields as object || {}),
               length: item.length || null,
               supplierId: item.supplierId || null
             },
-            // Mark as selected spec
-            specStatus: 'SELECTED',
+            createdById: user.id,
             updatedById: user.id
           }
         })
         
+        console.log('[Extension Clip] Created spec item:', {
+          specItemId: specItem.id,
+          specItemName: specItem.name,
+          ffeRequirementId: specItem.ffeRequirementId,
+          isSpecItem: specItem.isSpecItem,
+          visibility: specItem.visibility
+        })
+        
+        // Verify the link was created by re-fetching the requirement with linkedSpecs
+        const verifyRequirement = await prisma.roomFFEItem.findUnique({
+          where: { id: existingItem.id },
+          include: {
+            linkedSpecs: { select: { id: true, name: true } }
+          }
+        })
+        console.log('[Extension Clip] Verification - requirement now has linkedSpecs:', {
+          requirementId: existingItem.id,
+          linkedSpecsCount: verifyRequirement?.linkedSpecs?.length || 0,
+          linkedSpecs: verifyRequirement?.linkedSpecs
+        })
+        
         linkedItems.push({
-          id: updatedItem.id,
-          name: updatedItem.name,
-          sectionId: existingItem.sectionId
+          id: existingItem.id,
+          name: existingItem.name,
+          sectionId: existingItem.sectionId,
+          specItemId: specItem.id
         })
       }
       
@@ -232,8 +290,8 @@ export async function POST(request: NextRequest) {
         items: linkedItems,
         item: linkedItems[0], // Primary item for backwards compatibility
         message: linkedCount > 1 
-          ? `Spec linked to ${linkedCount} items successfully`
-          : `Spec linked to "${linkedItems[0].name}" successfully`
+          ? `Product linked to ${linkedCount} FFE items successfully`
+          : `Product linked to "${linkedItems[0].name}" successfully`
       })
     }
     
