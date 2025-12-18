@@ -1386,7 +1386,11 @@ export default function FFEUnifiedWorkspace({
                                           }
                                         }}
                                       >
-                                        {item.linkedSpecs?.length === 1 ? 'Chosen' : `${item.linkedSpecs?.length} options`}
+                                        {item.linkedSpecs?.length === 1 
+                                          ? 'Chosen' 
+                                          : item.linkedSpecs?.length && item.linkedSpecs.length > 1 
+                                            ? `${item.linkedSpecs.length} options` 
+                                            : 'Chosen'}
                                         <ExternalLink className="w-3 h-3 ml-1" />
                                       </Badge>
                                     ) : (
