@@ -2,7 +2,7 @@
 
 // Environment Configuration
 // Set to 'local' for development, 'production' for live site
-const ENVIRONMENT = 'local'; // Change to 'local' for development
+const ENVIRONMENT = 'production'; // Change to 'local' for development
 
 // Configuration
 const CONFIG = {

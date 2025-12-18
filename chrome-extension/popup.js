@@ -1,7 +1,7 @@
 // Meisner FFE Clipper - Popup Script v1.2.0
 
 // Environment Configuration
-const ENVIRONMENT = 'local'; // Change to 'production' for live site
+const ENVIRONMENT = 'production'; // Change to 'local' for development
 
 // Extension Version
 const EXTENSION_VERSION = '1.2.0';
