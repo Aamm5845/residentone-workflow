@@ -1380,9 +1380,15 @@ export default function FFEUnifiedWorkspace({
                                         className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors"
                                         onClick={() => {
                                           // Navigate to All Specs with this specific item's linked spec
-                                          if (projectId && item.linkedSpecs?.length) {
-                                            const specId = item.linkedSpecs[0].id
-                                            router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
+                                          if (projectId) {
+                                            if (item.linkedSpecs?.length) {
+                                              // New-style: navigate to the linked spec
+                                              const specId = item.linkedSpecs[0].id
+                                              router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
+                                            } else {
+                                              // Old-style: item has direct fields, navigate to the item itself
+                                              router.push(`/projects/${projectId}/specs/all?highlightItem=${item.id}`)
+                                            }
                                           }
                                         }}
                                       >
