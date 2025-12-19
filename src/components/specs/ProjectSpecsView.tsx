@@ -382,6 +382,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     itemId: string | null
   }>({ open: false, imageUrl: '', imageTitle: '', itemId: null })
   
+  // Duplicate item modal state
+  const [duplicateModal, setDuplicateModal] = useState<{ 
+    open: boolean
+    item: SpecItem | null 
+  }>({ open: false, item: null })
+  const [selectedDuplicateFfeItem, setSelectedDuplicateFfeItem] = useState<string>('')
+  const [duplicating, setDuplicating] = useState(false)
+  
   // Section filter
   const [filterSection, setFilterSection] = useState<string>('all')
   
@@ -1466,15 +1474,46 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
-  // Duplicate item in the same section
-  const handleDuplicateItem = async (item: SpecItem) => {
+  // Open duplicate modal to select FFE item to link
+  const handleDuplicateItem = (item: SpecItem) => {
+    setDuplicateModal({ open: true, item })
+    setSelectedDuplicateFfeItem('')
+  }
+  
+  // Get unlinked FFE items from the same section for duplication
+  const getUnlinkedFfeItemsForDuplicate = () => {
+    if (!duplicateModal.item) return []
+    
+    const item = duplicateModal.item
+    // Find the room
+    const room = ffeItems.find(r => r.roomId === item.roomId)
+    if (!room) return []
+    
+    // Find the section (by sectionId)
+    const section = room.sections.find(s => s.sectionId === item.sectionId)
+    if (!section) return []
+    
+    // Return only items that are not linked yet
+    return section.items.filter(ffeItem => !ffeItem.hasLinkedSpecs)
+  }
+  
+  // Perform the actual duplication with FFE link
+  const handleConfirmDuplicate = async () => {
+    if (!duplicateModal.item || !selectedDuplicateFfeItem) {
+      toast.error('Please select an FFE item to link')
+      return
+    }
+    
+    const item = duplicateModal.item
+    
     try {
+      setDuplicating(true)
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sectionId: item.sectionId,
-          name: `${item.name} (Copy)`,
+          name: item.name,
           description: item.description,
           brand: item.brand,
           sku: item.sku,
@@ -1494,20 +1533,35 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           tradeDiscount: item.tradeDiscount,
           images: item.images,
           isSpecItem: true,
-          specStatus: 'DRAFT',
+          ffeRequirementId: selectedDuplicateFfeItem,
+          specStatus: 'SELECTED',
           visibility: 'VISIBLE'
         })
       })
       
       if (res.ok) {
-        toast.success('Item duplicated')
+        toast.success('Item duplicated and linked')
+        setDuplicateModal({ open: false, item: null })
+        setSelectedDuplicateFfeItem('')
         fetchSpecs()
+        // Refresh FFE items to update linked status
+        try {
+          const ffeRes = await fetch(`/api/projects/${project.id}/ffe-items`)
+          const ffeData = await ffeRes.json()
+          if (ffeData.success && ffeData.ffeItems) {
+            setFfeItems(ffeData.ffeItems)
+          }
+        } catch (e) {
+          // Silent fail on FFE refresh
+        }
       } else {
         throw new Error('Failed to duplicate')
       }
     } catch (error) {
       console.error('Error duplicating item:', error)
       toast.error('Failed to duplicate item')
+    } finally {
+      setDuplicating(false)
     }
   }
 
@@ -4898,6 +4952,78 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               className="bg-blue-600 hover:bg-blue-700"
             >
               Move Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Duplicate Item Modal - Select FFE Item to Link */}
+      <Dialog open={duplicateModal.open} onOpenChange={(open) => !open && setDuplicateModal({ open: false, item: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="w-5 h-5 text-emerald-600" />
+              Duplicate Item
+            </DialogTitle>
+            <DialogDescription>
+              Select an FFE item to link this duplicate to. Only unlinked items from the same category are shown.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {duplicateModal.item && (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600">Duplicating:</p>
+                <p className="font-medium">{duplicateModal.item.name}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {duplicateModal.item.roomName} &bull; {duplicateModal.item.categoryName}
+                </p>
+              </div>
+            )}
+            
+            {getUnlinkedFfeItemsForDuplicate().length === 0 ? (
+              <div className="text-center py-6">
+                <Package className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No unlinked items available in this category.</p>
+                <p className="text-xs text-gray-400 mt-1">All FFE items in this section are already linked to specs.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Link to FFE Item</Label>
+                <Select value={selectedDuplicateFfeItem} onValueChange={setSelectedDuplicateFfeItem}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an FFE item to link..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getUnlinkedFfeItemsForDuplicate().map(ffeItem => (
+                      <SelectItem key={ffeItem.id} value={ffeItem.id}>
+                        {ffeItem.name}
+                        {ffeItem.quantity > 1 && ` (×${ffeItem.quantity})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateModal({ open: false, item: null })}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmDuplicate}
+              disabled={!selectedDuplicateFfeItem || duplicating}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {duplicating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Duplicating...
+                </>
+              ) : (
+                'Duplicate & Link'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
