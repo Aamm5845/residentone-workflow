@@ -2626,10 +2626,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           {/* Main Item Row - Using flex for better control */}
                           <div className="flex items-center w-full px-4 py-3 pl-14 gap-3 overflow-hidden">
                             {/* Image - Fixed width, clickable to open editor */}
-                            <div className="flex-shrink-0 w-12">
+                            <div className="flex-shrink-0 w-16">
                               <div 
                                 className={cn(
-                                  "w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden",
+                                  "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden",
                                   (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
                                 )}
                                 onClick={(e) => {
@@ -2652,7 +2652,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                                  <ImageIcon className="w-6 h-6 text-gray-400" />
                                 )}
                               </div>
                             </div>
