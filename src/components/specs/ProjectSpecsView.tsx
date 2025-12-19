@@ -1474,12 +1474,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
-  // Open duplicate modal to select FFE item to link
-  const handleDuplicateItem = (item: SpecItem) => {
-    setDuplicateModal({ open: true, item })
-    setSelectedDuplicateFfeItem('')
-  }
-  
   // Get unlinked FFE items from the same section for duplication
   const getUnlinkedFfeItemsForDuplicate = () => {
     if (!duplicateModal.item) return []
@@ -3108,10 +3102,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     {/* Quote */}
                                     <DropdownMenuItem 
                                       className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        toast('Quote feature coming soon')
-                                      }}
+                                      onSelect={() => toast('Quote feature coming soon')}
                                     >
                                       <FileText className="w-3.5 h-3.5 mr-2" />
                                       Request Quote
@@ -3122,8 +3113,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     {/* Flag */}
                                     <DropdownMenuItem 
                                       className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
+                                      onSelect={(e) => {
+                                        e.preventDefault()
                                         setFlagModal({ open: true, item: item })
                                       }}
                                     >
@@ -3132,18 +3123,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-xs text-gray-400"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      toast('Archive feature coming soon')
-                                    }}
+                                    onSelect={() => toast('Archive feature coming soon')}
                                   >
                                     <Archive className="w-3.5 h-3.5 mr-2" />
                                     Archive
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
+                                    onSelect={(e) => {
+                                      e.preventDefault()
                                       handleAddToLibrary(item)
                                     }}
                                   >
@@ -3152,9 +3140,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleDuplicateItem(item)
+                                    onSelect={(e) => {
+                                      e.preventDefault()
+                                      setDuplicateModal({ open: true, item: item })
+                                      setSelectedDuplicateFfeItem('')
                                     }}
                                   >
                                     <Copy className="w-3.5 h-3.5 mr-2" />
@@ -3162,8 +3151,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
+                                    onSelect={(e) => {
+                                      e.preventDefault()
                                       loadProjects()
                                       setCopyToProjectModal({ open: true, item: item })
                                     }}
@@ -3173,8 +3162,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
+                                    onSelect={(e) => {
+                                      e.preventDefault()
                                       setMoveToSectionModal({ open: true, item: item })
                                     }}
                                   >
