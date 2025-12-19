@@ -496,6 +496,16 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
                         })
                       }
                     }}
+                    roomId={roomId}
+                    onNotesUpdated={(itemId, notes) => {
+                      // Update the item in local state
+                      setSections(prev => prev.map(s => ({
+                        ...s,
+                        items: s.items.map(i => 
+                          i.id === itemId ? { ...i, notes } : i
+                        )
+                      })))
+                    }}
                   />
                 </CardContent>
               </CollapsibleContent>
@@ -725,7 +735,9 @@ function SpecTable({
   onToggleRow,
   onStatusChange,
   onEditSpec,
-  onImageClick
+  onImageClick,
+  roomId,
+  onNotesUpdated
 }: { 
   items: FFESpecItem[]
   expandedRows: Set<string>
@@ -733,7 +745,46 @@ function SpecTable({
   onStatusChange: (id: string, status: SpecStatusType) => void
   onEditSpec: (item: FFESpecItem) => void
   onImageClick: (item: FFESpecItem) => void
+  roomId: string
+  onNotesUpdated: (itemId: string, notes: string) => void
 }) {
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
+  const [notesValue, setNotesValue] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  const handleEditNotes = (item: FFESpecItem) => {
+    setEditingNotesId(item.id)
+    setNotesValue(item.notes || '')
+  }
+
+  const handleSaveNotes = async (itemId: string) => {
+    try {
+      setSavingNotes(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notesValue })
+      })
+
+      if (response.ok) {
+        onNotesUpdated(itemId, notesValue)
+        toast.success('Notes saved')
+        setEditingNotesId(null)
+      } else {
+        throw new Error('Failed to save notes')
+      }
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      toast.error('Failed to save notes')
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
+  const handleCancelNotes = () => {
+    setEditingNotesId(null)
+    setNotesValue('')
+  }
   return (
     <Table>
       <TableHeader>
@@ -993,12 +1044,54 @@ function SpecTable({
                   </div>
 
                   {/* Notes */}
-                  {item.notes && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="font-medium text-gray-700 mb-1">Notes</h4>
-                      <p className="text-sm text-gray-600">{item.notes}</p>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-700">Notes</h4>
+                      {editingNotesId !== item.id && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleEditNotes(item)}
+                          className="h-7 px-2 text-gray-500 hover:text-gray-700"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          {item.notes ? 'Edit' : 'Add Note'}
+                        </Button>
+                      )}
                     </div>
-                  )}
+                    {editingNotesId === item.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={notesValue}
+                          onChange={(e) => setNotesValue(e.target.value)}
+                          placeholder="Add notes about this item..."
+                          className="min-h-[80px] text-sm"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSaveNotes(item.id)}
+                            disabled={savingNotes}
+                          >
+                            {savingNotes ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={handleCancelNotes}
+                            disabled={savingNotes}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : item.notes ? (
+                      <p className="text-sm text-gray-600">{item.notes}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No notes added</p>
+                    )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
