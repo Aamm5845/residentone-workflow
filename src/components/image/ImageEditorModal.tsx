@@ -110,6 +110,7 @@ export default function ImageEditorModal({
   const [saving, setSaving] = useState(false)
   const [removingBackground, setRemovingBackground] = useState(false)
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
   // Get the current display URL (processed or original)
@@ -230,6 +231,7 @@ export default function ImageEditorModal({
       setCrop(undefined)
       setCompletedCrop(undefined)
       setProcessedImageUrl(null)
+      setImageError(false)
     }, 200)
   }
 
@@ -256,7 +258,7 @@ export default function ImageEditorModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-4xl max-h-[95vh] overflow-hidden flex flex-col p-0 gap-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-white pr-12">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-gray-900">
               {imageTitle || 'Image Editor'}
@@ -267,12 +269,6 @@ export default function ImageEditorModal({
               </span>
             )}
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
         </div>
 
         {/* Action Buttons */}
@@ -350,7 +346,15 @@ export default function ImageEditorModal({
 
         {/* Image Container */}
         <div className="flex-1 overflow-auto bg-gray-900 flex items-center justify-center p-4 min-h-[400px]">
-          {mode === 'crop' ? (
+          {imageError ? (
+            <div className="flex flex-col items-center justify-center text-gray-400 gap-3">
+              <div className="w-24 h-24 bg-gray-800 rounded-lg flex items-center justify-center">
+                <X className="w-12 h-12 text-gray-600" />
+              </div>
+              <p className="text-sm">Unable to load image</p>
+              <p className="text-xs text-gray-500 max-w-md text-center break-all">{displayUrl}</p>
+            </div>
+          ) : mode === 'crop' ? (
             <div className="max-w-full max-h-full">
               <ReactCrop
                 crop={crop}
@@ -363,8 +367,8 @@ export default function ImageEditorModal({
                   src={displayUrl}
                   alt={imageTitle || 'Image to edit'}
                   onLoad={handleImageLoad}
+                  onError={() => setImageError(true)}
                   className="max-h-[60vh] max-w-full object-contain"
-                  crossOrigin="anonymous"
                 />
               </ReactCrop>
             </div>
@@ -372,8 +376,8 @@ export default function ImageEditorModal({
             <img
               src={displayUrl}
               alt={imageTitle || 'Image'}
+              onError={() => setImageError(true)}
               className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-2xl"
-              crossOrigin="anonymous"
             />
           )}
         </div>
