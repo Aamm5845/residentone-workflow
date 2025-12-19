@@ -20,7 +20,9 @@ import {
   CreditCard,
   Factory,
   PackageCheck,
-  Sparkles
+  Sparkles,
+  X,
+  Download
 } from 'lucide-react'
 
 // Item status options with professional styling
@@ -98,6 +100,13 @@ export default function SharedSpecsPage() {
   const [specs, setSpecs] = useState<SpecItem[]>([])
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  
+  // Image lightbox state for shared view
+  const [imageLightbox, setImageLightbox] = useState<{
+    open: boolean
+    imageUrl: string
+    imageTitle: string
+  }>({ open: false, imageUrl: '', imageTitle: '' })
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     showSupplier: false,
     showBrand: true,
@@ -298,9 +307,24 @@ export default function SharedSpecsPage() {
                           className="group bg-slate-50/50 hover:bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-5 transition-all duration-200 hover:shadow-md"
                         >
                           <div className="flex gap-5">
-                            {/* Image */}
+                            {/* Image - Clickable to open lightbox */}
                             <div className="flex-shrink-0">
-                              <div className="w-24 h-24 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+                              <div 
+                                className={cn(
+                                  "w-24 h-24 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm",
+                                  (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
+                                )}
+                                onClick={() => {
+                                  if (item.thumbnailUrl || item.images?.[0]) {
+                                    setImageLightbox({
+                                      open: true,
+                                      imageUrl: item.thumbnailUrl || item.images[0],
+                                      imageTitle: `${item.sectionName}: ${item.name}`
+                                    })
+                                  }
+                                }}
+                                title={item.thumbnailUrl || item.images?.[0] ? "Click to view larger" : undefined}
+                              >
                                 {item.thumbnailUrl || item.images?.[0] ? (
                                   <img 
                                     src={item.thumbnailUrl || item.images[0]} 
@@ -468,6 +492,63 @@ export default function SharedSpecsPage() {
           </div>
         </div>
       </footer>
+
+      {/* Image Lightbox Modal */}
+      {imageLightbox.open && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+          onClick={() => setImageLightbox(prev => ({ ...prev, open: false }))}
+        >
+          <div 
+            className="relative max-w-5xl max-h-[90vh] p-4 w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-lg font-medium truncate pr-4">
+                {imageLightbox.imageTitle}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(imageLightbox.imageUrl)
+                      const blob = await response.blob()
+                      const url = window.URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = imageLightbox.imageTitle || 'image.jpg'
+                      document.body.appendChild(a)
+                      a.click()
+                      window.URL.revokeObjectURL(url)
+                      document.body.removeChild(a)
+                    } catch (error) {
+                      console.error('Error downloading image:', error)
+                    }
+                  }}
+                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                  title="Download image"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setImageLightbox(prev => ({ ...prev, open: false }))}
+                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Image */}
+            <img
+              src={imageLightbox.imageUrl}
+              alt={imageLightbox.imageTitle}
+              className="max-w-full max-h-[80vh] object-contain mx-auto rounded-lg shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

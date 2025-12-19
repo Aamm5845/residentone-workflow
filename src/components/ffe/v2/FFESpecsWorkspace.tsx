@@ -59,6 +59,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import ImageEditorModal from '@/components/image/ImageEditorModal'
 
 // Spec status options
 const SPEC_STATUS = {
@@ -128,6 +129,15 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
   const [editingItem, setEditingItem] = useState<FFESpecItem | null>(null)
   const [editForm, setEditForm] = useState<Partial<FFESpecItem>>({})
   const [saving, setSaving] = useState(false)
+  
+  // Image editor modal state
+  const [imageEditorModal, setImageEditorModal] = useState<{
+    open: boolean
+    imageUrl: string
+    imageTitle: string
+    itemId: string | null
+    sectionName: string
+  }>({ open: false, imageUrl: '', imageTitle: '', itemId: null, sectionName: '' })
 
   useEffect(() => {
     loadItems()
@@ -475,6 +485,17 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
                     onToggleRow={toggleRowExpanded}
                     onStatusChange={handleStatusChange}
                     onEditSpec={handleEditSpec}
+                    onImageClick={(item) => {
+                      if (item.imageUrl) {
+                        setImageEditorModal({
+                          open: true,
+                          imageUrl: item.imageUrl,
+                          imageTitle: `${item.sectionName}: ${item.name}`,
+                          itemId: item.id,
+                          sectionName: item.sectionName
+                        })
+                      }
+                    }}
                   />
                 </CardContent>
               </CollapsibleContent>
@@ -663,6 +684,36 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        open={imageEditorModal.open}
+        onOpenChange={(open) => setImageEditorModal(prev => ({ ...prev, open }))}
+        imageUrl={imageEditorModal.imageUrl}
+        imageTitle={imageEditorModal.imageTitle}
+        onImageUpdated={async (newImageUrl) => {
+          // Update the item with the new image URL
+          if (imageEditorModal.itemId) {
+            try {
+              const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${imageEditorModal.itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  images: [newImageUrl]
+                })
+              })
+              
+              if (res.ok) {
+                // Refresh the items list
+                loadItems()
+                toast.success('Image updated successfully!')
+              }
+            } catch (error) {
+              console.error('Error updating image:', error)
+            }
+          }
+        }}
+      />
     </div>
   )
 }
@@ -673,13 +724,15 @@ function SpecTable({
   expandedRows, 
   onToggleRow,
   onStatusChange,
-  onEditSpec
+  onEditSpec,
+  onImageClick
 }: { 
   items: FFESpecItem[]
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
   onStatusChange: (id: string, status: SpecStatusType) => void
   onEditSpec: (item: FFESpecItem) => void
+  onImageClick: (item: FFESpecItem) => void
 }) {
   return (
     <Table>
@@ -718,7 +771,14 @@ function SpecTable({
               </TableCell>
               <TableCell>
                 {item.imageUrl ? (
-                  <div className="w-10 h-10 rounded border overflow-hidden bg-gray-100">
+                  <div 
+                    className="w-10 h-10 rounded border overflow-hidden bg-gray-100 cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onImageClick(item)
+                    }}
+                    title="Click to view/edit image"
+                  >
                     <img 
                       src={item.imageUrl} 
                       alt={item.name}

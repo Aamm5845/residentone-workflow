@@ -152,6 +152,7 @@ export default function FFEUnifiedWorkspace({
   const [showUrlSupplierDropdown, setShowUrlSupplierDropdown] = useState(false)
   const [urlSelectedSupplier, setUrlSelectedSupplier] = useState<{id: string, name: string, contactName?: string, email?: string, logo?: string, website?: string} | null>(null)
   const [showAddNewSupplierForm, setShowAddNewSupplierForm] = useState(false)
+  const [showAddSupplierForProduct, setShowAddSupplierForProduct] = useState(false)
   
   // Search Item dialog states
   const [showSearchDialog, setShowSearchDialog] = useState(false)
@@ -2672,13 +2673,7 @@ export default function FFEUnifiedWorkspace({
                           <button 
                             type="button"
                             className="w-full text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1.5 py-2 border border-dashed border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
-                            onClick={() => {
-                              // For now, allow manual entry
-                              const name = prompt('Enter supplier name:')
-                              if (name) {
-                                setNewProductData(prev => ({ ...prev, supplierName: name }))
-                              }
-                            }}
+                            onClick={() => setShowAddSupplierForProduct(true)}
                           >
                             <Plus className="w-4 h-4" />
                             Add New Supplier
@@ -3078,7 +3073,7 @@ export default function FFEUnifiedWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* Add Supplier Dialog */}
+      {/* Add Supplier Dialog for URL extraction */}
       <AddSupplierDialog
         open={showAddNewSupplierForm}
         onOpenChange={setShowAddNewSupplierForm}
@@ -3102,6 +3097,21 @@ export default function FFEUnifiedWorkspace({
             supplierEmail: supplier.email || '',
             supplierLogo: supplier.logo || ''
           }) : null)
+        }}
+      />
+
+      {/* Add Supplier Dialog for new product form */}
+      <AddSupplierDialog
+        open={showAddSupplierForProduct}
+        onOpenChange={setShowAddSupplierForProduct}
+        onSupplierCreated={(supplier) => {
+          // Set the newly created supplier in the new product form
+          setNewProductData(prev => ({
+            ...prev,
+            supplierName: supplier.name,
+            supplierLink: supplier.website || '',
+            supplierId: supplier.id
+          }))
         }}
       />
 

@@ -83,6 +83,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
+import ImageEditorModal from '@/components/image/ImageEditorModal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 
@@ -372,6 +373,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     showDetails: true
   })
   const [savingShareSettings, setSavingShareSettings] = useState(false)
+  
+  // Image editor modal state
+  const [imageEditorModal, setImageEditorModal] = useState<{
+    open: boolean
+    imageUrl: string
+    imageTitle: string
+    itemId: string | null
+  }>({ open: false, imageUrl: '', imageTitle: '', itemId: null })
   
   // Section filter
   const [filterSection, setFilterSection] = useState<string>('all')
@@ -2616,9 +2625,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           
                           {/* Main Item Row - Using flex for better control */}
                           <div className="flex items-center w-full px-4 py-3 pl-14 gap-3 overflow-hidden">
-                            {/* Image - Fixed width */}
+                            {/* Image - Fixed width, clickable to open editor */}
                             <div className="flex-shrink-0 w-12">
-                              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden",
+                                  (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
+                                )}
+                                onClick={(e) => {
+                                  if (item.thumbnailUrl || item.images?.[0]) {
+                                    e.stopPropagation()
+                                    setImageEditorModal({
+                                      open: true,
+                                      imageUrl: item.thumbnailUrl || item.images[0],
+                                      imageTitle: `${item.sectionName}: ${item.name}`,
+                                      itemId: item.id
+                                    })
+                                  }
+                                }}
+                                title={item.thumbnailUrl || item.images?.[0] ? "Click to view/edit image" : undefined}
+                              >
                                 {item.thumbnailUrl || item.images?.[0] ? (
                                   <img 
                                     src={item.thumbnailUrl || item.images[0]} 
@@ -5397,6 +5423,43 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               ...extractedData,
               images: [...(extractedData.images || []), imageUrl].slice(0, 5)
             })
+          }
+        }}
+      />
+
+      {/* Image Editor Modal - for viewing/editing spec images */}
+      <ImageEditorModal
+        open={imageEditorModal.open}
+        onOpenChange={(open) => setImageEditorModal(prev => ({ ...prev, open }))}
+        imageUrl={imageEditorModal.imageUrl}
+        imageTitle={imageEditorModal.imageTitle}
+        onImageUpdated={async (newImageUrl) => {
+          // Update the spec item with the new image URL
+          if (imageEditorModal.itemId) {
+            const item = specs.find(s => s.id === imageEditorModal.itemId)
+            if (item) {
+              try {
+                const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${imageEditorModal.itemId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    images: [newImageUrl, ...(item.images || []).slice(1)]
+                  })
+                })
+                
+                if (res.ok) {
+                  // Update local state
+                  setSpecs(prev => prev.map(s => 
+                    s.id === imageEditorModal.itemId 
+                      ? { ...s, thumbnailUrl: newImageUrl, images: [newImageUrl, ...(s.images || []).slice(1)] }
+                      : s
+                  ))
+                  toast.success('Image updated successfully!')
+                }
+              } catch (error) {
+                console.error('Error updating image:', error)
+              }
+            }
           }
         }}
       />
