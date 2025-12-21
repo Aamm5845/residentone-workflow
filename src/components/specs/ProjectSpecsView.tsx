@@ -124,6 +124,7 @@ interface SpecItem {
   productName: string | null
   brand: string | null
   sku: string | null
+  modelNumber: string | null
   color: string | null
   finish: string | null
   material: string | null
@@ -1701,6 +1702,49 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Add item to product library
   const handleAddToLibrary = async (item: SpecItem) => {
     try {
+      // First, find or create a category based on the section name
+      let categoryId: string | undefined = undefined
+      const categoryName = item.sectionName || item.categoryName
+      
+      if (categoryName) {
+        // Fetch existing categories
+        const categoriesRes = await fetch('/api/products/categories')
+        if (categoriesRes.ok) {
+          const { categories } = await categoriesRes.json()
+          
+          // Find if category already exists (check both parent and children)
+          const findCategory = (cats: any[]): any => {
+            for (const cat of cats) {
+              if (cat.name.toLowerCase() === categoryName.toLowerCase()) {
+                return cat
+              }
+              if (cat.children?.length) {
+                const found = findCategory(cat.children)
+                if (found) return found
+              }
+            }
+            return null
+          }
+          
+          const existingCategory = findCategory(categories)
+          
+          if (existingCategory) {
+            categoryId = existingCategory.id
+          } else {
+            // Create new category
+            const createCatRes = await fetch('/api/products/categories', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: categoryName })
+            })
+            if (createCatRes.ok) {
+              const { category } = await createCatRes.json()
+              categoryId = category.id
+            }
+          }
+        }
+      }
+      
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1708,6 +1752,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           name: item.productName || item.name,
           brand: item.brand,
           sku: item.sku,
+          modelNumber: item.modelNumber,
           description: item.description,
           thumbnailUrl: item.thumbnailUrl || item.images?.[0] || null,
           images: item.images || [],
@@ -1717,14 +1762,25 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           width: item.width,
           height: item.height,
           depth: item.depth,
+          length: item.length,
           leadTime: item.leadTime,
           tradePrice: item.tradePrice,
-          rrp: item.rrp
+          rrp: item.rrp,
+          supplierName: item.supplierName,
+          supplierLink: item.supplierLink,
+          categoryId: categoryId // Include category if found/created
         })
       })
       
       if (res.ok) {
-        toast.success('Added to product library')
+        const data = await res.json()
+        toast.success(`✓ Added "${item.productName || item.name}" to product library${categoryId ? ` in ${categoryName}` : ''}`, {
+          duration: 4000,
+          action: {
+            label: 'View Library',
+            onClick: () => window.open('/products', '_blank')
+          }
+        })
       } else {
         const error = await res.json()
         toast.error(error.error || 'Failed to add to library')

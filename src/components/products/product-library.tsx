@@ -315,9 +315,12 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
   const [projects, setProjects] = useState<any[]>([])
   const [rooms, setRooms] = useState<any[]>([])
   const [sections, setSections] = useState<any[]>([])
+  const [ffeItems, setFfeItems] = useState<any[]>([])
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [selectedRoom, setSelectedRoom] = useState<string>('')
   const [selectedSection, setSelectedSection] = useState<string>('')
+  const [selectedFfeItem, setSelectedFfeItem] = useState<string>('')
+  const [linkToExisting, setLinkToExisting] = useState<boolean>(true)
   
   // Group products by category when no filter applied
   const [groupByCategory, setGroupByCategory] = useState(true)
@@ -497,6 +500,30 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
       console.error('Failed to load sections:', error)
     }
   }
+  
+  // Load FFE items for selected section
+  const loadFfeItems = async (roomId: string, sectionId: string) => {
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items?sectionId=${sectionId}`)
+      const data = await res.json()
+      if (data.success && data.data?.sections) {
+        // Find the items for this section
+        const section = data.data.sections.find((s: any) => s.id === sectionId)
+        if (section?.items) {
+          // Filter to only show parent items (not grouped items) that don't already have specs
+          const parentItems = section.items.filter((item: any) => 
+            !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem
+          )
+          setFfeItems(parentItems)
+        } else {
+          setFfeItems([])
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load FFE items:', error)
+      setFfeItems([])
+    }
+  }
 
   const handleCategoryClick = (categoryId: string | null) => {
     setSelectedCategory(categoryId)
@@ -526,6 +553,8 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
 
   const handleSubmitAddToRoom = async () => {
     if (!addToRoomModal.product || !selectedRoom || !selectedSection) return
+    // If linking to existing, require FFE item selection
+    if (linkToExisting && !selectedFfeItem) return
 
     try {
       const res = await fetch('/api/extension/clip', {
@@ -535,6 +564,8 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
           destination: 'room',
           roomId: selectedRoom,
           sectionId: selectedSection,
+          // If linking to existing FFE item, pass the linkItemId
+          ...(linkToExisting && selectedFfeItem ? { linkItemId: selectedFfeItem } : {}),
           item: {
             name: addToRoomModal.product.name,
             description: addToRoomModal.product.description,
@@ -542,6 +573,11 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
             supplierLink: addToRoomModal.product.supplierLink,
             modelNumber: addToRoomModal.product.sku || addToRoomModal.product.modelNumber,
             unitCost: addToRoomModal.product.rrp,
+            rrp: addToRoomModal.product.rrp,
+            tradePrice: addToRoomModal.product.tradePrice,
+            color: addToRoomModal.product.color,
+            finish: addToRoomModal.product.finish,
+            material: addToRoomModal.product.material,
             customFields: {
               colour: addToRoomModal.product.color,
               finish: addToRoomModal.product.finish,
@@ -550,7 +586,8 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
             },
             attachments: {
               images: addToRoomModal.product.images
-            }
+            },
+            images: addToRoomModal.product.images
           }
         })
       })
@@ -566,8 +603,11 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
         setSelectedProject('')
         setSelectedRoom('')
         setSelectedSection('')
+        setSelectedFfeItem('')
+        setFfeItems([])
         setRooms([])
         setSections([])
+        setLinkToExisting(true)
       }
     } catch (error) {
       console.error('Failed to add product to room:', error)
@@ -1250,8 +1290,15 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
 
             {selectedRoom && sections.length > 0 && (
               <div className="space-y-2">
-                <Label>Section</Label>
-                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                <Label>Section (Category)</Label>
+                <Select 
+                  value={selectedSection} 
+                  onValueChange={(val) => {
+                    setSelectedSection(val)
+                    setSelectedFfeItem('')
+                    loadFfeItems(selectedRoom, val)
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a section..." />
                   </SelectTrigger>
@@ -1265,6 +1312,54 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                 </Select>
               </div>
             )}
+
+            {selectedSection && (
+              <div className="space-y-3 border rounded-lg p-3 bg-blue-50/50">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="linkToExisting"
+                    checked={linkToExisting}
+                    onChange={(e) => {
+                      setLinkToExisting(e.target.checked)
+                      if (!e.target.checked) setSelectedFfeItem('')
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="linkToExisting" className="text-sm cursor-pointer">
+                    Link to existing FFE item (recommended)
+                  </Label>
+                </div>
+                
+                {linkToExisting && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Select FFE item to link this product to</Label>
+                    {ffeItems.length > 0 ? (
+                      <Select value={selectedFfeItem} onValueChange={setSelectedFfeItem}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an FFE item..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ffeItems.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">No FFE items in this section. Uncheck above to add as new item.</p>
+                    )}
+                  </div>
+                )}
+                
+                {!linkToExisting && (
+                  <p className="text-xs text-gray-500">
+                    This will create a new spec item in the section without linking to an existing FFE requirement.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -1273,9 +1368,9 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
             </Button>
             <Button 
               onClick={handleSubmitAddToRoom}
-              disabled={!selectedRoom || !selectedSection}
+              disabled={!selectedRoom || !selectedSection || (linkToExisting && !selectedFfeItem)}
             >
-              Add to Room
+              {linkToExisting && selectedFfeItem ? 'Link to FFE Item' : 'Add to Room'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1319,92 +1414,217 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
           {productDetail.product && !productDetail.editing && (
             /* View Mode */
             <div className="space-y-6">
-              {/* Image */}
-              <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                {productDetail.product.thumbnailUrl || productDetail.product.images?.[0] ? (
-                  <img
-                    src={productDetail.product.thumbnailUrl || productDetail.product.images[0]}
-                    alt={productDetail.product.name}
-                    className="w-full h-full object-contain"
-                  />
+              {/* Images Gallery */}
+              <div className="space-y-2">
+                {productDetail.product.images && productDetail.product.images.length > 0 ? (
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {productDetail.product.images.map((img, idx) => (
+                      <div key={idx} className="relative flex-shrink-0 w-48 h-48 rounded-lg overflow-hidden bg-gray-100 border">
+                        <img src={img} alt={`${productDetail.product!.name} - ${idx + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                ) : productDetail.product.thumbnailUrl ? (
+                  <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden max-h-64">
+                    <img
+                      src={productDetail.product.thumbnailUrl}
+                      alt={productDetail.product.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-16 h-16 text-gray-300" />
+                  <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center max-h-40">
+                    <ImageIcon className="w-12 h-12 text-gray-300" />
                   </div>
                 )}
               </div>
 
-              {/* Details Grid */}
+              {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 {productDetail.product.brand && (
                   <div>
-                    <Label className="text-gray-500">Brand</Label>
+                    <Label className="text-xs text-gray-500">Brand</Label>
                     <p className="font-medium">{productDetail.product.brand}</p>
                   </div>
                 )}
                 {productDetail.product.sku && (
                   <div>
-                    <Label className="text-gray-500">SKU</Label>
+                    <Label className="text-xs text-gray-500">SKU</Label>
                     <p className="font-medium">{productDetail.product.sku}</p>
                   </div>
                 )}
                 {productDetail.product.modelNumber && (
                   <div>
-                    <Label className="text-gray-500">Model Number</Label>
+                    <Label className="text-xs text-gray-500">Model Number</Label>
                     <p className="font-medium">{productDetail.product.modelNumber}</p>
                   </div>
                 )}
                 {productDetail.product.category && (
                   <div>
-                    <Label className="text-gray-500">Category</Label>
+                    <Label className="text-xs text-gray-500">Category</Label>
                     <p className="font-medium">{productDetail.product.category.name}</p>
-                  </div>
-                )}
-                {productDetail.product.rrp && (
-                  <div>
-                    <Label className="text-gray-500">RRP</Label>
-                    <p className="font-medium text-lg">{formatPrice(productDetail.product.rrp)}</p>
-                  </div>
-                )}
-                {productDetail.product.tradePrice && (
-                  <div>
-                    <Label className="text-gray-500">Trade Price</Label>
-                    <p className="font-medium text-lg">{formatPrice(productDetail.product.tradePrice)}</p>
-                  </div>
-                )}
-                {productDetail.product.color && (
-                  <div>
-                    <Label className="text-gray-500">Color</Label>
-                    <p className="font-medium">{productDetail.product.color}</p>
-                  </div>
-                )}
-                {productDetail.product.finish && (
-                  <div>
-                    <Label className="text-gray-500">Finish</Label>
-                    <p className="font-medium">{productDetail.product.finish}</p>
-                  </div>
-                )}
-                {productDetail.product.material && (
-                  <div>
-                    <Label className="text-gray-500">Material</Label>
-                    <p className="font-medium">{productDetail.product.material}</p>
-                  </div>
-                )}
-                {productDetail.product.supplierName && (
-                  <div>
-                    <Label className="text-gray-500">Supplier</Label>
-                    <p className="font-medium">{productDetail.product.supplierName}</p>
                   </div>
                 )}
               </div>
 
+              {/* Pricing Section */}
+              {(productDetail.product.rrp || productDetail.product.tradePrice) && (
+                <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <Label className="text-xs text-emerald-700 font-medium mb-2 block">Pricing</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {productDetail.product.rrp && (
+                      <div>
+                        <Label className="text-xs text-gray-500">RRP</Label>
+                        <p className="font-semibold text-lg text-emerald-700">{formatPrice(productDetail.product.rrp)}</p>
+                      </div>
+                    )}
+                    {productDetail.product.tradePrice && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Trade Price</Label>
+                        <p className="font-semibold text-lg text-emerald-700">{formatPrice(productDetail.product.tradePrice)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Specifications */}
+              {(productDetail.product.color || productDetail.product.finish || productDetail.product.material) && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-500 font-medium">Specifications</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {productDetail.product.color && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Color</Label>
+                        <p className="font-medium">{productDetail.product.color}</p>
+                      </div>
+                    )}
+                    {productDetail.product.finish && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Finish</Label>
+                        <p className="font-medium">{productDetail.product.finish}</p>
+                      </div>
+                    )}
+                    {productDetail.product.material && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Material</Label>
+                        <p className="font-medium">{productDetail.product.material}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Dimensions */}
+              {(productDetail.product.width || productDetail.product.height || productDetail.product.depth || productDetail.product.length) && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-500 font-medium">Dimensions</Label>
+                  <div className="grid grid-cols-4 gap-4">
+                    {productDetail.product.width && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Width</Label>
+                        <p className="font-medium">{productDetail.product.width} {productDetail.product.dimensionUnit || 'cm'}</p>
+                      </div>
+                    )}
+                    {productDetail.product.height && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Height</Label>
+                        <p className="font-medium">{productDetail.product.height} {productDetail.product.dimensionUnit || 'cm'}</p>
+                      </div>
+                    )}
+                    {productDetail.product.depth && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Depth</Label>
+                        <p className="font-medium">{productDetail.product.depth} {productDetail.product.dimensionUnit || 'cm'}</p>
+                      </div>
+                    )}
+                    {productDetail.product.length && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Length</Label>
+                        <p className="font-medium">{productDetail.product.length} {productDetail.product.dimensionUnit || 'cm'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Lead Time */}
+              {productDetail.product.leadTime && (
+                <div>
+                  <Label className="text-xs text-gray-500">Lead Time</Label>
+                  <p className="font-medium">{productDetail.product.leadTime}</p>
+                </div>
+              )}
+
+              {/* Supplier Section */}
+              {(productDetail.product.supplierName || productDetail.product.supplierEmail || productDetail.product.supplierPhone || productDetail.product.supplierAddress || productDetail.product.supplierLink) && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                  <Label className="text-xs text-blue-700 font-medium">Supplier Information</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {productDetail.product.supplierName && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Supplier Name</Label>
+                        <p className="font-medium">{productDetail.product.supplierName}</p>
+                      </div>
+                    )}
+                    {productDetail.product.supplierEmail && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Email</Label>
+                        <p className="font-medium">{productDetail.product.supplierEmail}</p>
+                      </div>
+                    )}
+                    {productDetail.product.supplierPhone && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Phone</Label>
+                        <p className="font-medium">{productDetail.product.supplierPhone}</p>
+                      </div>
+                    )}
+                    {productDetail.product.supplierLink && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Product Link</Label>
+                        <a 
+                          href={productDetail.product.supplierLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:underline flex items-center gap-1 truncate"
+                        >
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{productDetail.product.supplierLink}</span>
+                        </a>
+                      </div>
+                    )}
+                    {productDetail.product.supplierAddress && (
+                      <div className="col-span-2">
+                        <Label className="text-xs text-gray-500">Address</Label>
+                        <p className="font-medium">{productDetail.product.supplierAddress}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Description */}
               {productDetail.product.description && (
                 <div>
-                  <Label className="text-gray-500">Description</Label>
+                  <Label className="text-xs text-gray-500">Description</Label>
                   <p className="mt-1 text-gray-700 whitespace-pre-wrap">{productDetail.product.description}</p>
                 </div>
               )}
+
+              {/* Notes */}
+              {productDetail.product.notes && (
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <Label className="text-xs text-amber-700 font-medium">Notes</Label>
+                  <p className="mt-1 text-gray-700 whitespace-pre-wrap text-sm">{productDetail.product.notes}</p>
+                </div>
+              )}
+
+              {/* Usage & Meta Info */}
+              <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t">
+                <span>Used in {productDetail.product.usageCount} room{productDetail.product.usageCount !== 1 ? 's' : ''}</span>
+                <span>•</span>
+                <span>Added {new Date(productDetail.product.createdAt).toLocaleDateString()}</span>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-4 border-t">
