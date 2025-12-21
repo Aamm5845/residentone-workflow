@@ -32,7 +32,7 @@ export async function PUT(
 
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
-    const { name, description, quantity, state } = await request.json()
+    const { name, description, quantity, state, notes } = await request.json()
 
     if (!roomId || !itemId) {
       return NextResponse.json({ 
@@ -61,6 +61,48 @@ export async function PUT(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // If name is being updated, find all grouped children and update their parentName
+    // This prevents grouped children from being "lost" when parent name changes
+    if (name !== undefined && name !== existingItem.name) {
+      // Find all grouped children that belong to this parent (by parentId OR by old parentName)
+      const groupedChildren = await prisma.roomFFEItem.findMany({
+        where: {
+          sectionId: existingItem.sectionId,
+          OR: [
+            {
+              customFields: {
+                path: ['parentId'],
+                equals: itemId
+              }
+            },
+            {
+              customFields: {
+                path: ['parentName'],
+                equals: existingItem.name
+              }
+            }
+          ]
+        }
+      })
+
+      // Update each child's parentName and ensure they have parentId
+      for (const child of groupedChildren) {
+        const childCustomFields = (child.customFields as any) || {}
+        await prisma.roomFFEItem.update({
+          where: { id: child.id },
+          data: {
+            customFields: {
+              ...childCustomFields,
+              parentId: itemId, // Ensure parentId is set (for legacy items)
+              parentName: name.trim() // Update to new name
+            },
+            updatedById: userId,
+            updatedAt: new Date()
+          }
+        })
+      }
+    }
+
     // Update the item
     const updatedItem = await prisma.roomFFEItem.update({
       where: { id: itemId },
@@ -69,6 +111,7 @@ export async function PUT(
         ...(description !== undefined && { description }),
         ...(quantity !== undefined && { quantity }),
         ...(state !== undefined && { state }),
+        ...(notes !== undefined && { notes }),
         updatedById: userId,
         updatedAt: new Date()
       }
@@ -265,6 +308,48 @@ export async function PATCH(
 
     if (!existingItem) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    
+    // If name is being updated, find all grouped children and update their parentName
+    // This prevents grouped children from being "lost" when parent name changes
+    if (name !== undefined && name !== existingItem.name) {
+      // Find all grouped children that belong to this parent (by parentId OR by old parentName)
+      const groupedChildren = await prisma.roomFFEItem.findMany({
+        where: {
+          sectionId: existingItem.sectionId,
+          OR: [
+            {
+              customFields: {
+                path: ['parentId'],
+                equals: itemId
+              }
+            },
+            {
+              customFields: {
+                path: ['parentName'],
+                equals: existingItem.name
+              }
+            }
+          ]
+        }
+      })
+
+      // Update each child's parentName and ensure they have parentId
+      for (const child of groupedChildren) {
+        const childCustomFields = (child.customFields as any) || {}
+        await prisma.roomFFEItem.update({
+          where: { id: child.id },
+          data: {
+            customFields: {
+              ...childCustomFields,
+              parentId: itemId, // Ensure parentId is set (for legacy items)
+              parentName: name.trim() // Update to new name
+            },
+            updatedById: userId,
+            updatedAt: new Date()
+          }
+        })
+      }
     }
     
     // Build update data object with only provided fields

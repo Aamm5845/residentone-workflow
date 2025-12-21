@@ -66,7 +66,7 @@ export async function GET(
               ...(onlyVisible ? { where: { visibility: 'VISIBLE' } } : {}),
               include: {
                 templateItem: true,
-                // Include linked specs for "chosen" status in FFE Workspace
+                // Include linked specs for "chosen" status in FFE Workspace (legacy one-to-many)
                 linkedSpecs: {
                   select: {
                     id: true,
@@ -76,6 +76,22 @@ export async function GET(
                     isOption: true,
                     optionNumber: true,
                     specStatus: true
+                  }
+                },
+                // Include linked specs via new many-to-many relationship (FFESpecLink)
+                ffeLinks: {
+                  include: {
+                    specItem: {
+                      select: {
+                        id: true,
+                        name: true,
+                        brand: true,
+                        sku: true,
+                        isOption: true,
+                        optionNumber: true,
+                        specStatus: true
+                      }
+                    }
                   }
                 }
               },
@@ -108,10 +124,38 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // Merge ffeLinks (new many-to-many) into linkedSpecs for the frontend
+    // This ensures both old and new linking methods work with the existing frontend code
+    if (instance.sections) {
+      instance.sections.forEach((section: any) => {
+        section.items.forEach((item: any) => {
+          // Get specs from new many-to-many relationship
+          const newLinkedSpecs = (item.ffeLinks || []).map((link: any) => link.specItem)
+          
+          // Merge with existing linkedSpecs (old one-to-many relationship)
+          const existingLinkedSpecs = item.linkedSpecs || []
+          
+          // Combine and dedupe by ID
+          const allLinkedSpecs = [...existingLinkedSpecs]
+          newLinkedSpecs.forEach((newSpec: any) => {
+            if (!allLinkedSpecs.some((s: any) => s.id === newSpec.id)) {
+              allLinkedSpecs.push(newSpec)
+            }
+          })
+          
+          // Update item with merged linkedSpecs
+          item.linkedSpecs = allLinkedSpecs
+          
+          // Remove ffeLinks from response (frontend uses linkedSpecs)
+          delete item.ffeLinks
+        })
+      })
+    }
+
     // Debug: Log items with their linkedSpecs for troubleshooting
     let totalLinkedSpecs = 0
     if (instance.sections) {
-      instance.sections.forEach(section => {
+      instance.sections.forEach((section: any) => {
         section.items.forEach((item: any) => {
           if (item.linkedSpecs && item.linkedSpecs.length > 0) {
             totalLinkedSpecs += item.linkedSpecs.length

@@ -88,6 +88,16 @@ interface ItemDetailPanelProps {
     roomIds?: string[]
     ffeRequirementId?: string
     ffeRequirementName?: string
+    // Multiple linked FFE items (many-to-many)
+    linkedFfeItems?: Array<{
+      linkId: string
+      ffeItemId: string
+      ffeItemName: string
+      roomId: string
+      roomName: string
+      sectionName: string
+    }>
+    linkedFfeCount?: number
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
@@ -757,8 +767,38 @@ export function ItemDetailPanel({
                   </div>
                 </div>
                 
-                {/* FFE Requirement Link - Show when item is linked to FFE Workspace */}
-                {mode !== 'create' && item?.ffeRequirementId && item?.ffeRequirementName && (
+                {/* FFE Linked Items - Show all linked FFE items (many-to-many) */}
+                {mode !== 'create' && item?.linkedFfeItems && item.linkedFfeItems.length > 0 && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="space-y-2">
+                      <p className="text-xs text-blue-600 font-medium">
+                        Linked FFE Items ({item.linkedFfeItems.length})
+                      </p>
+                      <div className="space-y-1.5">
+                        {item.linkedFfeItems.map((ffeItem) => (
+                          <div key={ffeItem.linkId} className="flex items-center justify-between bg-white rounded-md p-2 border border-blue-100">
+                            <div>
+                              <p className="text-sm font-medium text-blue-900">{ffeItem.ffeItemName}</p>
+                              <p className="text-xs text-gray-500">{ffeItem.roomName} · {ffeItem.sectionName}</p>
+                            </div>
+                            {projectId && (
+                              <a
+                                href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Legacy FFE Requirement Link - Fallback for old one-to-one links */}
+                {mode !== 'create' && (!item?.linkedFfeItems || item.linkedFfeItems.length === 0) && item?.ffeRequirementId && item?.ffeRequirementName && (
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center justify-between">
                       <div>

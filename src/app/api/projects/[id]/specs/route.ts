@@ -45,13 +45,27 @@ export async function GET(
                         category: true
                       }
                     },
-                    // Include the FFE requirement this spec is linked to
+                    // Include the FFE requirement this spec is linked to (legacy one-to-one)
                     ffeRequirement: {
                       select: {
                         id: true,
                         name: true,
                         description: true
                       }
+                    },
+                    // Include all linked FFE items (new many-to-many)
+                    specLinks: {
+                      include: {
+                        ffeRequirement: {
+                          select: {
+                            id: true,
+                            name: true,
+                            description: true,
+                            notes: true
+                          }
+                        }
+                      },
+                      orderBy: { createdAt: 'asc' }
                     }
                   }
                 }
@@ -101,13 +115,23 @@ export async function GET(
           rrp: item.rrp ? Number(item.rrp) : null,
           tradeDiscount: item.tradeDiscount ? Number(item.tradeDiscount) : null,
           libraryProductId: item.libraryProductId,
-          // FFE Linking info
+          // FFE Linking info (legacy one-to-one)
           isSpecItem: item.isSpecItem,
           ffeRequirementId: item.ffeRequirementId,
           ffeRequirementName: item.ffeRequirement?.name || null,
           isOption: item.isOption,
           optionNumber: item.optionNumber,
-          clientApproved: item.clientApproved || false
+          clientApproved: item.clientApproved || false,
+          // NEW: Multiple linked FFE items (many-to-many)
+          linkedFfeItems: (item.specLinks || []).map(link => ({
+            linkId: link.id,
+            ffeItemId: link.ffeRequirementId,
+            ffeItemName: link.ffeRequirement?.name || 'Unknown',
+            roomId: link.roomId,
+            roomName: link.roomName || 'Unknown Room',
+            sectionName: link.sectionName || 'Unknown Section'
+          })),
+          linkedFfeCount: (item.specLinks || []).length
         }))
       ) : []
     )

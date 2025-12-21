@@ -137,6 +137,7 @@ model User {
   updatedRooms                Room[]                      @relation("UpdatedByUserRoom")
   createdFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceCreatedBy")
   updatedFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceUpdatedBy")
+  createdFFESpecLinks         FFESpecLink[]               @relation("FFESpecLinkCreatedBy")
   sessions                    Session[]
   smsConversations            SmsConversation[]           @relation("UserSmsConversations")
   specBookGenerations         SpecBookGeneration[]        @relation("SpecBookGeneratedBy")
@@ -1423,9 +1424,13 @@ model RoomFFEItem {
   templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
   libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
   
-  // Self-relation for FFE requirement <-> Spec items
+  // Self-relation for FFE requirement <-> Spec items (legacy one-to-one)
   ffeRequirement   RoomFFEItem?        @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
   linkedSpecs      RoomFFEItem[]       @relation("FFERequirementSpecs")
+  
+  // Many-to-many relations for FFE items <-> Spec items via FFESpecLink
+  specLinks        FFESpecLink[]       @relation("SpecItemLinks")      // When this is a spec item: links to FFE requirements
+  ffeLinks         FFESpecLink[]       @relation("FFERequirementLinks") // When this is an FFE requirement: links from spec items
 
   @@index([sectionId, order])
   @@index([state])
@@ -1456,6 +1461,28 @@ model FFEChangeLog {
   @@index([entityType, entityId])
   @@index([userId, createdAt])
   @@index([orgId, createdAt])
+}
+
+// Many-to-many join table: Links FFE requirements to spec items (products)
+// One product in AllSpec can be linked to multiple FFE requirements from different rooms
+model FFESpecLink {
+  id               String      @id @default(cuid())
+  specItemId       String      // The product in AllSpec
+  ffeRequirementId String      // The FFE requirement from FFE Workspace
+  roomId           String      // Room where the FFE requirement is from (for display)
+  roomName         String?     // Room name (denormalized for quick display)
+  sectionName      String?     // Section name (denormalized for quick display)
+  createdAt        DateTime    @default(now())
+  createdById      String
+  
+  specItem         RoomFFEItem @relation("SpecItemLinks", fields: [specItemId], references: [id], onDelete: Cascade)
+  ffeRequirement   RoomFFEItem @relation("FFERequirementLinks", fields: [ffeRequirementId], references: [id], onDelete: Cascade)
+  createdBy        User        @relation("FFESpecLinkCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([specItemId, ffeRequirementId])
+  @@index([specItemId])
+  @@index([ffeRequirementId])
+  @@index([roomId])
 }
 
 model FFESectionLibrary {

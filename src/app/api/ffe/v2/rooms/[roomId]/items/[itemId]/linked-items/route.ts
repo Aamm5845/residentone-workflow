@@ -103,13 +103,13 @@ export async function PATCH(
         where: {
           sectionId: parentItem.sectionId,
           customFields: {
-            path: ['isLinkedItem'],
+            path: ['isGroupedItem'],
             equals: true
           },
           AND: {
             customFields: {
-              path: ['parentName'],
-              equals: parentItem.name
+              path: ['parentId'],
+              equals: itemId
             }
           }
         }
@@ -121,7 +121,7 @@ export async function PATCH(
 
       if (childExists) {
         return NextResponse.json(
-          { error: `A linked item named "${trimmedName}" already exists under this parent` },
+          { error: `A grouped item named "${trimmedName}" already exists under this parent` },
           { status: 400 }
         )
       }
@@ -139,7 +139,7 @@ export async function PATCH(
 
       // Perform transaction: create child + update parent
       const result = await prisma.$transaction(async (tx) => {
-        // Create the child item
+        // Create the child item (grouped item)
         const childItem = await tx.roomFFEItem.create({
           data: {
             sectionId: parentItem.sectionId,
@@ -152,6 +152,9 @@ export async function PATCH(
             order: maxOrder + 0.1,
             quantity: 1,
             customFields: {
+              isGroupedItem: true,
+              parentId: itemId, // Use parent ID instead of name for stable relationship
+              // Keep legacy fields for backwards compatibility
               isLinkedItem: true,
               parentName: parentItem.name
             },
@@ -200,7 +203,7 @@ export async function PATCH(
 
       return NextResponse.json({
         success: true,
-        message: 'Linked item added successfully',
+        message: 'Grouped item added successfully',
         data: {
           parent: {
             id: result.updatedParent.id,
@@ -211,8 +214,8 @@ export async function PATCH(
           child: {
             id: result.childItem.id,
             name: result.childItem.name,
-            isLinkedItem: true,
-            parentName: parentItem.name
+            isGroupedItem: true,
+            parentId: itemId
           }
         }
       })
@@ -227,27 +230,31 @@ export async function PATCH(
         )
       }
 
-      // Find the child item
+      // Find the child item - check both new parentId and legacy parentName for backwards compatibility
       const childItem = await prisma.roomFFEItem.findFirst({
         where: {
           id: childItemId,
           sectionId: parentItem.sectionId,
-          customFields: {
-            path: ['isLinkedItem'],
-            equals: true
-          },
-          AND: {
-            customFields: {
-              path: ['parentName'],
-              equals: parentItem.name
+          OR: [
+            {
+              customFields: {
+                path: ['parentId'],
+                equals: itemId
+              }
+            },
+            {
+              customFields: {
+                path: ['parentName'],
+                equals: parentItem.name
+              }
             }
-          }
+          ]
         }
       })
 
       if (!childItem) {
         return NextResponse.json(
-          { error: 'Linked item not found or does not belong to this parent' },
+          { error: 'Grouped item not found or does not belong to this parent' },
           { status: 404 }
         )
       }
@@ -310,7 +317,7 @@ export async function PATCH(
 
       return NextResponse.json({
         success: true,
-        message: 'Linked item removed successfully',
+        message: 'Grouped item removed successfully',
         data: {
           parent: {
             id: result.updatedParent.id,
@@ -324,7 +331,7 @@ export async function PATCH(
     }
 
   } catch (error) {
-    console.error('Error managing linked items:', error)
+    console.error('Error managing grouped items:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

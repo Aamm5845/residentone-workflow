@@ -196,6 +196,22 @@ export default function FFEUnifiedWorkspace({
   const [loadingProductSuppliers, setLoadingProductSuppliers] = useState(false)
   const [showProductSupplierDropdown, setShowProductSupplierDropdown] = useState(false)
 
+  // Link to Existing Product dialog states
+  const [showLinkToExistingDialog, setShowLinkToExistingDialog] = useState(false)
+  const [linkToExistingItem, setLinkToExistingItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
+  const [availableProducts, setAvailableProducts] = useState<Array<{
+    id: string
+    name: string
+    brand: string | null
+    roomName: string
+    sectionName: string
+    images: string[]
+    linkedFfeCount: number
+  }>>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [linkingProduct, setLinkingProduct] = useState(false)
+  const [productSearchQuery, setProductSearchQuery] = useState('')
+
   // Stats
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -299,6 +315,67 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
+  // Load available products from All Specs for linking
+  const loadAvailableProducts = async () => {
+    if (!projectId) return
+    try {
+      setLoadingProducts(true)
+      const response = await fetch(`/api/projects/${projectId}/specs`)
+      if (!response.ok) throw new Error('Failed to fetch products')
+      const result = await response.json()
+      if (result.specs) {
+        setAvailableProducts(result.specs.map((spec: any) => ({
+          id: spec.id,
+          name: spec.name,
+          brand: spec.brand,
+          roomName: spec.roomName,
+          sectionName: spec.sectionName,
+          images: spec.images || [],
+          linkedFfeCount: spec.linkedFfeCount || 0
+        })))
+      }
+    } catch (error) {
+      console.error('Error loading available products:', error)
+      toast.error('Failed to load products')
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  // Link FFE item to existing product
+  const handleLinkToExistingProduct = async (productId: string) => {
+    if (!linkToExistingItem || !projectId) return
+    
+    try {
+      setLinkingProduct(true)
+      const response = await fetch('/api/ffe/spec-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          specItemId: productId,
+          ffeRequirementId: linkToExistingItem.id,
+          roomId: roomId,
+          roomName: roomName,
+          sectionName: sections.find(s => s.id === linkToExistingItem.sectionId)?.name
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to link product')
+      }
+      
+      toast.success(`Linked "${linkToExistingItem.name}" to existing product`)
+      setShowLinkToExistingDialog(false)
+      setLinkToExistingItem(null)
+      await loadFFEData() // Refresh to show the link
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to link product')
+    } finally {
+      setLinkingProduct(false)
+    }
+  }
+
   const calculateStats = (sectionsData: FFESection[]) => {
     // Only count non-spec items (requirements)
     const allItems = sectionsData.flatMap(section => 
@@ -362,7 +439,7 @@ export default function FFEUnifiedWorkspace({
         })
         if (!response.ok) {
           const errData = await response.json()
-          throw new Error(errData.error || 'Failed to add linked item')
+          throw new Error(errData.error || 'Failed to add grouped item')
         }
         toast.success(`Linked item "${newItemName.trim()}" added`)
       } else {
@@ -1009,10 +1086,11 @@ export default function FFEUnifiedWorkspace({
     )
   })).filter(section => section.items.length > 0 || !searchQuery)
 
-  // Get linked children for an item
-  const getLinkedChildren = (item: FFEItem, section: FFESection) => {
+  // Get grouped children for an item (supports both new parentId and legacy parentName)
+  const getGroupedChildren = (item: FFEItem, section: FFESection) => {
     return section.items.filter(
-      child => child.customFields?.isLinkedItem && child.customFields?.parentName === item.name
+      child => (child.customFields?.isGroupedItem || child.customFields?.isLinkedItem) && 
+               (child.customFields?.parentId === item.id || child.customFields?.parentName === item.name)
     )
   }
 
@@ -1208,8 +1286,8 @@ export default function FFEUnifiedWorkspace({
             </div>
           ) : (
             filteredSections.map(section => {
-              // Filter out linked children (show them under their parents)
-              const parentItems = section.items.filter(item => !item.customFields?.isLinkedItem)
+              // Filter out grouped children (show them under their parents)
+              const parentItems = section.items.filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem)
               const chosenCount = parentItems.filter(item => hasSpecs(item)).length
               
               return (
@@ -1293,7 +1371,7 @@ export default function FFEUnifiedWorkspace({
                         <div className="divide-y divide-gray-100">
                           {parentItems.map(item => {
                             const isChosen = hasSpecs(item)
-                            const linkedChildren = getLinkedChildren(item, section)
+                            const groupedChildren = getGroupedChildren(item, section)
                             
                             return (
                               <div key={item.id} id={`ffe-item-${item.id}`} className="group">
@@ -1351,10 +1429,10 @@ export default function FFEUnifiedWorkspace({
                                     )}
                                     
                                     {/* Linked children indicator */}
-                                    {linkedChildren.length > 0 && (
+                                    {groupedChildren.length > 0 && (
                                       <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
                                         <LinkIcon className="w-3 h-3 mr-1" />
-                                        {linkedChildren.length} linked
+                                        {groupedChildren.length} grouped
                                       </Badge>
                                     )}
                                     
@@ -1455,6 +1533,16 @@ export default function FFEUnifiedWorkspace({
                                           <Globe className="w-4 h-4 mr-2 text-blue-600" />
                                           Generate from URL
                                         </DropdownMenuItem>
+                                        {/* Link to Existing Product - add to existing product in All Spec */}
+                                        <DropdownMenuItem onClick={() => {
+                                          setLinkToExistingItem({ id: item.id, name: item.name, sectionId: section.id })
+                                          setProductSearchQuery('')
+                                          loadAvailableProducts()
+                                          setShowLinkToExistingDialog(true)
+                                        }}>
+                                          <LinkIcon className="w-4 h-4 mr-2 text-indigo-600" />
+                                          Link to Existing Product
+                                        </DropdownMenuItem>
                                         {/* Add/Edit Note */}
                                         <DropdownMenuItem onClick={() => {
                                           setEditingNotesItemId(item.id)
@@ -1520,31 +1608,35 @@ export default function FFEUnifiedWorkspace({
                                         </div>
                                       </div>
                                     ) : (
-                                      <div 
-                                        className="flex items-start gap-2 bg-amber-50/50 rounded-lg p-2 cursor-pointer hover:bg-amber-50 transition-colors"
-                                        onClick={() => {
-                                          setEditingNotesItemId(item.id)
-                                          setEditNotesValue(item.notes || '')
-                                        }}
-                                      >
+                                      <div className="flex items-start gap-2 bg-amber-50/50 rounded-lg p-2 group/note">
                                         <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                                        <p className="text-xs text-gray-600">{item.notes}</p>
+                                        <p className="text-xs text-gray-600 flex-1">{item.notes}</p>
+                                        <button
+                                          onClick={() => {
+                                            setEditingNotesItemId(item.id)
+                                            setEditNotesValue(item.notes || '')
+                                          }}
+                                          className="opacity-0 group-hover/note:opacity-100 p-1 hover:bg-amber-100 rounded transition-opacity"
+                                          title="Edit note"
+                                        >
+                                          <Pencil className="w-3 h-3 text-amber-600" />
+                                        </button>
                                       </div>
                                     )}
                                   </div>
                                 )}
                                 
-                                {/* Linked Children */}
-                                {linkedChildren.length > 0 && (
+                                {/* Grouped Children */}
+                                {groupedChildren.length > 0 && (
                                   <div className="ml-10 border-l-2 border-blue-200 bg-blue-50/30">
-                                    {linkedChildren.map(child => {
+                                    {groupedChildren.map(child => {
                                       const childIsChosen = hasSpecs(child)
                                       return (
                                         <div 
                                           key={child.id} 
                                           id={`ffe-item-${child.id}`}
                                           className={cn(
-                                            "group flex items-center justify-between py-2 px-4 hover:bg-blue-50/50 transition-all",
+                                            "group flex items-center justify-between py-3 px-4 hover:bg-blue-50/50 transition-all",
                                             highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
                                           )}
                                         >
@@ -1556,15 +1648,35 @@ export default function FFEUnifiedWorkspace({
                                             )}
                                             <LinkIcon className="w-3 h-3 text-blue-500" />
                                             <span className="text-sm text-gray-700">{child.name}</span>
+                                            {/* Quantity badge for grouped items */}
+                                            {child.quantity > 1 && (
+                                              <Badge variant="outline" className="text-xs">{child.quantity}x</Badge>
+                                            )}
                                           </div>
                                           <div className="flex items-center gap-2">
                                             {childIsChosen ? (
-                                              <Badge className="bg-emerald-100 text-emerald-700 text-xs">Chosen</Badge>
+                                              <Badge 
+                                                className="bg-emerald-100 text-emerald-700 text-xs cursor-pointer hover:bg-emerald-200 transition-colors"
+                                                onClick={() => {
+                                                  if (projectId) {
+                                                    if (child.linkedSpecs?.length) {
+                                                      const specId = child.linkedSpecs[0].id
+                                                      router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
+                                                    } else {
+                                                      router.push(`/projects/${projectId}/specs/all?highlightItem=${child.id}`)
+                                                    }
+                                                  }
+                                                }}
+                                              >
+                                                Chosen
+                                                <ExternalLink className="w-3 h-3 ml-1" />
+                                              </Badge>
                                             ) : (
                                               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
                                                 Needs Selection
                                               </Badge>
                                             )}
+                                            {/* Full dropdown menu - same as standard items */}
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
@@ -1572,6 +1684,7 @@ export default function FFEUnifiedWorkspace({
                                                 </Button>
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent align="end">
+                                                {/* Add New Product */}
                                                 <DropdownMenuItem onClick={() => {
                                                   setChooseProductItem({ id: child.id, name: child.name, sectionId: section.id })
                                                   setNewProductData({
@@ -1603,6 +1716,7 @@ export default function FFEUnifiedWorkspace({
                                                   <Plus className="w-4 h-4 mr-2 text-emerald-600" />
                                                   Add New Product
                                                 </DropdownMenuItem>
+                                                {/* Generate from URL */}
                                                 <DropdownMenuItem onClick={() => {
                                                   setUrlGenerateItem({ id: child.id, name: child.name, sectionId: section.id })
                                                   setUrlInput('')
@@ -1612,6 +1726,36 @@ export default function FFEUnifiedWorkspace({
                                                   <Globe className="w-4 h-4 mr-2 text-blue-600" />
                                                   Generate from URL
                                                 </DropdownMenuItem>
+                                                {/* Link to Existing Product */}
+                                                <DropdownMenuItem onClick={() => {
+                                                  setLinkToExistingItem({ id: child.id, name: child.name, sectionId: section.id })
+                                                  setProductSearchQuery('')
+                                                  loadAvailableProducts()
+                                                  setShowLinkToExistingDialog(true)
+                                                }}>
+                                                  <LinkIcon className="w-4 h-4 mr-2 text-indigo-600" />
+                                                  Link to Existing Product
+                                                </DropdownMenuItem>
+                                                {/* Add/Edit Note */}
+                                                <DropdownMenuItem onClick={() => {
+                                                  setEditingNotesItemId(child.id)
+                                                  setEditNotesValue(child.notes || '')
+                                                }}>
+                                                  <StickyNote className="w-4 h-4 mr-2 text-amber-600" />
+                                                  {child.notes ? 'Edit Note' : 'Add Note'}
+                                                </DropdownMenuItem>
+                                                {/* Search Item Online */}
+                                                <DropdownMenuItem onClick={() => {
+                                                  setSearchItemName(child.name)
+                                                  setSearchRegion('ca')
+                                                  setSearchMode(renderingImages.length > 0 ? 'image' : 'text')
+                                                  setSelectedRenderingForSearch(renderingImages.length > 0 ? renderingImages[0].url : '')
+                                                  setShowSearchDialog(true)
+                                                }}>
+                                                  <Search className="w-4 h-4 mr-2 text-purple-600" />
+                                                  Search Item
+                                                </DropdownMenuItem>
+                                                {/* Delete */}
                                                 <DropdownMenuItem 
                                                   onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
                                                   className="text-red-600"
@@ -1743,11 +1887,12 @@ export default function FFEUnifiedWorkspace({
               </Select>
             </div>
             
-            {/* Link to Parent Option */}
+            {/* Group with Parent Option */}
             {selectedSectionId && (() => {
-              const sectionItems = sections.find(s => s.id === selectedSectionId)?.items.filter(item => !item.customFields?.isLinkedItem) || []
-              return sectionItems.length > 0 ? (
-                <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
+              const sectionItems = sections.find(s => s.id === selectedSectionId)?.items.filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem) || []
+              const hasParentItems = sectionItems.length > 0
+              return (
+                <div className="border rounded-lg p-3 bg-blue-50/50 space-y-3">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -1757,19 +1902,24 @@ export default function FFEUnifiedWorkspace({
                         setLinkToParent(e.target.checked)
                         if (!e.target.checked) setSelectedParentItemId('')
                       }}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={!hasParentItems}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                     />
-                    <Label htmlFor="linkToParent" className="text-sm cursor-pointer">
+                    <Label htmlFor="linkToParent" className={cn("text-sm cursor-pointer", !hasParentItems && "opacity-50")}>
                       <div className="flex items-center gap-1.5">
                         <LinkIcon className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Link to existing item (create as sub-item)</span>
+                        <span>Create as grouped item (sub-item under a parent)</span>
                       </div>
                     </Label>
                   </div>
                   
-                  {linkToParent && (
+                  {!hasParentItems && (
+                    <p className="text-xs text-gray-500 pl-6">Add parent items first to group under them</p>
+                  )}
+                  
+                  {linkToParent && hasParentItems && (
                     <div>
-                      <Label className="text-xs text-gray-500">Select parent item</Label>
+                      <Label className="text-xs text-gray-500">Select parent item to group under</Label>
                       <Select value={selectedParentItemId} onValueChange={setSelectedParentItemId}>
                         <SelectTrigger className="mt-1">
                           <SelectValue placeholder="Select a parent item..." />
@@ -1783,7 +1933,7 @@ export default function FFEUnifiedWorkspace({
                     </div>
                   )}
                 </div>
-              ) : null
+              )
             })()}
             
             <div>
@@ -1808,7 +1958,7 @@ export default function FFEUnifiedWorkspace({
             <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId(''); setLinkToParent(false); setSelectedParentItemId('') }}>Cancel</Button>
             <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId || (linkToParent && !selectedParentItemId)}>
               {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              {linkToParent ? 'Add Linked Item' : 'Add Item'}
+              {linkToParent ? 'Add Grouped Item' : 'Add Item'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3069,6 +3219,120 @@ export default function FFEUnifiedWorkspace({
                 Search {searchRegion === 'ca' ? 'Canada' : 'US'}
               </Button>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link to Existing Product Dialog */}
+      <Dialog open={showLinkToExistingDialog} onOpenChange={setShowLinkToExistingDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LinkIcon className="w-5 h-5 text-indigo-600" />
+              Link to Existing Product
+            </DialogTitle>
+            <DialogDescription>
+              Link <strong className="text-gray-900">{linkToExistingItem?.name}</strong> to an existing product in All Spec
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search products..."
+                value={productSearchQuery}
+                onChange={(e) => setProductSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Products List */}
+            <div className="flex-1 overflow-y-auto border rounded-lg">
+              {loadingProducts ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <span className="ml-2 text-gray-500">Loading products...</span>
+                </div>
+              ) : availableProducts.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p>No products available yet</p>
+                  <p className="text-sm">Add products from the FFE workspace first</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {availableProducts
+                    .filter(p => 
+                      !productSearchQuery || 
+                      p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                      p.brand?.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                      p.roomName.toLowerCase().includes(productSearchQuery.toLowerCase())
+                    )
+                    .map(product => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleLinkToExistingProduct(product.id)}
+                      >
+                        {/* Product Image */}
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                          {product.images && product.images[0] ? (
+                            <img 
+                              src={product.images[0]} 
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{product.name}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {product.brand && <span className="text-gray-700">{product.brand} · </span>}
+                            {product.roomName} · {product.sectionName}
+                          </p>
+                          {product.linkedFfeCount > 0 && (
+                            <p className="text-xs text-indigo-600 mt-0.5">
+                              Already linked to {product.linkedFfeCount} FFE item{product.linkedFfeCount > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Link Button */}
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="flex-shrink-0"
+                          disabled={linkingProduct}
+                        >
+                          {linkingProduct ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <LinkIcon className="w-3 h-3 mr-1" />
+                              Link
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => setShowLinkToExistingDialog(false)}>
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

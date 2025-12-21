@@ -31,6 +31,11 @@ import {
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { 
   ArrowLeft, 
   Search,
@@ -142,9 +147,19 @@ interface SpecItem {
   tradePrice: number | null
   rrp: number | null
   tradeDiscount: number | null
-  // FFE Linking fields
+  // FFE Linking fields (legacy one-to-one)
   ffeRequirementId: string | null
   ffeRequirementName: string | null
+  // Multiple linked FFE items (many-to-many)
+  linkedFfeItems?: Array<{
+    linkId: string
+    ffeItemId: string
+    ffeItemName: string
+    roomId: string
+    roomName: string
+    sectionName: string
+  }>
+  linkedFfeCount?: number
 }
 
 interface CategoryGroup {
@@ -2725,7 +2740,53 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                               <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">{item.roomName}</p>
-                              {item.ffeRequirementName && (
+                              {/* Show linked FFE items - new many-to-many format */}
+                              {item.linkedFfeItems && item.linkedFfeItems.length > 0 ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate hover:underline"
+                                    >
+                                      <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                      {item.linkedFfeItems[0].roomName}: {item.linkedFfeItems[0].ffeItemName}
+                                      {item.linkedFfeItems.length > 1 && (
+                                        <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-medium">
+                                          +{item.linkedFfeItems.length - 1}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent 
+                                    className="w-64 p-0" 
+                                    align="start"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="p-2 border-b bg-gray-50">
+                                      <p className="text-xs font-medium text-gray-700">
+                                        Linked FFE Items ({item.linkedFfeItems.length})
+                                      </p>
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto divide-y">
+                                      {item.linkedFfeItems.map((ffeItem) => (
+                                        <a
+                                          key={ffeItem.linkId}
+                                          href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}
+                                          className="block p-2 hover:bg-blue-50 transition-colors"
+                                        >
+                                          <p className="text-xs font-medium text-gray-900 truncate">
+                                            {ffeItem.ffeItemName}
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 truncate">
+                                            {ffeItem.roomName} · {ffeItem.sectionName}
+                                          </p>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : item.ffeRequirementName && (
+                                /* Legacy one-to-one link fallback */
                                 <a
                                   href={`/ffe/${item.roomId}/workspace?highlight=${item.ffeRequirementId}`}
                                   onClick={(e) => e.stopPropagation()}
