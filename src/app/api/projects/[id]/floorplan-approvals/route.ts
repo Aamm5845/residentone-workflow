@@ -36,34 +36,14 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get all versions but optimize what we fetch
-    // Use explicit select to avoid selecting columns that might not exist in DB yet
+    // Get all versions with relations
     const versions = await prisma.floorplanApprovalVersion.findMany({
       where: {
         projectId: resolvedParams.id
       },
-      select: {
-        id: true,
-        version: true,
-        status: true,
-        approvedByAaron: true,
-        aaronApprovedAt: true,
-        sentToClientAt: true,
-        emailOpenedAt: true,
-        followUpCompletedAt: true,
-        followUpNotes: true,
-        clientDecision: true,
-        clientDecidedAt: true,
-        clientMessage: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         assets: {
-          select: {
-            id: true,
-            includeInEmail: true,
-            displayOrder: true,
-            createdAt: true,
+          include: {
             asset: true
           },
           orderBy: [
@@ -72,12 +52,7 @@ export async function GET(
           ]
         },
         activityLogs: {
-          select: {
-            id: true,
-            type: true,
-            message: true,
-            metadata: true,
-            createdAt: true,
+          include: {
             user: {
               select: {
                 id: true,
