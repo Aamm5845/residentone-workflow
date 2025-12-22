@@ -436,7 +436,8 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   // Start editing a note
   const startEditingNote = (note: SourceFile) => {
     setEditNoteTitle(note.title)
-    setEditNoteContent(note.description || '')
+    // Use noteContent for notes, fall back to description for backwards compatibility
+    setEditNoteContent(note.noteContent || note.description || '')
     setEditingNote(true)
   }
 
@@ -472,6 +473,7 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
       setViewingNote({
         ...viewingNote,
         title: editNoteTitle,
+        noteContent: editNoteContent,
         description: editNoteContent
       })
     } catch (error) {
