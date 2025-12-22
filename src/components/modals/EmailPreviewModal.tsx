@@ -217,6 +217,7 @@ export default function EmailPreviewModal({
   if (!editedData) return null
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -545,6 +546,6 @@ export default function EmailPreviewModal({
         </DialogContent>
       </Dialog>
     )}
-  </>
+    </>
   )
 }
