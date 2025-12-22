@@ -59,7 +59,11 @@ export async function GET(
         createdAt: true,
         updatedAt: true,
         assets: {
-          include: {
+          select: {
+            id: true,
+            includeInEmail: true,
+            displayOrder: true,
+            createdAt: true,
             asset: true
           },
           orderBy: [
@@ -68,7 +72,12 @@ export async function GET(
           ]
         },
         activityLogs: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            message: true,
+            metadata: true,
+            createdAt: true,
             user: {
               select: {
                 id: true,
