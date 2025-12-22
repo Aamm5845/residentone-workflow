@@ -298,7 +298,7 @@ export default function FloorplanDrawingsWorkspace({
       })
 
       if (response.ok) {
-        toast.success('Version pushed to approval!')
+        toast.success('Version pushed to Client Approval!')
         // Refresh to show updated status
         window.location.reload()
       } else {
@@ -535,17 +535,25 @@ export default function FloorplanDrawingsWorkspace({
                       </div>
                       
                       <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
-                        {/* Push to Approval - only for DRAFT versions with files */}
-                        {version.status === 'DRAFT' && version.assets?.length > 0 && (
-                          <Button
-                            size="sm"
-                            onClick={() => pushToApproval(version.id)}
-                            disabled={loading}
-                            className="bg-purple-600 hover:bg-purple-700"
-                          >
-                            <Send className="w-4 h-4 mr-1" />
-                            Push to Approval
-                          </Button>
+                        {/* Push to Client Approval - for DRAFT versions with files */}
+                        {version.status === 'DRAFT' && (
+                          <>
+                            {version.assets?.length > 0 ? (
+                              <Button
+                                size="sm"
+                                onClick={() => pushToApproval(version.id)}
+                                disabled={loading}
+                                className="bg-purple-600 hover:bg-purple-700"
+                              >
+                                <Send className="w-4 h-4 mr-1" />
+                                {loading ? 'Pushing...' : 'Push to Client Approval'}
+                              </Button>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500 border-gray-300">
+                                Upload files to push
+                              </Badge>
+                            )}
+                          </>
                         )}
                         
                         {/* Delete Button - available for ALL versions */}

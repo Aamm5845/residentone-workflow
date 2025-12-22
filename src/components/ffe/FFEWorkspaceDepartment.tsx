@@ -14,8 +14,13 @@ import {
   Image as ImageIcon,
   LinkIcon,
   ExternalLink,
-  X
+  X,
+  ArrowRightLeft,
+  Layers
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import FFEItemCard, { FFEItemState, FFEItemVisibility } from './common/FFEItemCard'
@@ -68,6 +73,16 @@ export default function FFEWorkspaceDepartment({
   const [programaLink, setProgramaLink] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  
+  // Move to section modal
+  const [moveToSectionModal, setMoveToSectionModal] = useState<{ 
+    open: boolean
+    item: FFEItem | null
+    currentSectionId: string | null
+    currentSectionName: string | null
+  }>({ open: false, item: null, currentSectionId: null, currentSectionName: null })
+  const [selectedMoveSection, setSelectedMoveSection] = useState<string>('')
+  const [isMoving, setIsMoving] = useState(false)
 
   // Stats
   const [stats, setStats] = useState({
@@ -274,6 +289,49 @@ export default function FFEWorkspaceDepartment({
           : section
       )
     )
+  }
+
+  // Move item to a different section
+  const handleMoveToSection = async () => {
+    if (!moveToSectionModal.item || !selectedMoveSection) return
+    
+    const item = moveToSectionModal.item
+    setIsMoving(true)
+    
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetSectionId: selectedMoveSection })
+      })
+      
+      if (res.ok) {
+        toast.success('Item moved to new section')
+        // Reload FFE data to reflect the change
+        loadFFEData()
+        setMoveToSectionModal({ open: false, item: null, currentSectionId: null, currentSectionName: null })
+        setSelectedMoveSection('')
+      } else {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to move')
+      }
+    } catch (error) {
+      console.error('Error moving item:', error)
+      toast.error('Failed to move item')
+    } finally {
+      setIsMoving(false)
+    }
+  }
+
+  // Open move modal for an item
+  const openMoveModal = (item: FFEItem, sectionId: string, sectionName: string) => {
+    setMoveToSectionModal({
+      open: true,
+      item,
+      currentSectionId: sectionId,
+      currentSectionName: sectionName
+    })
+    setSelectedMoveSection('')
   }
 
   const getProgressColor = (percentage: number) => {
@@ -492,23 +550,34 @@ export default function FFEWorkspaceDepartment({
                   <CardContent className="border-t space-y-3">
                     <div className="grid grid-cols-1 gap-3">
                       {visibleItems.map(item => (
-                        <FFEItemCard
-                          key={item.id}
-                          id={item.id}
-                          name={item.name}
-                          description={item.description}
-                          state={item.state}
-                          visibility={item.visibility}
-                          notes={item.notes}
-                          sectionName={section.name}
-                          isRequired={item.isRequired}
-                          isCustom={item.isCustom}
-                          quantity={item.quantity}
-                          mode="workspace"
-                          disabled={disabled || saving}
-                          onStateChange={handleStateChange}
-                          onNotesChange={handleNotesChange}
-                        />
+                        <div key={item.id} className="group relative">
+                          <FFEItemCard
+                            id={item.id}
+                            name={item.name}
+                            description={item.description}
+                            state={item.state}
+                            visibility={item.visibility}
+                            notes={item.notes}
+                            sectionName={section.name}
+                            isRequired={item.isRequired}
+                            isCustom={item.isCustom}
+                            quantity={item.quantity}
+                            mode="workspace"
+                            disabled={disabled || saving}
+                            onStateChange={handleStateChange}
+                            onNotesChange={handleNotesChange}
+                          />
+                          {/* Move to Section Button - appears on hover */}
+                          {sections.length > 1 && (
+                            <button
+                              onClick={() => openMoveModal(item, section.id, section.name)}
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-blue-50 hover:border-blue-300 text-gray-500 hover:text-blue-600"
+                              title="Move to another section"
+                            >
+                              <ArrowRightLeft className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </CardContent>
@@ -629,6 +698,81 @@ export default function FFEWorkspaceDepartment({
           )}
         </div>
       )}
+
+      {/* Move to Section Modal */}
+      <Dialog 
+        open={moveToSectionModal.open} 
+        onOpenChange={(open) => !open && setMoveToSectionModal({ open: false, item: null, currentSectionId: null, currentSectionName: null })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-600" />
+              Move to Section
+            </DialogTitle>
+            <DialogDescription>
+              Move "{moveToSectionModal.item?.name}" to a different category/section.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Current Section Info */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-500 mb-1">Currently in:</p>
+              <p className="font-medium text-gray-900">{moveToSectionModal.currentSectionName}</p>
+            </div>
+            
+            {/* Section Selector */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Move to section:
+              </label>
+              <Select value={selectedMoveSection} onValueChange={setSelectedMoveSection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections
+                    .filter(s => s.id !== moveToSectionModal.currentSectionId)
+                    .map(section => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setMoveToSectionModal({ open: false, item: null, currentSectionId: null, currentSectionName: null })}
+              disabled={isMoving}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleMoveToSection}
+              disabled={!selectedMoveSection || isMoving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isMoving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Moving...
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  Move Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
