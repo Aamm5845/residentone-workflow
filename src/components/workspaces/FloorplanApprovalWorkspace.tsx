@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { 
   ArrowLeft, 
   User, 
@@ -111,6 +119,11 @@ export default function FloorplanApprovalWorkspace({
   // Email preview modal state
   const [showEmailPreviewModal, setShowEmailPreviewModal] = useState(false)
   const [emailPreviewData, setEmailPreviewData] = useState<EmailPreviewData | null>(null)
+  
+  // Test email state
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
 
   // Fetch email analytics
   const fetchEmailAnalytics = async (versionId: string) => {
@@ -270,6 +283,52 @@ export default function FloorplanApprovalWorkspace({
     } else {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.error || 'Failed to send email')
+    }
+  }
+
+  // Send test email (uses the same endpoint as regular send, but with testEmail parameter)
+  const handleSendTestEmail = async () => {
+    if (!testEmail.trim()) {
+      toast.error('Please enter a test email address')
+      return
+    }
+
+    if (!currentVersion) {
+      toast.error('No version selected')
+      return
+    }
+
+    if (selectedAssets.length === 0) {
+      toast.error('Please select at least one file to include in the email')
+      return
+    }
+
+    setSendingTestEmail(true)
+    try {
+      // Use the same send-email endpoint but with testEmail parameter
+      const response = await fetch(`/api/floorplan-approvals/${currentVersion.id}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          testEmail: testEmail.trim(),
+          selectedAssetIds: selectedAssets
+        })
+      })
+      
+      if (response.ok) {
+        toast.success(`Test email sent successfully to ${testEmail}`)
+        setTestEmail('')
+        setShowTestEmailDialog(false)
+      } else {
+        const error = await response.json()
+        console.error('Failed to send test email:', error)
+        toast.error(`Failed to send test email: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      toast.error('Failed to send test email. Please try again.')
+    } finally {
+      setSendingTestEmail(false)
     }
   }
 
@@ -753,15 +812,26 @@ export default function FloorplanApprovalWorkspace({
                 <h4 className="text-sm font-semibold text-gray-900 mb-4">Actions</h4>
                 <div className="space-y-3">
                   {/* Send to Client */}
-                  <Button
-                    onClick={handleSendToClient}
-                    disabled={loading || !isApprovedByAaron || selectedAssets.length === 0}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    {loading ? 'Sending...' : 
-                     currentVersion.sentToClientAt ? 'Resend to Client' : 'Send to Client'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSendToClient}
+                      disabled={loading || !isApprovedByAaron || selectedAssets.length === 0}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      {loading ? 'Sending...' : 
+                       currentVersion.sentToClientAt ? 'Resend to Client' : 'Send to Client'}
+                    </Button>
+                    <Button
+                      onClick={() => setShowTestEmailDialog(true)}
+                      disabled={loading || selectedAssets.length === 0}
+                      variant="outline"
+                      className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                      title="Send a test email to verify the email content"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                  </div>
                   
                   {!isApprovedByAaron && (
                     <p className="text-xs text-amber-600 flex items-center">
@@ -958,6 +1028,87 @@ export default function FloorplanApprovalWorkspace({
         onSend={handleConfirmSendEmail}
         title="Review Email Before Sending"
       />
+
+      {/* Test Email Dialog */}
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-purple-600" />
+              Send Test Email
+            </DialogTitle>
+            <DialogDescription>
+              Send a test email to verify how the floorplan approval email will look before sending it to the client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="test-email" className="text-sm font-medium text-gray-700">
+                Test Email Address
+              </label>
+              <Input
+                id="test-email"
+                type="email"
+                placeholder="Enter email address..."
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && testEmail.trim()) {
+                    handleSendTestEmail()
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                The test email will include the same content and attachments that would be sent to the client.
+              </p>
+            </div>
+            
+            {selectedAssets.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs font-medium text-gray-600 mb-2">
+                  Files to include ({selectedAssets.length}):
+                </p>
+                <ul className="text-xs text-gray-500 space-y-1">
+                  {currentVersion?.assets
+                    .filter(a => selectedAssets.includes(a.id))
+                    .map(a => (
+                      <li key={a.id} className="flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        {a.asset.title}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowTestEmailDialog(false)}
+              disabled={sendingTestEmail}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTestEmail}
+              disabled={sendingTestEmail || !testEmail.trim()}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {sendingTestEmail ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Test
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
