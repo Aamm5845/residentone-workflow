@@ -2804,6 +2804,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                 {/* Items */}
                 {expandedCategories.has(group.name) && (
+                  <>
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -3459,48 +3460,48 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </SortableContext>
                   </DndContext>
                     
-                    {/* Add Item Actions - Bottom of Section - Only visible on hover */}
-                    {group.sectionId && group.roomId && (
-                      <div className={cn(
-                        "flex items-center gap-2 px-4 h-10 bg-gray-50/50 border-t border-gray-100 transition-opacity duration-200",
-                        hoveredSection === group.name ? "opacity-100" : "opacity-0 pointer-events-none"
-                      )}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
-                          onClick={() => openLibraryModal(group.sectionId!, group.roomId!)}
-                        >
-                          <Library className="w-3.5 h-3.5" />
-                          From Library
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
-                          onClick={() => setAddFromUrlModal({ open: true, sectionId: group.sectionId!, roomId: group.roomId! })}
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Add from URL
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-100"
-                          onClick={() => setDetailPanel({
-                            isOpen: true,
-                            mode: 'create',
-                            item: null,
-                            sectionId: group.sectionId!,
-                            roomId: group.roomId!
-                          })}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Custom Item
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                  {/* Add Item Actions - Bottom of Section - Only visible on hover */}
+                  {group.sectionId && group.roomId && (
+                    <div className={cn(
+                      "flex items-center gap-2 px-4 h-10 bg-gray-50/50 border-t border-gray-100 transition-opacity duration-200",
+                      hoveredSection === group.name ? "opacity-100" : "opacity-0 pointer-events-none"
+                    )}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => openLibraryModal(group.sectionId!, group.roomId!)}
+                      >
+                        <Library className="w-3.5 h-3.5" />
+                        From Library
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
+                        onClick={() => setAddFromUrlModal({ open: true, sectionId: group.sectionId!, roomId: group.roomId! })}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Add from URL
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-100"
+                        onClick={() => setDetailPanel({
+                          isOpen: true,
+                          mode: 'create',
+                          item: null,
+                          sectionId: group.sectionId!,
+                          roomId: group.roomId!
+                        })}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Custom Item
+                      </Button>
+                    </div>
+                  )}
+                </>
                 )}
               </div>
             ))}
