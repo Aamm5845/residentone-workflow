@@ -110,8 +110,9 @@ export async function GET(
       clientDecidedAt: v.clientDecidedAt,
       clientMessage: v.clientMessage,
       notes: v.notes,
-      sourceFilePath: v.sourceFilePath,
-      sourceFileName: v.sourceFileName,
+      // These columns might not exist in production yet
+      sourceFilePath: (v as any).sourceFilePath || null,
+      sourceFileName: (v as any).sourceFileName || null,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       assets: v.assets.map(a => ({
