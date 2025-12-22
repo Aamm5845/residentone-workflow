@@ -396,6 +396,14 @@ export async function PATCH(
     
     // Handle moving to different section
     if (targetSectionId && targetSectionId !== existingItem.sectionId) {
+      // Check if this item is a child (has parentId) - children cannot be moved directly
+      const itemCustomFields = (existingItem.customFields as any) || {}
+      if (itemCustomFields.parentId) {
+        return NextResponse.json({ 
+          error: 'Cannot move a grouped child item directly. Move the parent item instead.' 
+        }, { status: 400 })
+      }
+      
       // Verify target section exists
       const targetSection = await prisma.roomFFESection.findFirst({
         where: {
@@ -422,8 +430,48 @@ export async function PATCH(
         take: 1
       })
       
+      let nextOrder = targetSectionItems.length > 0 ? targetSectionItems[0].order + 1 : 1
+      
       updateData.sectionId = targetSectionId
-      updateData.order = targetSectionItems.length > 0 ? targetSectionItems[0].order + 1 : 1
+      updateData.order = nextOrder
+      
+      // Find all grouped children that belong to this parent and move them too
+      const groupedChildren = await prisma.roomFFEItem.findMany({
+        where: {
+          sectionId: existingItem.sectionId,
+          OR: [
+            {
+              customFields: {
+                path: ['parentId'],
+                equals: itemId
+              }
+            },
+            {
+              customFields: {
+                path: ['parentName'],
+                equals: existingItem.name
+              }
+            }
+          ]
+        }
+      })
+      
+      // Move all children to the new section
+      if (groupedChildren.length > 0) {
+        for (const child of groupedChildren) {
+          nextOrder++
+          await prisma.roomFFEItem.update({
+            where: { id: child.id },
+            data: {
+              sectionId: targetSectionId,
+              order: nextOrder,
+              updatedById: userId,
+              updatedAt: new Date()
+            }
+          })
+        }
+        console.log(`[FFE Move] Moved ${groupedChildren.length} grouped children with parent ${existingItem.name}`)
+      }
     }
     
     // If we have any updates to make (beyond just userId/updatedAt)

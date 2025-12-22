@@ -1607,11 +1607,11 @@ export default function FFEUnifiedWorkspace({
                                           <Search className="w-4 h-4 mr-2 text-purple-600" />
                                           Search Item
                                         </DropdownMenuItem>
-                                        {/* Move to Section */}
-                                        {sections.length > 1 && (
+                                        {/* Move to Section - only for parent items (not items with parentId in customFields) */}
+                                        {sections.length > 1 && !item.customFields?.parentId && (
                                           <DropdownMenuItem onClick={() => openMoveToSectionDialog(item.id, item.name, section.id, section.name)}>
                                             <ArrowRightLeft className="w-4 h-4 mr-2 text-blue-600" />
-                                            Move to Section
+                                            Move to Section {groupedChildren.length > 0 ? `(+${groupedChildren.length} items)` : ''}
                                           </DropdownMenuItem>
                                         )}
                                         <DropdownMenuItem 
@@ -1807,13 +1807,7 @@ export default function FFEUnifiedWorkspace({
                                                   <Search className="w-4 h-4 mr-2 text-purple-600" />
                                                   Search Item
                                                 </DropdownMenuItem>
-                                                {/* Move to Section */}
-                                                {sections.length > 1 && (
-                                                  <DropdownMenuItem onClick={() => openMoveToSectionDialog(child.id, child.name, section.id, section.name)}>
-                                                    <ArrowRightLeft className="w-4 h-4 mr-2 text-blue-600" />
-                                                    Move to Section
-                                                  </DropdownMenuItem>
-                                                )}
+                                                {/* Note: Child/grouped items cannot be moved directly - they move with their parent */}
                                                 {/* Delete */}
                                                 <DropdownMenuItem 
                                                   onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
