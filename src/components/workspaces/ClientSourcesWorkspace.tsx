@@ -44,6 +44,7 @@ import {
   FolderPlus,
   Edit2
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Project {
   id: string
@@ -731,13 +732,21 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
                       </div>
                       <span className="font-semibold text-gray-900">New Note</span>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Note title..."
-                      value={noteTitle}
-                      onChange={(e) => setNoteTitle(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg mb-3 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none text-sm"
-                    />
+                    <div className="relative mb-3">
+                      <input
+                        type="text"
+                        placeholder="Note title (required)"
+                        value={noteTitle}
+                        onChange={(e) => setNoteTitle(e.target.value)}
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none text-sm",
+                          !noteTitle.trim() && noteContent ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                        )}
+                      />
+                      {!noteTitle.trim() && noteContent && (
+                        <p className="text-xs text-amber-600 mt-1">Please add a title to save your note</p>
+                      )}
+                    </div>
                     <RichTextEditor
                       content={noteContent}
                       onChange={setNoteContent}

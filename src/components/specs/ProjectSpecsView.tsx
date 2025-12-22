@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -204,6 +207,40 @@ interface ProjectSpecsViewProps {
     id: string
     name: string
   }
+}
+
+// Sortable Spec Item component for drag-drop reordering
+function SortableSpecItem({ 
+  id, 
+  children 
+}: { 
+  id: string
+  children: React.ReactNode 
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {typeof children === 'function' 
+        ? (children as (listeners: any) => React.ReactNode)(listeners)
+        : children
+      }
+    </div>
+  )
 }
 
 export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
@@ -590,6 +627,65 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       setSavingSupplier(false)
     }
   }
+
+  // DnD Kit sensors for drag and drop reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Handle drag end for reordering specs within a section
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    // Find the group containing both items
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // Update the grouped specs with the new order
+    setGroupedSpecs((prevGroups) => {
+      const newGroups = [...prevGroups]
+      
+      for (let i = 0; i < newGroups.length; i++) {
+        const group = newGroups[i]
+        const activeIndex = group.items.findIndex(item => item.id === activeId)
+        const overIndex = group.items.findIndex(item => item.id === overId)
+        
+        if (activeIndex !== -1 && overIndex !== -1) {
+          // Both items are in this group - reorder
+          newGroups[i] = {
+            ...group,
+            items: arrayMove(group.items, activeIndex, overIndex)
+          }
+          
+          // Save the new order to the server
+          const reorderedIds = newGroups[i].items.map(item => item.id)
+          fetch('/api/projects/' + project.id + '/specs/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              itemIds: reorderedIds,
+              sectionName: group.name
+            })
+          }).catch(err => console.error('Failed to save reorder:', err))
+          
+          break
+        }
+      }
+      
+      return newGroups
+    })
+  }, [project.id])
 
   // Fetch all specs for the project
   const fetchSpecs = useCallback(async () => {
@@ -2708,12 +2804,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                 {/* Items */}
                 {expandedCategories.has(group.name) && (
-                  <div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={group.items.map(item => item.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                     {/* Items Table */}
                     <div className="divide-y divide-gray-100">
                       {group.items.map((item) => (
+                        <SortableSpecItem key={item.id} id={item.id}>
+                          {(listeners: any) => (
                         <div 
-                          key={item.id}
                           id={`spec-item-${item.id}`}
                           className={cn(
                             "group/item relative flex items-center transition-colors border-l-2",
@@ -2737,7 +2842,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               onClick={(e) => e.stopPropagation()}
                               className="h-4 w-4"
                             />
-                            <button className="p-0.5 cursor-grab hover:bg-gray-200 rounded">
+                            <button 
+                              {...listeners}
+                              className="p-0.5 cursor-grab hover:bg-gray-200 rounded touch-none"
+                            >
                               <GripVertical className="w-4 h-4 text-gray-400" />
                             </button>
                           </div>
@@ -3344,8 +3452,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                           </div>
                         </div>
+                          )}
+                        </SortableSpecItem>
                       ))}
                     </div>
+                    </SortableContext>
+                  </DndContext>
                     
                     {/* Add Item Actions - Bottom of Section - Only visible on hover */}
                     {group.sectionId && group.roomId && (
