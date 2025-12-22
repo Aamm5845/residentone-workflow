@@ -37,7 +37,9 @@ import {
   Building2,
   StickyNote,
   Upload,
-  Scissors
+  Scissors,
+  ArrowRightLeft,
+  Layers
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -160,6 +162,12 @@ export default function FFEUnifiedWorkspace({
   const [searchRegion, setSearchRegion] = useState<'ca' | 'us'>('ca')
   const [searchMode, setSearchMode] = useState<'text' | 'image'>('image')
   const [selectedRenderingForSearch, setSelectedRenderingForSearch] = useState<string>('')
+  
+  // Move to section dialog states
+  const [showMoveToSectionDialog, setShowMoveToSectionDialog] = useState(false)
+  const [moveItem, setMoveItem] = useState<{id: string, name: string, currentSectionId: string, currentSectionName: string} | null>(null)
+  const [selectedMoveTargetSection, setSelectedMoveTargetSection] = useState<string>('')
+  const [isMoving, setIsMoving] = useState(false)
 
   // Choose Product dialog states (add new product linked to FFE item)
   const [showChooseProductDialog, setShowChooseProductDialog] = useState(false)
@@ -944,6 +952,43 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
+  // Move item to a different section
+  const handleMoveToSection = async () => {
+    if (!moveItem || !selectedMoveTargetSection) return
+    
+    setIsMoving(true)
+    try {
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${moveItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetSectionId: selectedMoveTargetSection })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to move item')
+      }
+      
+      toast.success('Item moved to new section')
+      await loadFFEData()
+      setShowMoveToSectionDialog(false)
+      setMoveItem(null)
+      setSelectedMoveTargetSection('')
+    } catch (error) {
+      console.error('Error moving item:', error)
+      toast.error('Failed to move item')
+    } finally {
+      setIsMoving(false)
+    }
+  }
+
+  // Open move to section dialog
+  const openMoveToSectionDialog = (itemId: string, itemName: string, sectionId: string, sectionName: string) => {
+    setMoveItem({ id: itemId, name: itemName, currentSectionId: sectionId, currentSectionName: sectionName })
+    setSelectedMoveTargetSection('')
+    setShowMoveToSectionDialog(true)
+  }
+
   const handleUpdateSectionName = async (sectionId: string) => {
     if (!editSectionName.trim()) { toast.error('Section name is required'); return }
     try {
@@ -1562,6 +1607,13 @@ export default function FFEUnifiedWorkspace({
                                           <Search className="w-4 h-4 mr-2 text-purple-600" />
                                           Search Item
                                         </DropdownMenuItem>
+                                        {/* Move to Section */}
+                                        {sections.length > 1 && (
+                                          <DropdownMenuItem onClick={() => openMoveToSectionDialog(item.id, item.name, section.id, section.name)}>
+                                            <ArrowRightLeft className="w-4 h-4 mr-2 text-blue-600" />
+                                            Move to Section
+                                          </DropdownMenuItem>
+                                        )}
                                         <DropdownMenuItem 
                                           onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }}
                                           className="text-red-600"
@@ -1755,6 +1807,13 @@ export default function FFEUnifiedWorkspace({
                                                   <Search className="w-4 h-4 mr-2 text-purple-600" />
                                                   Search Item
                                                 </DropdownMenuItem>
+                                                {/* Move to Section */}
+                                                {sections.length > 1 && (
+                                                  <DropdownMenuItem onClick={() => openMoveToSectionDialog(child.id, child.name, section.id, section.name)}>
+                                                    <ArrowRightLeft className="w-4 h-4 mr-2 text-blue-600" />
+                                                    Move to Section
+                                                  </DropdownMenuItem>
+                                                )}
                                                 {/* Delete */}
                                                 <DropdownMenuItem 
                                                   onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
@@ -3392,6 +3451,91 @@ export default function FFEUnifiedWorkspace({
           }))
         }}
       />
+
+      {/* Move to Section Dialog */}
+      <Dialog 
+        open={showMoveToSectionDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowMoveToSectionDialog(false)
+            setMoveItem(null)
+            setSelectedMoveTargetSection('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-600" />
+              Move to Section
+            </DialogTitle>
+            <DialogDescription>
+              Move "{moveItem?.name}" to a different category/section.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Current Section Info */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-500 mb-1">Currently in:</p>
+              <p className="font-medium text-gray-900">{moveItem?.currentSectionName}</p>
+            </div>
+            
+            {/* Section Selector */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                Move to section:
+              </Label>
+              <Select value={selectedMoveTargetSection} onValueChange={setSelectedMoveTargetSection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections
+                    .filter(s => s.id !== moveItem?.currentSectionId)
+                    .map(section => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowMoveToSectionDialog(false)
+                setMoveItem(null)
+                setSelectedMoveTargetSection('')
+              }}
+              disabled={isMoving}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleMoveToSection}
+              disabled={!selectedMoveTargetSection || isMoving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isMoving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Moving...
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  Move Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
