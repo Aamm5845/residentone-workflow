@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { 
-  withCreateAttribution,
-  withUpdateAttribution,
   logActivity,
   ActivityActions,
   EntityTypes,
   getIPAddress,
-  isValidAuthSession,
-  type AuthSession
+  isValidAuthSession
 } from '@/lib/attribution'
 
 export async function GET(
@@ -140,9 +137,21 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching floorplan approval versions:', error)
+    
+    // Return detailed error for debugging - TEMPORARILY include in production
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : undefined,
+      code: (error as any)?.code,
+      meta: (error as any)?.meta,
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+    }
+    
     return NextResponse.json({
       error: 'Failed to fetch versions',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorDetails.message,
+      // Include debug info temporarily to diagnose production issue
+      debug: errorDetails
     }, { status: 500 })
   }
 }
