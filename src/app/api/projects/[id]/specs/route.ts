@@ -39,6 +39,7 @@ export async function GET(
             sections: {
               include: {
                 items: {
+                  orderBy: { order: 'asc' },
                   include: {
                     libraryProduct: {
                       include: {
@@ -93,6 +94,7 @@ export async function GET(
           productName: item.libraryProduct?.name || item.modelNumber,
           brand: item.brand || item.libraryProduct?.brand,
           sku: item.sku || item.libraryProduct?.sku,
+          docCode: item.docCode,
           modelNumber: item.modelNumber || item.libraryProduct?.modelNumber,
           color: item.color || item.libraryProduct?.color,
           finish: item.finish || item.libraryProduct?.finish,

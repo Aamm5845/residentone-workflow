@@ -127,6 +127,7 @@ interface SpecItem {
   productName: string | null
   brand: string | null
   sku: string | null
+  docCode: string | null
   modelNumber: string | null
   color: string | null
   finish: string | null
@@ -3004,7 +3005,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {/* Doc Code - Fixed width */}
                             <div className="flex-shrink-0 w-24">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
-                              {editingField?.itemId === item.id && editingField?.field === 'sku' ? (
+                              {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
                                 <Input
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
@@ -3016,9 +3017,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               ) : (
                                 <p 
                                   className="text-xs text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
-                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'sku', item.sku || '') }}
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'docCode', item.docCode || '') }}
                                 >
-                                  {item.sku || '-'}
+                                  {item.docCode || '-'}
                                 </p>
                               )}
                             </div>
@@ -3046,7 +3047,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Brand - Fixed width */}
-                            <div className="flex-shrink-0 w-20">
+                            <div className="flex-shrink-0 w-16">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
@@ -3063,6 +3064,160 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'brand', item.brand || '') }}
                                 >
                                   {item.brand || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Width (IN) */}
+                            <div className="flex-shrink-0 w-12 text-center">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Width</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'width' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs text-center"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'width', item.width || '') }}
+                                >
+                                  {item.width || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Length (IN) */}
+                            <div className="flex-shrink-0 w-12 text-center">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Length</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'length' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs text-center"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'length', item.length || '') }}
+                                >
+                                  {item.length || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Height (IN) */}
+                            <div className="flex-shrink-0 w-12 text-center">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Height</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'height' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs text-center"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'height', item.height || '') }}
+                                >
+                                  {item.height || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Depth (IN) */}
+                            <div className="flex-shrink-0 w-12 text-center">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Depth</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'depth' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs text-center"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'depth', item.depth || '') }}
+                                >
+                                  {item.depth || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Colour */}
+                            <div className="flex-shrink-0 w-16">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Colour</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'color' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'color', item.color || '') }}
+                                >
+                                  {item.color || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Finish */}
+                            <div className="flex-shrink-0 w-16">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'finish' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'finish', item.finish || '') }}
+                                >
+                                  {item.finish || '-'}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Material */}
+                            <div className="flex-shrink-0 w-20">
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'material' ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={saveInlineEdit}
+                                  onKeyDown={handleEditKeyDown}
+                                  className="h-6 text-xs"
+                                  autoFocus
+                                />
+                              ) : (
+                                <p 
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'material', item.material || '') }}
+                                >
+                                  {item.material || '-'}
                                 </p>
                               )}
                             </div>

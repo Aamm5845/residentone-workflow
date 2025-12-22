@@ -8,99 +8,60 @@ import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Mail, CheckCircle, Edit2, Eye, Paperclip, X } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 
-// Helper function to extract main body content from HTML (between greeting and footer)
-function extractEmailBody(html: string): { greeting: string; body: string; footer: string } {
+// Helper function to extract text content from HTML for editing
+function extractEmailText(html: string): string {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
   
-  const allParagraphs = Array.from(doc.querySelectorAll('p'))
-  
-  let greeting = ''
-  let bodyParts: string[] = []
-  let footer = ''
-  
-  // Extract greeting (usually starts with "Dear")
-  const greetingPara = allParagraphs.find(p => p.textContent?.trim().startsWith('Dear'))
-  if (greetingPara) {
-    greeting = greetingPara.textContent?.trim() || ''
-    const greetingIndex = allParagraphs.indexOf(greetingPara)
-    
-    // Extract body paragraphs (after greeting, before footer)
-    for (let i = greetingIndex + 1; i < allParagraphs.length; i++) {
-      const text = allParagraphs[i].textContent?.trim()
-      if (text) {
-        // Footer detection
-        if (text.includes('Interior Design Studio') || 
-            text.includes('Professional Interior Design Services') ||
-            text.includes('Questions?')) {
-          // Collect remaining as footer
-          for (let j = i; j < allParagraphs.length; j++) {
-            const footerText = allParagraphs[j].textContent?.trim()
-            if (footerText) footer += footerText + '\n'
-          }
-          break
-        }
-        bodyParts.push(text)
-      }
-    }
+  // Get the main content div
+  const contentDiv = doc.querySelector('body > div > div:nth-of-type(2)')
+  if (!contentDiv) {
+    // Fallback: get all p tags
+    const paragraphs = Array.from(doc.querySelectorAll('p'))
+    return paragraphs
+      .map(p => p.textContent?.trim())
+      .filter(text => text && !text.includes('Meisner Interiors') && text !== '© 2025 Meisner Interiors. All rights reserved.')
+      .join('\n\n')
   }
   
-  return { 
-    greeting, 
-    body: bodyParts.join('\n\n'),
-    footer: footer.trim()
-  }
+  const paragraphs = Array.from(contentDiv.querySelectorAll('p'))
+  return paragraphs
+    .map(p => p.textContent?.trim())
+    .filter(text => text && text !== 'Best regards,')
+    .join('\n\n')
 }
 
-// Helper function to update HTML with edited content
-function updateHTMLWithEditedContent(
-  originalHTML: string, 
-  greeting: string, 
-  body: string
+// Helper function to update HTML with edited text content
+function updateHTMLWithEditedText(
+  originalHTML: string,
+  newText: string
 ): string {
-  let updatedHTML = originalHTML
-  
-  // Replace greeting
-  const greetingRegex = /(<p[^>]*>\s*)(Dear[^<]*)(<\/p>)/i
-  if (updatedHTML.match(greetingRegex)) {
-    updatedHTML = updatedHTML.replace(greetingRegex, `$1${greeting}$3`)
-  }
-  
-  // Replace body paragraphs
   const parser = new DOMParser()
   const doc = parser.parseFromString(originalHTML, 'text/html')
-  const allParagraphs = Array.from(doc.querySelectorAll('p'))
   
-  const greetingPara = allParagraphs.find(p => p.textContent?.trim().startsWith('Dear'))
-  if (greetingPara) {
-    const greetingIndex = allParagraphs.indexOf(greetingPara)
-    
-    // Find body paragraphs
-    const bodyParagraphs: HTMLParagraphElement[] = []
-    for (let i = greetingIndex + 1; i < allParagraphs.length; i++) {
-      const text = allParagraphs[i].textContent?.trim()
-      if (text && !text.includes('Interior Design Studio') && 
-          !text.includes('Professional Interior Design Services') &&
-          !text.includes('Questions?')) {
-        bodyParagraphs.push(allParagraphs[i])
-      } else {
-        break
-      }
+  // Get all content paragraphs (exclude footer)
+  const contentDiv = doc.querySelector('body > div > div:nth-of-type(2)')
+  if (!contentDiv) return originalHTML
+  
+  const paragraphs = Array.from(contentDiv.querySelectorAll('p'))
+  
+  // Split new text into paragraphs
+  const newParagraphs = newText.split('\n\n').filter(p => p.trim())
+  
+  // Replace each paragraph's text content
+  let paragraphIndex = 0
+  let updatedHTML = originalHTML
+  
+  for (const para of paragraphs) {
+    const oldText = para.textContent?.trim()
+    if (oldText && oldText !== 'Best regards,' && paragraphIndex < newParagraphs.length) {
+      const newParaText = newParagraphs[paragraphIndex].trim()
+      // Replace the text content while preserving HTML structure
+      const oldHTML = para.outerHTML
+      const newHTML = oldHTML.replace(oldText, newParaText)
+      updatedHTML = updatedHTML.replace(oldHTML, newHTML)
+      paragraphIndex++
     }
-    
-    // Split edited body into paragraphs and replace
-    const newBodyParagraphs = body.split('\n\n').filter(p => p.trim())
-    
-    // Replace existing body paragraphs
-    bodyParagraphs.forEach((para, index) => {
-      if (index < newBodyParagraphs.length) {
-        const newText = newBodyParagraphs[index]
-        const oldHTML = para.outerHTML
-        const oldText = para.textContent?.trim() || ''
-        const newHTML = oldHTML.replace(oldText, newText)
-        updatedHTML = updatedHTML.replace(oldHTML, newHTML)
-      }
-    })
   }
   
   return updatedHTML
@@ -128,6 +89,7 @@ interface EmailPreviewModalProps {
   onOpenChange: (open: boolean) => void
   emailData: EmailPreviewData | null
   onSend: (emailData: EmailPreviewData, selectedAttachmentIds: string[]) => Promise<void>
+  onSendTest?: (emailData: EmailPreviewData, selectedAttachmentIds: string[], testEmail: string) => Promise<void>
   title?: string
   allowEditRecipient?: boolean
 }
@@ -137,6 +99,7 @@ export default function EmailPreviewModal({
   onOpenChange,
   emailData,
   onSend,
+  onSendTest,
   title = 'Email Preview',
   allowEditRecipient = false
 }: EmailPreviewModalProps) {
@@ -146,10 +109,14 @@ export default function EmailPreviewModal({
   const [editedData, setEditedData] = useState<EmailPreviewData | null>(null)
   const [showAdvancedEdit, setShowAdvancedEdit] = useState(false)
   
-  // Editable text fields
-  const [editableGreeting, setEditableGreeting] = useState('')
-  const [editableBody, setEditableBody] = useState('')
+  // Editable text content
+  const [editableText, setEditableText] = useState('')
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set())
+  
+  // Test email state
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -161,9 +128,8 @@ export default function EmailPreviewModal({
       setShowAdvancedEdit(false)
       
       // Extract editable content
-      const { greeting, body } = extractEmailBody(emailData.htmlContent)
-      setEditableGreeting(greeting)
-      setEditableBody(body)
+      const text = extractEmailText(emailData.htmlContent)
+      setEditableText(text)
       
       // Initialize selected attachments
       if (emailData.attachments) {
@@ -182,10 +148,9 @@ export default function EmailPreviewModal({
       
       // If in edit mode (not advanced), update HTML with edited text
       if (editMode && !showAdvancedEdit) {
-        finalHtmlContent = updateHTMLWithEditedContent(
+        finalHtmlContent = updateHTMLWithEditedText(
           editedData.htmlContent,
-          editableGreeting,
-          editableBody
+          editableText
         )
       }
       
@@ -212,6 +177,41 @@ export default function EmailPreviewModal({
   const handleCancel = () => {
     if (sending) return
     onOpenChange(false)
+  }
+  
+  const handleSendTest = async () => {
+    if (!editedData || !testEmail.trim() || !onSendTest) return
+    
+    setSendingTest(true)
+    try {
+      let finalHtmlContent = editedData.htmlContent
+      
+      // If in edit mode (not advanced), update HTML with edited text
+      if (editMode && !showAdvancedEdit) {
+        finalHtmlContent = updateHTMLWithEditedText(
+          editedData.htmlContent,
+          editableText
+        )
+      }
+      
+      await onSendTest(
+        {
+          ...editedData,
+          htmlContent: finalHtmlContent
+        },
+        Array.from(selectedAttachments),
+        testEmail.trim()
+      )
+      
+      setShowTestEmailDialog(false)
+      setTestEmail('')
+      alert(`Test email sent successfully to ${testEmail.trim()}`)
+    } catch (error) {
+      console.error('Failed to send test email:', error)
+      alert('Failed to send test email. Please try again.')
+    } finally {
+      setSendingTest(false)
+    }
   }
 
   if (!editedData) return null
@@ -327,39 +327,24 @@ export default function EmailPreviewModal({
                     <>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                         <p className="text-sm text-blue-800">
-                          <strong>📝 Edit Email Content:</strong> Modify the text below. The formatting and design will be preserved.
+                          <strong>📝 Edit Email Content:</strong> Edit all the text below. The email design and formatting will be preserved automatically.
                         </p>
                       </div>
                       
-                      <div className="space-y-4">
-                        {/* Greeting */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Greeting
-                          </label>
-                          <Input
-                            value={editableGreeting}
-                            onChange={(e) => setEditableGreeting(e.target.value)}
-                            placeholder="Dear Client,"
-                          />
-                        </div>
-                        
-                        {/* Main Body Content */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Email Message
-                          </label>
-                          <Textarea
-                            value={editableBody}
-                            onChange={(e) => setEditableBody(e.target.value)}
-                            className="min-h-[200px]"
-                            placeholder="Enter email body text. Use double line breaks for new paragraphs."
-                            rows={8}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Separate paragraphs with double line breaks (Enter twice)
-                          </p>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email Content
+                        </label>
+                        <Textarea
+                          value={editableText}
+                          onChange={(e) => setEditableText(e.target.value)}
+                          className="min-h-[300px] font-sans"
+                          placeholder="Edit email content here. Separate paragraphs with double line breaks."
+                          rows={12}
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          ✨ <strong>Tip:</strong> Separate paragraphs with double line breaks (press Enter twice). The email header, footer, and styling will be preserved automatically.
+                        </p>
                       </div>
                       
                       <div className="border-t border-gray-200 pt-3 mt-4">
@@ -443,10 +428,9 @@ export default function EmailPreviewModal({
                   onClick={() => {
                     // Update HTML with edited text before switching to preview
                     if (!showAdvancedEdit) {
-                      const updatedHtml = updateHTMLWithEditedContent(
+                      const updatedHtml = updateHTMLWithEditedText(
                         editedData.htmlContent,
-                        editableGreeting,
-                        editableBody
+                        editableText
                       )
                       setEditedData({ ...editedData, htmlContent: updatedHtml })
                     }
@@ -456,6 +440,17 @@ export default function EmailPreviewModal({
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   Preview
+                </Button>
+              )}
+              {onSendTest && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTestEmailDialog(true)}
+                  disabled={sending || !editedData.subject}
+                  className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Test
                 </Button>
               )}
               <Button
@@ -480,5 +475,76 @@ export default function EmailPreviewModal({
         )}
       </DialogContent>
     </Dialog>
+    
+    {/* Test Email Dialog */}
+    {showTestEmailDialog && onSendTest && (
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-purple-600" />
+              Send Test Email
+            </DialogTitle>
+            <DialogDescription>
+              Send a test email with your current edits to verify how it will look before sending to the client.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label htmlFor="test-email-address" className="block text-sm font-medium text-gray-700 mb-2">
+                Test Email Address
+              </label>
+              <Input
+                id="test-email-address"
+                type="email"
+                placeholder="Enter email address..."
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && testEmail.trim()) {
+                    handleSendTest()
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                💡 The test email will include all your edits and the same attachments that would be sent to the client.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowTestEmailDialog(false)}
+              disabled={sendingTest}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTest}
+              disabled={sendingTest || !testEmail.trim()}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {sendingTest ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Test
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+  </>
   )
 }

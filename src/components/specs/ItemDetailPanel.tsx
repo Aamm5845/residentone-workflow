@@ -1281,17 +1281,6 @@ export function ItemDetailPanel({
                     />
                   </div>
                 </div>
-                
-                {/* Notes */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-500">Notes</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Additional notes..."
-                    rows={3}
-                  />
-                </div>
               </>
             )}
             

@@ -125,25 +125,62 @@ export async function POST(
 
     // Fetch PDF files and prepare as base64 attachments
     const attachments = []
+    const attachmentErrors = []
+    const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB per attachment
+    
     for (const assetItem of assetsToInclude) {
       if (assetItem.asset.type === 'FLOORPLAN_PDF' && assetItem.asset.url) {
         try {
           // Fetch the PDF from the URL
           const response = await fetch(assetItem.asset.url)
-          if (response.ok) {
-            const buffer = await response.arrayBuffer()
-            const base64Content = Buffer.from(buffer).toString('base64')
-            
-            attachments.push({
-              filename: assetItem.asset.title.endsWith('.pdf') ? assetItem.asset.title : `${assetItem.asset.title}.pdf`,
-              content: base64Content
-            })
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch: HTTP ${response.status}`)
           }
+          
+          const buffer = await response.arrayBuffer()
+          const bufferSize = buffer.byteLength
+          
+          // Check file size
+          if (bufferSize > MAX_ATTACHMENT_SIZE) {
+            attachmentErrors.push({
+              filename: assetItem.asset.title,
+              error: `File too large (${Math.round(bufferSize / 1024 / 1024)}MB). Maximum size is 10MB.`
+            })
+            console.warn(`Attachment too large: ${assetItem.asset.title} (${bufferSize} bytes)`)
+            continue
+          }
+          
+          // Convert to base64
+          const base64Content = Buffer.from(buffer).toString('base64')
+          const filename = assetItem.asset.title.endsWith('.pdf') ? assetItem.asset.title : `${assetItem.asset.title}.pdf`
+          
+          attachments.push({
+            filename,
+            content: base64Content,
+            type: 'application/pdf',
+            disposition: 'attachment'
+          })
+          
+          console.log(`Successfully prepared attachment: ${filename} (${Math.round(bufferSize / 1024)}KB)`)
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+          attachmentErrors.push({
+            filename: assetItem.asset.title,
+            error: errorMsg
+          })
           console.error(`Failed to fetch PDF for attachment: ${assetItem.asset.title}`, error)
           // Continue with other attachments even if one fails
         }
       }
+    }
+    
+    // If no attachments were successfully prepared, return error
+    if (attachments.length === 0 && assetsToInclude.length > 0) {
+      return NextResponse.json({
+        error: 'Failed to prepare any attachments',
+        details: attachmentErrors
+      }, { status: 500 })
     }
 
     // Send actual email using Resend service with attachments
@@ -255,7 +292,12 @@ export async function POST(
         version: !testEmail ? {
           status: 'SENT_TO_CLIENT',
           sentToClientAt: new Date()
-        } : undefined
+        } : undefined,
+        attachments: {
+          successful: attachments.length,
+          total: assetsToInclude.length,
+          errors: attachmentErrors.length > 0 ? attachmentErrors : undefined
+        }
       })
 
     } else {
@@ -308,7 +350,7 @@ function generateFloorplanApprovalEmailHtml(data: {
             <p style="margin: 0 0 20px 0; color: #18181b; font-size: 15px;">Hi ${clientName},</p>
             
             <p style="margin: 0 0 20px 0; color: #52525b; font-size: 15px;">
-                The latest floorplan${floorplanCount > 1 ? 's' : ''} for your project ${floorplanCount > 1 ? 'are' : 'is'} ready. Please find ${floorplanCount > 1 ? 'them' : 'it'} attached to this email.
+                Your floorplan${floorplanCount > 1 ? 's are' : ' is'} ready for review. We've attached ${floorplanCount} PDF ${floorplanCount > 1 ? 'files' : 'file'} to this email for your convenience.
             </p>
 
             <!-- Summary Box -->
@@ -323,14 +365,14 @@ function generateFloorplanApprovalEmailHtml(data: {
                         <td style="color: #18181b; font-size: 13px; padding: 4px 0; text-align: right; font-weight: 500;">${versionName}</td>
                     </tr>
                     <tr>
-                        <td style="color: #71717a; font-size: 13px; padding: 4px 0;">Files</td>
+                        <td style="color: #71717a; font-size: 13px; padding: 4px 0;">Attachments</td>
                         <td style="color: #18181b; font-size: 13px; padding: 4px 0; text-align: right; font-weight: 500;">${floorplanCount} PDF${floorplanCount > 1 ? 's' : ''}</td>
                     </tr>
                 </table>
             </div>
 
             <p style="margin: 0 0 20px 0; color: #52525b; font-size: 15px;">
-                Take your time to review. If you have any questions or would like to discuss changes, just reply to this email.
+                Please review the attached documents at your convenience. If you have any questions or would like to discuss changes, simply reply to this email.
             </p>
             
             <p style="margin: 24px 0 0 0; color: #52525b; font-size: 15px;">

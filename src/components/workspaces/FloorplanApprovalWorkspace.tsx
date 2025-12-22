@@ -524,6 +524,18 @@ export default function FloorplanApprovalWorkspace({
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              {currentVersion.emailOpenedAt && (
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Eye className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-medium text-blue-700">Client Viewed</span>
+                  <span className="text-xs text-blue-600">
+                    {new Date(currentVersion.emailOpenedAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              )}
               {currentVersion.clientDecision === 'APPROVED' && (
                 <div className="flex items-center space-x-2 px-4 py-2 bg-green-100 border border-green-300 rounded-lg">
                   <CheckCircle className="w-5 h-5 text-green-600" />
@@ -772,18 +784,55 @@ export default function FloorplanApprovalWorkspace({
                     }
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span className="text-sm text-gray-600">Opened:</span>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex flex-col items-end space-y-1">
                     {currentVersion.emailOpenedAt ? (
                       <>
-                        <Eye className="w-3 h-3 text-green-600" />
-                        <span className="text-sm font-medium text-green-600">Yes</span>
+                        <div className="flex items-center space-x-1">
+                          <Eye className="w-3 h-3 text-green-600" />
+                          <span className="text-sm font-medium text-green-600">Yes</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(currentVersion.emailOpenedAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-3 h-3 text-gray-400" />
-                        <span className="text-sm text-gray-500">Not yet</span>
+                        <div className="flex items-center space-x-1">
+                          <EyeOff className="w-3 h-3 text-gray-400" />
+                          <span className="text-sm text-gray-500">Not yet</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            setLoading(true)
+                            try {
+                              const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`)
+                              if (response.ok) {
+                                const data = await response.json()
+                                setCurrentVersion(data.currentVersion)
+                                if (data.currentVersion?.sentToClientAt) {
+                                  fetchEmailAnalytics(data.currentVersion.id)
+                                }
+                              }
+                            } catch (error) {
+                              console.error('Failed to refresh', error)
+                            } finally {
+                              setLoading(false)
+                            }
+                          }}
+                          disabled={loading}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                        </Button>
                       </>
                     )}
                   </div>
@@ -1026,6 +1075,24 @@ export default function FloorplanApprovalWorkspace({
         onOpenChange={setShowEmailPreviewModal}
         emailData={emailPreviewData}
         onSend={handleConfirmSendEmail}
+        onSendTest={async (emailData, selectedAttachmentIds, testEmail) => {
+          // Send test email with edited content
+          const response = await fetch(`/api/floorplan-approvals/${currentVersion!.id}/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              testEmail,
+              selectedAssetIds: selectedAttachmentIds,
+              customSubject: emailData.subject,
+              customHtmlContent: emailData.htmlContent
+            })
+          })
+          
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}))
+            throw new Error(data.error || 'Failed to send test email')
+          }
+        }}
         title="Review Email Before Sending"
       />
 
