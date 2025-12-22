@@ -656,8 +656,9 @@ model FloorplanApprovalVersion {
   clientMessage       String?
   notes               String?
   followUpSentAt      DateTime?
-  sourceFilePath      String?                     // Dropbox path to source CAD file
-  sourceFileName      String?                     // Name of the source file
+  // TODO: Uncomment after running `prisma db push` on production
+  // sourceFilePath      String?                     // Dropbox path to source CAD file
+  // sourceFileName      String?                     // Name of the source file
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
   activityLogs        FloorplanApprovalActivity[]

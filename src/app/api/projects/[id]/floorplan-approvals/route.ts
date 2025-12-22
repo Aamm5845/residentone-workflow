@@ -58,7 +58,6 @@ export async function GET(
         notes: true,
         createdAt: true,
         updatedAt: true,
-        // sourceFilePath and sourceFileName might not exist in DB yet - handled in response mapping
         assets: {
           include: {
             asset: true
@@ -127,9 +126,6 @@ export async function GET(
       clientDecidedAt: v.clientDecidedAt,
       clientMessage: v.clientMessage,
       notes: v.notes,
-      // These columns might not exist in production DB yet - return null for now
-      sourceFilePath: null,
-      sourceFileName: null,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       assets: v.assets.map(a => ({
@@ -416,15 +412,16 @@ export async function PATCH(
         activityType = 'notes_updated'
         break
 
-      case 'link_source_file':
-        const { sourceFilePath, sourceFileName } = data
-        updateData.sourceFilePath = sourceFilePath || null
-        updateData.sourceFileName = sourceFileName || null
-        activityMessage = sourceFilePath 
-          ? `Linked source CAD file: ${sourceFileName}`
-          : 'Unlinked source CAD file'
-        activityType = 'source_file_linked'
-        break
+      // TODO: Re-enable after running prisma db push on production
+      // case 'link_source_file':
+      //   const { sourceFilePath, sourceFileName } = data
+      //   updateData.sourceFilePath = sourceFilePath || null
+      //   updateData.sourceFileName = sourceFileName || null
+      //   activityMessage = sourceFilePath 
+      //     ? `Linked source CAD file: ${sourceFileName}`
+      //     : 'Unlinked source CAD file'
+      //   activityType = 'source_file_linked'
+      //   break
 
       default:
         return NextResponse.json({
@@ -497,8 +494,6 @@ export async function PATCH(
         clientDecidedAt: updatedVersion.clientDecidedAt,
         clientMessage: updatedVersion.clientMessage,
         notes: updatedVersion.notes,
-        sourceFilePath: updatedVersion.sourceFilePath,
-        sourceFileName: updatedVersion.sourceFileName,
         createdAt: updatedVersion.createdAt,
         updatedAt: updatedVersion.updatedAt
       }
