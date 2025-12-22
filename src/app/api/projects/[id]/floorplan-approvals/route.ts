@@ -37,14 +37,31 @@ export async function GET(
     }
 
     // Get all versions but optimize what we fetch
+    // Use explicit select to avoid selecting columns that might not exist in DB yet
     const versions = await prisma.floorplanApprovalVersion.findMany({
       where: {
         projectId: resolvedParams.id
       },
-      include: {
+      select: {
+        id: true,
+        version: true,
+        status: true,
+        approvedByAaron: true,
+        aaronApprovedAt: true,
+        sentToClientAt: true,
+        emailOpenedAt: true,
+        followUpCompletedAt: true,
+        followUpNotes: true,
+        clientDecision: true,
+        clientDecidedAt: true,
+        clientMessage: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        // sourceFilePath and sourceFileName might not exist in DB yet - handled in response mapping
         assets: {
           include: {
-            asset: true // Removed uploadedByUser - not needed in UI
+            asset: true
           },
           orderBy: [
             { displayOrder: 'asc' },
@@ -63,17 +80,17 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           },
-          take: 15 // Limit activities per version - UI shows max 8 in sidebar
+          take: 15
         },
         emailLogs: {
           select: {
             id: true,
-            sentAt: true // Only need these fields for count
+            sentAt: true
           },
           orderBy: {
             sentAt: 'desc'
           },
-          take: 5 // Only need count anyway
+          take: 5
         },
         aaronApprovedBy: {
           select: {
@@ -91,7 +108,7 @@ export async function GET(
       orderBy: {
         createdAt: 'desc'
       },
-      take: 5 // Only fetch last 5 versions - rarely need more
+      take: 5
     })
 
     const mappedVersions = versions.map(v => ({
@@ -110,9 +127,9 @@ export async function GET(
       clientDecidedAt: v.clientDecidedAt,
       clientMessage: v.clientMessage,
       notes: v.notes,
-      // These columns might not exist in production yet
-      sourceFilePath: (v as any).sourceFilePath || null,
-      sourceFileName: (v as any).sourceFileName || null,
+      // These columns might not exist in production DB yet - return null for now
+      sourceFilePath: null,
+      sourceFileName: null,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       assets: v.assets.map(a => ({
