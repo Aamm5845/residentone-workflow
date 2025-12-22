@@ -37,62 +37,103 @@ export async function GET(
     }
 
     // Get all versions with relations
-    const versions = await prisma.floorplanApprovalVersion.findMany({
-      where: {
-        projectId: resolvedParams.id
-      },
-      include: {
-        assets: {
-          include: {
-            asset: true
-          },
-          orderBy: [
-            { displayOrder: 'asc' },
-            { createdAt: 'desc' }
-          ]
+    // Using try-catch to handle potential orphaned data issues
+    let versions: any[] = []
+    try {
+      versions = await prisma.floorplanApprovalVersion.findMany({
+        where: {
+          projectId: resolvedParams.id
         },
-        activityLogs: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true
+        include: {
+          assets: {
+            include: {
+              asset: true
+            },
+            orderBy: [
+              { displayOrder: 'asc' },
+              { createdAt: 'desc' }
+            ]
+          },
+          activityLogs: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true
+                }
               }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 15
+          },
+          emailLogs: {
+            select: {
+              id: true,
+              sentAt: true
+            },
+            orderBy: {
+              sentAt: 'desc'
+            },
+            take: 5
+          },
+          aaronApprovedBy: {
+            select: {
+              id: true,
+              name: true
             }
           },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 15
-        },
-        emailLogs: {
-          select: {
-            id: true,
-            sentAt: true
-          },
-          orderBy: {
-            sentAt: 'desc'
-          },
-          take: 5
-        },
-        aaronApprovedBy: {
-          select: {
-            id: true,
-            name: true
+          sentBy: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         },
-        sentBy: {
-          select: {
-            id: true,
-            name: true
-          }
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 5
+      })
+    } catch (fetchError) {
+      console.error('Error fetching versions with relations, trying fallback:', fetchError)
+      
+      // Fallback: fetch versions without problematic relations
+      versions = await prisma.floorplanApprovalVersion.findMany({
+        where: {
+          projectId: resolvedParams.id
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 5
+      })
+      
+      // Try to fetch assets separately for each version (skip orphaned ones)
+      for (const v of versions) {
+        try {
+          const assets = await prisma.floorplanApprovalAsset.findMany({
+            where: { 
+              versionId: v.id,
+              asset: { id: { not: undefined } } // Only include if asset exists
+            },
+            include: { asset: true },
+            orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }]
+          })
+          v.assets = assets.filter(a => a.asset !== null) // Filter out any null assets
+        } catch (assetError) {
+          console.error(`Error fetching assets for version ${v.id}:`, assetError)
+          v.assets = []
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 5
-    })
+        
+        // Initialize other arrays as empty in fallback mode
+        v.activityLogs = []
+        v.emailLogs = []
+        v.aaronApprovedBy = null
+        v.sentBy = null
+      }
+    }
 
     const mappedVersions = versions.map(v => ({
       id: v.id,
@@ -100,9 +141,9 @@ export async function GET(
       status: v.status,
       approvedByAaron: v.approvedByAaron,
       aaronApprovedAt: v.aaronApprovedAt,
-      aaronApprovedBy: v.aaronApprovedBy,
+      aaronApprovedBy: v.aaronApprovedBy || null,
       sentToClientAt: v.sentToClientAt,
-      sentBy: v.sentBy,
+      sentBy: v.sentBy || null,
       emailOpenedAt: v.emailOpenedAt,
       followUpCompletedAt: v.followUpCompletedAt,
       followUpNotes: v.followUpNotes,
@@ -112,14 +153,17 @@ export async function GET(
       notes: v.notes,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
-      assets: v.assets.map(a => ({
-        id: a.id,
-        includeInEmail: a.includeInEmail,
-        displayOrder: a.displayOrder,
-        asset: a.asset
-      })),
-      activityLogs: v.activityLogs,
-      emailCount: v.emailLogs.length
+      // Filter out assets with null asset property (orphaned records)
+      assets: (v.assets || [])
+        .filter((a: any) => a && a.asset)
+        .map((a: any) => ({
+          id: a.id,
+          includeInEmail: a.includeInEmail,
+          displayOrder: a.displayOrder,
+          asset: a.asset
+        })),
+      activityLogs: v.activityLogs || [],
+      emailCount: (v.emailLogs || []).length
     }))
 
     return NextResponse.json({
