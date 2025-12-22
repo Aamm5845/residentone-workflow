@@ -1387,6 +1387,7 @@ model RoomFFEItem {
   tradePrice       Decimal?
   rrp              Decimal?
   tradeDiscount    Decimal?            // Percentage discount
+  currency         String?             @default("CAD") // Currency: CAD or USD
   supplierName     String?
   supplierLink     String?
   modelNumber      String?

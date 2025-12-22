@@ -273,7 +273,8 @@ export async function PATCH(
       depth,
       length,
       notes,
-      images
+      images,
+      currency
     } = body
 
     if (!roomId || !itemId) {
@@ -387,6 +388,7 @@ export async function PATCH(
     if (depth !== undefined) updateData.depth = depth
     if (notes !== undefined) updateData.notes = notes
     if (images !== undefined) updateData.images = images
+    if (currency !== undefined) updateData.currency = currency
     
     // Handle customFields merge
     if (customFields !== undefined) {

@@ -306,6 +306,7 @@ export function ItemDetailPanel({
     tradePrice: '',
     rrp: '',
     tradeDiscount: '',
+    currency: 'CAD',
     notes: '',
   })
   
@@ -329,27 +330,39 @@ export function ItemDetailPanel({
       return
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB')
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Image must be less than 4MB')
       return
     }
     
     setUploadingImage(true)
     try {
-      // Convert to base64 for now (can be replaced with actual upload)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setImages(prev => [...prev, result].slice(0, 2))
-        setUploadingImage(false)
+      // Upload to server and get URL
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('imageType', 'general')
+      
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        if (data.url) {
+          setImages(prev => [...prev, data.url].slice(0, 2))
+          toast.success('Image uploaded')
+        } else {
+          throw new Error('No URL returned')
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Upload failed')
       }
-      reader.onerror = () => {
-        toast.error('Failed to read image')
-        setUploadingImage(false)
-      }
-      reader.readAsDataURL(file)
     } catch (error) {
-      toast.error('Failed to upload image')
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image')
+    } finally {
       setUploadingImage(false)
     }
   }
@@ -462,6 +475,7 @@ export function ItemDetailPanel({
         tradePrice: item.tradePrice?.toString() || '',
         rrp: item.rrp?.toString() || '',
         tradeDiscount: item.tradeDiscount?.toString() || '',
+        currency: (item as any).currency || 'CAD',
         notes: (item as any).notes || '',
       })
       setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
@@ -491,6 +505,7 @@ export function ItemDetailPanel({
         tradePrice: '',
         rrp: '',
         tradeDiscount: '',
+        currency: 'CAD',
         notes: '',
       })
       setImages([])
@@ -550,6 +565,7 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            currency: formData.currency,
             images: images,
             // FFE Linking fields
             isSpecItem: true,
@@ -599,6 +615,7 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            currency: formData.currency,
             images: images,
           })
         })
@@ -1280,19 +1297,50 @@ export function ItemDetailPanel({
             
             {activeTab === 'financial' && (
               <div className="space-y-6">
+                {/* Currency Selector */}
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, currency: 'CAD' })}
+                      className={cn(
+                        "flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all",
+                        formData.currency === 'CAD'
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      )}
+                    >
+                      🇨🇦 CAD
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, currency: 'USD' })}
+                      className={cn(
+                        "flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all",
+                        formData.currency === 'USD'
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      )}
+                    >
+                      🇺🇸 USD
+                    </button>
+                  </div>
+                </div>
+                
                 {/* RRP & Quantity Row */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>RRP</Label>
+                    <Label>RRP ({formData.currency})</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{formData.currency === 'CAD' ? 'C$' : '$'}</span>
                       <Input
                         type="number"
                         step="0.01"
                         value={formData.rrp}
                         onChange={(e) => setFormData({ ...formData, rrp: e.target.value })}
                         placeholder="0.00"
-                        className="pl-7"
+                        className="pl-8"
                       />
                     </div>
                   </div>
@@ -1310,16 +1358,16 @@ export function ItemDetailPanel({
                 {/* Trade Price & Trade Discount Row */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Trade Price</Label>
+                    <Label>Trade Price ({formData.currency})</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{formData.currency === 'CAD' ? 'C$' : '$'}</span>
                       <Input
                         type="number"
                         step="0.01"
                         value={formData.tradePrice}
                         onChange={(e) => setFormData({ ...formData, tradePrice: e.target.value })}
                         placeholder="0.00"
-                        className="pl-7"
+                        className="pl-8"
                       />
                     </div>
                   </div>
@@ -1341,12 +1389,12 @@ export function ItemDetailPanel({
                 
                 {/* TOTALS Section */}
                 <div className="border-t border-gray-200 pt-4 mt-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">TOTALS</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">TOTALS ({formData.currency})</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
                       <span className="text-gray-600">TRADE PRICE</span>
                       <span className="font-semibold text-lg">
-                        ${((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 0) * (1 - (parseFloat(formData.tradeDiscount) || 0) / 100)).toFixed(2)}
+                        {formData.currency === 'CAD' ? 'C$' : '$'}{((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 0) * (1 - (parseFloat(formData.tradeDiscount) || 0) / 100)).toFixed(2)}
                       </span>
                     </div>
                   </div>

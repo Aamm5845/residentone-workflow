@@ -1,0 +1,48 @@
+---
+description: Workflow for automatically reading and fixing team-reported issues
+globs: ["**/*.ts", "**/*.tsx", "src/**/*"]
+alwaysApply: true
+---
+
+# Issue Tracking & Auto-Fix Workflow
+
+## Reading Issues
+When the user asks about issues, bugs, or feature requests:
+1. First check `.cursor/issues.json` for the current list of open issues
+2. Each issue contains: id, title, description, type, priority, status, reporter info, and optional imageUrl/consoleLog
+3. Priority order: URGENT > HIGH > MEDIUM > LOW
+4. Types: BUG, FEATURE_REQUEST, UPDATE_REQUEST, GENERAL
+
+## Fixing Issues Workflow
+When asked to fix an issue:
+1. Read the issue details from `.cursor/issues.json`
+2. Search the codebase for related code using the issue title and description keywords
+3. Analyze the problem and propose a fix
+4. Implement the fix
+5. Test the fix if possible
+6. Suggest marking the issue as resolved via the UI
+
+## Common Issue Areas
+Based on the codebase, common issue locations include:
+- **FFE Workspace**: `src/components/ffe/v2/FFEPhaseWorkspace.tsx` - FFE items, linked items
+- **All Specs**: `src/components/ffe/` - Spec book generation, item management
+- **Email Notifications**: `src/lib/email.ts` - Email sending and links
+- **Drawing Phase**: `src/components/stages/` - Phase workspaces
+- **Spec Book PDF**: `src/lib/pdf-generation.ts` or `src/app/api/projects/[projectId]/spec-book/`
+
+## Syncing Issues
+To sync latest issues from production:
+1. Run: `npm run sync-issues` (if script exists)
+2. Or manually: The user can visit `/api/issues/sync-cursor` while logged in locally
+
+## Issue Metadata
+Issues may contain:
+- `imageUrl`: Screenshot showing the bug
+- `consoleLog`: Browser console errors captured at time of report
+- `projectName`, `roomName`, `stageName`: Context of where the issue occurred
+
+## After Fixing
+After implementing a fix:
+1. Document what was changed
+2. Remind user to test the fix
+3. Suggest they mark the issue as RESOLVED in the Issues tab

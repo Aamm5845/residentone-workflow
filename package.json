@@ -37,7 +37,8 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "type-check": "tsc --noEmit",
-    "pwa:icons": "node scripts/generate-pwa-icons.js"
+    "pwa:icons": "node scripts/generate-pwa-icons.js",
+    "sync-issues": "tsx scripts/sync-issues-locally.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
