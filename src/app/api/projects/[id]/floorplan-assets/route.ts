@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { put } from '@vercel/blob'
 import { 
   withCreateAttribution,
   logActivity,
@@ -10,16 +11,20 @@ import {
   isValidAuthSession,
   type AuthSession
 } from '@/lib/attribution'
+import { isBlobConfigured } from '@/lib/blob'
 
 const ALLOWED_FILE_TYPES = {
   'application/pdf': { extension: '.pdf', assetType: 'FLOORPLAN_PDF' as const },
   'application/dwg': { extension: '.dwg', assetType: 'FLOORPLAN_CAD' as const },
   'application/dxf': { extension: '.dxf', assetType: 'FLOORPLAN_CAD' as const },
   'application/acad': { extension: '.dwg', assetType: 'FLOORPLAN_CAD' as const },
-  'image/vnd.dwg': { extension: '.dwg', assetType: 'FLOORPLAN_CAD' as const }
+  'image/vnd.dwg': { extension: '.dwg', assetType: 'FLOORPLAN_CAD' as const },
+  // Handle cases where browser doesn't recognize the MIME type
+  'application/octet-stream': { extension: '.pdf', assetType: 'FLOORPLAN_PDF' as const }
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB for CAD files
+// Increase limit to 100MB for large multi-page PDFs
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 
 export async function POST(
   request: NextRequest,
@@ -67,12 +72,25 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Validate file type
-    const fileConfig = ALLOWED_FILE_TYPES[file.type as keyof typeof ALLOWED_FILE_TYPES]
+    // Validate file type - check by extension if MIME type is not recognized
+    let fileConfig = ALLOWED_FILE_TYPES[file.type as keyof typeof ALLOWED_FILE_TYPES]
+    
+    // Fallback: check file extension if MIME type is not in our list
+    if (!fileConfig) {
+      const extension = file.name.toLowerCase().split('.').pop()
+      if (extension === 'pdf') {
+        fileConfig = { extension: '.pdf', assetType: 'FLOORPLAN_PDF' as const }
+      } else if (extension === 'dwg') {
+        fileConfig = { extension: '.dwg', assetType: 'FLOORPLAN_CAD' as const }
+      } else if (extension === 'dxf') {
+        fileConfig = { extension: '.dxf', assetType: 'FLOORPLAN_CAD' as const }
+      }
+    }
+    
     if (!fileConfig) {
       return NextResponse.json({
         error: 'Invalid file type',
-        details: `Supported types: PDF, DWG, DXF. Received: ${file.type}`
+        details: `Supported types: PDF, DWG, DXF. Received: ${file.type} (${file.name})`
       }, { status: 400 })
     }
 
@@ -104,14 +122,39 @@ export async function POST(
       }, { status: 404 })
     }
 
-    // Process file for database storage (Vercel serverless compatible)
+    // Process file for storage
     const buffer = Buffer.from(await file.arrayBuffer())
     const timestamp = Date.now()
     const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
     
-    // Store as base64 in database (works in serverless environments)
-    const fileData = buffer.toString('base64')
-    const fileUrl = `data:${file.type};base64,${fileData}`
+    let fileUrl: string
+    let storageMethod = 'vercel_blob'
+    
+    // Try Vercel Blob first (primary storage for large files)
+    if (isBlobConfigured()) {
+      try {
+        console.log('[Floorplan-Assets] Uploading to Vercel Blob...')
+        const blobPath = `floorplan-approvals/${resolvedParams.id}/${versionId}/${fileName}`
+        const blobResult = await put(blobPath, buffer, {
+          access: 'public',
+          contentType: file.type || 'application/pdf',
+        })
+        fileUrl = blobResult.url
+        console.log('[Floorplan-Assets] ✅ Uploaded to Vercel Blob:', fileUrl)
+      } catch (blobError) {
+        console.error('[Floorplan-Assets] ⚠️ Vercel Blob failed, falling back to database:', blobError)
+        // Fallback to base64 if blob fails
+        const fileData = buffer.toString('base64')
+        fileUrl = `data:${file.type};base64,${fileData}`
+        storageMethod = 'postgres_base64'
+      }
+    } else {
+      // No Vercel Blob configured - use database storage
+      console.log('[Floorplan-Assets] Vercel Blob not configured, using database storage')
+      const fileData = buffer.toString('base64')
+      fileUrl = `data:${file.type};base64,${fileData}`
+      storageMethod = 'postgres_base64'
+    }
     
     // Mirror to Dropbox (archival/backup - non-fatal if fails)
     let dropboxUrl: string | undefined
@@ -146,7 +189,7 @@ export async function POST(
         }
       } catch (dropboxError) {
         console.error('[Floorplan-Assets] ⚠️ Failed to mirror to Dropbox (non-fatal):', dropboxError)
-        // Don't fail the upload - database is the primary storage
+        // Don't fail the upload - Vercel Blob is the primary storage
       }
     }
     
@@ -155,7 +198,7 @@ export async function POST(
       uploadDate: new Date().toISOString(),
       projectId: resolvedParams.id,
       versionId: versionId,
-      storageMethod: 'postgres_base64',
+      storageMethod: storageMethod,
       category: fileConfig.assetType,
       dropboxUrl: dropboxUrl || null,
       dropboxPath: dropboxPath || null
@@ -169,8 +212,8 @@ export async function POST(
         url: fileUrl,
         type: fileConfig.assetType,
         size: file.size,
-        mimeType: file.type,
-        provider: 'database',
+        mimeType: file.type || 'application/pdf',
+        provider: storageMethod === 'vercel_blob' ? 'vercel_blob' : 'database',
         metadata: metadata,
         description: description || null,
         userDescription: description || null,
