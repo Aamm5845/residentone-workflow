@@ -436,8 +436,9 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
   // Start editing a note
   const startEditingNote = (note: SourceFile) => {
     setEditNoteTitle(note.title)
-    // Use noteContent for notes, fall back to description for backwards compatibility
-    setEditNoteContent(note.noteContent || note.description || '')
+    // Use description field (that's where notes are stored in the database)
+    // noteContent is only set in the API response for new notes, not on reload
+    setEditNoteContent(note.description || '')
     setEditingNote(true)
   }
 
@@ -1297,11 +1298,11 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
           
           <div className="flex-1 overflow-y-auto px-1 py-4">
             {editingNote ? (
-              <textarea
-                value={editNoteContent}
-                onChange={(e) => setEditNoteContent(e.target.value)}
-                className="w-full h-64 border border-gray-300 rounded-lg px-4 py-3 text-gray-700 focus:ring-2 focus:ring-[#a657f0]/20 focus:border-[#a657f0] outline-none resize-none"
+              <RichTextEditor
+                content={editNoteContent}
+                onChange={setEditNoteContent}
                 placeholder="Note content..."
+                minHeight="200px"
               />
             ) : viewingNote?.description ? (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
