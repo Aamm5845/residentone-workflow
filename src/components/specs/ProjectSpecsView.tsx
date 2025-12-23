@@ -2633,7 +2633,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Avg Trade Discount</p>
-                <p className="text-lg font-semibold text-gray-900">{financials.avgTradeDiscount.toFixed(2)}%</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {financials.totalTradePrice > 0 ? `${financials.avgTradeDiscount.toFixed(2)}%` : '-'}
+                </p>
               </div>
               <div className="flex-1" />
               <div className="flex items-center gap-2">
@@ -3013,7 +3015,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </Badge>
                     {activeTab === 'financial' && (
                       <span className="text-sm font-medium text-gray-700 ml-2">
-                        {formatCurrency(getSectionTotals(group.items).tradeTotal)}
+                        {(() => {
+                          const totals = getSectionTotals(group.items)
+                          // Show trade total if available, otherwise show RRP total
+                          if (totals.tradeTotal > 0) {
+                            return formatCurrency(totals.tradeTotal)
+                          } else if (totals.rrpTotal > 0) {
+                            return <span className="text-gray-500">{formatCurrency(totals.rrpTotal)} <span className="text-[10px]">(RRP)</span></span>
+                          }
+                          return formatCurrency(0)
+                        })()}
                       </span>
                     )}
                   </button>
@@ -6023,9 +6034,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onSave={() => {
           fetchSpecs()
           loadFfeItems() // Refresh FFE items to update chosen status
-          if (detailPanel.mode === 'create') {
-            setDetailPanel({ isOpen: false, mode: 'view', item: null })
-          }
+          // Close panel after save to ensure fresh data on next open
+          setDetailPanel({ isOpen: false, mode: 'view', item: null })
         }}
         onNavigate={(direction) => {
           // Find current item index and navigate

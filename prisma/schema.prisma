@@ -1405,6 +1405,7 @@ model RoomFFEItem {
   width            String?
   height           String?
   depth            String?
+  length           String?
   images           String[]
   notes            String?
   completedAt      DateTime?

@@ -1472,7 +1472,7 @@ export function ItemDetailPanel({
                     )}
                     {formData.quantity > 1 && (
                       <p className="text-xs text-gray-500 text-right">
-                        Unit price: ${formData.tradePrice || '0.00'} × {formData.quantity} units
+                        Unit price: ${formData.tradePrice || formData.rrp || '0.00'} × {formData.quantity} units
                       </p>
                     )}
                   </div>
