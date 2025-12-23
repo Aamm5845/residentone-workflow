@@ -27,14 +27,15 @@ export function getBaseUrl(): string {
     return process.env.APP_URL.replace(/\/$/, '')
   }
   
-  // In production (Vercel), use the Vercel URL or the production domain
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
-  }
-  
   // Default production URL for Meisner Interiors
+  // This takes priority over VERCEL_URL to ensure email links always go to production domain
   if (process.env.NODE_ENV === 'production') {
     return 'https://app.meisnerinteriors.com'
+  }
+  
+  // In preview deployments (non-production Vercel), use the Vercel URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
   }
   
   // Development fallback

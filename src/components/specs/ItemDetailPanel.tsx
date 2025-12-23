@@ -87,6 +87,7 @@ interface ItemDetailPanelProps {
     depth?: string
     length?: string
     roomIds?: string[]
+    notes?: string | null
     ffeRequirementId?: string
     ffeRequirementName?: string
     // Multiple linked FFE items (many-to-many)
@@ -497,7 +498,7 @@ export function ItemDetailPanel({
         tradeDiscount: item.tradeDiscount?.toString() || '',
         rrpCurrency: (item as any).rrpCurrency || 'CAD',
         tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
-        notes: (item as any).notes || '',
+        notes: item.notes || '',
       })
       setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
       // Set rooms - either from roomIds array or from single roomId
@@ -687,7 +688,7 @@ export function ItemDetailPanel({
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 h-full w-[520px] max-w-[90vw] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -1481,12 +1482,77 @@ export function ItemDetailPanel({
             )}
             
             {activeTab === 'attachments' && (
-              <div className="text-center py-12 text-gray-500">
-                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No attachments yet</p>
-                <Button variant="outline" className="mt-4">
-                  Upload Files
-                </Button>
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600 mb-4">
+                  <p>Product images and files for this item.</p>
+                </div>
+                
+                {/* Display existing images */}
+                {images.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Current Images</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-lg overflow-hidden bg-gray-100 border aspect-square">
+                          <img src={img} alt="" className="w-full h-full object-cover" />
+                          <button 
+                            onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                            className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <a 
+                            href={img} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="absolute bottom-2 right-2 p-1.5 bg-white/90 rounded-full hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <ExternalLink className="w-4 h-4 text-gray-600" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Upload area */}
+                {images.length < 2 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Add Image</Label>
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                        isDragging 
+                          ? "border-emerald-500 bg-emerald-50" 
+                          : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                      )}
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-gray-400 mb-3" />
+                          <p className="text-sm text-gray-600 mb-1">
+                            Drag & drop or <span className="text-blue-600 font-medium">browse files</span>
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            JPG, PNG, WebP up to 4MB • Max 2 images
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {images.length >= 2 && (
+                  <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                    Maximum 2 images reached. Remove an image to add a new one.
+                  </p>
+                )}
               </div>
             )}
             

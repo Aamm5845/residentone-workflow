@@ -245,6 +245,21 @@ function initEventListeners() {
     btn.addEventListener('click', (e) => handleAddButtonClick(e, btn.dataset.field));
   });
 
+  // Sync all text inputs to state when user types (fixes smart fill edit persistence issue)
+  const textInputFields = [
+    'productName', 'productDescription', 'brand', 'sku', 'docCode',
+    'rrp', 'tradePrice', 'material', 'colour', 'finish',
+    'width', 'height', 'depth', 'length', 'leadTime', 'quantity', 'notes', 'productWebsite'
+  ];
+  textInputFields.forEach(fieldId => {
+    const input = document.getElementById(fieldId);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        state.clippedData[fieldId] = e.target.value;
+      });
+    }
+  });
+
   // Close button
   document.getElementById('closeBtn')?.addEventListener('click', () => window.close());
 

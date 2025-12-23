@@ -128,6 +128,7 @@ export async function GET(
           optionNumber: item.optionNumber,
           clientApproved: item.clientApproved || false,
           // NEW: Multiple linked FFE items (many-to-many)
+          notes: item.notes,
           linkedFfeItems: (item.specLinks || []).map(link => ({
             linkId: link.id,
             ffeItemId: link.ffeRequirementId,

@@ -191,6 +191,8 @@ interface SpecItem {
   // FFE Linking fields (legacy one-to-one)
   ffeRequirementId: string | null
   ffeRequirementName: string | null
+  // Notes field
+  notes: string | null
   // Multiple linked FFE items (many-to-many)
   linkedFfeItems?: Array<{
     linkId: string
@@ -731,7 +733,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   }, [project.id])
 
   // Fetch all specs for the project
-  const fetchSpecs = useCallback(async () => {
+  const fetchSpecs = useCallback(async (preserveScroll = false) => {
+    // Save scroll position before fetching if requested
+    const scrollPosition = preserveScroll ? window.scrollY : 0
+    
     setLoading(true)
     try {
       const res = await fetch(`/api/projects/${project.id}/specs`)
@@ -739,9 +744,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       if (data.specs) {
         setSpecs(data.specs)
-        // Expand all categories by default
-        const categories = [...new Set(data.specs.map((s: SpecItem) => s.categoryName))]
-        setExpandedCategories(new Set(categories))
+        // Only expand all categories on initial load, not on refresh
+        if (!preserveScroll) {
+          const categories = [...new Set(data.specs.map((s: SpecItem) => s.categoryName))]
+          setExpandedCategories(new Set(categories))
+        }
       }
       if (data.financials) {
         setFinancials(data.financials)
@@ -749,6 +756,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       // Also set available rooms from the data
       if (data.availableRooms) {
         setAvailableRooms(data.availableRooms)
+      }
+      
+      // Restore scroll position after state update
+      if (preserveScroll) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollPosition)
+        })
       }
     } catch (error) {
       console.error('Failed to fetch specs:', error)
@@ -1259,7 +1273,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         setUrlGenerateSelectedSupplier(null)
         
         // Refresh data
-        fetchSpecs()
+        fetchSpecs(true) // Preserve scroll position
         loadFfeItems()
       } else {
         throw new Error('Failed to create linked spec')
@@ -1358,7 +1372,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           ? ` and linked to "${selectedFfeItem.itemName}"${isOption ? ` as Option #${optionNumber}` : ''}`
           : ''
         toast.success(`Product added${linkedMsg}`)
-        fetchSpecs() // Refresh the list
+        fetchSpecs(true) // Refresh the list, preserve scroll
         loadFfeItems() // Refresh FFE items to update chosen status
         // Close all modals
         setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
@@ -1825,7 +1839,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         toast.success('Item duplicated and linked')
         setDuplicateModal({ open: false, item: null })
         setSelectedDuplicateFfeItem('')
-        fetchSpecs()
+        fetchSpecs(true) // Preserve scroll position
         // Refresh FFE items to update linked status
         try {
           const ffeRes = await fetch(`/api/projects/${project.id}/ffe-items`)
@@ -1861,7 +1875,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       if (res.ok) {
         toast.success('Item moved to new section')
-        fetchSpecs()
+        fetchSpecs(true) // Preserve scroll position
         setMoveToSectionModal({ open: false, item: null })
         setSelectedMoveSection('')
       } else {
@@ -1958,7 +1972,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       if (res.ok) {
         toast.success('Flag added')
-        fetchSpecs()
+        fetchSpecs(true) // Preserve scroll position
         setFlagModal({ open: false, item: null })
         setFlagColor('red')
         setFlagNote('')
@@ -2123,7 +2137,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           if (updateRes.ok) {
             toast.success('Item updated from URL')
-            fetchSpecs()
+            fetchSpecs(true) // Preserve scroll position
           } else {
             throw new Error('Failed to update item')
           }
@@ -2148,7 +2162,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       if (res.ok) {
         toast.success('Item removed from schedule')
-        fetchSpecs()
+        fetchSpecs(true) // Preserve scroll position
       } else {
         throw new Error('Failed to remove')
       }
@@ -3079,8 +3093,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </button>
                           </div>
                           
-                          {/* Main Item Row - Using flex for better control */}
-                          <div className="flex items-center w-full px-4 py-3 pl-14 gap-3 overflow-hidden">
+                          {/* Main Item Row - Using flex with fixed widths for equal distribution */}
+                          <div className="flex items-center w-full px-4 py-3 pl-14 gap-2">
                             {/* Image - Fixed width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-16">
                               <div 
@@ -3126,7 +3140,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Title & Room - Fixed width */}
-                            <div className="flex-shrink-0 w-36">
+                            <div className="flex-shrink-0 w-32">
                               {editingField?.itemId === item.id && editingField?.field === 'name' ? (
                                 <Input
                                   value={editValue}
@@ -3179,7 +3193,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ customFields: { flag: null } })
                                               })
-                                              fetchSpecs()
+                                              fetchSpecs(true) // Preserve scroll position
                                               toast.success('Flag removed')
                                             } catch (error) {
                                               toast.error('Failed to remove flag')
@@ -3290,8 +3304,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Doc Code - Fixed width */}
-                            <div className="flex-shrink-0 w-24">
+                            {/* Doc Code - Fixed width (5 chars max) */}
+                            <div className="flex-shrink-0 w-16">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
                               {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
                                 <Input
@@ -3312,8 +3326,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Model - Flexible */}
-                            <div className="flex-1 min-w-0">
+                            {/* Model - Fixed width for longer model numbers */}
+                            <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
                               {editingField?.itemId === item.id && editingField?.field === 'modelNumber' ? (
                                 <Input
@@ -3336,8 +3350,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Brand - Fixed width */}
-                            <div className="flex-shrink-0 w-16">
+                            {/* Brand - Flexible to fill space */}
+                            <div className="flex-1 min-w-[100px]">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
@@ -3451,7 +3465,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Colour */}
-                            <div className="flex-shrink-0 w-16">
+                            <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Colour</p>
                               {editingField?.itemId === item.id && editingField?.field === 'color' ? (
                                 <Input
@@ -3473,7 +3487,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Finish */}
-                            <div className="flex-shrink-0 w-16">
+                            <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
                               {editingField?.itemId === item.id && editingField?.field === 'finish' ? (
                                 <Input
@@ -3494,8 +3508,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Material */}
-                            <div className="flex-shrink-0 w-20">
+                            {/* Material - Flexible to fill space */}
+                            <div className="flex-1 min-w-[80px]">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
                               {editingField?.itemId === item.id && editingField?.field === 'material' ? (
                                 <Input
@@ -3580,7 +3594,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Lead Time - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-20" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-shrink-0 w-16" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -3675,8 +3689,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </>
                             )}
                             
-                            {/* Supplier - Fixed width with dropdown picker */}
-                            <div className="flex-shrink-0 w-32 relative" onClick={(e) => e.stopPropagation()}>
+                            {/* Supplier - Flexible to fill space */}
+                            <div className="flex-1 min-w-[100px] relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
@@ -6032,7 +6046,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         initialFfeSectionId={selectedFfeSection}
         initialFfeItemId={selectedFfeItemId}
         onSave={() => {
-          fetchSpecs()
+          fetchSpecs(true) // Preserve scroll position after save
           loadFfeItems() // Refresh FFE items to update chosen status
           // Close panel after save to ensure fresh data on next open
           setDetailPanel({ isOpen: false, mode: 'view', item: null })
