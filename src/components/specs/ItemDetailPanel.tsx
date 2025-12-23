@@ -324,7 +324,8 @@ export function ItemDetailPanel({
     tradePrice: '',
     rrp: '',
     tradeDiscount: '',
-    currency: 'CAD',
+    rrpCurrency: 'CAD',
+    tradePriceCurrency: 'CAD',
     notes: '',
   })
   
@@ -494,7 +495,8 @@ export function ItemDetailPanel({
         tradePrice: item.tradePrice?.toString() || '',
         rrp: item.rrp?.toString() || '',
         tradeDiscount: item.tradeDiscount?.toString() || '',
-        currency: (item as any).currency || 'CAD',
+        rrpCurrency: (item as any).rrpCurrency || 'CAD',
+        tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
         notes: (item as any).notes || '',
       })
       setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
@@ -586,7 +588,8 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
-            currency: formData.currency,
+            rrpCurrency: formData.rrpCurrency,
+            tradePriceCurrency: formData.tradePriceCurrency,
             images: images,
             // FFE Linking fields
             isSpecItem: true,
@@ -637,7 +640,8 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
-            currency: formData.currency,
+            rrpCurrency: formData.rrpCurrency,
+            tradePriceCurrency: formData.tradePriceCurrency,
             images: images,
           })
         })
@@ -1332,106 +1336,145 @@ export function ItemDetailPanel({
             
             {activeTab === 'financial' && (
               <div className="space-y-6">
-                {/* Currency Selector */}
+                {/* RRP Row */}
                 <div className="space-y-2">
-                  <Label>Currency</Label>
+                  <Label>RRP</Label>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, currency: 'CAD' })}
-                      className={cn(
-                        "flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all",
-                        formData.currency === 'CAD'
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                      )}
-                    >
-                      🇨🇦 CAD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, currency: 'USD' })}
-                      className={cn(
-                        "flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all",
-                        formData.currency === 'USD'
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                      )}
-                    >
-                      🇺🇸 USD
-                    </button>
-                  </div>
-                </div>
-                
-                {/* RRP & Quantity Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>RRP ({formData.currency})</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{formData.currency === 'CAD' ? 'C$' : '$'}</span>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                       <Input
                         type="number"
                         step="0.01"
                         value={formData.rrp}
-                        onChange={(e) => setFormData({ ...formData, rrp: e.target.value })}
+                        onChange={(e) => {
+                          const newRrp = e.target.value
+                          // Auto-calculate trade price if discount is set
+                          const discount = parseFloat(formData.tradeDiscount) || 0
+                          if (discount > 0 && newRrp) {
+                            const calculatedTradePrice = (parseFloat(newRrp) * (1 - discount / 100)).toFixed(2)
+                            setFormData({ ...formData, rrp: newRrp, tradePrice: calculatedTradePrice })
+                          } else {
+                            setFormData({ ...formData, rrp: newRrp })
+                          }
+                        }}
                         placeholder="0.00"
-                        className="pl-8"
+                        className="pl-7"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, rrpCurrency: formData.rrpCurrency === 'CAD' ? 'USD' : 'CAD' })}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-xs font-medium transition-all min-w-[60px]",
+                        formData.rrpCurrency === 'CAD'
+                          ? "border-gray-300 bg-gray-50 text-gray-700"
+                          : "border-blue-300 bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      {formData.rrpCurrency}
+                    </button>
                   </div>
                 </div>
+
+                {/* Quantity Row */}
+                <div className="space-y-2">
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
                 
-                {/* Trade Price & Trade Discount Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Trade Price ({formData.currency})</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{formData.currency === 'CAD' ? 'C$' : '$'}</span>
+                {/* Trade Price Row */}
+                <div className="space-y-2">
+                  <Label>Trade Price</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                       <Input
                         type="number"
                         step="0.01"
                         value={formData.tradePrice}
                         onChange={(e) => setFormData({ ...formData, tradePrice: e.target.value })}
                         placeholder="0.00"
-                        className="pl-8"
+                        className="pl-7"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, tradePriceCurrency: formData.tradePriceCurrency === 'CAD' ? 'USD' : 'CAD' })}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-xs font-medium transition-all min-w-[60px]",
+                        formData.tradePriceCurrency === 'CAD'
+                          ? "border-gray-300 bg-gray-50 text-gray-700"
+                          : "border-blue-300 bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      {formData.tradePriceCurrency}
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Trade Discount</Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={formData.tradeDiscount}
-                        onChange={(e) => setFormData({ ...formData, tradeDiscount: e.target.value })}
-                        placeholder="0"
-                        className="pr-7"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                    </div>
+                </div>
+
+                {/* Trade Discount Row */}
+                <div className="space-y-2">
+                  <Label>Trade Discount</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={formData.tradeDiscount}
+                      onChange={(e) => {
+                        const newDiscount = e.target.value
+                        // Auto-calculate trade price from RRP if RRP is set
+                        const rrp = parseFloat(formData.rrp) || 0
+                        if (rrp > 0 && newDiscount) {
+                          const calculatedTradePrice = (rrp * (1 - parseFloat(newDiscount) / 100)).toFixed(2)
+                          setFormData({ ...formData, tradeDiscount: newDiscount, tradePrice: calculatedTradePrice })
+                        } else {
+                          setFormData({ ...formData, tradeDiscount: newDiscount })
+                        }
+                      }}
+                      placeholder="0"
+                      className="pr-7"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
                   </div>
+                  {formData.rrp && formData.tradeDiscount && (
+                    <p className="text-xs text-gray-500">
+                      {formData.tradeDiscount}% off ${formData.rrp} = ${((parseFloat(formData.rrp) || 0) * (1 - (parseFloat(formData.tradeDiscount) || 0) / 100)).toFixed(2)}
+                    </p>
+                  )}
                 </div>
                 
                 {/* TOTALS Section */}
-                <div className="border-t border-gray-200 pt-4 mt-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">TOTALS ({formData.currency})</h3>
+                <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">TOTALS</h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600">TRADE PRICE</span>
                       <span className="font-semibold text-lg">
-                        {formData.currency === 'CAD' ? 'C$' : '$'}{((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 0) * (1 - (parseFloat(formData.tradeDiscount) || 0) / 100)).toFixed(2)}
+                        ${((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 1)).toFixed(2)}
+                        <span className="text-xs text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
                       </span>
                     </div>
+                    {formData.rrp && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-gray-600">RRP TOTAL</span>
+                        <span className="font-semibold text-lg">
+                          ${((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)).toFixed(2)}
+                          <span className="text-xs text-gray-500 ml-1">{formData.rrpCurrency}</span>
+                        </span>
+                      </div>
+                    )}
+                    {formData.quantity > 1 && (
+                      <p className="text-xs text-gray-500 text-right">
+                        Unit price: ${formData.tradePrice || '0.00'} × {formData.quantity} units
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -292,6 +292,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
+  const prevSortByRef = useRef<'category' | 'room' | 'status'>('category')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
   
@@ -854,6 +855,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Get unique rooms for filter
   const uniqueRooms = Array.from(new Set(specs.map(s => s.roomName))).sort()
   
+  // Recalculate financials whenever specs change
+  useEffect(() => {
+    const totalTradePrice = specs.reduce((sum, s) => {
+      const price = s.tradePrice || 0
+      const qty = s.quantity || 1
+      return sum + (price * qty)
+    }, 0)
+    
+    const totalRRP = specs.reduce((sum, s) => {
+      const price = s.rrp || 0
+      const qty = s.quantity || 1
+      return sum + (price * qty)
+    }, 0)
+    
+    const avgTradeDiscount = totalRRP > 0 
+      ? ((totalRRP - totalTradePrice) / totalRRP * 100)
+      : 0
+    
+    setFinancials({
+      totalTradePrice,
+      totalRRP,
+      avgTradeDiscount: Math.round(avgTradeDiscount * 100) / 100
+    })
+  }, [specs])
+  
   // Filter and group specs
   useEffect(() => {
     let filtered = specs
@@ -909,6 +935,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }))
 
     setGroupedSpecs(groupedArray.sort((a, b) => a.name.localeCompare(b.name)))
+    
+    // Expand all groups when sortBy changes (e.g., switching from category to room)
+    if (sortBy !== prevSortByRef.current) {
+      setExpandedCategories(new Set(groupedArray.map(g => g.name)))
+      prevSortByRef.current = sortBy
+    }
   }, [specs, searchQuery, filterStatus, filterRoom, filterSection, sortBy])
   
   // Filter ffeItems based on room and section filters for Needs Selection tab

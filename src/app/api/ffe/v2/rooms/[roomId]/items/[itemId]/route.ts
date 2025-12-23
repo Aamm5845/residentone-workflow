@@ -276,7 +276,8 @@ export async function PATCH(
       length,
       notes,
       images,
-      currency
+      rrpCurrency,
+      tradePriceCurrency
     } = body
 
     if (!roomId || !itemId) {
@@ -392,7 +393,8 @@ export async function PATCH(
     if (length !== undefined) updateData.length = length
     if (notes !== undefined) updateData.notes = notes
     if (images !== undefined) updateData.images = images
-    if (currency !== undefined) updateData.currency = currency
+    if (rrpCurrency !== undefined) updateData.rrpCurrency = rrpCurrency
+    if (tradePriceCurrency !== undefined) updateData.tradePriceCurrency = tradePriceCurrency
     
     // Handle customFields merge
     if (customFields !== undefined) {
