@@ -1382,6 +1382,7 @@ model RoomFFEItem {
   isCustom         Boolean             @default(false)
   order            Int                 @default(0)
   quantity         Int                 @default(1)
+  unitType         String?             @default("units") // Unit type: units, SF, SY, LF, etc.
   unitCost         Decimal?
   totalCost        Decimal?
   tradePrice       Decimal?

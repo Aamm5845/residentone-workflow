@@ -115,6 +115,33 @@ const ITEM_STATUS_OPTIONS = [
 // Statuses that require client approval to select
 const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION', 'COMPLETED']
 
+// Lead time options (same as ItemDetailPanel)
+const LEAD_TIME_OPTIONS = [
+  { value: '1-2 weeks', label: '1-2 Wks' },
+  { value: '2-4 weeks', label: '2-4 Wks' },
+  { value: '4-6 weeks', label: '4-6 Wks' },
+  { value: '6-8 weeks', label: '6-8 Wks' },
+  { value: '8-12 weeks', label: '8-12 Wks' },
+  { value: '12+ weeks', label: '12+ Wks' },
+]
+
+// Unit type options (same as ItemDetailPanel)
+const UNIT_TYPE_OPTIONS = [
+  { value: 'units', label: 'Units' },
+  { value: 'SF', label: 'SF' },
+  { value: 'SY', label: 'SY' },
+  { value: 'LF', label: 'LF' },
+  { value: 'LY', label: 'LY' },
+  { value: 'sqm', label: 'SQM' },
+  { value: 'meters', label: 'M' },
+  { value: 'feet', label: 'FT' },
+  { value: 'inches', label: 'IN' },
+  { value: 'boxes', label: 'Boxes' },
+  { value: 'rolls', label: 'Rolls' },
+  { value: 'sets', label: 'Sets' },
+  { value: 'pairs', label: 'Pairs' },
+]
+
 interface SpecItem {
   id: string
   name: string
@@ -137,6 +164,7 @@ interface SpecItem {
   depth: string | null
   length: string | null
   quantity: number
+  unitType: string | null
   leadTime: string | null
   supplierName: string | null
   supplierLink: string | null
@@ -146,6 +174,14 @@ interface SpecItem {
   images: string[]
   thumbnailUrl: string | null
   roomId: string
+  // Custom fields (for flags, etc.)
+  customFields?: {
+    flag?: {
+      color: string
+      note?: string
+      addedAt?: string
+    }
+  } | null
   // Pricing fields
   unitCost: number | null
   totalCost: number | null
@@ -435,6 +471,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     imageTitle: string
     itemId: string | null
   }>({ open: false, imageUrl: '', imageTitle: '', itemId: null })
+  
+  // Image upload for items without images
+  const [uploadingImageForItem, setUploadingImageForItem] = useState<string | null>(null)
+  const imageUploadInputRef = useRef<HTMLInputElement>(null)
+  const [pendingUploadItemId, setPendingUploadItemId] = useState<string | null>(null)
   
   // Duplicate item modal state
   const [duplicateModal, setDuplicateModal] = useState<{ 
@@ -860,9 +901,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     })
 
     // Convert to array and sort
+    // Keep items in their original order from the database (order field)
+    // to preserve drag-and-drop reordering
     const groupedArray = Object.values(groups).map(group => ({
       ...group,
-      items: group.items.sort((a, b) => a.name.localeCompare(b.name))
+      items: group.items // Keep original order from database
     }))
 
     setGroupedSpecs(groupedArray.sort((a, b) => a.name.localeCompare(b.name)))
@@ -1481,12 +1524,108 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     setEditValue(currentValue || '')
   }
   
+  // Handle image upload for items without images
+  const handleItemImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const itemId = pendingUploadItemId
+    
+    if (!file || !itemId) {
+      setPendingUploadItemId(null)
+      return
+    }
+    
+    const item = specs.find(s => s.id === itemId)
+    if (!item) {
+      setPendingUploadItemId(null)
+      return
+    }
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      setPendingUploadItemId(null)
+      e.target.value = ''
+      return
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image must be less than 10MB')
+      setPendingUploadItemId(null)
+      e.target.value = ''
+      return
+    }
+    
+    setUploadingImageForItem(itemId)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('imageType', 'general')
+      
+      const uploadRes = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (uploadRes.ok) {
+        const uploadData = await uploadRes.json()
+        if (uploadData.url) {
+          // Update the item with the new image
+          const updateRes = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              thumbnailUrl: uploadData.url,
+              images: [uploadData.url]
+            })
+          })
+          
+          if (updateRes.ok) {
+            // Update local state
+            setSpecs(prev => prev.map(s => 
+              s.id === itemId 
+                ? { ...s, thumbnailUrl: uploadData.url, images: [uploadData.url, ...(s.images || []).slice(1)] }
+                : s
+            ))
+            toast.success('Image uploaded successfully!')
+          } else {
+            toast.error('Failed to save image')
+          }
+        }
+      } else {
+        toast.error('Failed to upload image')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingImageForItem(null)
+      setPendingUploadItemId(null)
+      e.target.value = ''
+    }
+  }
+  
   // Save inline edit
   const saveInlineEdit = async () => {
     if (!editingField) return
     
     const item = specs.find(s => s.id === editingField.itemId)
     if (!item) return
+    
+    // Validate unique doc code within project
+    if (editingField.field === 'docCode' && editValue.trim()) {
+      const existingDocCode = specs.find(s => 
+        s.id !== editingField.itemId && 
+        s.docCode && 
+        s.docCode.toLowerCase() === editValue.trim().toLowerCase()
+      )
+      if (existingDocCode) {
+        toast.error(`Doc code "${editValue}" already exists in this project`)
+        setEditingField(null)
+        setEditValue('')
+        return
+      }
+    }
     
     try {
       const updateData: Record<string, string> = {}
@@ -1513,6 +1652,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             : s
         ))
         toast.success('Updated')
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Save failed:', errorData)
+        toast.error(errorData.error || 'Failed to update')
       }
     } catch (error) {
       console.error('Error updating field:', error)
@@ -2099,6 +2242,38 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
   }
   
+  // Format dimension values - convert "63 inches" to "63\"", "24 feet" to "24'" etc.
+  const formatDimension = (value: string | null) => {
+    if (!value) return '-'
+    
+    // Patterns to replace (case-insensitive)
+    const replacements: [RegExp, string][] = [
+      [/\s*inch(es)?/gi, '"'],
+      [/\s*in\b/gi, '"'],
+      [/\s*feet\b/gi, "'"],
+      [/\s*foot\b/gi, "'"],
+      [/\s*ft\b/gi, "'"],
+      [/\s*square\s*feet\b/gi, ' SF'],
+      [/\s*sq\s*ft\b/gi, ' SF'],
+      [/\s*square\s*yards?\b/gi, ' SY'],
+      [/\s*sq\s*yd\b/gi, ' SY'],
+      [/\s*linear\s*feet\b/gi, ' LF'],
+      [/\s*lin\s*ft\b/gi, ' LF'],
+      [/\s*centimeters?\b/gi, 'cm'],
+      [/\s*cm\b/gi, 'cm'],
+      [/\s*meters?\b/gi, 'm'],
+      [/\s*millimeters?\b/gi, 'mm'],
+      [/\s*mm\b/gi, 'mm'],
+    ]
+    
+    let result = value
+    for (const [pattern, replacement] of replacements) {
+      result = result.replace(pattern, replacement)
+    }
+    
+    return result
+  }
+  
   // Calculate section totals
   const getSectionTotals = (items: SpecItem[]) => {
     const tradeTotal = items.reduce((sum, item) => sum + ((item.tradePrice || 0) * (item.quantity || 1)), 0)
@@ -2108,6 +2283,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
+      {/* Hidden file input for image upload */}
+      <input
+        type="file"
+        ref={imageUploadInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleItemImageUpload}
+      />
+      
       {/* Header - Matching standard software header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-full mx-auto px-6 py-4">
@@ -2854,34 +3038,46 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           
                           {/* Main Item Row - Using flex for better control */}
                           <div className="flex items-center w-full px-4 py-3 pl-14 gap-3 overflow-hidden">
-                            {/* Image - Fixed width, clickable to open editor */}
+                            {/* Image - Fixed width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-16">
                               <div 
                                 className={cn(
-                                  "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden",
-                                  (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
+                                  "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                                  (item.thumbnailUrl || item.images?.[0]) 
+                                    ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1" 
+                                    : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
+                                  uploadingImageForItem === item.id && "opacity-50"
                                 )}
                                 onClick={(e) => {
+                                  e.stopPropagation()
                                   if (item.thumbnailUrl || item.images?.[0]) {
-                                    e.stopPropagation()
                                     setImageEditorModal({
                                       open: true,
                                       imageUrl: item.thumbnailUrl || item.images[0],
                                       imageTitle: `${item.sectionName}: ${item.name}`,
                                       itemId: item.id
                                     })
+                                  } else {
+                                    // Trigger file upload
+                                    setPendingUploadItemId(item.id)
+                                    imageUploadInputRef.current?.click()
                                   }
                                 }}
-                                title={item.thumbnailUrl || item.images?.[0] ? "Click to view/edit image" : undefined}
+                                title={item.thumbnailUrl || item.images?.[0] ? "Click to view/edit image" : "Click to upload image"}
                               >
-                                {item.thumbnailUrl || item.images?.[0] ? (
+                                {uploadingImageForItem === item.id ? (
+                                  <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+                                ) : item.thumbnailUrl || item.images?.[0] ? (
                                   <img 
                                     src={item.thumbnailUrl || item.images[0]} 
                                     alt={item.name}
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                                  <div className="flex flex-col items-center">
+                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                    <span className="text-[8px] text-gray-400 mt-0.5">Add</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -2898,12 +3094,61 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
-                                  className="text-sm font-medium text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
-                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'name', item.name || '') }}
-                                >
-                                  {item.name}
-                                </p>
+                                <div className="flex items-center gap-1">
+                                  <p 
+                                    className="text-sm font-medium text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1 flex-1"
+                                    onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'name', item.name || '') }}
+                                  >
+                                    {item.name}
+                                  </p>
+                                  {(item.customFields as any)?.flag && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button 
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="flex-shrink-0"
+                                          title={(item.customFields as any)?.flag?.note || 'Flagged'}
+                                        >
+                                          <Flag className={cn(
+                                            "w-3.5 h-3.5",
+                                            (item.customFields as any)?.flag?.color === 'red' && "text-red-500",
+                                            (item.customFields as any)?.flag?.color === 'orange' && "text-orange-500",
+                                            (item.customFields as any)?.flag?.color === 'yellow' && "text-yellow-500",
+                                            (item.customFields as any)?.flag?.color === 'green' && "text-green-500",
+                                            (item.customFields as any)?.flag?.color === 'blue' && "text-blue-500",
+                                            (item.customFields as any)?.flag?.color === 'purple' && "text-purple-500",
+                                          )} />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                        <p className="text-xs font-medium mb-1">Flagged</p>
+                                        {(item.customFields as any)?.flag?.note && (
+                                          <p className="text-xs text-gray-600">{(item.customFields as any).flag.note}</p>
+                                        )}
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          className="w-full mt-2 h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          onClick={async () => {
+                                            try {
+                                              await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ customFields: { flag: null } })
+                                              })
+                                              fetchSpecs()
+                                              toast.success('Flag removed')
+                                            } catch (error) {
+                                              toast.error('Failed to remove flag')
+                                            }
+                                          }}
+                                        >
+                                          Remove Flag
+                                        </Button>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
                               )}
                               <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">{item.roomName}</p>
                               {/* Show linked FFE items - new many-to-many format */}
@@ -3024,10 +3269,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Product Name - Flexible */}
+                            {/* Model - Flexible */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Product</p>
-                              {editingField?.itemId === item.id && editingField?.field === 'productName' ? (
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
+                              {editingField?.itemId === item.id && editingField?.field === 'modelNumber' ? (
                                 <Input
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
@@ -3035,13 +3280,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   onKeyDown={handleEditKeyDown}
                                   className="h-6 text-xs"
                                   autoFocus
+                                  placeholder="e.g., K-560-VS"
                                 />
                               ) : (
                                 <p 
                                   className="text-xs text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
-                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'productName', item.productName || '') }}
+                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'modelNumber', item.modelNumber || item.sku || '') }}
+                                  title={item.modelNumber || item.sku || 'Click to add model'}
                                 >
-                                  {item.productName || '-'}
+                                  {item.modelNumber || item.sku || '-'}
                                 </p>
                               )}
                             </div>
@@ -3084,8 +3331,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p 
                                   className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'width', item.width || '') }}
+                                  title={item.width || undefined}
                                 >
-                                  {item.width || '-'}
+                                  {formatDimension(item.width)}
                                 </p>
                               )}
                             </div>
@@ -3106,8 +3354,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p 
                                   className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'length', item.length || '') }}
+                                  title={item.length || undefined}
                                 >
-                                  {item.length || '-'}
+                                  {formatDimension(item.length)}
                                 </p>
                               )}
                             </div>
@@ -3128,8 +3377,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p 
                                   className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'height', item.height || '') }}
+                                  title={item.height || undefined}
                                 >
-                                  {item.height || '-'}
+                                  {formatDimension(item.height)}
                                 </p>
                               )}
                             </div>
@@ -3150,8 +3400,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <p 
                                   className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'depth', item.depth || '') }}
+                                  title={item.depth || undefined}
                                 >
-                                  {item.depth || '-'}
+                                  {formatDimension(item.depth)}
                                 </p>
                               )}
                             </div>
@@ -3223,7 +3474,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* QTY - Fixed width */}
-                            <div className="flex-shrink-0 w-12 text-center">
+                            <div className="flex-shrink-0 w-14 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
                               {editingField?.itemId === item.id && editingField?.field === 'quantity' ? (
                                 <Input
@@ -3246,26 +3497,86 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Lead Time - Fixed width */}
-                            <div className="flex-shrink-0 w-20">
+                            {/* Unit Type - Fixed width with dropdown picker (like Supplier) */}
+                            <div className="flex-shrink-0 w-14" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Unit</p>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button 
+                                    className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {item.unitType && item.unitType !== 'units' ? item.unitType.toUpperCase() : <span className="text-gray-400">-</span>}
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-32">
+                                  {UNIT_TYPE_OPTIONS.map(opt => (
+                                    <DropdownMenuItem 
+                                      key={opt.value}
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ unitType: opt.value })
+                                          })
+                                          if (res.ok) {
+                                            setSpecs(prev => prev.map(s => s.id === item.id ? { ...s, unitType: opt.value } : s))
+                                          }
+                                        } catch (error) {
+                                          console.error('Error updating unit type:', error)
+                                        }
+                                      }}
+                                      className={item.unitType === opt.value ? 'bg-gray-100' : ''}
+                                    >
+                                      {opt.label}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            {/* Lead Time - Fixed width with dropdown picker (like Supplier) */}
+                            <div className="flex-shrink-0 w-20" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
-                              {editingField?.itemId === item.id && editingField?.field === 'leadTime' ? (
-                                <Input
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={saveInlineEdit}
-                                  onKeyDown={handleEditKeyDown}
-                                  className="h-6 text-xs"
-                                  autoFocus
-                                />
-                              ) : (
-                                <p 
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
-                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'leadTime', item.leadTime || '') }}
-                                >
-                                  {item.leadTime || '-'}
-                                </p>
-                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button 
+                                    className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {item.leadTime ? (
+                                      LEAD_TIME_OPTIONS.find(o => o.value === item.leadTime)?.label || item.leadTime
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-32">
+                                  {LEAD_TIME_OPTIONS.map(opt => (
+                                    <DropdownMenuItem 
+                                      key={opt.value}
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ leadTime: opt.value })
+                                          })
+                                          if (res.ok) {
+                                            setSpecs(prev => prev.map(s => s.id === item.id ? { ...s, leadTime: opt.value } : s))
+                                          }
+                                        } catch (error) {
+                                          console.error('Error updating lead time:', error)
+                                        }
+                                      }}
+                                      className={item.leadTime === opt.value ? 'bg-gray-100' : ''}
+                                    >
+                                      {opt.label}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                             
                             {/* Financial Columns - Only in Financial Tab */}

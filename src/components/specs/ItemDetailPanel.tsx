@@ -67,6 +67,7 @@ interface ItemDetailPanelProps {
     productName?: string
     brand?: string
     quantity?: number
+    unitType?: string
     supplierName?: string
     supplierLink?: string
     supplierId?: string
@@ -123,6 +124,22 @@ const LEAD_TIME_OPTIONS = [
   { value: '6-8 weeks', label: '6-8 Weeks' },
   { value: '8-12 weeks', label: '8-12 Weeks' },
   { value: '12+ weeks', label: '12+ Weeks' },
+]
+
+const UNIT_TYPE_OPTIONS = [
+  { value: 'units', label: 'Units' },
+  { value: 'SF', label: 'SF (Square Feet)' },
+  { value: 'SY', label: 'SY (Square Yards)' },
+  { value: 'LF', label: 'LF (Linear Feet)' },
+  { value: 'LY', label: 'LY (Linear Yards)' },
+  { value: 'sqm', label: 'SQM (Square Meters)' },
+  { value: 'meters', label: 'Meters' },
+  { value: 'feet', label: 'Feet' },
+  { value: 'inches', label: 'Inches' },
+  { value: 'boxes', label: 'Boxes' },
+  { value: 'rolls', label: 'Rolls' },
+  { value: 'sets', label: 'Sets' },
+  { value: 'pairs', label: 'Pairs' },
 ]
 
 
@@ -289,6 +306,7 @@ export function ItemDetailPanel({
     productName: '',
     brand: '',
     quantity: 1,
+    unitType: 'units',
     supplierName: '',
     supplierLink: '',
     supplierId: '',
@@ -461,6 +479,7 @@ export function ItemDetailPanel({
         productName: item.productName || '',
         brand: item.brand || '',
         quantity: item.quantity || 1,
+        unitType: item.unitType || 'units',
         supplierName: item.supplierName || '',
         supplierLink: item.supplierLink || '',
         supplierId: item.supplierId || '',
@@ -491,6 +510,7 @@ export function ItemDetailPanel({
         productName: '',
         brand: '',
         quantity: 1,
+        unitType: 'units',
         supplierName: '',
         supplierLink: '',
         supplierId: '',
@@ -553,6 +573,7 @@ export function ItemDetailPanel({
             supplierLink: formData.supplierLink,
             supplierId: formData.supplierId || undefined,
             quantity: formData.quantity,
+            unitType: formData.unitType,
             leadTime: formData.leadTime,
             color: formData.color,
             finish: formData.finish,
@@ -603,6 +624,7 @@ export function ItemDetailPanel({
             supplierLink: formData.supplierLink,
             supplierId: formData.supplierId || undefined,
             quantity: formData.quantity,
+            unitType: formData.unitType,
             leadTime: formData.leadTime,
             color: formData.color,
             finish: formData.finish,
@@ -835,20 +857,31 @@ export function ItemDetailPanel({
                   </div>
                 )}
                 
-                {/* Product Name */}
-                <div className="space-y-2">
-                  <Label>Product Name</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter product name"
-                  />
+                {/* Item Name & Product */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Item Name</Label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Kitchen Faucet"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Product</Label>
+                    <Input
+                      value={formData.productName}
+                      onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                      placeholder="e.g., Kohler K-560-VS"
+                    />
+                    <p className="text-[10px] text-gray-400">Specific product model or name</p>
+                  </div>
                 </div>
                 
                 {/* Description & Doc Code */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Product Description</Label>
+                    <Label>Description</Label>
                     <Input
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -1033,7 +1066,7 @@ export function ItemDetailPanel({
                   </div>
                 )}
                 
-                {/* Quantity */}
+                {/* Quantity & Unit Type */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Quantity</Label>
@@ -1043,6 +1076,19 @@ export function ItemDetailPanel({
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unit Type</Label>
+                    <Select value={formData.unitType} onValueChange={(v) => setFormData({ ...formData, unitType: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIT_TYPE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 

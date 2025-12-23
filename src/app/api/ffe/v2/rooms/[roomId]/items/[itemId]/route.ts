@@ -32,7 +32,7 @@ export async function PUT(
 
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
-    const { name, description, quantity, state, notes } = await request.json()
+    const { name, description, quantity, unitType, state, notes } = await request.json()
 
     if (!roomId || !itemId) {
       return NextResponse.json({ 
@@ -110,6 +110,7 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(quantity !== undefined && { quantity }),
+        ...(unitType !== undefined && { unitType }),
         ...(state !== undefined && { state }),
         ...(notes !== undefined && { notes }),
         updatedById: userId,
@@ -259,6 +260,7 @@ export async function PATCH(
       visibility,
       clientApproved,
       quantity,
+      unitType,
       tradePrice,
       rrp,
       tradeDiscount,
@@ -374,6 +376,7 @@ export async function PATCH(
     if (visibility !== undefined) updateData.visibility = visibility
     if (clientApproved !== undefined) updateData.clientApproved = clientApproved
     if (quantity !== undefined) updateData.quantity = parseInt(quantity) || 1
+    if (unitType !== undefined) updateData.unitType = unitType
     if (tradePrice !== undefined) updateData.tradePrice = tradePrice ? parseFloat(tradePrice) : null
     if (rrp !== undefined) updateData.rrp = rrp ? parseFloat(rrp) : null
     if (tradeDiscount !== undefined) updateData.tradeDiscount = tradeDiscount ? parseFloat(tradeDiscount) : null
@@ -386,6 +389,7 @@ export async function PATCH(
     if (width !== undefined) updateData.width = width
     if (height !== undefined) updateData.height = height
     if (depth !== undefined) updateData.depth = depth
+    if (length !== undefined) updateData.length = length
     if (notes !== undefined) updateData.notes = notes
     if (images !== undefined) updateData.images = images
     if (currency !== undefined) updateData.currency = currency
