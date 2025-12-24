@@ -590,9 +590,26 @@ async function loadFfeItems(roomId, sectionId) {
     // API returns items directly on response, not in response.data
     const items = response.items || response.data?.items || [];
     
+    console.log('[FFE Clipper] Loaded items from API:', items.length, 'items');
+    console.log('[FFE Clipper] Looking for sectionId:', sectionId);
+    console.log('[FFE Clipper] Available sectionIds in items:', [...new Set(items.map(i => i.sectionId))]);
+    
     if (response.ok && items.length >= 0) {
-      // Filter items by section
-      const sectionItems = items.filter(item => item.sectionId === sectionId);
+      // Filter items by section - also match by section NAME for flexibility
+      const selectedSection = state.sections.find(s => s.id === sectionId);
+      const sectionName = selectedSection?.name?.toLowerCase() || '';
+      
+      let sectionItems = items.filter(item => item.sectionId === sectionId);
+      
+      // If no exact match, try matching by section name
+      if (sectionItems.length === 0 && sectionName) {
+        sectionItems = items.filter(item => 
+          item.sectionName?.toLowerCase() === sectionName
+        );
+        console.log('[FFE Clipper] Matched by name instead:', sectionItems.length, 'items');
+      }
+      
+      console.log('[FFE Clipper] Filtered items for section:', sectionItems.length);
       state.ffeItems = sectionItems;
       
       // Render items as cards
@@ -602,12 +619,12 @@ async function loadFfeItems(roomId, sectionId) {
       const hint = document.getElementById('ffeItemHint');
       const needsSpec = sectionItems.filter(i => i.needsSpec);
       if (hint) {
-        if (needsSpec.length > 0) {
-          hint.textContent = `${needsSpec.length} item${needsSpec.length > 1 ? 's' : ''} need products`;
-          hint.style.color = '#d97706';
-        } else if (sectionItems.length > 0) {
-          hint.textContent = 'All items have products ✓';
-          hint.style.color = '#10b981';
+        if (sectionItems.length > 0) {
+          hint.textContent = `${sectionItems.length} item${sectionItems.length > 1 ? 's' : ''} in this category`;
+          hint.style.color = '#6b7280';
+        } else if (items.length > 0) {
+          hint.textContent = `No items in this category (${items.length} in other categories)`;
+          hint.style.color = '#6b7280';
         } else {
           hint.textContent = 'No items yet - select "Create new item"';
           hint.style.color = '#6b7280';
@@ -615,11 +632,12 @@ async function loadFfeItems(roomId, sectionId) {
       }
     } else {
       // No items or error, still show the create new option
+      console.log('[FFE Clipper] No items or error:', response.error);
       state.ffeItems = [];
       renderFfeItemCards();
     }
   } catch (error) {
-    console.error('Failed to load FFE items:', error);
+    console.error('[FFE Clipper] Failed to load FFE items:', error);
     state.ffeItems = [];
     renderFfeItemCards();
   }
