@@ -1268,47 +1268,8 @@ function processSmartFillData(data) {
     renderImages();
   }
   
-  // Helper to check if a URL is an image file
-  const isImageUrl = (url) => {
-    if (!url) return false;
-    const lowerUrl = url.toLowerCase();
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico', '.tiff', '.tif'];
-    return imageExtensions.some(ext => lowerUrl.includes(ext));
-  };
-  
-  if (data.specSheets?.length > 0) {
-    for (const spec of data.specSheets) {
-      // Skip if it's an image file - images should go to images, not attachments
-      if (isImageUrl(spec.url)) continue;
-      
-      if (!state.clippedData.attachments.some(a => a.url === spec.url)) {
-        state.clippedData.attachments.push({
-          name: spec.name || 'Spec Sheet',
-          url: spec.url,
-          type: spec.type || 'PDF',
-          isSpec: spec.isSpec || false
-        });
-      }
-    }
-    renderAttachments();
-  }
-  
-  if (data.pdfLinks?.length > 0 && (!data.specSheets || data.specSheets.length === 0)) {
-    for (const pdfUrl of data.pdfLinks) {
-      // Skip if it's an image file
-      if (isImageUrl(pdfUrl)) continue;
-      
-      if (!state.clippedData.attachments.some(a => a.url === pdfUrl)) {
-        const fileName = pdfUrl.split('/').pop()?.split('?')[0] || 'Document.pdf';
-        state.clippedData.attachments.push({
-          name: fileName,
-          url: pdfUrl,
-          type: 'PDF'
-        });
-      }
-    }
-    renderAttachments();
-  }
+  // Smart fill should NOT auto-add any attachments
+  // User can manually add attachments using the + button if needed
 }
 
 // Handle clip button

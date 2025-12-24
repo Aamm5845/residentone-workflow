@@ -875,25 +875,29 @@ body {
 .field-row {
   display: flex;
   gap: 8px;
+  width: 100%;
 }
 
 .field-group.small {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 25%;
 }
 
 .field-group.small label {
-  font-size: 11px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
-.field-group.small input {
-  padding: 8px;
-  font-size: 12px;
+.field-group.small .field-input {
+  width: 100%;
 }
 
-/* Dimension fields without add buttons - fix border and radius */
 .field-group.small .field-input input {
-  border-right: 1px solid var(--border);
+  width: 100%;
+  padding: 8px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
