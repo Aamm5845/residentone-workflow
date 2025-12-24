@@ -75,7 +75,26 @@ export async function GET(
                     sku: true,
                     isOption: true,
                     optionNumber: true,
-                    specStatus: true
+                    specStatus: true,
+                    // Full spec details for inline display
+                    images: true,
+                    thumbnailUrl: true,
+                    supplierName: true,
+                    supplierLink: true,
+                    unitCost: true,
+                    tradePrice: true,
+                    rrp: true,
+                    color: true,
+                    finish: true,
+                    material: true,
+                    width: true,
+                    height: true,
+                    depth: true,
+                    leadTime: true,
+                    quantity: true,
+                    description: true,
+                    notes: true,
+                    clientApproved: true
                   }
                 },
                 // Include linked specs via new many-to-many relationship (FFESpecLink)
@@ -89,7 +108,26 @@ export async function GET(
                         sku: true,
                         isOption: true,
                         optionNumber: true,
-                        specStatus: true
+                        specStatus: true,
+                        // Full spec details for inline display
+                        images: true,
+                        thumbnailUrl: true,
+                        supplierName: true,
+                        supplierLink: true,
+                        unitCost: true,
+                        tradePrice: true,
+                        rrp: true,
+                        color: true,
+                        finish: true,
+                        material: true,
+                        width: true,
+                        height: true,
+                        depth: true,
+                        leadTime: true,
+                        quantity: true,
+                        description: true,
+                        notes: true,
+                        clientApproved: true
                       }
                     }
                   }

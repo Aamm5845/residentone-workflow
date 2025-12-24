@@ -53,6 +53,34 @@ import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
+interface LinkedSpec {
+  id: string
+  name: string
+  brand?: string
+  sku?: string
+  isOption?: boolean
+  optionNumber?: number
+  specStatus?: string
+  images?: string[]
+  thumbnailUrl?: string
+  supplierName?: string
+  supplierLink?: string
+  unitCost?: number
+  tradePrice?: number
+  rrp?: number
+  color?: string
+  finish?: string
+  material?: string
+  width?: string
+  height?: string
+  depth?: string
+  leadTime?: string
+  quantity?: number
+  description?: string
+  notes?: string
+  clientApproved?: boolean
+}
+
 interface FFEItem {
   id: string
   name: string
@@ -63,7 +91,7 @@ interface FFEItem {
   customFields?: any
   isSpecItem: boolean
   ffeRequirementId?: string
-  linkedSpecs?: FFEItem[]
+  linkedSpecs?: LinkedSpec[]
 }
 
 interface FFESection {
@@ -102,6 +130,12 @@ export default function FFEUnifiedWorkspace({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showImageModal, setShowImageModal] = useState(false)
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
+  
+  // Track which option is selected/viewed for items with multiple options
+  // Key: itemId, Value: option index (0-based)
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<Record<string, number>>({})
+  // Track which items have their spec details expanded
+  const [expandedSpecItems, setExpandedSpecItems] = useState<Set<string>>(new Set())
 
   // Dialog states
   const [showImportDialog, setShowImportDialog] = useState(false)
@@ -1503,25 +1537,28 @@ export default function FFEUnifiedWorkspace({
                                       <Badge 
                                         className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors"
                                         onClick={() => {
-                                          // Navigate to All Specs with this specific item's linked spec
-                                          if (projectId) {
-                                            if (item.linkedSpecs?.length) {
-                                              // New-style: navigate to the linked spec
-                                              const specId = item.linkedSpecs[0].id
-                                              router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
+                                          // Toggle spec details panel
+                                          setExpandedSpecItems(prev => {
+                                            const newSet = new Set(prev)
+                                            if (newSet.has(item.id)) {
+                                              newSet.delete(item.id)
                                             } else {
-                                              // Old-style: item has direct fields, navigate to the item itself
-                                              router.push(`/projects/${projectId}/specs/all?highlightItem=${item.id}`)
+                                              newSet.add(item.id)
+                                              // Initialize to first option if not set
+                                              if (selectedOptionIndex[item.id] === undefined && item.linkedSpecs && item.linkedSpecs.length > 0) {
+                                                setSelectedOptionIndex(prev => ({ ...prev, [item.id]: 0 }))
+                                              }
                                             }
-                                          }
+                                            return newSet
+                                          })
                                         }}
                                       >
                                         {item.linkedSpecs?.length === 1 
-                                          ? 'Chosen' 
+                                          ? 'View Spec' 
                                           : item.linkedSpecs?.length && item.linkedSpecs.length > 1 
                                             ? `${item.linkedSpecs.length} options` 
-                                            : 'Chosen'}
-                                        <ExternalLink className="w-3 h-3 ml-1" />
+                                            : 'View Spec'}
+                                        <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", expandedSpecItems.has(item.id) && "rotate-180")} />
                                       </Badge>
                                     ) : (
                                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
@@ -1675,6 +1712,187 @@ export default function FFEUnifiedWorkspace({
                                         </button>
                                       </div>
                                     )}
+                                  </div>
+                                )}
+                                
+                                {/* Expanded Spec Options Panel */}
+                                {expandedSpecItems.has(item.id) && item.linkedSpecs && item.linkedSpecs.length > 0 && (
+                                  <div className="border-t border-gray-100 bg-gray-50/50 p-4">
+                                    {/* Option Tabs - only show if multiple options */}
+                                    {item.linkedSpecs.length > 1 && (
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <span className="text-xs font-medium text-gray-500 mr-2">Options:</span>
+                                        {item.linkedSpecs.map((spec, index) => (
+                                          <button
+                                            key={spec.id}
+                                            onClick={() => setSelectedOptionIndex(prev => ({ ...prev, [item.id]: index }))}
+                                            className={cn(
+                                              "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                              (selectedOptionIndex[item.id] ?? 0) === index
+                                                ? "bg-blue-600 text-white shadow-sm"
+                                                : "bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                                            )}
+                                          >
+                                            Option {index + 1}
+                                            {spec.clientApproved && (
+                                              <CheckCircle2 className="w-3 h-3 ml-1 inline text-emerald-400" />
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Selected Option Details */}
+                                    {(() => {
+                                      const selectedSpec = item.linkedSpecs![(selectedOptionIndex[item.id] ?? 0)]
+                                      if (!selectedSpec) return null
+                                      
+                                      const imageUrl = selectedSpec.images?.[0] || selectedSpec.thumbnailUrl
+                                      
+                                      return (
+                                        <div className="flex gap-4">
+                                          {/* Product Image */}
+                                          {imageUrl && (
+                                            <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-white border border-gray-200">
+                                              <img 
+                                                src={imageUrl} 
+                                                alt={selectedSpec.name}
+                                                className="w-full h-full object-cover"
+                                              />
+                                            </div>
+                                          )}
+                                          
+                                          {/* Product Details */}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                              <div>
+                                                <h4 className="font-medium text-gray-900">{selectedSpec.name}</h4>
+                                                {selectedSpec.brand && (
+                                                  <p className="text-sm text-gray-500">{selectedSpec.brand}</p>
+                                                )}
+                                              </div>
+                                              {/* Actions */}
+                                              <div className="flex items-center gap-2">
+                                                {projectId && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => router.push(`/projects/${projectId}/specs/all?highlightItem=${selectedSpec.id}`)}
+                                                  >
+                                                    <ExternalLink className="w-3 h-3 mr-1" />
+                                                    View in Specs
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                            
+                                            {/* Spec Details Grid */}
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-xs">
+                                              {selectedSpec.sku && (
+                                                <div>
+                                                  <span className="text-gray-400">SKU:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.sku}</span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.supplierName && (
+                                                <div>
+                                                  <span className="text-gray-400">Supplier:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.supplierName}</span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.color && (
+                                                <div>
+                                                  <span className="text-gray-400">Color:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.color}</span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.finish && (
+                                                <div>
+                                                  <span className="text-gray-400">Finish:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.finish}</span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.material && (
+                                                <div>
+                                                  <span className="text-gray-400">Material:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.material}</span>
+                                                </div>
+                                              )}
+                                              {(selectedSpec.width || selectedSpec.height || selectedSpec.depth) && (
+                                                <div>
+                                                  <span className="text-gray-400">Dimensions:</span>
+                                                  <span className="ml-1 text-gray-700">
+                                                    {[selectedSpec.width, selectedSpec.height, selectedSpec.depth].filter(Boolean).join(' × ')}
+                                                  </span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.leadTime && (
+                                                <div>
+                                                  <span className="text-gray-400">Lead Time:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.leadTime}</span>
+                                                </div>
+                                              )}
+                                              {selectedSpec.quantity && selectedSpec.quantity > 1 && (
+                                                <div>
+                                                  <span className="text-gray-400">Qty:</span>
+                                                  <span className="ml-1 text-gray-700">{selectedSpec.quantity}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                            
+                                            {/* Pricing Row */}
+                                            {(selectedSpec.unitCost || selectedSpec.tradePrice || selectedSpec.rrp) && (
+                                              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                                                {selectedSpec.unitCost && (
+                                                  <div className="text-sm">
+                                                    <span className="text-gray-400">Unit Cost:</span>
+                                                    <span className="ml-1 font-medium text-gray-900">
+                                                      ${typeof selectedSpec.unitCost === 'number' ? selectedSpec.unitCost.toFixed(2) : selectedSpec.unitCost}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {selectedSpec.tradePrice && (
+                                                  <div className="text-sm">
+                                                    <span className="text-gray-400">Trade:</span>
+                                                    <span className="ml-1 font-medium text-emerald-600">
+                                                      ${typeof selectedSpec.tradePrice === 'number' ? selectedSpec.tradePrice.toFixed(2) : selectedSpec.tradePrice}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {selectedSpec.rrp && (
+                                                  <div className="text-sm">
+                                                    <span className="text-gray-400">RRP:</span>
+                                                    <span className="ml-1 text-gray-600">
+                                                      ${typeof selectedSpec.rrp === 'number' ? selectedSpec.rrp.toFixed(2) : selectedSpec.rrp}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            
+                                            {/* Notes */}
+                                            {selectedSpec.notes && (
+                                              <p className="text-xs text-gray-500 mt-2 italic">{selectedSpec.notes}</p>
+                                            )}
+                                            
+                                            {/* Approval Status */}
+                                            <div className="mt-3 flex items-center gap-2">
+                                              {selectedSpec.clientApproved ? (
+                                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                  Client Approved
+                                                </Badge>
+                                              ) : item.linkedSpecs!.length > 1 ? (
+                                                <span className="text-xs text-gray-400">
+                                                  Not yet approved
+                                                </span>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
                                 )}
                                 
