@@ -62,7 +62,6 @@ interface LinkedSpec {
   optionNumber?: number
   specStatus?: string
   images?: string[]
-  thumbnailUrl?: string
   supplierName?: string
   supplierLink?: string
   unitCost?: number
@@ -1747,7 +1746,7 @@ export default function FFEUnifiedWorkspace({
                                       const selectedSpec = item.linkedSpecs![(selectedOptionIndex[item.id] ?? 0)]
                                       if (!selectedSpec) return null
                                       
-                                      const imageUrl = selectedSpec.images?.[0] || selectedSpec.thumbnailUrl
+                                      const imageUrl = selectedSpec.images?.[0]
                                       
                                       return (
                                         <div className="flex gap-4">

@@ -78,7 +78,6 @@ export async function GET(
                     specStatus: true,
                     // Full spec details for inline display
                     images: true,
-                    thumbnailUrl: true,
                     supplierName: true,
                     supplierLink: true,
                     unitCost: true,
@@ -111,7 +110,6 @@ export async function GET(
                         specStatus: true,
                         // Full spec details for inline display
                         images: true,
-                        thumbnailUrl: true,
                         supplierName: true,
                         supplierLink: true,
                         unitCost: true,
