@@ -4,7 +4,7 @@
 const ENVIRONMENT = 'production'; // Change to 'local' for development
 
 // Extension Version
-const EXTENSION_VERSION = '1.2.0';
+const EXTENSION_VERSION = '1.2.1';
 
 // Configuration
 const CONFIG = {
@@ -673,7 +673,9 @@ function renderFfeItemCards() {
     
     card.className = `ffe-item-card needs-spec ${isSelected ? 'selected' : ''}`;
     card.innerHTML = `
-      <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''} />
+      <div class="item-checkbox-wrapper">
+        <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''} />
+      </div>
       <span class="item-icon">📦</span>
       <div class="item-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
@@ -681,11 +683,11 @@ function renderFfeItemCards() {
       </div>
     `;
     
-    // Handle click on card or checkbox
-    card.onclick = (e) => {
-      e.preventDefault();
+    // Handle click on card - toggle selection
+    card.addEventListener('click', (e) => {
+      // Don't prevent default - let the checkbox update visually
       handleFfeItemSelect(item.id, item.name, false);
-    };
+    });
     
     elements.ffeItemsList.appendChild(card);
   });
@@ -1266,8 +1268,19 @@ function processSmartFillData(data) {
     renderImages();
   }
   
+  // Helper to check if a URL is an image file
+  const isImageUrl = (url) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico', '.tiff', '.tif'];
+    return imageExtensions.some(ext => lowerUrl.includes(ext));
+  };
+  
   if (data.specSheets?.length > 0) {
     for (const spec of data.specSheets) {
+      // Skip if it's an image file - images should go to images, not attachments
+      if (isImageUrl(spec.url)) continue;
+      
       if (!state.clippedData.attachments.some(a => a.url === spec.url)) {
         state.clippedData.attachments.push({
           name: spec.name || 'Spec Sheet',
@@ -1282,6 +1295,9 @@ function processSmartFillData(data) {
   
   if (data.pdfLinks?.length > 0 && (!data.specSheets || data.specSheets.length === 0)) {
     for (const pdfUrl of data.pdfLinks) {
+      // Skip if it's an image file
+      if (isImageUrl(pdfUrl)) continue;
+      
       if (!state.clippedData.attachments.some(a => a.url === pdfUrl)) {
         const fileName = pdfUrl.split('/').pop()?.split('?')[0] || 'Document.pdf';
         state.clippedData.attachments.push({

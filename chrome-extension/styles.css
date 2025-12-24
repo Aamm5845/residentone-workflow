@@ -879,6 +879,7 @@ body {
 
 .field-group.small {
   flex: 1;
+  min-width: 0;
 }
 
 .field-group.small label {
@@ -888,6 +889,12 @@ body {
 .field-group.small input {
   padding: 8px;
   font-size: 12px;
+}
+
+/* Dimension fields without add buttons - fix border and radius */
+.field-group.small .field-input input {
+  border-right: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 /* Category Selector */
@@ -1008,6 +1015,21 @@ body {
 
 .ffe-item-card .item-icon {
   font-size: 14px;
+}
+
+.ffe-item-card .item-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ffe-item-card .item-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-blue);
+  cursor: pointer;
+  margin: 0;
 }
 
 .ffe-item-card .item-info {
