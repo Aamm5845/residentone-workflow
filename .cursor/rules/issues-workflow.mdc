@@ -37,10 +37,24 @@ Process issues in this order:
 
 For EACH open issue:
 
-### Step 1: Understand the Issue
-- Read the issue title and description from the live page
-- If there's an image attached, review it for context
-- Check if consoleLog is available in the issue metadata
+### Step 1: Understand the Issue (Read ALL Details)
+For each OPEN issue, **click on it to open the detail modal** and read:
+
+1. **Title** - The issue name
+2. **Description** - Full problem description
+3. **Type** - BUG, FEATURE_REQUEST, UPDATE_REQUEST, or GENERAL
+4. **Priority** - URGENT, HIGH, MEDIUM, or LOW
+5. **Status** - Filter for OPEN only
+6. **Console Log** - If present, contains the actual error messages and URLs that failed
+7. **Attached Screenshot** - Click to view full size if available; analyze the visual context
+
+**IMPORTANT**: The Console Log often contains the exact URL or error that is failing, which is critical for debugging.
+
+#### Viewing Screenshots
+If an issue has an attached screenshot:
+1. Click on the screenshot thumbnail in the issue modal
+2. Use the screenshot tool to capture and analyze the image
+3. Describe what the screenshot shows to understand the visual problem
 
 ### Step 2: Search the Codebase
 Based on keywords in the issue, search these common locations:
@@ -109,15 +123,28 @@ npm run sync-issues
 ```
 Then check `.cursor/issues.json` for issues.
 
-## 📊 Current OPEN Issues from Last Scan
+## 📊 Full Issue Details Capture
 
-When scanning the live page, create a structured list like:
+When scanning each OPEN issue, capture and report:
 
-| # | Priority | Title | Type | Description |
-|---|----------|-------|------|-------------|
-| 1 | HIGH | Email Link 404 | GENERAL | Email notifications open to 404 page |
-| 2 | MEDIUM | Drawing PDF | GENERAL | Can't view uploaded PDF in Drawing phase |
-| ... | ... | ... | ... | ... |
+### Issue Card Format:
+```
+### Issue #[N]: [Title]
+- **Type**: [BUG/FEATURE_REQUEST/UPDATE_REQUEST/GENERAL]
+- **Priority**: [URGENT/HIGH/MEDIUM/LOW]  
+- **Status**: OPEN
+- **Reporter**: [Name] - [Date]
+- **Description**: [Full description text]
+- **Console Log**: [If present, show the exact error/URL]
+- **Screenshot**: [If present, describe what the image shows]
+```
+
+### Summary Table:
+| # | Priority | Title | Type | Has Console Log | Has Screenshot |
+|---|----------|-------|------|-----------------|----------------|
+| 1 | HIGH | Email Link 404 | GENERAL | ✅ Yes | ✅ Yes |
+| 2 | MEDIUM | Drawing PDF | GENERAL | ❌ No | ❌ No |
+| ... | ... | ... | ... | ... | ... |
 
 ## ⚠️ Safety Rules
 

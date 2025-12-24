@@ -28,7 +28,7 @@ async function setupTeamMembers() {
     }
 
     // Hash the temporary password
-    const temporaryPassword = 'Meisner6700'
+    const temporaryPassword = process.env.TEMP_USER_PASSWORD || 'ChangeMe123!'
     const hashedPassword = await bcrypt.hash(temporaryPassword, 12)
 
     // Define the team members
@@ -120,7 +120,7 @@ async function setupTeamMembers() {
     console.log('• Shaya Gross (FFE) - Client Approval & FFE phases') 
     console.log('• Sami Youssef (DRAFTER) - Drawing phase')
     console.log('• Manoel Vitor (RENDERER) - 3D Rendering phase')
-    console.log('\n🔑 All users have temporary password: Meisner6700')
+    console.log('\n🔑 All users have temporary password (set via TEMP_USER_PASSWORD env var)')
     console.log('   They will be required to change it on first login.')
 
   } catch (error) {

@@ -7,7 +7,7 @@
 const fetch = require('node-fetch')
 
 const BASE_URL = 'http://localhost:3000'
-const TEMP_PASSWORD = 'Meisner6700'
+const TEMP_PASSWORD = process.env.TEMP_USER_PASSWORD || 'ChangeMe123!'
 
 const teamMembers = [
   {
@@ -112,7 +112,7 @@ async function setupTeamMembers() {
     teamMembers.forEach(member => {
       console.log(`• ${member.name} (${member.role}) - ${member.phases.join(', ')}`)
     })
-    console.log('\\n🔑 Temporary password: Meisner6700')
+    console.log('\\n🔑 Temporary password: (set via TEMP_USER_PASSWORD env var)')
     console.log('   (Users must change on first login)')
 
   } catch (error) {

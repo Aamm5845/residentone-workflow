@@ -26,7 +26,7 @@ cp .env.example .env.local
 ### 1. Use Environment Variables
 ```typescript
 // ❌ Never do this
-const password = "Meisner6700"
+const password = "hardcoded-password-123"
 
 // ✅ Do this instead  
 const password = process.env.TEMP_PASSWORD
@@ -49,22 +49,6 @@ openssl rand -base64 32
 # Or use Node.js
 node -p "require('crypto').randomBytes(32).toString('base64')"
 ```
-
-## Secrets That Were Removed
-
-The following secrets have been cleaned from the repository:
-
-1. **PostgreSQL Connection String** - SUPABASE_MIGRATION.md
-   - Status: ✅ Replaced with placeholders
-   - Action: Update your `.env.local` with actual values
-
-2. **Temporary Password "Meisner6700"** - Multiple files  
-   - Status: ✅ Replaced with `[TEMP_PASSWORD]` placeholder
-   - Action: Use environment variables for passwords
-
-3. **Database Host/Username Identifiers** - Documentation files
-   - Status: ✅ Replaced with generic placeholders
-   - Action: Reference actual values from environment
 
 ## Files to Keep Private
 
