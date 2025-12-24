@@ -2,7 +2,7 @@
  * Get the base URL for the application.
  * This is used for generating links in emails, redirects, etc.
  * 
- * @updated 2025-12-24 - Deployment test v3
+ * @updated 2025-12-24 - Deployment test v4 (repo public)
  * 
  * Order of preference:
  * 1. NEXT_PUBLIC_BASE_URL (if explicitly set)
