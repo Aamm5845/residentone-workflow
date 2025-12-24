@@ -20,6 +20,10 @@ dist/
 .env.development
 .env.test
 .env.vercel
+.env.backup*
+.env.*.backup
+*.backup
+DATABASE_COMPARISON_REPORT.md
 
 # Debug logs
 npm-debug.log*

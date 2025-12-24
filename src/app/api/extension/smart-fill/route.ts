@@ -175,17 +175,31 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
       extractedData = {}
     }
 
+    // Helper to convert dimension notation: inches -> ", feet -> '
+    const formatDimension = (value: string | undefined): string => {
+      if (!value) return ''
+      let formatted = value
+      // Convert various inch notations to "
+      formatted = formatted.replace(/\s*inch(es)?/gi, '"')
+      formatted = formatted.replace(/\s*in\b/gi, '"')
+      formatted = formatted.replace(/\s*″/g, '"')
+      // Convert various feet notations to '
+      formatted = formatted.replace(/\s*f(ee)?t\b/gi, "'")
+      formatted = formatted.replace(/\s*′/g, "'")
+      return formatted.trim()
+    }
+    
     // Combine dimensions into a single string if individual fields exist
     let dimensionString = ''
     const dims = extractedData.dimensions || {}
     if (dims.width || dims.height || dims.depth || dims.length) {
       const parts = []
-      if (dims.width) parts.push(`W: ${dims.width}`)
-      if (dims.depth) parts.push(`D: ${dims.depth}`)
-      if (dims.height) parts.push(`H: ${dims.height}`)
-      if (dims.length) parts.push(`L: ${dims.length}`)
-      if (dims.diameter) parts.push(`Ø: ${dims.diameter}`)
-      if (dims.seatHeight) parts.push(`Seat H: ${dims.seatHeight}`)
+      if (dims.width) parts.push(`W: ${formatDimension(dims.width)}`)
+      if (dims.depth) parts.push(`D: ${formatDimension(dims.depth)}`)
+      if (dims.height) parts.push(`H: ${formatDimension(dims.height)}`)
+      if (dims.length) parts.push(`L: ${formatDimension(dims.length)}`)
+      if (dims.diameter) parts.push(`Ø: ${formatDimension(dims.diameter)}`)
+      if (dims.seatHeight) parts.push(`Seat H: ${formatDimension(dims.seatHeight)}`)
       dimensionString = parts.join(' × ')
     }
 
@@ -201,10 +215,10 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
         material: extractedData.material || '',
         colour: extractedData.colour || '',
         finish: extractedData.finish || '',
-        width: dims.width || '',
-        height: dims.height || '',
-        depth: dims.depth || '',
-        length: dims.length || '',
+        width: formatDimension(dims.width) || '',
+        height: formatDimension(dims.height) || '',
+        depth: formatDimension(dims.depth) || '',
+        length: formatDimension(dims.length) || '',
         dimensions: dimensionString,
         leadTime: extractedData.leadTime || '',
         notes: extractedData.notes || '',
@@ -213,9 +227,9 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
         images: mainImage 
           ? [mainImage, ...productImages.filter((img: string) => img !== mainImage)].slice(0, 10)
           : productImages.slice(0, 10),
-        // Include spec sheets/PDFs found on page
-        specSheets: (specSheets || []).slice(0, 5),
-        pdfLinks: (pdfLinks || []).slice(0, 5)
+        // Don't include spec sheets/PDFs - user adds manually if needed
+        specSheets: [],
+        pdfLinks: []
       },
       meta: {
         model: completion.model,
