@@ -91,11 +91,11 @@ export async function GET(request: NextRequest) {
                 items: {
                   where: {
                     visibility: 'VISIBLE',
-                    // Only get requirement items, not spec items (those have isSpecItem = true)
-                    OR: [
-                      { isSpecItem: false },
-                      { isSpecItem: null }
-                    ]
+                    // Only get requirement items, not spec items
+                    // Requirements have isSpecItem: false AND ffeRequirementId: null
+                    // (they ARE the requirements, not linked to one)
+                    isSpecItem: false,
+                    ffeRequirementId: null
                   },
                   include: {
                     // Include linked specs to check if item has products linked

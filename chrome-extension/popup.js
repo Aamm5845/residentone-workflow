@@ -587,10 +587,12 @@ async function loadFfeItems(roomId, sectionId) {
   try {
     const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
     
-    // API returns items directly on response, not in response.data
-    const items = response.items || response.data?.items || [];
+    // apiRequest wraps API response in { ok, status, data, error }
+    // API returns { ok: true, items: [...], stats: {...} }
+    const items = response.data?.items || [];
     
     console.log('[FFE Clipper] Loaded items from API:', items.length, 'items');
+    console.log('[FFE Clipper] Full response:', response);
     console.log('[FFE Clipper] Looking for sectionId:', sectionId);
     console.log('[FFE Clipper] Available sectionIds in items:', [...new Set(items.map(i => i.sectionId))]);
     
