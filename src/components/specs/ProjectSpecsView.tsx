@@ -455,6 +455,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [flagColor, setFlagColor] = useState<string>('red')
   const [flagNote, setFlagNote] = useState<string>('')
   
+  // Option groups - for items that share the same FFE requirement
+  // Key: ffeItemId, Value: selected option index (0-based)
+  const [selectedOptionByFfe, setSelectedOptionByFfe] = useState<Record<string, number>>({})
+  
   // Share modal state
   const [shareModal, setShareModal] = useState(false)
   const [shareSettings, setShareSettings] = useState({
@@ -976,6 +980,58 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     
     return filtered
   }, [ffeItems, filterRoom, filterSection])
+  
+  // Compute option groups - items that share the same FFE requirement are options
+  // Returns a map of: ffeItemId -> array of spec IDs that are options for it
+  const optionGroups = useMemo(() => {
+    const groups: Record<string, string[]> = {}
+    
+    specs.forEach(spec => {
+      // Check if this spec is linked to an FFE item
+      const primaryFfeId = spec.linkedFfeItems?.[0]?.ffeItemId || spec.ffeRequirementId
+      if (primaryFfeId) {
+        if (!groups[primaryFfeId]) {
+          groups[primaryFfeId] = []
+        }
+        groups[primaryFfeId].push(spec.id)
+      }
+    })
+    
+    // Only keep groups with more than 1 option
+    const multiOptionGroups: Record<string, string[]> = {}
+    Object.entries(groups).forEach(([ffeId, specIds]) => {
+      if (specIds.length > 1) {
+        multiOptionGroups[ffeId] = specIds
+      }
+    })
+    
+    return multiOptionGroups
+  }, [specs])
+  
+  // Get the FFE item ID for a spec (for option grouping)
+  const getSpecFfeId = (spec: SpecItem): string | null => {
+    return spec.linkedFfeItems?.[0]?.ffeItemId || spec.ffeRequirementId || null
+  }
+  
+  // Check if a spec is part of an option group
+  const isPartOfOptionGroup = (spec: SpecItem): boolean => {
+    const ffeId = getSpecFfeId(spec)
+    return ffeId ? !!optionGroups[ffeId] : false
+  }
+  
+  // Get option number for a spec within its group (1-based)
+  const getOptionNumber = (spec: SpecItem): number => {
+    const ffeId = getSpecFfeId(spec)
+    if (!ffeId || !optionGroups[ffeId]) return 0
+    return optionGroups[ffeId].indexOf(spec.id) + 1
+  }
+  
+  // Get all specs in the same option group
+  const getOptionGroupSpecs = (spec: SpecItem): SpecItem[] => {
+    const ffeId = getSpecFfeId(spec)
+    if (!ffeId || !optionGroups[ffeId]) return [spec]
+    return optionGroups[ffeId].map(id => specs.find(s => s.id === id)).filter(Boolean) as SpecItem[]
+  }
   
   // Load library products
   const loadLibraryProducts = useCallback(async () => {
@@ -3058,20 +3114,72 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     >
                     {/* Items Table */}
                     <div className="divide-y divide-gray-100">
-                      {group.items.map((item) => (
+                      {group.items.map((item) => {
+                        // Check if this item is part of an option group
+                        const ffeId = getSpecFfeId(item)
+                        const optionSpecs = ffeId ? getOptionGroupSpecs(item) : [item]
+                        const isFirstInGroup = optionSpecs[0]?.id === item.id
+                        const hasMultipleOptions = optionSpecs.length > 1
+                        
+                        // Skip non-first items in option groups (they'll be shown via tabs)
+                        if (hasMultipleOptions && !isFirstInGroup) {
+                          return null
+                        }
+                        
+                        // Get the currently selected option to display
+                        const selectedIdx = ffeId ? (selectedOptionByFfe[ffeId] ?? 0) : 0
+                        const displayItem = hasMultipleOptions ? (optionSpecs[selectedIdx] || item) : item
+                        
+                        return (
                         <SortableSpecItem key={item.id} id={item.id}>
                           {(listeners: any) => (
-                        <div 
-                          id={`spec-item-${item.id}`}
+                        <div className="flex flex-col">
+                          {/* Option Tabs - show when multiple specs share same FFE requirement */}
+                          {hasMultipleOptions && ffeId && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border-b border-purple-100">
+                              <span className="text-xs font-medium text-purple-700 mr-2">
+                                <Layers className="w-3.5 h-3.5 inline mr-1" />
+                                {optionSpecs.length} Options for: {item.linkedFfeItems?.[0]?.ffeItemName || 'FFE Item'}
+                              </span>
+                              <div className="flex gap-1">
+                                {optionSpecs.map((spec, idx) => (
+                                  <button
+                                    key={spec.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedOptionByFfe(prev => ({ ...prev, [ffeId]: idx }))
+                                    }}
+                                    className={cn(
+                                      "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                                      selectedIdx === idx
+                                        ? "bg-purple-600 text-white shadow-sm"
+                                        : "bg-white text-purple-600 border border-purple-200 hover:border-purple-400"
+                                    )}
+                                  >
+                                    Option {idx + 1}
+                                    {spec.clientApproved && (
+                                      <CheckCircle2 className="w-3 h-3 ml-1 inline text-emerald-400" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Item Row */}
+                          <div 
+                          id={`spec-item-${displayItem.id}`}
                           className={cn(
                             "group/item relative flex items-center transition-colors border-l-2",
-                            highlightedItemId === item.id
+                            highlightedItemId === displayItem.id
                               ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300"
-                              : selectedItems.has(item.id) 
+                              : selectedItems.has(displayItem.id) 
                                 ? "bg-blue-50 border-blue-500" 
-                                : "hover:bg-gray-50 border-transparent hover:border-blue-400"
+                                : hasMultipleOptions
+                                  ? "bg-purple-50/30 hover:bg-purple-50 border-purple-200"
+                                  : "hover:bg-gray-50 border-transparent hover:border-blue-400"
                           )}
-                          onMouseEnter={() => setHoveredItem(item.id)}
+                          onMouseEnter={() => setHoveredItem(displayItem.id)}
                           onMouseLeave={() => setHoveredItem(null)}
                         >
                           {/* Hover Actions - Fixed on left side, always show if selected */}
@@ -3100,34 +3208,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               <div 
                                 className={cn(
                                   "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
-                                  (item.thumbnailUrl || item.images?.[0]) 
+                                  (displayItem.thumbnailUrl || displayItem.images?.[0]) 
                                     ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1" 
                                     : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
-                                  uploadingImageForItem === item.id && "opacity-50"
+                                  uploadingImageForItem === displayItem.id && "opacity-50"
                                 )}
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  if (item.thumbnailUrl || item.images?.[0]) {
+                                  if (displayItem.thumbnailUrl || displayItem.images?.[0]) {
                                     setImageEditorModal({
                                       open: true,
-                                      imageUrl: item.thumbnailUrl || item.images[0],
-                                      imageTitle: `${item.sectionName}: ${item.name}`,
-                                      itemId: item.id
+                                      imageUrl: displayItem.thumbnailUrl || displayItem.images[0],
+                                      imageTitle: `${displayItem.sectionName}: ${displayItem.name}`,
+                                      itemId: displayItem.id
                                     })
                                   } else {
                                     // Trigger file upload
-                                    setPendingUploadItemId(item.id)
+                                    setPendingUploadItemId(displayItem.id)
                                     imageUploadInputRef.current?.click()
                                   }
                                 }}
-                                title={item.thumbnailUrl || item.images?.[0] ? "Click to view/edit image" : "Click to upload image"}
+                                title={displayItem.thumbnailUrl || displayItem.images?.[0] ? "Click to view/edit image" : "Click to upload image"}
                               >
-                                {uploadingImageForItem === item.id ? (
+                                {uploadingImageForItem === displayItem.id ? (
                                   <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                                ) : item.thumbnailUrl || item.images?.[0] ? (
+                                ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
                                   <img 
-                                    src={item.thumbnailUrl || item.images[0]} 
-                                    alt={item.name}
+                                    src={displayItem.thumbnailUrl || displayItem.images[0]} 
+                                    alt={displayItem.name}
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
@@ -3141,7 +3249,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Title & Room - Fixed width */}
                             <div className="flex-shrink-0 w-32">
-                              {editingField?.itemId === item.id && editingField?.field === 'name' ? (
+                              {editingField?.itemId === displayItem.id && editingField?.field === 'name' ? (
                                 <Input
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
@@ -3154,11 +3262,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div className="flex items-center gap-1">
                                   <p 
                                     className="text-sm font-medium text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1 flex-1"
-                                    onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'name', item.name || '') }}
+                                    onClick={(e) => { e.stopPropagation(); startEditing(displayItem.id, 'name', displayItem.name || '') }}
                                   >
-                                    {item.name}
+                                    {displayItem.name}
                                   </p>
-                                  {(item.customFields as any)?.flag && (
+                                  {(displayItem.customFields as any)?.flag && (
                                     <Popover>
                                       <PopoverTrigger asChild>
                                         <button 
@@ -3976,9 +4084,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                           </div>
                         </div>
+                        </div>
                           )}
                         </SortableSpecItem>
-                      ))}
+                        )
+                      })}
                     </div>
                     </SortableContext>
                   </DndContext>
