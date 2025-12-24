@@ -119,7 +119,7 @@ export default function IssueList({ currentUser }: IssueListProps) {
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('unresolved')
   const [typeFilter, setTypeFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
@@ -310,7 +310,8 @@ export default function IssueList({ currentUser }: IssueListProps) {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="unresolved">Open Issues</SelectItem>
+            <SelectItem value="all">All Issues</SelectItem>
             <SelectItem value="OPEN">Open</SelectItem>
             <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
             <SelectItem value="RESOLVED">Resolved</SelectItem>

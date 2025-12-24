@@ -34,7 +34,12 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     
     if (status && status !== 'all') {
-      where.status = status
+      // Special filter for unresolved issues (OPEN + IN_PROGRESS)
+      if (status === 'unresolved') {
+        where.status = { in: ['OPEN', 'IN_PROGRESS'] }
+      } else {
+        where.status = status
+      }
     }
     
     if (assignedTo && assignedTo !== 'all') {

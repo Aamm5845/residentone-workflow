@@ -1,48 +1,140 @@
 ---
-description: Workflow for automatically reading and fixing team-reported issues
+description: Workflow for automatically reading LIVE production issues, fixing them, testing, and pushing to git
 globs: ["**/*.ts", "**/*.tsx", "src/**/*"]
 alwaysApply: true
 ---
 
-# Issue Tracking & Auto-Fix Workflow
+# Live Issue Tracking & Auto-Fix Workflow
 
-## Reading Issues
-When the user asks about issues, bugs, or feature requests:
-1. First check `.cursor/issues.json` for the current list of open issues
-2. Each issue contains: id, title, description, type, priority, status, reporter info, and optional imageUrl/consoleLog
-3. Priority order: URGENT > HIGH > MEDIUM > LOW
-4. Types: BUG, FEATURE_REQUEST, UPDATE_REQUEST, GENERAL
+## 🔴 IMPORTANT: When User Asks About Issues
 
-## Fixing Issues Workflow
-When asked to fix an issue:
-1. Read the issue details from `.cursor/issues.json`
-2. Search the codebase for related code using the issue title and description keywords
-3. Analyze the problem and propose a fix
-4. Implement the fix
-5. Test the fix if possible
-6. Suggest marking the issue as resolved via the UI
+When the user says "issues", "fix issues", "what are the issues", or similar:
 
-## Common Issue Areas
-Based on the codebase, common issue locations include:
-- **FFE Workspace**: `src/components/ffe/v2/FFEPhaseWorkspace.tsx` - FFE items, linked items
-- **All Specs**: `src/components/ffe/` - Spec book generation, item management
-- **Email Notifications**: `src/lib/email.ts` - Email sending and links
-- **Drawing Phase**: `src/components/stages/` - Phase workspaces
+1. **Navigate to the LIVE production issues page:**
+   ```
+   https://app.meisnerinteriors.com/preferences?tab=issues
+   ```
+
+2. **Use browser snapshot** to get all current issues
+
+3. **Filter for OPEN issues only** (ignore RESOLVED, CLOSED, IN_PROGRESS)
+
+4. **Create a todo list** of all open issues with their:
+   - Title
+   - Description  
+   - Priority (URGENT > HIGH > MEDIUM > LOW)
+   - Type (BUG, FEATURE_REQUEST, UPDATE_REQUEST, GENERAL)
+
+## 📋 Issue Priority Order
+
+Process issues in this order:
+1. URGENT priority
+2. HIGH priority  
+3. MEDIUM priority
+4. LOW priority
+
+## 🔧 Fixing Issues Workflow
+
+For EACH open issue:
+
+### Step 1: Understand the Issue
+- Read the issue title and description from the live page
+- If there's an image attached, review it for context
+- Check if consoleLog is available in the issue metadata
+
+### Step 2: Search the Codebase
+Based on keywords in the issue, search these common locations:
+- **FFE/All Specs**: `src/components/ffe/` and `src/components/ffe/v2/`
+- **Email Issues**: `src/lib/email.ts` and `src/lib/get-base-url.ts`
+- **Drawing Phase**: `src/components/stages/`
 - **Spec Book PDF**: `src/lib/pdf-generation.ts` or `src/app/api/projects/[projectId]/spec-book/`
+- **API Routes**: `src/app/api/`
+- **Workspace**: `src/components/ffe/v2/FFEPhaseWorkspace.tsx`
 
-## Syncing Issues
-To sync latest issues from production:
-1. Run: `npm run sync-issues` (if script exists)
-2. Or manually: The user can visit `/api/issues/sync-cursor` while logged in locally
+### Step 3: Implement the Fix
+- Make the necessary code changes
+- Keep changes minimal and focused
+- Follow existing code patterns and conventions
 
-## Issue Metadata
-Issues may contain:
-- `imageUrl`: Screenshot showing the bug
-- `consoleLog`: Browser console errors captured at time of report
-- `projectName`, `roomName`, `stageName`: Context of where the issue occurred
+### Step 4: Mark as Complete in Todo List
+- Update the todo status as fixes are completed
 
-## After Fixing
-After implementing a fix:
-1. Document what was changed
-2. Remind user to test the fix
-3. Suggest they mark the issue as RESOLVED in the Issues tab
+## ✅ After ALL Issues Are Fixed
+
+### Step 1: Run Build Test
+```bash
+npm run build
+```
+
+Wait for the build to complete. Check for:
+- TypeScript errors
+- Build errors
+- Any compilation issues
+
+### Step 2: If Build Succeeds - Push to Git
+```bash
+git add -A
+git commit -m "fix: resolve [N] issues from production
+
+- [Brief description of fix 1]
+- [Brief description of fix 2]
+... etc"
+git push
+```
+
+### Step 3: If Build Fails
+- Identify and fix the build errors
+- Re-run `npm run build`
+- Only push when build passes
+
+## 📍 Common Issue Areas Reference
+
+| Issue Type | Primary Location |
+|------------|------------------|
+| FFE Workspace | `src/components/ffe/v2/FFEPhaseWorkspace.tsx` |
+| All Specs Items | `src/components/ffe/allspecs/` |
+| Linked Items | `src/components/ffe/v2/LinkedItemsModal.tsx` |
+| Email Links/404 | `src/lib/email.ts`, `src/lib/get-base-url.ts` |
+| Drawing Phase | `src/components/stages/DrawingPhaseWorkspace.tsx` |
+| Spec Book PDF | `src/app/api/projects/[projectId]/spec-book/route.ts` |
+| Notes | Components with "notes" in name |
+| Image Upload | Vercel Blob handlers in API routes |
+| Attachments | `src/components/ffe/allspecs/` |
+
+## 🔄 Alternative: Sync Issues Locally
+
+If browser access is unavailable, use:
+```bash
+npm run sync-issues
+```
+Then check `.cursor/issues.json` for issues.
+
+## 📊 Current OPEN Issues from Last Scan
+
+When scanning the live page, create a structured list like:
+
+| # | Priority | Title | Type | Description |
+|---|----------|-------|------|-------------|
+| 1 | HIGH | Email Link 404 | GENERAL | Email notifications open to 404 page |
+| 2 | MEDIUM | Drawing PDF | GENERAL | Can't view uploaded PDF in Drawing phase |
+| ... | ... | ... | ... | ... |
+
+## ⚠️ Safety Rules
+
+1. **NEVER run `prisma migrate reset`** - this deletes all data
+2. **Always test with `npm run build`** before pushing
+3. **Make focused, minimal changes** - don't refactor unrelated code
+4. **Keep existing code patterns** - follow the codebase style
+
+## 🎯 Quick Command Summary
+
+```bash
+# Test build
+npm run build
+
+# Push changes
+git add -A && git commit -m "fix: description" && git push
+
+# Sync issues locally (alternative)
+npm run sync-issues
+```
