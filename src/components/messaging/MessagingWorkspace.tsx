@@ -266,13 +266,8 @@ export default function MessagingWorkspace() {
       if (response.ok) {
         const data = await response.json()
         setMessages(data.allMessages || [])
-        // Update the active conversation with user info
-        if (data.user) {
-          setActiveConversation(prev => ({
-            ...prev,
-            user: data.user
-          }))
-        }
+        // Note: User info is already set when clicking on the team member
+        // Don't update activeConversation here to avoid infinite loop
       }
     } catch (error) {
       console.error('Error loading user messages:', error)
