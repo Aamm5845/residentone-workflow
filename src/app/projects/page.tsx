@@ -30,7 +30,11 @@ export default async function Projects({ searchParams }: { searchParams: Promise
   // Build where clause based on filters
   const whereClause: any = {}
   
-  if (statusFilter === 'IN_PROGRESS') {
+  // When no filter is specified, exclude archived projects (COMPLETED and ON_HOLD)
+  // These projects are shown in the Archive page instead
+  if (!statusFilter) {
+    whereClause.status = { notIn: ['COMPLETED', 'ON_HOLD'] }
+  } else if (statusFilter === 'IN_PROGRESS') {
     // Filter by project status = IN_PROGRESS
     whereClause.status = 'IN_PROGRESS'
   } else if (statusFilter === 'active') {
@@ -85,6 +89,8 @@ export default async function Projects({ searchParams }: { searchParams: Promise
     whereClause.status = 'DRAFT'
   } else if (statusFilter === 'ON_HOLD') {
     whereClause.status = 'ON_HOLD'
+  } else if (statusFilter === 'URGENT') {
+    whereClause.status = 'URGENT'
   }
 
   // Fetch projects from database with fallback handling

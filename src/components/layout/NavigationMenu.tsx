@@ -10,7 +10,7 @@ import {
   Home, 
   FolderOpen, 
   Users, 
-  Inbox,
+  MessageSquare,
   Activity,
   BarChart3,
   Clock,
@@ -90,7 +90,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
-    { name: 'My Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
+    { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
     { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
@@ -99,14 +99,14 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
   ]
 
   const updatesNavigation = [
-    { name: 'Inbox', href: '/inbox', icon: Inbox, color: 'text-indigo-600', badgeCount: unreadMentionCount, badgeColor: 'bg-[#6366ea]' },
+    { name: 'Messages', href: '/messages', icon: MessageSquare, color: 'text-indigo-600', badgeCount: unreadMentionCount, badgeColor: 'bg-[#6366ea]' },
     { name: 'Activities', href: '/activities', icon: Activity, color: 'text-[#f6762e]', badgeCount: unreadActivitiesCount, badgeColor: 'bg-[#f6762e]' },
     { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-[#e94d97]', badgeCount: unseenUpdatesCount, special: true },
   ]
 
-  // Don't highlight "My Projects" when viewing filtered projects (e.g., Active Projects from dashboard)
+  // Don't highlight "Projects" when viewing filtered projects (e.g., Active Projects from dashboard)
   const isActive = (href: string) => {
-    // If we're on /projects with a status filter, don't highlight "My Projects"
+    // If we're on /projects with a status filter, don't highlight "Projects"
     if (href === '/projects' && pathname === '/projects' && searchParams?.get('status')) {
       return false
     }

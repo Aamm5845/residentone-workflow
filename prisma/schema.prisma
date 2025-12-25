@@ -53,16 +53,17 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  clients     Client[]
-  contractors Contractor[]
-  projects    Project[]
-  tags        Tag[]
-  users       User[]
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  clients      Client[]
+  contractors  Contractor[]
+  projects     Project[]
+  tags         Tag[]
+  users        User[]
+  chatMessages ChatMessage[] @relation("OrgChatMessages")
 }
 
 model User {
@@ -773,7 +774,9 @@ model ChatMessage {
   id              String                @id @default(cuid())
   content         String
   authorId        String
-  stageId         String
+  stageId         String?
+  orgId           String?
+  chatType        ChatType              @default(PHASE)
   parentMessageId String?
   imageUrl        String?
   imageFileName   String?
@@ -788,12 +791,14 @@ model ChatMessage {
   author          User                  @relation(fields: [authorId], references: [id])
   parentMessage   ChatMessage?          @relation("MessageReplies", fields: [parentMessageId], references: [id])
   replies         ChatMessage[]         @relation("MessageReplies")
-  stage           Stage                 @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  stage           Stage?                @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  org             Organization?         @relation("OrgChatMessages", fields: [orgId], references: [id])
   reactions       ChatMessageReaction[]
 
   @@index([stageId, createdAt])
   @@index([authorId])
   @@index([parentMessageId])
+  @@index([orgId, chatType, createdAt])
 }
 
 model ChatMention {
@@ -2423,6 +2428,11 @@ enum MessageType {
   NOTIFICATION
   URGENT
   REMINDER
+}
+
+enum ChatType {
+  PHASE    // Message in a project phase chat
+  GENERAL  // General team chat (not tied to any project)
 }
 
 enum AssignmentStatus {

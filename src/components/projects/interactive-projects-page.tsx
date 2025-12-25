@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, Filter, MoreVertical, Building, List, LayoutGrid, X, Check } from 'lucide-react'
+import { Plus, Search, Filter, MoreVertical, Building, List, LayoutGrid, X, Check, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate, getStatusColor, formatRoomType } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 type ViewMode = 'list' | 'board'
 
 interface Project {
@@ -54,13 +55,15 @@ interface InteractiveProjectsPageProps {
     name: string
     email: string
   }
+  showArchive?: boolean
 }
 
 export default function InteractiveProjectsPage({ 
   projects, 
   statusFilter, 
   timeframeFilter,
-  currentUser 
+  currentUser,
+  showArchive = false
 }: InteractiveProjectsPageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [sortBy, setSortBy] = useState<string>('created')
@@ -68,6 +71,7 @@ export default function InteractiveProjectsPage({
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const filterDropdownRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   // Close filter dropdown when clicking outside
   useEffect(() => {
@@ -360,17 +364,25 @@ export default function InteractiveProjectsPage({
     </div>
   )
 
+  // Determine the page title based on filters
+  const getPageTitle = () => {
+    if (showArchive) return 'Archive'
+    if (statusFilter === 'IN_PROGRESS' || statusFilter === 'active') return 'Active Projects'
+    if (statusFilter === 'URGENT') return 'Urgent Projects'
+    if ((statusFilter === 'completed' || statusFilter === 'COMPLETED') && timeframeFilter === 'month') return 'Completed This Month'
+    if (statusFilter === 'completed' || statusFilter === 'COMPLETED') return 'Completed Projects'
+    if (statusFilter === 'DRAFT') return 'Draft Projects'
+    if (statusFilter === 'ON_HOLD') return 'On Hold Projects'
+    return 'Projects'
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {statusFilter === 'IN_PROGRESS' || statusFilter === 'active' ? 'Active Projects' : 
-             (statusFilter === 'completed' || statusFilter === 'COMPLETED') && timeframeFilter === 'month' ? 'Completed This Month' :
-             statusFilter === 'completed' || statusFilter === 'COMPLETED' ? 'Completed Projects' :
-             statusFilter === 'DRAFT' ? 'Draft Projects' :
-             statusFilter === 'ON_HOLD' ? 'On Hold Projects' : 'My Projects'}
+            {getPageTitle()}
           </h1>
           <p className="text-gray-600 mt-1">
             {filteredProjects?.length || 0} of {projects?.length || 0} projects
@@ -495,6 +507,29 @@ export default function InteractiveProjectsPage({
               </div>
             )}
           </div>
+          {/* Archive Button - only show when not already in archive view */}
+          {!showArchive && !statusFilter && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/projects/archive')}
+              className="border-gray-300 hover:bg-gray-50"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Archive
+            </Button>
+          )}
+          {/* Back to Projects - only show when in archive view */}
+          {showArchive && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/projects')}
+              className="border-gray-300 hover:bg-gray-50"
+            >
+              ← Back to Projects
+            </Button>
+          )}
           <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
             <Link href="/projects/new">
               <Plus className="w-4 h-4 mr-2" />
