@@ -51,20 +51,25 @@ export async function GET(
       where: {
         isDeleted: false,
         OR: [
-          // Messages in phases assigned to current user
+          // Messages in phases assigned to current user - from target user
           {
-            chatType: 'PHASE',
+            stageId: { not: null },
+            authorId: targetUserId,
             stage: {
               assignedTo: currentUserId
-            },
-            OR: [
-              { authorId: targetUserId },
-              { authorId: currentUserId }
-            ]
+            }
           },
-          // Messages where current user was mentioned (in any phase)
+          // Messages in phases assigned to current user - from current user (replies)
           {
-            chatType: 'PHASE',
+            stageId: { not: null },
+            authorId: currentUserId,
+            stage: {
+              assignedTo: currentUserId
+            }
+          },
+          // Messages where current user was mentioned (sent by target user)
+          {
+            stageId: { not: null },
             authorId: targetUserId,
             mentions: {
               some: {
@@ -72,14 +77,17 @@ export async function GET(
               }
             }
           },
-          // General chat messages between the two users
+          // General chat messages from target user
           {
             chatType: 'GENERAL',
             orgId: orgId,
-            OR: [
-              { authorId: targetUserId },
-              { authorId: currentUserId }
-            ]
+            authorId: targetUserId
+          },
+          // General chat messages from current user
+          {
+            chatType: 'GENERAL',
+            orgId: orgId,
+            authorId: currentUserId
           }
         ]
       },
@@ -171,11 +179,11 @@ export async function GET(
         return acc
       }, {} as Record<string, any>)
 
-      // Add context info for phase messages
+      // Add context info for phase messages (handle null chatType as PHASE for legacy messages)
       let context = null
-      if (msg.chatType === 'PHASE' && msg.stage) {
+      if (msg.stage) {
         context = {
-          type: 'phase',
+          type: 'phase' as const,
           stageId: msg.stage.id,
           stageName: getStageName(msg.stage.type),
           roomId: msg.stage.room.id,
@@ -185,7 +193,7 @@ export async function GET(
         }
       } else if (msg.chatType === 'GENERAL') {
         context = {
-          type: 'general',
+          type: 'general' as const,
           label: 'Team Chat'
         }
       }

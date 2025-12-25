@@ -553,63 +553,67 @@ export default function MessagingWorkspace() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex bg-gray-50">
+    <div className="h-[calc(100vh-64px)] flex bg-gradient-to-br from-slate-50 to-gray-100">
       {/* Left Sidebar */}
-      <div className="w-72 bg-gradient-to-b from-[#1e1e2e] to-[#2d2d44] flex flex-col">
+      <div className="w-80 bg-white border-r border-gray-200/80 flex flex-col shadow-sm">
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-white/10">
+        <div className="p-5 border-b border-gray-100">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
+                <MessageSquare className="w-4 h-4 text-white" />
+              </div>
               Messages
             </h2>
             <Button
               size="sm"
               onClick={() => setShowNewMessageModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 w-8 p-0"
+              className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white h-9 w-9 p-0 rounded-xl shadow-sm"
             >
               <Plus className="w-4 h-4" />
             </Button>
           </div>
           
           {/* Search */}
-          <div className="mt-3 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="mt-4 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search messages..."
-              className="pl-9 bg-white/10 border-white/10 text-white placeholder:text-gray-400 h-9"
+              className="pl-10 bg-gray-50 border-gray-200 text-gray-700 placeholder:text-gray-400 h-10 rounded-xl focus:ring-2 focus:ring-violet-200 focus:border-violet-300"
             />
           </div>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-3 space-y-4">
+          <div className="p-4 space-y-6">
             {/* General Chat */}
             <div>
               <button
                 onClick={() => setActiveConversation({ type: 'general' })}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
                   activeConversation.type === 'general'
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-300 hover:bg-white/10"
+                    ? "bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50 border border-transparent"
                 )}
               >
                 <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center",
-                  activeConversation.type === 'general' ? "bg-white/20" : "bg-indigo-600/30"
+                  "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm",
+                  activeConversation.type === 'general' 
+                    ? "bg-gradient-to-br from-violet-500 to-purple-600" 
+                    : "bg-gradient-to-br from-violet-100 to-purple-100"
                 )}>
-                  <Home className="w-4 h-4" />
+                  <Home className={cn("w-5 h-5", activeConversation.type === 'general' ? "text-white" : "text-violet-600")} />
                 </div>
-                <span className="font-medium flex-1 text-left">Team Chat</span>
+                <span className={cn("font-medium flex-1 text-left", activeConversation.type === 'general' ? "text-violet-900" : "text-gray-700")}>Team Chat</span>
                 {generalChatCount > 0 && (
                   <Badge className={cn(
-                    "text-xs px-1.5",
+                    "text-xs px-2 py-0.5 rounded-full",
                     activeConversation.type === 'general' 
-                      ? "bg-white/20 text-white" 
-                      : "bg-indigo-600 text-white"
+                      ? "bg-violet-600 text-white" 
+                      : "bg-violet-100 text-violet-700"
                   )}>
                     {generalChatCount}
                   </Badge>
@@ -619,11 +623,11 @@ export default function MessagingWorkspace() {
 
             {/* Team Members */}
             <div>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2 flex items-center gap-2">
-                <Users className="w-3.5 h-3.5" />
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3 flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-gray-400" />
                 Team Members
               </h3>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {teamMembers.map((member) => (
                   <button
                     key={member.id}
@@ -633,31 +637,35 @@ export default function MessagingWorkspace() {
                       user: member 
                     })}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
                       activeConversation.type === 'team' && activeConversation.id === member.id
-                        ? "bg-indigo-600 text-white"
-                        : "text-gray-300 hover:bg-white/10"
+                        ? "bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 border border-transparent"
                     )}
                   >
-                    <Avatar className="w-7 h-7 flex-shrink-0">
+                    <Avatar className="w-9 h-9 flex-shrink-0">
                       {member.image ? (
                         <img src={member.image} alt={member.name} className="w-full h-full object-cover rounded-full" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold rounded-full">
+                        <div className="w-full h-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white text-sm font-semibold rounded-full shadow-sm">
                           {member.name?.charAt(0)?.toUpperCase()}
                         </div>
                       )}
                     </Avatar>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-medium truncate">{member.name}</p>
+                      <p className={cn("text-sm font-medium truncate", 
+                        activeConversation.type === 'team' && activeConversation.id === member.id 
+                          ? "text-violet-900" 
+                          : "text-gray-700"
+                      )}>{member.name}</p>
                       <p className="text-xs text-gray-400 truncate">{member.role}</p>
                     </div>
                     {member.messageCount > 0 && (
                       <Badge className={cn(
-                        "text-xs px-1.5",
+                        "text-xs px-2 py-0.5 rounded-full",
                         activeConversation.type === 'team' && activeConversation.id === member.id
-                          ? "bg-white/20 text-white"
-                          : "bg-indigo-600 text-white"
+                          ? "bg-violet-600 text-white"
+                          : "bg-violet-100 text-violet-700"
                       )}>
                         {member.messageCount}
                       </Badge>
@@ -669,8 +677,8 @@ export default function MessagingWorkspace() {
 
             {/* My Phases */}
             <div>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2 flex items-center gap-2">
-                <FolderOpen className="w-3.5 h-3.5" />
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3 flex items-center gap-2">
+                <FolderOpen className="w-3.5 h-3.5 text-gray-400" />
                 My Phases
               </h3>
               <div className="space-y-1">
@@ -678,12 +686,12 @@ export default function MessagingWorkspace() {
                   <div key={project.id}>
                     <button
                       onClick={() => toggleProject(project.id)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-300 hover:bg-white/5 rounded-lg transition-all"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-xl transition-all"
                     >
                       {expandedProjects.has(project.id) ? (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
                       )}
                       <span className="text-sm font-medium truncate flex-1 text-left">
                         {project.name}
@@ -691,7 +699,7 @@ export default function MessagingWorkspace() {
                     </button>
                     
                     {expandedProjects.has(project.id) && (
-                      <div className="ml-4 space-y-0.5 mt-1">
+                      <div className="ml-5 space-y-1 mt-1 border-l-2 border-gray-100 pl-3">
                         {project.phases.map((phase) => (
                           <button
                             key={phase.id}
@@ -701,22 +709,26 @@ export default function MessagingWorkspace() {
                               phase: { ...phase, project }
                             })}
                             className={cn(
-                              "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all text-sm",
+                              "w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm",
                               activeConversation.type === 'phase' && activeConversation.id === phase.id
-                                ? "bg-indigo-600 text-white"
-                                : "text-gray-400 hover:bg-white/10 hover:text-gray-200"
+                                ? "bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 shadow-sm"
+                                : "text-gray-500 hover:bg-gray-50 hover:text-gray-700 border border-transparent"
                             )}
                           >
-                            <Hash className="w-3.5 h-3.5" />
+                            <Hash className={cn("w-3.5 h-3.5", 
+                              activeConversation.type === 'phase' && activeConversation.id === phase.id
+                                ? "text-emerald-600"
+                                : "text-gray-400"
+                            )} />
                             <span className="flex-1 text-left truncate">
                               {phase.roomName} - {getStageName(phase.type)}
                             </span>
                             {phase.messageCount > 0 && (
                               <span className={cn(
-                                "text-xs px-1.5 py-0.5 rounded",
+                                "text-xs px-2 py-0.5 rounded-full",
                                 activeConversation.type === 'phase' && activeConversation.id === phase.id
-                                  ? "bg-white/20"
-                                  : "bg-gray-600"
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-gray-200 text-gray-600"
                               )}>
                                 {phase.messageCount}
                               </span>
@@ -740,17 +752,17 @@ export default function MessagingWorkspace() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-gradient-to-br from-white to-gray-50/50">
         {/* Chat Header */}
-        <div className="h-16 px-6 flex items-center justify-between border-b border-gray-200 bg-white">
-          <div className="flex items-center gap-3">
+        <div className="h-18 px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-sm">
+          <div className="flex items-center gap-4">
             {activeConversation.type === 'general' && (
               <>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <Home className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-200">
+                  <Home className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">Team Chat</h1>
+                  <h1 className="text-xl font-semibold text-gray-800">Team Chat</h1>
                   <p className="text-sm text-gray-500">General team discussion</p>
                 </div>
               </>
@@ -758,17 +770,17 @@ export default function MessagingWorkspace() {
             
             {activeConversation.type === 'team' && activeConversation.user && (
               <>
-                <Avatar className="w-10 h-10">
+                <Avatar className="w-12 h-12">
                   {activeConversation.user.image ? (
-                    <img src={activeConversation.user.image} alt={activeConversation.user.name} className="w-full h-full object-cover rounded-xl" />
+                    <img src={activeConversation.user.image} alt={activeConversation.user.name} className="w-full h-full object-cover rounded-2xl" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-lg font-bold rounded-xl">
+                    <div className="w-full h-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold rounded-2xl shadow-lg shadow-violet-200">
                       {activeConversation.user.name?.charAt(0)?.toUpperCase()}
                     </div>
                   )}
                 </Avatar>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">{activeConversation.user.name}</h1>
+                  <h1 className="text-xl font-semibold text-gray-800">{activeConversation.user.name}</h1>
                   <p className="text-sm text-gray-500">{activeConversation.user.role}</p>
                 </div>
               </>
@@ -776,11 +788,11 @@ export default function MessagingWorkspace() {
             
             {activeConversation.type === 'phase' && activeConversation.phase && (
               <>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+                  <Hash className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">
+                  <h1 className="text-xl font-semibold text-gray-800">
                     {activeConversation.phase.roomName} - {getStageName(activeConversation.phase.type)}
                   </h1>
                   <p className="text-sm text-gray-500">{activeConversation.phase.project.name}</p>
@@ -803,17 +815,20 @@ export default function MessagingWorkspace() {
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="flex-1 px-6 py-4">
+        <ScrollArea className="flex-1 px-8 py-6">
           {messagesLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+              </div>
+              <p className="text-sm text-gray-400">Loading messages...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mb-4">
-                <MessageSquare className="w-8 h-8 text-indigo-500" />
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-5 shadow-sm">
+                <MessageSquare className="w-10 h-10 text-violet-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">No messages yet</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No messages yet</h3>
               <p className="text-gray-500 max-w-sm">
                 Start the conversation by sending a message below
               </p>
@@ -1069,25 +1084,25 @@ export default function MessagingWorkspace() {
         </ScrollArea>
 
         {/* Message Input */}
-        <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="p-5 border-t border-gray-100 bg-white/80 backdrop-blur-sm">
           {/* Reply Indicator */}
           {replyingTo && (
-            <div className="mb-3 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <div className="mb-4 p-3 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Reply className="w-4 h-4 text-indigo-600" />
+                  <Reply className="w-4 h-4 text-violet-600" />
                   <span className="text-sm text-gray-700">
-                    Replying to <span className="font-medium">{replyingTo.author.name}</span>
+                    Replying to <span className="font-semibold text-violet-700">{replyingTo.author.name}</span>
                   </span>
                 </div>
                 <button
                   onClick={() => setReplyingTo(null)}
-                  className="p-1 hover:bg-indigo-100 rounded transition-colors"
+                  className="p-1.5 hover:bg-violet-100 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <div className="text-sm text-gray-600 truncate mt-1 pl-6">
+              <div className="text-sm text-gray-600 truncate mt-1.5 pl-6">
                 {replyingTo.content || '(Attachment)'}
               </div>
             </div>

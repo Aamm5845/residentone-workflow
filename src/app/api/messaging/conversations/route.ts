@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
     // Count messages sent by each team member in phases where current user is assigned or was mentioned
     const messageCounts = await Promise.all(
       teamMembers.map(async (member) => {
-        // Messages from this team member in phases assigned to current user
+        // Messages from this team member in phases assigned to current user (handle legacy null chatType)
         const assignedPhaseMessages = await prisma.chatMessage.count({
           where: {
             authorId: member.id,
             isDeleted: false,
-            chatType: 'PHASE',
+            stageId: { not: null },
             stage: {
               assignedTo: userId
             }
