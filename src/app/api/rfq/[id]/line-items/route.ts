@@ -34,12 +34,17 @@ export async function GET(
       where: { rfqId },
       orderBy: { order: 'asc' },
       include: {
-        ffeItem: {
+        roomFFEItem: {
           select: {
             id: true,
             name: true,
             description: true,
-            category: true
+            brand: true,
+            section: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       }
@@ -89,11 +94,11 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { description, quantity, specifications, ffeItemId } = body
+    const { itemName, itemDescription, quantity, specifications, roomFFEItemId } = body
 
-    if (!description || !quantity) {
+    if (!itemName || !quantity) {
       return NextResponse.json(
-        { error: 'Description and quantity are required' },
+        { error: 'Item name and quantity are required' },
         { status: 400 }
       )
     }
@@ -107,19 +112,25 @@ export async function POST(
     const lineItem = await prisma.rFQLineItem.create({
       data: {
         rfqId,
-        description,
+        itemName,
+        itemDescription,
         quantity: parseInt(quantity),
         specifications,
-        ffeItemId,
+        roomFFEItemId,
         order: (maxOrder._max.order || 0) + 1
       },
       include: {
-        ffeItem: {
+        roomFFEItem: {
           select: {
             id: true,
             name: true,
             description: true,
-            category: true
+            brand: true,
+            section: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       }
@@ -169,7 +180,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { lineItemId, description, quantity, specifications } = body
+    const { lineItemId, itemName, itemDescription, quantity, specifications } = body
 
     if (!lineItemId) {
       return NextResponse.json(
@@ -181,17 +192,23 @@ export async function PUT(
     const lineItem = await prisma.rFQLineItem.update({
       where: { id: lineItemId },
       data: {
-        ...(description && { description }),
+        ...(itemName && { itemName }),
+        ...(itemDescription !== undefined && { itemDescription }),
         ...(quantity && { quantity: parseInt(quantity) }),
         ...(specifications !== undefined && { specifications })
       },
       include: {
-        ffeItem: {
+        roomFFEItem: {
           select: {
             id: true,
             name: true,
             description: true,
-            category: true
+            brand: true,
+            section: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       }
