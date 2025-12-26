@@ -68,6 +68,42 @@
   }
 }
 
+/* ===== RESPONSIVE SCALING SYSTEM ===== */
+/* This ensures the UI scales properly on smaller screens */
+
+/* Root-level responsive font scaling */
+html {
+  font-size: 16px;
+}
+
+/* Scale down on smaller tablets */
+@media (max-width: 1024px) and (min-width: 769px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* Scale down on small tablets and large phones */
+@media (max-width: 768px) and (min-width: 481px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Scale for smaller phones */
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Very small screens (small phones, compact mode) */
+@media (max-width: 360px) {
+  html {
+    font-size: 12px;
+  }
+}
+
 /* Professional FFE Design Tokens */
 @layer components {
   /* Elevated Cards */
@@ -131,18 +167,81 @@
     @apply border-b-0;
   }
   
-  /* Responsive adjustments */
+  /* ===== RESPONSIVE ADJUSTMENTS ===== */
+  
+  /* Desktop/Tablet adjustments */
+  @media (max-width: 1024px) {
+    .item-row {
+      @apply gap-2.5 p-2.5;
+    }
+    
+    /* Reduce padding on smaller tablets */
+    .section-header {
+      @apply p-3;
+    }
+  }
+  
+  /* Small tablet and larger phones */
+  @media (max-width: 768px) {
+    .item-row {
+      @apply gap-2 p-2;
+    }
+    
+    .card-elevated-strong {
+      @apply mx-1 rounded-lg;
+    }
+    
+    .section-header {
+      @apply p-2.5;
+    }
+    
+    /* Reduce button padding on smaller screens */
+    .btn-modern {
+      @apply px-3 py-2 gap-1.5;
+    }
+    
+    /* Status chips smaller on mobile */
+    .status-chip {
+      @apply px-2 py-1 gap-1;
+    }
+  }
+  
+  /* Mobile specific */
   @media (max-width: 640px) {
     .item-row {
       @apply gap-2 p-2;
     }
     
     .card-elevated-strong {
-      @apply mx-2 rounded-lg;
+      @apply mx-0 rounded-lg;
     }
     
     .section-header {
-      @apply flex-col items-start gap-3 p-3;
+      @apply flex-col items-start gap-2 p-2;
+    }
+    
+    .btn-modern {
+      @apply px-2.5 py-1.5 text-xs;
+    }
+    
+    .status-chip {
+      @apply text-[10px] px-1.5 py-0.5;
+    }
+  }
+  
+  /* Very small screens */
+  @media (max-width: 400px) {
+    .section-header {
+      @apply p-1.5 gap-1.5;
+    }
+    
+    .item-row {
+      @apply p-1.5 gap-1.5;
+    }
+    
+    /* Compact buttons */
+    .btn-modern {
+      @apply px-2 py-1 gap-1;
     }
   }
   
@@ -153,7 +252,7 @@
   
   @media (max-width: 768px) {
     .container-mobile {
-      @apply px-4;
+      @apply px-3;
     }
     
     .hide-mobile {
@@ -170,6 +269,12 @@
     }
   }
   
+  @media (max-width: 480px) {
+    .container-mobile {
+      @apply px-2;
+    }
+  }
+  
   /* Safe area insets for notched devices (iPhone X+) */
   @supports (padding: max(0px)) {
     .safe-area-inset {
@@ -183,6 +288,219 @@
     
     .safe-area-inset-bottom {
       padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+  }
+  
+  /* ===== RESPONSIVE TYPOGRAPHY ===== */
+  /* Ensure small text remains readable on smaller screens */
+  
+  /* Very small text sizes - increase on small screens */
+  @media (max-width: 640px) {
+    /* Boost tiny text to be readable */
+    .text-\[8px\], .text-\[9px\] {
+      font-size: 10px !important;
+    }
+    
+    .text-\[10px\], .text-\[11px\] {
+      font-size: 11px !important;
+    }
+    
+    /* Standard xs text - make it slightly larger */
+    .text-xs {
+      font-size: 0.8rem !important;
+      line-height: 1.25rem !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    /* Extra boost for very small screens */
+    .text-\[8px\], .text-\[9px\], .text-\[10px\] {
+      font-size: 11px !important;
+    }
+    
+    .text-\[11px\] {
+      font-size: 12px !important;
+    }
+  }
+  
+  /* ===== RESPONSIVE TABLES & GRIDS ===== */
+  /* Make tables horizontally scrollable on small screens */
+  
+  @media (max-width: 768px) {
+    /* Table containers should scroll horizontally */
+    table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Reduce table cell padding */
+    th, td {
+      padding: 0.5rem 0.75rem !important;
+    }
+    
+    /* Reduce header text size */
+    th {
+      font-size: 0.7rem !important;
+    }
+    
+    /* Smaller table cell text */
+    td {
+      font-size: 0.8rem !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    th, td {
+      padding: 0.375rem 0.5rem !important;
+    }
+    
+    th {
+      font-size: 0.65rem !important;
+    }
+    
+    td {
+      font-size: 0.75rem !important;
+    }
+  }
+  
+  /* ===== RESPONSIVE SPACING ===== */
+  /* Reduce large padding/gaps on smaller screens */
+  
+  @media (max-width: 768px) {
+    /* Large padding classes - scale down */
+    .p-6 {
+      padding: 1rem !important;
+    }
+    
+    .px-6 {
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+    }
+    
+    .py-6 {
+      padding-top: 1rem !important;
+      padding-bottom: 1rem !important;
+    }
+    
+    /* Gap reductions */
+    .gap-6 {
+      gap: 1rem !important;
+    }
+    
+    .gap-8 {
+      gap: 1.25rem !important;
+    }
+    
+    .space-y-8 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 1.25rem !important;
+    }
+    
+    .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 1rem !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .p-6 {
+      padding: 0.75rem !important;
+    }
+    
+    .px-6 {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+    }
+    
+    .py-6 {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0.75rem !important;
+    }
+    
+    .p-4 {
+      padding: 0.5rem !important;
+    }
+    
+    .px-4 {
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+    
+    .gap-6 {
+      gap: 0.75rem !important;
+    }
+    
+    .gap-4 {
+      gap: 0.5rem !important;
+    }
+  }
+  
+  /* ===== RESPONSIVE WIDTHS ===== */
+  /* Prevent fixed-width elements from overflowing */
+  
+  @media (max-width: 640px) {
+    /* Ensure fixed-width panels don't overflow */
+    [class*="w-["][class*="px]"] {
+      max-width: 100vw !important;
+    }
+    
+    /* Modal/panel responsive widths */
+    .w-\[480px\], .w-\[500px\], .w-\[520px\], .w-\[550px\], .w-\[600px\] {
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+  }
+  
+  /* ===== RESPONSIVE ICONS ===== */
+  /* Scale down icons on smaller screens */
+  
+  @media (max-width: 480px) {
+    .h-6.w-6 {
+      height: 1.25rem !important;
+      width: 1.25rem !important;
+    }
+    
+    .h-5.w-5 {
+      height: 1.125rem !important;
+      width: 1.125rem !important;
+    }
+    
+    .h-8.w-8 {
+      height: 1.5rem !important;
+      width: 1.5rem !important;
+    }
+    
+    .h-10.w-10 {
+      height: 2rem !important;
+      width: 2rem !important;
+    }
+    
+    .h-12.w-12 {
+      height: 2.5rem !important;
+      width: 2.5rem !important;
+    }
+  }
+  
+  /* ===== RESPONSIVE FLEX LAYOUTS ===== */
+  /* Make flex items wrap on small screens */
+  
+  @media (max-width: 640px) {
+    /* Common header/toolbar layouts - allow wrapping */
+    .flex.items-center.justify-between {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    /* Flex gap reduction */
+    .flex.gap-4 {
+      gap: 0.5rem !important;
+    }
+    
+    .flex.gap-3 {
+      gap: 0.375rem !important;
+    }
+    
+    .flex.gap-2 {
+      gap: 0.25rem !important;
     }
   }
   

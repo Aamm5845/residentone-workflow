@@ -17,6 +17,18 @@ const config: Config = {
   			'2xl': '1400px'
   		}
   	},
+  	// Add extra breakpoints for more granular responsive control
+  	screens: {
+  		'xs': '400px',     // Very small phones
+  		'sm': '640px',     // Default Tailwind
+  		'md': '768px',     // Default Tailwind  
+  		'lg': '1024px',    // Default Tailwind
+  		'xl': '1280px',    // Default Tailwind
+  		'2xl': '1536px',   // Default Tailwind
+  		// Custom breakpoints for compact screens
+  		'compact': { 'max': '480px' },     // Compact mobile
+  		'tablet': { 'min': '641px', 'max': '1023px' }, // Tablets only
+  	},
   	extend: {
   		colors: {
   			border: 'hsl(var(--border))',
@@ -82,6 +94,19 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		// Responsive font sizes with clamp for fluid typography
+  		fontSize: {
+  			'fluid-xs': ['clamp(0.65rem, 2vw, 0.75rem)', { lineHeight: '1rem' }],
+  			'fluid-sm': ['clamp(0.75rem, 2.5vw, 0.875rem)', { lineHeight: '1.25rem' }],
+  			'fluid-base': ['clamp(0.875rem, 3vw, 1rem)', { lineHeight: '1.5rem' }],
+  			'fluid-lg': ['clamp(1rem, 3.5vw, 1.125rem)', { lineHeight: '1.75rem' }],
+  			'fluid-xl': ['clamp(1.125rem, 4vw, 1.25rem)', { lineHeight: '1.75rem' }],
+  			'fluid-2xl': ['clamp(1.25rem, 5vw, 1.5rem)', { lineHeight: '2rem' }],
+  		},
+  		// Add spacing scale adjustments
+  		spacing: {
+  			'safe': 'max(1rem, env(safe-area-inset-left))',
   		},
   		boxShadow: {
   			'elev-1': '0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',

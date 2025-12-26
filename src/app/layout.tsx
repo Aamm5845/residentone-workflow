@@ -30,7 +30,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5, // Allow users to zoom in on smaller screens
+  userScalable: true, // Enable pinch-to-zoom for accessibility
   themeColor: '#000000',
 }
 

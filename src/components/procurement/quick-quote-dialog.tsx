@@ -70,10 +70,12 @@ export default function QuickQuoteDialog({
     setLoading(true)
     try {
       // Load item details
+      let loadedItems: ItemInfo[] = []
       const itemsResponse = await fetch(`/api/projects/${projectId}/ffe-specs?ids=${itemIds.join(',')}`)
       if (itemsResponse.ok) {
         const data = await itemsResponse.json()
-        setItems(data.items || [])
+        loadedItems = data.items || []
+        setItems(loadedItems)
       }
 
       // Load suppliers
@@ -83,10 +85,10 @@ export default function QuickQuoteDialog({
         const supplierList = Array.isArray(data) ? data : (data.suppliers || [])
         
         // Auto-match suppliers based on item supplierName
-        const itemsData = (await itemsResponse.json?.()) || { items: [] }
         const matchedSupplierIds = new Set<string>()
         
-        for (const item of items) {
+        // Use loadedItems directly (not state which hasn't updated yet)
+        for (const item of loadedItems) {
           if (item.supplierName) {
             const normalizedName = item.supplierName.toLowerCase().trim()
             const matchedSupplier = supplierList.find((s: any) => 
