@@ -119,7 +119,8 @@ export default function CreateRFQDialog({
       const response = await fetch('/api/projects')
       if (response.ok) {
         const data = await response.json()
-        setProjects(data.projects || [])
+        // API returns array directly, not wrapped in { projects: [...] }
+        setProjects(Array.isArray(data) ? data : (data.projects || []))
       }
     } catch (error) {
       console.error('Error loading projects:', error)
