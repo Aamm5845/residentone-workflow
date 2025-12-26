@@ -87,7 +87,8 @@ import {
   ClipboardPaste,
   Check,
   StickyNote,
-  Scissors
+  Scissors,
+  DollarSign
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -95,6 +96,8 @@ import ImageEditorModal from '@/components/image/ImageEditorModal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
+import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
+import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 
 // Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
@@ -402,6 +405,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // RFQ Dialog
   const [rfqDialogOpen, setRfqDialogOpen] = useState(false)
   const [rfqPreselectedItems, setRfqPreselectedItems] = useState<string[]>([])
+
+  // Quick Quote Dialog (simplified with preview)
+  const [quickQuoteDialogOpen, setQuickQuoteDialogOpen] = useState(false)
+  const [quickQuoteItems, setQuickQuoteItems] = useState<string[]>([])
+
+  // Client Quote Dialog (direct invoice to client with markup)
+  const [clientQuoteDialogOpen, setClientQuoteDialogOpen] = useState(false)
+  const [clientQuotePreselectedItems, setClientQuotePreselectedItems] = useState<string[]>([])
 
   // Item detail panel
   const [detailPanel, setDetailPanel] = useState<{
@@ -2459,13 +2470,30 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     toast.error('Please select items first')
                     return
                   }
-                  setRfqPreselectedItems(Array.from(selectedItems))
-                  setRfqDialogOpen(true)
+                  // Use Quick Quote dialog for simpler flow with preview
+                  setQuickQuoteItems(Array.from(selectedItems))
+                  setQuickQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
               >
                 <FileText className="w-4 h-4 mr-1.5" />
-                Bulk Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
+                Request Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
+              </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  if (selectedItems.size === 0) {
+                    toast.error('Please select items first')
+                    return
+                  }
+                  setClientQuotePreselectedItems(Array.from(selectedItems))
+                  setClientQuoteDialogOpen(true)
+                }}
+                disabled={selectedItems.size === 0}
+              >
+                <DollarSign className="w-4 h-4 mr-1.5" />
+                Client Quote {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button 
                 variant="default" 
@@ -3998,16 +4026,28 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
-                                    {/* Quote */}
+                                    {/* Request Quote from Supplier - Quick Quote */}
                                     <DropdownMenuItem
                                       className="text-xs"
                                       onSelect={() => {
-                                        setRfqPreselectedItems([item.id])
-                                        setRfqDialogOpen(true)
+                                        setQuickQuoteItems([item.id])
+                                        setQuickQuoteDialogOpen(true)
                                       }}
                                     >
                                       <FileText className="w-3.5 h-3.5 mr-2" />
-                                      Request Quote
+                                      Request Supplier Quote
+                                    </DropdownMenuItem>
+                                    
+                                    {/* Create Client Quote (Invoice with markup) */}
+                                    <DropdownMenuItem
+                                      className="text-xs text-green-700"
+                                      onSelect={() => {
+                                        setClientQuotePreselectedItems([item.id])
+                                        setClientQuoteDialogOpen(true)
+                                      }}
+                                    >
+                                      <DollarSign className="w-3.5 h-3.5 mr-2" />
+                                      Create Client Quote
                                     </DropdownMenuItem>
                                     
                                     <div className="h-px bg-gray-100 my-1" />
@@ -6550,7 +6590,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }}
       />
 
-      {/* RFQ Dialog for Bulk Quotes */}
+      {/* Quick Quote Dialog - Simplified flow with preview */}
+      <QuickQuoteDialog
+        open={quickQuoteDialogOpen}
+        onOpenChange={(open) => {
+          setQuickQuoteDialogOpen(open)
+          if (!open) {
+            setQuickQuoteItems([])
+          }
+        }}
+        onSuccess={() => {
+          setQuickQuoteDialogOpen(false)
+          setQuickQuoteItems([])
+          setSelectedItems(new Set()) // Clear selection after sending
+          loadSpecs() // Refresh to show updated status
+        }}
+        projectId={project.id}
+        itemIds={quickQuoteItems}
+      />
+
+      {/* RFQ Dialog for Bulk Quotes (legacy, used from Procurement) */}
       <CreateRFQDialog
         open={rfqDialogOpen}
         onOpenChange={(open) => {
@@ -6567,6 +6626,37 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }}
         projectId={project.id}
         preselectedItemIds={rfqPreselectedItems}
+      />
+
+      {/* Client Quote Dialog - Create invoice with markup to send to client */}
+      <CreateClientQuoteDialog
+        open={clientQuoteDialogOpen}
+        onOpenChange={(open) => {
+          setClientQuoteDialogOpen(open)
+          if (!open) {
+            setClientQuotePreselectedItems([])
+          }
+        }}
+        onSuccess={(quoteId) => {
+          setClientQuoteDialogOpen(false)
+          setClientQuotePreselectedItems([])
+          setSelectedItems(new Set()) // Clear selection after creating quote
+          toast.success(
+            <div className="flex flex-col gap-1">
+              <span>Client quote created!</span>
+              <a 
+                href={`/procurement/quote/${quoteId}`}
+                className="text-green-600 hover:underline text-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View & send to client →
+              </a>
+            </div>,
+            { duration: 5000 }
+          )
+        }}
+        projectId={project.id}
+        preselectedItemIds={clientQuotePreselectedItems}
       />
     </div>
   )
