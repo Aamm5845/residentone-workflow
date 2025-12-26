@@ -60,6 +60,7 @@ import {
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import ImageEditorModal from '@/components/image/ImageEditorModal'
+import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
 
 // Spec status options
 const SPEC_STATUS = {
@@ -111,6 +112,7 @@ interface FFESpecItem {
 interface FFESpecsWorkspaceProps {
   roomId: string
   roomName: string
+  projectId?: string  // Optional - for RFQ creation
 }
 
 interface FFESection {
@@ -119,7 +121,7 @@ interface FFESection {
   items: FFESpecItem[]
 }
 
-export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspaceProps) {
+export default function FFESpecsWorkspace({ roomId, roomName, projectId }: FFESpecsWorkspaceProps) {
   const [sections, setSections] = useState<FFESection[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -129,7 +131,7 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
   const [editingItem, setEditingItem] = useState<FFESpecItem | null>(null)
   const [editForm, setEditForm] = useState<Partial<FFESpecItem>>({})
   const [saving, setSaving] = useState(false)
-  
+
   // Image editor modal state
   const [imageEditorModal, setImageEditorModal] = useState<{
     open: boolean
@@ -138,6 +140,10 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
     itemId: string | null
     sectionName: string
   }>({ open: false, imageUrl: '', imageTitle: '', itemId: null, sectionName: '' })
+
+  // RFQ Dialog state
+  const [rfqDialogOpen, setRfqDialogOpen] = useState(false)
+  const [rfqPreselectedItems, setRfqPreselectedItems] = useState<string[]>([])
 
   useEffect(() => {
     loadItems()
@@ -262,6 +268,16 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
       notes: item.notes || '',
       description: item.description || ''
     })
+  }
+
+  // Request quote for a single item
+  const handleRequestQuote = (item: FFESpecItem) => {
+    if (!projectId) {
+      toast.error('Project ID not available for RFQ')
+      return
+    }
+    setRfqPreselectedItems([item.id])
+    setRfqDialogOpen(true)
   }
 
   // Save edited spec
@@ -479,12 +495,13 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent className="p-0">
-                  <SpecTable 
-                    items={section.items} 
+                  <SpecTable
+                    items={section.items}
                     expandedRows={expandedRows}
                     onToggleRow={toggleRowExpanded}
                     onStatusChange={handleStatusChange}
                     onEditSpec={handleEditSpec}
+                    onRequestQuote={handleRequestQuote}
                     onImageClick={(item) => {
                       if (item.imageUrl) {
                         setImageEditorModal({
@@ -724,6 +741,26 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
           }
         }}
       />
+
+      {/* RFQ Dialog for Request Quote */}
+      {projectId && (
+        <CreateRFQDialog
+          open={rfqDialogOpen}
+          onOpenChange={(open) => {
+            setRfqDialogOpen(open)
+            if (!open) {
+              setRfqPreselectedItems([])
+            }
+          }}
+          onSuccess={() => {
+            setRfqDialogOpen(false)
+            setRfqPreselectedItems([])
+            toast.success('RFQ created! Go to Procurement to send it.')
+          }}
+          projectId={projectId}
+          preselectedItemIds={rfqPreselectedItems}
+        />
+      )}
     </div>
   )
 }
@@ -731,19 +768,21 @@ export default function FFESpecsWorkspace({ roomId, roomName }: FFESpecsWorkspac
 // Spec Table Component
 function SpecTable({ 
   items, 
-  expandedRows, 
+  expandedRows,
   onToggleRow,
   onStatusChange,
   onEditSpec,
+  onRequestQuote,
   onImageClick,
   roomId,
   onNotesUpdated
-}: { 
+}: {
   items: FFESpecItem[]
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
   onStatusChange: (id: string, status: SpecStatusType) => void
   onEditSpec: (item: FFESpecItem) => void
+  onRequestQuote: (item: FFESpecItem) => void
   onImageClick: (item: FFESpecItem) => void
   roomId: string
   onNotesUpdated: (itemId: string, notes: string) => void
@@ -1099,7 +1138,7 @@ function SpecTable({
                       <Pencil className="h-4 w-4 mr-1" />
                       Edit Spec
                     </Button>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => onRequestQuote(item)}>
                       <FileText className="h-4 w-4 mr-1" />
                       Request Quote
                     </Button>

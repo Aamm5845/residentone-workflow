@@ -155,6 +155,27 @@ model User {
   floorplanChatMessages       FloorplanChatMessage[]      @relation("FloorplanChatAuthor")
   floorplanChatMentions       FloorplanChatMention[]      @relation("FloorplanChatMentioned")
   floorplanChatReactions      FloorplanChatReaction[]     @relation("FloorplanChatReactor")
+  // RFQ system relations
+  rfqsSentBy                  RFQ[]                       @relation("RFQSentBy")
+  rfqsCreatedBy               RFQ[]                       @relation("RFQCreatedBy")
+  rfqsUpdatedBy               RFQ[]                       @relation("RFQUpdatedBy")
+  supplierQuotesReviewed      SupplierQuote[]             @relation("QuoteReviewedBy")
+  supplierQuotesAccepted      SupplierQuote[]             @relation("QuoteAcceptedBy")
+  clientQuotesSentBy          ClientQuote[]               @relation("ClientQuoteSentBy")
+  clientQuotesCreatedBy       ClientQuote[]               @relation("ClientQuoteCreatedBy")
+  clientQuotesUpdatedBy       ClientQuote[]               @relation("ClientQuoteUpdatedBy")
+  clientQuoteActivities       ClientQuoteActivity[]       @relation("ClientQuoteActivityUser")
+  paymentsConfirmed           Payment[]                   @relation("PaymentConfirmedBy")
+  paymentsReconciled          Payment[]                   @relation("PaymentReconciledBy")
+  paymentsCreated             Payment[]                   @relation("PaymentCreatedBy")
+  ordersCreatedBy             Order[]                     @relation("OrderCreatedBy")
+  ordersUpdatedBy             Order[]                     @relation("OrderUpdatedBy")
+  orderActivities             OrderActivity[]             @relation("OrderActivityUser")
+  rfqDocumentsUploaded        RFQDocument[]               @relation("RFQDocumentUploadedBy")
+  rfqActivities               RFQActivity[]               @relation("RFQActivityUser")
+  supplierMessagesSent        SupplierMessage[]           @relation("SupplierMessageSender")
+  supplierMessagesRead        SupplierMessage[]           @relation("SupplierMessageReadBy")
+  shopDrawingsReviewed        SupplierShopDrawing[]       @relation("ShopDrawingReviewedBy")
 }
 
 model Client {
@@ -256,6 +277,12 @@ model Project {
   specBooks                 SpecBook[]
   timeEntries               TimeEntry[]                @relation("ProjectTimeEntries")
   sources                   ProjectSource[]
+  // RFQ system relations
+  rfqs                      RFQ[]                      @relation("ProjectRFQs")
+  clientQuotes              ClientQuote[]              @relation("ProjectClientQuotes")
+  orders                    Order[]                    @relation("ProjectOrders")
+  supplierMessages          SupplierMessage[]          @relation("ProjectSupplierMessages")
+  shopDrawings              SupplierShopDrawing[]      @relation("ProjectShopDrawings")
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -1443,6 +1470,11 @@ model RoomFFEItem {
   specLinks        FFESpecLink[]       @relation("SpecItemLinks")      // When this is a spec item: links to FFE requirements
   ffeLinks         FFESpecLink[]       @relation("FFERequirementLinks") // When this is an FFE requirement: links from spec items
 
+  // RFQ system relations
+  rfqLineItems         RFQLineItem[]         @relation("RFQLineItems")
+  clientQuoteLineItems ClientQuoteLineItem[] @relation("ClientQuoteLineItems")
+  orderItems           OrderItem[]           @relation("OrderItems")
+
   @@index([sectionId, order])
   @@index([state])
   @@index([visibility])
@@ -1552,9 +1584,22 @@ model Supplier {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdById String
-  
+
+  // Portal access fields
+  hasPortalAccess Boolean   @default(false)
+  portalPassword  String?   // Hashed password for portal login
+  portalLastLogin DateTime?
+  portalEnabled   Boolean   @default(true)
+
+  // Relations
+  supplierRFQs      SupplierRFQ[]
+  orders            Order[]
+  messages          SupplierMessage[]
+  shopDrawings      SupplierShopDrawing[]
+
   @@index([orgId])
   @@index([orgId, isActive])
+  @@index([email])
 }
 
 model ProductLibraryItem {
@@ -2496,6 +2541,94 @@ enum TimeEntryStatus {
   STOPPED
 }
 
+// ============================================
+// RFQ SYSTEM ENUMS
+// ============================================
+
+enum RFQStatus {
+  DRAFT
+  SENT
+  PARTIALLY_QUOTED
+  FULLY_QUOTED
+  QUOTE_ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+enum SupplierQuoteStatus {
+  PENDING
+  SUBMITTED
+  REVISION_REQUESTED
+  REVISED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum ClientQuoteStatus {
+  DRAFT
+  INTERNAL_REVIEW
+  SENT_TO_CLIENT
+  CLIENT_REVIEWING
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  ACH_BANK_TRANSFER
+  CHECK
+  WIRE_TRANSFER
+  CASH
+  OTHER
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_RECEIVED
+  ORDERED
+  CONFIRMED
+  IN_PRODUCTION
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  INSTALLED
+  COMPLETED
+  CANCELLED
+  RETURNED
+}
+
+enum RFQDocumentType {
+  QUOTE_REQUEST
+  SUPPLIER_QUOTE
+  CLIENT_QUOTE
+  INVOICE
+  PURCHASE_ORDER
+  SHIPPING_DOC
+  PACKING_SLIP
+  RECEIPT
+  RETURN_AUTHORIZATION
+  OTHER
+}
+
+enum ShopDrawingStatus {
+  PENDING
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+}
+
 model TimeEntry {
   id          String          @id @default(cuid())
   userId      String
@@ -2643,4 +2776,731 @@ model FloorplanChatAttachment {
   @@unique([messageId, assetId])
   @@index([messageId])
   @@index([assetId])
+}
+
+// ============================================
+// RFQ SYSTEM MODELS
+// ============================================
+
+// Request for Quote - Sent to one or more suppliers
+model RFQ {
+  id               String    @id @default(cuid())
+  orgId            String
+  projectId        String
+  rfqNumber        String    // Auto-generated: RFQ-2024-0001
+  title            String
+  description      String?
+  status           RFQStatus @default(DRAFT)
+
+  // Grouping - allows grouping items by category for bulk RFQ
+  groupingType     String?   // 'category' | 'individual' | 'custom'
+  categoryFilter   String?   // e.g., 'Plumbing', 'Electrical'
+
+  // Timing
+  validUntil       DateTime?
+  responseDeadline DateTime?
+
+  // Tracking
+  sentAt           DateTime?
+  sentById         String?
+
+  createdById      String
+  updatedById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  project          Project       @relation("ProjectRFQs", fields: [projectId], references: [id], onDelete: Cascade)
+  sentBy           User?         @relation("RFQSentBy", fields: [sentById], references: [id])
+  createdBy        User          @relation("RFQCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User          @relation("RFQUpdatedBy", fields: [updatedById], references: [id])
+  lineItems        RFQLineItem[]
+  supplierRFQs     SupplierRFQ[]
+  documents        RFQDocument[]
+  activities       RFQActivity[]
+
+  @@unique([orgId, rfqNumber])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Line items in an RFQ - links to RoomFFEItem specs
+model RFQLineItem {
+  id               String   @id @default(cuid())
+  rfqId            String
+  roomFFEItemId    String   // Link to spec item (isSpecItem=true)
+
+  // Copied data for reference (in case spec changes)
+  itemName         String
+  itemDescription  String?
+  quantity         Int      @default(1)
+  unitType         String?  @default("units")
+  specifications   Json?    // Dimensions, color, finish, etc.
+
+  // Optional target pricing for negotiation
+  targetUnitPrice  Decimal?
+  targetTotalPrice Decimal?
+
+  notes            String?
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  rfq              RFQ                     @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  roomFFEItem      RoomFFEItem             @relation("RFQLineItems", fields: [roomFFEItemId], references: [id])
+  quoteLineItems   SupplierQuoteLineItem[]
+
+  @@index([rfqId])
+  @@index([roomFFEItemId])
+}
+
+// Tracks RFQ sent to specific supplier
+model SupplierRFQ {
+  id             String    @id @default(cuid())
+  rfqId          String
+  supplierId     String?   // Null for one-time vendors
+
+  // One-time vendor info (when supplierId is null)
+  vendorName     String?
+  vendorEmail    String?
+  vendorPhone    String?
+  vendorCompany  String?
+
+  // Access token for supplier portal
+  accessToken    String    @unique @default(cuid())
+  tokenExpiresAt DateTime?
+
+  // Tracking
+  sentAt         DateTime?
+  viewedAt       DateTime?
+  lastAccessedAt DateTime?
+  accessCount    Int       @default(0)
+
+  // Response
+  responseStatus String    @default("PENDING") // PENDING, SUBMITTED, DECLINED
+  respondedAt    DateTime?
+  declineReason  String?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  rfq            RFQ               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
+  quotes         SupplierQuote[]
+  accessLogs     SupplierAccessLog[]
+
+  @@unique([rfqId, supplierId])
+  @@index([rfqId])
+  @@index([supplierId])
+  @@index([accessToken])
+}
+
+// Supplier access logging
+model SupplierAccessLog {
+  id            String      @id @default(cuid())
+  supplierRFQId String
+  ipAddress     String?
+  userAgent     String?
+  action        String      // 'VIEW', 'DOWNLOAD', 'SUBMIT_QUOTE', etc.
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+
+  supplierRFQ   SupplierRFQ @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
+
+  @@index([supplierRFQId])
+  @@index([createdAt])
+}
+
+// Quote submitted by supplier
+model SupplierQuote {
+  id                String              @id @default(cuid())
+  supplierRFQId     String
+  quoteNumber       String              // Supplier's quote reference
+  version           Int                 @default(1)
+
+  status            SupplierQuoteStatus @default(PENDING)
+
+  // Pricing Summary
+  subtotal          Decimal?
+  taxAmount         Decimal?
+  shippingCost      Decimal?
+  totalAmount       Decimal?
+  currency          String              @default("CAD")
+
+  // Terms
+  validUntil        DateTime?
+  paymentTerms      String?
+  shippingTerms     String?
+  estimatedLeadTime String?
+
+  // Notes
+  supplierNotes     String?
+  internalNotes     String?
+
+  // Tracking
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  acceptedAt        DateTime?
+  acceptedById      String?
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  supplierRFQ       SupplierRFQ                @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
+  reviewedBy        User?                      @relation("QuoteReviewedBy", fields: [reviewedById], references: [id])
+  acceptedBy        User?                      @relation("QuoteAcceptedBy", fields: [acceptedById], references: [id])
+  lineItems         SupplierQuoteLineItem[]
+  documents         RFQDocument[]              @relation("SupplierQuoteDocuments")
+  clientQuoteLines  ClientQuoteLineItem[]
+
+  @@index([supplierRFQId])
+  @@index([status])
+  @@index([version])
+}
+
+// Individual line item in supplier quote
+model SupplierQuoteLineItem {
+  id                  String   @id @default(cuid())
+  supplierQuoteId     String
+  rfqLineItemId       String
+
+  // Pricing
+  unitPrice           Decimal
+  quantity            Int
+  totalPrice          Decimal
+  currency            String   @default("CAD")
+
+  // Availability
+  availability        String?  // 'IN_STOCK', 'BACKORDER', 'SPECIAL_ORDER'
+  leadTimeWeeks       Int?
+  leadTimeNotes       String?
+
+  // Product info
+  supplierSKU         String?
+  supplierModelNumber String?
+  alternateProduct    Boolean  @default(false)
+  alternateNotes      String?
+
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  supplierQuote       SupplierQuote @relation(fields: [supplierQuoteId], references: [id], onDelete: Cascade)
+  rfqLineItem         RFQLineItem   @relation(fields: [rfqLineItemId], references: [id])
+
+  @@index([supplierQuoteId])
+  @@index([rfqLineItemId])
+}
+
+// Quote sent to client (with markup applied)
+model ClientQuote {
+  id                   String            @id @default(cuid())
+  orgId                String
+  projectId            String
+  quoteNumber          String            // CQ-2024-0001
+  version              Int               @default(1)
+
+  title                String
+  description          String?
+  status               ClientQuoteStatus @default(DRAFT)
+
+  // Grouping
+  groupingType         String?           // 'category' | 'room' | 'custom'
+  groupTitle           String?
+
+  // Pricing Summary (after markup)
+  subtotal             Decimal?
+  taxRate              Decimal?          @default(0)
+  taxAmount            Decimal?
+  shippingCost         Decimal?
+  totalAmount          Decimal?
+  currency             String            @default("CAD")
+
+  // Default markup for this quote
+  defaultMarkupPercent Decimal?          @default(25)
+
+  // Terms
+  validUntil           DateTime?
+  paymentTerms         String?
+  depositRequired      Decimal?
+  depositAmount        Decimal?
+
+  // Email tracking
+  sentToClientAt       DateTime?
+  sentById             String?
+  emailOpenedAt        DateTime?
+
+  // Client response
+  clientDecision       String?
+  clientDecidedAt      DateTime?
+  clientMessage        String?
+
+  // Access
+  accessToken          String            @unique @default(cuid())
+
+  createdById          String
+  updatedById          String
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  project              Project                @relation("ProjectClientQuotes", fields: [projectId], references: [id], onDelete: Cascade)
+  sentBy               User?                  @relation("ClientQuoteSentBy", fields: [sentById], references: [id])
+  createdBy            User                   @relation("ClientQuoteCreatedBy", fields: [createdById], references: [id])
+  updatedBy            User                   @relation("ClientQuoteUpdatedBy", fields: [updatedById], references: [id])
+  lineItems            ClientQuoteLineItem[]
+  documents            RFQDocument[]          @relation("ClientQuoteDocuments")
+  payments             Payment[]
+  emailLogs            ClientQuoteEmailLog[]
+  activities           ClientQuoteActivity[]
+
+  @@unique([orgId, quoteNumber])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([status])
+  @@index([accessToken])
+}
+
+// Line item in client quote
+model ClientQuoteLineItem {
+  id                  String   @id @default(cuid())
+  clientQuoteId       String
+  supplierQuoteId     String?
+  roomFFEItemId       String
+
+  // Display info (client sees this)
+  displayName         String
+  displayDescription  String?
+  categoryName        String?
+  roomName            String?
+
+  // Quantity
+  quantity            Int      @default(1)
+  unitType            String?  @default("units")
+
+  // Pricing - what client sees (markup applied)
+  clientUnitPrice     Decimal
+  clientTotalPrice    Decimal
+
+  // Hidden pricing - what designer paid
+  supplierUnitPrice   Decimal?
+  supplierTotalPrice  Decimal?
+
+  // Markup
+  markupType          String?  @default("PERCENTAGE")
+  markupValue         Decimal?
+  markupAmount        Decimal?
+
+  // Grouping
+  groupId             String?
+  groupName           String?
+  order               Int      @default(0)
+
+  notes               String?
+  internalNotes       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  clientQuote         ClientQuote    @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  supplierQuote       SupplierQuote? @relation(fields: [supplierQuoteId], references: [id])
+  roomFFEItem         RoomFFEItem    @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  orderItems          OrderItem[]
+
+  @@index([clientQuoteId])
+  @@index([roomFFEItemId])
+  @@index([groupId])
+}
+
+// Category-level markup defaults
+model CategoryMarkup {
+  id            String   @id @default(cuid())
+  orgId         String
+  categoryName  String
+  markupPercent Decimal  @default(25)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([orgId, categoryName])
+  @@index([orgId])
+}
+
+// Email logs for client quotes
+model ClientQuoteEmailLog {
+  id              String      @id @default(cuid())
+  clientQuoteId   String
+  to              String
+  subject         String
+  htmlContent     String
+  sentAt          DateTime    @default(now())
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  trackingPixelId String      @unique
+
+  clientQuote     ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+
+  @@index([clientQuoteId])
+}
+
+// Activity log for client quotes
+model ClientQuoteActivity {
+  id            String      @id @default(cuid())
+  clientQuoteId String
+  type          String
+  message       String
+  userId        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+
+  clientQuote   ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  user          User?       @relation("ClientQuoteActivityUser", fields: [userId], references: [id])
+
+  @@index([clientQuoteId])
+  @@index([createdAt])
+}
+
+// Payment tracking
+model Payment {
+  id              String        @id @default(cuid())
+  orgId           String
+  clientQuoteId   String
+
+  // Amount
+  amount          Decimal
+  currency        String        @default("CAD")
+
+  // Payment info
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+
+  // External references
+  stripePaymentId String?
+  stripeChargeId  String?
+  achTransactionId String?
+  checkNumber     String?
+  wireReference   String?
+
+  // Tracking
+  paidAt          DateTime?
+  confirmedAt     DateTime?
+  confirmedById   String?
+
+  // Reconciliation
+  reconciled      Boolean       @default(false)
+  reconciledAt    DateTime?
+  reconciledById  String?
+  reconciledNotes String?
+
+  notes           String?
+  metadata        Json?
+
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  clientQuote     ClientQuote   @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  confirmedBy     User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id])
+  reconciledBy    User?         @relation("PaymentReconciledBy", fields: [reconciledById], references: [id])
+  createdBy       User          @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  documents       RFQDocument[] @relation("PaymentDocuments")
+
+  @@index([orgId])
+  @@index([clientQuoteId])
+  @@index([status])
+  @@index([method])
+}
+
+// Order placed with supplier after payment
+model Order {
+  id               String      @id @default(cuid())
+  orgId            String
+  projectId        String
+
+  orderNumber      String      // PO-2024-0001
+  supplierOrderRef String?
+
+  supplierId       String?
+  vendorName       String?
+  vendorEmail      String?
+
+  status           OrderStatus @default(PENDING_PAYMENT)
+
+  // Amounts
+  subtotal         Decimal?
+  taxAmount        Decimal?
+  shippingCost     Decimal?
+  totalAmount      Decimal?
+  currency         String      @default("CAD")
+
+  // Dates
+  orderedAt        DateTime?
+  confirmedAt      DateTime?
+  expectedShipDate DateTime?
+  actualShipDate   DateTime?
+  expectedDelivery DateTime?
+  actualDelivery   DateTime?
+
+  // Shipping
+  shippingMethod   String?
+  trackingNumber   String?
+  trackingUrl      String?
+  shippingCarrier  String?
+  shippingAddress  String?
+
+  notes            String?
+  internalNotes    String?
+
+  createdById      String
+  updatedById      String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  project          Project              @relation("ProjectOrders", fields: [projectId], references: [id], onDelete: Cascade)
+  supplier         Supplier?            @relation(fields: [supplierId], references: [id])
+  createdBy        User                 @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User                 @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  items            OrderItem[]
+  documents        RFQDocument[]        @relation("OrderDocuments")
+  activities       OrderActivity[]
+  deliveries       Delivery[]
+  messages         SupplierMessage[]
+
+  @@unique([orgId, orderNumber])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+// Individual items in an order
+model OrderItem {
+  id                    String      @id @default(cuid())
+  orderId               String
+  clientQuoteLineItemId String?
+  roomFFEItemId         String
+
+  // Item info
+  name                  String
+  description           String?
+  quantity              Int
+  unitType              String?
+
+  // Pricing
+  unitPrice             Decimal
+  totalPrice            Decimal
+
+  // Status tracking
+  status                OrderStatus @default(PENDING_PAYMENT)
+
+  // Delivery tracking
+  expectedDelivery      DateTime?
+  actualDelivery        DateTime?
+  deliveryId            String?
+
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  order                 Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  clientQuoteLineItem   ClientQuoteLineItem? @relation(fields: [clientQuoteLineItemId], references: [id])
+  roomFFEItem           RoomFFEItem          @relation("OrderItems", fields: [roomFFEItemId], references: [id])
+  delivery              Delivery?            @relation(fields: [deliveryId], references: [id])
+
+  @@index([orderId])
+  @@index([roomFFEItemId])
+  @@index([status])
+}
+
+// Delivery tracking
+model Delivery {
+  id             String    @id @default(cuid())
+  orderId        String
+
+  deliveryNumber String?
+  carrier        String?
+  trackingNumber String?
+  trackingUrl    String?
+
+  status         String    @default("PENDING")
+
+  expectedDate   DateTime?
+  actualDate     DateTime?
+
+  recipientName  String?
+  signedBy       String?
+
+  notes          String?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+  documents      RFQDocument[]  @relation("DeliveryDocuments")
+
+  @@index([orderId])
+  @@index([trackingNumber])
+}
+
+// Order activity log
+model OrderActivity {
+  id        String   @id @default(cuid())
+  orderId   String
+  type      String
+  message   String
+  userId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User?    @relation("OrderActivityUser", fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+// Documents for RFQ system
+model RFQDocument {
+  id                String          @id @default(cuid())
+  orgId             String
+
+  // Link to various entities (one will be set)
+  rfqId             String?
+  supplierQuoteId   String?
+  clientQuoteId     String?
+  paymentId         String?
+  orderId           String?
+  deliveryId        String?
+
+  // Document info
+  type              RFQDocumentType
+  title             String
+  description       String?
+
+  // File info
+  fileName          String
+  fileUrl           String
+  fileSize          Int?
+  mimeType          String?
+
+  // Storage provider
+  provider          String?
+  dropboxPath       String?
+
+  // Visibility
+  visibleToClient   Boolean         @default(false)
+  visibleToSupplier Boolean         @default(false)
+
+  uploadedById      String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  rfq               RFQ?            @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierQuote     SupplierQuote?  @relation("SupplierQuoteDocuments", fields: [supplierQuoteId], references: [id], onDelete: Cascade)
+  clientQuote       ClientQuote?    @relation("ClientQuoteDocuments", fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  payment           Payment?        @relation("PaymentDocuments", fields: [paymentId], references: [id], onDelete: Cascade)
+  order             Order?          @relation("OrderDocuments", fields: [orderId], references: [id], onDelete: Cascade)
+  delivery          Delivery?       @relation("DeliveryDocuments", fields: [deliveryId], references: [id], onDelete: Cascade)
+  uploadedBy        User            @relation("RFQDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([orgId])
+  @@index([rfqId])
+  @@index([supplierQuoteId])
+  @@index([clientQuoteId])
+  @@index([orderId])
+  @@index([type])
+}
+
+// RFQ activity log
+model RFQActivity {
+  id        String   @id @default(cuid())
+  rfqId     String
+  type      String
+  message   String
+  userId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  rfq       RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  user      User?    @relation("RFQActivityUser", fields: [userId], references: [id])
+
+  @@index([rfqId])
+  @@index([createdAt])
+}
+
+// Supplier messaging (integrated with main messaging)
+model SupplierMessage {
+  id           String    @id @default(cuid())
+  orgId        String
+  supplierId   String
+  projectId    String?
+  orderId      String?
+
+  // Message content
+  content      String
+  attachments  Json?
+
+  // Direction
+  direction    String    // 'INBOUND' | 'OUTBOUND'
+
+  // Sender info
+  senderType   String    // 'SUPPLIER' | 'TEAM'
+  senderUserId String?
+  senderName   String?
+
+  // Read tracking
+  readAt       DateTime?
+  readByUserId String?
+
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier     Supplier  @relation(fields: [supplierId], references: [id])
+  project      Project?  @relation("ProjectSupplierMessages", fields: [projectId], references: [id])
+  order        Order?    @relation(fields: [orderId], references: [id])
+  senderUser   User?     @relation("SupplierMessageSender", fields: [senderUserId], references: [id])
+  readByUser   User?     @relation("SupplierMessageReadBy", fields: [readByUserId], references: [id])
+
+  @@index([orgId])
+  @@index([supplierId])
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+// Shop drawings uploaded by suppliers
+model SupplierShopDrawing {
+  id           String            @id @default(cuid())
+  orgId        String
+  supplierId   String
+  projectId    String
+  orderId      String?
+
+  // File info
+  title        String
+  description  String?
+  fileName     String
+  fileUrl      String
+  fileSize     Int?
+  version      Int               @default(1)
+
+  // Review workflow
+  status       ShopDrawingStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+
+  // Tracking
+  uploadedAt   DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  supplier     Supplier          @relation(fields: [supplierId], references: [id])
+  project      Project           @relation("ProjectShopDrawings", fields: [projectId], references: [id])
+  reviewedBy   User?             @relation("ShopDrawingReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([supplierId])
+  @@index([projectId])
+  @@index([status])
 }

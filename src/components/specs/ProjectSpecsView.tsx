@@ -94,6 +94,7 @@ import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import ImageEditorModal from '@/components/image/ImageEditorModal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
+import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
 
 // Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
@@ -393,7 +394,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     logoUrl: ''
   })
   const [savingSupplier, setSavingSupplier] = useState(false)
-  
+
+  // RFQ Dialog
+  const [rfqDialogOpen, setRfqDialogOpen] = useState(false)
+  const [rfqPreselectedItems, setRfqPreselectedItems] = useState<string[]>([])
+
   // Item detail panel
   const [detailPanel, setDetailPanel] = useState<{
     isOpen: boolean
@@ -2422,8 +2427,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                Bulk Quotes
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (selectedItems.size === 0) {
+                    toast.error('Please select items first')
+                    return
+                  }
+                  setRfqPreselectedItems(Array.from(selectedItems))
+                  setRfqDialogOpen(true)
+                }}
+                disabled={selectedItems.size === 0}
+              >
+                <FileText className="w-4 h-4 mr-1.5" />
+                Bulk Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button 
                 variant="default" 
@@ -6439,6 +6457,25 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             }
           }
         }}
+      />
+
+      {/* RFQ Dialog for Bulk Quotes */}
+      <CreateRFQDialog
+        open={rfqDialogOpen}
+        onOpenChange={(open) => {
+          setRfqDialogOpen(open)
+          if (!open) {
+            setRfqPreselectedItems([])
+          }
+        }}
+        onSuccess={() => {
+          setRfqDialogOpen(false)
+          setRfqPreselectedItems([])
+          setSelectedItems(new Set()) // Clear selection after creating RFQ
+          toast.success('RFQ created! Go to Procurement to send it.')
+        }}
+        projectId={project.id}
+        preselectedItemIds={rfqPreselectedItems}
       />
     </div>
   )

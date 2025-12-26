@@ -799,7 +799,8 @@ class DropboxService {
         '8- DRAWINGS',
         '9- SKP',
         '10- REFERENCE MOOD',
-        '11- SOFTWARE UPLOADS'
+        '11- SOFTWARE UPLOADS',
+        '12- FFE'
       ]
       
       // Create each subfolder
@@ -850,10 +851,91 @@ class DropboxService {
       console.log(`[DropboxService] ✅ Project folder structure completed: ${successCount} folders created, ${failCount} failed`)
       console.log('[DropboxService] 📍 Main folder path:', mainFolderPath)
       return mainFolderPath
-      
+
     } catch (error) {
       console.error('[DropboxService] ❌ Failed to create project folder structure:', error)
       throw new Error(`Failed to create Dropbox project folder structure: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Create FFE category folder with standard subfolders
+   * Structure: /ProjectFolder/12- FFE/{CategoryName}/
+   *   - Drawings/  (for shop drawings, specs, PDFs)
+   *   - Quotes/    (for supplier quotes)
+   *   - Photos/    (for product photos)
+   */
+  async createFFECategoryFolder(projectFolderPath: string, categoryName: string): Promise<string> {
+    try {
+      const sanitizedCategory = this.sanitizeFolderName(categoryName)
+
+      if (!sanitizedCategory) {
+        throw new Error('Category name resulted in empty folder name after sanitization')
+      }
+
+      const categoryPath = `${projectFolderPath}/12- FFE/${sanitizedCategory}`
+
+      console.log('[DropboxService] 📁 Creating FFE category folder:', categoryPath)
+
+      // Create main category folder
+      await this.createFolder(categoryPath)
+
+      // Create subfolders
+      const subfolders = ['Drawings', 'Quotes', 'Photos']
+
+      for (const subfolder of subfolders) {
+        const subfolderPath = `${categoryPath}/${subfolder}`
+        try {
+          await this.createFolder(subfolderPath)
+          console.log(`[DropboxService] ✅ Created: ${subfolderPath}`)
+        } catch (error) {
+          console.warn(`[DropboxService] ⚠️ Failed to create ${subfolder}:`, error)
+        }
+      }
+
+      console.log('[DropboxService] ✅ FFE category folder created:', categoryPath)
+      return categoryPath
+
+    } catch (error) {
+      console.error('[DropboxService] ❌ Failed to create FFE category folder:', error)
+      throw new Error(`Failed to create FFE category folder: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Upload a file to the FFE folder for a project
+   * Automatically creates category folder if it doesn't exist
+   */
+  async uploadFFEFile(
+    projectFolderPath: string,
+    categoryName: string,
+    fileType: 'Drawings' | 'Quotes' | 'Photos',
+    fileName: string,
+    fileBuffer: Buffer
+  ): Promise<{ path: string; sharedLink?: string }> {
+    try {
+      // Ensure category folder exists
+      const categoryPath = await this.createFFECategoryFolder(projectFolderPath, categoryName)
+
+      // Sanitize filename
+      const sanitizedFilename = fileName
+        .replace(/[<>:"|?*]/g, '_')
+        .replace(/\\/g, '-')
+        .trim()
+
+      // Upload the file
+      const filePath = `${categoryPath}/${fileType}/${sanitizedFilename}`
+      console.log('[DropboxService] 📤 Uploading FFE file to:', filePath)
+
+      await this.uploadFile(filePath, fileBuffer, { mode: 'add' })
+
+      console.log('[DropboxService] ✅ FFE file uploaded successfully')
+
+      return { path: filePath }
+
+    } catch (error) {
+      console.error('[DropboxService] ❌ Failed to upload FFE file:', error)
+      throw new Error(`Failed to upload FFE file: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 }

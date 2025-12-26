@@ -1,0 +1,448 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/auth'
+import { prisma } from '@/lib/prisma'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/orders/[id]
+ * Get a specific order with full details
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const orgId = (session.user as any).orgId
+
+    const order = await prisma.order.findFirst({
+      where: { id, orgId },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            projectNumber: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            contactName: true,
+            address: true
+          }
+        },
+        createdBy: {
+          select: { id: true, name: true }
+        },
+        updatedBy: {
+          select: { id: true, name: true }
+        },
+        items: {
+          include: {
+            roomFFEItem: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                category: true
+              }
+            },
+            delivery: {
+              select: {
+                id: true,
+                status: true,
+                trackingNumber: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        },
+        deliveries: {
+          orderBy: { createdAt: 'desc' }
+        },
+        documents: {
+          orderBy: { createdAt: 'desc' }
+        },
+        activities: {
+          include: {
+            user: {
+              select: { id: true, name: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 20
+        }
+      }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ order })
+  } catch (error) {
+    console.error('Error fetching order:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch order' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PATCH /api/orders/[id]
+ * Update an order
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const body = await request.json()
+    const orgId = (session.user as any).orgId
+    const userId = session.user.id
+
+    const existing = await prisma.order.findFirst({
+      where: { id, orgId }
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const {
+      status,
+      supplierOrderRef,
+      trackingNumber,
+      trackingUrl,
+      shippingCarrier,
+      shippingAddress,
+      shippingMethod,
+      expectedShipDate,
+      actualShipDate,
+      expectedDelivery,
+      actualDelivery,
+      notes,
+      internalNotes
+    } = body
+
+    const updateData: any = {
+      ...(supplierOrderRef !== undefined && { supplierOrderRef }),
+      ...(trackingNumber !== undefined && { trackingNumber }),
+      ...(trackingUrl !== undefined && { trackingUrl }),
+      ...(shippingCarrier !== undefined && { shippingCarrier }),
+      ...(shippingAddress !== undefined && { shippingAddress }),
+      ...(shippingMethod !== undefined && { shippingMethod }),
+      ...(expectedShipDate !== undefined && { expectedShipDate: expectedShipDate ? new Date(expectedShipDate) : null }),
+      ...(actualShipDate !== undefined && { actualShipDate: actualShipDate ? new Date(actualShipDate) : null }),
+      ...(expectedDelivery !== undefined && { expectedDelivery: expectedDelivery ? new Date(expectedDelivery) : null }),
+      ...(actualDelivery !== undefined && { actualDelivery: actualDelivery ? new Date(actualDelivery) : null }),
+      ...(notes !== undefined && { notes }),
+      ...(internalNotes !== undefined && { internalNotes }),
+      updatedById: userId
+    }
+
+    // Handle status transitions
+    if (status !== undefined && status !== existing.status) {
+      updateData.status = status
+
+      // Set relevant timestamps based on status
+      if (status === 'ORDERED' && !existing.orderedAt) {
+        updateData.orderedAt = new Date()
+      } else if (status === 'CONFIRMED' && !existing.confirmedAt) {
+        updateData.confirmedAt = new Date()
+      } else if (status === 'SHIPPED' && !existing.actualShipDate) {
+        updateData.actualShipDate = new Date()
+      } else if (status === 'DELIVERED' && !existing.actualDelivery) {
+        updateData.actualDelivery = new Date()
+      }
+    }
+
+    const order = await prisma.order.update({
+      where: { id },
+      data: updateData,
+      include: {
+        project: {
+          select: { id: true, name: true }
+        },
+        supplier: {
+          select: { id: true, name: true }
+        },
+        items: true
+      }
+    })
+
+    // Log status changes
+    if (status && status !== existing.status) {
+      await prisma.orderActivity.create({
+        data: {
+          orderId: id,
+          type: 'STATUS_CHANGED',
+          message: `Status changed from ${existing.status} to ${status}`,
+          userId
+        }
+      })
+    }
+
+    // Log tracking updates
+    if (trackingNumber && trackingNumber !== existing.trackingNumber) {
+      await prisma.orderActivity.create({
+        data: {
+          orderId: id,
+          type: 'TRACKING_UPDATED',
+          message: `Tracking number updated: ${trackingNumber}`,
+          userId
+        }
+      })
+    }
+
+    return NextResponse.json({ order })
+  } catch (error) {
+    console.error('Error updating order:', error)
+    return NextResponse.json(
+      { error: 'Failed to update order' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * POST /api/orders/[id]
+ * Perform actions on an order (place, confirm, ship, etc.)
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const body = await request.json()
+    const { action, ...data } = body
+
+    const orgId = (session.user as any).orgId
+    const userId = session.user.id
+
+    const order = await prisma.order.findFirst({
+      where: { id, orgId },
+      include: {
+        supplier: true,
+        items: true
+      }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    switch (action) {
+      case 'place_order':
+        // Send PO to supplier
+        if (!order.supplierId && !order.vendorEmail) {
+          return NextResponse.json(
+            { error: 'Supplier email required' },
+            { status: 400 }
+          )
+        }
+
+        await prisma.order.update({
+          where: { id },
+          data: {
+            status: 'ORDERED',
+            orderedAt: new Date(),
+            updatedById: userId
+          }
+        })
+
+        // TODO: Send PO email to supplier
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: id,
+            type: 'ORDER_PLACED',
+            message: 'Purchase order placed with supplier',
+            userId
+          }
+        })
+
+        return NextResponse.json({ success: true, action: 'order_placed' })
+
+      case 'add_tracking':
+        const { trackingNumber, carrier, trackingUrl } = data
+
+        await prisma.order.update({
+          where: { id },
+          data: {
+            trackingNumber,
+            shippingCarrier: carrier,
+            trackingUrl,
+            status: order.status === 'ORDERED' || order.status === 'CONFIRMED' ? 'SHIPPED' : order.status,
+            actualShipDate: order.actualShipDate || new Date(),
+            updatedById: userId
+          }
+        })
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: id,
+            type: 'TRACKING_ADDED',
+            message: `Tracking: ${carrier} ${trackingNumber}`,
+            userId,
+            metadata: { trackingNumber, carrier, trackingUrl }
+          }
+        })
+
+        return NextResponse.json({ success: true, action: 'tracking_added' })
+
+      case 'mark_delivered':
+        const { deliveryDate, recipientName, signedBy, notes } = data
+
+        await prisma.$transaction([
+          prisma.order.update({
+            where: { id },
+            data: {
+              status: 'DELIVERED',
+              actualDelivery: deliveryDate ? new Date(deliveryDate) : new Date(),
+              notes: notes || order.notes,
+              updatedById: userId
+            }
+          }),
+          prisma.orderItem.updateMany({
+            where: { orderId: id },
+            data: {
+              status: 'DELIVERED',
+              actualDelivery: deliveryDate ? new Date(deliveryDate) : new Date()
+            }
+          })
+        ])
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: id,
+            type: 'DELIVERED',
+            message: `Order delivered${signedBy ? ` - Signed by: ${signedBy}` : ''}`,
+            userId,
+            metadata: { deliveryDate, recipientName, signedBy }
+          }
+        })
+
+        return NextResponse.json({ success: true, action: 'marked_delivered' })
+
+      case 'cancel':
+        const { reason } = data
+
+        if (['DELIVERED', 'INSTALLED', 'COMPLETED'].includes(order.status)) {
+          return NextResponse.json(
+            { error: 'Cannot cancel a delivered order' },
+            { status: 400 }
+          )
+        }
+
+        await prisma.order.update({
+          where: { id },
+          data: {
+            status: 'CANCELLED',
+            internalNotes: `${order.internalNotes || ''}\n\nCancellation reason: ${reason || 'No reason provided'}`.trim(),
+            updatedById: userId
+          }
+        })
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: id,
+            type: 'CANCELLED',
+            message: `Order cancelled${reason ? `: ${reason}` : ''}`,
+            userId
+          }
+        })
+
+        return NextResponse.json({ success: true, action: 'cancelled' })
+
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    }
+  } catch (error) {
+    console.error('Error processing order action:', error)
+    return NextResponse.json(
+      { error: 'Failed to process action' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/orders/[id]
+ * Delete an order (only if pending)
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const orgId = (session.user as any).orgId
+
+    const existing = await prisma.order.findFirst({
+      where: { id, orgId }
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    if (existing.status !== 'PENDING_PAYMENT') {
+      return NextResponse.json(
+        { error: 'Only pending orders can be deleted' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.order.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting order:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete order' },
+      { status: 500 }
+    )
+  }
+}

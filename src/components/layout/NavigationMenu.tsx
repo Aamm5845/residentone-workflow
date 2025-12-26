@@ -6,17 +6,18 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { useNotifications } from '@/hooks/useNotifications'
 import { cn } from '@/lib/utils'
-import { 
-  Home, 
-  FolderOpen, 
-  Users, 
+import {
+  Home,
+  FolderOpen,
+  Users,
   MessageSquare,
   Activity,
   BarChart3,
   Clock,
   Sparkles,
   CalendarDays,
-  Package
+  Package,
+  FileText
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
@@ -92,6 +93,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
+    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600' },
     { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
