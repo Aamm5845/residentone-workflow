@@ -3203,7 +3203,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           {/* Hover Actions - Fixed on left side, always show if selected */}
                           <div className={cn(
                             "absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10 transition-opacity duration-150",
-                            (hoveredItem === item.id || selectedItems.has(item.id)) ? "opacity-100" : "opacity-0"
+                            "opacity-100"
                           )}>
                             <Checkbox
                               checked={selectedItems.has(item.id)}
@@ -3975,9 +3975,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
                                     {/* Quote */}
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                       className="text-xs"
-                                      onSelect={() => toast('Quote feature coming soon')}
+                                      onSelect={() => {
+                                        setRfqPreselectedItems([item.id])
+                                        setRfqDialogOpen(true)
+                                      }}
                                     >
                                       <FileText className="w-3.5 h-3.5 mr-2" />
                                       Request Quote
