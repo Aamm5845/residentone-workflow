@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Plus, 
   Building2, 
@@ -11,14 +11,59 @@ import {
   MapPin,
   Loader2,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Tag,
+  Wrench,
+  Lightbulb,
+  Sofa,
+  Layers,
+  CircleDot,
+  Package,
+  Shirt,
+  MoreHorizontal,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+
+// Icon mapping for dynamic categories
+const ICON_MAP: Record<string, any> = {
+  Wrench,
+  Lightbulb,
+  Sofa,
+  Layers,
+  CircleDot,
+  Package,
+  Shirt,
+  MoreHorizontal,
+  Tag,
+  Building2,
+}
+
+// Color mapping
+const COLOR_MAP: Record<string, { bg: string; text: string; bgLight: string }> = {
+  blue: { bg: 'bg-blue-500', text: 'text-blue-600', bgLight: 'bg-blue-50' },
+  amber: { bg: 'bg-amber-500', text: 'text-amber-600', bgLight: 'bg-amber-50' },
+  emerald: { bg: 'bg-emerald-500', text: 'text-emerald-600', bgLight: 'bg-emerald-50' },
+  orange: { bg: 'bg-orange-500', text: 'text-orange-600', bgLight: 'bg-orange-50' },
+  zinc: { bg: 'bg-zinc-500', text: 'text-zinc-600', bgLight: 'bg-zinc-50' },
+  indigo: { bg: 'bg-indigo-500', text: 'text-indigo-600', bgLight: 'bg-indigo-50' },
+  pink: { bg: 'bg-pink-500', text: 'text-pink-600', bgLight: 'bg-pink-50' },
+  gray: { bg: 'bg-gray-500', text: 'text-gray-600', bgLight: 'bg-gray-50' },
+  slate: { bg: 'bg-slate-500', text: 'text-slate-600', bgLight: 'bg-slate-50' },
+}
+
+interface SupplierCategory {
+  id: string
+  name: string
+  icon?: string
+  color?: string
+}
 
 interface Supplier {
   id: string
@@ -30,6 +75,7 @@ interface Supplier {
   address?: string
   website?: string
   notes?: string
+  categoryId?: string
 }
 
 interface AddSupplierDialogProps {
@@ -47,7 +93,9 @@ const emptyFormData = {
   phone: '',
   address: '',
   website: '',
-  notes: ''
+  notes: '',
+  categoryId: '',
+  currency: 'CAD' as 'CAD' | 'USD'
 }
 
 export default function AddSupplierDialog({ 
@@ -62,6 +110,30 @@ export default function AddSupplierDialog({
   })
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [categories, setCategories] = useState<SupplierCategory[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(false)
+
+  // Load categories when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadCategories()
+    }
+  }, [open])
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true)
+      const response = await fetch('/api/supplier-categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error)
+    } finally {
+      setLoadingCategories(false)
+    }
+  }
 
   // Reset form when dialog opens/closes
   const handleOpenChange = (newOpen: boolean) => {
@@ -104,6 +176,16 @@ export default function AddSupplierDialog({
     }
   }
 
+  const getCategoryInfo = (categoryId: string) => {
+    const cat = categories.find(c => c.id === categoryId)
+    if (!cat) return { name: 'Other', Icon: Tag, ...COLOR_MAP.gray }
+    
+    const Icon = ICON_MAP[cat.icon || 'Tag'] || Tag
+    const colors = COLOR_MAP[cat.color || 'slate'] || COLOR_MAP.slate
+    
+    return { name: cat.name, Icon, ...colors }
+  }
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       toast.error('Business name is required')
@@ -130,7 +212,10 @@ export default function AddSupplierDialog({
       const response = await fetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          categoryId: formData.categoryId || null
+        })
       })
 
       if (response.ok) {
@@ -152,10 +237,10 @@ export default function AddSupplierDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-purple-600" />
+            <Building2 className="w-5 h-5 text-indigo-600" />
             Add New Supplier
           </DialogTitle>
         </DialogHeader>
@@ -181,7 +266,7 @@ export default function AddSupplierDialog({
                   </button>
                 </div>
               ) : (
-                <label className="w-16 h-16 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:border-purple-400 transition-colors">
+                <label className="w-16 h-16 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:border-indigo-400 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
@@ -200,6 +285,72 @@ export default function AddSupplierDialog({
                 </label>
               )}
               <p className="text-xs text-muted-foreground">Upload company logo</p>
+            </div>
+          </div>
+
+          {/* Category Selection */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            {loadingCategories ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading categories...
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto">
+                {categories.map(cat => {
+                  const { Icon, text, bgLight } = getCategoryInfo(cat.id)
+                  const isSelected = formData.categoryId === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, categoryId: cat.id }))}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all relative",
+                        isSelected 
+                          ? `${bgLight} border-current ${text}` 
+                          : "border-slate-200 hover:border-slate-300 text-slate-600"
+                      )}
+                    >
+                      {isSelected && (
+                        <Check className="absolute top-1 right-1 w-3 h-3" />
+                      )}
+                      <Icon className="w-4 h-4 mb-0.5" />
+                      <span className="text-[10px] font-medium truncate w-full text-center">{cat.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Currency Selection */}
+          <div className="space-y-2">
+            <Label>Currency</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, currency: 'CAD' }))}
+                className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                  formData.currency === 'CAD'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                }`}
+              >
+                🇨🇦 CAD
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, currency: 'USD' }))}
+                className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                  formData.currency === 'USD'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                }`}
+              >
+                🇺🇸 USD
+              </button>
             </div>
           </div>
 
@@ -291,7 +442,11 @@ export default function AddSupplierDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={saving}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
             {saving ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
@@ -304,4 +459,3 @@ export default function AddSupplierDialog({
     </Dialog>
   )
 }
-

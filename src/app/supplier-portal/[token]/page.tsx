@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import {
   Building2,
   Package,
@@ -11,7 +11,10 @@ import {
   Loader2,
   DollarSign,
   FileText,
-  MessageCircle
+  MessageCircle,
+  Upload,
+  X,
+  File
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import toast, { Toaster } from 'react-hot-toast'
 import SupplierMessaging from '@/components/supplier-portal/SupplierMessaging'
 
@@ -46,6 +50,11 @@ interface RFQData {
       specifications?: any
       notes?: string
       category?: string
+      roomFFEItem?: {
+        thumbnailUrl?: string
+        images?: string[]
+        brand?: string
+      }
     }>
   }
   supplier: {
@@ -72,6 +81,15 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [data, setData] = useState<RFQData | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submitMode, setSubmitMode] = useState<'upload' | 'detailed'>('upload')
+  
+  // File upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadTotalAmount, setUploadTotalAmount] = useState('')
+  const [uploadNotes, setUploadNotes] = useState('')
 
   // Quote form state
   const [quoteNumber, setQuoteNumber] = useState('')
@@ -205,6 +223,104 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     }
   }
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a PDF, Word, Excel, or image file')
+      return
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB')
+      return
+    }
+
+    setUploadedFile(file)
+    setUploading(true)
+
+    try {
+      // Upload the file
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'supplier-quotes')
+
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (uploadResponse.ok) {
+        const { url } = await uploadResponse.json()
+        setUploadedFileUrl(url)
+        toast.success('Quote document uploaded successfully')
+      } else {
+        toast.error('Failed to upload file')
+        setUploadedFile(null)
+      }
+    } catch (err) {
+      toast.error('Failed to upload file')
+      setUploadedFile(null)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeUploadedFile = () => {
+    setUploadedFile(null)
+    setUploadedFileUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleUploadSubmit = async () => {
+    if (!uploadedFileUrl) {
+      toast.error('Please upload your quote document first')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/supplier-portal/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit',
+          quoteNumber: `SQ-${Date.now()}`,
+          quoteDocumentUrl: uploadedFileUrl,
+          totalAmount: uploadTotalAmount ? parseFloat(uploadTotalAmount) : null,
+          supplierNotes: uploadNotes || null,
+          // Create placeholder line items with zero prices (will be updated after review)
+          lineItems: data?.rfq.lineItems.map(item => ({
+            rfqLineItemId: item.id,
+            unitPrice: 0,
+            quantity: item.quantity,
+            availability: 'IN_STOCK',
+            leadTimeWeeks: null,
+            notes: 'See attached quote document'
+          })) || []
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Quote submitted successfully!')
+        setSubmitted(true)
+      } else {
+        const err = await response.json()
+        toast.error(err.error || 'Failed to submit quote')
+      }
+    } catch (err) {
+      toast.error('Failed to submit quote')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
       month: 'long',
@@ -224,7 +340,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
           <p className="text-gray-500">Loading quote request...</p>
         </div>
       </div>
@@ -290,19 +406,19 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       <Toaster position="top-right" />
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-12 px-6">
+      <div className="bg-emerald-600 text-white py-12 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
               <FileText className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-purple-200 text-sm">Request for Quote</p>
+              <p className="text-emerald-100 text-sm">Request for Quote</p>
               <h1 className="text-2xl font-bold">{data.rfq.rfqNumber}</h1>
             </div>
           </div>
           <h2 className="text-xl mb-2">{data.rfq.title}</h2>
-          <p className="text-purple-200">Project: {data.rfq.project.name}</p>
+          <p className="text-emerald-100">Project: {data.rfq.project.name}</p>
           {data.rfq.responseDeadline && (
             <p className="mt-4 flex items-center gap-2 text-yellow-300">
               <Clock className="w-4 h-4" />
@@ -317,8 +433,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
                 <p className="font-medium">{data.supplier.name || 'Supplier'}</p>
@@ -340,29 +456,31 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Card>
         )}
 
-        {/* Line Items */}
+        {/* Items Preview */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Items to Quote ({data.rfq.lineItems.length})</CardTitle>
-            <CardDescription>Enter your pricing for each item below</CardDescription>
+            <CardTitle>Items Requested ({data.rfq.lineItems.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {data.rfq.lineItems.map((item, index) => (
-                <div key={item.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">
-                          {index + 1}
-                        </span>
-                        <h3 className="font-medium">{item.itemName}</h3>
+            <div className="space-y-3">
+              {data.rfq.lineItems.map((item, index) => {
+                const imageUrl = item.roomFFEItem?.thumbnailUrl || (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
+                return (
+                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={item.itemName} className="w-16 h-16 object-cover rounded-lg border" />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <Package className="w-6 h-6 text-gray-400" />
                       </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium">{item.itemName}</h3>
                       {item.itemDescription && (
-                        <p className="text-sm text-gray-500 ml-8">{item.itemDescription}</p>
+                        <p className="text-sm text-gray-500 line-clamp-1">{item.itemDescription}</p>
                       )}
-                      {item.category && (
-                        <Badge variant="outline" className="ml-8 mt-1">{item.category}</Badge>
+                      {item.roomFFEItem?.brand && (
+                        <p className="text-xs text-gray-400">Brand: {item.roomFFEItem.brand}</p>
                       )}
                     </div>
                     <div className="text-right">
@@ -370,154 +488,286 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                       <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
                     </div>
                   </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
-                    <div>
-                      <Label>Unit Price (CAD) <span className="text-red-500">*</span></Label>
-                      <div className="relative mt-1">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={lineItems[index]?.unitPrice || ''}
-                          onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
-                          placeholder="0.00"
-                          className="pl-10"
-                        />
-                      </div>
+        {/* Quote Submission Options */}
+        <Tabs value={submitMode} onValueChange={(v) => setSubmitMode(v as 'upload' | 'detailed')} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upload" className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Upload Quote
+            </TabsTrigger>
+            <TabsTrigger value="detailed" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Enter Details
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Upload Quote Tab */}
+          <TabsContent value="upload" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Your Quote Document</CardTitle>
+                <CardDescription>
+                  Upload a PDF, Word, Excel, or image file containing your quote
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+
+                {!uploadedFile ? (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
+                    ) : (
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    )}
+                    <p className="text-gray-600 font-medium">
+                      {uploading ? 'Uploading...' : 'Click to upload your quote'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      PDF, Word, Excel, or images up to 10MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <File className="w-10 h-10 text-emerald-600" />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
                     </div>
+                    <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
 
-                    <div>
-                      <Label>Availability</Label>
-                      <select
-                        value={lineItems[index]?.availability || 'IN_STOCK'}
-                        onChange={(e) => updateLineItem(index, 'availability', e.target.value)}
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      >
-                        <option value="IN_STOCK">In Stock</option>
-                        <option value="BACKORDER">Backorder</option>
-                        <option value="SPECIAL_ORDER">Special Order</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <Label>Lead Time (weeks)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                  <div>
+                    <Label>Total Amount (optional)</Label>
+                    <div className="relative mt-1">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
                         type="number"
+                        step="0.01"
                         min="0"
-                        value={lineItems[index]?.leadTimeWeeks || ''}
-                        onChange={(e) => updateLineItem(index, 'leadTimeWeeks', e.target.value)}
-                        placeholder="e.g., 2"
-                        className="mt-1"
+                        value={uploadTotalAmount}
+                        onChange={(e) => setUploadTotalAmount(e.target.value)}
+                        placeholder="Enter total if known"
+                        className="pl-10"
                       />
                     </div>
                   </div>
-
-                  <div className="mt-3">
-                    <Label>Notes</Label>
+                  <div>
+                    <Label>Notes (optional)</Label>
                     <Input
-                      value={lineItems[index]?.notes || ''}
-                      onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                      placeholder="Any additional notes for this item..."
+                      value={uploadNotes}
+                      onChange={(e) => setUploadNotes(e.target.value)}
+                      placeholder="Any additional notes..."
                       className="mt-1"
                     />
                   </div>
-
-                  {lineItems[index]?.unitPrice && (
-                    <div className="mt-3 text-right">
-                      <span className="text-sm text-gray-500">Line Total: </span>
-                      <span className="font-medium">
-                        {formatCurrency(parseFloat(lineItems[index].unitPrice) * item.quantity)}
-                      </span>
-                    </div>
-                  )}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Quote Summary */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Quote Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Your Quote Number (optional)</Label>
-                <Input
-                  value={quoteNumber}
-                  onChange={(e) => setQuoteNumber(e.target.value)}
-                  placeholder="e.g., QT-2024-001"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Quote Valid Until</Label>
-                <Input
-                  type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="mt-1"
-                />
-              </div>
-            </div>
+          {/* Detailed Quote Tab */}
+          <TabsContent value="detailed" className="mt-4 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Item Pricing</CardTitle>
+                <CardDescription>Enter your pricing for each item</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {data.rfq.lineItems.map((item, index) => (
+                    <div key={item.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-medium text-emerald-600">
+                              {index + 1}
+                            </span>
+                            <h3 className="font-medium">{item.itemName}</h3>
+                          </div>
+                          {item.itemDescription && (
+                            <p className="text-sm text-gray-500 ml-8">{item.itemDescription}</p>
+                          )}
+                          {item.category && (
+                            <Badge variant="outline" className="ml-8 mt-1">{item.category}</Badge>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-medium">{item.quantity}</p>
+                          <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
+                        </div>
+                      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Payment Terms</Label>
-                <Input
-                  value={paymentTerms}
-                  onChange={(e) => setPaymentTerms(e.target.value)}
-                  placeholder="e.g., Net 30"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Shipping Terms</Label>
-                <Input
-                  value={shippingTerms}
-                  onChange={(e) => setShippingTerms(e.target.value)}
-                  placeholder="e.g., FOB Destination"
-                  className="mt-1"
-                />
-              </div>
-            </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                        <div>
+                          <Label>Unit Price (CAD) <span className="text-red-500">*</span></Label>
+                          <div className="relative mt-1">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={lineItems[index]?.unitPrice || ''}
+                              onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
+                              placeholder="0.00"
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
 
-            <div>
-              <Label>Estimated Lead Time</Label>
-              <Input
-                value={estimatedLeadTime}
-                onChange={(e) => setEstimatedLeadTime(e.target.value)}
-                placeholder="e.g., 4-6 weeks"
-                className="mt-1"
-              />
-            </div>
+                        <div>
+                          <Label>Availability</Label>
+                          <select
+                            value={lineItems[index]?.availability || 'IN_STOCK'}
+                            onChange={(e) => updateLineItem(index, 'availability', e.target.value)}
+                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="IN_STOCK">In Stock</option>
+                            <option value="BACKORDER">Backorder</option>
+                            <option value="SPECIAL_ORDER">Special Order</option>
+                          </select>
+                        </div>
 
-            <div>
-              <Label>Additional Notes</Label>
-              <Textarea
-                value={supplierNotes}
-                onChange={(e) => setSupplierNotes(e.target.value)}
-                placeholder="Any additional information or terms..."
-                rows={3}
-                className="mt-1"
-              />
-            </div>
+                        <div>
+                          <Label>Lead Time (weeks)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={lineItems[index]?.leadTimeWeeks || ''}
+                            onChange={(e) => updateLineItem(index, 'leadTimeWeeks', e.target.value)}
+                            placeholder="e.g., 2"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
 
-            <div className="pt-4 border-t">
-              <div className="flex justify-between items-center text-lg">
-                <span className="font-medium">Quote Total:</span>
-                <span className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(calculateTotal())}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                      <div className="mt-3">
+                        <Label>Notes</Label>
+                        <Input
+                          value={lineItems[index]?.notes || ''}
+                          onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                          placeholder="Any additional notes for this item..."
+                          className="mt-1"
+                        />
+                      </div>
+
+                      {lineItems[index]?.unitPrice && (
+                        <div className="mt-3 text-right">
+                          <span className="text-sm text-gray-500">Line Total: </span>
+                          <span className="font-medium">
+                            {formatCurrency(parseFloat(lineItems[index].unitPrice) * item.quantity)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quote Summary - Only in detailed mode */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quote Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Your Quote Number (optional)</Label>
+                    <Input
+                      value={quoteNumber}
+                      onChange={(e) => setQuoteNumber(e.target.value)}
+                      placeholder="e.g., QT-2024-001"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Quote Valid Until</Label>
+                    <Input
+                      type="date"
+                      value={validUntil}
+                      onChange={(e) => setValidUntil(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Payment Terms</Label>
+                    <Input
+                      value={paymentTerms}
+                      onChange={(e) => setPaymentTerms(e.target.value)}
+                      placeholder="e.g., Net 30"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Shipping Terms</Label>
+                    <Input
+                      value={shippingTerms}
+                      onChange={(e) => setShippingTerms(e.target.value)}
+                      placeholder="e.g., FOB Destination"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Estimated Lead Time</Label>
+                  <Input
+                    value={estimatedLeadTime}
+                    onChange={(e) => setEstimatedLeadTime(e.target.value)}
+                    placeholder="e.g., 4-6 weeks"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={supplierNotes}
+                    onChange={(e) => setSupplierNotes(e.target.value)}
+                    placeholder="Any additional information or terms..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center text-lg">
+                    <span className="font-medium">Quote Total:</span>
+                    <span className="text-2xl font-bold text-emerald-600">
+                      {formatCurrency(calculateTotal())}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Actions */}
         <div className="flex items-center justify-between">
@@ -530,10 +780,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             Decline to Quote
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={submitting}
+            onClick={submitMode === 'upload' ? handleUploadSubmit : handleSubmit}
+            disabled={submitting || (submitMode === 'upload' && !uploadedFileUrl)}
             size="lg"
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-emerald-600 hover:bg-emerald-700"
           >
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             <Send className="w-4 h-4 mr-2" />

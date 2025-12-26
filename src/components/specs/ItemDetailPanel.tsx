@@ -295,8 +295,13 @@ export function ItemDetailPanel({
     phone: '',
     address: '',
     website: '',
-    notes: ''
+    notes: '',
+    logo: '',
+    categoryId: '',
+    currency: 'CAD'
   })
+  const [supplierCategories, setSupplierCategories] = useState<Array<{ id: string; name: string; icon?: string; color?: string }>>([])
+  const [loadingSupplierCategories, setLoadingSupplierCategories] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -426,10 +431,26 @@ export function ItemDetailPanel({
     }
   }, [isOpen])
   
+  // Load supplier categories
+  const loadSupplierCategories = async () => {
+    try {
+      setLoadingSupplierCategories(true)
+      const res = await fetch('/api/supplier-categories')
+      if (res.ok) {
+        const data = await res.json()
+        setSupplierCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Failed to load supplier categories:', error)
+    } finally {
+      setLoadingSupplierCategories(false)
+    }
+  }
+
   // Create new supplier
   const handleCreateSupplier = async () => {
-    if (!newSupplier.name || !newSupplier.email) {
-      toast.error('Business name and email are required')
+    if (!newSupplier.name || !newSupplier.contactName || !newSupplier.email) {
+      toast.error('Business name, contact name, and email are required')
       return
     }
     
@@ -438,7 +459,10 @@ export function ItemDetailPanel({
       const res = await fetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSupplier)
+        body: JSON.stringify({
+          ...newSupplier,
+          categoryId: newSupplier.categoryId || null
+        })
       })
       
       if (res.ok) {
@@ -456,11 +480,12 @@ export function ItemDetailPanel({
           supplierLink: data.supplier.website || ''
         }))
         // Reset and close modal
-        setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '' })
+        setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logo: '', categoryId: '', currency: 'CAD' })
         setShowAddSupplier(false)
         toast.success('Supplier added to phonebook')
       } else {
-        throw new Error('Failed to create supplier')
+        const errorData = await res.json()
+        toast.error(errorData.error || 'Failed to create supplier')
       }
     } catch (error) {
       console.error('Failed to create supplier:', error)
@@ -1589,18 +1614,80 @@ export function ItemDetailPanel({
       </div>
       
       {/* Add New Supplier Modal */}
-      <Dialog open={showAddSupplier} onOpenChange={setShowAddSupplier}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showAddSupplier} onOpenChange={(open) => {
+        if (open) {
+          loadSupplierCategories()
+        }
+        setShowAddSupplier(open)
+      }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-emerald-600" />
+              <UserPlus className="w-5 h-5 text-indigo-600" />
               Add New Supplier
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Category Selection */}
             <div className="space-y-2">
-              <Label>Business Name *</Label>
+              <Label>Category</Label>
+              {loadingSupplierCategories ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading...
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {supplierCategories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNewSupplier({ ...newSupplier, categoryId: cat.id })}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                        newSupplier.categoryId === cat.id
+                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selection */}
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewSupplier({ ...newSupplier, currency: 'CAD' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                    newSupplier.currency === 'CAD'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  🇨🇦 CAD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewSupplier({ ...newSupplier, currency: 'USD' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                    newSupplier.currency === 'USD'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  🇺🇸 USD
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Business Name <span className="text-red-500">*</span></Label>
               <Input
                 value={newSupplier.name}
                 onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
@@ -1609,16 +1696,16 @@ export function ItemDetailPanel({
             </div>
             
             <div className="space-y-2">
-              <Label>Contact Name</Label>
+              <Label>Contact Name <span className="text-red-500">*</span></Label>
               <Input
                 value={newSupplier.contactName}
                 onChange={(e) => setNewSupplier({ ...newSupplier, contactName: e.target.value })}
-                placeholder="Optional"
+                placeholder="Contact person"
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Email *</Label>
+              <Label>Email <span className="text-red-500">*</span></Label>
               <Input
                 type="email"
                 value={newSupplier.email}
@@ -1672,7 +1759,8 @@ export function ItemDetailPanel({
             </Button>
             <Button 
               onClick={handleCreateSupplier}
-              disabled={savingSupplier || !newSupplier.name || !newSupplier.email}
+              disabled={savingSupplier || !newSupplier.name || !newSupplier.contactName || !newSupplier.email}
+              className="bg-indigo-600 hover:bg-indigo-700"
             >
               {savingSupplier ? (
                 <>

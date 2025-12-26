@@ -44,6 +44,8 @@ export async function GET(
                     brand: true,
                     sku: true,
                     notes: true,
+                    thumbnailUrl: true,
+                    images: true,
                     section: {
                       select: {
                         name: true
@@ -153,7 +155,9 @@ export async function POST(
       estimatedLeadTime,
       supplierNotes,
       lineItems,
-      declineReason
+      declineReason,
+      quoteDocumentUrl,
+      totalAmount
     } = body
 
     const supplierRFQ = await prisma.supplierRFQ.findUnique({
@@ -247,6 +251,9 @@ export async function POST(
         }
       })
 
+      // Use provided totalAmount for uploaded quotes, otherwise calculate from line items
+      const finalTotal = totalAmount || subtotal
+
       // Create quote
       const quote = await prisma.supplierQuote.create({
         data: {
@@ -254,13 +261,14 @@ export async function POST(
           quoteNumber: quoteNumber || `SQ-${Date.now()}`,
           version,
           status: 'SUBMITTED',
-          subtotal,
-          totalAmount: subtotal, // TODO: Add tax/shipping if provided
+          subtotal: totalAmount ? null : subtotal,
+          totalAmount: finalTotal,
           validUntil: validUntil ? new Date(validUntil) : null,
           paymentTerms: paymentTerms || null,
           shippingTerms: shippingTerms || null,
           estimatedLeadTime: estimatedLeadTime || null,
           supplierNotes: supplierNotes || null,
+          quoteDocumentUrl: quoteDocumentUrl || null,
           submittedAt: new Date(),
           lineItems: {
             create: processedLineItems

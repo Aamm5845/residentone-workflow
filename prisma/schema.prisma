@@ -1597,6 +1597,7 @@ model Supplier {
   emails      Json?    // Additional emails as array: ["email1@example.com", "email2@example.com"]
   category    String?  // Legacy category field (deprecated)
   categoryId  String?  // Reference to SupplierCategory
+  currency    String   @default("CAD") // Currency for prices: CAD or USD
   logo        String?  // Logo URL (optional)
   phone       String?  // Phone (optional)
   address     String?  // Address (optional)
@@ -2963,6 +2964,9 @@ model SupplierQuote {
   // Notes
   supplierNotes     String?
   internalNotes     String?
+
+  // Document
+  quoteDocumentUrl  String?             // Uploaded quote document (PDF, etc.)
 
   // Tracking
   submittedAt       DateTime?

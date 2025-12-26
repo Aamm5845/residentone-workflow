@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, contactName, logo, phone, email, emails, category, categoryId, address, website, notes } = body
+    const { name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Business name is required' }, { status: 400 })
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         emails: emails || null,
         category: category || null,
         categoryId: categoryId || null,
+        currency: currency || 'CAD',
         address: address || null,
         website: website || null,
         notes: notes || null,
@@ -104,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, name, contactName, logo, phone, email, emails, category, categoryId, address, website, notes, isActive } = body
+    const { id, name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes, isActive } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 })
@@ -132,6 +133,7 @@ export async function PATCH(request: NextRequest) {
         ...(emails !== undefined && { emails }),
         ...(category !== undefined && { category }),
         ...(categoryId !== undefined && { categoryId }),
+        ...(currency !== undefined && { currency }),
         ...(address !== undefined && { address }),
         ...(website !== undefined && { website }),
         ...(notes !== undefined && { notes }),

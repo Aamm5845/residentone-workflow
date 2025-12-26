@@ -391,9 +391,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     address: '',
     website: '',
     notes: '',
-    logoUrl: ''
+    logo: '',
+    categoryId: '',
+    currency: 'CAD'
   })
   const [savingSupplier, setSavingSupplier] = useState(false)
+  const [supplierCategories, setSupplierCategories] = useState<Array<{ id: string; name: string; icon?: string; color?: string }>>([])
+  const [loadingSupplierCategories, setLoadingSupplierCategories] = useState(false)
 
   // RFQ Dialog
   const [rfqDialogOpen, setRfqDialogOpen] = useState(false)
@@ -642,10 +646,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     setSupplierPickerItem(null)
   }
   
+  // Load supplier categories
+  const loadSupplierCategories = async () => {
+    try {
+      setLoadingSupplierCategories(true)
+      const res = await fetch('/api/supplier-categories')
+      if (res.ok) {
+        const data = await res.json()
+        setSupplierCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Failed to load supplier categories:', error)
+    } finally {
+      setLoadingSupplierCategories(false)
+    }
+  }
+
   // Create new supplier and assign to item
   const handleCreateSupplier = async () => {
-    if (!newSupplier.name || !newSupplier.email) {
-      toast.error('Business name and email are required')
+    if (!newSupplier.name || !newSupplier.contactName || !newSupplier.email) {
+      toast.error('Business name, contact name, and email are required')
       return
     }
     
@@ -654,7 +674,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       const res = await fetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSupplier)
+        body: JSON.stringify({
+          ...newSupplier,
+          categoryId: newSupplier.categoryId || null
+        })
       })
       
       if (res.ok) {
@@ -668,11 +691,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }
         
         // Reset and close
-        setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logoUrl: '' })
+        setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logo: '', categoryId: '', currency: 'CAD' })
         setAddSupplierModal({ open: false, forItemId: null })
         toast.success('Supplier added to phonebook')
       } else {
-        throw new Error('Failed to create supplier')
+        const errorData = await res.json()
+        toast.error(errorData.error || 'Failed to create supplier')
       }
     } catch (error) {
       console.error('Failed to create supplier:', error)
@@ -6211,12 +6235,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       />
       
       {/* Add New Supplier Modal */}
-      <Dialog open={addSupplierModal.open} onOpenChange={(open) => !open && setAddSupplierModal({ open: false, forItemId: null })}>
-        <DialogContent className="max-w-md">
+      <Dialog open={addSupplierModal.open} onOpenChange={(open) => {
+        if (open) {
+          loadSupplierCategories()
+        } else {
+          setAddSupplierModal({ open: false, forItemId: null })
+        }
+      }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-emerald-600" />
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-indigo-600" />
               </div>
               Add New Supplier
             </DialogTitle>
@@ -6226,8 +6256,65 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Category Selection */}
             <div className="space-y-2">
-              <Label htmlFor="supplier-name">Business Name *</Label>
+              <Label>Category</Label>
+              {loadingSupplierCategories ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading...
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {supplierCategories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNewSupplier({ ...newSupplier, categoryId: cat.id })}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                        newSupplier.categoryId === cat.id
+                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selection */}
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewSupplier({ ...newSupplier, currency: 'CAD' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                    newSupplier.currency === 'CAD'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  🇨🇦 CAD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewSupplier({ ...newSupplier, currency: 'USD' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                    newSupplier.currency === 'USD'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  🇺🇸 USD
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier-name">Business Name <span className="text-red-500">*</span></Label>
               <Input
                 id="supplier-name"
                 value={newSupplier.name}
@@ -6237,17 +6324,17 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="supplier-contact">Contact Name</Label>
+              <Label htmlFor="supplier-contact">Contact Name <span className="text-red-500">*</span></Label>
               <Input
                 id="supplier-contact"
                 value={newSupplier.contactName}
                 onChange={(e) => setNewSupplier({ ...newSupplier, contactName: e.target.value })}
-                placeholder="Optional"
+                placeholder="Contact person"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="supplier-email">Email *</Label>
+              <Label htmlFor="supplier-email">Email <span className="text-red-500">*</span></Label>
               <Input
                 id="supplier-email"
                 type="email"
@@ -6292,14 +6379,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <Label htmlFor="supplier-logo">Logo URL</Label>
               <Input
                 id="supplier-logo"
-                value={newSupplier.logoUrl}
-                onChange={(e) => setNewSupplier({ ...newSupplier, logoUrl: e.target.value })}
+                value={newSupplier.logo}
+                onChange={(e) => setNewSupplier({ ...newSupplier, logo: e.target.value })}
                 placeholder="https://example.com/logo.png"
               />
-              {newSupplier.logoUrl && (
+              {newSupplier.logo && (
                 <div className="flex items-center gap-2 mt-2">
                   <img 
-                    src={newSupplier.logoUrl} 
+                    src={newSupplier.logo} 
                     alt="Logo preview" 
                     className="w-10 h-10 rounded object-cover border border-gray-200"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -6324,13 +6411,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setAddSupplierModal({ open: false, forItemId: null })
-              setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logoUrl: '' })
+              setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logo: '', categoryId: '', currency: 'CAD' })
             }}>
               Cancel
             </Button>
             <Button 
               onClick={handleCreateSupplier}
-              disabled={savingSupplier || !newSupplier.name || !newSupplier.email}
+              disabled={savingSupplier || !newSupplier.name || !newSupplier.contactName || !newSupplier.email}
+              className="bg-indigo-600 hover:bg-indigo-700"
             >
               {savingSupplier ? (
                 <>

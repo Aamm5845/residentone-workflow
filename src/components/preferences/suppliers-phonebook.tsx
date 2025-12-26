@@ -92,6 +92,7 @@ interface Supplier {
   category?: string
   categoryId?: string
   supplierCategory?: SupplierCategory
+  currency?: string
   logo?: string
   phone?: string
   address?: string
@@ -116,6 +117,7 @@ const emptySupplier = {
   email: '',
   emails: [] as string[],
   categoryId: '',
+  currency: 'CAD' as 'CAD' | 'USD',
   logo: '',
   phone: '',
   address: '',
@@ -396,6 +398,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       email: supplier.email,
       emails: supplier.emails || [],
       categoryId: supplier.categoryId || '',
+      currency: (supplier.currency as 'CAD' | 'USD') || 'CAD',
       logo: supplier.logo || '',
       phone: supplier.phone || '',
       address: supplier.address || '',
@@ -547,6 +550,36 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
             )
           })}
         </div>
+      </div>
+
+      {/* Currency Selection */}
+      <div className="space-y-2">
+        <Label className="text-slate-700 font-medium">Currency</Label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, currency: 'CAD' }))}
+            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all ${
+              formData.currency === 'CAD'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+            }`}
+          >
+            🇨🇦 CAD
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, currency: 'USD' }))}
+            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all ${
+              formData.currency === 'USD'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+            }`}
+          >
+            🇺🇸 USD
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">All prices from this supplier will be in this currency</p>
       </div>
 
       {/* Business Info */}
@@ -852,6 +885,14 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                       >
                         {catInfo.name}
                       </Badge>
+                      {supplier.currency && supplier.currency !== 'CAD' && (
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs font-medium px-2 py-0.5 bg-blue-50 text-blue-600"
+                        >
+                          🇺🇸 USD
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -945,16 +986,29 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                 )}
                 <div className="flex-1">
                   <h2 className="text-xl font-bold text-slate-900">{viewingSupplier.name}</h2>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn(
-                      "mt-2 text-sm font-medium",
-                      getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).bgLight,
-                      getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).text
-                    )}
-                  >
-                    {getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).name}
-                  </Badge>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "text-sm font-medium",
+                        getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).bgLight,
+                        getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).text
+                      )}
+                    >
+                      {getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).name}
+                    </Badge>
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "text-sm font-medium",
+                        viewingSupplier.currency === 'USD' 
+                          ? "bg-blue-50 text-blue-600" 
+                          : "bg-emerald-50 text-emerald-600"
+                      )}
+                    >
+                      {viewingSupplier.currency === 'USD' ? '🇺🇸 USD' : '🇨🇦 CAD'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
