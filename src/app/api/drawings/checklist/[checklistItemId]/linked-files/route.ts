@@ -7,7 +7,7 @@ import { authOptions } from '@/auth'
 // Get all linked Dropbox files for a drawing checklist item
 export async function GET(
   request: NextRequest,
-  { params }: { params: { checklistItemId: string } }
+  { params }: { params: Promise<{ checklistItemId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { checklistItemId } = params
+    const { checklistItemId } = await params
 
     if (!checklistItemId) {
       return NextResponse.json(

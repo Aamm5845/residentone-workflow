@@ -43,7 +43,7 @@ const taskUpdateSchema = z.object({
 // GET /api/projects/[id]/tasks - Get all tasks for a project
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -250,7 +250,7 @@ export async function GET(
 // POST /api/projects/[id]/tasks - Create a new task
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()

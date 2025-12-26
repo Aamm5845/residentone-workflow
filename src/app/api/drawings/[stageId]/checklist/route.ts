@@ -19,7 +19,7 @@ function sanitizeForJson(obj: any): any {
 // Toggle checklist item completion status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -27,7 +27,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = params
+    const { stageId } = await params
     const body = await request.json()
     const { checklistItemId, completed } = body
 

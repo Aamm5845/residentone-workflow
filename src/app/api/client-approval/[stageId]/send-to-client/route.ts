@@ -8,7 +8,7 @@ import { getBaseUrl } from '@/lib/get-base-url'
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()

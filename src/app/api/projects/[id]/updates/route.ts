@@ -42,7 +42,7 @@ const updateFilterSchema = z.object({
 // GET /api/projects/[id]/updates - Get all updates for a project
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -266,7 +266,7 @@ export async function GET(
 // POST /api/projects/[id]/updates - Create a new update
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/projects/[id]/activity - Get project activity timeline
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()

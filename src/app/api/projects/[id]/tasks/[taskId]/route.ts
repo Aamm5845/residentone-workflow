@@ -24,7 +24,7 @@ const taskUpdateSchema = z.object({
 // GET /api/projects/[id]/tasks/[taskId] - Get specific task
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -169,7 +169,7 @@ export async function GET(
 // PUT /api/projects/[id]/tasks/[taskId] - Update specific task
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -434,7 +434,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/tasks/[taskId] - Delete specific task
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
     const session = await getSession()

@@ -9,7 +9,7 @@ import { getBaseUrl } from '@/lib/get-base-url'
 // POST /api/client-approval/[stageId]/client-decision - Record client's approval decision
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()

@@ -16,7 +16,7 @@ import {
 // PUT /api/projects/[id]/design-templates/[templateId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string, templateId: string } }
+  { params }: { params: Promise<{ id: string, templateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -27,7 +27,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId, templateId } = params
+    const { id: projectId, templateId } = await params
     const { name, icon, color, description, placeholder, order } = await request.json()
 
     // Verify project exists and user has access
@@ -153,7 +153,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/design-templates/[templateId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string, templateId: string } }
+  { params }: { params: Promise<{ id: string, templateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -164,7 +164,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId, templateId } = params
+    const { id: projectId, templateId } = await params
 
     // Verify project exists and user has access
     const project = await prisma.project.findFirst({

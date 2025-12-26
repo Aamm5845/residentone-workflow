@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 // PUT /api/projects/[id]/floors/[floorId] - Update floor
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; floorId: string } }
+  { params }: { params: Promise<{ id: string; floorId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -42,7 +42,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/floors/[floorId] - Delete floor
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; floorId: string } }
+  { params }: { params: Promise<{ id: string; floorId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)

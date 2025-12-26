@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/email/analytics/[versionId] - Get email analytics for a specific version
 export async function GET(
   request: NextRequest,
-  { params }: { params: { versionId: string } }
+  { params }: { params: Promise<{ versionId: string }> }
 ) {
   try {
     const session = await getSession()

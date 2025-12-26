@@ -146,7 +146,6 @@ export async function GET(
       project: {
         id: accessToken.project.id,
         name: accessToken.project.name,
-        projectNumber: accessToken.project.projectNumber,
         status: accessToken.project.status
       },
       client: accessToken.project.client ? {

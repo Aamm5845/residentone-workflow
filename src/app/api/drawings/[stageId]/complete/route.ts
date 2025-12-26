@@ -8,7 +8,7 @@ import { WORKFLOW_STAGES } from '@/constants/workflow'
 // Mark drawings stage as complete and trigger notifications
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = params
+    const { stageId } = await params
 
     if (!stageId) {
       return NextResponse.json({ error: 'Stage ID is required' }, { status: 400 })

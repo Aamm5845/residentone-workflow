@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 // GET /api/client-progress/[token] - Get sanitized project data for clients
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const { token } = await params

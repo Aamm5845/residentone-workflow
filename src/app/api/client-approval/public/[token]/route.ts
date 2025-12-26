@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/client-approval/public/[token] - Get client approval data using token (public route)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const { token } = await params

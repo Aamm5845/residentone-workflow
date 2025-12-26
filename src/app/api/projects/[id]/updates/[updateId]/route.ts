@@ -28,7 +28,7 @@ const updateSchema = z.object({
 // GET /api/projects/[id]/updates/[updateId] - Get specific update
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -245,7 +245,7 @@ export async function GET(
 // PUT /api/projects/[id]/updates/[updateId] - Update specific update
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -382,7 +382,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/updates/[updateId] - Delete specific update
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()

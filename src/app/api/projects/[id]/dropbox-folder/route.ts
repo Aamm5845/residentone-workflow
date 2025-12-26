@@ -6,7 +6,7 @@ import type { Session } from 'next-auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession() as Session & {
@@ -16,13 +16,14 @@ export async function POST(
         role: string
       }
     } | null
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id: projectId } = await params
     const { projectName } = await request.json()
-    
+
     if (!projectName) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
     }
@@ -30,7 +31,7 @@ export async function POST(
     // Verify project exists and user has access
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: projectId,
         orgId: session.user.orgId
       }
     })

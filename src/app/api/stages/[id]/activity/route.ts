@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/stages/[id]/activity - Get activity logs for a stage
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()

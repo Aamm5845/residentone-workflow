@@ -9,7 +9,7 @@ import { getBaseUrl } from '@/lib/get-base-url'
 // GET /api/email/preview/[versionId] - Preview email for a client approval version
 export async function GET(
   request: NextRequest,
-  { params }: { params: { versionId: string } }
+  { params }: { params: Promise<{ versionId: string }> }
 ) {
   try {
     const session = await getSession()

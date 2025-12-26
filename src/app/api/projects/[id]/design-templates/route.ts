@@ -18,7 +18,7 @@ import {
 // GET /api/projects/[id]/design-templates
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId } = params
+    const { id: projectId } = await params
 
     // Verify project exists and user has access
     const project = await prisma.project.findFirst({
@@ -117,7 +117,7 @@ export async function GET(
 // POST /api/projects/[id]/design-templates
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -128,7 +128,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId } = params
+    const { id: projectId } = await params
     const { name, icon, color, description, placeholder, order } = await request.json()
 
     if (!name || !icon || !color) {

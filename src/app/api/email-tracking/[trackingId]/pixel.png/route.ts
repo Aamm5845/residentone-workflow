@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/email-tracking/[trackingId]/pixel.png - Email tracking pixel
 export async function GET(
   request: NextRequest,
-  { params }: { params: { trackingId: string } }
+  { params }: { params: Promise<{ trackingId: string }> }
 ) {
   try {
     const { trackingId } = await params

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // DELETE - Unlink a contractor from a project
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; contractorId: string } }
+  { params }: { params: Promise<{ id: string; contractorId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -13,7 +13,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId, contractorId } = params
+    const { id: projectId, contractorId } = await params
 
     // Verify project access
     const project = await prisma.project.findFirst({

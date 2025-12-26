@@ -8,7 +8,7 @@ import { dropboxService } from '@/lib/dropbox-service'
 // GET /api/client-approval/[stageId]/email-preview - Get email preview before sending
 export async function GET(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getSession()

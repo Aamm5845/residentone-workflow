@@ -31,6 +31,7 @@ export async function GET(
     const categoryFilter = searchParams.get('category')
     const statusFilter = searchParams.get('status')
     const searchQuery = searchParams.get('search')
+    const itemIds = searchParams.get('ids')?.split(',').filter(Boolean) // Optional: specific item IDs to fetch
 
     // Verify project belongs to org
     const project = await prisma.project.findFirst({
@@ -83,10 +84,19 @@ export async function GET(
     }
 
     // Build where clause for items
+    // If specific item IDs are requested, fetch those regardless of isSpecItem
+    // Otherwise, only fetch items marked as spec items
     const whereClause: any = {
       sectionId: { in: sectionIds },
-      isSpecItem: true,
       visibility: 'VISIBLE'
+    }
+
+    if (itemIds && itemIds.length > 0) {
+      // Fetch specific items by ID (for RFQ pre-selection)
+      whereClause.id = { in: itemIds }
+    } else {
+      // Only fetch items marked as spec items
+      whereClause.isSpecItem = true
     }
 
     // Filter by category (section name)

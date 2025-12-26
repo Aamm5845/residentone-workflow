@@ -7,7 +7,7 @@ import { authOptions } from '@/auth'
 // Add a custom checklist item to a drawings stage
 export async function POST(
   request: NextRequest,
-  { params }: { params: { stageId: string } }
+  { params }: { params: Promise<{ stageId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { stageId } = params
+    const { stageId } = await params
     const { name } = await request.json()
 
     if (!stageId || !name || typeof name !== 'string' || name.trim().length === 0) {

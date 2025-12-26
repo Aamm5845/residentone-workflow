@@ -21,7 +21,7 @@ const reactionSchema = z.object({
 // GET /api/projects/[id]/messages/[messageId] - Get specific message
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -181,7 +181,7 @@ export async function GET(
 // PUT /api/projects/[id]/messages/[messageId] - Update specific message
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -310,7 +310,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/messages/[messageId] - Delete specific message
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
     const session = await getSession()

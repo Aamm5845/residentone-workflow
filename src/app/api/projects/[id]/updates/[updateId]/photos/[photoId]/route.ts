@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 // DELETE /api/projects/[id]/updates/[updateId]/photos/[photoId] - Remove photo from update
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string; updateId: string; photoId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string; photoId: string }> }
 ) {
   try {
     const session = await getSession()

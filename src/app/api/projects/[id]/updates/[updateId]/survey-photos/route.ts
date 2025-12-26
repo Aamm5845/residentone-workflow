@@ -6,7 +6,7 @@ import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/a
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()

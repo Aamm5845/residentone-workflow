@@ -11,8 +11,8 @@ import {
 } from '@/lib/attribution'
 
 export async function PATCH(
-  request: NextRequest, 
-  { params }: { params: { assetId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     

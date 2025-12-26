@@ -40,8 +40,7 @@ export async function GET(request: NextRequest) {
           project: {
             select: {
               id: true,
-              name: true,
-              projectNumber: true
+              name: true
             }
           },
           createdBy: {

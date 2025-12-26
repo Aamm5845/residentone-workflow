@@ -3,9 +3,9 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
 interface Props {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(request: NextRequest, { params }: Props) {

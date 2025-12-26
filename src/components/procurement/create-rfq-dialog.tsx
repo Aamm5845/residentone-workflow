@@ -109,9 +109,10 @@ export default function CreateRFQDialog({
 
   useEffect(() => {
     if (projectId) {
-      loadSpecItems()
+      // If we have preselected items, load those specifically
+      loadSpecItems(preselectedItemIds)
     }
-  }, [projectId])
+  }, [projectId, preselectedItemIds])
 
   const loadProjects = async () => {
     try {
@@ -137,12 +138,16 @@ export default function CreateRFQDialog({
     }
   }
 
-  const loadSpecItems = async () => {
+  const loadSpecItems = async (itemIds?: string[]) => {
     if (!projectId) return
     setLoading(true)
     try {
-      // Load FFE items that are marked as spec items
-      const response = await fetch(`/api/projects/${projectId}/ffe-specs`)
+      // Load FFE items - if we have preselected IDs, fetch those specifically
+      const url = itemIds && itemIds.length > 0
+        ? `/api/projects/${projectId}/ffe-specs?ids=${itemIds.join(',')}`
+        : `/api/projects/${projectId}/ffe-specs`
+
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setSpecItems(data.items || [])

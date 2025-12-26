@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/auth'
 import { dropboxService } from '@/lib/dropbox-service'
 
-export async function GET(_req: Request, { params }: { params: { assetId: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ assetId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {

@@ -6,14 +6,14 @@ import {
 import { getSession } from '@/auth'
 
 // Update FFE library item
-export async function PUT(request: NextRequest, { params }: { params: { itemId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const itemId = params.itemId
+    const { itemId } = await params
     const body = await request.json()
     const { orgId, name, category, roomTypes, isRequired, isStandard, notes } = body
 
@@ -44,14 +44,14 @@ export async function PUT(request: NextRequest, { params }: { params: { itemId: 
 }
 
 // Delete FFE library item
-export async function DELETE(request: NextRequest, { params }: { params: { itemId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const itemId = params.itemId
+    const { itemId } = await params
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('orgId')
 

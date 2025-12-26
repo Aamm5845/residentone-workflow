@@ -7,14 +7,14 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/auth'
 
 // Get FFE checklist and status for a room
-export async function GET(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const roomId = params.roomId
+    const { roomId } = await params
 
     // Get room information
     const room = await prisma.room.findUnique({
@@ -78,14 +78,14 @@ export async function GET(request: NextRequest, { params }: { params: { roomId: 
 }
 
 // Update FFE item state
-export async function PUT(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const roomId = params.roomId
+    const { roomId } = await params
     const body = await request.json()
     const { itemId, state, notes, subItemStates, isCustomExpanded } = body
 
@@ -124,14 +124,14 @@ export async function PUT(request: NextRequest, { params }: { params: { roomId: 
 }
 
 // Add custom FFE item
-export async function POST(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   try {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const roomId = params.roomId
+    const { roomId } = await params
     const body = await request.json()
     const { itemId, name, category, isRequired, isStandard, subItems } = body
 

@@ -6,7 +6,7 @@ import { sendClientApprovalEmail } from '@/lib/email-service'
 // POST /api/email/test/[versionId] - Send a test email
 export async function POST(
   request: NextRequest,
-  { params }: { params: { versionId: string } }
+  { params }: { params: Promise<{ versionId: string }> }
 ) {
   try {
     const session = await getSession()

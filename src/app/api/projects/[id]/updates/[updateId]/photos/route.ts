@@ -52,7 +52,7 @@ const photoUpdateSchema = z.object({
 // GET /api/projects/[id]/updates/[updateId]/photos - Get all photos for an update
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -181,7 +181,7 @@ export async function GET(
 // POST /api/projects/[id]/updates/[updateId]/photos - Add photo to update
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -365,7 +365,7 @@ export async function POST(
 // PUT /api/projects/[id]/updates/[updateId]/photos/[photoId] - Update photo metadata
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string; photoId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string; photoId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -461,7 +461,7 @@ export async function PUT(
 // DELETE /api/projects/[id]/updates/[updateId]/photos/[photoId] - Remove photo from update
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; updateId: string; photoId: string } }
+  { params }: { params: Promise<{ id: string; updateId: string; photoId: string }> }
 ) {
   try {
     const session = await getSession()

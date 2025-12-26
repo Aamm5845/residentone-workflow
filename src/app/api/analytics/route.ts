@@ -110,7 +110,7 @@ async function getOverviewReport(orgId: string, dateFilter: any) {
     select: {
       id: true,
       name: true,
-      projectNumber: true,
+      
       status: true,
       updatedAt: true,
       client: { select: { name: true } }
@@ -144,7 +144,7 @@ async function getFinancialReport(orgId: string, dateFilter: any) {
   const payments = await prisma.payment.findMany({
     where: { orgId, ...createdAtFilter },
     include: {
-      project: { select: { id: true, name: true, projectNumber: true } },
+      project: { select: { id: true, name: true,  } },
       clientQuote: { select: { id: true, quoteNumber: true } }
     },
     orderBy: { createdAt: 'desc' }
@@ -321,7 +321,6 @@ async function getProjectsReport(orgId: string, dateFilter: any) {
     return {
       id: p.id,
       name: p.name,
-      projectNumber: p.projectNumber,
       status: p.status,
       client: p.client,
       quotedValue,

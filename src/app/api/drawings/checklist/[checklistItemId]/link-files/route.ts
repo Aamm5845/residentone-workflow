@@ -20,7 +20,7 @@ function sanitizeForJson(obj: any): any {
 // Link Dropbox files to a drawing checklist item
 export async function POST(
   request: NextRequest,
-  { params }: { params: { checklistItemId: string } }
+  { params }: { params: Promise<{ checklistItemId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { checklistItemId } = params
+    const { checklistItemId } = await params
     const { dropboxFiles } = await request.json()
 
     if (!checklistItemId || !dropboxFiles || !Array.isArray(dropboxFiles)) {
@@ -173,7 +173,7 @@ export async function POST(
 // Unlink a Dropbox file from a drawing checklist item
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { checklistItemId: string } }
+  { params }: { params: Promise<{ checklistItemId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -181,7 +181,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { checklistItemId } = params
+    const { checklistItemId } = await params
     const { dropboxPath } = await request.json()
 
     console.log('[UNLINK-DRAWING] Request data:', {

@@ -11,7 +11,7 @@ const reactionSchema = z.object({
 // POST /api/projects/[id]/messages/[messageId]/reactions - Add reaction
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
     const session = await getSession()
@@ -146,7 +146,7 @@ export async function POST(
 // GET /api/projects/[id]/messages/[messageId]/reactions - Get message reactions
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
     const session = await getSession()

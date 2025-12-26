@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // Delete individual item from room library
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -52,7 +52,7 @@ export async function PATCH(
 // Update a room library by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { id } = params
+    const { id } = await params
     const { categories, name, roomType, description, orgId } = body
 
     if (!orgId) {
@@ -139,7 +139,7 @@ export async function PUT(
 // Delete a room library by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession()
@@ -147,7 +147,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('orgId')
     const roomType = searchParams.get('roomType')

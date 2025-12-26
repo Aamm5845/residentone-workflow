@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/email/click/[emailId] - Track email clicks and redirect
 export async function GET(
   request: NextRequest,
-  { params }: { params: { emailId: string } }
+  { params }: { params: Promise<{ emailId: string }> }
 ) {
   try {
     const { emailId } = await params
