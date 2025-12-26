@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              projectNumber: true,
               client: {
                 select: {
                   id: true,
@@ -174,7 +173,11 @@ export async function POST(request: NextRequest) {
                       select: {
                         id: true,
                         name: true,
-                        category: true
+                        section: {
+                          select: {
+                            name: true
+                          }
+                        }
                       }
                     }
                   }
@@ -187,7 +190,7 @@ export async function POST(request: NextRequest) {
         if (!supplierQuote) continue
 
         for (const item of supplierQuote.lineItems) {
-          const category = item.rfqLineItem.roomFFEItem?.category || 'General'
+          const category = item.rfqLineItem.roomFFEItem?.section?.name || 'General'
           const itemMarkup = markupMap.get(category) || markup
 
           const costPrice = parseFloat(item.unitPrice.toString())

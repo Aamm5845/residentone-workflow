@@ -28,7 +28,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            projectNumber: true,
+            
             client: {
               select: {
                 id: true,
@@ -54,8 +54,10 @@ export async function GET(
                 id: true,
                 name: true,
                 description: true,
-                category: true,
-                isSpecItem: true,
+                brand: true,
+                sku: true,
+                supplierName: true,
+                images: true,
                 section: {
                   select: {
                     id: true,

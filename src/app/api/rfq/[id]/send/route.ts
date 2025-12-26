@@ -34,7 +34,7 @@ export async function POST(
           select: {
             id: true,
             name: true,
-            projectNumber: true
+            
           }
         },
         lineItems: {
@@ -44,7 +44,12 @@ export async function POST(
                 id: true,
                 name: true,
                 description: true,
-                category: true
+                brand: true,
+                section: {
+                  select: {
+                    name: true
+                  }
+                }
               }
             }
           }
@@ -279,7 +284,7 @@ function generateRFQEmail({
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemName}</td>
       <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.quantity} ${item.unitType || 'units'}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.roomFFEItem?.category || '-'}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.roomFFEItem?.section?.name || item.roomFFEItem?.brand || '-'}</td>
     </tr>
   `).join('')
 

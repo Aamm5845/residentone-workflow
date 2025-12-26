@@ -31,7 +31,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                projectNumber: true
+                
               }
             },
             lineItems: {
@@ -41,8 +41,14 @@ export async function GET(
                     id: true,
                     name: true,
                     description: true,
-                    category: true,
-                    notes: true
+                    brand: true,
+                    sku: true,
+                    notes: true,
+                    section: {
+                      select: {
+                        name: true
+                      }
+                    }
                   }
                 }
               },
@@ -107,7 +113,7 @@ export async function GET(
           unitType: item.unitType,
           specifications: item.specifications,
           notes: item.notes,
-          category: item.roomFFEItem?.category
+          category: item.roomFFEItem?.section?.name || 'General'
         }))
       },
       supplier: {

@@ -126,7 +126,9 @@ interface ClientQuote {
     roomFFEItem?: {
       id: string
       name: string
-      category?: string
+      section?: {
+        name: string
+      }
     }
     supplierQuote?: {
       id: string
@@ -416,7 +418,7 @@ export default function ClientQuoteDetailView({ quoteId, user, orgId }: ClientQu
 
   // Group line items by category/group
   const groupedItems = quote.lineItems.reduce((groups: any, item) => {
-    const key = item.groupId || item.roomFFEItem?.category || 'Other'
+    const key = item.groupId || item.roomFFEItem?.section?.name || 'Other'
     if (!groups[key]) {
       groups[key] = []
     }

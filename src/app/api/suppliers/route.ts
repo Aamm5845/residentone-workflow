@@ -22,10 +22,7 @@ export async function GET() {
         orgId,
         isActive: true
       },
-      orderBy: { name: 'asc' },
-      include: {
-        supplierCategory: true
-      }
+      orderBy: { name: 'asc' }
     })
 
     return NextResponse.json({ suppliers })
@@ -82,9 +79,6 @@ export async function POST(request: NextRequest) {
         website: website || null,
         notes: notes || null,
         createdById: userId
-      },
-      include: {
-        supplierCategory: true
       }
     })
 
@@ -142,9 +136,6 @@ export async function PATCH(request: NextRequest) {
         ...(website !== undefined && { website }),
         ...(notes !== undefined && { notes }),
         ...(isActive !== undefined && { isActive })
-      },
-      include: {
-        supplierCategory: true
       }
     })
 
