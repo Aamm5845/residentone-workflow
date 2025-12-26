@@ -14,7 +14,6 @@ import {
   MapPin,
   Loader2,
   X,
-  Upload,
   Image as ImageIcon,
   Eye,
   Lightbulb,
@@ -25,7 +24,10 @@ import {
   Package,
   Shirt,
   MoreHorizontal,
-  ChevronRight
+  ChevronRight,
+  Tag,
+  Settings,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,20 +38,50 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
-// Supplier categories with icons and colors
-const CATEGORIES = [
-  { id: 'ALL', label: 'View All', icon: Eye, color: 'bg-slate-500', textColor: 'text-slate-600', bgLight: 'bg-slate-50' },
-  { id: 'PLUMBING', label: 'Plumbing', icon: Wrench, color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50' },
-  { id: 'LIGHTING', label: 'Lighting', icon: Lightbulb, color: 'bg-amber-500', textColor: 'text-amber-600', bgLight: 'bg-amber-50' },
-  { id: 'FURNITURE', label: 'Furniture', icon: Sofa, color: 'bg-emerald-500', textColor: 'text-emerald-600', bgLight: 'bg-emerald-50' },
-  { id: 'FLOORING', label: 'Flooring', icon: Layers, color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50' },
-  { id: 'HARDWARE', label: 'Hardware', icon: CircleDot, color: 'bg-zinc-500', textColor: 'text-zinc-600', bgLight: 'bg-zinc-50' },
-  { id: 'APPLIANCES', label: 'Appliances', icon: Package, color: 'bg-indigo-500', textColor: 'text-indigo-600', bgLight: 'bg-indigo-50' },
-  { id: 'TEXTILES', label: 'Textiles', icon: Shirt, color: 'bg-pink-500', textColor: 'text-pink-600', bgLight: 'bg-pink-50' },
-  { id: 'OTHER', label: 'Other', icon: MoreHorizontal, color: 'bg-gray-500', textColor: 'text-gray-600', bgLight: 'bg-gray-50' },
-] as const
+// Icon mapping for dynamic categories
+const ICON_MAP: Record<string, any> = {
+  Wrench,
+  Lightbulb,
+  Sofa,
+  Layers,
+  CircleDot,
+  Package,
+  Shirt,
+  MoreHorizontal,
+  Tag,
+  Building2,
+  Eye,
+}
 
-type CategoryId = typeof CATEGORIES[number]['id']
+// Color mapping
+const COLOR_MAP: Record<string, { bg: string; text: string; bgLight: string }> = {
+  blue: { bg: 'bg-blue-500', text: 'text-blue-600', bgLight: 'bg-blue-50' },
+  amber: { bg: 'bg-amber-500', text: 'text-amber-600', bgLight: 'bg-amber-50' },
+  emerald: { bg: 'bg-emerald-500', text: 'text-emerald-600', bgLight: 'bg-emerald-50' },
+  orange: { bg: 'bg-orange-500', text: 'text-orange-600', bgLight: 'bg-orange-50' },
+  zinc: { bg: 'bg-zinc-500', text: 'text-zinc-600', bgLight: 'bg-zinc-50' },
+  indigo: { bg: 'bg-indigo-500', text: 'text-indigo-600', bgLight: 'bg-indigo-50' },
+  pink: { bg: 'bg-pink-500', text: 'text-pink-600', bgLight: 'bg-pink-50' },
+  gray: { bg: 'bg-gray-500', text: 'text-gray-600', bgLight: 'bg-gray-50' },
+  slate: { bg: 'bg-slate-500', text: 'text-slate-600', bgLight: 'bg-slate-50' },
+  red: { bg: 'bg-red-500', text: 'text-red-600', bgLight: 'bg-red-50' },
+  purple: { bg: 'bg-purple-500', text: 'text-purple-600', bgLight: 'bg-purple-50' },
+  teal: { bg: 'bg-teal-500', text: 'text-teal-600', bgLight: 'bg-teal-50' },
+  cyan: { bg: 'bg-cyan-500', text: 'text-cyan-600', bgLight: 'bg-cyan-50' },
+  rose: { bg: 'bg-rose-500', text: 'text-rose-600', bgLight: 'bg-rose-50' },
+  violet: { bg: 'bg-violet-500', text: 'text-violet-600', bgLight: 'bg-violet-50' },
+}
+
+const AVAILABLE_COLORS = Object.keys(COLOR_MAP)
+
+interface SupplierCategory {
+  id: string
+  name: string
+  icon?: string
+  color?: string
+  isDefault: boolean
+  _count?: { suppliers: number }
+}
 
 interface Supplier {
   id: string
@@ -58,6 +90,8 @@ interface Supplier {
   email: string
   emails?: string[]
   category?: string
+  categoryId?: string
+  supplierCategory?: SupplierCategory
   logo?: string
   phone?: string
   address?: string
@@ -81,7 +115,7 @@ const emptySupplier = {
   contactName: '',
   email: '',
   emails: [] as string[],
-  category: '',
+  categoryId: '',
   logo: '',
   phone: '',
   address: '',
@@ -91,24 +125,48 @@ const emptySupplier = {
 
 export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookProps) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [categories, setCategories] = useState<SupplierCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId>('ALL')
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false)
   const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [formData, setFormData] = useState(emptySupplier)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [newEmail, setNewEmail] = useState('')
+  
+  // Category form
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryColor, setNewCategoryColor] = useState('slate')
+  const [savingCategory, setSavingCategory] = useState(false)
 
   useEffect(() => {
+    loadCategories()
     loadSuppliers()
   }, [])
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true)
+      const response = await fetch('/api/supplier-categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error)
+    } finally {
+      setLoadingCategories(false)
+    }
+  }
 
   const loadSuppliers = async () => {
     try {
@@ -123,6 +181,68 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       toast.error('Failed to load suppliers')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Category name is required')
+      return
+    }
+
+    try {
+      setSavingCategory(true)
+      const response = await fetch('/api/supplier-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          icon: 'Tag',
+          color: newCategoryColor
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(prev => [...prev, data.category].sort((a, b) => a.sortOrder - b.sortOrder))
+        setNewCategoryName('')
+        setNewCategoryColor('slate')
+        toast.success('Category added!')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to add category')
+      }
+    } catch (error) {
+      console.error('Error adding category:', error)
+      toast.error('Failed to add category')
+    } finally {
+      setSavingCategory(false)
+    }
+  }
+
+  const handleDeleteCategory = async (category: SupplierCategory) => {
+    if (category._count?.suppliers && category._count.suppliers > 0) {
+      toast.error(`Cannot delete category with ${category._count.suppliers} supplier(s)`)
+      return
+    }
+
+    if (!confirm(`Delete "${category.name}" category?`)) return
+
+    try {
+      const response = await fetch(`/api/supplier-categories?id=${category.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setCategories(prev => prev.filter(c => c.id !== category.id))
+        toast.success('Category deleted')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete category')
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      toast.error('Failed to delete category')
     }
   }
 
@@ -147,7 +267,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          emails: formData.emails.length > 0 ? formData.emails : null
+          emails: formData.emails.length > 0 ? formData.emails : null,
+          categoryId: formData.categoryId || null
         })
       })
 
@@ -156,6 +277,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         setSuppliers(prev => [...prev, data.supplier].sort((a, b) => a.name.localeCompare(b.name)))
         setShowAddDialog(false)
         setFormData(emptySupplier)
+        loadCategories() // Refresh counts
         toast.success('Supplier added successfully')
       } else {
         const error = await response.json()
@@ -192,7 +314,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         body: JSON.stringify({
           id: editingSupplier.id,
           ...formData,
-          emails: formData.emails.length > 0 ? formData.emails : null
+          emails: formData.emails.length > 0 ? formData.emails : null,
+          categoryId: formData.categoryId || null
         })
       })
 
@@ -202,6 +325,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         setShowEditDialog(false)
         setEditingSupplier(null)
         setFormData(emptySupplier)
+        loadCategories() // Refresh counts
         toast.success('Supplier updated successfully')
       } else {
         const error = await response.json()
@@ -225,6 +349,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
 
       if (response.ok) {
         setSuppliers(prev => prev.filter(s => s.id !== supplier.id))
+        loadCategories() // Refresh counts
         toast.success('Supplier deleted')
       } else {
         toast.error('Failed to delete supplier')
@@ -270,7 +395,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       contactName: supplier.contactName || '',
       email: supplier.email,
       emails: supplier.emails || [],
-      category: supplier.category || '',
+      categoryId: supplier.categoryId || '',
       logo: supplier.logo || '',
       phone: supplier.phone || '',
       address: supplier.address || '',
@@ -303,31 +428,37 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
     setFormData(prev => ({ ...prev, emails: prev.emails.filter(e => e !== emailToRemove) }))
   }
 
+  // Get category info with icon and color
+  const getCategoryInfo = (categoryId?: string, category?: SupplierCategory) => {
+    const cat = category || categories.find(c => c.id === categoryId)
+    if (!cat) return { 
+      name: 'Uncategorized', 
+      Icon: Tag, 
+      ...COLOR_MAP.gray 
+    }
+    
+    const Icon = ICON_MAP[cat.icon || 'Tag'] || Tag
+    const colors = COLOR_MAP[cat.color || 'slate'] || COLOR_MAP.slate
+    
+    return { name: cat.name, Icon, ...colors }
+  }
+
   // Filter suppliers by search and category
   const filteredSuppliers = suppliers.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.email.toLowerCase().includes(searchQuery.toLowerCase())
     
-    const matchesCategory = selectedCategory === 'ALL' || s.category === selectedCategory
+    const matchesCategory = selectedCategory === 'ALL' || s.categoryId === selectedCategory
     
     return matchesSearch && matchesCategory
   })
 
-  // Group suppliers by category for display
-  const getCategoryInfo = (categoryId?: string) => {
-    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES.find(c => c.id === 'OTHER')!
-  }
-
   // Count suppliers per category
-  const categoryCounts = CATEGORIES.reduce((acc, cat) => {
-    if (cat.id === 'ALL') {
-      acc[cat.id] = suppliers.length
-    } else {
-      acc[cat.id] = suppliers.filter(s => s.category === cat.id).length
-    }
-    return acc
-  }, {} as Record<string, number>)
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === 'ALL') return suppliers.length
+    return suppliers.filter(s => s.categoryId === categoryId).length
+  }
 
   const renderSupplierForm = () => (
     <div className="space-y-5">
@@ -378,25 +509,40 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
 
       {/* Category Selection */}
       <div className="space-y-2">
-        <Label className="text-slate-700 font-medium">Category <span className="text-red-500">*</span></Label>
-        <div className="grid grid-cols-4 gap-2">
-          {CATEGORIES.filter(c => c.id !== 'ALL').map(cat => {
-            const Icon = cat.icon
-            const isSelected = formData.category === cat.id
+        <div className="flex items-center justify-between">
+          <Label className="text-slate-700 font-medium">Category</Label>
+          <button
+            type="button"
+            onClick={() => setShowCategoryDialog(true)}
+            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            Add Category
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1">
+          {categories.map(cat => {
+            const { Icon, bg, text, bgLight } = getCategoryInfo(cat.id, cat)
+            const isSelected = formData.categoryId === cat.id
             return (
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setFormData(prev => ({ ...prev, category: cat.id }))}
+                onClick={() => setFormData(prev => ({ ...prev, categoryId: cat.id }))}
                 className={cn(
-                  "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all relative",
                   isSelected 
-                    ? `${cat.bgLight} border-current ${cat.textColor}` 
+                    ? `${bgLight} border-current ${text}` 
                     : "border-slate-200 hover:border-slate-300 text-slate-600"
                 )}
               >
+                {isSelected && (
+                  <div className={cn("absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center", bg)}>
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </div>
+                )}
                 <Icon className="w-5 h-5 mb-1" />
-                <span className="text-xs font-medium">{cat.label}</span>
+                <span className="text-xs font-medium truncate w-full text-center">{cat.name}</span>
               </button>
             )
           })}
@@ -532,6 +678,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
     </div>
   )
 
+  const isLoading = loading || loadingCategories
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -543,24 +691,55 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           </h2>
           <p className="text-slate-500 mt-1">Manage your supplier contacts organized by category</p>
         </div>
-        <Button 
-          onClick={() => {
-            setFormData(emptySupplier)
-            setShowAddDialog(true)
-          }}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 h-11 px-5"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Supplier
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setShowCategoryDialog(true)}
+            className="h-11"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Categories
+          </Button>
+          <Button 
+            onClick={() => {
+              setFormData(emptySupplier)
+              setShowAddDialog(true)
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 h-11 px-5"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Supplier
+          </Button>
+        </div>
       </div>
 
       {/* Category Pills */}
       <div className="flex flex-wrap gap-2 pb-2">
-        {CATEGORIES.map(cat => {
-          const Icon = cat.icon
+        {/* View All Button */}
+        <button
+          onClick={() => setSelectedCategory('ALL')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all font-medium text-sm",
+            selectedCategory === 'ALL'
+              ? "bg-slate-600 text-white border-transparent shadow-lg" 
+              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+          )}
+        >
+          <Eye className="w-4 h-4" />
+          View All
+          <span className={cn(
+            "ml-1 px-2 py-0.5 rounded-full text-xs font-bold",
+            selectedCategory === 'ALL' ? "bg-white/20" : "bg-slate-100"
+          )}>
+            {suppliers.length}
+          </span>
+        </button>
+
+        {/* Dynamic Category Buttons */}
+        {categories.map(cat => {
+          const { Icon, bg, text, bgLight } = getCategoryInfo(cat.id, cat)
           const isSelected = selectedCategory === cat.id
-          const count = categoryCounts[cat.id]
+          const count = getCategoryCount(cat.id)
           
           return (
             <button
@@ -569,12 +748,12 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all font-medium text-sm",
                 isSelected 
-                  ? `${cat.color} text-white border-transparent shadow-lg` 
-                  : `bg-white border-slate-200 ${cat.textColor} hover:border-current hover:${cat.bgLight}`
+                  ? `${bg} text-white border-transparent shadow-lg` 
+                  : `bg-white border-slate-200 ${text} hover:border-current hover:${bgLight}`
               )}
             >
               <Icon className="w-4 h-4" />
-              {cat.label}
+              {cat.name}
               {count > 0 && (
                 <span className={cn(
                   "ml-1 px-2 py-0.5 rounded-full text-xs font-bold",
@@ -600,7 +779,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       </div>
 
       {/* Suppliers Grid */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
@@ -609,7 +788,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           <Building2 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-500 text-lg">
             {searchQuery ? 'No suppliers found matching your search' : 
-             selectedCategory !== 'ALL' ? `No suppliers in ${getCategoryInfo(selectedCategory)?.label}` :
+             selectedCategory !== 'ALL' ? `No suppliers in this category yet` :
              'No suppliers added yet'}
           </p>
           {!searchQuery && selectedCategory === 'ALL' && (
@@ -629,8 +808,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredSuppliers.map(supplier => {
-            const categoryInfo = getCategoryInfo(supplier.category)
-            const CategoryIcon = categoryInfo.icon
+            const catInfo = getCategoryInfo(supplier.categoryId, supplier.supplierCategory)
+            const CategoryIcon = catInfo.Icon
             const allEmails = [supplier.email, ...(supplier.emails || [])]
             
             return (
@@ -651,9 +830,9 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                   ) : (
                     <div className={cn(
                       "w-14 h-14 rounded-xl flex items-center justify-center shadow-sm",
-                      categoryInfo.bgLight
+                      catInfo.bgLight
                     )}>
-                      <CategoryIcon className={cn("w-7 h-7", categoryInfo.textColor)} />
+                      <CategoryIcon className={cn("w-7 h-7", catInfo.text)} />
                     </div>
                   )}
 
@@ -667,11 +846,11 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                         variant="secondary" 
                         className={cn(
                           "text-xs font-medium px-2 py-0.5",
-                          categoryInfo.bgLight,
-                          categoryInfo.textColor
+                          catInfo.bgLight,
+                          catInfo.text
                         )}
                       >
-                        {categoryInfo.label}
+                        {catInfo.name}
                       </Badge>
                     </div>
                   </div>
@@ -756,11 +935,11 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                 ) : (
                   <div className={cn(
                     "w-20 h-20 rounded-2xl flex items-center justify-center",
-                    getCategoryInfo(viewingSupplier.category).bgLight
+                    getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).bgLight
                   )}>
                     {(() => {
-                      const Icon = getCategoryInfo(viewingSupplier.category).icon
-                      return <Icon className={cn("w-10 h-10", getCategoryInfo(viewingSupplier.category).textColor)} />
+                      const { Icon, text } = getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory)
+                      return <Icon className={cn("w-10 h-10", text)} />
                     })()}
                   </div>
                 )}
@@ -770,11 +949,11 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                     variant="secondary" 
                     className={cn(
                       "mt-2 text-sm font-medium",
-                      getCategoryInfo(viewingSupplier.category).bgLight,
-                      getCategoryInfo(viewingSupplier.category).textColor
+                      getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).bgLight,
+                      getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).text
                     )}
                   >
-                    {getCategoryInfo(viewingSupplier.category).label}
+                    {getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).name}
                   </Badge>
                 </div>
               </div>
@@ -941,6 +1120,112 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
             >
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Categories Dialog */}
+      <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-indigo-600" />
+              </div>
+              Manage Categories
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Add New Category */}
+            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+              <Label className="text-slate-700 font-medium">Add New Category</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Category name..."
+                  className="h-10 flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddCategory()
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={handleAddCategory}
+                  disabled={savingCategory || !newCategoryName.trim()}
+                  className="h-10 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {savingCategory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
+              </div>
+              
+              {/* Color Selection */}
+              <div>
+                <Label className="text-xs text-slate-500">Color</Label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {AVAILABLE_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewCategoryColor(color)}
+                      className={cn(
+                        "w-6 h-6 rounded-full transition-all",
+                        COLOR_MAP[color].bg,
+                        newCategoryColor === color ? "ring-2 ring-offset-2 ring-slate-400" : ""
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Existing Categories */}
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-medium">Your Categories</Label>
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {categories.map(cat => {
+                  const { Icon, bg, text, bgLight } = getCategoryInfo(cat.id, cat)
+                  return (
+                    <div 
+                      key={cat.id}
+                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", bgLight)}>
+                          <Icon className={cn("w-5 h-5", text)} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900">{cat.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {cat._count?.suppliers || 0} supplier{(cat._count?.suppliers || 0) !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      {!cat.isDefault && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(cat)}
+                          disabled={(cat._count?.suppliers || 0) > 0}
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCategoryDialog(false)} className="h-10">
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

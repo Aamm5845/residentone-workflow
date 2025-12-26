@@ -1569,6 +1569,25 @@ model ProductCategory {
   @@index([order])
 }
 
+model SupplierCategory {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String   // Category name (e.g. "Plumbing", "Lighting")
+  icon      String?  // Icon name (optional, e.g. "Wrench", "Lightbulb")
+  color     String?  // Color code (optional, e.g. "blue", "amber")
+  isDefault Boolean  @default(false) // System default categories
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  suppliers Supplier[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@index([orgId, isActive])
+}
+
 model Supplier {
   id          String   @id @default(cuid())
   orgId       String
@@ -1576,7 +1595,8 @@ model Supplier {
   contactName String   // Contact person name (required)
   email       String   // Primary contact email (required)
   emails      Json?    // Additional emails as array: ["email1@example.com", "email2@example.com"]
-  category    String?  // Category: PLUMBING, LIGHTING, FURNITURE, HARDWARE, FLOORING, APPLIANCES, TEXTILES, OTHER
+  category    String?  // Legacy category field (deprecated)
+  categoryId  String?  // Reference to SupplierCategory
   logo        String?  // Logo URL (optional)
   phone       String?  // Phone (optional)
   address     String?  // Address (optional)
@@ -1594,6 +1614,7 @@ model Supplier {
   portalEnabled   Boolean   @default(true)
 
   // Relations
+  supplierCategory  SupplierCategory? @relation(fields: [categoryId], references: [id])
   supplierRFQs      SupplierRFQ[]
   orders            Order[]
   messages          SupplierMessage[]
@@ -1603,6 +1624,7 @@ model Supplier {
   @@index([orgId, isActive])
   @@index([email])
   @@index([category])
+  @@index([categoryId])
 }
 
 model ProductLibraryItem {

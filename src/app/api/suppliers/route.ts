@@ -22,7 +22,10 @@ export async function GET() {
         orgId,
         isActive: true
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
+      include: {
+        supplierCategory: true
+      }
     })
 
     return NextResponse.json({ suppliers })
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, contactName, logo, phone, email, emails, category, address, website, notes } = body
+    const { name, contactName, logo, phone, email, emails, category, categoryId, address, website, notes } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Business name is required' }, { status: 400 })
@@ -74,10 +77,14 @@ export async function POST(request: NextRequest) {
         email,
         emails: emails || null,
         category: category || null,
+        categoryId: categoryId || null,
         address: address || null,
         website: website || null,
         notes: notes || null,
         createdById: userId
+      },
+      include: {
+        supplierCategory: true
       }
     })
 
@@ -103,7 +110,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, name, contactName, logo, phone, email, emails, category, address, website, notes, isActive } = body
+    const { id, name, contactName, logo, phone, email, emails, category, categoryId, address, website, notes, isActive } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 })
@@ -130,10 +137,14 @@ export async function PATCH(request: NextRequest) {
         ...(email !== undefined && { email }),
         ...(emails !== undefined && { emails }),
         ...(category !== undefined && { category }),
+        ...(categoryId !== undefined && { categoryId }),
         ...(address !== undefined && { address }),
         ...(website !== undefined && { website }),
         ...(notes !== undefined && { notes }),
         ...(isActive !== undefined && { isActive })
+      },
+      include: {
+        supplierCategory: true
       }
     })
 
