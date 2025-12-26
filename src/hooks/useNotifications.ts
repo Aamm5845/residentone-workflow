@@ -52,8 +52,13 @@ export function useNotifications({
       const stored = localStorage.getItem('shownDesktopNotificationIds')
       if (stored) {
         const parsed = JSON.parse(stored)
+        // Validate that parsed data is an array of strings
+        if (!Array.isArray(parsed) || !parsed.every(item => typeof item === 'string')) {
+          localStorage.removeItem('shownDesktopNotificationIds')
+          return new Set()
+        }
         // Clean old entries (keep last 200 to prevent memory bloat)
-        if (Array.isArray(parsed) && parsed.length > 200) {
+        if (parsed.length > 200) {
           const trimmed = parsed.slice(-200)
           localStorage.setItem('shownDesktopNotificationIds', JSON.stringify(trimmed))
           return new Set(trimmed)
@@ -62,6 +67,10 @@ export function useNotifications({
       }
     } catch (e) {
       console.error('Error reading shown notification IDs:', e)
+      // Clear corrupted data
+      try {
+        localStorage.removeItem('shownDesktopNotificationIds')
+      } catch {}
     }
     return new Set()
   }, [])

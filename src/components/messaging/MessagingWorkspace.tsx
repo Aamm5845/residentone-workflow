@@ -210,23 +210,7 @@ export default function MessagingWorkspace() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  // Load conversations on mount
-  useEffect(() => {
-    loadConversations()
-  }, [])
-
-  // Load messages when active conversation changes
-  useEffect(() => {
-    if (activeConversation.type === 'general') {
-      loadGeneralChat()
-    } else if (activeConversation.type === 'team' && activeConversation.id) {
-      loadUserMessages(activeConversation.id)
-    } else if (activeConversation.type === 'phase' && activeConversation.id) {
-      loadPhaseMessages(activeConversation.id)
-    }
-  }, [activeConversation])
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const response = await fetch('/api/messaging/conversations')
       if (response.ok) {
@@ -241,9 +225,9 @@ export default function MessagingWorkspace() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const loadGeneralChat = async () => {
+  const loadGeneralChat = useCallback(async () => {
     setMessagesLoading(true)
     try {
       const response = await fetch('/api/messaging/general')
@@ -257,9 +241,9 @@ export default function MessagingWorkspace() {
     } finally {
       setMessagesLoading(false)
     }
-  }
+  }, [])
 
-  const loadUserMessages = async (userId: string) => {
+  const loadUserMessages = useCallback(async (userId: string) => {
     setMessagesLoading(true)
     try {
       const response = await fetch(`/api/messaging/user/${userId}`)
@@ -275,9 +259,9 @@ export default function MessagingWorkspace() {
     } finally {
       setMessagesLoading(false)
     }
-  }
+  }, [])
 
-  const loadPhaseMessages = async (stageId: string) => {
+  const loadPhaseMessages = useCallback(async (stageId: string) => {
     setMessagesLoading(true)
     try {
       const response = await fetch(`/api/chat/${stageId}`)
@@ -291,7 +275,23 @@ export default function MessagingWorkspace() {
     } finally {
       setMessagesLoading(false)
     }
-  }
+  }, [])
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
+  // Load messages when active conversation changes
+  useEffect(() => {
+    if (activeConversation.type === 'general') {
+      loadGeneralChat()
+    } else if (activeConversation.type === 'team' && activeConversation.id) {
+      loadUserMessages(activeConversation.id)
+    } else if (activeConversation.type === 'phase' && activeConversation.id) {
+      loadPhaseMessages(activeConversation.id)
+    }
+  }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])

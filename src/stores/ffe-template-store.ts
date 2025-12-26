@@ -237,20 +237,24 @@ export const useFFETemplateStore = create<FFETemplateState>()(
           template.id === templateId
             ? {
                 ...template,
-                sections: sectionIds.map((id, index) => {
-                  const section = template.sections.find(s => s.id === id)!
-                  return { ...section, order: index }
-                })
+                sections: sectionIds
+                  .map((id, index) => {
+                    const section = template.sections.find(s => s.id === id)
+                    return section ? { ...section, order: index } : null
+                  })
+                  .filter((s): s is FFETemplateSection => s !== null)
               }
             : template
         ),
         selectedTemplate: state.selectedTemplate?.id === templateId
           ? {
               ...state.selectedTemplate,
-              sections: sectionIds.map((id, index) => {
-                const section = state.selectedTemplate!.sections.find(s => s.id === id)!
-                return { ...section, order: index }
-              })
+              sections: sectionIds
+                .map((id, index) => {
+                  const section = state.selectedTemplate!.sections.find(s => s.id === id)
+                  return section ? { ...section, order: index } : null
+                })
+                .filter((s): s is FFETemplateSection => s !== null)
             }
           : state.selectedTemplate
       })),
@@ -334,10 +338,12 @@ export const useFFETemplateStore = create<FFETemplateState>()(
             section.id === sectionId
               ? {
                   ...section,
-                  items: itemIds.map((id, index) => {
-                    const item = section.items.find(i => i.id === id)!
-                    return { ...item, order: index }
-                  })
+                  items: itemIds
+                    .map((id, index) => {
+                      const item = section.items.find(i => i.id === id)
+                      return item ? { ...item, order: index } : null
+                    })
+                    .filter((i): i is FFETemplateItem => i !== null)
                 }
               : section
           )
@@ -348,10 +354,12 @@ export const useFFETemplateStore = create<FFETemplateState>()(
             section.id === sectionId
               ? {
                   ...section,
-                  items: itemIds.map((id, index) => {
-                    const item = section.items.find(i => i.id === id)!
-                    return { ...item, order: index }
-                  })
+                  items: itemIds
+                    .map((id, index) => {
+                      const item = section.items.find(i => i.id === id)
+                      return item ? { ...item, order: index } : null
+                    })
+                    .filter((i): i is FFETemplateItem => i !== null)
                 }
               : section
           )

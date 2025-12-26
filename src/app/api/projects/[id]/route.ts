@@ -159,7 +159,7 @@ export async function PUT(
     }
 
     // Update project - handle missing columns gracefully
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     }
     
@@ -255,10 +255,21 @@ export async function PUT(
     return NextResponse.json(updatedProject)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Validation failed',
         details: error.errors
       }, { status: 400 })
+    }
+
+    // Handle Prisma errors more specifically
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; meta?: { cause?: string } }
+      if (prismaError.code === 'P2025') {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      }
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json({ error: 'A project with this name already exists' }, { status: 409 })
+      }
     }
 
     console.error('Error updating project:', error)

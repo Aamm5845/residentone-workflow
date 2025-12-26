@@ -139,7 +139,12 @@ export async function POST(request: NextRequest) {
       const formData = await request.formData()
       content = (formData.get('content') as string) || ''
       const mentionsStr = formData.get('mentions') as string
-      mentions = mentionsStr ? JSON.parse(mentionsStr) : []
+      try {
+        mentions = mentionsStr ? JSON.parse(mentionsStr) : []
+        if (!Array.isArray(mentions)) mentions = []
+      } catch {
+        mentions = []
+      }
       const parentIdStr = formData.get('parentMessageId') as string
       parentMessageId = parentIdStr || null
       

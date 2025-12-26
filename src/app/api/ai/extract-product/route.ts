@@ -96,8 +96,16 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
       response_format: { type: 'json_object' }
     })
 
-    const responseText = completion.choices[0]?.message?.content || '{}'
-    
+    if (!completion.choices || !completion.choices[0]?.message?.content) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid AI response',
+        message: 'The AI did not return a valid response.'
+      }, { status: 500 })
+    }
+
+    const responseText = completion.choices[0].message.content
+
     let extractedData
     try {
       extractedData = JSON.parse(responseText)

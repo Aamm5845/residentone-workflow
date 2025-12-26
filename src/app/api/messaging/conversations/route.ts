@@ -36,44 +36,53 @@ export async function GET(request: NextRequest) {
     // Count messages sent by each team member in phases where current user is assigned or was mentioned
     const messageCounts = await Promise.all(
       teamMembers.map(async (member) => {
-        // Messages from this team member in phases assigned to current user (handle legacy null chatType)
-        const assignedPhaseMessages = await prisma.chatMessage.count({
-          where: {
-            authorId: member.id,
-            isDeleted: false,
-            stageId: { not: null },
-            stage: {
-              assignedTo: userId
-            }
-          }
-        })
-
-        // Messages from this team member that mention current user
-        const mentionMessages = await prisma.chatMessage.count({
-          where: {
-            authorId: member.id,
-            isDeleted: false,
-            mentions: {
-              some: {
-                mentionedId: userId
+        try {
+          // Messages from this team member in phases assigned to current user (handle legacy null chatType)
+          const assignedPhaseMessages = await prisma.chatMessage.count({
+            where: {
+              authorId: member.id,
+              isDeleted: false,
+              stageId: { not: null },
+              stage: {
+                assignedTo: userId
               }
             }
-          }
-        })
+          })
 
-        // General chat messages from this member
-        const generalMessages = await prisma.chatMessage.count({
-          where: {
-            authorId: member.id,
-            isDeleted: false,
-            chatType: 'GENERAL',
-            orgId: orgId
-          }
-        })
+          // Messages from this team member that mention current user
+          const mentionMessages = await prisma.chatMessage.count({
+            where: {
+              authorId: member.id,
+              isDeleted: false,
+              mentions: {
+                some: {
+                  mentionedId: userId
+                }
+              }
+            }
+          })
 
-        return {
-          ...member,
-          messageCount: assignedPhaseMessages + mentionMessages + generalMessages
+          // General chat messages from this member
+          const generalMessages = await prisma.chatMessage.count({
+            where: {
+              authorId: member.id,
+              isDeleted: false,
+              chatType: 'GENERAL',
+              orgId: orgId
+            }
+          })
+
+          return {
+            ...member,
+            messageCount: assignedPhaseMessages + mentionMessages + generalMessages
+          }
+        } catch (error) {
+          console.error(`Error fetching message count for member ${member.id}:`, error)
+          // Return member with 0 count on error to avoid breaking the entire list
+          return {
+            ...member,
+            messageCount: 0
+          }
         }
       })
     )
@@ -139,8 +148,8 @@ export async function GET(request: NextRequest) {
         id: phase.id,
         type: phase.type,
         status: phase.status,
-        roomId: phase.room.id,
-        roomName: phase.room.name || phase.room.type,
+        roomId: phase.room?.id || '',
+        roomName: phase.room?.name || phase.room?.type || 'Unknown Room',
         messageCount: phase._count.chatMessages
       })
       return acc
@@ -148,7 +157,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      teamMembers: messageCounts.filter(m => m.messageCount > 0 || true), // Show all team members
+      teamMembers: messageCounts, // Show all team members
       projects: Object.values(projectPhases),
       generalChatCount
     })
