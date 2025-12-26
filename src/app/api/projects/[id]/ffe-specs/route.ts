@@ -84,8 +84,8 @@ export async function GET(
     }
 
     // Build where clause for items
-    // If specific item IDs are requested, fetch those regardless of isSpecItem
-    // Otherwise, only fetch items marked as spec items
+    // If specific item IDs are requested, fetch those
+    // Otherwise, fetch all visible items that are in a quoteable state
     const whereClause: any = {
       sectionId: { in: sectionIds },
       visibility: 'VISIBLE'
@@ -95,8 +95,13 @@ export async function GET(
       // Fetch specific items by ID (for RFQ pre-selection)
       whereClause.id = { in: itemIds }
     } else {
-      // Only fetch items marked as spec items
-      whereClause.isSpecItem = true
+      // Fetch items that are in a state ready for quoting
+      // Include: SELECTED, QUOTING, NEED_SAMPLE, BETTER_PRICE, NEED_TO_ORDER, or isSpecItem
+      whereClause.OR = [
+        { isSpecItem: true },
+        { specStatus: { in: ['SELECTED', 'QUOTING', 'NEED_SAMPLE', 'BETTER_PRICE', 'NEED_TO_ORDER'] } },
+        { state: { in: ['SELECTED', 'CONFIRMED'] } }
+      ]
     }
 
     // Filter by category (section name)
