@@ -62,10 +62,14 @@ export async function GET(
                   select: {
                     id: true,
                     name: true,
-                    room: {
+                    instance: {
                       select: {
-                        id: true,
-                        name: true
+                        room: {
+                          select: {
+                            id: true,
+                            name: true
+                          }
+                        }
                       }
                     }
                   }
