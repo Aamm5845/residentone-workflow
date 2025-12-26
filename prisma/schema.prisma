@@ -1574,7 +1574,9 @@ model Supplier {
   orgId       String
   name        String   // Business name (required)
   contactName String   // Contact person name (required)
-  email       String   // Contact email (required)
+  email       String   // Primary contact email (required)
+  emails      Json?    // Additional emails as array: ["email1@example.com", "email2@example.com"]
+  category    String?  // Category: PLUMBING, LIGHTING, FURNITURE, HARDWARE, FLOORING, APPLIANCES, TEXTILES, OTHER
   logo        String?  // Logo URL (optional)
   phone       String?  // Phone (optional)
   address     String?  // Address (optional)
@@ -1600,6 +1602,7 @@ model Supplier {
   @@index([orgId])
   @@index([orgId, isActive])
   @@index([email])
+  @@index([category])
 }
 
 model ProductLibraryItem {

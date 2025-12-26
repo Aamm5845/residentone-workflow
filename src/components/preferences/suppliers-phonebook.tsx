@@ -15,22 +15,49 @@ import {
   Loader2,
   X,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye,
+  Lightbulb,
+  Wrench,
+  Sofa,
+  Layers,
+  CircleDot,
+  Package,
+  Shirt,
+  MoreHorizontal,
+  ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+
+// Supplier categories with icons and colors
+const CATEGORIES = [
+  { id: 'ALL', label: 'View All', icon: Eye, color: 'bg-slate-500', textColor: 'text-slate-600', bgLight: 'bg-slate-50' },
+  { id: 'PLUMBING', label: 'Plumbing', icon: Wrench, color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50' },
+  { id: 'LIGHTING', label: 'Lighting', icon: Lightbulb, color: 'bg-amber-500', textColor: 'text-amber-600', bgLight: 'bg-amber-50' },
+  { id: 'FURNITURE', label: 'Furniture', icon: Sofa, color: 'bg-emerald-500', textColor: 'text-emerald-600', bgLight: 'bg-emerald-50' },
+  { id: 'FLOORING', label: 'Flooring', icon: Layers, color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50' },
+  { id: 'HARDWARE', label: 'Hardware', icon: CircleDot, color: 'bg-zinc-500', textColor: 'text-zinc-600', bgLight: 'bg-zinc-50' },
+  { id: 'APPLIANCES', label: 'Appliances', icon: Package, color: 'bg-indigo-500', textColor: 'text-indigo-600', bgLight: 'bg-indigo-50' },
+  { id: 'TEXTILES', label: 'Textiles', icon: Shirt, color: 'bg-pink-500', textColor: 'text-pink-600', bgLight: 'bg-pink-50' },
+  { id: 'OTHER', label: 'Other', icon: MoreHorizontal, color: 'bg-gray-500', textColor: 'text-gray-600', bgLight: 'bg-gray-50' },
+] as const
+
+type CategoryId = typeof CATEGORIES[number]['id']
 
 interface Supplier {
   id: string
   name: string
   contactName: string
   email: string
+  emails?: string[]
+  category?: string
   logo?: string
   phone?: string
   address?: string
@@ -53,6 +80,8 @@ const emptySupplier = {
   name: '',
   contactName: '',
   email: '',
+  emails: [] as string[],
+  category: '',
   logo: '',
   phone: '',
   address: '',
@@ -64,14 +93,18 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>('ALL')
   
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showViewDialog, setShowViewDialog] = useState(false)
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [formData, setFormData] = useState(emptySupplier)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
 
   useEffect(() => {
     loadSuppliers()
@@ -103,7 +136,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       return
     }
     if (!formData.email.trim()) {
-      toast.error('Contact email is required')
+      toast.error('Primary email is required')
       return
     }
 
@@ -112,7 +145,10 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       const response = await fetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          emails: formData.emails.length > 0 ? formData.emails : null
+        })
       })
 
       if (response.ok) {
@@ -144,7 +180,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       return
     }
     if (!formData.email.trim()) {
-      toast.error('Contact email is required')
+      toast.error('Primary email is required')
       return
     }
 
@@ -155,7 +191,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingSupplier.id,
-          ...formData
+          ...formData,
+          emails: formData.emails.length > 0 ? formData.emails : null
         })
       })
 
@@ -232,6 +269,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       name: supplier.name,
       contactName: supplier.contactName || '',
       email: supplier.email,
+      emails: supplier.emails || [],
+      category: supplier.category || '',
       logo: supplier.logo || '',
       phone: supplier.phone || '',
       address: supplier.address || '',
@@ -241,348 +280,671 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
     setShowEditDialog(true)
   }
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const openViewDialog = (supplier: Supplier) => {
+    setViewingSupplier(supplier)
+    setShowViewDialog(true)
+  }
+
+  const addEmail = () => {
+    if (!newEmail.trim()) return
+    if (formData.emails.includes(newEmail.trim())) {
+      toast.error('Email already added')
+      return
+    }
+    if (newEmail.trim() === formData.email) {
+      toast.error('This is already the primary email')
+      return
+    }
+    setFormData(prev => ({ ...prev, emails: [...prev.emails, newEmail.trim()] }))
+    setNewEmail('')
+  }
+
+  const removeEmail = (emailToRemove: string) => {
+    setFormData(prev => ({ ...prev, emails: prev.emails.filter(e => e !== emailToRemove) }))
+  }
+
+  // Filter suppliers by search and category
+  const filteredSuppliers = suppliers.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesCategory = selectedCategory === 'ALL' || s.category === selectedCategory
+    
+    return matchesSearch && matchesCategory
+  })
+
+  // Group suppliers by category for display
+  const getCategoryInfo = (categoryId?: string) => {
+    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES.find(c => c.id === 'OTHER')!
+  }
+
+  // Count suppliers per category
+  const categoryCounts = CATEGORIES.reduce((acc, cat) => {
+    if (cat.id === 'ALL') {
+      acc[cat.id] = suppliers.length
+    } else {
+      acc[cat.id] = suppliers.filter(s => s.category === cat.id).length
+    }
+    return acc
+  }, {} as Record<string, number>)
 
   const renderSupplierForm = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Logo Upload */}
+      <div className="flex items-start gap-4">
+        {formData.logo ? (
+          <div className="relative group">
+            <img 
+              src={formData.logo} 
+              alt="Logo" 
+              className="w-20 h-20 object-cover rounded-xl border-2 border-slate-200 shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg transition-all"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <label className="w-20 h-20 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleLogoUpload(file)
+              }}
+              disabled={uploadingLogo}
+            />
+            {uploadingLogo ? (
+              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+            ) : (
+              <>
+                <ImageIcon className="w-6 h-6 text-slate-400" />
+                <span className="text-[10px] text-slate-400 mt-1">Upload</span>
+              </>
+            )}
+          </label>
+        )}
+        <div className="flex-1">
+          <Label className="text-slate-700 font-medium">Company Logo</Label>
+          <p className="text-xs text-slate-500 mt-1">Optional. Recommended size: 200x200px</p>
+        </div>
+      </div>
+
+      {/* Category Selection */}
       <div className="space-y-2">
-        <Label>Logo (optional)</Label>
-        <div className="flex items-center gap-4">
-          {formData.logo ? (
-            <div className="relative">
-              <img 
-                src={formData.logo} 
-                alt="Logo" 
-                className="w-16 h-16 object-cover rounded-lg border"
-              />
+        <Label className="text-slate-700 font-medium">Category <span className="text-red-500">*</span></Label>
+        <div className="grid grid-cols-4 gap-2">
+          {CATEGORIES.filter(c => c.id !== 'ALL').map(cat => {
+            const Icon = cat.icon
+            const isSelected = formData.category === cat.id
+            return (
               <button
+                key={cat.id}
                 type="button"
-                onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                onClick={() => setFormData(prev => ({ ...prev, category: cat.id }))}
+                className={cn(
+                  "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
+                  isSelected 
+                    ? `${cat.bgLight} border-current ${cat.textColor}` 
+                    : "border-slate-200 hover:border-slate-300 text-slate-600"
+                )}
               >
-                <X className="w-3 h-3" />
+                <Icon className="w-5 h-5 mb-1" />
+                <span className="text-xs font-medium">{cat.label}</span>
               </button>
-            </div>
-          ) : (
-            <label className="w-16 h-16 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:border-purple-400 transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleLogoUpload(file)
-                }}
-                disabled={uploadingLogo}
-              />
-              {uploadingLogo ? (
-                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-              ) : (
-                <ImageIcon className="w-5 h-5 text-gray-400" />
-              )}
-            </label>
-          )}
-          <p className="text-xs text-muted-foreground">Upload company logo</p>
+            )
+          })}
         </div>
       </div>
 
-      {/* Required Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Business Info */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Business Name <span className="text-red-500">*</span></Label>
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Company name"
-              className="pl-10"
-            />
-          </div>
+          <Label className="text-slate-700 font-medium">Business Name <span className="text-red-500">*</span></Label>
+          <Input
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Company name"
+            className="h-11"
+          />
         </div>
         <div className="space-y-2">
-          <Label>Contact Name <span className="text-red-500">*</span></Label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              value={formData.contactName}
-              onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
-              placeholder="Contact person"
-              className="pl-10"
-            />
-          </div>
+          <Label className="text-slate-700 font-medium">Contact Person <span className="text-red-500">*</span></Label>
+          <Input
+            value={formData.contactName}
+            onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+            placeholder="John Doe"
+            className="h-11"
+          />
         </div>
       </div>
 
+      {/* Primary Email */}
       <div className="space-y-2">
-        <Label>Contact Email <span className="text-red-500">*</span></Label>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Label className="text-slate-700 font-medium">Primary Email <span className="text-red-500">*</span></Label>
+        <Input
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+          placeholder="contact@company.com"
+          className="h-11"
+        />
+      </div>
+
+      {/* Additional Emails */}
+      <div className="space-y-2">
+        <Label className="text-slate-700 font-medium">Additional Emails</Label>
+        <div className="flex gap-2">
           <Input
             type="email"
-            value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            placeholder="email@company.com"
-            className="pl-10"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="Add another email..."
+            className="h-11 flex-1"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addEmail()
+              }
+            }}
+          />
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={addEmail}
+            className="h-11 px-4"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        {formData.emails.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.emails.map((email, idx) => (
+              <Badge 
+                key={idx} 
+                variant="secondary"
+                className="pl-3 pr-1.5 py-1.5 flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200"
+              >
+                <Mail className="w-3 h-3 text-slate-500" />
+                {email}
+                <button
+                  type="button"
+                  onClick={() => removeEmail(email)}
+                  className="ml-1 p-0.5 rounded-full hover:bg-slate-300 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Phone & Website */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-slate-700 font-medium">Phone</Label>
+          <Input
+            value={formData.phone}
+            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            placeholder="+1 (555) 000-0000"
+            className="h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-slate-700 font-medium">Website</Label>
+          <Input
+            value={formData.website}
+            onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+            placeholder="https://www.company.com"
+            className="h-11"
           />
         </div>
       </div>
 
-      {/* Optional Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Phone (optional)</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              placeholder="+1 (555) 000-0000"
-              className="pl-10"
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Website (optional)</Label>
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              value={formData.website}
-              onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-              placeholder="https://www.company.com"
-              className="pl-10"
-            />
-          </div>
-        </div>
+      {/* Address */}
+      <div className="space-y-2">
+        <Label className="text-slate-700 font-medium">Address</Label>
+        <Textarea
+          value={formData.address}
+          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+          placeholder="Full address"
+          className="min-h-[70px] resize-none"
+        />
       </div>
 
+      {/* Notes */}
       <div className="space-y-2">
-        <Label>Address (optional)</Label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-          <Textarea
-            value={formData.address}
-            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-            placeholder="Full address"
-            className="pl-10 min-h-[60px]"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Notes (optional)</Label>
+        <Label className="text-slate-700 font-medium">Notes</Label>
         <Textarea
           value={formData.notes}
           onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
           placeholder="Additional notes about this supplier..."
-          className="min-h-[60px]"
+          className="min-h-[70px] resize-none"
         />
       </div>
     </div>
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center">
-              <Building2 className="w-5 h-5 mr-2" />
-              Supplier Phonebook
-            </CardTitle>
-            <CardDescription>
-              Manage your supplier contacts and information
-            </CardDescription>
-          </div>
-          <Button onClick={() => {
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Building2 className="w-7 h-7 text-indigo-600" />
+            Supplier Phonebook
+          </h2>
+          <p className="text-slate-500 mt-1">Manage your supplier contacts organized by category</p>
+        </div>
+        <Button 
+          onClick={() => {
             setFormData(emptySupplier)
             setShowAddDialog(true)
-          }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Supplier
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search suppliers..."
-              className="pl-10"
-            />
-          </div>
-        </div>
+          }}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 h-11 px-5"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Supplier
+        </Button>
+      </div>
 
-        {/* Suppliers List */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
-          </div>
-        ) : filteredSuppliers.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">
-              {searchQuery ? 'No suppliers found matching your search' : 'No suppliers added yet'}
-            </p>
-            {!searchQuery && (
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => {
-                  setFormData(emptySupplier)
-                  setShowAddDialog(true)
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Supplier
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredSuppliers.map(supplier => (
+      {/* Category Pills */}
+      <div className="flex flex-wrap gap-2 pb-2">
+        {CATEGORIES.map(cat => {
+          const Icon = cat.icon
+          const isSelected = selectedCategory === cat.id
+          const count = categoryCounts[cat.id]
+          
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all font-medium text-sm",
+                isSelected 
+                  ? `${cat.color} text-white border-transparent shadow-lg` 
+                  : `bg-white border-slate-200 ${cat.textColor} hover:border-current hover:${cat.bgLight}`
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {cat.label}
+              {count > 0 && (
+                <span className={cn(
+                  "ml-1 px-2 py-0.5 rounded-full text-xs font-bold",
+                  isSelected ? "bg-white/20" : "bg-slate-100"
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name, contact, or email..."
+          className="pl-12 h-12 text-base bg-white border-slate-200 rounded-xl shadow-sm"
+        />
+      </div>
+
+      {/* Suppliers Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      ) : filteredSuppliers.length === 0 ? (
+        <div className="text-center py-16 bg-gradient-to-b from-slate-50 to-white rounded-2xl border-2 border-dashed border-slate-200">
+          <Building2 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <p className="text-slate-500 text-lg">
+            {searchQuery ? 'No suppliers found matching your search' : 
+             selectedCategory !== 'ALL' ? `No suppliers in ${getCategoryInfo(selectedCategory)?.label}` :
+             'No suppliers added yet'}
+          </p>
+          {!searchQuery && selectedCategory === 'ALL' && (
+            <Button 
+              variant="outline" 
+              className="mt-6 h-11"
+              onClick={() => {
+                setFormData(emptySupplier)
+                setShowAddDialog(true)
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Your First Supplier
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSuppliers.map(supplier => {
+            const categoryInfo = getCategoryInfo(supplier.category)
+            const CategoryIcon = categoryInfo.icon
+            const allEmails = [supplier.email, ...(supplier.emails || [])]
+            
+            return (
               <div 
                 key={supplier.id}
-                className="border rounded-lg p-4 hover:border-purple-300 transition-colors"
+                onClick={() => openViewDialog(supplier)}
+                className="group bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 cursor-pointer"
               >
-                <div className="flex items-start gap-3">
-                  {/* Logo or Placeholder */}
+                {/* Header Row */}
+                <div className="flex items-start gap-4">
+                  {/* Logo */}
                   {supplier.logo ? (
                     <img 
                       src={supplier.logo} 
                       alt={supplier.name}
-                      className="w-12 h-12 object-cover rounded-lg border"
+                      className="w-14 h-14 object-cover rounded-xl border border-slate-200 shadow-sm"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-6 h-6 text-purple-600" />
+                    <div className={cn(
+                      "w-14 h-14 rounded-xl flex items-center justify-center shadow-sm",
+                      categoryInfo.bgLight
+                    )}>
+                      <CategoryIcon className={cn("w-7 h-7", categoryInfo.textColor)} />
                     </div>
                   )}
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900 truncate">{supplier.name}</h3>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => openEditDialog(supplier)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteSupplier(supplier)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <h3 className="font-semibold text-slate-900 truncate text-lg group-hover:text-indigo-600 transition-colors">
+                      {supplier.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge 
+                        variant="secondary" 
+                        className={cn(
+                          "text-xs font-medium px-2 py-0.5",
+                          categoryInfo.bgLight,
+                          categoryInfo.textColor
+                        )}
+                      >
+                        {categoryInfo.label}
+                      </Badge>
                     </div>
-                    
-                    <div className="mt-1 space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <User className="w-3 h-3" />
-                        <span className="truncate">{supplier.contactName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-3 h-3" />
-                        <a 
-                          href={`mailto:${supplier.email}`}
-                          className="truncate hover:text-purple-600"
-                        >
-                          {supplier.email}
+                  </div>
+
+                  {/* Arrow */}
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                </div>
+
+                {/* Details */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <User className="w-4 h-4 text-slate-400" />
+                    <span className="truncate">{supplier.contactName}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Mail className="w-4 h-4 text-slate-400" />
+                    <span className="truncate">{supplier.email}</span>
+                    {allEmails.length > 1 && (
+                      <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-500">
+                        +{allEmails.length - 1}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {supplier.phone && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Phone className="w-4 h-4 text-slate-400" />
+                      <span className="truncate">{supplier.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons - show on hover */}
+                <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openEditDialog(supplier)
+                    }}
+                    className="flex-1 h-9 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteSupplier(supplier)
+                    }}
+                    className="h-9 text-slate-600 hover:text-red-600 hover:bg-red-50 px-3"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* View Supplier Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Supplier Details</DialogTitle>
+          </DialogHeader>
+          {viewingSupplier && (
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex items-start gap-4">
+                {viewingSupplier.logo ? (
+                  <img 
+                    src={viewingSupplier.logo} 
+                    alt={viewingSupplier.name}
+                    className="w-20 h-20 object-cover rounded-2xl border-2 border-slate-200 shadow-sm"
+                  />
+                ) : (
+                  <div className={cn(
+                    "w-20 h-20 rounded-2xl flex items-center justify-center",
+                    getCategoryInfo(viewingSupplier.category).bgLight
+                  )}>
+                    {(() => {
+                      const Icon = getCategoryInfo(viewingSupplier.category).icon
+                      return <Icon className={cn("w-10 h-10", getCategoryInfo(viewingSupplier.category).textColor)} />
+                    })()}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-slate-900">{viewingSupplier.name}</h2>
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      "mt-2 text-sm font-medium",
+                      getCategoryInfo(viewingSupplier.category).bgLight,
+                      getCategoryInfo(viewingSupplier.category).textColor
+                    )}
+                  >
+                    {getCategoryInfo(viewingSupplier.category).label}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-3 py-4 border-y border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Contact Person</p>
+                    <p className="font-medium text-slate-900">{viewingSupplier.contactName}</p>
+                  </div>
+                </div>
+
+                {/* All Emails */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500">Email{(viewingSupplier.emails?.length || 0) > 0 ? 's' : ''}</p>
+                    <div className="space-y-1">
+                      <a href={`mailto:${viewingSupplier.email}`} className="block font-medium text-indigo-600 hover:underline">
+                        {viewingSupplier.email}
+                      </a>
+                      {viewingSupplier.emails?.map((email, idx) => (
+                        <a key={idx} href={`mailto:${email}`} className="block text-slate-600 hover:text-indigo-600 hover:underline">
+                          {email}
                         </a>
-                      </div>
-                      {supplier.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3 h-3" />
-                          <a 
-                            href={`tel:${supplier.phone}`}
-                            className="truncate hover:text-purple-600"
-                          >
-                            {supplier.phone}
-                          </a>
-                        </div>
-                      )}
-                      {supplier.website && (
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-3 h-3" />
-                          <a 
-                            href={supplier.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="truncate hover:text-purple-600"
-                          >
-                            {supplier.website.replace(/^https?:\/\//, '')}
-                          </a>
-                        </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
+
+                {viewingSupplier.phone && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Phone</p>
+                      <a href={`tel:${viewingSupplier.phone}`} className="font-medium text-slate-900 hover:text-indigo-600">
+                        {viewingSupplier.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {viewingSupplier.website && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Globe className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Website</p>
+                      <a 
+                        href={viewingSupplier.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-indigo-600 hover:underline"
+                      >
+                        {viewingSupplier.website.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {viewingSupplier.address && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Address</p>
+                      <p className="font-medium text-slate-900">{viewingSupplier.address}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* Add Supplier Dialog */}
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Plus className="w-5 h-5 text-purple-600" />
-                Add New Supplier
-              </DialogTitle>
-            </DialogHeader>
-            {renderSupplierForm()}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddSupplier} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                Add Supplier
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              {/* Notes */}
+              {viewingSupplier.notes && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Notes</p>
+                  <p className="text-slate-700 whitespace-pre-wrap">{viewingSupplier.notes}</p>
+                </div>
+              )}
 
-        {/* Edit Supplier Dialog */}
-        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-purple-600" />
-                Edit Supplier
-              </DialogTitle>
-            </DialogHeader>
-            {renderSupplierForm()}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEditSupplier} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => {
+                    setShowViewDialog(false)
+                    openEditDialog(viewingSupplier)
+                  }}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-11"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit Supplier
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowViewDialog(false)}
+                  className="h-11"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Supplier Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <Plus className="w-5 h-5 text-indigo-600" />
+              </div>
+              Add New Supplier
+            </DialogTitle>
+          </DialogHeader>
+          {renderSupplierForm()}
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="h-11">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddSupplier} 
+              disabled={saving}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-6"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Add Supplier
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Supplier Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <Pencil className="w-5 h-5 text-indigo-600" />
+              </div>
+              Edit Supplier
+            </DialogTitle>
+          </DialogHeader>
+          {renderSupplierForm()}
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} className="h-11">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleEditSupplier} 
+              disabled={saving}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-6"
+            >
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
-
