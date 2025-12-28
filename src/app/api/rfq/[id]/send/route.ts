@@ -308,7 +308,7 @@ function generateRFQEmail({
 </div>
 <div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px;">
 <p style="margin: 0 0 10px 0;">Hi ${recipientName},</p>
-<p style="margin: 0 0 15px 0;"><strong>${rfq.title}</strong> - ${rfq.project.name}${deadline ? ` (Due: ${new Date(deadline).toLocaleDateString()})` : ''}</p>
+<p style="margin: 0 0 15px 0;"><strong>${rfq.title}</strong> - ${rfq.project.name}</p>
 ${message ? `<p style="background: #fef3c7; padding: 10px; border-radius: 4px; margin: 0 0 15px 0;"><em>${message}</em></p>` : ''}
 <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0;">
 <tr style="background: #f3f4f6;"><th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Item</th><th style="padding: 8px; text-align: center; border: 1px solid #e5e7eb; width: 80px;">Qty</th></tr>

@@ -689,10 +689,6 @@ function generateProfessionalQuoteEmail({
           <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Items:</td>
           <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${items.length} item${items.length > 1 ? 's' : ''}</td>
         </tr>
-        <tr>
-          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Response by:</td>
-          <td style="padding: 4px 0; color: #dc2626; font-size: 13px; font-weight: 500;">${deadline.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td>
-        </tr>
       </table>
     </div>
 
