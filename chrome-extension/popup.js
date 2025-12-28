@@ -1228,7 +1228,8 @@ async function handleSmartFill() {
 function processSmartFillData(data) {
   const fieldMappings = {
     productName: 'productName',
-    productDescription: 'productDescription',
+    // productDescription is intentionally NOT auto-filled - the item will use the FFE linked item name
+    // User can manually add a description if needed
     brand: 'brand',
     sku: 'sku',
     docCode: 'docCode',
@@ -1247,30 +1248,14 @@ function processSmartFillData(data) {
     productWebsite: 'productWebsite',
     title: 'productName',
     name: 'productName',
-    description: 'productDescription',
+    // description mapping removed - leave empty for FFE linked item name
     price: 'rrp',
     url: 'productWebsite'
   };
   
   for (const [key, fieldId] of Object.entries(fieldMappings)) {
     if (data[key] && !state.clippedData[fieldId]) {
-      let value = data[key];
-      
-      // Limit description length to keep it simple (max 200 characters)
-      if (fieldId === 'productDescription' && typeof value === 'string' && value.length > 200) {
-        // Find a good break point (end of sentence or word)
-        value = value.substring(0, 200);
-        const lastPeriod = value.lastIndexOf('.');
-        const lastSpace = value.lastIndexOf(' ');
-        if (lastPeriod > 150) {
-          value = value.substring(0, lastPeriod + 1);
-        } else if (lastSpace > 150) {
-          value = value.substring(0, lastSpace) + '...';
-        } else {
-          value = value + '...';
-        }
-      }
-      
+      const value = data[key];
       state.clippedData[fieldId] = value;
       const input = document.getElementById(fieldId);
       if (input) input.value = value;
