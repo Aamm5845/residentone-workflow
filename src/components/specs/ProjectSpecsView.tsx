@@ -39,6 +39,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { 
   ArrowLeft, 
   Search,
@@ -3502,46 +3507,102 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           <div className="flex items-center w-full px-4 py-3 pl-14 gap-2">
                             {/* Image - Fixed width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-16">
-                              <div 
-                                className={cn(
-                                  "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
-                                  (displayItem.thumbnailUrl || displayItem.images?.[0]) 
-                                    ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1" 
-                                    : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
-                                  uploadingImageForItem === displayItem.id && "opacity-50"
-                                )}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (displayItem.thumbnailUrl || displayItem.images?.[0]) {
-                                    setImageEditorModal({
-                                      open: true,
-                                      imageUrl: displayItem.thumbnailUrl || displayItem.images[0],
-                                      imageTitle: `${displayItem.sectionName}: ${displayItem.name}`,
-                                      itemId: displayItem.id
-                                    })
-                                  } else {
-                                    // Trigger file upload
-                                    setPendingUploadItemId(displayItem.id)
-                                    imageUploadInputRef.current?.click()
-                                  }
-                                }}
-                                title={displayItem.thumbnailUrl || displayItem.images?.[0] ? "Click to view/edit image" : "Click to upload image"}
-                              >
-                                {uploadingImageForItem === displayItem.id ? (
-                                  <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                                ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
-                                  <img 
-                                    src={displayItem.thumbnailUrl || displayItem.images[0]} 
-                                    alt={displayItem.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex flex-col items-center">
-                                    <ImageIcon className="w-5 h-5 text-gray-400" />
-                                    <span className="text-[8px] text-gray-400 mt-0.5">Add</span>
+                              <HoverCard openDelay={300} closeDelay={100}>
+                                <HoverCardTrigger asChild>
+                                  <div
+                                    className={cn(
+                                      "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                                      (displayItem.thumbnailUrl || displayItem.images?.[0])
+                                        ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1"
+                                        : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
+                                      uploadingImageForItem === displayItem.id && "opacity-50"
+                                    )}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (displayItem.thumbnailUrl || displayItem.images?.[0]) {
+                                        setImageEditorModal({
+                                          open: true,
+                                          imageUrl: displayItem.thumbnailUrl || displayItem.images[0],
+                                          imageTitle: `${displayItem.sectionName}: ${displayItem.name}`,
+                                          itemId: displayItem.id
+                                        })
+                                      } else {
+                                        // Trigger file upload
+                                        setPendingUploadItemId(displayItem.id)
+                                        imageUploadInputRef.current?.click()
+                                      }
+                                    }}
+                                  >
+                                    {uploadingImageForItem === displayItem.id ? (
+                                      <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+                                    ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
+                                      <img
+                                        src={displayItem.thumbnailUrl || displayItem.images[0]}
+                                        alt={displayItem.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex flex-col items-center">
+                                        <ImageIcon className="w-5 h-5 text-gray-400" />
+                                        <span className="text-[8px] text-gray-400 mt-0.5">Add</span>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent side="right" align="start" className="w-72 p-3">
+                                  <div className="space-y-2">
+                                    <div className="flex gap-3">
+                                      {(displayItem.thumbnailUrl || displayItem.images?.[0]) && (
+                                        <img
+                                          src={displayItem.thumbnailUrl || displayItem.images[0]}
+                                          alt={displayItem.name}
+                                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                                        />
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <p className="font-medium text-sm text-gray-900 truncate">{displayItem.name}</p>
+                                        {displayItem.brand && <p className="text-xs text-gray-500">{displayItem.brand}</p>}
+                                        {displayItem.modelNumber && <p className="text-xs text-gray-400">{displayItem.modelNumber}</p>}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t pt-2">
+                                      {displayItem.color && (
+                                        <div><span className="text-gray-400">Color:</span> <span className="text-gray-700">{displayItem.color}</span></div>
+                                      )}
+                                      {displayItem.finish && (
+                                        <div><span className="text-gray-400">Finish:</span> <span className="text-gray-700">{displayItem.finish}</span></div>
+                                      )}
+                                      {displayItem.material && (
+                                        <div><span className="text-gray-400">Material:</span> <span className="text-gray-700">{displayItem.material}</span></div>
+                                      )}
+                                      {(displayItem.width || displayItem.height || displayItem.depth || displayItem.length) && (
+                                        <div>
+                                          <span className="text-gray-400">Dims:</span>{' '}
+                                          <span className="text-gray-700">
+                                            {[displayItem.width, displayItem.length, displayItem.height, displayItem.depth].filter(Boolean).join(' × ')}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {displayItem.quantity && (
+                                        <div><span className="text-gray-400">Qty:</span> <span className="text-gray-700">{displayItem.quantity} {displayItem.unitType || 'units'}</span></div>
+                                      )}
+                                      {displayItem.leadTime && (
+                                        <div><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700 font-medium">{LEAD_TIME_OPTIONS.find(o => o.value === displayItem.leadTime)?.label || displayItem.leadTime}</span></div>
+                                      )}
+                                      {displayItem.supplierName && (
+                                        <div className="col-span-2"><span className="text-gray-400">Supplier:</span> <span className="text-gray-700">{displayItem.supplierName.split(' / ')[0]}</span></div>
+                                      )}
+                                      {(displayItem.tradePrice || displayItem.rrp) && (
+                                        <div className="col-span-2 pt-1 border-t mt-1">
+                                          {displayItem.tradePrice && <span className="text-gray-700 font-medium">${displayItem.tradePrice.toFixed(2)} trade</span>}
+                                          {displayItem.tradePrice && displayItem.rrp && <span className="text-gray-300 mx-1">|</span>}
+                                          {displayItem.rrp && <span className="text-gray-500">${displayItem.rrp.toFixed(2)} RRP</span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
                             </div>
                             
                             {/* Title & Room - Fixed width */}
