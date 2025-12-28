@@ -203,45 +203,88 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create RFQ for tracking
-    const rfqNumber = await generateRFQNumber(orgId)
     const deadline = responseDeadline ? new Date(responseDeadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
-    const rfq = await prisma.rFQ.create({
-      data: {
-        orgId,
-        projectId,
-        rfqNumber,
-        title: `Quote Request - ${project.name}`,
-        description: message || null,
-        status: 'DRAFT',
-        responseDeadline: deadline,
-        createdById: userId,
-        updatedById: userId,
-        lineItems: {
-          create: dbItems.map((item, index) => ({
-            roomFFEItemId: item.id,
-            itemName: item.name,
-            itemDescription: item.description || '',
-            quantity: item.quantity || 1,
-            unitType: item.unitType || 'units',
-            order: index,
-            specifications: {
-              brand: item.brand,
-              sku: item.sku,
-              color: item.color,
-              finish: item.finish,
-              material: item.material,
-              dimensions: {
-                width: item.width,
-                height: item.height,
-                depth: item.depth
+    // Check if there's an existing open RFQ for this project we can reuse
+    // Only create a new RFQ if there are truly new items (not resends)
+    const hasNewItems = entriesToSend.some(([_, entry]) =>
+      entry.items.some(item => {
+        const requestItem = items.find(i => i.id === item.id)
+        return !requestItem?.overrideSupplier // New items don't have overrideSupplier
+      })
+    )
+
+    let rfq: any
+
+    if (hasNewItems) {
+      // Create new RFQ for new items
+      const rfqNumber = await generateRFQNumber(orgId)
+      rfq = await prisma.rFQ.create({
+        data: {
+          orgId,
+          projectId,
+          rfqNumber,
+          title: `Quote Request - ${project.name}`,
+          description: message || null,
+          status: 'DRAFT',
+          responseDeadline: deadline,
+          createdById: userId,
+          updatedById: userId,
+          lineItems: {
+            create: dbItems.map((item, index) => ({
+              roomFFEItemId: item.id,
+              itemName: item.name,
+              itemDescription: item.description || '',
+              quantity: item.quantity || 1,
+              unitType: item.unitType || 'units',
+              order: index,
+              specifications: {
+                brand: item.brand,
+                sku: item.sku,
+                color: item.color,
+                finish: item.finish,
+                material: item.material,
+                dimensions: {
+                  width: item.width,
+                  height: item.height,
+                  depth: item.depth
+                }
               }
-            }
-          }))
+            }))
+          }
         }
+      })
+    } else {
+      // For resends only, find or create a minimal RFQ
+      // Try to find existing RFQ for this project
+      const existingRfq = await prisma.rFQ.findFirst({
+        where: {
+          projectId,
+          orgId,
+          status: { in: ['SENT', 'DRAFT', 'PENDING'] }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      if (existingRfq) {
+        rfq = existingRfq
+      } else {
+        const rfqNumber = await generateRFQNumber(orgId)
+        rfq = await prisma.rFQ.create({
+          data: {
+            orgId,
+            projectId,
+            rfqNumber,
+            title: `Quote Request - ${project.name}`,
+            description: message || null,
+            status: 'DRAFT',
+            responseDeadline: deadline,
+            createdById: userId,
+            updatedById: userId
+          }
+        })
       }
-    })
+    }
 
     const baseUrl = getBaseUrl()
     const results: Array<{
@@ -270,17 +313,39 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Create SupplierRFQ record
-      const supplierRFQ = await prisma.supplierRFQ.create({
-        data: {
+      // Check if there's an existing SupplierRFQ for this supplier we can reuse
+      let supplierRFQ = await prisma.supplierRFQ.findFirst({
+        where: {
           rfqId: rfq.id,
-          supplierId: supplier?.id || null,
-          vendorName: vendorName || null,
-          vendorEmail: !supplier ? email : null,
-          tokenExpiresAt: deadline,
-          sentAt: new Date()
+          OR: [
+            { supplierId: supplier?.id || undefined },
+            { vendorEmail: !supplier ? email : undefined }
+          ].filter(c => Object.values(c)[0] !== undefined)
         }
       })
+
+      if (!supplierRFQ) {
+        // Create new SupplierRFQ record only if doesn't exist
+        supplierRFQ = await prisma.supplierRFQ.create({
+          data: {
+            rfqId: rfq.id,
+            supplierId: supplier?.id || null,
+            vendorName: vendorName || null,
+            vendorEmail: !supplier ? email : null,
+            tokenExpiresAt: deadline,
+            sentAt: new Date()
+          }
+        })
+      } else {
+        // Update existing record with new sent time
+        supplierRFQ = await prisma.supplierRFQ.update({
+          where: { id: supplierRFQ.id },
+          data: {
+            sentAt: new Date(),
+            tokenExpiresAt: deadline
+          }
+        })
+      }
 
       const portalUrl = `${baseUrl}/supplier-portal/${supplierRFQ.accessToken}`
 
@@ -300,21 +365,46 @@ export async function POST(request: NextRequest) {
           })
         })
 
-        // Create ItemQuoteRequest records for each item
+        // Create or update ItemQuoteRequest records for each item
         // Note: We don't create ItemActivity here - ItemQuoteRequest is shown in activity timeline
         for (const item of supplierItems) {
-          await prisma.itemQuoteRequest.create({
-            data: {
+          // Check if there's an existing ItemQuoteRequest for this item+supplier
+          const existingRequest = await prisma.itemQuoteRequest.findFirst({
+            where: {
               itemId: item.id,
-              supplierId: supplier?.id || null,
-              rfqId: rfq.id,
-              supplierRfqId: supplierRFQ.id,
-              vendorEmail: !supplier ? email : null,
-              vendorName: !supplier ? vendorName : null,
-              status: 'SENT',
-              sentById: userId
+              OR: [
+                { supplierId: supplier?.id || undefined },
+                { vendorEmail: !supplier ? email : undefined }
+              ].filter(c => Object.values(c)[0] !== undefined)
             }
           })
+
+          if (existingRequest) {
+            // Update existing request (resend)
+            await prisma.itemQuoteRequest.update({
+              where: { id: existingRequest.id },
+              data: {
+                status: 'SENT',
+                sentAt: new Date(),
+                sentById: userId,
+                supplierRfqId: supplierRFQ.id
+              }
+            })
+          } else {
+            // Create new request
+            await prisma.itemQuoteRequest.create({
+              data: {
+                itemId: item.id,
+                supplierId: supplier?.id || null,
+                rfqId: rfq.id,
+                supplierRfqId: supplierRFQ.id,
+                vendorEmail: !supplier ? email : null,
+                vendorName: !supplier ? vendorName : null,
+                status: 'SENT',
+                sentById: userId
+              }
+            })
+          }
 
           // Update item status to QUOTING
           await prisma.roomFFEItem.update({
