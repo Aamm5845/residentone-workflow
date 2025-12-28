@@ -162,7 +162,7 @@
           <label>Supplier</label>
           <div class="field-input supplier-input">
             <select id="supplierSelect" class="selector supplier-selector">
-              <option value="">Select supplier or add new...</option>
+              <option value="">Select supplier...</option>
             </select>
             <button id="addSupplierBtn" class="add-btn" title="Add new supplier">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -474,8 +474,40 @@
       </div>
 
       <!-- Version -->
-      <div class="version">v1.2.1</div>
+      <div class="version">v1.2.2</div>
     </section>
+
+    <!-- Add Supplier Dialog -->
+    <div id="addSupplierDialog" class="dialog-overlay hidden">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <h3>Add New Supplier</h3>
+          <button id="closeSupplierDialog" class="dialog-close">&times;</button>
+        </div>
+        <div class="dialog-body">
+          <div class="dialog-field">
+            <label>Company Name *</label>
+            <input type="text" id="newSupplierName" placeholder="Enter company name">
+          </div>
+          <div class="dialog-field">
+            <label>Contact Name</label>
+            <input type="text" id="newSupplierContact" placeholder="Enter contact person name">
+          </div>
+          <div class="dialog-field">
+            <label>Email</label>
+            <input type="email" id="newSupplierEmail" placeholder="Enter email address">
+          </div>
+          <div class="dialog-field">
+            <label>Phone</label>
+            <input type="tel" id="newSupplierPhone" placeholder="Enter phone number">
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button id="cancelSupplierDialog" class="btn btn-secondary">Cancel</button>
+          <button id="saveSupplierDialog" class="btn btn-primary">Add to Phonebook</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">

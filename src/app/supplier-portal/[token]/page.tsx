@@ -246,12 +246,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         if (result.existingQuote || result.responseStatus === 'SUBMITTED') {
           setSubmitted(true)
         }
-
-        // Auto-detect Quebec for tax defaults
-        if (result.rfq.project?.province?.toLowerCase().includes('quebec') ||
-            result.rfq.project?.province?.toLowerCase() === 'qc') {
-          setIncludeTaxes(true)
-        }
       } else {
         const err = await response.json()
         setError(err.error || 'Failed to load quote request')

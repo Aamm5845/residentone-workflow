@@ -224,6 +224,15 @@ function initEventListeners() {
   elements.supplierSelect?.addEventListener('change', handleSupplierChange);
   document.getElementById('addSupplierBtn')?.addEventListener('click', handleAddSupplier);
 
+  // Add supplier dialog buttons
+  document.getElementById('closeSupplierDialog')?.addEventListener('click', closeAddSupplierDialog);
+  document.getElementById('cancelSupplierDialog')?.addEventListener('click', closeAddSupplierDialog);
+  document.getElementById('saveSupplierDialog')?.addEventListener('click', saveNewSupplier);
+  // Close dialog on overlay click
+  document.getElementById('addSupplierDialog')?.addEventListener('click', (e) => {
+    if (e.target.id === 'addSupplierDialog') closeAddSupplierDialog();
+  });
+
   // Smart fill button
   elements.smartFillBtn?.addEventListener('click', handleSmartFill);
 
@@ -394,24 +403,27 @@ async function loadSuppliers() {
 function renderSupplierSelect() {
   if (!elements.supplierSelect) return;
   
-  elements.supplierSelect.innerHTML = '<option value="">Select supplier or type name...</option>';
-  
+  elements.supplierSelect.innerHTML = '<option value="">Select supplier...</option>';
+
   state.suppliers.forEach(supplier => {
     const option = document.createElement('option');
     option.value = supplier.id;
-    option.textContent = supplier.name;
+    // Show name with contact if available
+    option.textContent = supplier.contactName
+      ? `${supplier.name} / ${supplier.contactName}`
+      : supplier.name;
     if (supplier.website) {
       option.dataset.website = supplier.website;
     }
     elements.supplierSelect.appendChild(option);
   });
-  
-  // Add "Add new" option
+
+  // Add "Add new" option at the end
   const addNewOption = document.createElement('option');
   addNewOption.value = '_add_new';
   addNewOption.textContent = '➕ Add new supplier...';
   elements.supplierSelect.appendChild(addNewOption);
-  
+
   // Show hint
   const hint = document.getElementById('supplierHint');
   if (hint && state.suppliers.length > 0) {
@@ -441,20 +453,82 @@ function handleSupplierChange(e) {
   }
 }
 
-// Handle add new supplier
+// Handle add new supplier - show dialog
 function handleAddSupplier() {
-  const name = prompt('Enter supplier name:');
-  if (!name) return;
-  
-  // For now, just add as a custom option - in future could create via API
-  const option = document.createElement('option');
-  option.value = `_custom_${name}`;
-  option.textContent = name;
-  option.selected = true;
-  elements.supplierSelect.insertBefore(option, elements.supplierSelect.lastElementChild);
-  
-  state.selectedSupplier = `_custom_${name}`;
-  showToast(`Supplier "${name}" added`, 'success');
+  const dialog = document.getElementById('addSupplierDialog');
+  if (dialog) {
+    // Clear form fields
+    document.getElementById('newSupplierName').value = '';
+    document.getElementById('newSupplierContact').value = '';
+    document.getElementById('newSupplierEmail').value = '';
+    document.getElementById('newSupplierPhone').value = '';
+    dialog.classList.remove('hidden');
+    // Focus on first field
+    setTimeout(() => document.getElementById('newSupplierName')?.focus(), 100);
+  }
+}
+
+// Close add supplier dialog
+function closeAddSupplierDialog() {
+  const dialog = document.getElementById('addSupplierDialog');
+  if (dialog) {
+    dialog.classList.add('hidden');
+  }
+}
+
+// Save new supplier to phonebook via API
+async function saveNewSupplier() {
+  const name = document.getElementById('newSupplierName')?.value?.trim();
+  const contactName = document.getElementById('newSupplierContact')?.value?.trim();
+  const email = document.getElementById('newSupplierEmail')?.value?.trim();
+  const phone = document.getElementById('newSupplierPhone')?.value?.trim();
+
+  if (!name) {
+    showToast('Please enter a company name', 'error');
+    document.getElementById('newSupplierName')?.focus();
+    return;
+  }
+
+  try {
+    showLoading('Adding supplier...');
+
+    const response = await apiRequest('POST', CONFIG.ENDPOINTS.SUPPLIERS, {
+      name,
+      contactName: contactName || null,
+      email: email || null,
+      phone: phone || null,
+      website: state.clippedData.productWebsite || null
+    });
+
+    hideLoading();
+
+    if (response.ok && response.supplier) {
+      // Add to local state
+      state.suppliers.push(response.supplier);
+      state.suppliers.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Re-render and select the new supplier
+      renderSupplierSelect();
+      elements.supplierSelect.value = response.supplier.id;
+      state.selectedSupplier = response.supplier.id;
+
+      closeAddSupplierDialog();
+      showToast(`"${name}" added to phonebook`, 'success');
+    } else if (response.error === 'A supplier with this name already exists' && response.supplier) {
+      // Supplier already exists, select it
+      hideLoading();
+      elements.supplierSelect.value = response.supplier.id;
+      state.selectedSupplier = response.supplier.id;
+      closeAddSupplierDialog();
+      showToast(`"${name}" already exists, selected it`, 'success');
+    } else {
+      throw new Error(response.error || 'Failed to add supplier');
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Error adding supplier:', error);
+    showToast(error.message || 'Failed to add supplier', 'error');
+  }
 }
 
 // Handle project change
@@ -1361,18 +1435,14 @@ async function handleClip() {
   showLoading(loadingMsg);
   
   try {
-    // Get supplier name from selection
+    // Get supplier info from selection
     let supplierName = null;
     let supplierId = null;
     if (state.selectedSupplier) {
-      if (state.selectedSupplier.startsWith('_custom_')) {
-        supplierName = state.selectedSupplier.replace('_custom_', '');
-      } else {
-        const supplier = state.suppliers.find(s => s.id === state.selectedSupplier);
-        if (supplier) {
-          supplierName = supplier.name;
-          supplierId = supplier.id;
-        }
+      const supplier = state.suppliers.find(s => s.id === state.selectedSupplier);
+      if (supplier) {
+        supplierName = supplier.name;
+        supplierId = supplier.id;
       }
     }
     
