@@ -640,21 +640,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const handleSelectSupplier = async (itemId: string, supplier: { id: string; name: string; contactName?: string }) => {
     const item = specs.find(s => s.id === itemId)
     if (!item) return
-    
-    const supplierDisplay = supplier.contactName 
+
+    // Store business name and contact name in consistent format for display parsing
+    // Format: "Business Name / Contact Name" (or just "Business Name" if no contact)
+    const supplierDisplay = supplier.contactName
       ? `${supplier.name} / ${supplier.contactName}`
       : supplier.name
-    
+
     try {
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supplierName: supplierDisplay })
+        body: JSON.stringify({
+          supplierName: supplierDisplay,
+          supplierId: supplier.id // Also store supplier ID for proper linking
+        })
       })
-      
+
       if (res.ok) {
-        setSpecs(prev => prev.map(s => 
-          s.id === itemId ? { ...s, supplierName: supplierDisplay } : s
+        setSpecs(prev => prev.map(s =>
+          s.id === itemId ? { ...s, supplierName: supplierDisplay, supplierId: supplier.id } : s
         ))
         toast.success('Supplier updated')
       }
@@ -662,7 +667,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       console.error('Error updating supplier:', error)
       toast.error('Failed to update supplier')
     }
-    
+
     setSupplierPickerItem(null)
   }
   
@@ -4101,11 +4106,28 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
                                   <button
-                                    className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    className="w-full text-left cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
                                     title={item.supplierName || undefined}
                                   >
-                                    {item.supplierName || <span className="text-gray-400">Select Supplier</span>}
+                                    {item.supplierName ? (
+                                      (() => {
+                                        // Parse "Business Name / Contact Name" format
+                                        const parts = item.supplierName.split(' / ')
+                                        const businessName = parts[0]
+                                        const contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
+                                        return (
+                                          <div className="leading-tight">
+                                            <span className="text-xs text-gray-700 truncate block">{businessName}</span>
+                                            {contactName && (
+                                              <span className="text-[10px] text-gray-400 truncate block">{contactName}</span>
+                                            )}
+                                          </div>
+                                        )
+                                      })()
+                                    ) : (
+                                      <span className="text-xs text-gray-400">Select Supplier</span>
+                                    )}
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-64">
