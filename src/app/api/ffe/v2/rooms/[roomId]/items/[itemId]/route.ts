@@ -191,7 +191,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Delete the item
+    // Delete related records that don't have cascade delete
+    // Delete RFQ line items linked to this item
+    await prisma.rFQLineItem.deleteMany({
+      where: { roomFFEItemId: itemId }
+    })
+
+    // Delete client quote line items linked to this item
+    await prisma.clientQuoteLineItem.deleteMany({
+      where: { roomFFEItemId: itemId }
+    })
+
+    // Delete order items linked to this item
+    await prisma.orderItem.deleteMany({
+      where: { roomFFEItemId: itemId }
+    })
+
+    // Delete the item (cascades will handle ItemActivity, ItemQuoteRequest, SpecItemLink, RFQDocument)
     await prisma.roomFFEItem.delete({
       where: { id: itemId }
     })
