@@ -1339,6 +1339,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       const payload = {
         name: urlGenerateData.productName || 'Product from URL',
+        // Description defaults to FFE item name
+        description: ffeItem.name || '',
         brand: urlGenerateData.brand || '',
         sku: urlGenerateData.sku || '',
         // supplierLink = product URL (where we scraped from) - NOT the supplier's website
@@ -1456,7 +1458,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         body: JSON.stringify({
           sectionId,
           name: itemData.name || itemData.productName,
-          description: itemData.description || itemData.productDescription,
+          // Default description to FFE item name if linked, otherwise use provided description
+          description: selectedFfeItem?.itemName || itemData.description || itemData.productDescription || '',
           brand: itemData.brand,
           sku: itemData.sku,
           material: itemData.material,
@@ -1916,9 +1919,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       toast.error('Please select an FFE item to link')
       return
     }
-    
+
     const item = duplicateModal.item
-    
+
+    // Find the selected FFE item to get its name for description
+    const selectedFfe = getUnlinkedFfeItemsForDuplicate().find(f => f.id === selectedDuplicateFfeItem)
+
     try {
       setDuplicating(true)
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items`, {
@@ -1927,7 +1933,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         body: JSON.stringify({
           sectionId: item.sectionId,
           name: item.name,
-          description: item.description,
+          // Description defaults to FFE item name
+          description: selectedFfe?.name || item.description,
           brand: item.brand,
           sku: item.sku,
           material: item.material,
