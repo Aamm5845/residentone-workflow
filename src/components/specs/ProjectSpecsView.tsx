@@ -2301,7 +2301,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     if (selectedItems.size === 0) return
     if (!confirm(`Are you sure you want to delete ${selectedItems.size} item(s)?`)) return
 
-    const itemsToDelete = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    const itemsToDelete = specs.filter(s => selectedItems.has(s.id))
     let successCount = 0
     let failCount = 0
 
@@ -2334,7 +2334,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     if (!confirm(`Duplicate ${selectedItems.size} item(s)?`)) return
 
     setBulkDuplicating(true)
-    const itemsToDuplicate = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    const itemsToDuplicate = specs.filter(s => selectedItems.has(s.id))
     let successCount = 0
     let failCount = 0
 
@@ -2401,7 +2401,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     if (selectedItems.size === 0 || !bulkMoveTargetSection) return
 
     setBulkMoving(true)
-    const itemsToMove = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    const itemsToMove = specs.filter(s => selectedItems.has(s.id))
     let successCount = 0
     let failCount = 0
 
