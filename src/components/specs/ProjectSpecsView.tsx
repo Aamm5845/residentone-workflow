@@ -128,12 +128,12 @@ const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION
 // Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
   { value: 'in-stock', label: 'In Stock' },
-  { value: '1-2 weeks', label: '1-2 Wks' },
-  { value: '2-4 weeks', label: '2-4 Wks' },
-  { value: '4-6 weeks', label: '4-6 Wks' },
-  { value: '6-8 weeks', label: '6-8 Wks' },
-  { value: '8-12 weeks', label: '8-12 Wks' },
-  { value: '12+ weeks', label: '12+ Wks' },
+  { value: '1-2 weeks', label: '1-2 Weeks' },
+  { value: '2-4 weeks', label: '2-4 Weeks' },
+  { value: '4-6 weeks', label: '4-6 Weeks' },
+  { value: '6-8 weeks', label: '6-8 Weeks' },
+  { value: '8-12 weeks', label: '8-12 Weeks' },
+  { value: '12+ weeks', label: '12+ Weeks' },
 ]
 
 // Unit type options (same as ItemDetailPanel)
@@ -3820,8 +3820,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Brand - Flexible to fill space */}
-                            <div className="flex-1 min-w-[100px]">
+                            {/* Brand - Fixed width */}
+                            <div className="flex-shrink-0 w-28">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
@@ -3981,8 +3981,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
 
-                            {/* Material - Flexible to fill space */}
-                            <div className="flex-1 min-w-[80px]">
+                            {/* Material - Fixed width */}
+                            <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
                               {editingField?.itemId === item.id && editingField?.field === 'material' ? (
                                 <Input
@@ -4068,12 +4068,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Lead Time - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-16" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-shrink-0 w-24 mr-3" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <button 
-                                    className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                  <button
+                                    className="w-full text-left text-xs text-gray-700 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {item.leadTime ? (
