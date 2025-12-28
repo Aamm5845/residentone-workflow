@@ -565,6 +565,19 @@
       specSheets: []
     };
     
+    // Helper to check if element is visible on page
+    function isElementVisible(el) {
+      if (!el) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none') return false;
+      if (style.visibility === 'hidden') return false;
+      if (style.opacity === '0') return false;
+      const rect = el.getBoundingClientRect();
+      // Check if has actual dimensions
+      if (rect.width < 10 || rect.height < 10) return false;
+      return true;
+    }
+
     // Helper to score how likely an image is the main product image
     function scoreProductImage(img, index) {
       let score = 100 - index; // Earlier images get higher base score
@@ -573,20 +586,41 @@
       const className = (img.className || '').toLowerCase();
       const parent = img.closest('[class]');
       const parentClass = parent ? (parent.className || '').toLowerCase() : '';
-      
+
+      // CRITICAL: Check if image is actually visible on the page
+      if (!isElementVisible(img)) {
+        return -1000; // Hidden images get very low score
+      }
+
+      // Get actual displayed size on page (not natural size)
+      const rect = img.getBoundingClientRect();
+      const displayedWidth = rect.width;
+      const displayedHeight = rect.height;
+
+      // Big boost for large displayed images (the main product image is usually big on screen)
+      if (displayedWidth >= 400 && displayedHeight >= 400) score += 100;
+      else if (displayedWidth >= 300 && displayedHeight >= 300) score += 70;
+      else if (displayedWidth >= 200 && displayedHeight >= 200) score += 40;
+      else if (displayedWidth < 100 || displayedHeight < 100) score -= 50;
+
+      // Boost for images in the viewport (visible without scrolling)
+      if (rect.top >= 0 && rect.top < window.innerHeight && rect.left >= 0 && rect.left < window.innerWidth) {
+        score += 50;
+      }
+
       // Boost for product-related classes/attributes
       if (className.includes('product') || className.includes('main') || className.includes('hero')) score += 50;
       if (parentClass.includes('product') || parentClass.includes('gallery') || parentClass.includes('main')) score += 40;
       if (alt && alt.length > 10) score += 20; // Has meaningful alt text
       if (src.includes('product') || src.includes('main')) score += 30;
-      
-      // Boost for larger images
-      if (img.naturalWidth >= 500 || img.width >= 500) score += 40;
-      if (img.naturalWidth >= 800 || img.width >= 800) score += 30;
-      
+
+      // Boost for larger natural images
+      if (img.naturalWidth >= 500 || img.width >= 500) score += 30;
+      if (img.naturalWidth >= 800 || img.width >= 800) score += 20;
+
       // Check if image is in a gallery/carousel (likely product image)
       if (img.closest('.swiper, .carousel, .gallery, .slider, [data-gallery]')) score += 35;
-      
+
       // Penalize for non-product patterns
       if (src.includes('logo')) score -= 100;
       if (src.includes('icon')) score -= 100;
@@ -598,13 +632,16 @@
       if (src.includes('payment')) score -= 100;
       if (src.includes('badge')) score -= 80;
       if (src.includes('flag')) score -= 100;
+      if (src.includes('thumbnail') && displayedWidth < 150) score -= 60;
+      if (src.includes('thumb') && displayedWidth < 150) score -= 60;
       if (className.includes('logo')) score -= 100;
       if (className.includes('icon')) score -= 100;
-      
+      if (className.includes('thumb') && displayedWidth < 150) score -= 50;
+
       // Skip tiny images
       if (img.naturalWidth && img.naturalWidth < 100) score -= 200;
       if (img.naturalHeight && img.naturalHeight < 100) score -= 200;
-      
+
       return score;
     }
     
@@ -832,10 +869,11 @@
           imgs.forEach((img, idx) => {
             if (!img.src || seen.has(img.src)) return;
             if (img.src.includes('data:') && img.src.length < 100) return; // Skip tiny data URIs
-            
+
             seen.add(img.src);
             const score = scoreProductImage(img, idx);
-            if (score > 0) {
+            // Only include images with positive score (visible and reasonably sized)
+            if (score > 50) {
               allImages.push({ src: img.src, score, alt: img.alt });
             }
           });
@@ -843,10 +881,12 @@
           // Selector might be invalid, skip
         }
       }
-      
-      // Sort by score and take top images
+
+      // Sort by score and take top images (only those with good scores)
       allImages.sort((a, b) => b.score - a.score);
-      data.images = allImages.slice(0, 10).map(img => img.src);
+      // Filter to only include images with decent scores
+      const goodImages = allImages.filter(img => img.score > 100);
+      data.images = (goodImages.length > 0 ? goodImages : allImages).slice(0, 10).map(img => img.src);
       
       // Store the best image info separately
       if (allImages.length > 0) {
