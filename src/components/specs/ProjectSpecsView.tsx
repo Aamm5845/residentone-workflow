@@ -3231,65 +3231,72 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8">
-            {/* Show available sections if any */}
+            {/* Show available sections if any - deduplicated by section name */}
             {availableRooms.some(r => r.sections.length > 0) ? (
               <div className="space-y-4">
                 <div className="text-center mb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to add specs</h3>
                   <p className="text-gray-500">Click on a section below to add items, or use the Chrome extension.</p>
                 </div>
-                
-                {availableRooms.filter(r => r.sections.length > 0).map(room => (
-                  <div key={room.id} className="space-y-2">
-                    {room.sections.map(section => (
-                      <div 
-                        key={section.id}
-                        className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Layers className="w-5 h-5 text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">{section.name}</p>
-                            <p className="text-sm text-gray-500">No items yet</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
-                            onClick={() => openLibraryModal(section.id, room.id)}
-                          >
-                            <Library className="w-3.5 h-3.5" />
-                            From Library
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
-                            onClick={() => setAddFromUrlModal({ open: true, sectionId: section.id, roomId: room.id })}
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            From URL
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
-                            onClick={() => setDetailPanel({
-                              isOpen: true,
-                              mode: 'create',
-                              item: null,
-                              sectionId: section.id,
-                              roomId: room.id
-                            })}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Custom Item
-                          </Button>
-                        </div>
+
+                {/* Deduplicate sections by name - show each section once */}
+                {(() => {
+                  const uniqueSections = new Map<string, { id: string; name: string; roomId: string }>()
+                  availableRooms.filter(r => r.sections.length > 0).forEach(room => {
+                    room.sections.forEach(section => {
+                      if (!uniqueSections.has(section.name)) {
+                        uniqueSections.set(section.name, { id: section.id, name: section.name, roomId: room.id })
+                      }
+                    })
+                  })
+                  return Array.from(uniqueSections.values())
+                })().map(section => (
+                  <div
+                    key={section.id}
+                    className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Layers className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="font-medium text-gray-900">{section.name}</p>
+                        <p className="text-sm text-gray-500">No items yet</p>
                       </div>
-                    ))}
+                    </div>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => openLibraryModal(section.id, section.roomId)}
+                      >
+                        <Library className="w-3.5 h-3.5" />
+                        From Library
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
+                        onClick={() => setAddFromUrlModal({ open: true, sectionId: section.id, roomId: section.roomId })}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        From URL
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        onClick={() => setDetailPanel({
+                          isOpen: true,
+                          mode: 'create',
+                          item: null,
+                          sectionId: section.id,
+                          roomId: section.roomId
+                        })}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Custom Item
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 

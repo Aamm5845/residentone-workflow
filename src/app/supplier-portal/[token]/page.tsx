@@ -22,7 +22,12 @@ import {
   Calculator,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  Plus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -127,6 +132,53 @@ interface QuoteLineItem {
   notes: string
 }
 
+interface AIMatchResult {
+  status: 'matched' | 'partial' | 'missing' | 'extra'
+  confidence: number
+  rfqItem?: {
+    id: string
+    itemName: string
+    quantity: number
+    sku?: string
+    brand?: string
+  }
+  extractedItem?: {
+    productName: string
+    sku?: string
+    quantity?: number
+    unitPrice?: number
+    totalPrice?: number
+    brand?: string
+    description?: string
+    leadTime?: string
+  }
+  discrepancies?: string[]
+}
+
+interface AIMatchResponse {
+  success: boolean
+  supplierInfo: {
+    companyName?: string
+    quoteNumber?: string
+    quoteDate?: string
+    validUntil?: string
+    subtotal?: number
+    taxes?: number
+    total?: number
+  }
+  matchResults: AIMatchResult[]
+  summary: {
+    totalRequested: number
+    matched: number
+    partial: number
+    missing: number
+    extra: number
+    extractedTotal: number
+    quoteTotal: number | null
+  }
+  notes?: string
+}
+
 export default function SupplierPortalPage({ params }: SupplierPortalPageProps) {
   const { token } = use(params)
   const [loading, setLoading] = useState(true)
@@ -145,6 +197,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTotalAmount, setUploadTotalAmount] = useState('')
   const [uploadNotes, setUploadNotes] = useState('')
+
+  // AI Match state
+  const [aiMatching, setAiMatching] = useState(false)
+  const [aiMatchResult, setAiMatchResult] = useState<AIMatchResponse | null>(null)
+  const [showAiResults, setShowAiResults] = useState(false)
 
   // Tax fields (Quebec GST/QST)
   const [includeTaxes, setIncludeTaxes] = useState(false)
@@ -376,8 +433,58 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const removeUploadedFile = () => {
     setUploadedFile(null)
     setUploadedFileUrl(null)
+    setAiMatchResult(null)
+    setShowAiResults(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  const handleAIMatch = async () => {
+    if (!uploadedFileUrl) {
+      toast.error('Please upload a quote document first')
+      return
+    }
+
+    // Check if it's an image file (AI Vision works best with images)
+    const isImage = uploadedFile?.type.startsWith('image/')
+    if (!isImage) {
+      toast.error('AI matching works best with image files (PNG, JPG). For PDF files, please take a screenshot of the quote.')
+      return
+    }
+
+    setAiMatching(true)
+    setAiMatchResult(null)
+
+    try {
+      const response = await fetch(`/api/supplier-portal/${token}/ai-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileUrl: uploadedFileUrl,
+          fileType: uploadedFile?.type
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setAiMatchResult(result)
+        setShowAiResults(true)
+
+        // Auto-fill the total amount if extracted
+        if (result.supplierInfo?.total && !uploadTotalAmount) {
+          setUploadTotalAmount(result.supplierInfo.total.toString())
+        }
+
+        toast.success(`AI analyzed your quote: ${result.summary.matched} matched, ${result.summary.missing} missing items`)
+      } else {
+        toast.error(result.message || 'Failed to analyze quote')
+      }
+    } catch (err) {
+      toast.error('Failed to analyze quote with AI')
+    } finally {
+      setAiMatching(false)
     }
   }
 
