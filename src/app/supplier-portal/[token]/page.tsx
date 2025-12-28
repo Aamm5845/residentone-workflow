@@ -77,6 +77,25 @@ interface RFQData {
   }
   existingQuote: any
   responseStatus: string
+  allProjectItems?: Array<{
+    id: string
+    rfqNumber: string
+    itemName: string
+    itemDescription?: string
+    quantity: number
+    unitType?: string
+    category?: string
+    roomFFEItem?: {
+      images?: string[]
+      brand?: string
+      sku?: string
+    }
+    isCurrentRfq: boolean
+    hasQuote: boolean
+    quoteStatus: string
+    quotedPrice?: number
+    quotedAt?: string
+  }>
 }
 
 interface QuoteLineItem {
@@ -874,6 +893,74 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Button>
         </div>
       </div>
+
+      {/* All Project Items Section */}
+      {data.allProjectItems && data.allProjectItems.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-gray-500" />
+              All Items Sent to You ({data.allProjectItems.length})
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              All products from {data.rfq.project.name} that have been sent to you for quoting
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {data.allProjectItems.map((item) => {
+                const imageUrl = item.roomFFEItem?.images?.[0] || null
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-4 p-3 rounded-lg border",
+                      item.isCurrentRfq ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
+                    )}
+                  >
+                    {/* Image */}
+                    {imageUrl && (
+                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white border">
+                        <img src={imageUrl} alt={item.itemName} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{item.itemName}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>{item.category}</span>
+                        {item.roomFFEItem?.brand && (
+                          <>
+                            <span>•</span>
+                            <span>{item.roomFFEItem.brand}</span>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span>{item.quantity} {item.unitType || 'units'}</span>
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex-shrink-0 text-right">
+                      {item.hasQuote && item.quotedPrice ? (
+                        <div>
+                          <p className="font-semibold text-green-700">${Number(item.quotedPrice).toLocaleString()}</p>
+                          <p className="text-xs text-green-600">Quoted</p>
+                        </div>
+                      ) : item.isCurrentRfq ? (
+                        <Badge className="bg-emerald-600 text-white">Current Request</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-gray-500">Pending</Badge>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Messaging widget */}
       <SupplierMessaging

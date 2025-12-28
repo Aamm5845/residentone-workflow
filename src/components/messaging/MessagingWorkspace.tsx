@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { format, formatDistanceToNow, isToday, isYesterday, isSameDay } from 'date-fns'
-import { 
-  MessageSquare, 
-  Users, 
-  Hash, 
-  FolderOpen, 
-  ChevronDown, 
+import {
+  MessageSquare,
+  Users,
+  Hash,
+  FolderOpen,
+  ChevronDown,
   ChevronRight,
   Plus,
   Search,
@@ -28,7 +28,8 @@ import {
   Loader2,
   Check,
   CheckCheck,
-  AtSign
+  AtSign,
+  Package
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,6 +69,16 @@ interface TeamMember {
   role: string
   image?: string
   messageCount: number
+}
+
+interface SupplierChat {
+  id: string
+  name: string
+  email: string
+  logo?: string
+  category?: string
+  messageCount: number
+  unreadCount: number
 }
 
 interface Phase {
@@ -153,19 +164,21 @@ interface ChatMessage {
 // Common emoji reactions
 const EMOJI_LIST = ['👍', '❤️', '😊', '🔥', '🎉', '👀', '✅']
 
-type ConversationType = 'general' | 'team' | 'phase'
+type ConversationType = 'general' | 'team' | 'phase' | 'supplier'
 
 interface ActiveConversation {
   type: ConversationType
-  id?: string // stageId for phase, userId for team
+  id?: string // stageId for phase, userId for team, supplierId for supplier
   user?: TeamMember
   phase?: Phase & { project: Project }
+  supplier?: SupplierChat
 }
 
 export default function MessagingWorkspace() {
   const { data: session } = useSession()
   const [loading, setLoading] = useState(true)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierChat[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [generalChatCount, setGeneralChatCount] = useState(0)
   
@@ -216,6 +229,7 @@ export default function MessagingWorkspace() {
       if (response.ok) {
         const data = await response.json()
         setTeamMembers(data.teamMembers || [])
+        setSuppliers(data.suppliers || [])
         setProjects(data.projects || [])
         setGeneralChatCount(data.generalChatCount || 0)
       }
@@ -277,6 +291,57 @@ export default function MessagingWorkspace() {
     }
   }, [])
 
+  const loadSupplierMessages = useCallback(async (supplierId: string) => {
+    setMessagesLoading(true)
+    try {
+      const response = await fetch(`/api/supplier-messages?supplierId=${supplierId}`)
+      if (response.ok) {
+        const data = await response.json()
+        // Transform supplier messages to match ChatMessage format
+        const transformedMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          updatedAt: msg.updatedAt,
+          isEdited: false,
+          chatType: 'GENERAL' as const,
+          attachments: msg.attachments || [],
+          author: {
+            id: msg.senderType === 'SUPPLIER' ? msg.supplierId : msg.senderUserId || 'system',
+            name: msg.senderType === 'SUPPLIER' ? msg.supplier?.name || 'Supplier' : msg.senderUser?.name || msg.senderName || 'Team',
+            role: msg.senderType === 'SUPPLIER' ? 'Supplier' : 'Team',
+            image: msg.senderType === 'SUPPLIER' ? msg.supplier?.logo : msg.senderUser?.image
+          },
+          mentions: [],
+          reactions: [],
+          context: msg.project ? {
+            type: 'general' as const,
+            label: msg.project.name
+          } : undefined
+        }))
+        setMessages(transformedMessages)
+
+        // Mark inbound messages as read
+        const unreadIds = (data.messages || [])
+          .filter((m: any) => m.direction === 'INBOUND' && !m.readAt)
+          .map((m: any) => m.id)
+
+        if (unreadIds.length > 0) {
+          fetch('/api/supplier-messages', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'mark_read', messageIds: unreadIds })
+          }).catch(console.error)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading supplier messages:', error)
+      toast.error('Failed to load messages')
+    } finally {
+      setMessagesLoading(false)
+    }
+  }, [])
+
   // Load conversations on mount
   useEffect(() => {
     loadConversations()
@@ -290,8 +355,10 @@ export default function MessagingWorkspace() {
       loadUserMessages(activeConversation.id)
     } else if (activeConversation.type === 'phase' && activeConversation.id) {
       loadPhaseMessages(activeConversation.id)
+    } else if (activeConversation.type === 'supplier' && activeConversation.id) {
+      loadSupplierMessages(activeConversation.id)
     }
-  }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages])
+  }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages, loadSupplierMessages])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -349,6 +416,7 @@ export default function MessagingWorkspace() {
       }
 
       let apiUrl = ''
+      let isSupplierMessage = false
       if (activeConversation.type === 'general') {
         apiUrl = '/api/messaging/general'
       } else if (activeConversation.type === 'phase' && activeConversation.id) {
@@ -357,10 +425,24 @@ export default function MessagingWorkspace() {
         // For team conversations, we need to determine the right endpoint
         // If there's a phase context, post to that phase, otherwise general
         apiUrl = '/api/messaging/general'
+      } else if (activeConversation.type === 'supplier' && activeConversation.id) {
+        apiUrl = '/api/supplier-messages'
+        isSupplierMessage = true
       }
 
       let response
-      if (selectedFiles.length > 0) {
+      if (isSupplierMessage) {
+        // Supplier messages use different API format
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supplierId: activeConversation.id,
+            content: content.trim(),
+            sendEmail: true
+          })
+        })
+      } else if (selectedFiles.length > 0) {
         const formData = new FormData()
         formData.append('content', content.trim())
         formData.append('mentions', JSON.stringify(mentionIds))
@@ -368,7 +450,7 @@ export default function MessagingWorkspace() {
         selectedFiles.forEach((file, index) => {
           formData.append(`file${index}`, file)
         })
-        
+
         response = await fetch(apiUrl, {
           method: 'POST',
           body: formData
@@ -387,7 +469,32 @@ export default function MessagingWorkspace() {
 
       if (response.ok) {
         const data = await response.json()
-        setMessages(prev => [...prev, data.message])
+
+        if (isSupplierMessage) {
+          // Transform supplier message to ChatMessage format
+          const supplierMsg = data.message
+          const transformedMsg: ChatMessage = {
+            id: supplierMsg.id,
+            content: supplierMsg.content,
+            createdAt: supplierMsg.createdAt,
+            updatedAt: supplierMsg.updatedAt,
+            isEdited: false,
+            chatType: 'GENERAL',
+            attachments: supplierMsg.attachments || [],
+            author: {
+              id: session?.user?.id || 'system',
+              name: session?.user?.name || 'Team',
+              role: 'Team',
+              image: session?.user?.image
+            },
+            mentions: [],
+            reactions: []
+          }
+          setMessages(prev => [...prev, transformedMsg])
+        } else {
+          setMessages(prev => [...prev, data.message])
+        }
+
         setNewMessage('')
         clearFiles()
         setReplyingTo(null)
@@ -670,6 +777,67 @@ export default function MessagingWorkspace() {
               </div>
             </div>
 
+            {/* Suppliers */}
+            {suppliers.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3 flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5 text-gray-400" />
+                  Suppliers
+                </h3>
+                <div className="space-y-1">
+                  {suppliers.map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      onClick={() => setActiveConversation({
+                        type: 'supplier',
+                        id: supplier.id,
+                        supplier
+                      })}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                        activeConversation.type === 'supplier' && activeConversation.id === supplier.id
+                          ? "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 border border-transparent"
+                      )}
+                    >
+                      <Avatar className="w-9 h-9 flex-shrink-0">
+                        {supplier.logo ? (
+                          <img src={supplier.logo} alt={supplier.name} className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-sm font-semibold rounded-full shadow-sm">
+                            {supplier.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                        )}
+                      </Avatar>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className={cn("text-sm font-medium truncate",
+                          activeConversation.type === 'supplier' && activeConversation.id === supplier.id
+                            ? "text-amber-900"
+                            : "text-gray-700"
+                        )}>{supplier.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{supplier.category || 'Supplier'}</p>
+                      </div>
+                      {supplier.unreadCount > 0 && (
+                        <Badge className="text-xs px-2 py-0.5 rounded-full bg-red-500 text-white">
+                          {supplier.unreadCount}
+                        </Badge>
+                      )}
+                      {supplier.unreadCount === 0 && supplier.messageCount > 0 && (
+                        <Badge className={cn(
+                          "text-xs px-2 py-0.5 rounded-full",
+                          activeConversation.type === 'supplier' && activeConversation.id === supplier.id
+                            ? "bg-amber-600 text-white"
+                            : "bg-amber-100 text-amber-700"
+                        )}>
+                          {supplier.messageCount}
+                        </Badge>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* My Phases */}
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3 flex items-center gap-2">
@@ -791,6 +959,24 @@ export default function MessagingWorkspace() {
                     {activeConversation.phase.roomName} - {getStageName(activeConversation.phase.type)}
                   </h1>
                   <p className="text-sm text-gray-500">{activeConversation.phase.project.name}</p>
+                </div>
+              </>
+            )}
+
+            {activeConversation.type === 'supplier' && activeConversation.supplier && (
+              <>
+                <Avatar className="w-12 h-12">
+                  {activeConversation.supplier.logo ? (
+                    <img src={activeConversation.supplier.logo} alt={activeConversation.supplier.name} className="w-full h-full object-cover rounded-2xl" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl font-bold rounded-2xl shadow-lg shadow-amber-200">
+                      {activeConversation.supplier.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                  )}
+                </Avatar>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-800">{activeConversation.supplier.name}</h1>
+                  <p className="text-sm text-gray-500">{activeConversation.supplier.email}</p>
                 </div>
               </>
             )}
@@ -1137,6 +1323,7 @@ export default function MessagingWorkspace() {
                 placeholder={`Message ${
                   activeConversation.type === 'general' ? 'Team Chat' :
                   activeConversation.type === 'team' ? activeConversation.user?.name || 'team member' :
+                  activeConversation.type === 'supplier' ? activeConversation.supplier?.name || 'supplier' :
                   activeConversation.phase ? `${activeConversation.phase.roomName}` : 'here'
                 }...`}
                 disabled={sending}

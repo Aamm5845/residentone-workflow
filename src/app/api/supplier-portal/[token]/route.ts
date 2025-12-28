@@ -150,6 +150,96 @@ export async function GET(
       }
     }
 
+    // Get all items sent to this supplier for this project (across all RFQs)
+    const projectId = supplierRFQ.rfq.project.id
+    const supplierId = supplierRFQ.supplierId
+    const vendorEmail = supplierRFQ.vendorEmail
+
+    // Find all SupplierRFQs for this supplier/vendor in this project
+    const allSupplierRFQs = await prisma.supplierRFQ.findMany({
+      where: {
+        rfq: { projectId },
+        OR: [
+          ...(supplierId ? [{ supplierId }] : []),
+          ...(vendorEmail ? [{ vendorEmail }] : [])
+        ]
+      },
+      include: {
+        rfq: {
+          include: {
+            lineItems: {
+              include: {
+                roomFFEItem: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    brand: true,
+                    sku: true,
+                    images: true,
+                    color: true,
+                    finish: true,
+                    material: true,
+                    section: { select: { name: true } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        quotes: {
+          orderBy: { version: 'desc' },
+          take: 1,
+          include: {
+            lineItems: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Build list of all items with their quote status
+    const allProjectItems = allSupplierRFQs.flatMap(sRfq =>
+      sRfq.rfq.lineItems.map(item => {
+        const quote = sRfq.quotes[0]
+        const quotedLineItem = quote?.lineItems.find(ql => ql.rfqLineItemId === item.id)
+        return {
+          id: item.id,
+          rfqId: sRfq.rfq.id,
+          rfqNumber: sRfq.rfq.rfqNumber,
+          supplierRfqId: sRfq.id,
+          itemName: item.itemName,
+          itemDescription: item.itemDescription,
+          quantity: item.quantity,
+          unitType: item.unitType,
+          category: item.roomFFEItem?.section?.name || 'General',
+          roomFFEItem: item.roomFFEItem ? {
+            images: item.roomFFEItem.images,
+            brand: item.roomFFEItem.brand,
+            sku: item.roomFFEItem.sku,
+            color: item.roomFFEItem.color,
+            finish: item.roomFFEItem.finish,
+            material: item.roomFFEItem.material
+          } : null,
+          // Quote status
+          isCurrentRfq: sRfq.id === supplierRFQ.id,
+          hasQuote: !!quote,
+          quoteStatus: sRfq.responseStatus,
+          quotedPrice: quotedLineItem?.unitPrice || null,
+          quotedAt: quote?.submittedAt || null
+        }
+      })
+    )
+
+    // Deduplicate items (same roomFFEItemId might appear in multiple RFQs)
+    const seenItems = new Set<string>()
+    const uniqueItems = allProjectItems.filter(item => {
+      const key = item.id
+      if (seenItems.has(key)) return false
+      seenItems.add(key)
+      return true
+    })
+
     // Return RFQ data (without sensitive info)
     return NextResponse.json({
       rfq: {
@@ -160,6 +250,7 @@ export async function GET(
         responseDeadline: supplierRFQ.rfq.responseDeadline,
         validUntil: supplierRFQ.rfq.validUntil,
         project: {
+          id: projectId,
           name: supplierRFQ.rfq.project.name
         },
         lineItems: supplierRFQ.rfq.lineItems.map(item => ({
@@ -192,7 +283,9 @@ export async function GET(
         email: supplierRFQ.supplier?.email || supplierRFQ.vendorEmail
       },
       existingQuote: supplierRFQ.quotes[0] || null,
-      responseStatus: supplierRFQ.responseStatus
+      responseStatus: supplierRFQ.responseStatus,
+      // All items sent to this supplier for this project
+      allProjectItems: uniqueItems
     })
   } catch (error) {
     console.error('Error fetching supplier portal data:', error)

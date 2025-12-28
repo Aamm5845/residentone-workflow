@@ -134,6 +134,59 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Get suppliers with messages
+    const suppliersWithMessages = await prisma.supplierMessage.groupBy({
+      by: ['supplierId'],
+      where: {
+        orgId: orgId,
+        isDeleted: false
+      },
+      _count: true
+    })
+
+    // Get supplier details for those with messages
+    const supplierIds = suppliersWithMessages.map(s => s.supplierId)
+    const suppliers = supplierIds.length > 0
+      ? await prisma.supplier.findMany({
+          where: {
+            id: { in: supplierIds },
+            orgId: orgId
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            logo: true,
+            category: true
+          }
+        })
+      : []
+
+    // Get unread counts per supplier (inbound messages not yet read)
+    const unreadCounts = supplierIds.length > 0
+      ? await prisma.supplierMessage.groupBy({
+          by: ['supplierId'],
+          where: {
+            orgId: orgId,
+            isDeleted: false,
+            direction: 'INBOUND',
+            readAt: null
+          },
+          _count: true
+        })
+      : []
+
+    // Map suppliers with their message counts
+    const suppliersData = suppliers.map(supplier => {
+      const messageData = suppliersWithMessages.find(s => s.supplierId === supplier.id)
+      const unreadData = unreadCounts.find(u => u.supplierId === supplier.id)
+      return {
+        ...supplier,
+        messageCount: messageData?._count || 0,
+        unreadCount: unreadData?._count || 0
+      }
+    }).sort((a, b) => b.unreadCount - a.unreadCount || b.messageCount - a.messageCount)
+
     // Group phases by project
     const projectPhases = assignedPhases.reduce((acc, phase) => {
       const projectId = phase.room.project.id
@@ -159,7 +212,8 @@ export async function GET(request: NextRequest) {
       success: true,
       teamMembers: messageCounts, // Show all team members
       projects: Object.values(projectPhases),
-      generalChatCount
+      generalChatCount,
+      suppliers: suppliersData
     })
 
   } catch (error) {
