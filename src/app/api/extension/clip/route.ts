@@ -238,16 +238,17 @@ export async function POST(request: NextRequest) {
             images: item.images || [],
             notes: item.notes || null,
             attachments: item.attachments ? { files: item.attachments } : {},
+            // Supplier ID (direct field, not in customFields)
+            supplierId: item.supplierId || null,
             // Custom fields
             customFields: {
-              length: item.length || null,
-              supplierId: item.supplierId || null
+              length: item.length || null
             },
             createdById: user.id,
             updatedById: user.id
           }
         })
-        
+
         console.log('[Extension Clip] Created spec item:', {
           specItemId: specItem.id,
           specItemName: specItem.name,
@@ -402,16 +403,17 @@ export async function POST(request: NextRequest) {
         images: item.images || [],
         notes: item.notes || null,
         attachments: item.attachments ? { files: item.attachments } : {},
+        // Supplier ID (direct field, not in customFields)
+        supplierId: item.supplierId || null,
         // Custom fields for any extras
         customFields: {
-          length: item.length || null,
-          supplierId: item.supplierId || null
+          length: item.length || null
         },
         createdById: user.id,
         updatedById: user.id
       }
     })
-    
+
     // Update FFE instance progress
     await updateFFEProgress(ffeInstance.id)
     
