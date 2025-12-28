@@ -530,9 +530,19 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Building2 className="w-4 h-4 text-purple-600" />
-                          </div>
+                          {sRFQ.supplier?.logo ? (
+                            <img
+                              src={sRFQ.supplier.logo}
+                              alt={sRFQ.supplier.name}
+                              className="w-8 h-8 rounded-full object-cover border"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-semibold text-emerald-700">
+                                {(sRFQ.supplier?.name || sRFQ.vendorName || 'S').substring(0, 1).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
                           <div>
                             <p className="font-medium">{sRFQ.supplier?.name || sRFQ.vendorName}</p>
                             <p className="text-xs text-gray-500">

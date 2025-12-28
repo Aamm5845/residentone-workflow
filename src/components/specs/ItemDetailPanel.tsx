@@ -897,19 +897,14 @@ export function ItemDetailPanel({
         const data = await res.json()
         // Add to local suppliers list
         setSuppliers(prev => [...prev, data.supplier])
-        // Combine business name and contact name for display
-        const supplierDisplay = data.supplier.contactName
-          ? `${data.supplier.name} / ${data.supplier.contactName}`
-          : data.supplier.name
-        // Select the new supplier with all details
+        // Select the new supplier with all details (don't overwrite supplierLink/Product URL)
         setFormData(prev => ({
           ...prev,
           supplierId: data.supplier.id,
-          supplierName: supplierDisplay,
+          supplierName: data.supplier.name,
           supplierContactName: data.supplier.contactName || '',
           supplierEmail: data.supplier.email || '',
-          supplierLogo: data.supplier.logo || '',
-          supplierLink: data.supplier.website || ''
+          supplierLogo: data.supplier.logo || ''
         }))
         // Reset and close modal
         setNewSupplier({ name: '', contactName: '', email: '', phone: '', address: '', website: '', notes: '', logo: '', categoryId: '', currency: 'CAD' })
@@ -957,7 +952,9 @@ export function ItemDetailPanel({
         tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
         notes: item.notes || '',
       })
-      setImages(item.images || (item.thumbnailUrl ? [item.thumbnailUrl] : []))
+      // Filter out empty/null image URLs
+      const validImages = (item.images || []).filter((img: string) => img && img.trim())
+      setImages(validImages.length > 0 ? validImages : (item.thumbnailUrl ? [item.thumbnailUrl] : []))
       // Set rooms - either from roomIds array or from single roomId
       setSelectedRoomIds(item.roomIds || (item.roomId ? [item.roomId] : []))
     } else if (mode === 'create') {
@@ -1218,18 +1215,15 @@ export function ItemDetailPanel({
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
-      // Combine business name and contact name for display (matches ProjectSpecsView behavior)
-      const supplierDisplay = supplier.contactName
-        ? `${supplier.name} / ${supplier.contactName}`
-        : supplier.name
+      // Store business name in supplierName, contact name separately
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
-        supplierName: supplierDisplay,
+        supplierName: supplier.name,
         supplierContactName: supplier.contactName || '',
         supplierEmail: supplier.email || '',
-        supplierLogo: supplier.logo || '',
-        supplierLink: supplier.website || ''
+        supplierLogo: supplier.logo || ''
+        // Don't overwrite supplierLink (Product URL) - that's separate from supplier's website
       }))
       setChangingSupplier(false) // Close the supplier selector
     }
@@ -1329,10 +1323,10 @@ export function ItemDetailPanel({
                     onChange={(e) => handleFileUpload(e.target.files)}
                   />
                   <div className="flex gap-3">
-                    {images.length > 0 && images.map((img, idx) => (
+                    {images.filter(img => img && img.trim()).map((img, idx) => (
                       <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
                         <img src={img} alt="" className="w-full h-full object-cover" />
-                        <button 
+                        <button
                           onClick={() => setImages(images.filter((_, i) => i !== idx))}
                           className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
                         >
@@ -1340,7 +1334,7 @@ export function ItemDetailPanel({
                         </button>
                       </div>
                     ))}
-                    {images.length < 2 && (
+                    {images.filter(img => img && img.trim()).length < 2 && (
                       <div 
                         onClick={() => fileInputRef.current?.click()}
                         onDragOver={handleDragOver}
@@ -1741,16 +1735,6 @@ export function ItemDetailPanel({
                             </a>
                           )}
                         </div>
-                        {formData.supplierLink && (
-                          <a
-                            href={formData.supplierLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline truncate block mt-0.5"
-                          >
-                            {formData.supplierLink}
-                          </a>
-                        )}
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -1761,7 +1745,7 @@ export function ItemDetailPanel({
                         </button>
                         <button
                           className="text-xs text-red-600 hover:underline"
-                          onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '', supplierContactName: '', supplierEmail: '', supplierLogo: '' })}
+                          onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierContactName: '', supplierEmail: '', supplierLogo: '' })}
                         >
                           Remove
                         </button>

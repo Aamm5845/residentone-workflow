@@ -910,17 +910,16 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                 <div className="flex items-start gap-4">
                   {/* Logo */}
                   {supplier.logo ? (
-                    <img 
-                      src={supplier.logo} 
+                    <img
+                      src={supplier.logo}
                       alt={supplier.name}
                       className="w-14 h-14 object-cover rounded-xl border border-slate-200 shadow-sm"
                     />
                   ) : (
-                    <div className={cn(
-                      "w-14 h-14 rounded-xl flex items-center justify-center shadow-sm",
-                      catInfo.bgLight
-                    )}>
-                      <CategoryIcon className={cn("w-7 h-7", catInfo.text)} />
+                    <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center shadow-sm">
+                      <span className="text-xl font-semibold text-emerald-700">
+                        {supplier.name.substring(0, 1).toUpperCase()}
+                      </span>
                     </div>
                   )}
 
@@ -1036,20 +1035,16 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
               {/* Header */}
               <div className="flex items-start gap-4">
                 {viewingSupplier.logo ? (
-                  <img 
-                    src={viewingSupplier.logo} 
+                  <img
+                    src={viewingSupplier.logo}
                     alt={viewingSupplier.name}
                     className="w-20 h-20 object-cover rounded-2xl border-2 border-slate-200 shadow-sm"
                   />
                 ) : (
-                  <div className={cn(
-                    "w-20 h-20 rounded-2xl flex items-center justify-center",
-                    getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).bgLight
-                  )}>
-                    {(() => {
-                      const { Icon, text } = getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory)
-                      return <Icon className={cn("w-10 h-10", text)} />
-                    })()}
+                  <div className="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                    <span className="text-3xl font-semibold text-emerald-700">
+                      {viewingSupplier.name.substring(0, 1).toUpperCase()}
+                    </span>
                   </div>
                 )}
                 <div className="flex-1">

@@ -682,7 +682,9 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
                           />
                         ) : (
                           <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                            <Building2 className="w-6 h-6 text-emerald-600" />
+                            <span className="text-lg font-semibold text-emerald-700">
+                              {supplier.name.substring(0, 1).toUpperCase()}
+                            </span>
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
