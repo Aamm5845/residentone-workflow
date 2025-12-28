@@ -52,8 +52,11 @@ export async function POST(
     }
 
     // Validate token and get RFQ data
-    const rfqRecipient = await prisma.rFQRecipient.findUnique({
-      where: { accessToken: token },
+    const supplierRFQ = await prisma.supplierRFQ.findFirst({
+      where: {
+        accessToken: token,
+        tokenExpiresAt: { gte: new Date() }
+      },
       include: {
         rfq: {
           include: {
@@ -64,7 +67,7 @@ export async function POST(
                     sku: true,
                     brand: true,
                     modelNumber: true,
-                    productName: true
+                    name: true
                   }
                 }
               }
@@ -74,7 +77,7 @@ export async function POST(
       }
     })
 
-    if (!rfqRecipient) {
+    if (!supplierRFQ) {
       return NextResponse.json({ error: 'Invalid or expired link' }, { status: 404 })
     }
 
@@ -89,7 +92,7 @@ export async function POST(
     const openai = getOpenAI()
 
     // Build the RFQ items list for context
-    const rfqItems = rfqRecipient.rfq.lineItems.map(item => ({
+    const rfqItems = supplierRFQ.rfq.lineItems.map(item => ({
       id: item.id,
       itemName: item.itemName,
       quantity: item.quantity,
