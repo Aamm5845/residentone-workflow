@@ -136,6 +136,24 @@ const LEAD_TIME_OPTIONS = [
   { value: '12+ weeks', label: '12+ Weeks' },
 ]
 
+// Helper to format lead time - handles legacy values like IN_STOCK, 1-2_WEEKS
+const formatLeadTime = (value: string | null): string => {
+  if (!value) return '-'
+  // First try to find exact match in options
+  const option = LEAD_TIME_OPTIONS.find(o => o.value === value)
+  if (option) return option.label
+  // Handle legacy formats: IN_STOCK -> In Stock, 1-2_WEEKS -> 1-2 Weeks
+  const normalized = value
+    .replace(/_/g, ' ')
+    .replace(/WEEKS/gi, 'Weeks')
+    .replace(/IN STOCK/gi, 'In Stock')
+    .replace(/\bstock\b/gi, 'Stock')
+  // Title case for other formats
+  return normalized.split(' ').map(word =>
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ').replace(/(\d+)/g, '$1') // Keep numbers as-is
+}
+
 // Unit type options (same as ItemDetailPanel)
 const UNIT_TYPE_OPTIONS = [
   { value: 'units', label: 'Units' },
@@ -3506,7 +3524,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           </div>
                           
                           {/* Main Item Row - Using flex with fixed widths for equal distribution */}
-                          <div className="flex items-center w-full px-4 py-3 pl-14 gap-2">
+                          <div className="flex items-start w-full px-4 py-2 pl-14 gap-2">
                             {/* Image - Fixed width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-16">
                               <HoverCard openDelay={300} closeDelay={100}>
@@ -3589,10 +3607,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         <div><span className="text-gray-400">Qty:</span> <span className="text-gray-700">{displayItem.quantity} {displayItem.unitType || 'units'}</span></div>
                                       )}
                                       {displayItem.leadTime && (
-                                        <div><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700 font-medium">{LEAD_TIME_OPTIONS.find(o => o.value === displayItem.leadTime)?.label || displayItem.leadTime}</span></div>
+                                        <div><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700 font-medium">{formatLeadTime(displayItem.leadTime)}</span></div>
                                       )}
-                                      {displayItem.supplierName && (
-                                        <div className="col-span-2"><span className="text-gray-400">Supplier:</span> <span className="text-gray-700">{displayItem.supplierName.split(' / ')[0]}</span></div>
+                                      {(displayItem.supplierName || displayItem.supplierId) && (
+                                        (() => {
+                                          const phonebookSupplier = displayItem.supplierId
+                                            ? suppliers.find(s => s.id === displayItem.supplierId)
+                                            : suppliers.find(s => s.name === displayItem.supplierName?.split(' / ')[0])
+                                          const businessName = phonebookSupplier?.name || displayItem.supplierName?.split(' / ')[0] || ''
+                                          const contactName = phonebookSupplier?.contactName || (displayItem.supplierName?.includes(' / ') ? displayItem.supplierName.split(' / ').slice(1).join(' / ') : null)
+                                          return (
+                                            <div className="col-span-2">
+                                              <span className="text-gray-400">Supplier:</span>{' '}
+                                              <span className="text-gray-700">{businessName}</span>
+                                              {contactName && <span className="text-gray-500 text-[10px] ml-1">({contactName})</span>}
+                                            </div>
+                                          )
+                                        })()
                                       )}
                                       {(displayItem.tradePrice || displayItem.rrp) && (
                                         <div className="col-span-2 pt-1 border-t mt-1">
@@ -3774,7 +3805,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Doc Code - Fixed width (5 chars max) */}
-                            <div className="flex-shrink-0 w-16">
+                            <div className="flex-shrink-0 w-16 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
                               {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
                                 <Input
@@ -3797,7 +3828,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Model - Fixed width for longer model numbers */}
-                            <div className="flex-shrink-0 w-20">
+                            <div className="flex-shrink-0 w-20 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
                               {editingField?.itemId === item.id && editingField?.field === 'modelNumber' ? (
                                 <Input
@@ -3821,7 +3852,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Brand - Fixed width */}
-                            <div className="flex-shrink-0 w-28">
+                            <div className="flex-shrink-0 w-28 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
@@ -3844,7 +3875,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Width (IN) */}
-                            <div className="flex-shrink-0 w-12 text-center">
+                            <div className="flex-shrink-0 w-12 h-9 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Width</p>
                               {editingField?.itemId === item.id && editingField?.field === 'width' ? (
                                 <Input
@@ -3856,8 +3887,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
-                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                <p
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'width', item.width || '') }}
                                   title={item.width || undefined}
                                 >
@@ -3865,9 +3896,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Length (IN) */}
-                            <div className="flex-shrink-0 w-12 text-center">
+                            <div className="flex-shrink-0 w-12 h-9 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Length</p>
                               {editingField?.itemId === item.id && editingField?.field === 'length' ? (
                                 <Input
@@ -3879,8 +3910,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
-                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                <p
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'length', item.length || '') }}
                                   title={item.length || undefined}
                                 >
@@ -3888,9 +3919,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Height (IN) */}
-                            <div className="flex-shrink-0 w-12 text-center">
+                            <div className="flex-shrink-0 w-12 h-9 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Height</p>
                               {editingField?.itemId === item.id && editingField?.field === 'height' ? (
                                 <Input
@@ -3902,8 +3933,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
-                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                <p
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'height', item.height || '') }}
                                   title={item.height || undefined}
                                 >
@@ -3911,9 +3942,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Depth (IN) */}
-                            <div className="flex-shrink-0 w-12 text-center">
+                            <div className="flex-shrink-0 w-12 h-9 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Depth</p>
                               {editingField?.itemId === item.id && editingField?.field === 'depth' ? (
                                 <Input
@@ -3925,8 +3956,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
-                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                <p
+                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'depth', item.depth || '') }}
                                   title={item.depth || undefined}
                                 >
@@ -3934,9 +3965,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Colour */}
-                            <div className="flex-shrink-0 w-20">
+                            <div className="flex-shrink-0 w-20 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Colour</p>
                               {editingField?.itemId === item.id && editingField?.field === 'color' ? (
                                 <Input
@@ -3959,7 +3990,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Finish */}
-                            <div className="flex-shrink-0 w-20">
+                            <div className="flex-shrink-0 w-20 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
                               {editingField?.itemId === item.id && editingField?.field === 'finish' ? (
                                 <Input
@@ -3982,7 +4013,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Material - Fixed width */}
-                            <div className="flex-shrink-0 w-20">
+                            <div className="flex-shrink-0 w-20 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
                               {editingField?.itemId === item.id && editingField?.field === 'material' ? (
                                 <Input
@@ -4005,7 +4036,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* QTY - Fixed width */}
-                            <div className="flex-shrink-0 w-14 text-center">
+                            <div className="flex-shrink-0 w-14 h-9 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
                               {editingField?.itemId === item.id && editingField?.field === 'quantity' ? (
                                 <Input
@@ -4029,7 +4060,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Unit Type - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-14" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-shrink-0 w-14 h-9" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Unit</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -4068,7 +4099,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             
                             {/* Lead Time - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-24 mr-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-shrink-0 w-24 h-9 mr-3" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -4077,7 +4108,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {item.leadTime ? (
-                                      LEAD_TIME_OPTIONS.find(o => o.value === item.leadTime)?.label || item.leadTime
+                                      formatLeadTime(item.leadTime)
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
@@ -4114,7 +4145,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {activeTab === 'financial' && (
                               <>
                                 {/* Trade Price */}
-                                <div className="flex-shrink-0 w-20 text-right">
+                                <div className="flex-shrink-0 w-20 h-9 text-right">
                                   <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Trade</p>
                                   {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
                                     <Input
@@ -4138,7 +4169,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </div>
                                 
                                 {/* RRP */}
-                                <div className="flex-shrink-0 w-20 text-right">
+                                <div className="flex-shrink-0 w-20 h-9 text-right">
                                   <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">RRP</p>
                                   {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
                                     <Input
@@ -4163,8 +4194,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </>
                             )}
                             
-                            {/* Supplier - Flexible to fill space */}
-                            <div className="flex-1 min-w-[100px] relative" onClick={(e) => e.stopPropagation()}>
+                            {/* Supplier - Flexible to fill space, allows 2 lines */}
+                            <div className="flex-1 min-w-[100px] h-9 relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
@@ -4173,12 +4204,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     onClick={(e) => e.stopPropagation()}
                                     title={item.supplierName || undefined}
                                   >
-                                    {item.supplierName ? (
+                                    {item.supplierName || item.supplierId ? (
                                       (() => {
-                                        // Parse "Business Name / Contact Name" format
-                                        const parts = item.supplierName.split(' / ')
-                                        const businessName = parts[0]
-                                        const contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
+                                        // First try to look up supplier from phonebook for full info
+                                        const phonebookSupplier = item.supplierId
+                                          ? suppliers.find(s => s.id === item.supplierId)
+                                          : suppliers.find(s => s.name === item.supplierName?.split(' / ')[0])
+
+                                        let businessName = ''
+                                        let contactName: string | null = null
+
+                                        if (phonebookSupplier) {
+                                          // Use phonebook data for consistent display
+                                          businessName = phonebookSupplier.name
+                                          contactName = phonebookSupplier.contactName || null
+                                        } else if (item.supplierName) {
+                                          // Fall back to parsing supplierName field
+                                          const parts = item.supplierName.split(' / ')
+                                          businessName = parts[0]
+                                          contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
+                                        }
+
                                         return (
                                           <div className="leading-tight">
                                             <span className="text-xs text-gray-700 truncate block">{businessName}</span>
@@ -4264,33 +4310,33 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             <div className="flex-shrink-0 flex flex-col items-end gap-1 ml-auto">
                               {/* Row 1: Approve + Status + Menu */}
                               <div className="flex items-center gap-1.5">
-                                {/* Client Approved Checkbox */}
+                                {/* Client Approved Checkbox - Fixed width */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleToggleClientApproval(item.id, item.clientApproved)
                                   }}
                                   className={cn(
-                                    "flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-all",
-                                    item.clientApproved 
-                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" 
+                                    "flex items-center justify-center gap-1.5 px-2 py-1 rounded border text-xs transition-all w-[90px]",
+                                    item.clientApproved
+                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                                   )}
                                   title={item.clientApproved ? "Client has approved this item" : "Click to mark as client approved"}
                                 >
                                   {item.clientApproved ? (
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                                   ) : (
-                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                    <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
                                   )}
                                   <span className="hidden sm:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
                                 </button>
-                                
-                                {/* Status Dropdown */}
+
+                                {/* Status Dropdown - Fixed width */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button 
-                                      className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap min-w-[110px]"
+                                    <button
+                                      className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap w-[130px]"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {getItemStatusDisplay(item.specStatus || 'DRAFT')}

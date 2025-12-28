@@ -3120,6 +3120,7 @@ model SupplierQuoteLineItem {
   availability        String?  // 'IN_STOCK', 'BACKORDER', 'SPECIAL_ORDER'
   leadTimeWeeks       Int?
   leadTimeNotes       String?
+  leadTime            String?  // Human-readable: 'in-stock', '2-4-weeks', etc.
 
   // Product info
   supplierSKU         String?

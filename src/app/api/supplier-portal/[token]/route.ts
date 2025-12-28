@@ -339,7 +339,8 @@ export async function POST(
       declineReason,
       quoteDocumentUrl,
       totalAmount,
-      leadTime
+      leadTime,
+      itemLeadTimes  // Per-item lead times: { [rfqLineItemId]: 'in-stock' | '2-4-weeks' | ... }
     } = body
 
     const supplierRFQ = await prisma.supplierRFQ.findUnique({
@@ -419,6 +420,9 @@ export async function POST(
         const totalPrice = parseFloat(item.unitPrice) * parseInt(item.quantity)
         subtotal += totalPrice
 
+        // Get lead time: from item directly, from itemLeadTimes map, or from global leadTime
+        const itemLeadTime = item.leadTime || itemLeadTimes?.[item.rfqLineItemId] || leadTime || null
+
         return {
           rfqLineItemId: item.rfqLineItemId,
           unitPrice: item.unitPrice,
@@ -428,6 +432,7 @@ export async function POST(
           availability: item.availability || null,
           leadTimeWeeks: item.leadTimeWeeks || null,
           leadTimeNotes: item.leadTimeNotes || null,
+          leadTime: itemLeadTime,
           supplierSKU: item.supplierSKU || null,
           supplierModelNumber: item.supplierModelNumber || null,
           alternateProduct: item.alternateProduct || false,

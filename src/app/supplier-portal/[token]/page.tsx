@@ -192,17 +192,21 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
+  const [uploadedFileSize, setUploadedFileSize] = useState<number>(0)
   const [uploading, setUploading] = useState(false)
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTotalAmount, setUploadTotalAmount] = useState('')
   const [uploadNotes, setUploadNotes] = useState('')
-  const [uploadLeadTime, setUploadLeadTime] = useState('')
+
+  // Per-item lead times for upload mode
+  const [itemLeadTimes, setItemLeadTimes] = useState<Record<string, string>>({})
 
   // AI Match state
   const [aiMatching, setAiMatching] = useState(false)
   const [aiMatchResult, setAiMatchResult] = useState<AIMatchResponse | null>(null)
   const [showAiResults, setShowAiResults] = useState(false)
+  const [aiConfirmed, setAiConfirmed] = useState(false)
 
   // Tax fields (Quebec GST/QST)
   const [includeTaxes, setIncludeTaxes] = useState(false)
@@ -405,6 +409,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     // Show uploading state first (don't set file yet)
     setUploading(true)
     setUploadingFileName(file.name)
+    setAiConfirmed(false)
+    setAiMatchResult(null)
 
     try {
       const formData = new FormData()
@@ -419,10 +425,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         const uploadData = await uploadResponse.json()
         setUploadedFile(file)
         setUploadedFileUrl(uploadData.url)
+        setUploadedFileSize(file.size)
         toast.success('Quote document uploaded successfully')
 
-        // Automatically run AI matching for image files
-        if (file.type.startsWith('image/')) {
+        // Automatically run AI matching for images and PDFs
+        const canAnalyze = file.type.startsWith('image/') || file.type === 'application/pdf'
+        if (canAnalyze) {
+          setUploading(false)
           setAiMatching(true)
           try {
             const aiResponse = await fetch(`/api/supplier-portal/${token}/ai-match`, {
@@ -441,15 +450,22 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               setShowAiResults(true)
 
               // Auto-fill the total amount if extracted
-              if (aiResult.supplierInfo?.total && !uploadTotalAmount) {
+              if (aiResult.supplierInfo?.total) {
                 setUploadTotalAmount(aiResult.supplierInfo.total.toString())
               }
 
-              toast.success(`Analyzed: ${aiResult.summary.matched} items matched, ${aiResult.summary.missing} missing`)
+              // Auto-detect taxes from quote
+              if (aiResult.supplierInfo?.taxes && aiResult.supplierInfo.taxes > 0) {
+                setIncludeTaxes(true)
+              }
+
+              toast.success(`Analyzed: ${aiResult.summary.matched} items matched`)
+            } else {
+              toast('Could not analyze document automatically. Please enter details manually.')
             }
           } catch (aiErr) {
             console.error('AI matching failed:', aiErr)
-            // Don't show error - AI matching is optional
+            toast('Could not analyze document. Please confirm details manually.')
           } finally {
             setAiMatching(false)
           }
@@ -475,8 +491,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const removeUploadedFile = () => {
     setUploadedFile(null)
     setUploadedFileUrl(null)
+    setUploadedFileSize(0)
     setAiMatchResult(null)
     setShowAiResults(false)
+    setAiConfirmed(false)
+    setItemLeadTimes({})
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -536,8 +555,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
-    if (!uploadLeadTime) {
-      toast.error('Please select a lead time')
+    // Validate all items have lead times
+    const missingLeadTimes = data?.rfq.lineItems.filter(item => !itemLeadTimes[item.id])
+    if (missingLeadTimes && missingLeadTimes.length > 0) {
+      toast.error(`Please select lead time for all items (${missingLeadTimes.length} missing)`)
       return
     }
 
@@ -553,7 +574,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           quoteDocumentUrl: uploadedFileUrl,
           totalAmount: uploadTotalAmount ? parseFloat(uploadTotalAmount) : null,
           supplierNotes: uploadNotes || null,
-          leadTime: uploadLeadTime,
           // Tax and delivery info
           includeTaxes,
           gstAmount: gst,
@@ -566,8 +586,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             rfqLineItemId: item.id,
             unitPrice: 0,
             quantity: item.quantity,
-            availability: uploadLeadTime === 'IN_STOCK' ? 'IN_STOCK' : 'BACKORDER',
-            leadTime: uploadLeadTime,
+            availability: itemLeadTimes[item.id] === 'in-stock' ? 'IN_STOCK' : 'BACKORDER',
+            leadTime: itemLeadTimes[item.id] || '',
             notes: 'See attached quote document'
           })) || []
         })
@@ -972,6 +992,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* Uploaded File Display */}
                     <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                       <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                         <File className="w-6 h-6 text-emerald-600" />
@@ -979,7 +1000,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{uploadedFile.name}</p>
                         <p className="text-sm text-gray-500">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                          {uploadedFileSize > 0 ? `${(uploadedFileSize / 1024 / 1024).toFixed(2)} MB` : 'Uploaded'}
                         </p>
                       </div>
                       <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
@@ -1107,7 +1128,45 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Per-Item Lead Times */}
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="bg-gray-100 px-4 py-2 border-b">
+                    <p className="text-sm font-medium text-gray-700">
+                      Lead Time per Item <span className="text-red-500">*</span>
+                    </p>
+                    <p className="text-xs text-gray-500">Select estimated delivery time for each item</p>
+                  </div>
+                  <div className="divide-y">
+                    {data?.rfq.lineItems.map((item, idx) => (
+                      <div key={item.id} className="px-4 py-3 flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{item.itemName}</p>
+                          <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                        </div>
+                        <select
+                          value={itemLeadTimes[item.id] || ''}
+                          onChange={(e) => setItemLeadTimes(prev => ({ ...prev, [item.id]: e.target.value }))}
+                          className={cn(
+                            "w-40 rounded-md border px-2 py-1.5 text-sm bg-white",
+                            !itemLeadTimes[item.id] ? "border-red-200" : "border-emerald-300"
+                          )}
+                        >
+                          <option value="">Select...</option>
+                          <option value="in-stock">In Stock</option>
+                          <option value="1-2 weeks">1-2 Weeks</option>
+                          <option value="2-4 weeks">2-4 Weeks</option>
+                          <option value="4-6 weeks">4-6 Weeks</option>
+                          <option value="6-8 weeks">6-8 Weeks</option>
+                          <option value="8-12 weeks">8-12 Weeks</option>
+                          <option value="12+ weeks">12+ Weeks</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quote Total & Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Quote Total (optional)</Label>
                     <div className="relative mt-1.5">
@@ -1122,27 +1181,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                         className="pl-10"
                       />
                     </div>
-                  </div>
-                  <div>
-                    <Label>Lead Time <span className="text-red-500">*</span></Label>
-                    <select
-                      value={uploadLeadTime}
-                      onChange={(e) => setUploadLeadTime(e.target.value)}
-                      className={cn(
-                        "mt-1.5 w-full rounded-md border px-3 py-2 text-sm bg-white",
-                        !uploadLeadTime ? "border-gray-200" : "border-emerald-300"
-                      )}
-                      required
-                    >
-                      <option value="">Select lead time...</option>
-                      <option value="IN_STOCK">In Stock</option>
-                      <option value="1-2_WEEKS">1-2 Weeks</option>
-                      <option value="2-4_WEEKS">2-4 Weeks</option>
-                      <option value="4-6_WEEKS">4-6 Weeks</option>
-                      <option value="6-8_WEEKS">6-8 Weeks</option>
-                      <option value="8-12_WEEKS">8-12 Weeks</option>
-                      <option value="12+_WEEKS">12+ Weeks</option>
-                    </select>
                   </div>
                   <div>
                     <Label>Notes (optional)</Label>
