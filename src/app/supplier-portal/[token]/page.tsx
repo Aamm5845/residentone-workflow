@@ -714,7 +714,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     <p className="text-sm text-gray-500">9446-7503 QUEBEC INC</p>
                     <p className="text-sm text-gray-500">514 797 6957</p>
                     <p className="text-sm text-gray-500">aaron@meisnerinteriors.com</p>
-                    <p className="text-xs text-gray-400 mt-2">GST: 714093507 RT0001 | QST: 1228724382 TQ0001</p>
                   </div>
                 </div>
               </div>
