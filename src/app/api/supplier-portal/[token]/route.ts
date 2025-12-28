@@ -514,7 +514,7 @@ export async function POST(
             where: { id: roomFFEItemId },
             data: {
               ...(quoteLineItem.unitPrice ? { tradePrice: quoteLineItem.unitPrice } : {}),
-              specStatus: 'QUOTED',
+              specStatus: 'PRICE_RECEIVED',
               ...(itemLeadTime ? { leadTime: itemLeadTime } : {})
             }
           })

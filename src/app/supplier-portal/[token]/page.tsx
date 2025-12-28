@@ -416,10 +416,44 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       })
 
       if (uploadResponse.ok) {
-        const data = await uploadResponse.json()
+        const uploadData = await uploadResponse.json()
         setUploadedFile(file)
-        setUploadedFileUrl(data.url)
+        setUploadedFileUrl(uploadData.url)
         toast.success('Quote document uploaded successfully')
+
+        // Automatically run AI matching for image files
+        if (file.type.startsWith('image/')) {
+          setAiMatching(true)
+          try {
+            const aiResponse = await fetch(`/api/supplier-portal/${token}/ai-match`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fileUrl: uploadData.url,
+                fileType: file.type
+              })
+            })
+
+            const aiResult = await aiResponse.json()
+
+            if (aiResult.success) {
+              setAiMatchResult(aiResult)
+              setShowAiResults(true)
+
+              // Auto-fill the total amount if extracted
+              if (aiResult.supplierInfo?.total && !uploadTotalAmount) {
+                setUploadTotalAmount(aiResult.supplierInfo.total.toString())
+              }
+
+              toast.success(`Analyzed: ${aiResult.summary.matched} items matched, ${aiResult.summary.missing} missing`)
+            }
+          } catch (aiErr) {
+            console.error('AI matching failed:', aiErr)
+            // Don't show error - AI matching is optional
+          } finally {
+            setAiMatching(false)
+          }
+        }
       } else {
         const errorData = await uploadResponse.json()
         toast.error(errorData.details || errorData.error || 'Failed to upload file')
@@ -910,14 +944,18 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   className="hidden"
                 />
 
-                {uploading ? (
+                {uploading || aiMatching ? (
                   <div className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center bg-emerald-50">
                     <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
-                    <p className="text-emerald-700 font-medium">Uploading...</p>
+                    <p className="text-emerald-700 font-medium">
+                      {aiMatching ? 'Analyzing quote...' : 'Uploading...'}
+                    </p>
                     {uploadingFileName && (
                       <p className="text-sm text-emerald-600 mt-1">{uploadingFileName}</p>
                     )}
-                    <p className="text-xs text-emerald-500 mt-2">Please wait while we save your file</p>
+                    <p className="text-xs text-emerald-500 mt-2">
+                      {aiMatching ? 'Matching items with AI' : 'Please wait while we save your file'}
+                    </p>
                   </div>
                 ) : !uploadedFile ? (
                   <div
@@ -948,29 +986,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-
-                    {/* AI Match Button */}
-                    {uploadedFile.type.startsWith('image/') && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleAIMatch}
-                        disabled={aiMatching}
-                        className="w-full bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-300 text-purple-700"
-                      >
-                        {aiMatching ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Analyzing with AI...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            Analyze Quote with AI
-                          </>
-                        )}
-                      </Button>
-                    )}
 
                     {/* AI Match Results */}
                     {aiMatchResult && showAiResults && (
