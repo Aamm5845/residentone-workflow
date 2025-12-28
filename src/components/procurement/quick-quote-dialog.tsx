@@ -427,7 +427,7 @@ export default function QuickQuoteDialog({
 
                               {/* Status / Actions */}
                               <div className="flex items-center gap-2 flex-shrink-0">
-                                {alreadySent ? (
+                                {alreadySent && (
                                   <div className="flex items-center gap-2">
                                     <Badge
                                       variant="outline"
@@ -452,27 +452,38 @@ export default function QuickQuoteDialog({
                                       <RefreshCw className="w-4 h-4" />
                                     </button>
                                   </div>
-                                ) : isUnmatched ? (
+                                )}
+                                {/* Supplier selector - always available for price comparison */}
+                                {(!alreadySent || resendItems.has(item.id)) && (
                                   <Select
-                                    value={supplierOverrides[item.id] || ''}
+                                    value={supplierOverrides[item.id] || group.supplier?.id || ''}
                                     onValueChange={(v) => handleSupplierChange(item.id, v)}
                                   >
-                                    <SelectTrigger className="w-[160px] h-8 text-xs">
-                                      <SelectValue placeholder="Select supplier..." />
+                                    <SelectTrigger className={cn(
+                                      "h-8 text-xs",
+                                      isUnmatched ? "w-[160px]" : "w-[140px]"
+                                    )}>
+                                      <SelectValue placeholder="Select supplier...">
+                                        {(() => {
+                                          const selectedId = supplierOverrides[item.id] || group.supplier?.id
+                                          const selected = preview.availableSuppliers.find(s => s.id === selectedId)
+                                          return selected ? selected.name : 'Select...'
+                                        })()}
+                                      </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                       {preview.availableSuppliers.map(s => (
                                         <SelectItem key={s.id} value={s.id}>
-                                          {s.name}
+                                          <div className="flex items-center gap-2">
+                                            <span>{s.name}</span>
+                                            {s.id === group.supplier?.id && !supplierOverrides[item.id] && (
+                                              <Badge variant="secondary" className="text-[10px] py-0 px-1">Current</Badge>
+                                            )}
+                                          </div>
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
-                                ) : (
-                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                    Ready
-                                  </Badge>
                                 )}
                               </div>
                             </div>
