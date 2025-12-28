@@ -51,7 +51,6 @@ interface RFQData {
       notes?: string
       category?: string
       roomFFEItem?: {
-        thumbnailUrl?: string
         images?: string[]
         brand?: string
         sku?: string
@@ -479,7 +478,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           <CardContent>
             <div className="space-y-4">
               {data.rfq.lineItems.map((item, index) => {
-                const imageUrl = item.roomFFEItem?.thumbnailUrl || (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
+                const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
                 const specs = item.roomFFEItem
                 const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width
                 const documents = specs?.documents || []

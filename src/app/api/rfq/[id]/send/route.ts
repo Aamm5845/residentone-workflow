@@ -47,7 +47,6 @@ export async function POST(
                 description: true,
                 brand: true,
                 images: true,
-                thumbnailUrl: true,
                 section: {
                   select: {
                     name: true
@@ -128,7 +127,7 @@ export async function POST(
         try {
           await sendEmail({
             to: supplier.email,
-            subject: `Request for Quote: ${rfq.title} - ${rfq.project.name}`,
+            subject: `Quote Request ${rfq.rfqNumber}: ${rfq.title} - ${rfq.project.name}`,
             html: generateRFQEmail({
               rfq,
               supplier,
@@ -194,7 +193,7 @@ export async function POST(
         try {
           await sendEmail({
             to: vendor.email,
-            subject: `Request for Quote: ${rfq.title} - ${rfq.project.name}`,
+            subject: `Quote Request ${rfq.rfqNumber}: ${rfq.title} - ${rfq.project.name}`,
             html: generateRFQEmail({
               rfq,
               vendor,

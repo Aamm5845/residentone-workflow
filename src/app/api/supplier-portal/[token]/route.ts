@@ -44,7 +44,6 @@ export async function GET(
                     brand: true,
                     sku: true,
                     notes: true,
-                    thumbnailUrl: true,
                     images: true,
                     color: true,
                     finish: true,
@@ -174,7 +173,6 @@ export async function GET(
           category: item.roomFFEItem?.section?.name || 'General',
           // Additional item details for spec sheet
           roomFFEItem: item.roomFFEItem ? {
-            thumbnailUrl: item.roomFFEItem.thumbnailUrl,
             images: item.roomFFEItem.images,
             brand: item.roomFFEItem.brand,
             sku: item.roomFFEItem.sku,

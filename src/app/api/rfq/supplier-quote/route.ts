@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
         // Send professional email
         await sendEmail({
           to: email,
-          subject: `Quote Request: ${project.name}`,
+          subject: `Quote Request ${rfq.rfqNumber}: ${project.name}`,
           html: generateProfessionalQuoteEmail({
             project,
             items: supplierItems,

@@ -77,7 +77,6 @@ export async function GET(
                   name: true,
                   description: true,
                   images: true,
-                  thumbnailUrl: true,
                   supplierLink: true,
                   brand: true,
                   modelNumber: true,
@@ -198,7 +197,6 @@ export async function GET(
           category: item.groupId,
           // Product details from related RoomFFEItem
           images: item.roomFFEItem?.images || [],
-          thumbnailUrl: item.roomFFEItem?.thumbnailUrl,
           supplierLink: item.roomFFEItem?.supplierLink,
           brand: item.roomFFEItem?.brand,
           modelNumber: item.roomFFEItem?.modelNumber,

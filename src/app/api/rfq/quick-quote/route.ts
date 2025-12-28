@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendEmail({
           to: supplier.email,
-          subject: `Request for Quote: ${rfq.title} - ${project.name}`,
+          subject: `Quote Request ${rfq.rfqNumber}: ${rfq.title} - ${project.name}`,
           html: generateQuickQuoteEmail({
             rfq,
             items,
