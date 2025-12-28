@@ -1,5 +1,5 @@
 /**
- * Email Service for ResidentOne Workflow
+ * Email Service for StudioFlow (Meisner Interiors)
  * 
  * Uses the existing Resend configuration from the main email service
  */
@@ -99,8 +99,8 @@ export function isValidEmail(email: string): boolean {
  */
 export function getEmailConfig() {
   return {
-    fromEmail: process.env.FROM_EMAIL || 'noreply@residentone.com',
-    fromName: process.env.FROM_NAME || 'ResidentOne Workflow',
-    replyToEmail: process.env.REPLY_TO_EMAIL || 'support@residentone.com'
+    fromEmail: process.env.FROM_EMAIL || 'noreply@meisnerinteriors.com',
+    fromName: process.env.FROM_NAME || 'Meisner Interiors',
+    replyToEmail: process.env.REPLY_TO_EMAIL || 'info@meisnerinteriors.com'
   }
 }

@@ -95,8 +95,8 @@ export default function CreateClientQuoteDialog({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [validUntil, setValidUntil] = useState('')
-  const [paymentTerms, setPaymentTerms] = useState('50% deposit, 50% on delivery')
-  const [depositRequired, setDepositRequired] = useState<number | undefined>(50)
+  const [paymentTerms, setPaymentTerms] = useState('100% upfront')
+  const [depositRequired, setDepositRequired] = useState<number | undefined>(undefined)
   const [defaultMarkup, setDefaultMarkup] = useState(25)
 
   // Step 2: Items & Pricing
@@ -125,17 +125,24 @@ export default function CreateClientQuoteDialog({
       const items = specItems.filter(item => preselectedItemIds.includes(item.id))
       buildLineItems(items)
       
-      // Auto-generate title based on categories
-      const categories = [...new Set(items.map(i => i.category || i.sectionName || 'Items'))]
-      if (categories.length === 1) {
-        setTitle(`${categories[0]} Quote`)
-      } else if (categories.length <= 3) {
-        setTitle(`${categories.join(', ')} Quote`)
+      // Auto-generate title - use item name if only one item, otherwise use categories
+      if (items.length === 1) {
+        // Single item: use the item name as title
+        setTitle(items[0].name || 'Item Quote')
       } else {
-        setTitle(`Quote (${items.length} items)`)
+        // Multiple items: use categories
+        const categories = [...new Set(items.map(i => i.category || i.sectionName || 'Items'))]
+        if (categories.length === 1) {
+          setTitle(`${categories[0]} Quote`)
+        } else if (categories.length <= 3) {
+          setTitle(`${categories.join(', ')} Quote`)
+        } else {
+          setTitle(`Quote (${items.length} items)`)
+        }
       }
 
       // Expand all categories by default
+      const categories = [...new Set(items.map(i => i.category || i.sectionName || 'Items'))]
       setExpandedCategories(new Set(categories))
     }
   }, [specItems, preselectedItemIds, categoryMarkups])
@@ -182,7 +189,8 @@ export default function CreateClientQuoteDialog({
     const newLineItems: LineItem[] = items.map(item => {
       const category = item.category || item.sectionName || 'General'
       const markup = getMarkupForCategory(category)
-      const costPrice = item.tradePrice || item.unitCost || 0
+      // Use tradePrice, then unitCost, then rrp as fallbacks for cost price
+      const costPrice = item.tradePrice || item.unitCost || item.rrp || 0
       const sellingPrice = costPrice * (1 + markup / 100)
       const quantity = item.quantity || 1
 
@@ -382,8 +390,8 @@ export default function CreateClientQuoteDialog({
     setTitle('')
     setDescription('')
     setValidUntil('')
-    setPaymentTerms('50% deposit, 50% on delivery')
-    setDepositRequired(50)
+    setPaymentTerms('100% upfront')
+    setDepositRequired(undefined)
     setDefaultMarkup(25)
     setLineItems([])
     setSearchQuery('')

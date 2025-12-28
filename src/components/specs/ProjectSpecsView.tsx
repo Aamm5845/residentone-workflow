@@ -6603,7 +6603,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           setQuickQuoteDialogOpen(false)
           setQuickQuoteItems([])
           setSelectedItems(new Set()) // Clear selection after sending
-          loadSpecs() // Refresh to show updated status
+          fetchSpecs(true) // Refresh to show updated status
         }}
         projectId={project.id}
         itemIds={quickQuoteItems}

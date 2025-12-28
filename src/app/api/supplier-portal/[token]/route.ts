@@ -76,12 +76,15 @@ export async function GET(
 
     // Update access tracking
     const headersList = await headers()
+    const isFirstView = !supplierRFQ.viewedAt
+    const viewedAt = new Date()
+
     await prisma.$transaction([
       prisma.supplierRFQ.update({
         where: { id: supplierRFQ.id },
         data: {
-          viewedAt: supplierRFQ.viewedAt || new Date(),
-          lastAccessedAt: new Date(),
+          viewedAt: supplierRFQ.viewedAt || viewedAt,
+          lastAccessedAt: viewedAt,
           accessCount: { increment: 1 }
         }
       }),
@@ -94,6 +97,41 @@ export async function GET(
         }
       })
     ])
+
+    // On first view, update ItemQuoteRequest status and create activity for each item
+    if (isFirstView) {
+      const supplierName = supplierRFQ.supplier?.name || supplierRFQ.vendorName || supplierRFQ.vendorEmail || 'Supplier'
+
+      // Find all ItemQuoteRequests linked to this SupplierRFQ
+      const itemQuoteRequests = await prisma.itemQuoteRequest.findMany({
+        where: { supplierRfqId: supplierRFQ.id }
+      })
+
+      // Update each ItemQuoteRequest to VIEWED and create activity
+      for (const qr of itemQuoteRequests) {
+        await prisma.itemQuoteRequest.update({
+          where: { id: qr.id },
+          data: { status: 'VIEWED' }
+        })
+
+        // Create activity for the view
+        await prisma.itemActivity.create({
+          data: {
+            itemId: qr.itemId,
+            type: 'QUOTE_VIEWED',
+            title: 'Quote Request Viewed',
+            description: `${supplierName} opened the quote request`,
+            actorName: supplierName,
+            actorType: 'supplier',
+            metadata: {
+              supplierRfqId: supplierRFQ.id,
+              supplierId: supplierRFQ.supplierId,
+              viewedAt: viewedAt.toISOString()
+            }
+          }
+        })
+      }
+    }
 
     // Return RFQ data (without sensitive info)
     return NextResponse.json({

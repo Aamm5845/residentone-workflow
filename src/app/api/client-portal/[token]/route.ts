@@ -70,7 +70,28 @@ export async function GET(
               unitType: true,
               sellingPrice: true,
               totalPrice: true,
-              groupId: true
+              groupId: true,
+              roomFFEItem: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  images: true,
+                  thumbnailUrl: true,
+                  supplierLink: true,
+                  brand: true,
+                  modelNumber: true,
+                  sku: true,
+                  color: true,
+                  finish: true,
+                  material: true,
+                  leadTime: true,
+                  dimensions: true,
+                  width: true,
+                  height: true,
+                  depth: true
+                }
+              }
             },
             orderBy: { order: 'asc' }
           },
@@ -174,7 +195,22 @@ export async function GET(
           unitType: item.unitType,
           price: parseFloat(item.sellingPrice?.toString() || '0'),
           total: parseFloat(item.totalPrice?.toString() || '0'),
-          category: item.groupId
+          category: item.groupId,
+          // Product details from related RoomFFEItem
+          images: item.roomFFEItem?.images || [],
+          thumbnailUrl: item.roomFFEItem?.thumbnailUrl,
+          supplierLink: item.roomFFEItem?.supplierLink,
+          brand: item.roomFFEItem?.brand,
+          modelNumber: item.roomFFEItem?.modelNumber,
+          sku: item.roomFFEItem?.sku,
+          color: item.roomFFEItem?.color,
+          finish: item.roomFFEItem?.finish,
+          material: item.roomFFEItem?.material,
+          leadTime: item.roomFFEItem?.leadTime,
+          dimensions: item.roomFFEItem?.dimensions,
+          width: item.roomFFEItem?.width,
+          height: item.roomFFEItem?.height,
+          depth: item.roomFFEItem?.depth
         })),
         payments: quote.payments.map(p => ({
           id: p.id,

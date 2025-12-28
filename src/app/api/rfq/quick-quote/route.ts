@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,6 @@ export async function POST(request: NextRequest) {
         supplierName: true,
         brand: true,
         images: true,
-        thumbnailUrl: true,
         section: {
           select: {
             name: true,
@@ -181,8 +181,7 @@ export async function POST(request: NextRequest) {
                 name: true,
                 description: true,
                 brand: true,
-                images: true,
-                thumbnailUrl: true
+                images: true
               }
             }
           }
@@ -191,7 +190,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create SupplierRFQ records and send emails
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const results: Array<{ supplierId: string; email: string; success: boolean; error?: string }> = []
 
     for (const supplierId of supplierIds) {
@@ -333,77 +332,43 @@ function generateQuickQuoteEmail({
   const brandColor = '#10B981'
 
   const itemsList = items.map(item => {
-    const imageUrl = item.thumbnailUrl || (item.images && item.images[0]) || null
+    const imageUrl = (item.images && item.images[0]) || null
+    // Create a simple item row - images may be blocked by email clients
     return `
     <tr>
-      <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
-        ${imageUrl ? `<img src="${imageUrl}" alt="${item.name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb;" />` : `<div style="width: 60px; height: 60px; background: #f3f4f6; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 10px;">No image</div>`}
+      <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; width: 70px;">
+        ${imageUrl ? `<img src="${imageUrl}" alt="${item.name}" width="50" height="50" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" />` : `<span style="color: #9ca3af; font-size: 10px;">[No img]</span>`}
       </td>
-      <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
-        <strong style="color: #1f2937;">${item.name}</strong>
-        ${item.description ? `<br/><span style="color: #6b7280; font-size: 13px;">${item.description.substring(0, 100)}${item.description.length > 100 ? '...' : ''}</span>` : ''}
-        ${item.brand ? `<br/><span style="color: #9ca3af; font-size: 12px;">Brand: ${item.brand}</span>` : ''}
+      <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle;">
+        <strong>${item.name}</strong>${item.brand ? ` - ${item.brand}` : ''}
       </td>
-      <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: center;">
-        <strong style="color: #1f2937;">${item.quantity || 1}</strong>
-        <br/><span style="color: #6b7280; font-size: 12px;">${item.unitType || 'units'}</span>
+      <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; text-align: center; width: 60px;">
+        <strong>${item.quantity || 1}</strong> ${item.unitType || 'units'}
       </td>
     </tr>
   `}).join('')
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Request for Quote</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
-      <div style="background: ${brandColor}; padding: 30px; border-radius: 8px 8px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Request for Quote</h1>
-        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">${rfq.rfqNumber}</p>
-      </div>
-
-      <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-        <p>Dear ${supplier.contactName || supplier.name},</p>
-
-        <p>We are requesting a quote for the following items:</p>
-
-        ${message ? `
-        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0; color: #92400e;">${message}</p>
-        </div>
-        ` : ''}
-
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
-          <thead>
-            <tr style="background: #f3f4f6;">
-              <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #e5e7eb; width: 70px;">Image</th>
-              <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #e5e7eb;">Item Details</th>
-              <th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #e5e7eb; width: 80px;">Qty</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsList}
-          </tbody>
-        </table>
-
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-            Submit Your Quote
-          </a>
-        </div>
-
-        <p style="color: #6b7280; font-size: 14px; text-align: center;">
-          Click the button above to submit your quote. This link will expire in 30 days.
-        </p>
-      </div>
-
-      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>This is an automated message from Meisner Interiors.</p>
-      </div>
-    </body>
-    </html>
-  `
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Quote Request</title></head>
+<body style="font-family: Arial, sans-serif; line-height: 1.4; color: #333; max-width: 550px; margin: 0 auto; padding: 10px;">
+<div style="background: ${brandColor}; padding: 15px 20px; border-radius: 6px 6px 0 0;">
+<h2 style="color: white; margin: 0;">Quote Request - ${rfq.rfqNumber}</h2>
+</div>
+<div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px;">
+<p style="margin: 0 0 15px 0;">Hi ${supplier.contactName || supplier.name},</p>
+<p style="margin: 0 0 15px 0;">Please provide a quote for:</p>
+${message ? `<p style="background: #fef3c7; padding: 10px; border-radius: 4px; margin: 0 0 15px 0;"><em>${message}</em></p>` : ''}
+<table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0;">
+<tr style="background: #f3f4f6;"><th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Item</th><th style="padding: 8px; text-align: center; border: 1px solid #e5e7eb; width: 60px;">Qty</th></tr>
+${items.map(item => `<tr><td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>${item.name}</strong>${item.brand ? ` (${item.brand})` : ''}</td><td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">${item.quantity || 1}</td></tr>`).join('')}
+</table>
+<div style="text-align: center;">
+<a href="${portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Submit Quote</a>
+</div>
+<p style="color: #6b7280; font-size: 12px; text-align: center; margin: 15px 0 0 0;">Link expires in 30 days</p>
+</div>
+</body>
+</html>`
 }
 

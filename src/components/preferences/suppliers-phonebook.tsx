@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Plus, 
-  Search, 
-  Pencil, 
-  Trash2, 
-  Building2, 
-  User, 
-  Mail, 
-  Phone, 
-  Globe, 
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Building2,
+  User,
+  Mail,
+  Phone,
+  Globe,
   MapPin,
   Loader2,
   X,
@@ -29,6 +29,56 @@ import {
   Settings,
   Check
 } from 'lucide-react'
+
+// Flag icons as SVG components
+const CanadaFlag = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="6" height="16" fill="#FF0000"/>
+    <rect x="6" width="12" height="16" fill="#FFFFFF"/>
+    <rect x="18" width="6" height="16" fill="#FF0000"/>
+    <path d="M12 3L12.5 5H14L12.75 6L13.25 8L12 7L10.75 8L11.25 6L10 5H11.5L12 3Z" fill="#FF0000"/>
+    <path d="M12 4.5L11 7H9.5L11 8.5L10.5 10L12 9L13.5 10L13 8.5L14.5 7H13L12 4.5Z" fill="#FF0000"/>
+  </svg>
+)
+
+const USAFlag = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="16" fill="#FFFFFF"/>
+    <rect width="24" height="1.23" fill="#B22234"/>
+    <rect y="2.46" width="24" height="1.23" fill="#B22234"/>
+    <rect y="4.92" width="24" height="1.23" fill="#B22234"/>
+    <rect y="7.38" width="24" height="1.23" fill="#B22234"/>
+    <rect y="9.85" width="24" height="1.23" fill="#B22234"/>
+    <rect y="12.31" width="24" height="1.23" fill="#B22234"/>
+    <rect y="14.77" width="24" height="1.23" fill="#B22234"/>
+    <rect width="10" height="8.62" fill="#3C3B6E"/>
+    <circle cx="1.5" cy="1" r="0.4" fill="white"/>
+    <circle cx="3.5" cy="1" r="0.4" fill="white"/>
+    <circle cx="5.5" cy="1" r="0.4" fill="white"/>
+    <circle cx="7.5" cy="1" r="0.4" fill="white"/>
+    <circle cx="2.5" cy="2" r="0.4" fill="white"/>
+    <circle cx="4.5" cy="2" r="0.4" fill="white"/>
+    <circle cx="6.5" cy="2" r="0.4" fill="white"/>
+    <circle cx="1.5" cy="3" r="0.4" fill="white"/>
+    <circle cx="3.5" cy="3" r="0.4" fill="white"/>
+    <circle cx="5.5" cy="3" r="0.4" fill="white"/>
+    <circle cx="7.5" cy="3" r="0.4" fill="white"/>
+    <circle cx="2.5" cy="4" r="0.4" fill="white"/>
+    <circle cx="4.5" cy="4" r="0.4" fill="white"/>
+    <circle cx="6.5" cy="4" r="0.4" fill="white"/>
+    <circle cx="1.5" cy="5" r="0.4" fill="white"/>
+    <circle cx="3.5" cy="5" r="0.4" fill="white"/>
+    <circle cx="5.5" cy="5" r="0.4" fill="white"/>
+    <circle cx="7.5" cy="5" r="0.4" fill="white"/>
+    <circle cx="2.5" cy="6" r="0.4" fill="white"/>
+    <circle cx="4.5" cy="6" r="0.4" fill="white"/>
+    <circle cx="6.5" cy="6" r="0.4" fill="white"/>
+    <circle cx="1.5" cy="7" r="0.4" fill="white"/>
+    <circle cx="3.5" cy="7" r="0.4" fill="white"/>
+    <circle cx="5.5" cy="7" r="0.4" fill="white"/>
+    <circle cx="7.5" cy="7" r="0.4" fill="white"/>
+  </svg>
+)
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -559,24 +609,26 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, currency: 'CAD' }))}
-            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all ${
+            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all flex items-center justify-center gap-2 ${
               formData.currency === 'CAD'
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                 : 'border-slate-200 hover:border-slate-300 text-slate-600'
             }`}
           >
-            🇨🇦 CAD
+            <CanadaFlag className="w-6 h-4 rounded-sm shadow-sm" />
+            CAD
           </button>
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, currency: 'USD' }))}
-            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all ${
+            className={`flex-1 py-2.5 px-4 rounded-xl border-2 font-medium transition-all flex items-center justify-center gap-2 ${
               formData.currency === 'USD'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-slate-200 hover:border-slate-300 text-slate-600'
             }`}
           >
-            🇺🇸 USD
+            <USAFlag className="w-6 h-4 rounded-sm shadow-sm" />
+            USD
           </button>
         </div>
         <p className="text-xs text-slate-500">All prices from this supplier will be in this currency</p>
@@ -886,11 +938,11 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                         {catInfo.name}
                       </Badge>
                       {supplier.currency && supplier.currency !== 'CAD' && (
-                        <Badge 
-                          variant="secondary" 
-                          className="text-xs font-medium px-2 py-0.5 bg-blue-50 text-blue-600"
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-medium px-2 py-0.5 bg-blue-50 text-blue-600 flex items-center gap-1"
                         >
-                          🇺🇸 USD
+                          <USAFlag className="w-4 h-3 rounded-sm" /> USD
                         </Badge>
                       )}
                     </div>
@@ -1006,7 +1058,12 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                           : "bg-emerald-50 text-emerald-600"
                       )}
                     >
-                      {viewingSupplier.currency === 'USD' ? '🇺🇸 USD' : '🇨🇦 CAD'}
+                      <span className="flex items-center gap-1.5">
+                        {viewingSupplier.currency === 'USD'
+                          ? <><USAFlag className="w-5 h-3.5 rounded-sm" /> USD</>
+                          : <><CanadaFlag className="w-5 h-3.5 rounded-sm" /> CAD</>
+                        }
+                      </span>
                     </Badge>
                   </div>
                 </div>

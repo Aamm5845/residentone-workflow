@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon, CheckCircle2, Circle, AlertCircle } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon, CheckCircle2, Circle, AlertCircle, FileText, File, Download, Clock, Send, MessageSquare, Package, DollarSign, ShoppingCart, Truck, User, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,6 +43,26 @@ interface FFESection {
   sectionId: string
   sectionName: string
   items: FFEItem[]
+}
+
+interface ItemDocument {
+  id: string
+  title: string
+  description?: string
+  fileName: string
+  fileUrl: string
+  fileSize?: number
+  mimeType?: string
+  type: string
+  dropboxPath?: string
+  visibleToClient: boolean
+  visibleToSupplier: boolean
+  createdAt: string
+  uploadedBy?: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 interface FFERoom {
@@ -142,6 +162,346 @@ const UNIT_TYPE_OPTIONS = [
   { value: 'sets', label: 'Sets' },
   { value: 'pairs', label: 'Pairs' },
 ]
+
+// Activity Tab Component
+interface ActivityItem {
+  id: string
+  type: string
+  title: string
+  description?: string
+  timestamp: string
+  actor?: {
+    id?: string
+    name?: string
+    email?: string
+    image?: string
+    type: string
+  }
+  metadata?: any
+}
+
+function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: string; mode: string }) {
+  const [loading, setLoading] = useState(false)
+  const [activities, setActivities] = useState<ActivityItem[]>([])
+
+  useEffect(() => {
+    if (itemId && roomId && mode !== 'create') {
+      loadActivities()
+    }
+  }, [itemId, roomId, mode])
+
+  const loadActivities = async () => {
+    if (!itemId || !roomId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/activity`)
+      if (res.ok) {
+        const data = await res.json()
+        setActivities(data.activities || [])
+      }
+    } catch (error) {
+      console.error('Failed to load activities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'QUOTE_REQUESTED':
+        return <Send className="w-4 h-4 text-blue-500" />
+      case 'QUOTE_RECEIVED':
+        return <MessageSquare className="w-4 h-4 text-green-500" />
+      case 'QUOTE_DECLINED':
+        return <X className="w-4 h-4 text-red-500" />
+      case 'QUOTE_VIEWED':
+        return <ExternalLink className="w-4 h-4 text-gray-500" />
+      case 'STATUS_CHANGED':
+        return <CheckCircle2 className="w-4 h-4 text-purple-500" />
+      case 'PRICE_UPDATED':
+        return <DollarSign className="w-4 h-4 text-yellow-500" />
+      case 'CLIENT_APPROVED':
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />
+      case 'CLIENT_REJECTED':
+        return <AlertCircle className="w-4 h-4 text-red-500" />
+      case 'ADDED_TO_ORDER':
+        return <ShoppingCart className="w-4 h-4 text-indigo-500" />
+      case 'ORDERED':
+        return <Package className="w-4 h-4 text-blue-500" />
+      case 'SHIPPED':
+        return <Truck className="w-4 h-4 text-orange-500" />
+      case 'DELIVERED':
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />
+      case 'NOTE_ADDED':
+        return <FileText className="w-4 h-4 text-gray-500" />
+      case 'DOCUMENT_UPLOADED':
+        return <Upload className="w-4 h-4 text-blue-500" />
+      default:
+        return <Clock className="w-4 h-4 text-gray-400" />
+    }
+  }
+
+  const getActorIcon = (actorType: string) => {
+    switch (actorType) {
+      case 'supplier':
+        return <Building2 className="w-3 h-3" />
+      case 'client':
+        return <User className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+    if (days === 0) {
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      if (hours === 0) {
+        const minutes = Math.floor(diff / (1000 * 60))
+        return minutes <= 1 ? 'Just now' : `${minutes}m ago`
+      }
+      return `${hours}h ago`
+    } else if (days === 1) {
+      return 'Yesterday'
+    } else if (days < 7) {
+      return `${days} days ago`
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+    }
+  }
+
+  if (mode === 'create') {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+        <p className="text-sm">Activity will appear after saving</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+        <p className="text-sm font-medium text-gray-600">No activity yet</p>
+        <p className="text-xs text-gray-400 mt-1">Activity will be tracked here when you request quotes, update prices, etc.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      {activities.map((activity, index) => (
+        <div
+          key={activity.id}
+          className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {/* Icon */}
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+            {getActivityIcon(activity.type)}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                {activity.description && (
+                  <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
+                )}
+              </div>
+              <span className="text-xs text-gray-400 whitespace-nowrap">
+                {formatTime(activity.timestamp)}
+              </span>
+            </div>
+
+            {/* Actor */}
+            {activity.actor && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {activity.actor.image ? (
+                  <img
+                    src={activity.actor.image}
+                    alt={activity.actor.name || ''}
+                    className="w-4 h-4 rounded-full"
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                    {getActorIcon(activity.actor.type) || (
+                      <span className="text-[10px] font-medium">
+                        {(activity.actor.name || activity.actor.email || '?').charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <span className="text-xs text-gray-500">
+                  {activity.actor.name || activity.actor.email}
+                </span>
+                {activity.actor.type !== 'user' && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                    {activity.actor.type}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Metadata badges */}
+            {activity.metadata && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {activity.metadata.quoteAmount && (
+                  <Badge variant="secondary" className="text-xs">
+                    ${Number(activity.metadata.quoteAmount).toLocaleString()}
+                  </Badge>
+                )}
+                {activity.metadata.rfqNumber && (
+                  <Badge variant="outline" className="text-xs">
+                    {activity.metadata.rfqNumber}
+                  </Badge>
+                )}
+                {activity.metadata.status && activity.type !== 'QUOTE_REQUESTED' && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-xs",
+                      activity.metadata.status === 'QUOTED' && "bg-green-50 text-green-700 border-green-200",
+                      activity.metadata.status === 'DECLINED' && "bg-red-50 text-red-700 border-red-200",
+                      activity.metadata.status === 'VIEWED' && "bg-blue-50 text-blue-700 border-blue-200"
+                    )}
+                  >
+                    {activity.metadata.status}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Request Quote Button Component (for single item)
+function RequestQuoteButton({
+  itemId,
+  itemName,
+  supplierName,
+  supplierId,
+  projectId,
+  roomId
+}: {
+  itemId?: string
+  itemName?: string
+  supplierName: string
+  supplierId?: string
+  projectId?: string
+  roomId?: string
+}) {
+  const [sending, setSending] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const handleRequestQuote = async () => {
+    if (!itemId || !projectId) {
+      toast.error('Missing required information')
+      return
+    }
+
+    setSending(true)
+    try {
+      const res = await fetch('/api/rfq/supplier-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          items: [{
+            id: itemId,
+            supplierId: supplierId || undefined,
+            supplierName
+          }]
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(`Quote request sent to ${supplierName}!`)
+        setShowConfirm(false)
+      } else if (data.needsConfirmation) {
+        toast.warning('Quote already requested for this item')
+      } else {
+        toast.error(data.error || 'Failed to send quote request')
+      }
+    } catch (error) {
+      console.error('Failed to send quote:', error)
+      toast.error('Failed to send quote request')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowConfirm(true)}
+        className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+      >
+        <Send className="w-4 h-4" />
+        Request Quote
+      </Button>
+
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-600" />
+              Request Quote
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Send a quote request to <strong>{supplierName}</strong> for:
+            </p>
+            <div className="bg-gray-50 rounded-lg p-3 border">
+              <p className="font-medium text-gray-900">{itemName}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRequestQuote} disabled={sending} className="gap-1.5">
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send Request
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 
 export function ItemDetailPanel({
@@ -339,7 +699,28 @@ export function ItemDetailPanel({
   const [uploadingImage, setUploadingImage] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const documentInputRef = useRef<HTMLInputElement>(null)
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
+
+  // Documents state
+  const [documents, setDocuments] = useState<ItemDocument[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
+  const [uploadingDocument, setUploadingDocument] = useState(false)
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null)
+  const [pendingDocumentFile, setPendingDocumentFile] = useState<File | null>(null)
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('Quotes')
+  const [customDocumentType, setCustomDocumentType] = useState('')
+  const [documentNote, setDocumentNote] = useState('')
+
+  // Default document types with labels and colors
+  const defaultDocumentTypes = [
+    { id: 'Quotes', label: 'Quote', color: 'blue', dbType: 'SUPPLIER_QUOTE' },
+    { id: 'Drawings', label: 'Spec Sheet', color: 'purple', dbType: 'DRAWING' },
+    { id: 'Invoices', label: 'Invoice', color: 'green', dbType: 'INVOICE' },
+    { id: 'Receipts', label: 'Receipt', color: 'emerald', dbType: 'RECEIPT' },
+    { id: 'Shipping', label: 'Shipping', color: 'orange', dbType: 'SHIPPING_DOC' },
+    { id: 'Other', label: 'Other', color: 'gray', dbType: 'OTHER' },
+  ]
   
   // Handle file upload
   const handleFileUpload = async (files: FileList | null) => {
@@ -391,7 +772,148 @@ export function ItemDetailPanel({
       setUploadingImage(false)
     }
   }
-  
+
+  // Load documents for item
+  const loadDocuments = async () => {
+    if (!item?.id || !item?.roomId) return
+
+    setLoadingDocuments(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents`)
+      if (res.ok) {
+        const data = await res.json()
+        setDocuments(data.documents || [])
+      }
+    } catch (error) {
+      console.error('Failed to load documents:', error)
+    } finally {
+      setLoadingDocuments(false)
+    }
+  }
+
+  // Handle file selection for documents - show type selector
+  const handleDocumentFileSelect = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    if (!item?.id || !item?.roomId) {
+      toast.error('Please save the item first before uploading documents')
+      return
+    }
+
+    const file = files[0]
+
+    // Validate size
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File must be less than 25MB')
+      return
+    }
+
+    // Store the file and show type selector
+    setPendingDocumentFile(file)
+  }
+
+  // Upload document with selected type
+  const handleDocumentUpload = async () => {
+    if (!pendingDocumentFile || !item?.id || !item?.roomId) return
+
+    // Get the document type config
+    const typeConfig = defaultDocumentTypes.find(t => t.id === selectedDocumentType)
+    const dbType = typeConfig?.dbType || 'OTHER'
+
+    // For custom "Other" type, prepend the custom label to the description
+    let description = documentNote.trim()
+    if (selectedDocumentType === 'Other' && customDocumentType.trim()) {
+      description = `[${customDocumentType.trim()}] ${description}`.trim()
+    }
+
+    setUploadingDocument(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', pendingDocumentFile)
+      formData.append('fileType', selectedDocumentType)
+      formData.append('documentType', dbType)
+      formData.append('title', pendingDocumentFile.name)
+      if (description) {
+        formData.append('description', description)
+      }
+
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setDocuments(prev => [data.document, ...prev])
+        toast.success('Document uploaded successfully')
+        setPendingDocumentFile(null)
+        setSelectedDocumentType('Quotes')
+        setCustomDocumentType('')
+        setDocumentNote('')
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to upload document')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload document')
+    } finally {
+      setUploadingDocument(false)
+    }
+  }
+
+  // Cancel pending upload
+  const cancelDocumentUpload = () => {
+    setPendingDocumentFile(null)
+    setSelectedDocumentType('Quotes')
+    setCustomDocumentType('')
+    setDocumentNote('')
+  }
+
+  // Delete document
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!item?.id || !item?.roomId) return
+
+    setDeletingDocumentId(documentId)
+    try {
+      const res = await fetch(
+        `/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents?documentId=${documentId}`,
+        { method: 'DELETE' }
+      )
+
+      if (res.ok) {
+        setDocuments(prev => prev.filter(d => d.id !== documentId))
+        toast.success('Document deleted')
+      } else {
+        toast.error('Failed to delete document')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete document')
+    } finally {
+      setDeletingDocumentId(null)
+    }
+  }
+
+  // Format file size
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return ''
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  // Get icon for file type
+  const getFileIcon = (mimeType?: string, fileName?: string) => {
+    const ext = fileName?.split('.').pop()?.toLowerCase()
+    if (mimeType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+      return ImageIcon
+    }
+    if (mimeType === 'application/pdf' || ext === 'pdf') {
+      return FileText
+    }
+    return File
+  }
+
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -430,6 +952,15 @@ export function ItemDetailPanel({
       loadSuppliers()
     }
   }, [isOpen])
+
+  // Load documents for existing items
+  useEffect(() => {
+    if (isOpen && item?.id && mode !== 'create') {
+      loadDocuments()
+    } else {
+      setDocuments([])
+    }
+  }, [isOpen, item?.id, mode])
   
   // Load supplier categories
   const loadSupplierCategories = async () => {
@@ -764,13 +1295,13 @@ export function ItemDetailPanel({
         </div>
         
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 px-5">
-          {['Summary', 'Financial', 'Attachments', 'Approvals'].map((tab) => (
+        <div className="flex border-b border-gray-200 px-5 overflow-x-auto">
+          {['Summary', 'Financial', 'Attachments', 'Activity', 'Approvals'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab.toLowerCase())}
               className={cn(
-                "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === tab.toLowerCase()
                   ? "border-emerald-500 text-emerald-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -1508,79 +2039,274 @@ export function ItemDetailPanel({
             
             {activeTab === 'attachments' && (
               <div className="space-y-4">
-                <div className="text-sm text-gray-600 mb-4">
-                  <p>Product images and files for this item.</p>
-                </div>
-                
-                {/* Display existing images */}
-                {images.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Current Images</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {images.map((img, idx) => (
-                        <div key={idx} className="relative group rounded-lg overflow-hidden bg-gray-100 border aspect-square">
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                          <button 
-                            onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                            className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-4 h-4 text-gray-600" />
-                          </button>
-                          <a 
-                            href={img} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="absolute bottom-2 right-2 p-1.5 bg-white/90 rounded-full hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <ExternalLink className="w-4 h-4 text-gray-600" />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
+                {/* Hidden file input for documents */}
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.dwg,.dxf"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleDocumentFileSelect(e.target.files)
+                    e.target.value = '' // Reset input
+                  }}
+                />
+
+                {/* Header with upload button */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Documents</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Spec sheets, quotes, invoices & receipts
+                    </p>
                   </div>
-                )}
-                
-                {/* Upload area */}
-                {images.length < 2 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Add Image</Label>
-                    <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={cn(
-                        "border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
-                        isDragging 
-                          ? "border-emerald-500 bg-emerald-50" 
-                          : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-                      )}
+                  {mode !== 'create' && !pendingDocumentFile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => documentInputRef.current?.click()}
+                      disabled={uploadingDocument}
+                      className="gap-1.5"
                     >
-                      {uploadingImage ? (
-                        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                      ) : (
-                        <>
-                          <Upload className="w-8 h-8 text-gray-400 mb-3" />
-                          <p className="text-sm text-gray-600 mb-1">
-                            Drag & drop or <span className="text-blue-600 font-medium">browse files</span>
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            JPG, PNG, WebP up to 4MB • Max 2 images
-                          </p>
-                        </>
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </Button>
+                  )}
+                </div>
+
+                {/* Pending file - show type selector */}
+                {pendingDocumentFile && (
+                  <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <File className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {pendingDocumentFile.name}
+                        </span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          ({formatFileSize(pendingDocumentFile.size)})
+                        </span>
+                      </div>
+                      <button
+                        onClick={cancelDocumentUpload}
+                        className="p-1 hover:bg-blue-100 rounded"
+                      >
+                        <X className="w-4 h-4 text-gray-500" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700">Type</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {defaultDocumentTypes.map((type) => (
+                          <button
+                            key={type.id}
+                            onClick={() => {
+                              setSelectedDocumentType(type.id)
+                              if (type.id !== 'Other') setCustomDocumentType('')
+                            }}
+                            className={cn(
+                              "py-1.5 px-3 rounded-full border text-xs font-medium transition-all",
+                              selectedDocumentType === type.id
+                                ? type.color === 'blue' ? "border-blue-500 bg-blue-100 text-blue-700"
+                                : type.color === 'purple' ? "border-purple-500 bg-purple-100 text-purple-700"
+                                : type.color === 'green' ? "border-green-500 bg-green-100 text-green-700"
+                                : type.color === 'emerald' ? "border-emerald-500 bg-emerald-100 text-emerald-700"
+                                : type.color === 'orange' ? "border-orange-500 bg-orange-100 text-orange-700"
+                                : "border-gray-500 bg-gray-100 text-gray-700"
+                                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                            )}
+                          >
+                            {type.label}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedDocumentType === 'Other' && (
+                        <Input
+                          value={customDocumentType}
+                          onChange={(e) => setCustomDocumentType(e.target.value)}
+                          placeholder="Enter custom type (e.g., Customs, Duties)"
+                          className="mt-2 text-sm h-9"
+                        />
                       )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700">Note (optional)</Label>
+                      <Textarea
+                        value={documentNote}
+                        onChange={(e) => setDocumentNote(e.target.value)}
+                        placeholder="Add a note about this document..."
+                        className="h-16 text-sm resize-none bg-white"
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelDocumentUpload}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleDocumentUpload}
+                        disabled={uploadingDocument}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        {uploadingDocument ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-1.5" />
+                            Upload
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
-                
-                {images.length >= 2 && (
-                  <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                    Maximum 2 images reached. Remove an image to add a new one.
-                  </p>
+
+                {mode === 'create' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs text-amber-700">
+                      Save the item first to upload documents.
+                    </p>
+                  </div>
+                )}
+
+                {/* Loading state */}
+                {loadingDocuments && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  </div>
+                )}
+
+                {/* Documents list grouped by type */}
+                {!loadingDocuments && documents.length > 0 && (
+                  <div className="space-y-3">
+                    {/* Group documents by type */}
+                    {['SUPPLIER_QUOTE', 'DRAWING', 'INVOICE', 'RECEIPT', 'SHIPPING_DOC', 'OTHER'].map(docType => {
+                      const knownTypes = ['SUPPLIER_QUOTE', 'DRAWING', 'INVOICE', 'RECEIPT', 'SHIPPING_DOC']
+                      const typeDocs = documents.filter(d =>
+                        docType === 'OTHER'
+                          ? !knownTypes.includes(d.type)
+                          : d.type === docType
+                      )
+                      if (typeDocs.length === 0) return null
+
+                      const typeLabel = docType === 'DRAWING' ? 'Spec Sheets'
+                        : docType === 'SUPPLIER_QUOTE' ? 'Quotes'
+                        : docType === 'INVOICE' ? 'Invoices'
+                        : docType === 'RECEIPT' ? 'Receipts'
+                        : docType === 'SHIPPING_DOC' ? 'Shipping'
+                        : 'Other'
+                      const typeColor = docType === 'DRAWING' ? 'bg-purple-100 text-purple-700 border-purple-200'
+                        : docType === 'SUPPLIER_QUOTE' ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : docType === 'INVOICE' ? 'bg-green-100 text-green-700 border-green-200'
+                        : docType === 'RECEIPT' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : docType === 'SHIPPING_DOC' ? 'bg-orange-100 text-orange-700 border-orange-200'
+                        : 'bg-gray-100 text-gray-700 border-gray-200'
+
+                      return (
+                        <div key={docType} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", typeColor)}>
+                              {typeLabel}
+                            </span>
+                            <span className="text-xs text-gray-400">{typeDocs.length}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {typeDocs.map(doc => {
+                              const FileIcon = getFileIcon(doc.mimeType, doc.fileName)
+                              const uploadDate = new Date(doc.createdAt)
+                              const dateStr = uploadDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })
+                              return (
+                                <div
+                                  key={doc.id}
+                                  className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 group hover:bg-white hover:border-gray-300 transition-all"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-white border flex items-center justify-center flex-shrink-0">
+                                      <FileIcon className="w-4 h-4 text-gray-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {doc.title || doc.fileName}
+                                      </p>
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                        <span>{dateStr}</span>
+                                        <span className="text-gray-300">•</span>
+                                        <span>{formatFileSize(doc.fileSize)}</span>
+                                      </div>
+                                      {doc.description && (
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">
+                                          {doc.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                                      {doc.fileUrl && !doc.fileUrl.startsWith('dropbox:') && (
+                                        <a
+                                          href={doc.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                          title="Open"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                      )}
+                                      <button
+                                        onClick={() => handleDeleteDocument(doc.id)}
+                                        disabled={deletingDocumentId === doc.id}
+                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                        title="Delete"
+                                      >
+                                        {deletingDocumentId === doc.id ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {!loadingDocuments && documents.length === 0 && mode !== 'create' && !pendingDocumentFile && (
+                  <div
+                    onClick={() => documentInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                  >
+                    <FileText className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm font-medium text-gray-600">No documents yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Click to upload spec sheets, quotes, or invoices</p>
+                  </div>
                 )}
               </div>
             )}
             
+            {activeTab === 'activity' && (
+              <ActivityTab itemId={item?.id} roomId={item?.roomId} mode={mode} />
+            )}
+
             {activeTab === 'approvals' && (
               <div className="text-center py-12 text-gray-500">
                 <p>No approval workflow set up</p>
@@ -1596,6 +2322,16 @@ export function ItemDetailPanel({
             {item?.sectionName && <span> / {item.sectionName}</span>}
           </div>
           <div className="flex gap-2">
+            {mode !== 'create' && formData.supplierName && (
+              <RequestQuoteButton
+                itemId={item?.id}
+                itemName={item?.name || formData.name}
+                supplierName={formData.supplierName}
+                supplierId={formData.supplierId}
+                projectId={projectId}
+                roomId={item?.roomId}
+              />
+            )}
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>

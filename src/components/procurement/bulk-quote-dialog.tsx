@@ -1,63 +1,49 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
-} from '@/components/ui/dialog'
+import { useState, useEffect, useCallback } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import {
-  Loader2,
   Send,
-  AlertCircle,
-  CheckCircle,
-  Package,
-  User,
-  Mail,
+  Loader2,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
   RefreshCw,
+  Package,
+  Mail,
+  Building2,
+  Eye,
   Calendar,
-  Building2
+  Users
 } from 'lucide-react'
-import toast from 'react-hot-toast'
-import Image from 'next/image'
 
-interface QuickQuoteDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess: () => void
-  projectId: string
-  itemIds: string[]
-}
-
-interface ItemInfo {
+interface SelectedItem {
   id: string
   name: string
   description?: string
-  supplierName?: string
   brand?: string
+  sku?: string
   quantity?: number
   unitType?: string
+  supplierName?: string
   images?: string[]
-  thumbnailUrl?: string
-  specStatus?: string
+  tradePrice?: number
   roomName?: string
   sectionName?: string
 }
 
-interface SupplierInfo {
+interface Supplier {
   id: string
   name: string
   email: string
@@ -67,10 +53,10 @@ interface SupplierInfo {
 
 interface SupplierGroup {
   key: string
-  supplier: SupplierInfo | null
+  supplier: Supplier | null
   supplierName: string
   items: Array<{
-    item: ItemInfo
+    item: SelectedItem
     alreadySent: boolean
     previousRequest?: {
       sentAt: string
@@ -82,7 +68,7 @@ interface SupplierGroup {
 interface PreviewData {
   project: { id: string; name: string }
   supplierGroups: SupplierGroup[]
-  availableSuppliers: SupplierInfo[]
+  availableSuppliers: Supplier[]
   summary: {
     totalItems: number
     readyToSend: number
@@ -91,14 +77,22 @@ interface PreviewData {
   }
 }
 
-export default function QuickQuoteDialog({
+interface BulkQuoteDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectId: string
+  selectedItems: SelectedItem[]
+  onSuccess?: () => void
+}
+
+export function BulkQuoteDialog({
   open,
   onOpenChange,
-  onSuccess,
   projectId,
-  itemIds
-}: QuickQuoteDialogProps) {
-  const [loading, setLoading] = useState(true)
+  selectedItems,
+  onSuccess
+}: BulkQuoteDialogProps) {
+  const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [message, setMessage] = useState('')
@@ -108,15 +102,18 @@ export default function QuickQuoteDialog({
     return date.toISOString().split('T')[0]
   })
 
-  // Track supplier overrides per item
+  // Item-supplier overrides
   const [supplierOverrides, setSupplierOverrides] = useState<Record<string, string>>({})
-  // Track items to resend (override already sent)
+  // Items to resend (override already sent)
   const [resendItems, setResendItems] = useState<Set<string>>(new Set())
   // Expanded groups
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  // Show email preview
+  const [showEmailPreview, setShowEmailPreview] = useState(false)
 
+  // Load preview when dialog opens
   useEffect(() => {
-    if (open && itemIds.length > 0) {
+    if (open && selectedItems.length > 0) {
       loadPreview()
     } else {
       setPreview(null)
@@ -124,23 +121,25 @@ export default function QuickQuoteDialog({
       setResendItems(new Set())
       setExpandedGroups(new Set())
     }
-  }, [open, itemIds])
+  }, [open, selectedItems])
 
   const loadPreview = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/rfq/supplier-quote?projectId=${projectId}&itemIds=${itemIds.join(',')}`)
+      const itemIds = selectedItems.map(i => i.id).join(',')
+      const res = await fetch(`/api/rfq/supplier-quote?projectId=${projectId}&itemIds=${itemIds}`)
+
       if (res.ok) {
         const data = await res.json()
         setPreview(data)
         // Expand all groups by default
-        setExpandedGroups(new Set(data.supplierGroups?.map((g: SupplierGroup) => g.key) || []))
+        setExpandedGroups(new Set(data.supplierGroups.map((g: SupplierGroup) => g.key)))
       } else {
-        toast.error('Failed to load quote preview')
+        toast.error('Failed to load preview')
       }
     } catch (error) {
-      console.error('Error loading preview:', error)
-      toast.error('Failed to load quote preview')
+      console.error('Failed to load preview:', error)
+      toast.error('Failed to load preview')
     } finally {
       setLoading(false)
     }
@@ -180,25 +179,25 @@ export default function QuickQuoteDialog({
   const handleSend = async () => {
     if (!preview) return
 
-    // Build items array with overrides
-    const itemsToSend = preview.supplierGroups.flatMap(group =>
-      group.items
-        .filter(({ item, alreadySent }) => !alreadySent || resendItems.has(item.id))
-        .map(({ item }) => ({
-          id: item.id,
-          supplierId: supplierOverrides[item.id] || group.supplier?.id,
-          supplierName: item.supplierName,
-          overrideSupplier: resendItems.has(item.id)
-        }))
-    )
-
-    if (itemsToSend.length === 0) {
-      toast.error('No items to send. All items have already been sent for quotes.')
-      return
-    }
-
     setSending(true)
     try {
+      // Build items array with overrides
+      const itemsToSend = preview.supplierGroups.flatMap(group =>
+        group.items
+          .filter(({ item, alreadySent }) => !alreadySent || resendItems.has(item.id))
+          .map(({ item }) => ({
+            id: item.id,
+            supplierId: supplierOverrides[item.id] || group.supplier?.id,
+            supplierName: item.supplierName,
+            overrideSupplier: resendItems.has(item.id)
+          }))
+      )
+
+      if (itemsToSend.length === 0) {
+        toast.error('No items to send. All items have already been sent.')
+        return
+      }
+
       const res = await fetch('/api/rfq/supplier-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,15 +213,15 @@ export default function QuickQuoteDialog({
 
       if (data.success) {
         toast.success(`Quote requests sent to ${data.sent} supplier(s)!`)
-        onSuccess()
         onOpenChange(false)
+        onSuccess?.()
       } else if (data.needsConfirmation) {
-        toast.error('All items have already been sent. Enable resend to send again.')
+        toast.warning('All items have already been sent. Enable resend to send again.')
       } else {
         toast.error(data.error || 'Failed to send quote requests')
       }
     } catch (error) {
-      console.error('Error sending quote:', error)
+      console.error('Failed to send:', error)
       toast.error('Failed to send quote requests')
     } finally {
       setSending(false)
@@ -243,15 +242,12 @@ export default function QuickQuoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-blue-600" />
-            Request Quotes
+            Send Quote Requests
           </DialogTitle>
-          <DialogDescription>
-            {loading ? 'Loading...' : `Send quote requests for ${itemIds.length} item(s)`}
-          </DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -270,7 +266,7 @@ export default function QuickQuoteDialog({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-gray-500" />
+                  <Users className="w-4 h-4 text-gray-500" />
                   <span className="text-sm">
                     <strong>{totals.suppliers}</strong> suppliers
                   </span>
@@ -308,12 +304,10 @@ export default function QuickQuoteDialog({
                       >
                         <div className="flex items-center gap-3">
                           {group.supplier?.logo ? (
-                            <Image
+                            <img
                               src={group.supplier.logo}
                               alt={group.supplierName}
-                              width={40}
-                              height={40}
-                              className="rounded-lg object-cover border"
+                              className="w-10 h-10 rounded-lg object-cover border"
                             />
                           ) : (
                             <div className={cn(
@@ -364,17 +358,16 @@ export default function QuickQuoteDialog({
                               key={item.id}
                               className={cn(
                                 "flex items-center gap-3 p-3 border-b last:border-b-0",
-                                alreadySent && !resendItems.has(item.id) && "bg-gray-50 opacity-70"
+                                alreadySent && !resendItems.has(item.id) && "bg-gray-50"
                               )}
                             >
                               {/* Image */}
-                              <div className="w-12 h-12 relative flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border">
-                                {item.thumbnailUrl || item.images?.[0] ? (
-                                  <Image
-                                    src={item.thumbnailUrl || item.images![0]}
+                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border flex-shrink-0">
+                                {item.images?.[0] ? (
+                                  <img
+                                    src={item.images[0]}
                                     alt={item.name}
-                                    fill
-                                    className="object-cover"
+                                    className="w-full h-full object-cover"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -386,7 +379,7 @@ export default function QuickQuoteDialog({
                               {/* Details */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-gray-900 truncate text-sm">
+                                  <span className="font-medium text-gray-900 truncate">
                                     {item.name}
                                   </span>
                                   {item.brand && (
@@ -433,20 +426,29 @@ export default function QuickQuoteDialog({
                                     value={supplierOverrides[item.id] || ''}
                                     onValueChange={(v) => handleSupplierChange(item.id, v)}
                                   >
-                                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                                    <SelectTrigger className="w-[180px] h-8 text-xs">
                                       <SelectValue placeholder="Select supplier..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {preview.availableSuppliers.map(s => (
                                         <SelectItem key={s.id} value={s.id}>
-                                          {s.name}
+                                          <div className="flex items-center gap-2">
+                                            {s.logo ? (
+                                              <img src={s.logo} className="w-5 h-5 rounded" />
+                                            ) : (
+                                              <div className="w-5 h-5 rounded bg-gray-200 flex items-center justify-center text-xs">
+                                                {s.name.charAt(0)}
+                                              </div>
+                                            )}
+                                            <span>{s.name}</span>
+                                          </div>
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
                                 ) : (
                                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
                                     Ready
                                   </Badge>
                                 )}
@@ -467,7 +469,7 @@ export default function QuickQuoteDialog({
                   <Textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Add any special instructions or notes for suppliers..."
+                    placeholder="Add a note or special instructions for suppliers..."
                     rows={3}
                     className="resize-none"
                   />
@@ -497,7 +499,7 @@ export default function QuickQuoteDialog({
               <Button
                 onClick={handleSend}
                 disabled={sending || totals.toSend === 0}
-                className="gap-2 bg-blue-600 hover:bg-blue-700"
+                className="gap-2"
               >
                 {sending ? (
                   <>
@@ -507,7 +509,7 @@ export default function QuickQuoteDialog({
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Send to {totals.suppliers} Supplier{totals.suppliers !== 1 ? 's' : ''}
+                    Send to {totals.suppliers} Supplier{totals.suppliers > 1 ? 's' : ''}
                   </>
                 )}
               </Button>

@@ -799,8 +799,7 @@ class DropboxService {
         '8- DRAWINGS',
         '9- SKP',
         '10- REFERENCE MOOD',
-        '11- SOFTWARE UPLOADS',
-        '12- FFE'
+        '11- SOFTWARE UPLOADS'
       ]
       
       // Create each subfolder
@@ -859,13 +858,14 @@ class DropboxService {
   }
 
   /**
-   * Create FFE category folder with standard subfolders
-   * Structure: /ProjectFolder/12- FFE/{CategoryName}/
+   * Create Shopping category folder with standard subfolders
+   * Structure: /ProjectFolder/6- SHOPPING/{CategoryName}/
    *   - Drawings/  (for shop drawings, specs, PDFs)
    *   - Quotes/    (for supplier quotes)
    *   - Photos/    (for product photos)
+   *   - Invoices/  (for invoices and payment docs)
    */
-  async createFFECategoryFolder(projectFolderPath: string, categoryName: string): Promise<string> {
+  async createShoppingCategoryFolder(projectFolderPath: string, categoryName: string): Promise<string> {
     try {
       const sanitizedCategory = this.sanitizeFolderName(categoryName)
 
@@ -873,15 +873,15 @@ class DropboxService {
         throw new Error('Category name resulted in empty folder name after sanitization')
       }
 
-      const categoryPath = `${projectFolderPath}/12- FFE/${sanitizedCategory}`
+      const categoryPath = `${projectFolderPath}/6- SHOPPING/${sanitizedCategory}`
 
-      console.log('[DropboxService] 📁 Creating FFE category folder:', categoryPath)
+      console.log('[DropboxService] 📁 Creating Shopping category folder:', categoryPath)
 
       // Create main category folder
       await this.createFolder(categoryPath)
 
-      // Create subfolders
-      const subfolders = ['Drawings', 'Quotes', 'Photos']
+      // Create subfolders for organized storage
+      const subfolders = ['Drawings', 'Quotes', 'Photos', 'Invoices', 'Receipts', 'Shipping', 'Other']
 
       for (const subfolder of subfolders) {
         const subfolderPath = `${categoryPath}/${subfolder}`
@@ -893,29 +893,37 @@ class DropboxService {
         }
       }
 
-      console.log('[DropboxService] ✅ FFE category folder created:', categoryPath)
+      console.log('[DropboxService] ✅ Shopping category folder created:', categoryPath)
       return categoryPath
 
     } catch (error) {
-      console.error('[DropboxService] ❌ Failed to create FFE category folder:', error)
-      throw new Error(`Failed to create FFE category folder: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('[DropboxService] ❌ Failed to create Shopping category folder:', error)
+      throw new Error(`Failed to create Shopping category folder: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   /**
-   * Upload a file to the FFE folder for a project
-   * Automatically creates category folder if it doesn't exist
+   * @deprecated Use createShoppingCategoryFolder instead
    */
-  async uploadFFEFile(
+  async createFFECategoryFolder(projectFolderPath: string, categoryName: string): Promise<string> {
+    return this.createShoppingCategoryFolder(projectFolderPath, categoryName)
+  }
+
+  /**
+   * Upload a file to the Shopping folder for a project
+   * Automatically creates category folder if it doesn't exist
+   * Structure: /ProjectFolder/6- SHOPPING/{Category}/{FileType}/{FileName}
+   */
+  async uploadShoppingFile(
     projectFolderPath: string,
     categoryName: string,
-    fileType: 'Drawings' | 'Quotes' | 'Photos',
+    fileType: string, // Drawings, Quotes, Photos, Invoices, Receipts, Shipping, Other
     fileName: string,
     fileBuffer: Buffer
   ): Promise<{ path: string; sharedLink?: string }> {
     try {
       // Ensure category folder exists
-      const categoryPath = await this.createFFECategoryFolder(projectFolderPath, categoryName)
+      const categoryPath = await this.createShoppingCategoryFolder(projectFolderPath, categoryName)
 
       // Sanitize filename
       const sanitizedFilename = fileName
@@ -925,18 +933,42 @@ class DropboxService {
 
       // Upload the file
       const filePath = `${categoryPath}/${fileType}/${sanitizedFilename}`
-      console.log('[DropboxService] 📤 Uploading FFE file to:', filePath)
+      console.log('[DropboxService] 📤 Uploading Shopping file to:', filePath)
 
       await this.uploadFile(filePath, fileBuffer, { mode: 'add' })
 
-      console.log('[DropboxService] ✅ FFE file uploaded successfully')
+      // Create shared link for the uploaded file
+      let sharedLink: string | undefined
+      try {
+        const link = await this.createSharedLink(filePath)
+        if (link) {
+          sharedLink = link
+        }
+      } catch (linkError) {
+        console.warn('[DropboxService] ⚠️ Could not create shared link:', linkError)
+      }
 
-      return { path: filePath }
+      console.log('[DropboxService] ✅ Shopping file uploaded successfully')
+
+      return { path: filePath, sharedLink }
 
     } catch (error) {
-      console.error('[DropboxService] ❌ Failed to upload FFE file:', error)
-      throw new Error(`Failed to upload FFE file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('[DropboxService] ❌ Failed to upload Shopping file:', error)
+      throw new Error(`Failed to upload Shopping file: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  /**
+   * @deprecated Use uploadShoppingFile instead
+   */
+  async uploadFFEFile(
+    projectFolderPath: string,
+    categoryName: string,
+    fileType: 'Drawings' | 'Quotes' | 'Photos',
+    fileName: string,
+    fileBuffer: Buffer
+  ): Promise<{ path: string; sharedLink?: string }> {
+    return this.uploadShoppingFile(projectFolderPath, categoryName, fileType, fileName, fileBuffer)
   }
 }
 

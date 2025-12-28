@@ -15,8 +15,12 @@ import {
   CreditCard,
   ChevronRight,
   Calendar,
-  MapPin
+  MapPin,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Tag
 } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +56,21 @@ interface QuoteLineItem {
   price: number
   total: number
   category?: string
+  // Product details
+  images?: string[]
+  thumbnailUrl?: string
+  supplierLink?: string
+  brand?: string
+  modelNumber?: string
+  sku?: string
+  color?: string
+  finish?: string
+  material?: string
+  leadTime?: string
+  dimensions?: string
+  width?: string
+  height?: string
+  depth?: string
 }
 
 interface Payment {
@@ -415,16 +434,86 @@ export default function ClientPortalPage({ params }: ClientPortalPageProps) {
                     </CardHeader>
                     <CardContent className="pt-6">
                       {/* Line Items */}
-                      <div className="space-y-2 mb-6">
+                      <div className="space-y-4 mb-6">
                         {quote.lineItems.slice(0, 5).map(item => (
-                          <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100">
-                            <div>
-                              <p className="font-medium">{item.name}</p>
-                              <p className="text-sm text-gray-500">
-                                {item.quantity} {item.unitType}
-                              </p>
+                          <div key={item.id} className="border border-gray-100 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                            <div className="flex gap-4">
+                              {/* Product Image */}
+                              <div className="flex-shrink-0 w-20 h-20 relative rounded-lg overflow-hidden bg-gray-100">
+                                {item.thumbnailUrl || (item.images && item.images[0]) ? (
+                                  <Image
+                                    src={item.thumbnailUrl || item.images![0]}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                    <Package className="w-8 h-8" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Product Details */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2">
+                                  <p className="font-medium text-gray-900">{item.name}</p>
+                                  <p className="font-semibold text-emerald-600 whitespace-nowrap">{formatCurrency(item.total)}</p>
+                                </div>
+
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
+                                )}
+
+                                {/* Product Specs */}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {item.brand && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      {item.brand}
+                                    </span>
+                                  )}
+                                  {item.color && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      {item.color}
+                                    </span>
+                                  )}
+                                  {item.material && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      {item.material}
+                                    </span>
+                                  )}
+                                  {item.finish && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      {item.finish}
+                                    </span>
+                                  )}
+                                  {(item.width || item.height || item.depth || item.dimensions) && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                      {item.dimensions || `${item.width || ''}${item.height ? ` × ${item.height}` : ''}${item.depth ? ` × ${item.depth}` : ''}`}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Quantity and Link */}
+                                <div className="flex items-center justify-between mt-2">
+                                  <p className="text-sm text-gray-500">
+                                    Qty: {item.quantity} {item.unitType}
+                                    {item.leadTime && <span className="ml-2">• Lead time: {item.leadTime}</span>}
+                                  </p>
+                                  {item.supplierLink && (
+                                    <a
+                                      href={item.supplierLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      View Product
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <p className="font-medium">{formatCurrency(item.total)}</p>
                           </div>
                         ))}
                         {quote.lineItems.length > 5 && (
