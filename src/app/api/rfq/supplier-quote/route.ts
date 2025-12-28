@@ -106,9 +106,16 @@ export async function POST(request: NextRequest) {
         quoteRequests: {
           where: { status: 'SENT' },
           select: { supplierId: true, vendorEmail: true }
+        },
+        documents: {
+          where: { visibleToSupplier: true },
+          select: { id: true }
         }
       }
     })
+
+    // Check if any item has documents visible to supplier
+    const hasDocuments = dbItems.some(item => item.documents && item.documents.length > 0)
 
     // Get all suppliers
     const allSuppliers = await prisma.supplier.findMany({
@@ -289,7 +296,7 @@ export async function POST(request: NextRequest) {
             portalUrl,
             message,
             deadline,
-            includeSpecSheet
+            includeSpecSheet: includeSpecSheet && hasDocuments // Only show if checkbox enabled AND documents exist
           })
         })
 

@@ -380,6 +380,17 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
                     {activity.metadata.status}
                   </Badge>
                 )}
+                {activity.metadata.quoteDocumentUrl && (
+                  <a
+                    href={activity.metadata.quoteDocumentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    <FileText className="w-3 h-3" />
+                    View Quote
+                  </a>
+                )}
               </div>
             )}
           </div>

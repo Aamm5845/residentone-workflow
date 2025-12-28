@@ -119,7 +119,8 @@ export async function GET(
                     id: true,
                     status: true,
                     totalAmount: true,
-                    submittedAt: true
+                    submittedAt: true,
+                    quoteDocumentUrl: true
                   }
                 }
               }
@@ -204,7 +205,7 @@ export async function GET(
                 id: `quote-${quote.id}`,
                 type: 'QUOTE_RECEIVED',
                 title: 'Quote Received',
-                description: `${supplierName} submitted a quote`,
+                description: `${supplierName} submitted a quote${quote.quoteDocumentUrl ? ' with document' : ''}`,
                 timestamp: quote.submittedAt.toISOString(),
                 actor: {
                   name: supplierName,
@@ -213,7 +214,8 @@ export async function GET(
                 metadata: {
                   quoteId: quote.id,
                   totalAmount: quote.totalAmount,
-                  status: quote.status
+                  status: quote.status,
+                  quoteDocumentUrl: quote.quoteDocumentUrl
                 }
               })
             }

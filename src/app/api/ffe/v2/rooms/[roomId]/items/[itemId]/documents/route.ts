@@ -79,9 +79,80 @@ export async function GET(
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      documents: documents.map(doc => ({
+    // Also get supplier quote documents linked to this item through RFQ line items
+    const rfqLineItems = await prisma.rFQLineItem.findMany({
+      where: { roomFFEItemId: itemId },
+      select: {
+        rfq: {
+          select: {
+            supplierRFQs: {
+              select: {
+                supplier: { select: { name: true } },
+                vendorName: true,
+                quotes: {
+                  where: { quoteDocumentUrl: { not: null } },
+                  select: {
+                    id: true,
+                    quoteDocumentUrl: true,
+                    quoteNumber: true,
+                    submittedAt: true
+                  },
+                  orderBy: { submittedAt: 'desc' }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Extract supplier quote documents
+    const supplierQuoteDocs: Array<{
+      id: string
+      title: string
+      description: string | null
+      fileName: string
+      fileUrl: string
+      fileSize: number | null
+      mimeType: string | null
+      type: string
+      dropboxPath: string | null
+      visibleToClient: boolean
+      visibleToSupplier: boolean
+      createdAt: Date
+      uploadedBy: { name: string } | null
+    }> = []
+
+    for (const lineItem of rfqLineItems) {
+      if (lineItem.rfq?.supplierRFQs) {
+        for (const supplierRfq of lineItem.rfq.supplierRFQs) {
+          const supplierName = supplierRfq.supplier?.name || supplierRfq.vendorName || 'Supplier'
+          for (const quote of supplierRfq.quotes) {
+            if (quote.quoteDocumentUrl) {
+              supplierQuoteDocs.push({
+                id: `supplier-quote-${quote.id}`,
+                title: `Quote from ${supplierName}`,
+                description: quote.quoteNumber ? `Quote #${quote.quoteNumber}` : null,
+                fileName: quote.quoteDocumentUrl.split('/').pop() || 'quote.pdf',
+                fileUrl: quote.quoteDocumentUrl,
+                fileSize: null,
+                mimeType: 'application/pdf',
+                type: 'SUPPLIER_QUOTE',
+                dropboxPath: null,
+                visibleToClient: false,
+                visibleToSupplier: true,
+                createdAt: quote.submittedAt || new Date(),
+                uploadedBy: { name: supplierName }
+              })
+            }
+          }
+        }
+      }
+    }
+
+    // Combine all documents
+    const allDocuments = [
+      ...documents.map(doc => ({
         id: doc.id,
         title: doc.title,
         description: doc.description,
@@ -95,7 +166,13 @@ export async function GET(
         visibleToSupplier: doc.visibleToSupplier,
         createdAt: doc.createdAt,
         uploadedBy: doc.uploadedBy
-      }))
+      })),
+      ...supplierQuoteDocs
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return NextResponse.json({
+      success: true,
+      documents: allDocuments
     })
 
   } catch (error) {

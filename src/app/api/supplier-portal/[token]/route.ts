@@ -408,14 +408,15 @@ export async function POST(
               itemId: roomFFEItemId,
               type: 'QUOTE_RECEIVED',
               title: 'Quote Received',
-              description: `${supplierName} quoted $${Number(quoteLineItem.unitPrice).toLocaleString()} per unit`,
+              description: `${supplierName} quoted $${Number(quoteLineItem.unitPrice).toLocaleString()} per unit${quoteDocumentUrl ? ' with document' : ''}`,
               actorName: supplierName,
               actorType: 'supplier',
               metadata: {
                 quoteId: quote.id,
                 quoteAmount: quoteLineItem.unitPrice,
                 supplierId: supplierRFQ.supplierId,
-                supplierRfqId: supplierRFQ.id
+                supplierRfqId: supplierRFQ.id,
+                quoteDocumentUrl: quoteDocumentUrl || null
               }
             }
           })
