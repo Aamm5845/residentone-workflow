@@ -119,6 +119,8 @@ export async function POST(
       // Default to "General" if no category found
       const categoryName = supplierRFQ.rfq.lineItems[0]?.roomFFEItem?.section?.name || 'General'
 
+      console.log('[Supplier Upload] Uploading to:', projectFolderPath, 'Category:', categoryName)
+
       // Upload to 6- SHOPPING/{Category}/Quotes/ using the existing method
       const result = await dropboxService.uploadShoppingFile(
         projectFolderPath,
@@ -128,11 +130,10 @@ export async function POST(
         buffer
       )
 
-      const sharedLink = result.sharedLink
+      console.log('[Supplier Upload] Upload result:', result)
 
-      if (!sharedLink) {
-        throw new Error('Failed to create shared link')
-      }
+      // Use shared link if available, otherwise use the path
+      const fileUrl = result.sharedLink || result.path
 
       // Log the upload
       await prisma.supplierAccessLog.create({
@@ -151,25 +152,25 @@ export async function POST(
 
       return NextResponse.json({
         success: true,
-        url: sharedLink,
+        url: fileUrl,
         fileName: file.name,
         fileSize: file.size,
         dropboxPath: result.path
       })
 
-    } catch (storageError) {
+    } catch (storageError: any) {
       console.error('Dropbox upload error:', storageError)
       return NextResponse.json({
         error: 'Upload failed',
-        details: 'Failed to save file. Please try again.'
+        details: storageError?.message || 'Failed to save file. Please try again.'
       }, { status: 500 })
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Supplier upload error:', error)
     return NextResponse.json({
       error: 'Upload failed',
-      details: 'An unexpected error occurred'
+      details: error?.message || 'An unexpected error occurred'
     }, { status: 500 })
   }
 }
