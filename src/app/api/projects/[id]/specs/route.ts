@@ -67,6 +67,20 @@ export async function GET(
                         }
                       },
                       orderBy: { createdAt: 'asc' }
+                    },
+                    // Include quote requests to show resend status
+                    quoteRequests: {
+                      select: {
+                        id: true,
+                        status: true,
+                        sentAt: true,
+                        respondedAt: true,
+                        supplier: {
+                          select: { id: true, name: true }
+                        },
+                        vendorName: true
+                      },
+                      orderBy: { sentAt: 'desc' }
                     }
                   }
                 }
@@ -137,7 +151,15 @@ export async function GET(
             roomName: link.roomName || 'Unknown Room',
             sectionName: link.sectionName || 'Unknown Section'
           })),
-          linkedFfeCount: (item.specLinks || []).length
+          linkedFfeCount: (item.specLinks || []).length,
+          // Quote request status for 3-dot menu
+          hasQuoteSent: (item.quoteRequests || []).length > 0,
+          lastQuoteRequest: item.quoteRequests?.[0] ? {
+            id: item.quoteRequests[0].id,
+            status: item.quoteRequests[0].status,
+            sentAt: item.quoteRequests[0].sentAt,
+            supplierName: item.quoteRequests[0].supplier?.name || item.quoteRequests[0].vendorName
+          } : null
         }))
       ) : []
     )

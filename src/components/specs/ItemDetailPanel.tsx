@@ -391,119 +391,6 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
   )
 }
 
-// Request Quote Button Component (for single item)
-function RequestQuoteButton({
-  itemId,
-  itemName,
-  supplierName,
-  supplierId,
-  projectId,
-  roomId
-}: {
-  itemId?: string
-  itemName?: string
-  supplierName: string
-  supplierId?: string
-  projectId?: string
-  roomId?: string
-}) {
-  const [sending, setSending] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-
-  const handleRequestQuote = async () => {
-    if (!itemId || !projectId) {
-      toast.error('Missing required information')
-      return
-    }
-
-    setSending(true)
-    try {
-      const res = await fetch('/api/rfq/supplier-quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          items: [{
-            id: itemId,
-            supplierId: supplierId || undefined,
-            supplierName
-          }]
-        })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success(`Quote request sent to ${supplierName}!`)
-        setShowConfirm(false)
-      } else if (data.needsConfirmation) {
-        toast.warning('Quote already requested for this item')
-      } else {
-        toast.error(data.error || 'Failed to send quote request')
-      }
-    } catch (error) {
-      console.error('Failed to send quote:', error)
-      toast.error('Failed to send quote request')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShowConfirm(true)}
-        className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
-      >
-        <Send className="w-4 h-4" />
-        Request Quote
-      </Button>
-
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5 text-blue-600" />
-              Request Quote
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="py-4">
-            <p className="text-sm text-gray-600 mb-4">
-              Send a quote request to <strong>{supplierName}</strong> for:
-            </p>
-            <div className="bg-gray-50 rounded-lg p-3 border">
-              <p className="font-medium text-gray-900">{itemName}</p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirm(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleRequestQuote} disabled={sending} className="gap-1.5">
-              {sending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Send Request
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-
 export function ItemDetailPanel({
   isOpen,
   onClose,
@@ -1217,7 +1104,21 @@ export function ItemDetailPanel({
       setSaving(false)
     }
   }
-  
+
+  // Auto-save and close - saves any changes when closing the panel
+  const handleClose = async () => {
+    // For create mode, check if there's meaningful data to save
+    if (mode === 'create' && formData.name.trim()) {
+      await handleSave()
+    } else if ((mode === 'edit' || mode === 'view') && item?.id) {
+      // For edit mode, auto-save changes
+      await handleSave()
+    } else {
+      // Just close without saving
+      onClose()
+    }
+  }
+
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
@@ -2321,31 +2222,16 @@ export function ItemDetailPanel({
             {item?.roomName && <span>{item.roomName}</span>}
             {item?.sectionName && <span> / {item.sectionName}</span>}
           </div>
-          <div className="flex gap-2">
-            {mode !== 'create' && formData.supplierName && (
-              <RequestQuoteButton
-                itemId={item?.id}
-                itemName={item?.name || formData.name}
-                supplierName={formData.supplierName}
-                supplierId={formData.supplierId}
-                projectId={projectId}
-                roomId={item?.roomId}
-              />
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Close'
             )}
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
-          </div>
+          </Button>
         </div>
       </div>
       

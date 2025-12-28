@@ -16,6 +16,7 @@ interface SupplierQuoteRequest {
   }>
   message?: string
   responseDeadline?: string  // ISO date string
+  includeSpecSheet?: boolean  // Include spec sheet & documents in portal
 }
 
 /**
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SupplierQuoteRequest = await request.json()
-    const { projectId, items, message, responseDeadline } = body
+    const { projectId, items, message, responseDeadline, includeSpecSheet = true } = body
 
     if (!projectId || !items?.length) {
       return NextResponse.json(
@@ -287,7 +288,8 @@ export async function POST(request: NextRequest) {
             supplierName: supplier?.contactName || supplier?.name || vendorName || 'Valued Supplier',
             portalUrl,
             message,
-            deadline
+            deadline,
+            includeSpecSheet
           })
         })
 
@@ -582,7 +584,8 @@ function generateProfessionalQuoteEmail({
   supplierName,
   portalUrl,
   message,
-  deadline
+  deadline,
+  includeSpecSheet = true
 }: {
   project: { name: string; address?: string | null; client: { name: string } }
   items: any[]
@@ -590,6 +593,7 @@ function generateProfessionalQuoteEmail({
   portalUrl: string
   message?: string
   deadline: Date
+  includeSpecSheet?: boolean
 }) {
   const itemRows = items.map(item => {
     const imageUrl = item.images?.[0]
@@ -700,6 +704,16 @@ function generateProfessionalQuoteEmail({
         ${itemRows}
       </tbody>
     </table>
+
+    ${includeSpecSheet ? `
+    <!-- Spec Sheet Note -->
+    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #0369a1; font-size: 14px;">
+        <strong>📋 Spec sheets & documents available</strong><br>
+        <span style="font-size: 13px; color: #0284c7;">Full specifications and product documents are available in the portal for your review.</span>
+      </p>
+    </div>
+    ` : ''}
 
     <!-- CTA Button -->
     <div style="text-align: center; margin: 32px 0;">

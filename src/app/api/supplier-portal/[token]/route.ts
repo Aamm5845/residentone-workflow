@@ -46,9 +46,27 @@ export async function GET(
                     notes: true,
                     thumbnailUrl: true,
                     images: true,
+                    color: true,
+                    finish: true,
+                    material: true,
+                    width: true,
+                    height: true,
+                    depth: true,
                     section: {
                       select: {
                         name: true
+                      }
+                    },
+                    // Include documents visible to supplier
+                    documents: {
+                      where: { visibleToSupplier: true },
+                      select: {
+                        id: true,
+                        title: true,
+                        fileName: true,
+                        fileUrl: true,
+                        mimeType: true,
+                        type: true
                       }
                     }
                   }
@@ -153,7 +171,22 @@ export async function GET(
           unitType: item.unitType,
           specifications: item.specifications,
           notes: item.notes,
-          category: item.roomFFEItem?.section?.name || 'General'
+          category: item.roomFFEItem?.section?.name || 'General',
+          // Additional item details for spec sheet
+          roomFFEItem: item.roomFFEItem ? {
+            thumbnailUrl: item.roomFFEItem.thumbnailUrl,
+            images: item.roomFFEItem.images,
+            brand: item.roomFFEItem.brand,
+            sku: item.roomFFEItem.sku,
+            color: item.roomFFEItem.color,
+            finish: item.roomFFEItem.finish,
+            material: item.roomFFEItem.material,
+            width: item.roomFFEItem.width,
+            height: item.roomFFEItem.height,
+            depth: item.roomFFEItem.depth,
+            // Include documents visible to supplier
+            documents: item.roomFFEItem.documents || []
+          } : null
         }))
       },
       supplier: {

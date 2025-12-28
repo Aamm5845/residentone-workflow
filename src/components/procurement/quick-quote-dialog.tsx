@@ -114,6 +114,8 @@ export default function QuickQuoteDialog({
   const [resendItems, setResendItems] = useState<Set<string>>(new Set())
   // Expanded groups
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  // Include spec sheet/documents in quote request
+  const [includeSpecSheet, setIncludeSpecSheet] = useState(true)
 
   useEffect(() => {
     if (open && itemIds.length > 0) {
@@ -206,7 +208,8 @@ export default function QuickQuoteDialog({
           projectId,
           items: itemsToSend,
           message: message || undefined,
-          responseDeadline
+          responseDeadline,
+          includeSpecSheet
         })
       })
 
@@ -486,6 +489,23 @@ export default function QuickQuoteDialog({
                     min={new Date().toISOString().split('T')[0]}
                     className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+
+                {/* Include Spec Sheet */}
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                  <Checkbox
+                    id="includeSpecSheet"
+                    checked={includeSpecSheet}
+                    onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer">
+                      Include spec sheet & documents
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Supplier will be able to view item specifications and uploaded documents in the portal
+                    </p>
+                  </div>
                 </div>
               </div>
             </ScrollArea>

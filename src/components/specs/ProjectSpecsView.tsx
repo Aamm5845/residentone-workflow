@@ -207,6 +207,14 @@ interface SpecItem {
     sectionName: string
   }>
   linkedFfeCount?: number
+  // Quote request tracking
+  hasQuoteSent?: boolean
+  lastQuoteRequest?: {
+    id: string
+    status: string
+    sentAt: string
+    supplierName: string | null
+  } | null
 }
 
 interface CategoryGroup {
@@ -4028,14 +4036,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <DropdownMenuContent align="end" className="w-48">
                                     {/* Request Quote from Supplier - Quick Quote */}
                                     <DropdownMenuItem
-                                      className="text-xs"
+                                      className={cn("text-xs", item.hasQuoteSent && "text-amber-600")}
                                       onSelect={() => {
                                         setQuickQuoteItems([item.id])
                                         setQuickQuoteDialogOpen(true)
                                       }}
                                     >
-                                      <FileText className="w-3.5 h-3.5 mr-2" />
-                                      Request Supplier Quote
+                                      {item.hasQuoteSent ? (
+                                        <>
+                                          <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                                          Resend Quote Request
+                                        </>
+                                      ) : (
+                                        <>
+                                          <FileText className="w-3.5 h-3.5 mr-2" />
+                                          Request Supplier Quote
+                                        </>
+                                      )}
                                     </DropdownMenuItem>
                                     
                                     {/* Create Client Quote (Invoice with markup) */}

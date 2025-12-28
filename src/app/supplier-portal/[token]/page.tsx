@@ -54,6 +54,21 @@ interface RFQData {
         thumbnailUrl?: string
         images?: string[]
         brand?: string
+        sku?: string
+        color?: string
+        finish?: string
+        material?: string
+        width?: string
+        height?: string
+        depth?: string
+        documents?: Array<{
+          id: string
+          title: string
+          fileName: string
+          fileUrl: string
+          mimeType: string
+          type: string
+        }>
       }
     }>
   }
@@ -462,31 +477,100 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             <CardTitle>Items Requested ({data.rfq.lineItems.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {data.rfq.lineItems.map((item, index) => {
                 const imageUrl = item.roomFFEItem?.thumbnailUrl || (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
+                const specs = item.roomFFEItem
+                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width
+                const documents = specs?.documents || []
+
                 return (
-                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt={item.itemName} className="w-16 h-16 object-cover rounded-lg border" />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <Package className="w-6 h-6 text-gray-400" />
+                  <div key={item.id} className="border rounded-lg overflow-hidden">
+                    {/* Item Header */}
+                    <div className="flex items-center gap-4 p-4 bg-gray-50">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={item.itemName} className="w-20 h-20 object-cover rounded-lg border" />
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-lg">{item.itemName}</h3>
+                        {item.itemDescription && (
+                          <p className="text-sm text-gray-600 mt-1">{item.itemDescription}</p>
+                        )}
+                        {specs?.brand && (
+                          <Badge variant="outline" className="mt-2">{specs.brand}</Badge>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
+                        <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
+                      </div>
+                    </div>
+
+                    {/* Specifications */}
+                    {hasSpecs && (
+                      <div className="px-4 py-3 border-t bg-white">
+                        <p className="text-xs font-medium text-gray-500 uppercase mb-2">Specifications</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          {specs.sku && (
+                            <div>
+                              <span className="text-gray-500">SKU:</span>
+                              <span className="ml-1 font-medium">{specs.sku}</span>
+                            </div>
+                          )}
+                          {specs.color && (
+                            <div>
+                              <span className="text-gray-500">Color:</span>
+                              <span className="ml-1 font-medium">{specs.color}</span>
+                            </div>
+                          )}
+                          {specs.finish && (
+                            <div>
+                              <span className="text-gray-500">Finish:</span>
+                              <span className="ml-1 font-medium">{specs.finish}</span>
+                            </div>
+                          )}
+                          {specs.material && (
+                            <div>
+                              <span className="text-gray-500">Material:</span>
+                              <span className="ml-1 font-medium">{specs.material}</span>
+                            </div>
+                          )}
+                          {(specs.width || specs.height || specs.depth) && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Dimensions:</span>
+                              <span className="ml-1 font-medium">
+                                {[specs.width, specs.height, specs.depth].filter(Boolean).join(' x ')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    <div className="flex-1">
-                      <h3 className="font-medium">{item.itemName}</h3>
-                      {item.itemDescription && (
-                        <p className="text-sm text-gray-500 line-clamp-1">{item.itemDescription}</p>
-                      )}
-                      {item.roomFFEItem?.brand && (
-                        <p className="text-xs text-gray-400">Brand: {item.roomFFEItem.brand}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-medium">{item.quantity}</p>
-                      <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
-                    </div>
+
+                    {/* Documents */}
+                    {documents.length > 0 && (
+                      <div className="px-4 py-3 border-t bg-blue-50">
+                        <p className="text-xs font-medium text-blue-700 uppercase mb-2">📎 Documents</p>
+                        <div className="flex flex-wrap gap-2">
+                          {documents.map(doc => (
+                            <a
+                              key={doc.id}
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              {doc.title || doc.fileName}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
