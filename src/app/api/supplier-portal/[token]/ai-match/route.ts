@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getOpenAI, isOpenAIConfigured } from '@/lib/server/openai'
+import { getClaude, isClaudeConfigured } from '@/lib/server/claude'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // Longer timeout for AI processing
+export const maxDuration = 120 // Longer timeout for PDF processing
 
 interface ExtractedItem {
   productName: string
@@ -41,15 +42,6 @@ export async function POST(
 ) {
   try {
     const { token } = await params
-
-    // Check if OpenAI is configured
-    if (!isOpenAIConfigured()) {
-      return NextResponse.json({
-        success: false,
-        error: 'AI features not configured',
-        message: 'OpenAI API key is not set.'
-      }, { status: 503 })
-    }
 
     // Validate token and get RFQ data
     const supplierRFQ = await prisma.supplierRFQ.findFirst({
@@ -88,8 +80,25 @@ export async function POST(
       return NextResponse.json({ error: 'File URL is required' }, { status: 400 })
     }
 
-    // Get the OpenAI client
-    const openai = getOpenAI()
+    const isPDF = fileType === 'application/pdf'
+    const isImage = fileType?.startsWith('image/')
+
+    // Check if appropriate AI is configured
+    if (isPDF && !isClaudeConfigured()) {
+      return NextResponse.json({
+        success: false,
+        error: 'PDF analysis not configured',
+        message: 'Claude API key is required for PDF analysis.'
+      }, { status: 503 })
+    }
+
+    if (isImage && !isOpenAIConfigured()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Image analysis not configured',
+        message: 'OpenAI API key is not set.'
+      }, { status: 503 })
+    }
 
     // Build the RFQ items list for context
     const rfqItems = supplierRFQ.rfq.lineItems.map(item => ({
@@ -146,47 +155,119 @@ ${rfqItems.map(item => `- ${item.itemName}${item.sku ? ` (SKU: ${item.sku})` : '
 
 Extract everything you can see in the quote, including any items that might not be in our request.`
 
-    // Call GPT-4 Vision
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: userPrompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: fileUrl,
-                detail: 'high'
+    let extractedData: any
+
+    if (isPDF) {
+      // Use Claude for PDF analysis
+      const claude = getClaude()
+
+      // Fetch the PDF file and convert to base64
+      const pdfResponse = await fetch(fileUrl)
+      if (!pdfResponse.ok) {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to fetch PDF',
+          message: 'Could not download the PDF file for analysis.'
+        }, { status: 500 })
+      }
+
+      const pdfBuffer = await pdfResponse.arrayBuffer()
+      const pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
+
+      // Call Claude with PDF
+      const claudeResponse = await claude.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: pdfBase64
+                }
+              },
+              {
+                type: 'text',
+                text: `${systemPrompt}\n\n${userPrompt}\n\nRespond with ONLY the JSON object, no other text.`
               }
-            }
-          ]
+            ]
+          }
+        ]
+      })
+
+      const claudeContent = claudeResponse.content[0]
+      if (claudeContent.type !== 'text') {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to analyze PDF',
+          message: 'The AI could not read the PDF document.'
+        }, { status: 500 })
+      }
+
+      try {
+        // Extract JSON from response (Claude may include markdown code blocks)
+        let jsonStr = claudeContent.text
+        const jsonMatch = jsonStr.match(/```json\s*([\s\S]*?)\s*```/) || jsonStr.match(/```\s*([\s\S]*?)\s*```/)
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1]
         }
-      ],
-      temperature: 0.1,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' }
-    })
+        extractedData = JSON.parse(jsonStr.trim())
+      } catch {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to parse AI response',
+          message: 'The AI response was not in the expected format.'
+        }, { status: 500 })
+      }
 
-    if (!completion.choices || !completion.choices[0]?.message?.content) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to analyze document',
-        message: 'The AI could not read the document. Please try a clearer image.'
-      }, { status: 500 })
-    }
+    } else {
+      // Use OpenAI GPT-4o for images
+      const openai = getOpenAI()
 
-    let extractedData
-    try {
-      extractedData = JSON.parse(completion.choices[0].message.content)
-    } catch {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to parse AI response',
-        message: 'The AI response was not in the expected format.'
-      }, { status: 500 })
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userPrompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: fileUrl,
+                  detail: 'high'
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 4000,
+        response_format: { type: 'json_object' }
+      })
+
+      if (!completion.choices || !completion.choices[0]?.message?.content) {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to analyze document',
+          message: 'The AI could not read the document. Please try a clearer image.'
+        }, { status: 500 })
+      }
+
+      try {
+        extractedData = JSON.parse(completion.choices[0].message.content)
+      } catch {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to parse AI response',
+          message: 'The AI response was not in the expected format.'
+        }, { status: 500 })
+      }
     }
 
     // Now match extracted items against RFQ items

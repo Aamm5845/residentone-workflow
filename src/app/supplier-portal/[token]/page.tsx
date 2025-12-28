@@ -423,8 +423,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         setUploading(false)  // End uploading state immediately
         toast.success('Quote document uploaded successfully')
 
-        // Automatically run AI matching for images only (GPT-4o Vision doesn't support PDFs)
-        const canAnalyze = file.type.startsWith('image/')
+        // Automatically run AI matching for images and PDFs
+        const canAnalyze = file.type.startsWith('image/') || file.type === 'application/pdf'
         if (canAnalyze) {
           setAiMatching(true)
           try {
@@ -501,10 +501,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
-    // Check if it's an image file (AI Vision works best with images)
+    // Check if it's an analyzable file type (images or PDF)
     const isImage = uploadedFile?.type.startsWith('image/')
-    if (!isImage) {
-      toast.error('AI matching works best with image files (PNG, JPG). For PDF files, please take a screenshot of the quote.')
+    const isPDF = uploadedFile?.type === 'application/pdf'
+    if (!isImage && !isPDF) {
+      toast.error('AI matching works with image files (PNG, JPG) and PDFs.')
       return
     }
 
