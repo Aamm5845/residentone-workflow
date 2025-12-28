@@ -690,16 +690,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                       <p>{project.city}{project.province ? `, ${project.province}` : ''} {project.postalCode}</p>
                     </div>
                   )}
-                  {project.client && (
-                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                      {project.client.email && (
-                        <p className="text-sm text-gray-500">{project.client.email}</p>
-                      )}
-                      {project.client.phone && (
-                        <p className="text-sm text-gray-500">{project.client.phone}</p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
