@@ -22,6 +22,15 @@ export async function GET() {
         orgId,
         isActive: true
       },
+      include: {
+        category: true,
+        _count: {
+          select: {
+            supplierRFQs: true,
+            orders: true
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     })
 

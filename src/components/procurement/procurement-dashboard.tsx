@@ -19,7 +19,11 @@ import {
   Building2,
   ChevronRight,
   Settings,
-  Percent
+  Percent,
+  Users,
+  Mail,
+  Phone,
+  ExternalLink
 } from 'lucide-react'
 import {
   Dialog,
@@ -119,6 +123,25 @@ interface Order {
   }
 }
 
+interface Supplier {
+  id: string
+  name: string
+  contactName?: string
+  email?: string
+  phone?: string
+  website?: string
+  logo?: string
+  category?: {
+    id: string
+    name: string
+    color?: string
+  }
+  _count?: {
+    supplierRFQs: number
+    orders: number
+  }
+}
+
 const statusColors: Record<string, string> = {
   // RFQ statuses
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -155,6 +178,7 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [clientQuotes, setClientQuotes] = useState<ClientQuote[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     pendingRFQs: 0,
@@ -173,10 +197,11 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
   const loadData = async () => {
     setLoading(true)
     try {
-      const [rfqsRes, quotesRes, ordersRes] = await Promise.all([
+      const [rfqsRes, quotesRes, ordersRes, suppliersRes] = await Promise.all([
         fetch('/api/rfq?limit=20'),
         fetch('/api/client-quotes?limit=20'),
-        fetch('/api/orders?limit=20')
+        fetch('/api/orders?limit=20'),
+        fetch('/api/suppliers')
       ])
 
       if (rfqsRes.ok) {
@@ -192,6 +217,11 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
       if (ordersRes.ok) {
         const data = await ordersRes.json()
         setOrders(data.orders || [])
+      }
+
+      if (suppliersRes.ok) {
+        const data = await suppliersRes.json()
+        setSuppliers(Array.isArray(data) ? data : data.suppliers || [])
       }
 
       // Calculate stats
@@ -353,6 +383,10 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
             <TabsTrigger value="orders" className="gap-2">
               <Package className="w-4 h-4" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="gap-2">
+              <Users className="w-4 h-4" />
+              Suppliers
             </TabsTrigger>
           </TabsList>
 
@@ -569,6 +603,117 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
                         </div>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Suppliers Tab */}
+        <TabsContent value="suppliers">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Suppliers</CardTitle>
+                  <CardDescription>Manage your supplier relationships and view their history</CardDescription>
+                </div>
+                <Link href="/preferences?tab=suppliers">
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Supplier
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : suppliers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers yet</h3>
+                  <p className="text-gray-500 mb-4">Add suppliers to start sending RFQs</p>
+                  <Link href="/preferences?tab=suppliers">
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First Supplier
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {suppliers
+                    .filter(s =>
+                      !searchQuery ||
+                      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((supplier) => (
+                    <Link
+                      key={supplier.id}
+                      href={`/procurement/suppliers/${supplier.id}`}
+                      className="block bg-white border rounded-xl p-4 hover:shadow-lg hover:border-emerald-200 transition-all"
+                    >
+                      <div className="flex items-start gap-3">
+                        {supplier.logo ? (
+                          <img
+                            src={supplier.logo}
+                            alt={supplier.name}
+                            className="w-12 h-12 rounded-lg object-cover border"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-6 h-6 text-emerald-600" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 truncate">{supplier.name}</h3>
+                          {supplier.category && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs mt-1"
+                              style={{
+                                borderColor: supplier.category.color,
+                                color: supplier.category.color
+                              }}
+                            >
+                              {supplier.category.name}
+                            </Badge>
+                          )}
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-300" />
+                      </div>
+
+                      <div className="mt-3 space-y-1.5 text-sm">
+                        {supplier.contactName && (
+                          <p className="text-gray-600 truncate">{supplier.contactName}</p>
+                        )}
+                        {supplier.email && (
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Mail className="w-3.5 h-3.5" />
+                            <span className="truncate">{supplier.email}</span>
+                          </div>
+                        )}
+                        {supplier.phone && (
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>{supplier.phone}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {supplier._count && (
+                        <div className="mt-3 pt-3 border-t flex items-center gap-4 text-xs text-gray-400">
+                          <span>{supplier._count.supplierRFQs || 0} RFQs</span>
+                          <span>{supplier._count.orders || 0} Orders</span>
+                        </div>
+                      )}
                     </Link>
                   ))}
                 </div>

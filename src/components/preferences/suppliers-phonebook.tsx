@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import {
   Plus,
   Search,
@@ -27,7 +28,9 @@ import {
   ChevronRight,
   Tag,
   Settings,
-  Check
+  Check,
+  FileText,
+  History
 } from 'lucide-react'
 
 // Flag icons as SVG components
@@ -979,20 +982,33 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
 
                 {/* Action Buttons - show on hover */}
                 <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button 
-                    variant="ghost" 
+                  <Link
+                    href={`/procurement/suppliers/${supplier.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-9 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50"
+                    >
+                      <History className="w-4 h-4 mr-2" />
+                      History
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation()
                       openEditDialog(supplier)
                     }}
-                    className="flex-1 h-9 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+                    className="h-9 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 px-3"
                   >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit
+                    <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation()
@@ -1157,17 +1173,27 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
 
               {/* Actions */}
               <div className="flex gap-3">
-                <Button 
+                <Link href={`/procurement/suppliers/${viewingSupplier.id}`} className="flex-1">
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11"
+                    onClick={() => setShowViewDialog(false)}
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    View History
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setShowViewDialog(false)
                     openEditDialog(viewingSupplier)
                   }}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-11"
+                  className="h-11"
                 >
                   <Pencil className="w-4 h-4 mr-2" />
-                  Edit Supplier
+                  Edit
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={() => setShowViewDialog(false)}
                   className="h-11"
