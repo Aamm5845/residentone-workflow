@@ -39,7 +39,7 @@ export async function POST(
               select: {
                 id: true,
                 name: true,
-                dropboxFolderPath: true
+                dropboxFolder: true
               }
             },
             lineItems: {
@@ -109,7 +109,7 @@ export async function POST(
       const dropboxService = new DropboxService()
 
       // Get project folder path - use stored path or construct from project name
-      let projectFolderPath = supplierRFQ.rfq.project.dropboxFolderPath
+      let projectFolderPath = supplierRFQ.rfq.project.dropboxFolder
       if (!projectFolderPath) {
         const projectName = supplierRFQ.rfq.project.name.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 50)
         projectFolderPath = `/Meisner Interiors Team Folder/${projectName}`
