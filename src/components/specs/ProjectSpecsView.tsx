@@ -1137,15 +1137,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       if (aiRes.ok) {
         const result = await aiRes.json()
         if (result.success && result.data) {
+          // Deduplicate images
+          const rawImages = result.data.images?.length ? result.data.images : pageImages
+          const uniqueImages = [...new Set(rawImages)]
           setExtractedData({
             ...result.data,
             productWebsite: urlInput,
-            images: result.data.images?.length ? result.data.images : pageImages,
+            images: uniqueImages,
             notes: '' // Don't auto-populate notes
           })
           toast.success('Product info extracted!')
         } else {
-          // Fallback with basic data
+          // Fallback with basic data - deduplicate images
+          const uniqueImages = [...new Set(pageImages)]
           setExtractedData({
             productName: pageData.title || '',
             brand: '',
@@ -1163,12 +1167,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             leadTime: '',
             notes: '',
             productWebsite: urlInput,
-            images: pageImages
+            images: uniqueImages
           })
           toast.success('Basic info extracted')
         }
       } else {
-        // If AI fails, still provide basic extraction
+        // If AI fails, still provide basic extraction - deduplicate images
+        const uniqueImages = [...new Set(pageImages)]
         setExtractedData({
           productName: pageData.title || '',
           brand: '',
@@ -1186,7 +1191,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           leadTime: '',
           notes: '',
           productWebsite: urlInput,
-          images: pageImages
+          images: uniqueImages
         })
         toast.success('Basic info extracted')
       }
@@ -1425,14 +1430,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   
   // Add item to section with FFE linking
   const handleAddItem = async (sectionId: string, roomId: string, itemData: any) => {
+    if (!sectionId || !roomId) {
+      toast.error('Missing section or room information')
+      return
+    }
+
     setSavingItem(true)
     try {
       // Get the FFE instance for the room
       const roomRes = await fetch(`/api/ffe/v2/rooms/${roomId}`)
       const roomData = await roomRes.json()
-      
+
       if (!roomData.success) {
-        throw new Error('Failed to load room data')
+        console.error('Room data error:', roomData)
+        throw new Error(roomData.error || 'Failed to load room data')
       }
       
       // Determine if this is an option (FFE item already has specs)
@@ -1496,11 +1507,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         setShowAlreadyChosenWarning(false)
         setCustomProductForm({ name: '', brand: '', sku: '', description: '', supplierName: '', supplierLink: '', quantity: 1 })
       } else {
-        throw new Error('Failed to add item')
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Add item error:', errorData)
+        throw new Error(errorData.error || 'Failed to add item')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding item:', error)
-      toast.error('Failed to add item')
+      toast.error(error.message || 'Failed to add item')
     } finally {
       setSavingItem(false)
     }
@@ -5092,7 +5105,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 ) : (
                   <div className="space-y-2">
-                    <Label className="text-xs text-gray-500">Supplier</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-gray-500">Supplier</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddFromUrlShowSupplier(false)
+                          setAddFromUrlSelectedSupplier(null)
+                        }}
+                        className="text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                     {addFromUrlSelectedSupplier ? (
                       <div className="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
                         <div>
@@ -5111,38 +5136,44 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </Button>
                       </div>
                     ) : (
-                      <div className="relative">
-                        <Input
-                          value={addFromUrlSupplierSearch}
-                          onChange={(e) => handleAddFromUrlSupplierSearch(e.target.value)}
-                          placeholder="Search suppliers..."
-                          className="h-8 text-sm"
-                        />
-                        {addFromUrlSupplierLoading && (
-                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                        )}
-                        {addFromUrlSupplierResults.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {addFromUrlSupplierResults.map((supplier) => (
-                              <button
-                                key={supplier.id}
-                                type="button"
-                                onClick={() => {
-                                  setAddFromUrlSelectedSupplier(supplier)
-                                  setAddFromUrlSupplierSearch('')
-                                  setAddFromUrlSupplierResults([])
-                                }}
-                                className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm"
-                              >
-                                <p className="font-medium">{supplier.name}</p>
-                                {supplier.website && (
-                                  <p className="text-xs text-gray-500 truncate">{supplier.website}</p>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <Select
+                        onValueChange={(supplierId) => {
+                          const supplier = suppliers.find(s => s.id === supplierId)
+                          if (supplier) {
+                            setAddFromUrlSelectedSupplier({
+                              id: supplier.id,
+                              name: supplier.name,
+                              website: supplier.website || ''
+                            })
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Choose from phonebook..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.length === 0 ? (
+                            <div className="text-center p-4 text-sm text-gray-500">
+                              No suppliers in phonebook
+                            </div>
+                          ) : (
+                            suppliers.map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                <div className="flex items-center gap-2">
+                                  {supplier.logo ? (
+                                    <img src={supplier.logo} alt={supplier.name} className="w-5 h-5 rounded object-cover" />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                      {supplier.name.charAt(0)}
+                                    </div>
+                                  )}
+                                  <span>{supplier.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                 )}
@@ -5320,17 +5351,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             }}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
-                if (extractedData && addFromUrlModal.sectionId && addFromUrlModal.roomId) {
-                  // Pass supplier info if selected - supplierLink = product URL (not supplier website)
-                  const dataWithSupplier = {
-                    ...extractedData,
-                    supplierName: addFromUrlSelectedSupplier?.name || '',
-                    supplierLink: extractedData.productWebsite || ''
-                  }
-                  handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, dataWithSupplier)
+                if (!extractedData) {
+                  toast.error('Please extract product data from URL first')
+                  return
                 }
+                if (!addFromUrlModal.sectionId || !addFromUrlModal.roomId) {
+                  toast.error('Section or room not found. Please close and try again.')
+                  return
+                }
+                // Pass supplier info if selected - supplierLink = product URL (not supplier website)
+                const dataWithSupplier = {
+                  ...extractedData,
+                  supplierName: addFromUrlSelectedSupplier?.name || '',
+                  supplierLink: extractedData.productWebsite || ''
+                }
+                handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, dataWithSupplier)
               }}
               disabled={!extractedData || savingItem}
               className="bg-purple-600 hover:bg-purple-700"
