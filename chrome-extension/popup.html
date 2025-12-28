@@ -335,13 +335,16 @@
         <div class="field-group">
           <label>Lead Time</label>
           <div class="field-input">
-            <input type="text" id="leadTime" placeholder="e.g. 2-3 weeks">
-            <button class="add-btn" data-field="leadTime" title="Click then select text on page">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+            <select id="leadTime" class="field-select">
+              <option value="">Select lead time...</option>
+              <option value="in-stock">In Stock</option>
+              <option value="1-2 weeks">1-2 Weeks</option>
+              <option value="2-4 weeks">2-4 Weeks</option>
+              <option value="4-6 weeks">4-6 Weeks</option>
+              <option value="6-8 weeks">6-8 Weeks</option>
+              <option value="8-12 weeks">8-12 Weeks</option>
+              <option value="12+ weeks">12+ Weeks</option>
+            </select>
           </div>
         </div>
 

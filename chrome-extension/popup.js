@@ -251,7 +251,7 @@ function initEventListeners() {
   const textInputFields = [
     'productName', 'productDescription', 'brand', 'sku', 'docCode',
     'rrp', 'tradePrice', 'material', 'colour', 'finish',
-    'width', 'height', 'depth', 'length', 'leadTime', 'quantity', 'notes', 'productWebsite'
+    'width', 'height', 'depth', 'length', 'quantity', 'notes', 'productWebsite'
   ];
   textInputFields.forEach(fieldId => {
     const input = document.getElementById(fieldId);
@@ -261,6 +261,14 @@ function initEventListeners() {
       });
     }
   });
+
+  // Lead time dropdown
+  const leadTimeSelect = document.getElementById('leadTime');
+  if (leadTimeSelect) {
+    leadTimeSelect.addEventListener('change', (e) => {
+      state.clippedData.leadTime = e.target.value;
+    });
+  }
 
   // Close button
   document.getElementById('closeBtn')?.addEventListener('click', () => window.close());

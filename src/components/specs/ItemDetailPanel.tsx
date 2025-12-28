@@ -139,6 +139,7 @@ interface ItemDetailPanelProps {
 }
 
 const LEAD_TIME_OPTIONS = [
+  { value: 'in-stock', label: 'In Stock' },
   { value: '1-2 weeks', label: '1-2 Weeks' },
   { value: '2-4 weeks', label: '2-4 Weeks' },
   { value: '4-6 weeks', label: '4-6 Weeks' },

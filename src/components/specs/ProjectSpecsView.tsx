@@ -124,8 +124,9 @@ const ITEM_STATUS_OPTIONS = [
 // Statuses that require client approval to select
 const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION', 'COMPLETED']
 
-// Lead time options (same as ItemDetailPanel)
+// Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
+  { value: 'in-stock', label: 'In Stock' },
   { value: '1-2 weeks', label: '1-2 Wks' },
   { value: '2-4 weeks', label: '2-4 Wks' },
   { value: '4-6 weeks', label: '4-6 Wks' },
