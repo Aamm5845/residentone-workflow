@@ -535,6 +535,7 @@ export function ItemDetailPanel({
   // Add New Supplier modal
   const [showAddSupplier, setShowAddSupplier] = useState(false)
   const [savingSupplier, setSavingSupplier] = useState(false)
+  const [changingSupplier, setChangingSupplier] = useState(false)
   const [newSupplier, setNewSupplier] = useState({
     name: '',
     contactName: '',
@@ -1105,19 +1106,101 @@ export function ItemDetailPanel({
     }
   }
 
-  // Auto-save and close - saves any changes when closing the panel
-  const handleClose = async () => {
-    // For create mode, check if there's meaningful data to save
-    if (mode === 'create' && formData.name.trim()) {
-      await handleSave()
-    } else if ((mode === 'edit' || mode === 'view') && item?.id) {
-      // For edit mode, auto-save changes
-      await handleSave()
-    } else {
-      // Just close without saving
-      onClose()
+  // Auto-save: debounced save for existing items (edit/view mode)
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitialLoadRef = useRef(true)
+  const lastSavedDataRef = useRef<string>('')
+
+  // Auto-save effect - triggers on formData or images change (for existing items only)
+  useEffect(() => {
+    // Skip auto-save for create mode or if no item
+    if (mode === 'create' || !item?.id || !item?.roomId) {
+      return
     }
-  }
+
+    // Skip initial load
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false
+      // Store initial state
+      lastSavedDataRef.current = JSON.stringify({ formData, images })
+      return
+    }
+
+    // Check if data actually changed
+    const currentData = JSON.stringify({ formData, images })
+    if (currentData === lastSavedDataRef.current) {
+      return
+    }
+
+    // Clear existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+
+    // Debounce auto-save by 1 second
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (!formData.name.trim()) return // Don't save empty name
+
+      setSaving(true)
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            sku: formData.sku,
+            docCode: formData.docCode,
+            productName: formData.productName,
+            brand: formData.brand,
+            supplierName: formData.supplierName,
+            supplierLink: formData.supplierLink,
+            supplierId: formData.supplierId || undefined,
+            quantity: formData.quantity,
+            unitType: formData.unitType,
+            leadTime: formData.leadTime,
+            color: formData.color,
+            finish: formData.finish,
+            material: formData.material,
+            width: formData.width,
+            height: formData.height,
+            depth: formData.depth,
+            length: formData.length,
+            notes: formData.notes,
+            tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
+            rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
+            tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            rrpCurrency: formData.rrpCurrency,
+            tradePriceCurrency: formData.tradePriceCurrency,
+            images: images,
+          })
+        })
+
+        if (res.ok) {
+          lastSavedDataRef.current = currentData
+          onSave?.() // Notify parent to refresh
+        }
+      } catch (error) {
+        console.error('Auto-save error:', error)
+      } finally {
+        setSaving(false)
+      }
+    }, 1000)
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+    }
+  }, [formData, images, mode, item?.id, item?.roomId, onSave])
+
+  // Reset initial load ref when panel opens with new item
+  useEffect(() => {
+    if (isOpen && item?.id) {
+      isInitialLoadRef.current = true
+      setChangingSupplier(false)
+    }
+  }, [isOpen, item?.id])
 
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
@@ -1131,6 +1214,7 @@ export function ItemDetailPanel({
         supplierLogo: supplier.logo || '',
         supplierLink: supplier.website || ''
       }))
+      setChangingSupplier(false) // Close the supplier selector
     }
   }
   
@@ -1606,12 +1690,13 @@ export function ItemDetailPanel({
                 {/* Supplier */}
                 <div className="space-y-2">
                   <Label>Supplier</Label>
-                  {formData.supplierName ? (
+                  {/* Show current supplier if selected and not changing */}
+                  {formData.supplierName && !changingSupplier && (
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
                       {/* Logo or Initial */}
                       {formData.supplierLogo ? (
-                        <img 
-                          src={formData.supplierLogo} 
+                        <img
+                          src={formData.supplierLogo}
                           alt={formData.supplierName}
                           className="w-10 h-10 rounded-lg object-cover border"
                         />
@@ -1631,7 +1716,7 @@ export function ItemDetailPanel({
                             <span>•</span>
                           )}
                           {formData.supplierEmail && (
-                            <a 
+                            <a
                               href={`mailto:${formData.supplierEmail}`}
                               className="text-blue-600 hover:underline truncate"
                             >
@@ -1640,9 +1725,9 @@ export function ItemDetailPanel({
                           )}
                         </div>
                         {formData.supplierLink && (
-                          <a 
-                            href={formData.supplierLink} 
-                            target="_blank" 
+                          <a
+                            href={formData.supplierLink}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-600 hover:underline truncate block mt-0.5"
                           >
@@ -1650,15 +1735,37 @@ export function ItemDetailPanel({
                           </a>
                         )}
                       </div>
-                      <button 
-                        className="text-xs text-red-600 hover:underline"
-                        onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '', supplierContactName: '', supplierEmail: '', supplierLogo: '' })}
-                      >
-                        Remove
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className="text-xs text-blue-600 hover:underline"
+                          onClick={() => setChangingSupplier(true)}
+                        >
+                          Change
+                        </button>
+                        <button
+                          className="text-xs text-red-600 hover:underline"
+                          onClick={() => setFormData({ ...formData, supplierName: '', supplierId: '', supplierLink: '', supplierContactName: '', supplierEmail: '', supplierLogo: '' })}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Show supplier selector when changing or no supplier */}
+                  {(changingSupplier || !formData.supplierName) && (
                     <div className="space-y-2">
+                      {changingSupplier && (
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-gray-500">Select new supplier:</span>
+                          <button
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                            onClick={() => setChangingSupplier(false)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                       <Select onValueChange={handleSelectSupplier}>
                         <SelectTrigger>
                           <SelectValue placeholder="Choose from phonebook..." />
@@ -2217,21 +2324,17 @@ export function ItemDetailPanel({
         </ScrollArea>
         
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 bg-gray-50">
           <div className="text-xs text-gray-500">
             {item?.roomName && <span>{item.roomName}</span>}
             {item?.sectionName && <span> / {item.sectionName}</span>}
           </div>
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Close'
-            )}
-          </Button>
+          {saving && (
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving...
+            </div>
+          )}
         </div>
       </div>
       
