@@ -170,6 +170,7 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
   const [sendMessage, setSendMessage] = useState('')
   const [showComparison, setShowComparison] = useState(false)
   const [creatingClientQuote, setCreatingClientQuote] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadRFQ()
@@ -297,6 +298,34 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
     }
   }
 
+  const handleDeleteRFQ = async () => {
+    if (!rfq) return
+
+    if (!confirm(`Are you sure you want to delete RFQ "${rfq.rfqNumber}"? This action cannot be undone.`)) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/rfq/${rfqId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        toast.success('RFQ deleted successfully')
+        router.push('/procurement')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete RFQ')
+      }
+    } catch (error) {
+      console.error('Error deleting RFQ:', error)
+      toast.error('Failed to delete RFQ')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const formatCurrency = (amount: number | undefined) => {
     if (!amount) return '$0.00'
     return new Intl.NumberFormat('en-CA', {
@@ -411,9 +440,13 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
                   Add Supplier
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={handleDeleteRFQ}
+                  disabled={deleting}
+                >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete RFQ
+                  {deleting ? 'Deleting...' : 'Delete RFQ'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -603,9 +636,19 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
                   {rfq.supplierRFQs.map(sRFQ => (
                     <div key={sRFQ.id} className="py-4 flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-purple-600" />
-                        </div>
+                        {sRFQ.supplier?.logo ? (
+                          <img
+                            src={sRFQ.supplier.logo}
+                            alt={sRFQ.supplier.name}
+                            className="w-10 h-10 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <span className="text-lg font-semibold text-emerald-700">
+                              {(sRFQ.supplier?.name || sRFQ.vendorName || 'S').substring(0, 1).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                         <div>
                           <p className="font-medium">{sRFQ.supplier?.name || sRFQ.vendorName}</p>
                           <p className="text-sm text-gray-500">

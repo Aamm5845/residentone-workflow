@@ -87,7 +87,8 @@ export async function GET(
                 name: true,
                 email: true,
                 phone: true,
-                contactName: true
+                contactName: true,
+                logo: true
               }
             },
             quotes: {
@@ -231,7 +232,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/rfq/[id]
- * Delete an RFQ (only if in DRAFT status)
+ * Delete an RFQ and all related records
  */
 export async function DELETE(
   request: NextRequest,
@@ -247,20 +248,64 @@ export async function DELETE(
     const orgId = (session.user as any).orgId
 
     const existing = await prisma.rFQ.findFirst({
-      where: { id, orgId }
+      where: { id, orgId },
+      include: {
+        lineItems: { select: { id: true } },
+        supplierRFQs: {
+          include: {
+            quotes: { select: { id: true } }
+          }
+        }
+      }
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'RFQ not found' }, { status: 404 })
     }
 
-    if (existing.status !== 'DRAFT') {
-      return NextResponse.json(
-        { error: 'Only draft RFQs can be deleted' },
-        { status: 400 }
-      )
+    // Delete in correct order to avoid foreign key constraints
+    // 1. Delete SupplierQuoteLineItems that reference RFQLineItems
+    const rfqLineItemIds = existing.lineItems.map(li => li.id)
+    if (rfqLineItemIds.length > 0) {
+      await prisma.supplierQuoteLineItem.deleteMany({
+        where: { rfqLineItemId: { in: rfqLineItemIds } }
+      })
     }
 
+    // 2. Delete supplier quotes
+    const supplierQuoteIds = existing.supplierRFQs.flatMap(s => s.quotes.map(q => q.id))
+    if (supplierQuoteIds.length > 0) {
+      await prisma.supplierQuote.deleteMany({
+        where: { id: { in: supplierQuoteIds } }
+      })
+    }
+
+    // 3. Delete SupplierRFQs (access logs will cascade)
+    await prisma.supplierRFQ.deleteMany({
+      where: { rfqId: id }
+    })
+
+    // 4. Delete ItemQuoteRequests that reference this RFQ
+    await prisma.itemQuoteRequest.deleteMany({
+      where: { rfqId: id }
+    })
+
+    // 5. Delete RFQLineItems
+    await prisma.rFQLineItem.deleteMany({
+      where: { rfqId: id }
+    })
+
+    // 6. Delete RFQDocuments
+    await prisma.rFQDocument.deleteMany({
+      where: { rfqId: id }
+    })
+
+    // 7. Delete RFQActivities
+    await prisma.rFQActivity.deleteMany({
+      where: { rfqId: id }
+    })
+
+    // 8. Finally delete the RFQ
     await prisma.rFQ.delete({
       where: { id }
     })
