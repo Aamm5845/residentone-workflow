@@ -110,17 +110,38 @@ export async function POST(request: NextRequest) {
 
       // Extract images - focus on main product image, limit to 2 max
       const images: string[] = []
+      const imageBaseUrls: string[] = [] // Track base URLs without query params for deduplication
       const MAX_IMAGES = 2
-      
+
+      // Helper to get base URL without query params for comparison
+      const getBaseUrl = (imgUrl: string): string => {
+        try {
+          const parsed = new URL(imgUrl)
+          return `${parsed.origin}${parsed.pathname}`.toLowerCase()
+        } catch {
+          return imgUrl.split('?')[0].toLowerCase()
+        }
+      }
+
       // Detect if this is an Amazon URL
       const isAmazon = /amazon\.(com|ca|co\.uk|de|fr|es|it|com\.au|co\.jp|in)/i.test(url)
-      
+
       // Helper to add valid image (stops after MAX_IMAGES)
       const addImage = (imgUrl: string | undefined | null, skipValidation = false): boolean => {
         if (!imgUrl || images.length >= MAX_IMAGES) return false
         const resolved = resolveUrl(imgUrl, urlObj)
-        if (resolved && !images.includes(resolved) && (skipValidation || isValidImageUrl(resolved))) {
+        if (!resolved) return false
+
+        // Check for duplicates by comparing base URLs (without query params)
+        const baseUrl = getBaseUrl(resolved)
+        if (imageBaseUrls.includes(baseUrl)) return false
+
+        // Also check exact match
+        if (images.includes(resolved)) return false
+
+        if (skipValidation || isValidImageUrl(resolved)) {
           images.push(resolved)
+          imageBaseUrls.push(baseUrl)
           return true
         }
         return false

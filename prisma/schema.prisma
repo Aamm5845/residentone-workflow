@@ -1428,6 +1428,7 @@ model RoomFFEItem {
   tradePriceCurrency String?           @default("CAD") // Trade price currency: CAD or USD
   supplierName     String?
   supplierLink     String?
+  supplierId       String?             // Link to Supplier from phonebook
   modelNumber      String?
   // Additional spec fields
   brand            String?
@@ -1464,7 +1465,8 @@ model RoomFFEItem {
   section          RoomFFESection      @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
   templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
   libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
-  
+  supplier         Supplier?           @relation("SupplierFFEItems", fields: [supplierId], references: [id])
+
   // Self-relation for FFE requirement <-> Spec items (legacy one-to-one)
   ffeRequirement   RoomFFEItem?        @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
   linkedSpecs      RoomFFEItem[]       @relation("FFERequirementSpecs")
@@ -1490,6 +1492,7 @@ model RoomFFEItem {
   @@index([libraryProductId])
   @@index([ffeRequirementId])
   @@index([isSpecItem])
+  @@index([supplierId])
 
   // Activity tracking for item
   quoteRequests    ItemQuoteRequest[] @relation("ItemQuoteRequests")
@@ -1725,6 +1728,7 @@ model Supplier {
   messages          SupplierMessage[]
   shopDrawings      SupplierShopDrawing[]
   quoteRequests     ItemQuoteRequest[]  @relation("SupplierQuoteRequests")
+  ffeItems          RoomFFEItem[]       @relation("SupplierFFEItems")
 
   @@index([orgId])
   @@index([orgId, isActive])

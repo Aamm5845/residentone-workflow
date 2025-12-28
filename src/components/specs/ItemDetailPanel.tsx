@@ -1141,8 +1141,6 @@ export function ItemDetailPanel({
     autoSaveTimerRef.current = setTimeout(async () => {
       if (!formData.name.trim()) return // Don't save empty name
 
-      console.log('[ItemDetailPanel] Auto-saving with supplierId:', formData.supplierId)
-
       setSaving(true)
       try {
         const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
@@ -1207,7 +1205,6 @@ export function ItemDetailPanel({
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
-      console.log('[ItemDetailPanel] Selecting supplier:', supplier.id, supplier.name)
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
