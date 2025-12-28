@@ -406,19 +406,19 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('folder', 'supplier-quotes')
 
-      const uploadResponse = await fetch('/api/upload', {
+      const uploadResponse = await fetch(`/api/supplier-portal/${token}/upload`, {
         method: 'POST',
         body: formData
       })
 
       if (uploadResponse.ok) {
-        const { url } = await uploadResponse.json()
-        setUploadedFileUrl(url)
+        const data = await uploadResponse.json()
+        setUploadedFileUrl(data.url)
         toast.success('Quote document uploaded successfully')
       } else {
-        toast.error('Failed to upload file')
+        const errorData = await uploadResponse.json()
+        toast.error(errorData.error || 'Failed to upload file')
         setUploadedFile(null)
       }
     } catch (err) {
