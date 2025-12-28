@@ -131,7 +131,7 @@ interface Supplier {
   phone?: string
   website?: string
   logo?: string
-  category?: {
+  supplierCategory?: {
     id: string
     name: string
     color?: string
@@ -674,16 +674,16 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
                         )}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate">{supplier.name}</h3>
-                          {supplier.category && (
+                          {supplier.supplierCategory && (
                             <Badge
                               variant="outline"
                               className="text-xs mt-1"
                               style={{
-                                borderColor: supplier.category.color,
-                                color: supplier.category.color
+                                borderColor: supplier.supplierCategory.color,
+                                color: supplier.supplierCategory.color
                               }}
                             >
-                              {supplier.category.name}
+                              {supplier.supplierCategory.name}
                             </Badge>
                           )}
                         </div>

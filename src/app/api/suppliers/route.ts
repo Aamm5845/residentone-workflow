@@ -15,7 +15,20 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fetch from database
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     const suppliers = await prisma.supplier.findMany({
       where: {
@@ -23,7 +36,7 @@ export async function GET() {
         isActive: true
       },
       include: {
-        category: true,
+        supplierCategory: true,
         _count: {
           select: {
             supplierRFQs: true,
@@ -61,17 +74,30 @@ export async function POST(request: NextRequest) {
     if (!name) {
       return NextResponse.json({ error: 'Business name is required' }, { status: 400 })
     }
-    
+
     if (!contactName) {
       return NextResponse.json({ error: 'Contact name is required' }, { status: 400 })
     }
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Contact email is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
-    const userId = session.user.id
+    // Get orgId and userId from session or fetch from database
+    let orgId = (session.user as any).orgId
+    let userId = session.user.id
+
+    if (!orgId || !userId) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      })
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+      orgId = user.orgId
+      userId = user.id
+    }
 
     const supplier = await prisma.supplier.create({
       data: {
@@ -120,7 +146,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fetch from database
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     // Verify supplier belongs to org
     const existing = await prisma.supplier.findFirst({
@@ -178,7 +217,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fetch from database
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     // Verify supplier belongs to org
     const existing = await prisma.supplier.findFirst({
