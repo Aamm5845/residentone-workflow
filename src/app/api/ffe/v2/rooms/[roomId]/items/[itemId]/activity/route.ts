@@ -324,3 +324,79 @@ export async function POST(
     )
   }
 }
+
+/**
+ * DELETE /api/ffe/v2/rooms/[roomId]/items/[itemId]/activity
+ *
+ * Delete all activity for an item (TEMPORARY - FOR TESTING ONLY)
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string; itemId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { roomId, itemId } = await params
+
+    // Get item to verify it exists and user has access
+    const item = await prisma.roomFFEItem.findFirst({
+      where: { id: itemId },
+      select: {
+        id: true,
+        section: {
+          select: {
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    project: {
+                      select: { orgId: true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!item) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+
+    const orgId = (session.user as any).orgId
+    if (item.section?.instance?.room?.project?.orgId !== orgId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Delete all ItemActivity records for this item
+    const deletedActivities = await prisma.itemActivity.deleteMany({
+      where: { itemId }
+    })
+
+    // Delete all ItemQuoteRequest records for this item
+    const deletedQuoteRequests = await prisma.itemQuoteRequest.deleteMany({
+      where: { itemId }
+    })
+
+    return NextResponse.json({
+      success: true,
+      deleted: {
+        activities: deletedActivities.count,
+        quoteRequests: deletedQuoteRequests.count
+      }
+    })
+
+  } catch (error) {
+    console.error('Error deleting activity:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete activity' },
+      { status: 500 }
+    )
+  }
+}

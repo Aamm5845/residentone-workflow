@@ -17,6 +17,7 @@ interface SupplierQuoteRequest {
   message?: string
   responseDeadline?: string  // ISO date string
   includeSpecSheet?: boolean  // Include spec sheet & documents in portal
+  includeNotes?: boolean  // Include item notes in portal
 }
 
 /**
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SupplierQuoteRequest = await request.json()
-    const { projectId, items, message, responseDeadline, includeSpecSheet = true } = body
+    const { projectId, items, message, responseDeadline, includeSpecSheet = true, includeNotes = true } = body
 
     if (!projectId || !items?.length) {
       return NextResponse.json(
@@ -116,6 +117,9 @@ export async function POST(request: NextRequest) {
 
     // Check if any item has documents visible to supplier
     const hasDocuments = dbItems.some(item => item.documents && item.documents.length > 0)
+
+    // Check if any item has notes
+    const hasNotes = dbItems.some(item => item.notes && item.notes.trim().length > 0)
 
     // Get all suppliers
     const allSuppliers = await prisma.supplier.findMany({
@@ -361,7 +365,8 @@ export async function POST(request: NextRequest) {
             portalUrl,
             message,
             deadline,
-            includeSpecSheet: includeSpecSheet && hasDocuments // Only show if checkbox enabled AND documents exist
+            includeSpecSheet: includeSpecSheet && hasDocuments, // Only show if checkbox enabled AND documents exist
+            includeNotes: includeNotes && hasNotes // Only show if checkbox enabled AND notes exist
           })
         })
 
@@ -539,6 +544,11 @@ export async function GET(request: NextRequest) {
         images: true,
         tradePrice: true,
         specStatus: true,
+        notes: true,
+        documents: {
+          where: { visibleToSupplier: true },
+          select: { id: true }
+        },
         section: {
           select: {
             name: true,
@@ -682,7 +692,8 @@ function generateProfessionalQuoteEmail({
   portalUrl,
   message,
   deadline,
-  includeSpecSheet = true
+  includeSpecSheet = true,
+  includeNotes = true
 }: {
   project: { name: string; address?: string | null; client: { name: string } }
   items: any[]
@@ -691,6 +702,7 @@ function generateProfessionalQuoteEmail({
   message?: string
   deadline: Date
   includeSpecSheet?: boolean
+  includeNotes?: boolean
 }) {
   const itemRows = items.map(item => {
     const imageUrl = item.images?.[0]
@@ -804,6 +816,16 @@ function generateProfessionalQuoteEmail({
       <p style="margin: 0; color: #0369a1; font-size: 14px;">
         <strong>📋 Spec sheets & documents available</strong><br>
         <span style="font-size: 13px; color: #0284c7;">Full specifications and product documents are available in the portal for your review.</span>
+      </p>
+    </div>
+    ` : ''}
+
+    ${includeNotes ? `
+    <!-- Notes Available -->
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #b45309; font-size: 14px;">
+        <strong>📝 Item notes included</strong><br>
+        <span style="font-size: 13px; color: #d97706;">Specific notes and requirements for each item are available in the portal.</span>
       </p>
     </div>
     ` : ''}

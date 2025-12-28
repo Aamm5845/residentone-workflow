@@ -531,6 +531,62 @@ export async function PATCH(
         }
       })
 
+      // Log activity for status changes
+      if (specStatus !== undefined && specStatus !== existingItem.specStatus) {
+        const statusLabels: Record<string, string> = {
+          'DRAFT': 'Draft',
+          'SELECTED': 'Selected',
+          'QUOTING': 'Quoting',
+          'PRICE_RECEIVED': 'Price Received',
+          'NEED_TO_ORDER': 'Need to Order',
+          'CLIENT_TO_ORDER': 'Client to Order',
+          'ORDERED': 'Ordered',
+          'IN_TRANSIT': 'In Transit',
+          'DELIVERED': 'Delivered',
+          'INSTALLED': 'Installed',
+          'ISSUE': 'Issue',
+          'BETTER_PRICE': 'Better Price Needed'
+        }
+
+        const newStatusLabel = statusLabels[specStatus] || specStatus
+        const oldStatusLabel = existingItem.specStatus ? (statusLabels[existingItem.specStatus] || existingItem.specStatus) : 'None'
+
+        await prisma.itemActivity.create({
+          data: {
+            itemId,
+            type: specStatus === 'SELECTED' ? 'ITEM_SELECTED' : 'STATUS_CHANGED',
+            title: specStatus === 'SELECTED' ? 'Item Selected' : `Status changed to ${newStatusLabel}`,
+            description: specStatus === 'SELECTED'
+              ? 'Item was selected for the project'
+              : `Changed from ${oldStatusLabel} to ${newStatusLabel}`,
+            actorId: userId,
+            actorName: session.user.name || session.user.email,
+            actorType: 'user',
+            metadata: {
+              oldStatus: existingItem.specStatus,
+              newStatus: specStatus
+            }
+          }
+        })
+      }
+
+      // Log activity for client approval changes
+      if (clientApproved !== undefined && clientApproved !== existingItem.clientApproved) {
+        await prisma.itemActivity.create({
+          data: {
+            itemId,
+            type: clientApproved ? 'CLIENT_APPROVED' : 'CLIENT_UNAPPROVED',
+            title: clientApproved ? 'Client Approved' : 'Client Approval Removed',
+            description: clientApproved
+              ? 'Client has approved this item'
+              : 'Client approval was removed',
+            actorId: userId,
+            actorName: session.user.name || session.user.email,
+            actorType: 'user'
+          }
+        })
+      }
+
       return NextResponse.json({
         success: true,
         data: updatedItem,

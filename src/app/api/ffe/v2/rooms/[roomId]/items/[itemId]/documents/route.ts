@@ -438,6 +438,54 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 })
     }
 
+    // Check if this is a supplier quote document (ID starts with "supplier-quote-")
+    if (documentId.startsWith('supplier-quote-')) {
+      const quoteId = documentId.replace('supplier-quote-', '')
+
+      // Find the supplier quote
+      const quote = await prisma.supplierQuote.findFirst({
+        where: {
+          id: quoteId,
+          supplierRFQ: {
+            rfq: {
+              orgId
+            }
+          }
+        }
+      })
+
+      if (!quote) {
+        return NextResponse.json({ error: 'Supplier quote not found' }, { status: 404 })
+      }
+
+      // Try to delete from Dropbox if it's a Dropbox URL
+      if (quote.quoteDocumentUrl && dropboxService.isConfigured()) {
+        // Extract path from URL if it's a Dropbox shared link
+        try {
+          // Dropbox shared links contain the path, try to delete
+          const url = quote.quoteDocumentUrl
+          if (url.includes('dropbox.com') || url.includes('dl.dropboxusercontent.com')) {
+            console.log('[ItemDocuments] Supplier quote URL is from Dropbox, attempting to find and delete')
+            // Note: We can't easily get the path from a shared link, so we just clear the URL
+          }
+        } catch (dropboxError) {
+          console.warn('[ItemDocuments] Could not delete supplier quote from Dropbox:', dropboxError)
+        }
+      }
+
+      // Clear the quote document URL (don't delete the whole quote record)
+      await prisma.supplierQuote.update({
+        where: { id: quoteId },
+        data: { quoteDocumentUrl: null }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Supplier quote document removed'
+      })
+    }
+
+    // Regular document deletion
     // Verify document exists and belongs to this item and org
     const document = await prisma.rFQDocument.findFirst({
       where: {

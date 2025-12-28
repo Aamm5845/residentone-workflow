@@ -54,6 +54,8 @@ interface ItemInfo {
   specStatus?: string
   roomName?: string
   sectionName?: string
+  notes?: string
+  hasDocuments?: boolean
 }
 
 interface SupplierInfo {
@@ -115,6 +117,8 @@ export default function QuickQuoteDialog({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   // Include spec sheet/documents in quote request
   const [includeSpecSheet, setIncludeSpecSheet] = useState(true)
+  // Include notes in quote request
+  const [includeNotes, setIncludeNotes] = useState(true)
 
   useEffect(() => {
     if (open && itemIds.length > 0) {
@@ -217,7 +221,8 @@ export default function QuickQuoteDialog({
           items: itemsToSend,
           message: message || undefined,
           responseDeadline,
-          includeSpecSheet
+          includeSpecSheet,
+          includeNotes
         })
       })
 
@@ -524,22 +529,55 @@ export default function QuickQuoteDialog({
                   />
                 </div>
 
-                {/* Include Spec Sheet */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
-                  <Checkbox
-                    id="includeSpecSheet"
-                    checked={includeSpecSheet}
-                    onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
-                  />
-                  <div className="flex-1">
-                    <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer">
-                      Include spec sheet & documents
-                    </Label>
-                    <p className="text-xs text-gray-500">
-                      Supplier will be able to view item specifications and uploaded documents in the portal
-                    </p>
-                  </div>
-                </div>
+                {/* Include Spec Sheet & Notes - only show if applicable */}
+                {(() => {
+                  const allItems = preview?.supplierGroups.flatMap(g => g.items.map(i => i.item)) || []
+                  const anyHasSpecs = allItems.some(item => {
+                    const docs = (item as any).documents || []
+                    return docs.length > 0 || item.specStatus === 'COMPLETE' || item.specStatus === 'APPROVED'
+                  })
+                  const anyHasNotes = allItems.some(item => item.notes && item.notes.trim().length > 0)
+
+                  return (
+                    <>
+                      {anyHasSpecs && (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                          <Checkbox
+                            id="includeSpecSheet"
+                            checked={includeSpecSheet}
+                            onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer">
+                              Include spec sheet & documents
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Supplier will be able to view item specifications and uploaded documents in the portal
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {anyHasNotes && (
+                        <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <Checkbox
+                            id="includeNotes"
+                            checked={includeNotes}
+                            onCheckedChange={(checked) => setIncludeNotes(checked === true)}
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="includeNotes" className="text-sm font-medium cursor-pointer">
+                              Include item notes
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Supplier will see any notes or special requirements for each item
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             </ScrollArea>
 

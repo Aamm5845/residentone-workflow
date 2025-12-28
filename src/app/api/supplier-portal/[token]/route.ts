@@ -62,6 +62,11 @@ export async function GET(
                     width: true,
                     height: true,
                     depth: true,
+                    length: true,
+                    modelNumber: true,
+                    supplierLink: true,
+                    supplierName: true,
+                    leadTime: true,
                     section: {
                       select: {
                         name: true

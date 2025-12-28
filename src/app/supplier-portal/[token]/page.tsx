@@ -27,7 +27,9 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
-  Plus
+  Plus,
+  ExternalLink,
+  Link as LinkIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -85,6 +87,12 @@ interface RFQData {
         width?: string
         height?: string
         depth?: string
+        length?: string
+        modelNumber?: string
+        supplierLink?: string
+        supplierName?: string
+        leadTime?: string
+        notes?: string
         documents?: Array<{
           id: string
           title: string
@@ -828,8 +836,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               {data.rfq.lineItems.map((item, index) => {
                 const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
                 const specs = item.roomFFEItem
-                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width
+                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width || specs?.modelNumber || specs?.length
                 const documents = specs?.documents || []
+                const hasNotes = item.notes || specs?.notes
+                const supplierLink = specs?.supplierLink
 
                 return (
                   <div key={item.id} className="border rounded-xl overflow-hidden bg-white">
@@ -858,7 +868,25 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               {item.category && (
                                 <Badge variant="secondary" className="text-xs">{item.category}</Badge>
                               )}
+                              {specs?.leadTime && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {specs.leadTime}
+                                </Badge>
+                              )}
                             </div>
+                            {/* Supplier Link */}
+                            {supplierLink && (
+                              <a
+                                href={supplierLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                <LinkIcon className="w-3.5 h-3.5" />
+                                View Product Page
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
@@ -876,6 +904,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             <div>
                               <span className="text-gray-400 text-xs">SKU</span>
                               <p className="font-medium text-gray-700">{specs.sku}</p>
+                            </div>
+                          )}
+                          {specs.modelNumber && (
+                            <div>
+                              <span className="text-gray-400 text-xs">Model #</span>
+                              <p className="font-medium text-gray-700">{specs.modelNumber}</p>
                             </div>
                           )}
                           {specs.color && (
@@ -896,15 +930,23 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               <p className="font-medium text-gray-700">{specs.material}</p>
                             </div>
                           )}
-                          {(specs.width || specs.height || specs.depth) && (
+                          {(specs.width || specs.height || specs.depth || specs.length) && (
                             <div className="col-span-2">
                               <span className="text-gray-400 text-xs">Dimensions</span>
                               <p className="font-medium text-gray-700">
-                                {[specs.width, specs.height, specs.depth].filter(Boolean).join(' × ')}
+                                {[specs.width && `W: ${specs.width}`, specs.height && `H: ${specs.height}`, specs.depth && `D: ${specs.depth}`, specs.length && `L: ${specs.length}`].filter(Boolean).join(' • ')}
                               </p>
                             </div>
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {hasNotes && (
+                      <div className="px-4 py-3 border-t bg-amber-50">
+                        <p className="text-xs font-medium text-amber-700 mb-1">Notes</p>
+                        <p className="text-sm text-amber-900">{item.notes || specs?.notes}</p>
                       </div>
                     )}
 

@@ -194,6 +194,7 @@ const ITEM_STAGES = [
 function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; roomId?: string; mode: string; specStatus?: string }) {
   const [loading, setLoading] = useState(false)
   const [activities, setActivities] = useState<ActivityItem[]>([])
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (itemId && roomId && mode !== 'create') {
@@ -214,6 +215,31 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
       console.error('Failed to load activities:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // TEMPORARY: Delete all activities for testing
+  const handleDeleteAllActivities = async () => {
+    if (!itemId || !roomId) return
+    if (!confirm('Are you sure you want to delete ALL activity for this item? This cannot be undone.')) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/activity`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setActivities([])
+        toast.success(`Deleted ${data.deleted.activities} activities and ${data.deleted.quoteRequests} quote requests`)
+      } else {
+        toast.error('Failed to delete activities')
+      }
+    } catch (error) {
+      console.error('Failed to delete activities:', error)
+      toast.error('Failed to delete activities')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -384,7 +410,17 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
         </div>
       ) : (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide px-1">Activity History</p>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Activity History</p>
+            {/* TEMPORARY: Delete all button for testing */}
+            <button
+              onClick={handleDeleteAllActivities}
+              disabled={deleting}
+              className="text-[10px] text-red-500 hover:text-red-700 hover:underline disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : '🧪 Clear All (Test)'}
+            </button>
+          </div>
           {activities.map((activity, index) => (
             <div
               key={activity.id}
@@ -2394,7 +2430,10 @@ export function ItemDetailPanel({
                                         </a>
                                       )}
                                       <button
-                                        onClick={() => handleDeleteDocument(doc.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDeleteDocument(doc.id)
+                                        }}
                                         disabled={deletingDocumentId === doc.id}
                                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
                                         title="Delete"
