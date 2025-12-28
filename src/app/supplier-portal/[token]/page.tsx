@@ -11,10 +11,18 @@ import {
   Loader2,
   DollarSign,
   FileText,
-  MessageCircle,
   Upload,
   X,
-  File
+  File,
+  MapPin,
+  User,
+  Phone,
+  Mail,
+  Truck,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Info
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import toast, { Toaster } from 'react-hot-toast'
 import SupplierMessaging from '@/components/supplier-portal/SupplierMessaging'
 
@@ -40,6 +50,16 @@ interface RFQData {
     validUntil?: string
     project: {
       name: string
+      streetAddress?: string
+      city?: string
+      province?: string
+      postalCode?: string
+      client?: {
+        name: string
+        email: string
+        phone?: string
+        company?: string
+      }
     }
     lineItems: Array<{
       id: string
@@ -115,7 +135,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitMode, setSubmitMode] = useState<'upload' | 'detailed'>('upload')
-  
+  const [showAllItems, setShowAllItems] = useState(false)
+  const [showShippingInfo, setShowShippingInfo] = useState(true)
+
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
@@ -123,6 +145,17 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTotalAmount, setUploadTotalAmount] = useState('')
   const [uploadNotes, setUploadNotes] = useState('')
+
+  // Tax fields (Quebec GST/QST)
+  const [includeTaxes, setIncludeTaxes] = useState(false)
+  const [gstRate, setGstRate] = useState('5') // 5% GST
+  const [qstRate, setQstRate] = useState('9.975') // 9.975% QST
+
+  // Delivery fields
+  const [includeDelivery, setIncludeDelivery] = useState(false)
+  const [deliveryType, setDeliveryType] = useState<'flat' | 'per_item' | 'included'>('flat')
+  const [deliveryFee, setDeliveryFee] = useState('')
+  const [deliveryNotes, setDeliveryNotes] = useState('')
 
   // Quote form state
   const [quoteNumber, setQuoteNumber] = useState('')
@@ -159,6 +192,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         if (result.existingQuote || result.responseStatus === 'SUBMITTED') {
           setSubmitted(true)
         }
+
+        // Auto-detect Quebec for tax defaults
+        if (result.rfq.project?.province?.toLowerCase().includes('quebec') ||
+            result.rfq.project?.province?.toLowerCase() === 'qc') {
+          setIncludeTaxes(true)
+        }
       } else {
         const err = await response.json()
         setError(err.error || 'Failed to load quote request')
@@ -178,11 +217,36 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     })
   }
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return lineItems.reduce((sum, item) => {
       const price = parseFloat(item.unitPrice) || 0
       return sum + (price * item.quantity)
     }, 0)
+  }
+
+  const calculateDeliveryTotal = () => {
+    if (!includeDelivery || deliveryType === 'included') return 0
+    if (deliveryType === 'flat') return parseFloat(deliveryFee) || 0
+    if (deliveryType === 'per_item') {
+      const perItemFee = parseFloat(deliveryFee) || 0
+      return lineItems.reduce((sum, item) => sum + (perItemFee * item.quantity), 0)
+    }
+    return 0
+  }
+
+  const calculateTaxes = () => {
+    if (!includeTaxes) return { gst: 0, qst: 0 }
+    const subtotal = calculateSubtotal() + calculateDeliveryTotal()
+    const gst = subtotal * (parseFloat(gstRate) / 100)
+    const qst = subtotal * (parseFloat(qstRate) / 100)
+    return { gst, qst }
+  }
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal()
+    const delivery = calculateDeliveryTotal()
+    const { gst, qst } = calculateTaxes()
+    return subtotal + delivery + gst + qst
   }
 
   const handleSubmit = async () => {
@@ -195,6 +259,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
     setSubmitting(true)
     try {
+      const { gst, qst } = calculateTaxes()
       const response = await fetch(`/api/supplier-portal/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,6 +271,14 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           shippingTerms: shippingTerms || null,
           estimatedLeadTime: estimatedLeadTime || null,
           supplierNotes: supplierNotes || null,
+          // Tax and delivery info
+          includeTaxes,
+          gstAmount: gst,
+          qstAmount: qst,
+          includeDelivery,
+          deliveryType: includeDelivery ? deliveryType : null,
+          deliveryFee: calculateDeliveryTotal(),
+          deliveryNotes: deliveryNotes || null,
           lineItems: lineItems.map(item => ({
             ...item,
             unitPrice: parseFloat(item.unitPrice),
@@ -260,14 +333,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please upload a PDF, Word, Excel, or image file')
       return
     }
 
-    // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File size must be less than 10MB')
       return
@@ -277,7 +348,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     setUploading(true)
 
     try {
-      // Upload the file
       const formData = new FormData()
       formData.append('file', file)
       formData.append('folder', 'supplier-quotes')
@@ -319,6 +389,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
     setSubmitting(true)
     try {
+      const { gst, qst } = calculateTaxes()
       const response = await fetch(`/api/supplier-portal/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -328,7 +399,14 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           quoteDocumentUrl: uploadedFileUrl,
           totalAmount: uploadTotalAmount ? parseFloat(uploadTotalAmount) : null,
           supplierNotes: uploadNotes || null,
-          // Create placeholder line items with zero prices (will be updated after review)
+          // Tax and delivery info
+          includeTaxes,
+          gstAmount: gst,
+          qstAmount: qst,
+          includeDelivery,
+          deliveryType: includeDelivery ? deliveryType : null,
+          deliveryFee: calculateDeliveryTotal(),
+          deliveryNotes: deliveryNotes || null,
           lineItems: data?.rfq.lineItems.map(item => ({
             rfqLineItemId: item.id,
             unitPrice: 0,
@@ -371,7 +449,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
           <p className="text-gray-500">Loading quote request...</p>
@@ -382,11 +460,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-gray-900 mb-2">{error}</h2>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-lg">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{error}</h2>
             <p className="text-gray-500">
               This link may have expired or is invalid.
               Please contact the sender for a new link.
@@ -401,12 +481,20 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
   if (submitted || data.responseStatus !== 'PENDING') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <Toaster position="top-right" />
-        <Card className="max-w-md">
-          <CardContent className="pt-6 text-center">
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-gray-900 mb-2">
+        <Card className="max-w-md w-full shadow-lg">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className={cn(
+              "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
+              data.responseStatus === 'DECLINED' ? "bg-gray-100" : "bg-green-100"
+            )}>
+              <CheckCircle className={cn(
+                "w-8 h-8",
+                data.responseStatus === 'DECLINED' ? "text-gray-500" : "text-green-500"
+              )} />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
               {data.responseStatus === 'DECLINED' ? 'Quote Declined' : 'Quote Submitted'}
             </h2>
             <p className="text-gray-500">
@@ -415,16 +503,19 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 : 'Thank you! Your quote has been submitted successfully.'}
             </p>
             {data.existingQuote && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg text-left">
-                <p className="text-sm text-gray-500">Quote Reference</p>
-                <p className="font-medium">{data.existingQuote.quoteNumber}</p>
-                <p className="text-sm text-gray-500 mt-2">Total Amount</p>
-                <p className="font-medium">{formatCurrency(data.existingQuote.totalAmount || 0)}</p>
+              <div className="mt-6 p-4 bg-gray-50 rounded-xl text-left space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Quote Reference</span>
+                  <span className="font-medium">{data.existingQuote.quoteNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Total Amount</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(data.existingQuote.totalAmount || 0)}</span>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
-        {/* Messaging widget */}
         <SupplierMessaging
           token={token}
           projectName={data.rfq.project.name}
@@ -434,68 +525,149 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     )
   }
 
+  const project = data.rfq.project
+  const hasShippingAddress = project.streetAddress || project.city
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Toaster position="top-right" />
 
       {/* Header */}
-      <div className="bg-emerald-600 text-white py-12 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6" />
-            </div>
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <p className="text-emerald-100 text-sm">Request for Quote</p>
-              <h1 className="text-2xl font-bold">{data.rfq.rfqNumber}</h1>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">Quote Request</p>
+                  <h1 className="text-2xl font-bold">{data.rfq.rfqNumber}</h1>
+                </div>
+              </div>
+              <h2 className="text-xl font-medium mb-1">{data.rfq.title}</h2>
+              <p className="text-emerald-100">Project: {project.name}</p>
             </div>
+            {data.rfq.responseDeadline && (
+              <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3">
+                <p className="text-emerald-100 text-xs uppercase tracking-wide mb-1">Please respond by</p>
+                <p className="font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  {formatDate(data.rfq.responseDeadline)}
+                </p>
+              </div>
+            )}
           </div>
-          <h2 className="text-xl mb-2">{data.rfq.title}</h2>
-          <p className="text-emerald-100">Project: {data.rfq.project.name}</p>
-          {data.rfq.responseDeadline && (
-            <p className="mt-4 flex items-center gap-2 text-emerald-200 text-sm">
-              <Clock className="w-3.5 h-3.5" />
-              Please respond by {formatDate(data.rfq.responseDeadline)}
-            </p>
-          )}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Supplier Info */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-emerald-600" />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Supplier & Project Info Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Supplier Info */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Your Company</p>
+                  <p className="font-semibold text-gray-900">{data.supplier.name || 'Supplier'}</p>
+                  <p className="text-sm text-gray-500">{data.supplier.email}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{data.supplier.name || 'Supplier'}</p>
-                <p className="text-sm text-gray-500">{data.supplier.email}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Shipping/Client Info */}
+          {(hasShippingAddress || project.client) && (
+            <Card className="shadow-sm">
+              <CardContent className="pt-5 pb-5">
+                <button
+                  onClick={() => setShowShippingInfo(!showShippingInfo)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Truck className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Delivery Information</p>
+                      <p className="font-semibold text-gray-900">
+                        {project.client?.name || project.name}
+                      </p>
+                    </div>
+                  </div>
+                  {showShippingInfo ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                </button>
+
+                {showShippingInfo && (
+                  <div className="mt-4 pt-4 border-t space-y-3">
+                    {hasShippingAddress && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-900">Shipping Address</p>
+                          <p className="text-gray-600">
+                            {project.streetAddress && <>{project.streetAddress}<br /></>}
+                            {project.city}{project.province ? `, ${project.province}` : ''} {project.postalCode}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {project.client && (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <User className="w-4 h-4 text-gray-400 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-medium text-gray-900">{project.client.name}</p>
+                            {project.client.company && <p className="text-gray-600">{project.client.company}</p>}
+                          </div>
+                        </div>
+                        {project.client.email && (
+                          <div className="flex items-center gap-3">
+                            <Mail className="w-4 h-4 text-gray-400" />
+                            <p className="text-sm text-gray-600">{project.client.email}</p>
+                          </div>
+                        )}
+                        {project.client.phone && (
+                          <div className="flex items-center gap-3">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            <p className="text-sm text-gray-600">{project.client.phone}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Description */}
         {data.rfq.description && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card className="shadow-sm">
+            <CardContent className="pt-5 pb-5">
+              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Description</p>
               <p className="text-gray-700">{data.rfq.description}</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Items Preview */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Items Requested ({data.rfq.lineItems.length})</CardTitle>
+        {/* Items Requested */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-emerald-600" />
+              Items Requested
+              <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="pt-0">
+            <div className="space-y-3">
               {data.rfq.lineItems.map((item, index) => {
                 const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
                 const specs = item.roomFFEItem
@@ -503,66 +675,76 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 const documents = specs?.documents || []
 
                 return (
-                  <div key={item.id} className="border rounded-lg overflow-hidden">
+                  <div key={item.id} className="border rounded-xl overflow-hidden bg-white">
                     {/* Item Header */}
-                    <div className="flex items-center gap-4 p-4 bg-gray-50">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={item.itemName} className="w-20 h-20 object-cover rounded-lg border" />
-                      ) : (
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Package className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-medium text-lg">{item.itemName}</h3>
-                        {item.itemDescription && (
-                          <p className="text-sm text-gray-600 mt-1">{item.itemDescription}</p>
-                        )}
-                        {specs?.brand && (
-                          <Badge variant="outline" className="mt-2">{specs.brand}</Badge>
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="flex-shrink-0">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.itemName} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border" />
+                        ) : (
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
-                        <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{item.itemName}</h3>
+                            {item.itemDescription && (
+                              <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">{item.itemDescription}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              {specs?.brand && (
+                                <Badge variant="outline" className="text-xs">{specs.brand}</Badge>
+                              )}
+                              {item.category && (
+                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
+                            <p className="text-xs text-gray-500">{item.unitType || 'units'}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Specifications */}
                     {hasSpecs && (
-                      <div className="px-4 py-3 border-t bg-white">
-                        <p className="text-xs font-medium text-gray-500 uppercase mb-2">Specifications</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="px-4 py-3 border-t bg-gray-50">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                           {specs.sku && (
                             <div>
-                              <span className="text-gray-500">SKU:</span>
-                              <span className="ml-1 font-medium">{specs.sku}</span>
+                              <span className="text-gray-400 text-xs">SKU</span>
+                              <p className="font-medium text-gray-700">{specs.sku}</p>
                             </div>
                           )}
                           {specs.color && (
                             <div>
-                              <span className="text-gray-500">Color:</span>
-                              <span className="ml-1 font-medium">{specs.color}</span>
+                              <span className="text-gray-400 text-xs">Color</span>
+                              <p className="font-medium text-gray-700">{specs.color}</p>
                             </div>
                           )}
                           {specs.finish && (
                             <div>
-                              <span className="text-gray-500">Finish:</span>
-                              <span className="ml-1 font-medium">{specs.finish}</span>
+                              <span className="text-gray-400 text-xs">Finish</span>
+                              <p className="font-medium text-gray-700">{specs.finish}</p>
                             </div>
                           )}
                           {specs.material && (
                             <div>
-                              <span className="text-gray-500">Material:</span>
-                              <span className="ml-1 font-medium">{specs.material}</span>
+                              <span className="text-gray-400 text-xs">Material</span>
+                              <p className="font-medium text-gray-700">{specs.material}</p>
                             </div>
                           )}
                           {(specs.width || specs.height || specs.depth) && (
                             <div className="col-span-2">
-                              <span className="text-gray-500">Dimensions:</span>
-                              <span className="ml-1 font-medium">
-                                {[specs.width, specs.height, specs.depth].filter(Boolean).join(' x ')}
-                              </span>
+                              <span className="text-gray-400 text-xs">Dimensions</span>
+                              <p className="font-medium text-gray-700">
+                                {[specs.width, specs.height, specs.depth].filter(Boolean).join(' × ')}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -572,7 +754,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     {/* Documents */}
                     {documents.length > 0 && (
                       <div className="px-4 py-3 border-t bg-blue-50">
-                        <p className="text-xs font-medium text-blue-700 uppercase mb-2">📎 Documents</p>
+                        <p className="text-xs font-medium text-blue-700 mb-2">Attached Documents</p>
                         <div className="flex flex-wrap gap-2">
                           {documents.map(doc => (
                             <a
@@ -580,9 +762,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               href={doc.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-blue-700 hover:bg-blue-100 transition-colors"
                             >
-                              <FileText className="w-4 h-4" />
+                              <FileText className="w-3.5 h-3.5" />
                               {doc.title || doc.fileName}
                             </a>
                           ))}
@@ -596,29 +778,27 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </CardContent>
         </Card>
 
-        {/* Quote Submission Options */}
-        <Tabs value={submitMode} onValueChange={(v) => setSubmitMode(v as 'upload' | 'detailed')} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload Quote
-            </TabsTrigger>
-            <TabsTrigger value="detailed" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Enter Details
-            </TabsTrigger>
-          </TabsList>
+        {/* Quote Submission */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Submit Your Quote</CardTitle>
+            <CardDescription>Choose how you'd like to provide your pricing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={submitMode} onValueChange={(v) => setSubmitMode(v as 'upload' | 'detailed')}>
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="upload" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload Quote
+                </TabsTrigger>
+                <TabsTrigger value="detailed" className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4" />
+                  Enter Pricing
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Upload Quote Tab */}
-          <TabsContent value="upload" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload Your Quote Document</CardTitle>
-                <CardDescription>
-                  Upload a PDF, Word, Excel, or image file containing your quote
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              {/* Upload Tab */}
+              <TabsContent value="upload" className="space-y-6">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -628,16 +808,18 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 />
 
                 {!uploadedFile ? (
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors"
+                    className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
                   >
                     {uploading ? (
                       <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
                     ) : (
-                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      </div>
                     )}
-                    <p className="text-gray-600 font-medium">
+                    <p className="text-gray-700 font-medium">
                       {uploading ? 'Uploading...' : 'Click to upload your quote'}
                     </p>
                     <p className="text-sm text-gray-400 mt-1">
@@ -645,8 +827,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <File className="w-10 h-10 text-emerald-600" />
+                  <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <File className="w-6 h-6 text-emerald-600" />
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{uploadedFile.name}</p>
                       <p className="text-sm text-gray-500">
@@ -659,10 +843,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label>Total Amount (optional)</Label>
-                    <div className="relative mt-1">
+                    <Label>Quote Total (optional)</Label>
+                    <div className="relative mt-1.5">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
                         type="number"
@@ -681,49 +865,36 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                       value={uploadNotes}
                       onChange={(e) => setUploadNotes(e.target.value)}
                       placeholder="Any additional notes..."
-                      className="mt-1"
+                      className="mt-1.5"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </TabsContent>
 
-          {/* Detailed Quote Tab */}
-          <TabsContent value="detailed" className="mt-4 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Item Pricing</CardTitle>
-                <CardDescription>Enter your pricing for each item</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              {/* Detailed Pricing Tab */}
+              <TabsContent value="detailed" className="space-y-6">
+                {/* Line Items */}
+                <div className="space-y-4">
                   {data.rfq.lineItems.map((item, index) => (
-                    <div key={item.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-medium text-emerald-600">
-                              {index + 1}
-                            </span>
-                            <h3 className="font-medium">{item.itemName}</h3>
+                    <div key={item.id} className="border rounded-xl p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 h-7 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-semibold text-emerald-700">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{item.itemName}</h4>
+                            {item.category && <p className="text-xs text-gray-500">{item.category}</p>}
                           </div>
-                          {item.itemDescription && (
-                            <p className="text-sm text-gray-500 ml-8">{item.itemDescription}</p>
-                          )}
-                          {item.category && (
-                            <Badge variant="outline" className="ml-8 mt-1">{item.category}</Badge>
-                          )}
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-medium">{item.quantity}</p>
-                          <p className="text-sm text-gray-500">{item.unitType || 'units'}</p>
+                          <p className="font-semibold">{item.quantity} <span className="text-gray-500 font-normal">{item.unitType || 'units'}</span></p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                          <Label>Unit Price (CAD) <span className="text-red-500">*</span></Label>
+                          <Label className="text-xs">Unit Price (CAD) <span className="text-red-500">*</span></Label>
                           <div className="relative mt-1">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input
@@ -737,22 +908,20 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             />
                           </div>
                         </div>
-
                         <div>
-                          <Label>Availability</Label>
+                          <Label className="text-xs">Availability</Label>
                           <select
                             value={lineItems[index]?.availability || 'IN_STOCK'}
                             onChange={(e) => updateLineItem(index, 'availability', e.target.value)}
-                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm bg-white"
                           >
                             <option value="IN_STOCK">In Stock</option>
                             <option value="BACKORDER">Backorder</option>
                             <option value="SPECIAL_ORDER">Special Order</option>
                           </select>
                         </div>
-
                         <div>
-                          <Label>Lead Time (weeks)</Label>
+                          <Label className="text-xs">Lead Time (weeks)</Label>
                           <Input
                             type="number"
                             min="0"
@@ -764,120 +933,261 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                         </div>
                       </div>
 
-                      <div className="mt-3">
-                        <Label>Notes</Label>
-                        <Input
-                          value={lineItems[index]?.notes || ''}
-                          onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                          placeholder="Any additional notes for this item..."
-                          className="mt-1"
-                        />
-                      </div>
-
                       {lineItems[index]?.unitPrice && (
-                        <div className="mt-3 text-right">
-                          <span className="text-sm text-gray-500">Line Total: </span>
-                          <span className="font-medium">
-                            {formatCurrency(parseFloat(lineItems[index].unitPrice) * item.quantity)}
-                          </span>
+                        <div className="mt-3 pt-3 border-t flex justify-end">
+                          <p className="text-sm">
+                            <span className="text-gray-500">Line Total:</span>
+                            <span className="font-semibold ml-2">
+                              {formatCurrency(parseFloat(lineItems[index].unitPrice) * item.quantity)}
+                            </span>
+                          </p>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Quote Summary - Only in detailed mode */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quote Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Your Quote Number (optional)</Label>
-                    <Input
-                      value={quoteNumber}
-                      onChange={(e) => setQuoteNumber(e.target.value)}
-                      placeholder="e.g., QT-2024-001"
-                      className="mt-1"
-                    />
+                {/* Quote Details */}
+                <div className="border rounded-xl p-4 space-y-4">
+                  <h4 className="font-medium text-gray-900">Quote Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">Your Quote Number</Label>
+                      <Input
+                        value={quoteNumber}
+                        onChange={(e) => setQuoteNumber(e.target.value)}
+                        placeholder="e.g., QT-2024-001"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Quote Valid Until</Label>
+                      <Input
+                        type="date"
+                        value={validUntil}
+                        onChange={(e) => setValidUntil(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Payment Terms</Label>
+                      <Input
+                        value={paymentTerms}
+                        onChange={(e) => setPaymentTerms(e.target.value)}
+                        placeholder="e.g., Net 30"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Estimated Lead Time</Label>
+                      <Input
+                        value={estimatedLeadTime}
+                        onChange={(e) => setEstimatedLeadTime(e.target.value)}
+                        placeholder="e.g., 4-6 weeks"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <Label>Quote Valid Until</Label>
-                    <Input
-                      type="date"
-                      value={validUntil}
-                      onChange={(e) => setValidUntil(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                    <Label className="text-xs">Additional Notes</Label>
+                    <Textarea
+                      value={supplierNotes}
+                      onChange={(e) => setSupplierNotes(e.target.value)}
+                      placeholder="Any additional information or terms..."
+                      rows={2}
                       className="mt-1"
                     />
                   </div>
                 </div>
+              </TabsContent>
+            </Tabs>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Payment Terms</Label>
-                    <Input
-                      value={paymentTerms}
-                      onChange={(e) => setPaymentTerms(e.target.value)}
-                      placeholder="e.g., Net 30"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Shipping Terms</Label>
-                    <Input
-                      value={shippingTerms}
-                      onChange={(e) => setShippingTerms(e.target.value)}
-                      placeholder="e.g., FOB Destination"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
+            {/* Delivery & Taxes Section */}
+            <div className="mt-6 border rounded-xl p-4 space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Delivery & Taxes
+              </h4>
 
-                <div>
-                  <Label>Estimated Lead Time</Label>
-                  <Input
-                    value={estimatedLeadTime}
-                    onChange={(e) => setEstimatedLeadTime(e.target.value)}
-                    placeholder="e.g., 4-6 weeks"
-                    className="mt-1"
+              {/* Delivery Option */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Include Delivery</Label>
+                    <span className="text-xs text-gray-400">(optional)</span>
+                  </div>
+                  <Switch
+                    checked={includeDelivery}
+                    onCheckedChange={setIncludeDelivery}
                   />
                 </div>
 
-                <div>
-                  <Label>Additional Notes</Label>
-                  <Textarea
-                    value={supplierNotes}
-                    onChange={(e) => setSupplierNotes(e.target.value)}
-                    placeholder="Any additional information or terms..."
-                    rows={3}
-                    className="mt-1"
+                {includeDelivery && (
+                  <div className="pl-4 border-l-2 border-emerald-200 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryType('included')}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-sm border transition-all",
+                          deliveryType === 'included'
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                        )}
+                      >
+                        Included in Price
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryType('flat')}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-sm border transition-all",
+                          deliveryType === 'flat'
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                        )}
+                      >
+                        Flat Fee
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryType('per_item')}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-sm border transition-all",
+                          deliveryType === 'per_item'
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                        )}
+                      >
+                        Per Item
+                      </button>
+                    </div>
+
+                    {(deliveryType === 'flat' || deliveryType === 'per_item') && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">
+                            {deliveryType === 'flat' ? 'Delivery Fee' : 'Per Item Fee'}
+                          </Label>
+                          <div className="relative mt-1">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={deliveryFee}
+                              onChange={(e) => setDeliveryFee(e.target.value)}
+                              placeholder="0.00"
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Delivery Notes</Label>
+                          <Input
+                            value={deliveryNotes}
+                            onChange={(e) => setDeliveryNotes(e.target.value)}
+                            placeholder="e.g., Curbside delivery"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tax Option (Quebec GST/QST) */}
+              <div className="space-y-3 pt-3 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Include Quebec Taxes (GST/QST)</Label>
+                  </div>
+                  <Switch
+                    checked={includeTaxes}
+                    onCheckedChange={setIncludeTaxes}
                   />
                 </div>
 
-                <div className="pt-4 border-t">
-                  <div className="flex justify-between items-center text-lg">
-                    <span className="font-medium">Quote Total:</span>
-                    <span className="text-2xl font-bold text-emerald-600">
-                      {formatCurrency(calculateTotal())}
-                    </span>
+                {includeTaxes && (
+                  <div className="pl-4 border-l-2 border-blue-200 grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">GST Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        value={gstRate}
+                        onChange={(e) => setGstRate(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">QST Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        value={qstRate}
+                        onChange={(e) => setQstRate(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quote Summary */}
+            <div className="mt-6 bg-gray-50 rounded-xl p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium">{formatCurrency(submitMode === 'detailed' ? calculateSubtotal() : parseFloat(uploadTotalAmount) || 0)}</span>
+              </div>
+              {includeDelivery && deliveryType !== 'included' && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">
+                    Delivery {deliveryType === 'per_item' && `(${deliveryFee || 0} × items)`}
+                  </span>
+                  <span className="font-medium">{formatCurrency(calculateDeliveryTotal())}</span>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
+              {includeDelivery && deliveryType === 'included' && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Delivery</span>
+                  <span className="text-emerald-600 font-medium">Included</span>
+                </div>
+              )}
+              {includeTaxes && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">GST ({gstRate}%)</span>
+                    <span className="font-medium">{formatCurrency(calculateTaxes().gst)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">QST ({qstRate}%)</span>
+                    <span className="font-medium">{formatCurrency(calculateTaxes().qst)}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between pt-3 border-t">
+                <span className="font-semibold text-gray-900">Total</span>
+                <span className="text-2xl font-bold text-emerald-600">
+                  {formatCurrency(submitMode === 'detailed' ? calculateTotal() : (parseFloat(uploadTotalAmount) || 0) + calculateDeliveryTotal() + calculateTaxes().gst + calculateTaxes().qst)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-8">
           <Button
             variant="outline"
             onClick={handleDecline}
             disabled={submitting}
-            className="text-gray-600"
+            className="w-full sm:w-auto order-2 sm:order-1"
           >
             Decline to Quote
           </Button>
@@ -885,82 +1195,78 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             onClick={submitMode === 'upload' ? handleUploadSubmit : handleSubmit}
             disabled={submitting || (submitMode === 'upload' && !uploadedFileUrl)}
             size="lg"
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 order-1 sm:order-2"
           >
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             <Send className="w-4 h-4 mr-2" />
             Submit Quote
           </Button>
         </div>
-      </div>
 
-      {/* All Project Items Section */}
-      {data.allProjectItems && data.allProjectItems.length > 0 && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="w-5 h-5 text-gray-500" />
-              All Items Sent to You ({data.allProjectItems.length})
-            </CardTitle>
-            <p className="text-sm text-gray-500">
-              All products from {data.rfq.project.name} that have been sent to you for quoting
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.allProjectItems.map((item) => {
-                const imageUrl = item.roomFFEItem?.images?.[0] || null
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "flex items-center gap-4 p-3 rounded-lg border",
-                      item.isCurrentRfq ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
-                    )}
-                  >
-                    {/* Image */}
-                    {imageUrl && (
-                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white border">
-                        <img src={imageUrl} alt={item.itemName} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{item.itemName}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span>{item.category}</span>
-                        {item.roomFFEItem?.brand && (
-                          <>
-                            <span>•</span>
-                            <span>{item.roomFFEItem.brand}</span>
-                          </>
+        {/* All Project Items */}
+        {data.allProjectItems && data.allProjectItems.length > 0 && (
+          <Card className="shadow-sm mb-8">
+            <CardHeader className="cursor-pointer" onClick={() => setShowAllItems(!showAllItems)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Package className="w-5 h-5 text-gray-500" />
+                    All Items Sent to You
+                    <Badge variant="secondary">{data.allProjectItems.length}</Badge>
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    All products from this project that have been sent to you for quoting
+                  </p>
+                </div>
+                {showAllItems ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+              </div>
+            </CardHeader>
+            {showAllItems && (
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  {data.allProjectItems.map((item) => {
+                    const imageUrl = item.roomFFEItem?.images?.[0] || null
+                    return (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border",
+                          item.isCurrentRfq ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200"
                         )}
-                        <span>•</span>
-                        <span>{item.quantity} {item.unitType || 'units'}</span>
-                      </div>
-                    </div>
-
-                    {/* Status */}
-                    <div className="flex-shrink-0 text-right">
-                      {item.hasQuote && item.quotedPrice ? (
-                        <div>
-                          <p className="font-semibold text-green-700">${Number(item.quotedPrice).toLocaleString()}</p>
-                          <p className="text-xs text-green-600">Quoted</p>
+                      >
+                        {imageUrl && (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 border">
+                            <img src={imageUrl} alt={item.itemName} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate text-sm">{item.itemName}</p>
+                          <p className="text-xs text-gray-500">
+                            {item.quantity} {item.unitType || 'units'}
+                            {item.roomFFEItem?.brand && ` • ${item.roomFFEItem.brand}`}
+                          </p>
                         </div>
-                      ) : item.isCurrentRfq ? (
-                        <Badge className="bg-emerald-600 text-white">Current Request</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-500">Pending</Badge>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                        <div className="flex-shrink-0">
+                          {item.hasQuote && item.quotedPrice ? (
+                            <div className="text-right">
+                              <p className="font-semibold text-green-700 text-sm">${Number(item.quotedPrice).toLocaleString()}</p>
+                              <p className="text-xs text-green-600">Quoted</p>
+                            </div>
+                          ) : item.isCurrentRfq ? (
+                            <Badge className="bg-emerald-600 text-white text-xs">Current</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 text-xs">Pending</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
+      </div>
 
       {/* Messaging widget */}
       <SupplierMessaging
