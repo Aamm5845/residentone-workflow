@@ -1359,7 +1359,7 @@ function processSmartFillData(data) {
     height: 'height',
     depth: 'depth',
     length: 'length',
-    leadTime: 'leadTime',
+    // leadTime is intentionally NOT included - user should select manually
     // Notes are intentionally NOT included - we don't want to auto-fill notes
     productWebsite: 'productWebsite',
     title: 'productName',

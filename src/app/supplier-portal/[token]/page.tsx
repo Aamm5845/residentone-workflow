@@ -167,6 +167,7 @@ interface AIMatchResponse {
     quoteDate?: string
     validUntil?: string
     subtotal?: number
+    shipping?: number
     taxes?: number
     total?: number
   }
@@ -446,8 +447,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               }))
 
               // Auto-fill delivery if detected in quote
-              // (AI extracts this as part of supplierInfo or notes)
-              // For now, we rely on manual entry but could parse from notes
+              if (aiResult.supplierInfo?.shipping && aiResult.supplierInfo.shipping > 0) {
+                setDeliveryFee(aiResult.supplierInfo.shipping.toString())
+              }
 
               const matched = aiResult.summary.matched + aiResult.summary.partial
               if (matched === aiResult.summary.totalRequested) {
@@ -1148,7 +1150,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   className="pl-10"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2">Leave empty if delivery is included or not applicable</p>
             </div>
 
             {/* Order Notes */}

@@ -1010,11 +1010,9 @@
     // Look for finish
     const finishMatch = bodyText.match(/finish[:\s]*([\w\s]+)/i);
     if (finishMatch) data.finish = finishMatch[1].trim();
-    
-    // Look for lead time
-    const leadTimeMatch = bodyText.match(/lead\s*time[:\s]*([\w\s\d-]+)/i);
-    if (leadTimeMatch) data.leadTime = leadTimeMatch[1].trim();
-    
+
+    // Note: Lead time is intentionally not auto-filled - user should select manually
+
     return data;
   }
 })();

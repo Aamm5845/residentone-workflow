@@ -131,6 +131,7 @@ Return a JSON object with this structure:
     "quoteDate": "string - date on the quote if visible",
     "validUntil": "string - quote validity date if mentioned",
     "subtotal": "number - subtotal before tax if shown",
+    "shipping": "number - shipping/delivery/freight charge if shown (IMPORTANT: look for Shipping, Delivery, Freight, Transport lines)",
     "taxes": "number - tax amount if shown",
     "total": "number - grand total if shown"
   },
@@ -154,6 +155,7 @@ Important:
 - Extract prices as numbers only (no $ or currency symbols)
 - If document is in French, translate product names to English
 - ALWAYS look for and extract SKU, model number, or product codes - they often appear near the product name
+- ALWAYS look for shipping/delivery/freight charges - they are usually near the subtotal/total section
 - If a field is not visible or unclear, omit it or set to null
 - Be accurate - only extract what you can clearly read
 - Include ALL line items, even accessories or small items`
