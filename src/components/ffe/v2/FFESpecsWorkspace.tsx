@@ -37,6 +37,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -55,7 +60,10 @@ import {
   ShoppingCart,
   Clock,
   Eye,
-  Pencil
+  Pencil,
+  Link as LinkIcon,
+  Layers,
+  ArrowRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -74,6 +82,23 @@ const SPEC_STATUS = {
 } as const
 
 type SpecStatusType = keyof typeof SPEC_STATUS
+
+// Linked spec from All Spec view
+interface LinkedSpec {
+  id: string
+  name: string
+  brand?: string
+  sku?: string
+  isOption?: boolean
+  optionNumber?: number
+  specStatus?: string
+  images?: string[]
+  supplierName?: string
+  supplierLink?: string
+  rrp?: number
+  tradePrice?: number
+  clientApproved?: boolean
+}
 
 interface FFESpecItem {
   id: string
@@ -107,6 +132,8 @@ interface FFESpecItem {
   // Original state from FFE
   state: string
   visibility: string
+  // Linked specs from All Spec view
+  linkedSpecs?: LinkedSpec[]
 }
 
 interface FFESpecsWorkspaceProps {
@@ -170,16 +197,34 @@ export default function FFESpecsWorkspace({ roomId, roomName, projectId }: FFESp
             const customFields = item.customFields || {}
             const attachments = item.attachments || {}
             
-            // Determine if item has spec data
+            // Extract linked specs from All Spec view
+            const linkedSpecs: LinkedSpec[] = (item.linkedSpecs || []).map((spec: any) => ({
+              id: spec.id,
+              name: spec.name,
+              brand: spec.brand,
+              sku: spec.sku,
+              isOption: spec.isOption,
+              optionNumber: spec.optionNumber,
+              specStatus: spec.specStatus,
+              images: spec.images,
+              supplierName: spec.supplierName,
+              supplierLink: spec.supplierLink,
+              rrp: spec.rrp,
+              tradePrice: spec.tradePrice,
+              clientApproved: spec.clientApproved
+            }))
+
+            // Determine if item has spec data (either from customFields or linkedSpecs)
             const hasSpec = !!(
-              item.supplierName || 
-              item.supplierLink || 
+              item.supplierName ||
+              item.supplierLink ||
               customFields.brand ||
               customFields.colour ||
               customFields.finish ||
-              customFields.material
+              customFields.material ||
+              linkedSpecs.length > 0
             )
-            
+
             sectionItems.push({
               id: item.id,
               name: item.name,
@@ -209,7 +254,8 @@ export default function FFESpecsWorkspace({ roomId, roomName, projectId }: FFESp
               hasSpec,
               specStatus: hasSpec ? 'SPEC_ADDED' : 'NEEDS_SPEC',
               state: item.state,
-              visibility: item.visibility
+              visibility: item.visibility,
+              linkedSpecs
             })
           })
           
@@ -831,6 +877,7 @@ function SpecTable({
           <TableHead className="w-10"></TableHead>
           <TableHead className="w-12"></TableHead>
           <TableHead>Item</TableHead>
+          <TableHead>Linked Specs</TableHead>
           <TableHead>Brand</TableHead>
           <TableHead>Dimensions</TableHead>
           <TableHead>Color</TableHead>
@@ -886,6 +933,111 @@ function SpecTable({
                   <div className="font-medium text-gray-900">{item.name}</div>
                   <div className="text-xs text-gray-500">{item.sectionName}</div>
                 </div>
+              </TableCell>
+              {/* Linked Specs Column */}
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                {item.linkedSpecs && item.linkedSpecs.length > 0 ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 hover:underline">
+                        <LinkIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                        {item.linkedSpecs.length === 1 ? (
+                          <span className="truncate max-w-[120px]">
+                            {item.linkedSpecs[0].brand || item.linkedSpecs[0].name}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Layers className="w-3 h-3" />
+                            {item.linkedSpecs.length} options
+                          </span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="start">
+                      <div className="p-2 border-b bg-gray-50">
+                        <p className="text-xs font-medium text-gray-700">
+                          Linked Products ({item.linkedSpecs.length})
+                        </p>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y">
+                        {item.linkedSpecs.map((spec, index) => (
+                          <div
+                            key={spec.id}
+                            className={cn(
+                              "p-2 hover:bg-gray-50 transition-colors",
+                              spec.clientApproved && "bg-emerald-50/50"
+                            )}
+                          >
+                            <div className="flex items-start gap-2">
+                              {spec.images && spec.images.length > 0 ? (
+                                <img
+                                  src={spec.images[0]}
+                                  alt={spec.name}
+                                  className="w-10 h-10 rounded border object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                  <ImageIcon className="w-4 h-4 text-gray-400" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  {item.linkedSpecs.length > 1 && (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-purple-50 text-purple-600 border-purple-200">
+                                      Option {index + 1}
+                                    </Badge>
+                                  )}
+                                  {spec.clientApproved && (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-emerald-50 text-emerald-600 border-emerald-200">
+                                      <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
+                                      Approved
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs font-medium text-gray-900 truncate mt-0.5">
+                                  {spec.name}
+                                </p>
+                                {spec.brand && (
+                                  <p className="text-[10px] text-gray-500 truncate">
+                                    {spec.brand} {spec.sku && `· ${spec.sku}`}
+                                  </p>
+                                )}
+                                {(spec.rrp || spec.tradePrice) && (
+                                  <p className="text-[10px] text-gray-600 mt-0.5">
+                                    {spec.tradePrice && (
+                                      <span className="font-medium">${Number(spec.tradePrice).toLocaleString()}</span>
+                                    )}
+                                    {spec.rrp && spec.tradePrice && (
+                                      <span className="text-gray-400 ml-1 line-through">
+                                        ${Number(spec.rrp).toLocaleString()}
+                                      </span>
+                                    )}
+                                    {spec.rrp && !spec.tradePrice && (
+                                      <span>${Number(spec.rrp).toLocaleString()}</span>
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                              {spec.supplierLink && (
+                                <a
+                                  href={spec.supplierLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
+                                  title="Open product page"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <span className="text-xs text-gray-400 italic">No specs</span>
+                )}
               </TableCell>
               <TableCell>
                 {item.brand ? (
