@@ -123,6 +123,7 @@ export async function GET(
           leadTime: item.leadTime || item.libraryProduct?.leadTime,
           supplierName: item.supplierName || item.libraryProduct?.supplierName,
           supplierLink: item.supplierLink || item.libraryProduct?.supplierLink,
+          supplierId: item.supplierId,
           state: item.state,
           specStatus: item.specStatus,
           visibility: item.visibility,

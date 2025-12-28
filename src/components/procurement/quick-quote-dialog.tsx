@@ -137,6 +137,15 @@ export default function QuickQuoteDialog({
         setPreview(data)
         // Expand all groups by default
         setExpandedGroups(new Set(data.supplierGroups?.map((g: SupplierGroup) => g.key) || []))
+
+        // Auto-enable resend for already-sent items when ALL items are already sent
+        // This handles the "Resend Quote Request" action from 3-dot menu
+        const allItems = data.supplierGroups?.flatMap((g: SupplierGroup) => g.items) || []
+        const allAlreadySent = allItems.length > 0 && allItems.every((i: { alreadySent: boolean }) => i.alreadySent)
+        if (allAlreadySent) {
+          // Pre-populate resendItems with all item IDs so they can be resent
+          setResendItems(new Set(allItems.map((i: { item: ItemInfo }) => i.item.id)))
+        }
       } else {
         toast.error('Failed to load quote preview')
       }
@@ -263,6 +272,20 @@ export default function QuickQuoteDialog({
           </div>
         ) : preview ? (
           <>
+            {/* Resend Warning Banner */}
+            {resendItems.size > 0 && (
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">
+                <RefreshCw className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium">Resending quote request{resendItems.size > 1 ? 's' : ''}</p>
+                  <p className="text-amber-700 text-xs mt-0.5">
+                    {resendItems.size} item{resendItems.size > 1 ? 's have' : ' has'} already been sent for quotes.
+                    The supplier will receive a new email with the same request.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Summary Bar */}
             <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border">
               <div className="flex items-center gap-4">
@@ -279,7 +302,7 @@ export default function QuickQuoteDialog({
                   </span>
                 </div>
               </div>
-              {preview.summary.alreadySent > 0 && (
+              {preview.summary.alreadySent > 0 && resendItems.size === 0 && (
                 <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                   {preview.summary.alreadySent} already sent
                 </Badge>

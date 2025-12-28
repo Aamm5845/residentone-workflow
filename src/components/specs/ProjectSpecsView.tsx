@@ -172,6 +172,7 @@ interface SpecItem {
   leadTime: string | null
   supplierName: string | null
   supplierLink: string | null
+  supplierId: string | null
   state: string
   specStatus: string
   clientApproved: boolean
@@ -1455,10 +1456,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           height: itemData.height,
           depth: itemData.depth,
           leadTime: itemData.leadTime,
-          supplierName: itemData.supplierName || itemData.brand,
+          supplierName: itemData.supplierName || '',
           supplierLink: itemData.supplierLink || itemData.productWebsite,
           quantity: itemData.quantity || 1,
           unitCost: itemData.rrp ? parseFloat(itemData.rrp.replace(/[^0-9.]/g, '')) : undefined,
+          thumbnailUrl: itemData.images?.[0] || '',
           images: itemData.images || [],
           libraryProductId: itemData.libraryProductId,
           // NEW: FFE Linking fields
@@ -4917,23 +4919,35 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 
                 {/* Product Details */}
                 {addFromUrlEditing ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-gray-500">Product Name</Label>
-                      <Input
-                        value={extractedData.productName || ''}
-                        onChange={(e) => setExtractedData({ ...extractedData, productName: e.target.value })}
-                        className="h-8 text-sm"
-                      />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-gray-500">Product Name</Label>
+                        <Input
+                          value={extractedData.productName || ''}
+                          onChange={(e) => setExtractedData({ ...extractedData, productName: e.target.value })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Brand</Label>
+                        <Input
+                          value={extractedData.brand || ''}
+                          onChange={(e) => setExtractedData({ ...extractedData, brand: e.target.value })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Brand</Label>
-                      <Input
-                        value={extractedData.brand || ''}
-                        onChange={(e) => setExtractedData({ ...extractedData, brand: e.target.value })}
-                        className="h-8 text-sm"
+                      <Label className="text-xs text-gray-500">Description</Label>
+                      <Textarea
+                        value={extractedData.productDescription || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, productDescription: e.target.value })}
+                        className="min-h-[60px] text-sm"
+                        placeholder="Enter product description..."
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-gray-500">SKU</Label>
                       <Input
@@ -5014,12 +5028,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         className="h-8 text-sm"
                       />
                     </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <p className="font-medium text-gray-900">{extractedData.productName || 'Untitled Product'}</p>
                     {extractedData.brand && (
                       <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
+                    )}
+                    {extractedData.productDescription && (
+                      <p className="text-sm text-gray-600 line-clamp-3">{extractedData.productDescription}</p>
                     )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
