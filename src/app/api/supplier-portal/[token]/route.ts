@@ -338,7 +338,8 @@ export async function POST(
       lineItems,
       declineReason,
       quoteDocumentUrl,
-      totalAmount
+      totalAmount,
+      leadTime
     } = body
 
     const supplierRFQ = await prisma.supplierRFQ.findUnique({
@@ -501,26 +502,34 @@ export async function POST(
       // Create a map of rfqLineItemId to roomFFEItemId
       const lineItemMap = new Map(rfqLineItems.map(li => [li.id, li.roomFFEItemId]))
 
-      // Update each RoomFFEItem with the quoted trade price
+      // Update each RoomFFEItem with the quoted trade price and lead time
       const supplierName = supplierRFQ.supplier?.name || supplierRFQ.vendorName || 'Supplier'
       for (const quoteLineItem of quote.lineItems) {
         const roomFFEItemId = lineItemMap.get(quoteLineItem.rfqLineItemId)
-        if (roomFFEItemId && quoteLineItem.unitPrice) {
+        if (roomFFEItemId) {
+          // Get the lead time from the line item or from the global leadTime
+          const itemLeadTime = quoteLineItem.leadTime || leadTime || null
+
           await prisma.roomFFEItem.update({
             where: { id: roomFFEItemId },
             data: {
-              tradePrice: quoteLineItem.unitPrice,
-              specStatus: 'QUOTED'
+              ...(quoteLineItem.unitPrice ? { tradePrice: quoteLineItem.unitPrice } : {}),
+              specStatus: 'QUOTED',
+              ...(itemLeadTime ? { leadTime: itemLeadTime } : {})
             }
           })
 
-          // Create activity for the price update
+          // Create activity for the quote
+          const leadTimeDisplay = itemLeadTime ? itemLeadTime.replace(/_/g, ' ').replace('WEEKS', 'Weeks') : null
+          const priceText = quoteLineItem.unitPrice ? `$${Number(quoteLineItem.unitPrice).toLocaleString()} per unit` : 'price in document'
+          const leadTimeText = leadTimeDisplay ? `, Lead: ${leadTimeDisplay}` : ''
+
           await prisma.itemActivity.create({
             data: {
               itemId: roomFFEItemId,
               type: 'QUOTE_RECEIVED',
               title: 'Quote Received',
-              description: `${supplierName} quoted $${Number(quoteLineItem.unitPrice).toLocaleString()} per unit${quoteDocumentUrl ? ' with document' : ''}`,
+              description: `${supplierName} quoted ${priceText}${leadTimeText}${quoteDocumentUrl ? ' (see attached document)' : ''}`,
               actorName: supplierName,
               actorType: 'supplier',
               metadata: {
@@ -528,7 +537,8 @@ export async function POST(
                 quoteAmount: quoteLineItem.unitPrice,
                 supplierId: supplierRFQ.supplierId,
                 supplierRfqId: supplierRFQ.id,
-                quoteDocumentUrl: quoteDocumentUrl || null
+                quoteDocumentUrl: quoteDocumentUrl || null,
+                leadTime: itemLeadTime || null
               }
             }
           })

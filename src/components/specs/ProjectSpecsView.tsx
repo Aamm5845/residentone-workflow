@@ -112,6 +112,7 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
   { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
   { value: 'QUOTING', label: 'Quoting', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'PRICE_RECEIVED', label: 'Price Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
   { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
   { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },

@@ -193,9 +193,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadingFileName, setUploadingFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTotalAmount, setUploadTotalAmount] = useState('')
   const [uploadNotes, setUploadNotes] = useState('')
+  const [uploadLeadTime, setUploadLeadTime] = useState('')
 
   // AI Match state
   const [aiMatching, setAiMatching] = useState(false)
@@ -400,8 +402,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
-    setUploadedFile(file)
+    // Show uploading state first (don't set file yet)
     setUploading(true)
+    setUploadingFileName(file.name)
 
     try {
       const formData = new FormData()
@@ -414,18 +417,24 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
       if (uploadResponse.ok) {
         const data = await uploadResponse.json()
+        setUploadedFile(file)
         setUploadedFileUrl(data.url)
         toast.success('Quote document uploaded successfully')
       } else {
         const errorData = await uploadResponse.json()
-        toast.error(errorData.error || 'Failed to upload file')
-        setUploadedFile(null)
+        toast.error(errorData.details || errorData.error || 'Failed to upload file')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
       }
     } catch (err) {
       toast.error('Failed to upload file')
-      setUploadedFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     } finally {
       setUploading(false)
+      setUploadingFileName(null)
     }
   }
 
@@ -493,6 +502,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
+    if (!uploadLeadTime) {
+      toast.error('Please select a lead time')
+      return
+    }
+
     setSubmitting(true)
     try {
       const { gst, qst } = calculateTaxes()
@@ -505,6 +519,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           quoteDocumentUrl: uploadedFileUrl,
           totalAmount: uploadTotalAmount ? parseFloat(uploadTotalAmount) : null,
           supplierNotes: uploadNotes || null,
+          leadTime: uploadLeadTime,
           // Tax and delivery info
           includeTaxes,
           gstAmount: gst,
@@ -517,8 +532,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             rfqLineItemId: item.id,
             unitPrice: 0,
             quantity: item.quantity,
-            availability: 'IN_STOCK',
-            leadTimeWeeks: null,
+            availability: uploadLeadTime === 'IN_STOCK' ? 'IN_STOCK' : 'BACKORDER',
+            leadTime: uploadLeadTime,
             notes: 'See attached quote document'
           })) || []
         })
@@ -895,21 +910,24 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   className="hidden"
                 />
 
-                {!uploadedFile ? (
+                {uploading ? (
+                  <div className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center bg-emerald-50">
+                    <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
+                    <p className="text-emerald-700 font-medium">Uploading...</p>
+                    {uploadingFileName && (
+                      <p className="text-sm text-emerald-600 mt-1">{uploadingFileName}</p>
+                    )}
+                    <p className="text-xs text-emerald-500 mt-2">Please wait while we save your file</p>
+                  </div>
+                ) : !uploadedFile ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
                   >
-                    {uploading ? (
-                      <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                    <p className="text-gray-700 font-medium">
-                      {uploading ? 'Uploading...' : 'Click to upload your quote'}
-                    </p>
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Upload className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-700 font-medium">Click to upload your quote</p>
                     <p className="text-sm text-gray-400 mt-1">
                       PDF, Word, Excel, or images up to 10MB
                     </p>
@@ -1074,7 +1092,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <Label>Quote Total (optional)</Label>
                     <div className="relative mt-1.5">
@@ -1089,6 +1107,27 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                         className="pl-10"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <Label>Lead Time <span className="text-red-500">*</span></Label>
+                    <select
+                      value={uploadLeadTime}
+                      onChange={(e) => setUploadLeadTime(e.target.value)}
+                      className={cn(
+                        "mt-1.5 w-full rounded-md border px-3 py-2 text-sm bg-white",
+                        !uploadLeadTime ? "border-gray-200" : "border-emerald-300"
+                      )}
+                      required
+                    >
+                      <option value="">Select lead time...</option>
+                      <option value="IN_STOCK">In Stock</option>
+                      <option value="1-2_WEEKS">1-2 Weeks</option>
+                      <option value="2-4_WEEKS">2-4 Weeks</option>
+                      <option value="4-6_WEEKS">4-6 Weeks</option>
+                      <option value="6-8_WEEKS">6-8 Weeks</option>
+                      <option value="8-12_WEEKS">8-12 Weeks</option>
+                      <option value="12+_WEEKS">12+ Weeks</option>
+                    </select>
                   </div>
                   <div>
                     <Label>Notes (optional)</Label>
