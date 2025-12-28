@@ -934,19 +934,162 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <File className="w-6 h-6 text-emerald-600" />
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                      <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <File className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
-                      <X className="w-4 h-4" />
-                    </Button>
+
+                    {/* AI Match Button */}
+                    {uploadedFile.type.startsWith('image/') && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleAIMatch}
+                        disabled={aiMatching}
+                        className="w-full bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-300 text-purple-700"
+                      >
+                        {aiMatching ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Analyzing with AI...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            Analyze Quote with AI
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* AI Match Results */}
+                    {aiMatchResult && showAiResults && (
+                      <div className="border rounded-xl overflow-hidden bg-white">
+                        <div className="bg-gradient-to-r from-purple-500 to-blue-500 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-white">
+                            <Sparkles className="w-4 h-4" />
+                            <span className="font-medium">AI Analysis Results</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAiResults(false)}
+                            className="text-white hover:bg-white/20 h-7 w-7 p-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Summary */}
+                        <div className="px-4 py-3 bg-gray-50 border-b">
+                          <div className="grid grid-cols-4 gap-2 text-center">
+                            <div className="bg-green-100 rounded-lg p-2">
+                              <p className="text-lg font-bold text-green-700">{aiMatchResult.summary.matched}</p>
+                              <p className="text-xs text-green-600">Matched</p>
+                            </div>
+                            <div className="bg-yellow-100 rounded-lg p-2">
+                              <p className="text-lg font-bold text-yellow-700">{aiMatchResult.summary.partial}</p>
+                              <p className="text-xs text-yellow-600">Partial</p>
+                            </div>
+                            <div className="bg-red-100 rounded-lg p-2">
+                              <p className="text-lg font-bold text-red-700">{aiMatchResult.summary.missing}</p>
+                              <p className="text-xs text-red-600">Missing</p>
+                            </div>
+                            <div className="bg-blue-100 rounded-lg p-2">
+                              <p className="text-lg font-bold text-blue-700">{aiMatchResult.summary.extra}</p>
+                              <p className="text-xs text-blue-600">Extra</p>
+                            </div>
+                          </div>
+                          {aiMatchResult.supplierInfo?.total && (
+                            <div className="mt-3 text-center">
+                              <p className="text-sm text-gray-500">Quote Total</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {formatCurrency(aiMatchResult.supplierInfo.total)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Match Details */}
+                        <div className="max-h-64 overflow-y-auto">
+                          {aiMatchResult.matchResults.map((result, idx) => (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "px-4 py-2 border-b last:border-b-0 flex items-center gap-3",
+                                result.status === 'matched' && "bg-green-50",
+                                result.status === 'partial' && "bg-yellow-50",
+                                result.status === 'missing' && "bg-red-50",
+                                result.status === 'extra' && "bg-blue-50"
+                              )}
+                            >
+                              {result.status === 'matched' && <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />}
+                              {result.status === 'partial' && <HelpCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />}
+                              {result.status === 'missing' && <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
+                              {result.status === 'extra' && <Plus className="w-5 h-5 text-blue-600 flex-shrink-0" />}
+
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">
+                                  {result.status === 'missing' || result.status === 'partial'
+                                    ? result.rfqItem?.itemName
+                                    : result.extractedItem?.productName}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  {result.status === 'matched' || result.status === 'partial' ? (
+                                    <>
+                                      <span>Qty: {result.rfqItem?.quantity}</span>
+                                      {result.extractedItem?.unitPrice && (
+                                        <span>@ {formatCurrency(result.extractedItem.unitPrice)}</span>
+                                      )}
+                                      {result.confidence > 0 && (
+                                        <Badge variant="outline" className="text-xs h-4">
+                                          {result.confidence}% match
+                                        </Badge>
+                                      )}
+                                    </>
+                                  ) : result.status === 'missing' ? (
+                                    <span className="text-red-600">Not found in uploaded quote</span>
+                                  ) : (
+                                    <>
+                                      {result.extractedItem?.quantity && <span>Qty: {result.extractedItem.quantity}</span>}
+                                      {result.extractedItem?.unitPrice && (
+                                        <span>@ {formatCurrency(result.extractedItem.unitPrice)}</span>
+                                      )}
+                                      <span className="text-blue-600">Not in your request</span>
+                                    </>
+                                  )}
+                                </div>
+                                {result.discrepancies && result.discrepancies.length > 0 && (
+                                  <div className="mt-1">
+                                    {result.discrepancies.map((d, i) => (
+                                      <p key={i} className="text-xs text-yellow-700">{d}</p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {aiMatchResult.notes && (
+                          <div className="px-4 py-3 bg-gray-50 border-t">
+                            <p className="text-xs text-gray-500 font-medium mb-1">Quote Notes</p>
+                            <p className="text-sm text-gray-700">{aiMatchResult.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
