@@ -845,8 +845,93 @@
     if (data.images.length === 0) {
       const allImages = [];
       const seen = new Set();
-      
-      // Priority selectors for product images
+
+      // Helper to add image if valid
+      function addImage(src, score, alt = '') {
+        if (!src || seen.has(src)) return;
+        if (src.includes('data:') && src.length < 100) return;
+        // Clean up URL (remove query params that are just cache busters)
+        const cleanSrc = src.split('?')[0];
+        if (seen.has(cleanSrc)) return;
+        seen.add(src);
+        seen.add(cleanSrc);
+        if (score > 50) {
+          allImages.push({ src, score, alt });
+        }
+      }
+
+      // 1. Look for zoom/large image data attributes (these are often the highest quality)
+      const zoomSelectors = [
+        '[data-zoom-image]',
+        '[data-large]',
+        '[data-src]',
+        '[data-full]',
+        '[data-zoom]',
+        '[data-highres]',
+        '[data-original]',
+        '[data-image]',
+        '[data-bgset]',
+        '.zoomImg',
+        '.zoom-image',
+        '[class*="zoom"]'
+      ];
+
+      for (const selector of zoomSelectors) {
+        try {
+          document.querySelectorAll(selector).forEach(el => {
+            // Check various data attributes for image URLs
+            const attrs = ['data-zoom-image', 'data-large', 'data-src', 'data-full',
+                          'data-zoom', 'data-highres', 'data-original', 'data-image', 'data-bgset'];
+            for (const attr of attrs) {
+              const value = el.getAttribute(attr);
+              if (value && (value.includes('http') || value.startsWith('/'))) {
+                // High score for zoom images - they're usually the main product image
+                addImage(value, 300, el.alt || '');
+              }
+            }
+            // Also check if it's an img with these classes
+            if (el.tagName === 'IMG' && el.src) {
+              addImage(el.src, 250, el.alt || '');
+            }
+          });
+        } catch (e) {}
+      }
+
+      // 2. Look for background images on product containers
+      const bgSelectors = [
+        '.product-image',
+        '.product-photo',
+        '.product-media',
+        '.gallery-image',
+        '.main-image',
+        '.hero-image',
+        '[class*="product"][class*="image"]',
+        '[class*="zoom"]',
+        '[style*="background-image"]'
+      ];
+
+      for (const selector of bgSelectors) {
+        try {
+          document.querySelectorAll(selector).forEach(el => {
+            const style = window.getComputedStyle(el);
+            const bgImage = style.backgroundImage;
+            if (bgImage && bgImage !== 'none') {
+              // Extract URL from background-image: url("...")
+              const match = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+              if (match && match[1]) {
+                const rect = el.getBoundingClientRect();
+                // Score based on element size
+                let score = 200;
+                if (rect.width >= 400 && rect.height >= 400) score += 100;
+                else if (rect.width >= 200 && rect.height >= 200) score += 50;
+                addImage(match[1], score, '');
+              }
+            }
+          });
+        } catch (e) {}
+      }
+
+      // 3. Priority selectors for regular product images
       const imageSelectors = [
         '.product-image img',
         '.product-gallery img',
@@ -861,25 +946,29 @@
         'article img',
         '.content img'
       ];
-      
+
       // Collect all candidate images
       for (const selector of imageSelectors) {
         try {
           const imgs = document.querySelectorAll(selector);
           imgs.forEach((img, idx) => {
-            if (!img.src || seen.has(img.src)) return;
-            if (img.src.includes('data:') && img.src.length < 100) return; // Skip tiny data URIs
-
-            seen.add(img.src);
             const score = scoreProductImage(img, idx);
-            // Only include images with positive score (visible and reasonably sized)
-            if (score > 50) {
-              allImages.push({ src: img.src, score, alt: img.alt });
+            addImage(img.src, score, img.alt);
+
+            // Also check srcset for larger versions
+            if (img.srcset) {
+              const srcsetParts = img.srcset.split(',');
+              srcsetParts.forEach(part => {
+                const [url, size] = part.trim().split(/\s+/);
+                if (url && (url.includes('http') || url.startsWith('/'))) {
+                  // Boost score for larger srcset images
+                  const sizeNum = parseInt(size) || 0;
+                  addImage(url, score + (sizeNum > 800 ? 50 : 20), img.alt);
+                }
+              });
             }
           });
-        } catch (e) {
-          // Selector might be invalid, skip
-        }
+        } catch (e) {}
       }
 
       // Sort by score and take top images (only those with good scores)
@@ -887,7 +976,7 @@
       // Filter to only include images with decent scores
       const goodImages = allImages.filter(img => img.score > 100);
       data.images = (goodImages.length > 0 ? goodImages : allImages).slice(0, 10).map(img => img.src);
-      
+
       // Store the best image info separately
       if (allImages.length > 0) {
         data.mainImage = allImages[0].src;
