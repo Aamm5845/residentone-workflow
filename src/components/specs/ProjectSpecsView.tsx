@@ -1343,7 +1343,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         sku: urlGenerateData.sku || '',
         // supplierLink = product URL (where we scraped from) - NOT the supplier's website
         supplierLink: urlGenerateData.productWebsite || urlGenerateInput,
-        thumbnailUrl: urlGenerateData.images?.[0] || '',
         images: urlGenerateData.images || [],
         rrp: urlGenerateData.rrp ? parseFloat(urlGenerateData.rrp.replace(/[^0-9.]/g, '')) || 0 : 0,
         tradePrice: urlGenerateData.tradePrice ? parseFloat(urlGenerateData.tradePrice.replace(/[^0-9.]/g, '')) || 0 : 0,
@@ -1471,7 +1470,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           supplierLink: itemData.supplierLink || itemData.productWebsite,
           quantity: itemData.quantity || 1,
           unitCost: itemData.rrp ? parseFloat(itemData.rrp.replace(/[^0-9.]/g, '')) : undefined,
-          thumbnailUrl: itemData.images?.[0] || '',
           images: itemData.images || [],
           libraryProductId: itemData.libraryProductId,
           // NEW: FFE Linking fields
