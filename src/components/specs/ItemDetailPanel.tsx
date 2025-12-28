@@ -925,6 +925,17 @@ export function ItemDetailPanel({
   // Initialize form with item data
   useEffect(() => {
     if (item && (mode === 'view' || mode === 'edit')) {
+      // Look up supplier details if item has a supplierId
+      const supplier = item.supplierId ? suppliers.find(s => s.id === item.supplierId) : null
+      // Parse supplierName for contact info if it contains " / " format
+      let businessName = item.supplierName || ''
+      let contactName = ''
+      if (businessName.includes(' / ')) {
+        const parts = businessName.split(' / ')
+        businessName = parts[0]
+        contactName = parts.slice(1).join(' / ')
+      }
+
       setFormData({
         name: item.name || '',
         description: item.description || '',
@@ -934,9 +945,12 @@ export function ItemDetailPanel({
         brand: item.brand || '',
         quantity: item.quantity || 1,
         unitType: item.unitType || 'units',
-        supplierName: item.supplierName || '',
+        supplierName: supplier?.name || businessName,
         supplierLink: item.supplierLink || '',
         supplierId: item.supplierId || '',
+        supplierContactName: supplier?.contactName || contactName || '',
+        supplierEmail: supplier?.email || '',
+        supplierLogo: supplier?.logo || '',
         leadTime: item.leadTime || '',
         color: item.color || '',
         finish: item.finish || '',
@@ -994,7 +1008,7 @@ export function ItemDetailPanel({
       setSelectedFfeItemId('')
       setShowAlreadyChosenWarning(false)
     }
-  }, [item, mode, roomId])
+  }, [item, mode, roomId, suppliers])
   
   const handleSave = async () => {
     if (!formData.name.trim()) {
