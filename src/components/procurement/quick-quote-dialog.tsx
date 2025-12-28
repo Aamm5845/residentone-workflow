@@ -229,10 +229,14 @@ export default function QuickQuoteDialog({
       const data = await res.json()
 
       if (res.ok && data.success) {
-        toast.success(`Quote requests sent to ${data.sent} supplier(s)!`)
-        // Close dialog first, then call onSuccess
-        onOpenChange(false)
-        onSuccess()
+        toast.success(`Quote requests sent successfully to ${data.sent} supplier(s)!`, {
+          duration: 4000
+        })
+        // Brief delay so user sees success message before dialog closes
+        setTimeout(() => {
+          onOpenChange(false)
+          onSuccess()
+        }, 800)
       } else if (data.needsConfirmation) {
         toast.error('All items have already been sent. Enable resend to send again.')
       } else {

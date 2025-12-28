@@ -975,7 +975,7 @@
       allImages.sort((a, b) => b.score - a.score);
       // Filter to only include images with decent scores
       const goodImages = allImages.filter(img => img.score > 100);
-      data.images = (goodImages.length > 0 ? goodImages : allImages).slice(0, 10).map(img => img.src);
+      data.images = (goodImages.length > 0 ? goodImages : allImages).slice(0, 2).map(img => img.src);
 
       // Store the best image info separately
       if (allImages.length > 0) {

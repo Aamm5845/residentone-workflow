@@ -297,6 +297,12 @@ export async function GET(
             width: item.roomFFEItem.width,
             height: item.roomFFEItem.height,
             depth: item.roomFFEItem.depth,
+            length: item.roomFFEItem.length,
+            modelNumber: item.roomFFEItem.modelNumber,
+            supplierLink: item.roomFFEItem.supplierLink,
+            supplierName: item.roomFFEItem.supplierName,
+            leadTime: item.roomFFEItem.leadTime,
+            notes: item.roomFFEItem.notes,
             // Include documents visible to supplier
             documents: item.roomFFEItem.documents || []
           } : null

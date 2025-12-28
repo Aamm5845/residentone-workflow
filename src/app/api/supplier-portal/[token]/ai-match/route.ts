@@ -30,6 +30,12 @@ interface MatchResult {
   }
   extractedItem?: ExtractedItem
   discrepancies?: string[]
+  // For unmatched extracted items, suggest closest RFQ items
+  suggestedMatches?: {
+    id: string
+    itemName: string
+    confidence: number
+  }[]
 }
 
 /**
@@ -111,10 +117,11 @@ export async function POST(
     }))
 
     // Create the extraction prompt
-    const systemPrompt = `You are an expert at reading supplier quotes and invoices. Your task is to:
+    const systemPrompt = `You are an expert at reading supplier quotes and invoices. The document may be in French or English. Your task is to:
 1. Extract ALL line items from the uploaded quote document
-2. For each item, extract: product name, SKU/model number, quantity, unit price, total price, brand, and any lead time mentioned
+2. For each item, extract: product name (translate to English if French), SKU/model number, quantity, unit price, total price, brand, and any lead time mentioned
 3. Be thorough - don't miss any items even if the formatting is unusual
+4. IMPORTANT: Always extract SKU, model numbers, product codes - these are critical for matching
 
 Return a JSON object with this structure:
 {
@@ -129,8 +136,9 @@ Return a JSON object with this structure:
   },
   "extractedItems": [
     {
-      "productName": "string - full product name",
-      "sku": "string - SKU, model number, or product code",
+      "productName": "string - full product name in English (translate if needed)",
+      "productNameOriginal": "string - original product name if different language",
+      "sku": "string - SKU, model number, or product code (VERY IMPORTANT)",
       "quantity": "number - quantity ordered",
       "unitPrice": "number - price per unit (no currency symbol)",
       "totalPrice": "number - line total (no currency symbol)",
@@ -144,6 +152,8 @@ Return a JSON object with this structure:
 
 Important:
 - Extract prices as numbers only (no $ or currency symbols)
+- If document is in French, translate product names to English
+- ALWAYS look for and extract SKU, model number, or product codes - they often appear near the product name
 - If a field is not visible or unclear, omit it or set to null
 - Be accurate - only extract what you can clearly read
 - Include ALL line items, even accessories or small items`
@@ -270,6 +280,17 @@ Extract everything you can see in the quote, including any items that might not 
       }
     }
 
+    // Helper function to normalize strings for comparison
+    const normalize = (str: string) => str?.toLowerCase().replace(/[^a-z0-9]/g, '') || ''
+
+    // Helper function to check if words match (fuzzy)
+    const wordsMatch = (word1: string, word2: string) => {
+      const w1 = normalize(word1)
+      const w2 = normalize(word2)
+      if (w1.length < 3 || w2.length < 3) return false
+      return w1 === w2 || w1.includes(w2) || w2.includes(w1)
+    }
+
     // Now match extracted items against RFQ items
     const matchResults: MatchResult[] = []
     const matchedRfqIds = new Set<string>()
@@ -283,34 +304,67 @@ Extract everything you can see in the quote, including any items that might not 
 
       for (const rfqItem of rfqItems) {
         let confidence = 0
+        let skuMatched = false
+        let modelMatched = false
 
-        // SKU matching (highest confidence)
+        // SKU matching (highest confidence - 70 points for exact match)
         if (extracted.sku && rfqItem.sku) {
-          const extractedSku = extracted.sku.toLowerCase().replace(/[^a-z0-9]/g, '')
-          const rfqSku = rfqItem.sku.toLowerCase().replace(/[^a-z0-9]/g, '')
+          const extractedSku = normalize(extracted.sku)
+          const rfqSku = normalize(rfqItem.sku)
           if (extractedSku === rfqSku) {
-            confidence += 50
+            confidence += 70
+            skuMatched = true
           } else if (extractedSku.includes(rfqSku) || rfqSku.includes(extractedSku)) {
-            confidence += 30
+            confidence += 50
+            skuMatched = true
           }
         }
 
-        // Brand matching
+        // Model number matching (also high confidence - 70 points)
+        if (extracted.sku && rfqItem.modelNumber) {
+          const extractedSku = normalize(extracted.sku)
+          const rfqModel = normalize(rfqItem.modelNumber)
+          if (extractedSku === rfqModel || extractedSku.includes(rfqModel) || rfqModel.includes(extractedSku)) {
+            confidence += 70
+            modelMatched = true
+          }
+        }
+
+        // Brand matching (bonus points)
         if (extracted.brand && rfqItem.brand) {
-          if (extracted.brand.toLowerCase().includes(rfqItem.brand.toLowerCase()) ||
-              rfqItem.brand.toLowerCase().includes(extracted.brand.toLowerCase())) {
+          if (normalize(extracted.brand).includes(normalize(rfqItem.brand)) ||
+              normalize(rfqItem.brand).includes(normalize(extracted.brand))) {
             confidence += 15
           }
         }
 
-        // Name matching using word overlap
-        const extractedWords = extracted.productName.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
-        const rfqWords = rfqItem.itemName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
-        const matchingWords = extractedWords.filter((w: string) =>
-          rfqWords.some(rw => rw.includes(w) || w.includes(rw))
-        )
-        const nameConfidence = (matchingWords.length / Math.max(extractedWords.length, rfqWords.length)) * 35
-        confidence += nameConfidence
+        // Name matching using word overlap (only if SKU/model didn't match)
+        // This helps match items like "Porter Ottoman" -> "Ottoman"
+        if (!skuMatched && !modelMatched) {
+          const extractedWords = (extracted.productName || '').toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
+          const rfqWords = rfqItem.itemName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+
+          // Check for key word matches (like "ottoman", "chair", "sofa")
+          let keyWordMatches = 0
+          for (const ew of extractedWords) {
+            for (const rw of rfqWords) {
+              if (wordsMatch(ew, rw)) {
+                keyWordMatches++
+                break
+              }
+            }
+          }
+
+          // Give higher confidence if multiple words match
+          if (keyWordMatches >= 2) {
+            confidence += 50
+          } else if (keyWordMatches === 1 && (extractedWords.length <= 3 || rfqWords.length <= 3)) {
+            // For short product names, one match is enough
+            confidence += 40
+          } else if (keyWordMatches === 1) {
+            confidence += 25
+          }
+        }
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence
@@ -318,8 +372,11 @@ Extract everything you can see in the quote, including any items that might not 
         }
       }
 
+      // Lower threshold if SKU/model matched (25), otherwise 35
+      const matchThreshold = bestConfidence >= 50 ? 25 : 35
+
       // Check for discrepancies if we have a match
-      if (bestMatch && bestConfidence >= 30) {
+      if (bestMatch && bestConfidence >= matchThreshold) {
         matchedRfqIds.add(bestMatch.id)
 
         // Quantity discrepancy
@@ -336,10 +393,41 @@ Extract everything you can see in the quote, including any items that might not 
         })
       } else {
         // No good match - this is an extra item
+        // Find closest possible matches to suggest
+        const suggestions: { id: string; itemName: string; confidence: number }[] = []
+
+        for (const rfqItem of rfqItems) {
+          if (matchedRfqIds.has(rfqItem.id)) continue // Skip already matched items
+
+          let score = 0
+          const extractedWords = (extracted.productName || '').toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
+          const rfqWords = rfqItem.itemName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+
+          for (const ew of extractedWords) {
+            for (const rw of rfqWords) {
+              if (wordsMatch(ew, rw)) {
+                score += 20
+              }
+            }
+          }
+
+          if (score > 0) {
+            suggestions.push({
+              id: rfqItem.id,
+              itemName: rfqItem.itemName,
+              confidence: Math.min(score, 60)
+            })
+          }
+        }
+
+        // Sort by confidence and take top 3
+        suggestions.sort((a, b) => b.confidence - a.confidence)
+
         matchResults.push({
           status: 'extra',
           confidence: 0,
-          extractedItem: extracted
+          extractedItem: extracted,
+          suggestedMatches: suggestions.slice(0, 3)
         })
       }
     }
@@ -361,6 +449,9 @@ Extract everything you can see in the quote, including any items that might not 
     const missing = matchResults.filter(r => r.status === 'missing').length
     const extra = matchResults.filter(r => r.status === 'extra').length
 
+    // Detect if taxes are included in quote
+    const hasTaxes = extractedData.supplierInfo?.taxes && extractedData.supplierInfo.taxes > 0
+
     return NextResponse.json({
       success: true,
       supplierInfo: extractedData.supplierInfo || {},
@@ -372,7 +463,8 @@ Extract everything you can see in the quote, including any items that might not 
         missing,
         extra,
         extractedTotal: extractedItems.length,
-        quoteTotal: extractedData.supplierInfo?.total || null
+        quoteTotal: extractedData.supplierInfo?.total || null,
+        hasTaxes
       },
       notes: extractedData.notes || null
     })
