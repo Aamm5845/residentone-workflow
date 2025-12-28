@@ -192,6 +192,19 @@ export async function DELETE(
     }
 
     // Delete related records that don't have cascade delete
+    // First, get all RFQ line items to delete their supplier quote line items
+    const rfqLineItems = await prisma.rFQLineItem.findMany({
+      where: { roomFFEItemId: itemId },
+      select: { id: true }
+    })
+
+    // Delete supplier quote line items that reference the RFQ line items
+    if (rfqLineItems.length > 0) {
+      await prisma.supplierQuoteLineItem.deleteMany({
+        where: { rfqLineItemId: { in: rfqLineItems.map(item => item.id) } }
+      })
+    }
+
     // Delete RFQ line items linked to this item
     await prisma.rFQLineItem.deleteMany({
       where: { roomFFEItemId: itemId }
@@ -207,7 +220,13 @@ export async function DELETE(
       where: { roomFFEItemId: itemId }
     })
 
-    // Delete the item (cascades will handle ItemActivity, ItemQuoteRequest, SpecItemLink, RFQDocument)
+    // Clear ffeRequirementId on any linked spec items (self-relation)
+    await prisma.roomFFEItem.updateMany({
+      where: { ffeRequirementId: itemId },
+      data: { ffeRequirementId: null }
+    })
+
+    // Delete the item (cascades will handle ItemActivity, ItemQuoteRequest, FFESpecLink)
     await prisma.roomFFEItem.delete({
       where: { id: itemId }
     })

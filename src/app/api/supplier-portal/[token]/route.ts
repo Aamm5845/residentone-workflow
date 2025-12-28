@@ -31,7 +31,18 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                
+                streetAddress: true,
+                city: true,
+                province: true,
+                postalCode: true,
+                client: {
+                  select: {
+                    name: true,
+                    email: true,
+                    phone: true,
+                    company: true
+                  }
+                }
               }
             },
             lineItems: {
