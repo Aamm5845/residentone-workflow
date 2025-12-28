@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   Send,
   Pencil,
   Check,
@@ -13,7 +13,8 @@ import {
   ChevronRight,
   File,
   Image as ImageIcon,
-  FileText
+  FileText,
+  BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -250,7 +251,7 @@ export function FloorplanPhasesWorkspace({
                 {/* Status badge */}
                 <div className="mt-4 flex items-center justify-between">
                   <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
-                    approvalStatus === 'COMPLETED' 
+                    approvalStatus === 'COMPLETED'
                       ? 'bg-emerald-100 text-emerald-700'
                       : approvalStatus === 'IN_PROGRESS'
                       ? 'bg-purple-100 text-purple-700'
@@ -258,7 +259,7 @@ export function FloorplanPhasesWorkspace({
                   }`}>
                     {approvalStatus === 'COMPLETED' && <Check className="w-3 h-3" />}
                     {approvalStatus === 'IN_PROGRESS' && <Clock className="w-3 h-3" />}
-                    {approvalStatus === 'COMPLETED' ? 'Approved' : 
+                    {approvalStatus === 'COMPLETED' ? 'Approved' :
                      approvalStatus === 'IN_PROGRESS' ? 'Awaiting Response' : 'Not Started'}
                   </span>
                   {approvalStatus === 'COMPLETED' && (
@@ -271,6 +272,41 @@ export function FloorplanPhasesWorkspace({
               </div>
             </Link>
           </div>
+        </div>
+
+        {/* Spec Book Builder Section */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-medium text-gray-900">Spec Book</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Generate professional spec books for clients</p>
+            </div>
+          </div>
+
+          <Link href={`/projects/${project.id}/specs/builder`} className="group block">
+            <div className="bg-white rounded-xl border border-gray-200 hover:border-teal-300 p-6 transition-all duration-200 hover:shadow-md">
+              <div className="flex items-center gap-5">
+                {/* Icon */}
+                <div className="w-14 h-14 bg-teal-100 rounded-xl flex items-center justify-center">
+                  <BookOpen className="w-7 h-7 text-teal-600" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-medium text-gray-900 group-hover:text-teal-600 transition-colors">
+                      Spec Book Builder
+                    </h3>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Build and export professional PDF spec books with room details, renderings, and product specifications
+                  </p>
+                </div>
+
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-teal-500 transition-colors" />
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
     </div>

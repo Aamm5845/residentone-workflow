@@ -441,10 +441,10 @@ export default async function ProjectDetail({ params }: Props) {
                     </Link>
                   )}
                   
-                  {/* Specs Card */}
+                  {/* Specs Card - Goes directly to All Specs */}
                   {project.hasSpecBook && (
                     <Link
-                      href={`/projects/${project.id}/specs`}
+                      href={`/projects/${project.id}/specs/all`}
                       className="group block"
                     >
                       <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 hover:border-green-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
@@ -455,10 +455,10 @@ export default async function ProjectDetail({ params }: Props) {
                             </div>
                             <div>
                               <h3 className="font-semibold text-green-800 group-hover:text-green-900 transition-colors">
-                                Specs
+                                All Specs
                               </h3>
                               <p className="text-xs text-green-600 mt-1">
-                                View all specs and generate spec books
+                                View and manage all product specs
                               </p>
                             </div>
                           </div>
