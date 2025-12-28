@@ -38,6 +38,8 @@ let state = {
   rooms: [],
   sections: [],
   ffeItems: [], // FFE items in selected section for linking
+  allRoomItems: [], // Cache of all items in the room (for fast section filtering)
+  allRoomItemsRoomId: null, // Which room the cached items belong to
   similarItems: [], // Similar items across project for multi-linking
   selectedSimilarItems: [], // IDs of similar items selected for linking
   suppliers: [], // Suppliers from phonebook
@@ -456,6 +458,9 @@ async function handleProjectChange(e) {
   state.selectedFfeItems = [];
   state.createNewItem = true;
   state.selectedSimilarItems = [];
+  // Clear the items cache when project changes
+  state.allRoomItems = [];
+  state.allRoomItemsRoomId = null;
 
   // Reset downstream selects
   elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
@@ -495,7 +500,7 @@ async function handleRoomChange(e) {
 
   elements.sectionSelect.innerHTML = '<option value="">Select Category...</option>';
   if (elements.ffeItemsList) elements.ffeItemsList.innerHTML = '';
-  
+
   // Hide room step and downstream steps
   elements.roomStep?.classList.add('hidden');
   elements.sectionStep?.classList.add('hidden');
@@ -504,13 +509,20 @@ async function handleRoomChange(e) {
   closeSimilarPanel();
 
   if (roomId) {
-    await loadSections(roomId);
+    // Load sections and pre-fetch items in parallel for speed
+    await Promise.all([
+      loadSections(roomId),
+      prefetchRoomItems(roomId)
+    ]);
     // Show section step (room step is now hidden, shown in breadcrumb)
     elements.sectionStep?.classList.remove('hidden');
     updateBreadcrumb();
   } else {
     // If cleared, show room step again
     elements.roomStep?.classList.remove('hidden');
+    // Clear the items cache
+    state.allRoomItems = [];
+    state.allRoomItemsRoomId = null;
   }
 
   updateClipButton();
@@ -582,61 +594,80 @@ function handleFfeItemSelect(itemId, itemName, isCreateNew = false) {
   updateClipButton();
 }
 
-// Load FFE items for a section
-async function loadFfeItems(roomId, sectionId) {
+// Pre-fetch all items for a room (called when room is selected)
+async function prefetchRoomItems(roomId) {
+  // Skip if already cached for this room
+  if (state.allRoomItemsRoomId === roomId && state.allRoomItems.length >= 0) {
+    return;
+  }
+
   try {
     const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
-    
-    // apiRequest wraps API response in { ok, status, data, error }
-    // API returns { ok: true, items: [...], stats: {...} }
     const items = response.data?.items || [];
-    
-    console.log('[FFE Clipper] Loaded items from API:', items.length, 'items');
-    console.log('[FFE Clipper] Full response:', response);
-    console.log('[FFE Clipper] Looking for sectionId:', sectionId);
-    console.log('[FFE Clipper] Available sectionIds in items:', [...new Set(items.map(i => i.sectionId))]);
-    
-    if (response.ok && items.length >= 0) {
-      // Filter items by section - also match by section NAME for flexibility
-      const selectedSection = state.sections.find(s => s.id === sectionId);
-      const sectionName = selectedSection?.name?.toLowerCase() || '';
-      
-      let sectionItems = items.filter(item => item.sectionId === sectionId);
-      
-      // If no exact match, try matching by section name
-      if (sectionItems.length === 0 && sectionName) {
-        sectionItems = items.filter(item => 
-          item.sectionName?.toLowerCase() === sectionName
-        );
-        console.log('[FFE Clipper] Matched by name instead:', sectionItems.length, 'items');
-      }
-      
-      console.log('[FFE Clipper] Filtered items for section:', sectionItems.length);
-      state.ffeItems = sectionItems;
-      
-      // Render items as cards
-      renderFfeItemCards();
-      
-      // Update hint
-      const hint = document.getElementById('ffeItemHint');
-      const needsSpec = sectionItems.filter(i => i.needsSpec);
-      if (hint) {
-        if (sectionItems.length > 0) {
-          hint.textContent = `${sectionItems.length} item${sectionItems.length > 1 ? 's' : ''} in this category`;
-          hint.style.color = '#6b7280';
-        } else if (items.length > 0) {
-          hint.textContent = `No items in this category (${items.length} in other categories)`;
-          hint.style.color = '#6b7280';
-        } else {
-          hint.textContent = 'No items yet - select "Create new item"';
-          hint.style.color = '#6b7280';
-        }
-      }
+
+    if (response.ok) {
+      state.allRoomItems = items;
+      state.allRoomItemsRoomId = roomId;
+      console.log('[FFE Clipper] Pre-fetched', items.length, 'items for room');
+    }
+  } catch (error) {
+    console.error('[FFE Clipper] Failed to pre-fetch room items:', error);
+    state.allRoomItems = [];
+    state.allRoomItemsRoomId = roomId;
+  }
+}
+
+// Load FFE items for a section (uses cached room items for speed)
+async function loadFfeItems(roomId, sectionId) {
+  try {
+    // Use cached items if available, otherwise fetch
+    let items = [];
+    if (state.allRoomItemsRoomId === roomId) {
+      items = state.allRoomItems;
+      console.log('[FFE Clipper] Using cached items:', items.length, 'items');
     } else {
-      // No items or error, still show the create new option
-      console.log('[FFE Clipper] No items or error:', response.error);
-      state.ffeItems = [];
-      renderFfeItemCards();
+      // Fallback: fetch if not cached
+      const response = await apiRequest('GET', `${CONFIG.ENDPOINTS.PENDING_ITEMS}?roomId=${roomId}`);
+      items = response.data?.items || [];
+      // Update cache
+      state.allRoomItems = items;
+      state.allRoomItemsRoomId = roomId;
+      console.log('[FFE Clipper] Fetched items from API:', items.length, 'items');
+    }
+
+    // Filter items by section - also match by section NAME for flexibility
+    const selectedSection = state.sections.find(s => s.id === sectionId);
+    const sectionName = selectedSection?.name?.toLowerCase() || '';
+
+    let sectionItems = items.filter(item => item.sectionId === sectionId);
+
+    // If no exact match, try matching by section name
+    if (sectionItems.length === 0 && sectionName) {
+      sectionItems = items.filter(item =>
+        item.sectionName?.toLowerCase() === sectionName
+      );
+      console.log('[FFE Clipper] Matched by name instead:', sectionItems.length, 'items');
+    }
+
+    console.log('[FFE Clipper] Filtered items for section:', sectionItems.length);
+    state.ffeItems = sectionItems;
+
+    // Render items as cards
+    renderFfeItemCards();
+
+    // Update hint
+    const hint = document.getElementById('ffeItemHint');
+    if (hint) {
+      if (sectionItems.length > 0) {
+        hint.textContent = `${sectionItems.length} item${sectionItems.length > 1 ? 's' : ''} in this category`;
+        hint.style.color = '#6b7280';
+      } else if (items.length > 0) {
+        hint.textContent = `No items in this category (${items.length} in other categories)`;
+        hint.style.color = '#6b7280';
+      } else {
+        hint.textContent = 'No items yet - select "Create new item"';
+        hint.style.color = '#6b7280';
+      }
     }
   } catch (error) {
     console.error('[FFE Clipper] Failed to load FFE items:', error);
@@ -992,6 +1023,9 @@ function clearLocationSelection() {
   state.createNewItem = true;
   state.selectedSimilarItems = [];
   state.similarItems = [];
+  // Clear the items cache
+  state.allRoomItems = [];
+  state.allRoomItemsRoomId = null;
   
   elements.projectSelect.value = '';
   elements.roomSelect.innerHTML = '<option value="">Select Room...</option>';
