@@ -680,7 +680,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-blue-600 uppercase tracking-wide font-semibold mb-2">Ship To</p>
-                  <p className="font-bold text-gray-900 text-lg mb-1">{project.name}</p>
+                  <p className="font-bold text-gray-900 text-lg mb-1">
+                    {project.client?.name || project.name}
+                  </p>
+                  <p className="text-sm text-blue-600 mb-2">Project: {project.name}</p>
                   {hasShippingAddress && (
                     <div className="text-sm text-gray-600 space-y-0.5">
                       {project.streetAddress && <p>{project.streetAddress}</p>}
@@ -688,8 +691,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     </div>
                   )}
                   {project.client && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <p className="text-sm font-medium text-gray-700">{project.client.name}</p>
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
                       {project.client.email && (
                         <p className="text-sm text-gray-500">{project.client.email}</p>
                       )}

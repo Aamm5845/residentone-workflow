@@ -262,7 +262,12 @@ export async function GET(
         validUntil: supplierRFQ.rfq.validUntil,
         project: {
           id: projectId,
-          name: supplierRFQ.rfq.project.name
+          name: supplierRFQ.rfq.project.name,
+          streetAddress: supplierRFQ.rfq.project.streetAddress,
+          city: supplierRFQ.rfq.project.city,
+          province: supplierRFQ.rfq.project.province,
+          postalCode: supplierRFQ.rfq.project.postalCode,
+          client: supplierRFQ.rfq.project.client
         },
         lineItems: supplierRFQ.rfq.lineItems.map(item => ({
           id: item.id,
