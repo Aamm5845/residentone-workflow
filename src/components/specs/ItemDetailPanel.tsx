@@ -255,23 +255,21 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp)
     const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const showYear = date.getFullYear() !== now.getFullYear()
 
-    if (days === 0) {
-      const hours = Math.floor(diff / (1000 * 60 * 60))
-      if (hours === 0) {
-        const minutes = Math.floor(diff / (1000 * 60))
-        return minutes <= 1 ? 'Just now' : `${minutes}m ago`
-      }
-      return `${hours}h ago`
-    } else if (days === 1) {
-      return 'Yesterday'
-    } else if (days < 7) {
-      return `${days} days ago`
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
-    }
+    // Format as "Dec 28 at 3:45 PM" or "Dec 28, 2024 at 3:45 PM" if different year
+    const dateStr = date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: showYear ? 'numeric' : undefined
+    })
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+
+    return `${dateStr} at ${timeStr}`
   }
 
   if (mode === 'create') {

@@ -434,9 +434,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           <h2 className="text-xl mb-2">{data.rfq.title}</h2>
           <p className="text-emerald-100">Project: {data.rfq.project.name}</p>
           {data.rfq.responseDeadline && (
-            <p className="mt-4 flex items-center gap-2 text-yellow-300">
-              <Clock className="w-4 h-4" />
-              Response Deadline: {formatDate(data.rfq.responseDeadline)}
+            <p className="mt-4 flex items-center gap-2 text-emerald-200 text-sm">
+              <Clock className="w-3.5 h-3.5" />
+              Please respond by {formatDate(data.rfq.responseDeadline)}
             </p>
           )}
         </div>

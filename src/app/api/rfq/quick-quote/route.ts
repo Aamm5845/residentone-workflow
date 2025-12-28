@@ -366,7 +366,7 @@ ${items.map(item => `<tr><td style="padding: 8px; border: 1px solid #e5e7eb;"><s
 <div style="text-align: center;">
 <a href="${portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Submit Quote</a>
 </div>
-<p style="color: #6b7280; font-size: 12px; text-align: center; margin: 15px 0 0 0;">Link expires in 30 days</p>
+<p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 20px 0 0 0;">Please respond at your earliest convenience</p>
 </div>
 </body>
 </html>`

@@ -317,7 +317,7 @@ ${itemsHtml}
 <div style="text-align: center;">
 <a href="${portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Submit Quote</a>
 </div>
-<p style="color: #6b7280; font-size: 12px; text-align: center; margin: 15px 0 0 0;">Link expires ${deadline ? `on ${new Date(deadline).toLocaleDateString()}` : 'in 30 days'}</p>
+<p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 20px 0 0 0;">Please respond by ${deadline ? new Date(deadline).toLocaleDateString() : 'your earliest convenience'}</p>
 </div>
 </body>
 </html>`

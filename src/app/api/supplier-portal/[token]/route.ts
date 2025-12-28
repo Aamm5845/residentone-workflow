@@ -232,6 +232,9 @@ export async function POST(
     const supplierRFQ = await prisma.supplierRFQ.findUnique({
       where: { accessToken: token },
       include: {
+        supplier: {
+          select: { id: true, name: true }
+        },
         rfq: {
           include: {
             lineItems: true
@@ -375,6 +378,62 @@ export async function POST(
           }
         })
       ])
+
+      // Update RoomFFEItem prices with the quoted prices
+      // Get the RFQ line items to find the linked RoomFFEItems
+      const rfqLineItems = await prisma.rFQLineItem.findMany({
+        where: { rfqId: supplierRFQ.rfqId },
+        select: { id: true, roomFFEItemId: true }
+      })
+
+      // Create a map of rfqLineItemId to roomFFEItemId
+      const lineItemMap = new Map(rfqLineItems.map(li => [li.id, li.roomFFEItemId]))
+
+      // Update each RoomFFEItem with the quoted trade price
+      const supplierName = supplierRFQ.supplier?.name || supplierRFQ.vendorName || 'Supplier'
+      for (const quoteLineItem of quote.lineItems) {
+        const roomFFEItemId = lineItemMap.get(quoteLineItem.rfqLineItemId)
+        if (roomFFEItemId && quoteLineItem.unitPrice) {
+          await prisma.roomFFEItem.update({
+            where: { id: roomFFEItemId },
+            data: {
+              tradePrice: quoteLineItem.unitPrice,
+              specStatus: 'QUOTED'
+            }
+          })
+
+          // Create activity for the price update
+          await prisma.itemActivity.create({
+            data: {
+              itemId: roomFFEItemId,
+              type: 'QUOTE_RECEIVED',
+              title: 'Quote Received',
+              description: `${supplierName} quoted $${Number(quoteLineItem.unitPrice).toLocaleString()} per unit`,
+              actorName: supplierName,
+              actorType: 'supplier',
+              metadata: {
+                quoteId: quote.id,
+                quoteAmount: quoteLineItem.unitPrice,
+                supplierId: supplierRFQ.supplierId,
+                supplierRfqId: supplierRFQ.id
+              }
+            }
+          })
+
+          // Update ItemQuoteRequest status if it exists
+          await prisma.itemQuoteRequest.updateMany({
+            where: {
+              itemId: roomFFEItemId,
+              supplierRfqId: supplierRFQ.id
+            },
+            data: {
+              status: 'QUOTED',
+              quoteAmount: quoteLineItem.unitPrice,
+              respondedAt: new Date()
+            }
+          })
+        }
+      }
 
       // Check if all suppliers have responded
       const allSupplierRFQs = await prisma.supplierRFQ.findMany({

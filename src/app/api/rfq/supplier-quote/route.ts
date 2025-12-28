@@ -722,8 +722,8 @@ function generateProfessionalQuoteEmail({
       </a>
     </div>
 
-    <p style="text-align: center; color: #9ca3af; font-size: 12px; margin: 0;">
-      This link will expire on ${deadline.toLocaleDateString()}
+    <p style="text-align: center; color: #9ca3af; font-size: 11px; margin: 0;">
+      Please respond by ${deadline.toLocaleDateString()}
     </p>
 
   </div>
