@@ -371,32 +371,14 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     }
   }
 
-  const handleDecline = async () => {
-    if (!confirm('Are you sure you want to decline this quote request?')) return
+  const handleDecline = () => {
+    // Open email client to decline via email
+    const rfqNumber = data?.rfq?.rfqNumber || 'Quote Request'
+    const projectName = data?.rfq?.project?.name || ''
+    const subject = encodeURIComponent(`RE: ${rfqNumber}${projectName ? ` - ${projectName}` : ''}`)
+    const body = encodeURIComponent(`Hi,\n\nI am unable to provide a quote for this request at this time.\n\nReason: \n\nBest regards`)
 
-    setSubmitting(true)
-    try {
-      const response = await fetch(`/api/supplier-portal/${token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'decline',
-          declineReason: 'Unable to quote at this time'
-        })
-      })
-
-      if (response.ok) {
-        toast.success('Quote request declined')
-        setSubmitted(true)
-        setData(prev => prev ? { ...prev, responseStatus: 'DECLINED' } : null)
-      } else {
-        toast.error('Failed to decline')
-      }
-    } catch (err) {
-      toast.error('Failed to decline')
-    } finally {
-      setSubmitting(false)
-    }
+    window.location.href = `mailto:shaya@meisnerinteriors.com?subject=${subject}&body=${body}`
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,6 +395,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       toast.error('File size must be less than 10MB')
       return
     }
+
+    // Capture file size immediately
+    const fileSize = file.size
 
     // Show uploading state first (don't set file yet)
     setUploading(true)
@@ -431,15 +416,16 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
       if (uploadResponse.ok) {
         const uploadData = await uploadResponse.json()
+        // Set all upload states together
         setUploadedFile(file)
         setUploadedFileUrl(uploadData.url)
-        setUploadedFileSize(file.size)
+        setUploadedFileSize(fileSize)  // Use captured size
+        setUploading(false)  // End uploading state immediately
         toast.success('Quote document uploaded successfully')
 
-        // Automatically run AI matching for images and PDFs
-        const canAnalyze = file.type.startsWith('image/') || file.type === 'application/pdf'
+        // Automatically run AI matching for images only (GPT-4o Vision doesn't support PDFs)
+        const canAnalyze = file.type.startsWith('image/')
         if (canAnalyze) {
-          setUploading(false)
           setAiMatching(true)
           try {
             const aiResponse = await fetch(`/api/supplier-portal/${token}/ai-match`, {
@@ -487,11 +473,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       }
     } catch (err) {
       toast.error('Failed to upload file')
+      setUploading(false)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     } finally {
-      setUploading(false)
       setUploadingFileName(null)
     }
   }
@@ -1170,7 +1156,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </div>
                 )}
 
-                {/* Per-Item Lead Times */}
+                {/* Per-Item Lead Times and Quote Details - Only show after file is uploaded */}
+                {uploadedFile && (
+                  <>
                 <div className="border rounded-xl overflow-hidden">
                   <div className="bg-gray-100 px-4 py-2 border-b">
                     <p className="text-sm font-medium text-gray-700">
@@ -1234,6 +1222,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     />
                   </div>
                 </div>
+                  </>
+                )}
               </TabsContent>
 
               {/* Detailed Pricing Tab */}
