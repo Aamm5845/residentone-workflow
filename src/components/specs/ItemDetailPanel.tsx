@@ -1188,7 +1188,8 @@ export function ItemDetailPanel({
 
         if (res.ok) {
           lastSavedDataRef.current = currentData
-          onSave?.() // Notify parent to refresh
+          // Don't call onSave during auto-save - it causes full page refresh and scroll loss
+          // Data is saved to DB; parent gets fresh data when panel closes or on next open
         }
       } catch (error) {
         console.error('Auto-save error:', error)
@@ -1202,7 +1203,7 @@ export function ItemDetailPanel({
         clearTimeout(autoSaveTimerRef.current)
       }
     }
-  }, [formData, images, mode, item?.id, item?.roomId, onSave])
+  }, [formData, images, mode, item?.id, item?.roomId])
 
   // Reset initial load ref when panel opens with new item
   useEffect(() => {
