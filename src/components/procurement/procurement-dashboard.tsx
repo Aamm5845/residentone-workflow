@@ -633,21 +633,34 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
                 <div className="flex items-center justify-center py-12">
                   <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
-              ) : suppliers.length === 0 ? (
+              ) : suppliers.filter(s => (s._count?.supplierRFQs || 0) > 0).length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers yet</h3>
-                  <p className="text-gray-500 mb-4">Add suppliers to start sending RFQs</p>
-                  <Link href="/preferences?tab=suppliers">
-                    <Button>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No RFQs sent to suppliers yet</h3>
+                  <p className="text-gray-500 mb-4">
+                    {suppliers.length > 0
+                      ? "You have suppliers, but haven't sent any RFQs yet. Create an RFQ to get started."
+                      : "Add suppliers to start sending RFQs"}
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    {suppliers.length === 0 && (
+                      <Link href="/preferences?tab=suppliers">
+                        <Button variant="outline">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Supplier
+                        </Button>
+                      </Link>
+                    )}
+                    <Button onClick={() => setShowCreateRFQ(true)}>
                       <Plus className="w-4 h-4 mr-2" />
-                      Add First Supplier
+                      Create RFQ
                     </Button>
-                  </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {suppliers
+                    .filter(s => (s._count?.supplierRFQs || 0) > 0) // Only show suppliers with RFQs
                     .filter(s =>
                       !searchQuery ||
                       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
