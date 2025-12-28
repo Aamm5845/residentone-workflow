@@ -22,8 +22,7 @@ import {
   Info,
   CheckCircle2,
   HelpCircle,
-  ExternalLink,
-  Link as LinkIcon
+  ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -214,6 +213,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [gstAmount, setGstAmount] = useState(0)
   const [qstAmount, setQstAmount] = useState(0)
 
+  // Currency - detect USD for US suppliers
+  const [currency, setCurrency] = useState<'CAD' | 'USD'>('CAD')
+
   // Quote form state - each item has: price, lead time, notes
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([])
   const [orderNotes, setOrderNotes] = useState('')
@@ -254,6 +256,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         const province = result.rfq.project?.province?.toLowerCase() || ''
         if (province.includes('quebec') || province === 'qc') {
           setIsQuebec(true)
+        }
+
+        // Detect US for currency (check for US states)
+        const usStates = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md', 'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj', 'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc', 'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy', 'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new hampshire', 'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 'rhode island', 'south carolina', 'south dakota', 'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 'west virginia', 'wisconsin', 'wyoming']
+        if (usStates.includes(province)) {
+          setCurrency('USD')
         }
       } else {
         const err = await response.json()
@@ -511,9 +519,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', {
+    return new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-CA', {
       style: 'currency',
-      currency: 'CAD'
+      currency: currency
     }).format(amount)
   }
 
@@ -811,7 +819,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 const lineItem = lineItems[index]
                 const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
                 const specs = item.roomFFEItem
-                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width || specs?.modelNumber || specs?.length
                 const documents = specs?.documents || []
                 const hasItemNotes = item.notes || specs?.notes
                 const supplierLink = specs?.supplierLink
@@ -828,229 +835,168 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 const showLeadTimeError = showValidationErrors && !hasLeadTime
                 const showNotesError = showValidationErrors && needsNotes && !lineItem?.notes?.trim()
 
+                // Build specs line
+                const specParts: string[] = []
+                if (specs?.brand) specParts.push(specs.brand)
+                if (specs?.sku) specParts.push(`SKU: ${specs.sku}`)
+                if (specs?.modelNumber) specParts.push(`Model: ${specs.modelNumber}`)
+                if (specs?.color) specParts.push(specs.color)
+                if (specs?.finish) specParts.push(specs.finish)
+                if (specs?.material) specParts.push(specs.material)
+                if (specs?.width || specs?.height || specs?.depth || specs?.length) {
+                  const dims = [specs?.width && `W:${specs.width}`, specs?.height && `H:${specs.height}`, specs?.depth && `D:${specs.depth}`, specs?.length && `L:${specs.length}`].filter(Boolean).join(' ')
+                  specParts.push(dims)
+                }
+                const specsLine = specParts.join(' • ')
+
                 return (
                   <div key={item.id} className={cn(
                     "border rounded-xl overflow-hidden bg-white transition-all",
                     isMissing && "ring-2 ring-amber-300",
                     (showPriceError || showLeadTimeError) && "ring-2 ring-red-300"
                   )}>
-                    {/* Product Info Header */}
-                    <div className="flex items-start gap-4 p-4">
-                      <div className="flex-shrink-0">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={item.itemName} className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg border" />
-                        ) : (
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-xs font-bold text-emerald-700">
-                                {index + 1}
-                              </span>
-                              <h3 className="font-semibold text-gray-900 text-lg">{item.itemName}</h3>
+                    {/* Product Info - Clean Layout */}
+                    <div className="p-4">
+                      <div className="flex gap-4">
+                        {/* Image */}
+                        <div className="flex-shrink-0">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={item.itemName} className="w-16 h-16 object-cover rounded-lg border" />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Package className="w-6 h-6 text-gray-400" />
                             </div>
-                            {item.itemDescription && (
-                              <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.itemDescription}</p>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              {specs?.brand && (
-                                <Badge variant="outline" className="text-xs">{specs.brand}</Badge>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-gray-900">
+                                <span className="text-emerald-600 mr-2">{index + 1}.</span>
+                                {item.itemName}
+                              </h3>
+                              {specsLine && (
+                                <p className="text-sm text-gray-500 mt-1">{specsLine}</p>
                               )}
-                              {item.category && (
-                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                              {item.itemDescription && (
+                                <p className="text-sm text-gray-400 mt-1 line-clamp-1">{item.itemDescription}</p>
                               )}
+                              {supplierLink && (
+                                <a
+                                  href={supplierLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  Product Link
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
+                              <p className="text-xs text-gray-400">{item.unitType || 'units'}</p>
                               {isMissing && (
-                                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-100 text-xs">
-                                  Not in uploaded quote
-                                </Badge>
+                                <p className="text-xs text-amber-600 mt-1">Not found</p>
                               )}
                             </div>
-                            {/* Supplier Link */}
-                            {supplierLink && (
-                              <a
-                                href={supplierLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                <LinkIcon className="w-3.5 h-3.5" />
-                                View Product Page
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-3xl font-bold text-emerald-600">{item.quantity}</p>
-                            <p className="text-xs text-gray-500">{item.unitType || 'units'}</p>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Specifications */}
-                    {hasSpecs && (
-                      <div className="px-4 py-3 border-t bg-gray-50">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                          {specs?.sku && (
-                            <div>
-                              <span className="text-gray-400 text-xs">SKU</span>
-                              <p className="font-medium text-gray-700">{specs.sku}</p>
-                            </div>
+                      {/* Notes & Documents - compact */}
+                      {(hasItemNotes || documents.length > 0) && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-3 text-xs">
+                          {hasItemNotes && (
+                            <span className="text-amber-700">Note: {item.notes || specs?.notes}</span>
                           )}
-                          {specs?.modelNumber && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Model #</span>
-                              <p className="font-medium text-gray-700">{specs.modelNumber}</p>
-                            </div>
-                          )}
-                          {specs?.color && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Color</span>
-                              <p className="font-medium text-gray-700">{specs.color}</p>
-                            </div>
-                          )}
-                          {specs?.finish && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Finish</span>
-                              <p className="font-medium text-gray-700">{specs.finish}</p>
-                            </div>
-                          )}
-                          {specs?.material && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Material</span>
-                              <p className="font-medium text-gray-700">{specs.material}</p>
-                            </div>
-                          )}
-                          {(specs?.width || specs?.height || specs?.depth || specs?.length) && (
-                            <div className="col-span-2">
-                              <span className="text-gray-400 text-xs">Dimensions</span>
-                              <p className="font-medium text-gray-700">
-                                {[specs?.width && `W: ${specs.width}`, specs?.height && `H: ${specs.height}`, specs?.depth && `D: ${specs.depth}`, specs?.length && `L: ${specs.length}`].filter(Boolean).join(' • ')}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Item Notes from AllSpec */}
-                    {hasItemNotes && (
-                      <div className="px-4 py-3 border-t bg-amber-50">
-                        <p className="text-xs font-medium text-amber-700 mb-1">Item Notes</p>
-                        <p className="text-sm text-amber-900">{item.notes || specs?.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Documents */}
-                    {documents.length > 0 && (
-                      <div className="px-4 py-3 border-t bg-blue-50">
-                        <p className="text-xs font-medium text-blue-700 mb-2">Attached Documents</p>
-                        <div className="flex flex-wrap gap-2">
                           {documents.map(doc => (
                             <a
                               key={doc.id}
                               href={doc.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-blue-700 hover:bg-blue-100 transition-colors"
+                              className="inline-flex items-center gap-1 text-blue-600 hover:underline"
                             >
-                              <FileText className="w-3.5 h-3.5" />
+                              <FileText className="w-3 h-3" />
                               {doc.title || doc.fileName}
                             </a>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
-                    {/* Quote Input Section - Price, Lead Time, Notes */}
-                    <div className="px-4 py-4 border-t bg-emerald-50/50">
-                      <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-3">Your Quote</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Unit Price */}
-                        <div>
-                          <Label className="text-xs font-medium">
-                            Unit Price <span className="text-red-500">*</span>
-                          </Label>
-                          <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={lineItem?.unitPrice || ''}
-                              onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
-                              placeholder="0.00"
-                              className={cn(
-                                "pl-10 bg-white",
-                                showPriceError && "border-red-500 ring-1 ring-red-500"
-                              )}
-                            />
-                          </div>
-                          {showPriceError && (
-                            <p className="text-xs text-red-600 mt-1">Price is required</p>
-                          )}
-                        </div>
-
-                        {/* Lead Time */}
-                        <div>
-                          <Label className="text-xs font-medium">
-                            Lead Time <span className="text-red-500">*</span>
-                          </Label>
-                          <select
-                            value={lineItem?.leadTime || ''}
-                            onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
-                            className={cn(
-                              "mt-1 w-full rounded-md border px-3 py-2 text-sm bg-white",
-                              showLeadTimeError ? "border-red-500 ring-1 ring-red-500" : "border-gray-200"
-                            )}
-                          >
-                            <option value="">Select lead time...</option>
-                            <option value="In Stock">In Stock</option>
-                            <option value="1-2 weeks">1-2 Weeks</option>
-                            <option value="2-4 weeks">2-4 Weeks</option>
-                            <option value="4-6 weeks">4-6 Weeks</option>
-                            <option value="6-8 weeks">6-8 Weeks</option>
-                            <option value="8-12 weeks">8-12 Weeks</option>
-                            <option value="12+ weeks">12+ Weeks</option>
-                            <option value="See notes">See notes</option>
-                          </select>
-                          {showLeadTimeError && (
-                            <p className="text-xs text-red-600 mt-1">Lead time is required</p>
-                          )}
-                        </div>
-
-                        {/* Notes */}
-                        <div>
-                          <Label className="text-xs font-medium">
-                            Notes {needsNotes ? <span className="text-red-500">*</span> : '(optional)'}
-                          </Label>
+                    {/* Quote Input - Simple */}
+                    <div className="px-4 py-3 border-t bg-gray-50 flex flex-wrap items-end gap-4">
+                      {/* Price */}
+                      <div className="flex-1 min-w-[120px]">
+                        <Label className="text-xs text-gray-500">Price ({currency})</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                            {currency === 'USD' ? '$' : '$'}
+                          </span>
                           <Input
-                            value={lineItem?.notes || ''}
-                            onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                            placeholder=""
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={lineItem?.unitPrice || ''}
+                            onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
+                            placeholder="0.00"
                             className={cn(
-                              "mt-1 bg-white",
-                              showNotesError && "border-red-500 ring-1 ring-red-500"
+                              "pl-7 h-9",
+                              showPriceError && "border-red-500"
                             )}
                           />
-                          {showNotesError && (
-                            <p className="text-xs text-red-600 mt-1">Required</p>
-                          )}
                         </div>
                       </div>
 
-                      {/* Line total */}
+                      {/* Lead Time */}
+                      <div className="flex-1 min-w-[140px]">
+                        <Label className="text-xs text-gray-500">Lead Time</Label>
+                        <select
+                          value={lineItem?.leadTime || ''}
+                          onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
+                          className={cn(
+                            "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
+                            showLeadTimeError ? "border-red-500" : "border-gray-200"
+                          )}
+                        >
+                          <option value="">Select...</option>
+                          <option value="In Stock">In Stock</option>
+                          <option value="1-2 weeks">1-2 Weeks</option>
+                          <option value="2-4 weeks">2-4 Weeks</option>
+                          <option value="4-6 weeks">4-6 Weeks</option>
+                          <option value="6-8 weeks">6-8 Weeks</option>
+                          <option value="8-12 weeks">8-12 Weeks</option>
+                          <option value="12+ weeks">12+ Weeks</option>
+                          <option value="See notes">See notes</option>
+                        </select>
+                      </div>
+
+                      {/* Notes */}
+                      <div className="flex-1 min-w-[140px]">
+                        <Label className="text-xs text-gray-500">
+                          Notes {needsNotes && <span className="text-red-500">*</span>}
+                        </Label>
+                        <Input
+                          value={lineItem?.notes || ''}
+                          onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                          className={cn(
+                            "mt-1 h-9",
+                            showNotesError && "border-red-500"
+                          )}
+                        />
+                      </div>
+
+                      {/* Line Total */}
                       {hasPrice && (
-                        <div className="mt-3 pt-3 border-t border-emerald-200 text-right">
-                          <span className="text-sm text-gray-600">Line Total: </span>
-                          <span className="text-lg font-bold text-emerald-600">
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-xs text-gray-500">Total</p>
+                          <p className="font-bold text-emerald-600">
                             {formatCurrency(parseFloat(lineItem.unitPrice) * lineItem.quantity)}
-                          </span>
+                          </p>
                         </div>
                       )}
                     </div>
