@@ -2278,12 +2278,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Remove item from schedule (delete)
   const handleRemoveFromSchedule = async (item: SpecItem) => {
     if (!confirm('Are you sure you want to remove this item from the schedule?')) return
-    
+
     try {
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
         method: 'DELETE'
       })
-      
+
       if (res.ok) {
         toast.success('Item removed from schedule')
         fetchSpecs(true) // Preserve scroll position
@@ -2294,6 +2294,142 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       console.error('Error removing item:', error)
       toast.error('Failed to remove item')
     }
+  }
+
+  // Bulk delete selected items
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return
+    if (!confirm(`Are you sure you want to delete ${selectedItems.size} item(s)?`)) return
+
+    const itemsToDelete = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const item of itemsToDelete) {
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'DELETE'
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Deleted ${successCount} item(s)`)
+      fetchSpecs(true)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} item(s)`)
+    }
+    setSelectedItems(new Set())
+  }
+
+  // Bulk duplicate selected items
+  const [bulkDuplicating, setBulkDuplicating] = useState(false)
+  const handleBulkDuplicate = async () => {
+    if (selectedItems.size === 0) return
+    if (!confirm(`Duplicate ${selectedItems.size} item(s)?`)) return
+
+    setBulkDuplicating(true)
+    const itemsToDuplicate = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const item of itemsToDuplicate) {
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sectionId: item.sectionId,
+            name: `${item.name} (Copy)`,
+            description: item.description,
+            sku: item.sku,
+            productName: item.productName,
+            brand: item.brand,
+            modelNumber: item.modelNumber,
+            docCode: item.docCode,
+            supplierName: item.supplierName,
+            supplierLink: item.supplierLink,
+            supplierId: item.supplierId,
+            quantity: item.quantity,
+            unitType: item.unitType,
+            leadTime: item.leadTime,
+            color: item.color,
+            finish: item.finish,
+            material: item.material,
+            width: item.width,
+            height: item.height,
+            depth: item.depth,
+            length: item.length,
+            notes: item.notes,
+            tradePrice: item.tradePrice,
+            rrp: item.rrp,
+            tradeDiscount: item.tradeDiscount,
+            images: item.images,
+            specStatus: item.specStatus,
+            isSpecItem: true
+          })
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    setBulkDuplicating(false)
+    if (successCount > 0) {
+      toast.success(`Duplicated ${successCount} item(s)`)
+      fetchSpecs(true)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to duplicate ${failCount} item(s)`)
+    }
+    setSelectedItems(new Set())
+  }
+
+  // Bulk move modal state
+  const [bulkMoveModal, setBulkMoveModal] = useState(false)
+  const [bulkMoveTargetSection, setBulkMoveTargetSection] = useState('')
+  const [bulkMoving, setBulkMoving] = useState(false)
+
+  const handleBulkMove = async () => {
+    if (selectedItems.size === 0 || !bulkMoveTargetSection) return
+
+    setBulkMoving(true)
+    const itemsToMove = filteredAndSortedSpecs.filter(s => selectedItems.has(s.id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const item of itemsToMove) {
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sectionId: bulkMoveTargetSection })
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    setBulkMoving(false)
+    setBulkMoveModal(false)
+    setBulkMoveTargetSection('')
+    if (successCount > 0) {
+      toast.success(`Moved ${successCount} item(s)`)
+      fetchSpecs(true)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to move ${failCount} item(s)`)
+    }
+    setSelectedItems(new Set())
   }
 
   // Load share settings
@@ -2548,7 +2684,58 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </DropdownMenu>
             </div>
           </div>
-          
+
+          {/* Bulk Action Bar - Appears when items are selected */}
+          {selectedItems.size > 0 && (
+            <div className="mt-3 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
+                <Check className="w-4 h-4" />
+                {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} selected
+              </div>
+              <div className="h-4 w-px bg-blue-200 mx-2" />
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-blue-700 hover:bg-blue-100"
+                  onClick={handleBulkDuplicate}
+                  disabled={bulkDuplicating}
+                >
+                  {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                  Duplicate
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-blue-700 hover:bg-blue-100"
+                  onClick={() => setBulkMoveModal(true)}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  Move to Section
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-red-600 hover:bg-red-50"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </Button>
+              </div>
+              <div className="flex-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => setSelectedItems(new Set())}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear Selection
+              </Button>
+            </div>
+          )}
+
           {/* Tabs Row - Modern Style */}
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center">
@@ -3358,9 +3545,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <div className="flex items-center gap-1">
-                                  <p 
+                                  <p
                                     className="text-sm font-medium text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1 flex-1"
                                     onClick={(e) => { e.stopPropagation(); startEditing(displayItem.id, 'name', displayItem.name || '') }}
+                                    title={displayItem.name}
                                   >
                                     {displayItem.name}
                                   </p>
@@ -3523,15 +3711,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
+                                <p
                                   className="text-xs text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'docCode', item.docCode || '') }}
+                                  title={item.docCode || undefined}
                                 >
                                   {item.docCode || '-'}
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Model - Fixed width for longer model numbers */}
                             <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
@@ -3569,15 +3758,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
+                                <p
                                   className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'brand', item.brand || '') }}
+                                  title={item.brand || undefined}
                                 >
                                   {item.brand || '-'}
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Width (IN) */}
                             <div className="flex-shrink-0 w-12 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Width</p>
@@ -3683,15 +3873,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
+                                <p
                                   className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'color', item.color || '') }}
+                                  title={item.color || undefined}
                                 >
                                   {item.color || '-'}
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Finish */}
                             <div className="flex-shrink-0 w-20">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
@@ -3705,15 +3896,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
+                                <p
                                   className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'finish', item.finish || '') }}
+                                  title={item.finish || undefined}
                                 >
                                   {item.finish || '-'}
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Material - Flexible to fill space */}
                             <div className="flex-1 min-w-[80px]">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
@@ -3727,15 +3919,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   autoFocus
                                 />
                               ) : (
-                                <p 
+                                <p
                                   className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'material', item.material || '') }}
+                                  title={item.material || undefined}
                                 >
                                   {item.material || '-'}
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* QTY - Fixed width */}
                             <div className="flex-shrink-0 w-14 text-center">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
@@ -3900,9 +4093,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
-                                  <button 
+                                  <button
                                     className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
+                                    title={item.supplierName || undefined}
                                   >
                                     {item.supplierName || <span className="text-gray-400">Select Supplier</span>}
                                   </button>
@@ -5958,7 +6152,53 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
+      {/* Bulk Move to Section Modal */}
+      <Dialog open={bulkMoveModal} onOpenChange={setBulkMoveModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-600" />
+              Move {selectedItems.size} Item{selectedItems.size > 1 ? 's' : ''} to Section
+            </DialogTitle>
+            <DialogDescription>
+              Select a section to move the selected items to.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Select value={bulkMoveTargetSection} onValueChange={setBulkMoveTargetSection}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a section" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRooms.flatMap(room =>
+                  room.sections.map(section => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {room.name} - {section.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkMoveModal(false); setBulkMoveTargetSection('') }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkMove}
+              disabled={!bulkMoveTargetSection || bulkMoving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {bulkMoving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Move Items
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Duplicate Item Modal - Select FFE Item to Link */}
       <Dialog open={duplicateModal.open} onOpenChange={(open) => !open && setDuplicateModal({ open: false, item: null })}>
         <DialogContent className="max-w-md">

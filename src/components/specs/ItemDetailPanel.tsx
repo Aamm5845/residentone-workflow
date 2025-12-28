@@ -897,11 +897,15 @@ export function ItemDetailPanel({
         const data = await res.json()
         // Add to local suppliers list
         setSuppliers(prev => [...prev, data.supplier])
+        // Combine business name and contact name for display
+        const supplierDisplay = data.supplier.contactName
+          ? `${data.supplier.name} / ${data.supplier.contactName}`
+          : data.supplier.name
         // Select the new supplier with all details
         setFormData(prev => ({
           ...prev,
           supplierId: data.supplier.id,
-          supplierName: data.supplier.name,
+          supplierName: supplierDisplay,
           supplierContactName: data.supplier.contactName || '',
           supplierEmail: data.supplier.email || '',
           supplierLogo: data.supplier.logo || '',
@@ -1214,10 +1218,14 @@ export function ItemDetailPanel({
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
+      // Combine business name and contact name for display (matches ProjectSpecsView behavior)
+      const supplierDisplay = supplier.contactName
+        ? `${supplier.name} / ${supplier.contactName}`
+        : supplier.name
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
-        supplierName: supplier.name,
+        supplierName: supplierDisplay,
         supplierContactName: supplier.contactName || '',
         supplierEmail: supplier.email || '',
         supplierLogo: supplier.logo || '',
