@@ -4956,15 +4956,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">Description</Label>
-                      <Textarea
-                        value={extractedData.productDescription || ''}
-                        onChange={(e) => setExtractedData({ ...extractedData, productDescription: e.target.value })}
-                        className="min-h-[60px] text-sm"
-                        placeholder="Enter product description..."
-                      />
-                    </div>
                     <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-gray-500">SKU</Label>
@@ -5053,9 +5044,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <p className="font-medium text-gray-900">{extractedData.productName || 'Untitled Product'}</p>
                     {extractedData.brand && (
                       <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
-                    )}
-                    {extractedData.productDescription && (
-                      <p className="text-sm text-gray-600 line-clamp-3">{extractedData.productDescription}</p>
                     )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
