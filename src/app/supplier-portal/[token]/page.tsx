@@ -188,8 +188,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [submitted, setSubmitted] = useState(false)
   const [submitMode, setSubmitMode] = useState<'upload' | 'detailed'>('upload')
   const [showAllItems, setShowAllItems] = useState(false)
-  const [showShippingInfo, setShowShippingInfo] = useState(true)
-
+  
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
@@ -654,7 +653,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 </div>
               </div>
               <h2 className="text-xl font-medium mb-1">{data.rfq.title}</h2>
-              <p className="text-emerald-100">Project: {project.name}</p>
+              <p className="text-emerald-100 text-lg font-medium">{project.name}</p>
             </div>
             {data.rfq.responseDeadline && (
               <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3">
@@ -670,88 +669,79 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        {/* Supplier & Project Info Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Supplier Info */}
-          <Card className="shadow-sm">
+        {/* Ship To & Bill To Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Ship To */}
+          <Card className="shadow-sm border-l-4 border-l-blue-500">
             <CardContent className="pt-5 pb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-emerald-600" />
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Truck className="w-5 h-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Your Company</p>
-                  <p className="font-semibold text-gray-900">{data.supplier.name || 'Supplier'}</p>
-                  <p className="text-sm text-gray-500">{data.supplier.email}</p>
+                <div className="flex-1">
+                  <p className="text-xs text-blue-600 uppercase tracking-wide font-semibold mb-2">Ship To</p>
+                  <p className="font-bold text-gray-900 text-lg mb-1">{project.name}</p>
+                  {hasShippingAddress && (
+                    <div className="text-sm text-gray-600 space-y-0.5">
+                      {project.streetAddress && <p>{project.streetAddress}</p>}
+                      <p>{project.city}{project.province ? `, ${project.province}` : ''} {project.postalCode}</p>
+                    </div>
+                  )}
+                  {project.client && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-sm font-medium text-gray-700">{project.client.name}</p>
+                      {project.client.email && (
+                        <p className="text-sm text-gray-500">{project.client.email}</p>
+                      )}
+                      {project.client.phone && (
+                        <p className="text-sm text-gray-500">{project.client.phone}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Shipping/Client Info */}
-          {(hasShippingAddress || project.client) && (
-            <Card className="shadow-sm">
-              <CardContent className="pt-5 pb-5">
-                <button
-                  onClick={() => setShowShippingInfo(!showShippingInfo)}
-                  className="w-full flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <Truck className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Delivery Information</p>
-                      <p className="font-semibold text-gray-900">
-                        {project.client?.name || project.name}
-                      </p>
-                    </div>
+          {/* Bill To - Always Meisner Interiors */}
+          <Card className="shadow-sm border-l-4 border-l-emerald-500">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-emerald-600 uppercase tracking-wide font-semibold mb-2">Bill To</p>
+                  <p className="font-bold text-gray-900 text-lg mb-1">Meisner Interiors</p>
+                  <div className="text-sm text-gray-600 space-y-0.5">
+                    <p>6700 Ave Du Parc #109</p>
+                    <p>Montreal, QC H2V4H9</p>
+                    <p>Canada</p>
                   </div>
-                  {showShippingInfo ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-                </button>
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                    <p className="text-sm text-gray-500">9446-7503 QUEBEC INC</p>
+                    <p className="text-sm text-gray-500">514 797 6957</p>
+                    <p className="text-sm text-gray-500">aaron@meisnerinteriors.com</p>
+                    <p className="text-xs text-gray-400 mt-2">GST: 714093507 RT0001 | QST: 1228724382 TQ0001</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-                {showShippingInfo && (
-                  <div className="mt-4 pt-4 border-t space-y-3">
-                    {hasShippingAddress && (
-                      <div className="flex items-start gap-3">
-                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">Shipping Address</p>
-                          <p className="text-gray-600">
-                            {project.streetAddress && <>{project.streetAddress}<br /></>}
-                            {project.city}{project.province ? `, ${project.province}` : ''} {project.postalCode}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {project.client && (
-                      <>
-                        <div className="flex items-start gap-3">
-                          <User className="w-4 h-4 text-gray-400 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-medium text-gray-900">{project.client.name}</p>
-                            {project.client.company && <p className="text-gray-600">{project.client.company}</p>}
-                          </div>
-                        </div>
-                        {project.client.email && (
-                          <div className="flex items-center gap-3">
-                            <Mail className="w-4 h-4 text-gray-400" />
-                            <p className="text-sm text-gray-600">{project.client.email}</p>
-                          </div>
-                        )}
-                        {project.client.phone && (
-                          <div className="flex items-center gap-3">
-                            <Phone className="w-4 h-4 text-gray-400" />
-                            <p className="text-sm text-gray-600">{project.client.phone}</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+        {/* Supplier Info (smaller) */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg border">
+          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+            <span className="text-sm font-semibold text-gray-600">
+              {(data.supplier.name || 'S').substring(0, 1).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Quoting as</p>
+            <p className="font-medium text-gray-900">{data.supplier.name || 'Supplier'}</p>
+          </div>
+          <p className="text-sm text-gray-500 ml-auto">{data.supplier.email}</p>
         </div>
 
         {/* Description */}
