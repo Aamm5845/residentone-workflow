@@ -31,7 +31,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import toast, { Toaster } from 'react-hot-toast'
 import SupplierMessaging from '@/components/supplier-portal/SupplierMessaging'
@@ -206,17 +205,20 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [aiMatching, setAiMatching] = useState(false)
   const [aiMatchResult, setAiMatchResult] = useState<AIMatchResponse | null>(null)
 
-  // Delivery fields
-  const [includeDelivery, setIncludeDelivery] = useState(false)
+  // Delivery fee (simple input, not toggle)
   const [deliveryFee, setDeliveryFee] = useState('')
 
-  // Taxes - auto-detected from PDF
-  const [taxesIncluded, setTaxesIncluded] = useState(false)
-  const [taxAmount, setTaxAmount] = useState(0)
+  // Taxes - Quebec suppliers always show GST/QST
+  const [isQuebec, setIsQuebec] = useState(false)
+  const [gstAmount, setGstAmount] = useState(0)
+  const [qstAmount, setQstAmount] = useState(0)
 
   // Quote form state - each item has: price, lead time, notes
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([])
   const [orderNotes, setOrderNotes] = useState('')
+
+  // Validation state
+  const [showValidationErrors, setShowValidationErrors] = useState(false)
 
   // Manual linking of unmatched items
   const [manualLinks, setManualLinks] = useState<Record<number, string>>({}) // extractedIdx -> rfqItemId
@@ -246,6 +248,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         if (result.existingQuote || result.responseStatus === 'SUBMITTED') {
           setSubmitted(true)
         }
+
+        // Detect Quebec for tax calculation
+        const province = result.rfq.project?.province?.toLowerCase() || ''
+        if (province.includes('quebec') || province === 'qc') {
+          setIsQuebec(true)
+        }
       } else {
         const err = await response.json()
         setError(err.error || 'Failed to load quote request')
@@ -273,18 +281,27 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   }
 
   const calculateDeliveryTotal = () => {
-    if (!includeDelivery) return 0
     return parseFloat(deliveryFee) || 0
+  }
+
+  const calculateTaxes = () => {
+    if (!isQuebec) return { gst: 0, qst: 0 }
+    const subtotal = calculateSubtotal() + calculateDeliveryTotal()
+    const gst = subtotal * 0.05 // 5% GST
+    const qst = subtotal * 0.09975 // 9.975% QST
+    return { gst, qst }
   }
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal()
     const delivery = calculateDeliveryTotal()
-    const taxes = taxesIncluded ? taxAmount : 0
-    return subtotal + delivery + taxes
+    const { gst, qst } = calculateTaxes()
+    return subtotal + delivery + gst + qst
   }
 
   const handleSubmit = async () => {
+    setShowValidationErrors(true)
+
     // Validate prices
     const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
     if (hasEmptyPrices) {
@@ -295,11 +312,19 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     // Validate lead times
     const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
     if (hasEmptyLeadTimes) {
-      toast.error('Please select lead time for all items')
+      toast.error('Please select lead time for all items - look for items highlighted in red')
+      return
+    }
+
+    // Validate notes required for "See notes" lead time
+    const hasMissingNotes = lineItems.some(item => item.leadTime === 'See notes' && !item.notes?.trim())
+    if (hasMissingNotes) {
+      toast.error('Please enter notes for items with "See notes" lead time')
       return
     }
 
     setSubmitting(true)
+    const { gst, qst } = calculateTaxes()
     try {
       const response = await fetch(`/api/supplier-portal/${token}`, {
         method: 'POST',
@@ -311,9 +336,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           supplierNotes: orderNotes || null,
           totalAmount: calculateTotal(),
           // Tax and delivery info
-          taxesIncluded,
-          taxAmount: taxesIncluded ? taxAmount : 0,
-          includeDelivery,
+          isQuebec,
+          gstAmount: gst,
+          qstAmount: qst,
           deliveryFee: calculateDeliveryTotal(),
           lineItems: lineItems.map(item => ({
             rfqLineItemId: item.rfqLineItemId,
@@ -420,11 +445,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 return item
               }))
 
-              // Auto-detect taxes from quote
-              if (aiResult.supplierInfo?.taxes && aiResult.supplierInfo.taxes > 0) {
-                setTaxesIncluded(true)
-                setTaxAmount(aiResult.supplierInfo.taxes)
-              }
+              // Auto-fill delivery if detected in quote
+              // (AI extracts this as part of supplierInfo or notes)
+              // For now, we rely on manual entry but could parse from notes
 
               const matched = aiResult.summary.matched + aiResult.summary.partial
               if (matched === aiResult.summary.totalRequested) {
@@ -698,168 +721,21 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Card>
         )}
 
-        {/* Items Requested */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="w-5 h-5 text-emerald-600" />
-              Items Requested
-              <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              {data.rfq.lineItems.map((item, index) => {
-                const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
-                const specs = item.roomFFEItem
-                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width || specs?.modelNumber || specs?.length
-                const documents = specs?.documents || []
-                const hasNotes = item.notes || specs?.notes
-                const supplierLink = specs?.supplierLink
-
-                return (
-                  <div key={item.id} className="border rounded-xl overflow-hidden bg-white">
-                    {/* Item Header */}
-                    <div className="flex items-center gap-4 p-4">
-                      <div className="flex-shrink-0">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={item.itemName} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border" />
-                        ) : (
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Package className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{item.itemName}</h3>
-                            {item.itemDescription && (
-                              <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">{item.itemDescription}</p>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              {specs?.brand && (
-                                <Badge variant="outline" className="text-xs">{specs.brand}</Badge>
-                              )}
-                              {item.category && (
-                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                              )}
-                              {specs?.leadTime && (
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                  {specs.leadTime}
-                                </Badge>
-                              )}
-                            </div>
-                            {/* Supplier Link */}
-                            {supplierLink && (
-                              <a
-                                href={supplierLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                <LinkIcon className="w-3.5 h-3.5" />
-                                View Product Page
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
-                            <p className="text-xs text-gray-500">{item.unitType || 'units'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Specifications */}
-                    {hasSpecs && (
-                      <div className="px-4 py-3 border-t bg-gray-50">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                          {specs.sku && (
-                            <div>
-                              <span className="text-gray-400 text-xs">SKU</span>
-                              <p className="font-medium text-gray-700">{specs.sku}</p>
-                            </div>
-                          )}
-                          {specs.modelNumber && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Model #</span>
-                              <p className="font-medium text-gray-700">{specs.modelNumber}</p>
-                            </div>
-                          )}
-                          {specs.color && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Color</span>
-                              <p className="font-medium text-gray-700">{specs.color}</p>
-                            </div>
-                          )}
-                          {specs.finish && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Finish</span>
-                              <p className="font-medium text-gray-700">{specs.finish}</p>
-                            </div>
-                          )}
-                          {specs.material && (
-                            <div>
-                              <span className="text-gray-400 text-xs">Material</span>
-                              <p className="font-medium text-gray-700">{specs.material}</p>
-                            </div>
-                          )}
-                          {(specs.width || specs.height || specs.depth || specs.length) && (
-                            <div className="col-span-2">
-                              <span className="text-gray-400 text-xs">Dimensions</span>
-                              <p className="font-medium text-gray-700">
-                                {[specs.width && `W: ${specs.width}`, specs.height && `H: ${specs.height}`, specs.depth && `D: ${specs.depth}`, specs.length && `L: ${specs.length}`].filter(Boolean).join(' • ')}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    {hasNotes && (
-                      <div className="px-4 py-3 border-t bg-amber-50">
-                        <p className="text-xs font-medium text-amber-700 mb-1">Notes</p>
-                        <p className="text-sm text-amber-900">{item.notes || specs?.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Documents */}
-                    {documents.length > 0 && (
-                      <div className="px-4 py-3 border-t bg-blue-50">
-                        <p className="text-xs font-medium text-blue-700 mb-2">Attached Documents</p>
-                        <div className="flex flex-wrap gap-2">
-                          {documents.map(doc => (
-                            <a
-                              key={doc.id}
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-blue-700 hover:bg-blue-100 transition-colors"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              {doc.title || doc.fileName}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quote Submission */}
+        {/* Quote Submission - Unified Item Cards */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">Submit Your Quote</CardTitle>
-            <CardDescription>
-              Upload your quote to auto-fill prices, or enter them manually below
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="w-5 h-5 text-emerald-600" />
+                  Items to Quote
+                  <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Upload your quote to auto-fill, or enter prices manually for each item
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Optional Upload Section */}
@@ -927,51 +803,177 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               )}
             </div>
 
-            {/* Line Items - Price, Lead Time, Notes for each */}
-            <div className="border rounded-xl overflow-hidden">
-              <div className="bg-gray-100 px-4 py-3 border-b">
-                <p className="font-medium text-gray-900">Item Pricing</p>
-                <p className="text-xs text-gray-500">Enter unit price and lead time for each item</p>
-              </div>
-              <div className="divide-y">
-                {data.rfq.lineItems.map((item, index) => {
-                  const lineItem = lineItems[index]
-                  const hasPrice = lineItem?.unitPrice && parseFloat(lineItem.unitPrice) > 0
-                  const hasLeadTime = lineItem?.leadTime
-                  const isMissing = aiMatchResult?.matchResults.find(
-                    r => r.rfqItem?.id === item.id && r.status === 'missing'
-                  )
+            {/* Unified Item Cards - Product info + Price + Lead Time + Notes */}
+            <div className="space-y-4">
+              {data.rfq.lineItems.map((item, index) => {
+                const lineItem = lineItems[index]
+                const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
+                const specs = item.roomFFEItem
+                const hasSpecs = specs?.sku || specs?.color || specs?.finish || specs?.material || specs?.width || specs?.modelNumber || specs?.length
+                const documents = specs?.documents || []
+                const hasItemNotes = item.notes || specs?.notes
+                const supplierLink = specs?.supplierLink
 
-                  return (
-                    <div key={item.id} className={cn(
-                      "p-4",
-                      isMissing && "bg-amber-50"
-                    )}>
-                      {/* Item header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-xs font-semibold text-emerald-700">
-                            {index + 1}
-                          </span>
-                          <div>
-                            <h4 className="font-medium text-gray-900">{item.itemName}</h4>
-                            <p className="text-xs text-gray-500">
-                              Qty: {item.quantity}
-                              {item.roomFFEItem?.sku && ` • SKU: ${item.roomFFEItem.sku}`}
-                            </p>
+                const hasPrice = lineItem?.unitPrice && parseFloat(lineItem.unitPrice) > 0
+                const hasLeadTime = lineItem?.leadTime
+                const needsNotes = lineItem?.leadTime === 'See notes'
+                const isMissing = aiMatchResult?.matchResults.find(
+                  r => r.rfqItem?.id === item.id && r.status === 'missing'
+                )
+
+                // Validation highlighting
+                const showPriceError = showValidationErrors && !hasPrice
+                const showLeadTimeError = showValidationErrors && !hasLeadTime
+                const showNotesError = showValidationErrors && needsNotes && !lineItem?.notes?.trim()
+
+                return (
+                  <div key={item.id} className={cn(
+                    "border rounded-xl overflow-hidden bg-white transition-all",
+                    isMissing && "ring-2 ring-amber-300",
+                    (showPriceError || showLeadTimeError) && "ring-2 ring-red-300"
+                  )}>
+                    {/* Product Info Header */}
+                    <div className="flex items-start gap-4 p-4">
+                      <div className="flex-shrink-0">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.itemName} className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg border" />
+                        ) : (
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Package className="w-8 h-8 text-gray-400" />
                           </div>
-                        </div>
-                        {isMissing && (
-                          <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-100 text-xs">
-                            Not found
-                          </Badge>
                         )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-xs font-bold text-emerald-700">
+                                {index + 1}
+                              </span>
+                              <h3 className="font-semibold text-gray-900 text-lg">{item.itemName}</h3>
+                            </div>
+                            {item.itemDescription && (
+                              <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.itemDescription}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              {specs?.brand && (
+                                <Badge variant="outline" className="text-xs">{specs.brand}</Badge>
+                              )}
+                              {item.category && (
+                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                              )}
+                              {isMissing && (
+                                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-100 text-xs">
+                                  Not in uploaded quote
+                                </Badge>
+                              )}
+                            </div>
+                            {/* Supplier Link */}
+                            {supplierLink && (
+                              <a
+                                href={supplierLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                <LinkIcon className="w-3.5 h-3.5" />
+                                View Product Page
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-3xl font-bold text-emerald-600">{item.quantity}</p>
+                            <p className="text-xs text-gray-500">{item.unitType || 'units'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                      {/* Price, Lead Time, Notes inputs */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Specifications */}
+                    {hasSpecs && (
+                      <div className="px-4 py-3 border-t bg-gray-50">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                          {specs?.sku && (
+                            <div>
+                              <span className="text-gray-400 text-xs">SKU</span>
+                              <p className="font-medium text-gray-700">{specs.sku}</p>
+                            </div>
+                          )}
+                          {specs?.modelNumber && (
+                            <div>
+                              <span className="text-gray-400 text-xs">Model #</span>
+                              <p className="font-medium text-gray-700">{specs.modelNumber}</p>
+                            </div>
+                          )}
+                          {specs?.color && (
+                            <div>
+                              <span className="text-gray-400 text-xs">Color</span>
+                              <p className="font-medium text-gray-700">{specs.color}</p>
+                            </div>
+                          )}
+                          {specs?.finish && (
+                            <div>
+                              <span className="text-gray-400 text-xs">Finish</span>
+                              <p className="font-medium text-gray-700">{specs.finish}</p>
+                            </div>
+                          )}
+                          {specs?.material && (
+                            <div>
+                              <span className="text-gray-400 text-xs">Material</span>
+                              <p className="font-medium text-gray-700">{specs.material}</p>
+                            </div>
+                          )}
+                          {(specs?.width || specs?.height || specs?.depth || specs?.length) && (
+                            <div className="col-span-2">
+                              <span className="text-gray-400 text-xs">Dimensions</span>
+                              <p className="font-medium text-gray-700">
+                                {[specs?.width && `W: ${specs.width}`, specs?.height && `H: ${specs.height}`, specs?.depth && `D: ${specs.depth}`, specs?.length && `L: ${specs.length}`].filter(Boolean).join(' • ')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Item Notes from AllSpec */}
+                    {hasItemNotes && (
+                      <div className="px-4 py-3 border-t bg-amber-50">
+                        <p className="text-xs font-medium text-amber-700 mb-1">Item Notes</p>
+                        <p className="text-sm text-amber-900">{item.notes || specs?.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Documents */}
+                    {documents.length > 0 && (
+                      <div className="px-4 py-3 border-t bg-blue-50">
+                        <p className="text-xs font-medium text-blue-700 mb-2">Attached Documents</p>
+                        <div className="flex flex-wrap gap-2">
+                          {documents.map(doc => (
+                            <a
+                              key={doc.id}
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              {doc.title || doc.fileName}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quote Input Section - Price, Lead Time, Notes */}
+                    <div className="px-4 py-4 border-t bg-emerald-50/50">
+                      <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-3">Your Quote</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Unit Price */}
                         <div>
-                          <Label className="text-xs">Unit Price <span className="text-red-500">*</span></Label>
+                          <Label className="text-xs font-medium">
+                            Unit Price <span className="text-red-500">*</span>
+                          </Label>
                           <div className="relative mt-1">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input
@@ -981,21 +983,31 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               value={lineItem?.unitPrice || ''}
                               onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
                               placeholder="0.00"
-                              className={cn("pl-10", !hasPrice && "border-red-200")}
+                              className={cn(
+                                "pl-10 bg-white",
+                                showPriceError && "border-red-500 ring-1 ring-red-500"
+                              )}
                             />
                           </div>
+                          {showPriceError && (
+                            <p className="text-xs text-red-600 mt-1">Price is required</p>
+                          )}
                         </div>
+
+                        {/* Lead Time */}
                         <div>
-                          <Label className="text-xs">Lead Time <span className="text-red-500">*</span></Label>
+                          <Label className="text-xs font-medium">
+                            Lead Time <span className="text-red-500">*</span>
+                          </Label>
                           <select
                             value={lineItem?.leadTime || ''}
                             onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
                             className={cn(
                               "mt-1 w-full rounded-md border px-3 py-2 text-sm bg-white",
-                              !hasLeadTime ? "border-red-200" : "border-gray-200"
+                              showLeadTimeError ? "border-red-500 ring-1 ring-red-500" : "border-gray-200"
                             )}
                           >
-                            <option value="">Select...</option>
+                            <option value="">Select lead time...</option>
                             <option value="In Stock">In Stock</option>
                             <option value="1-2 weeks">1-2 Weeks</option>
                             <option value="2-4 weeks">2-4 Weeks</option>
@@ -1003,32 +1015,46 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             <option value="6-8 weeks">6-8 Weeks</option>
                             <option value="8-12 weeks">8-12 Weeks</option>
                             <option value="12+ weeks">12+ Weeks</option>
+                            <option value="See notes">See notes (explain below)</option>
                           </select>
+                          {showLeadTimeError && (
+                            <p className="text-xs text-red-600 mt-1">Lead time is required</p>
+                          )}
                         </div>
+
+                        {/* Notes */}
                         <div>
-                          <Label className="text-xs">Notes (optional)</Label>
+                          <Label className="text-xs font-medium">
+                            Notes {needsNotes ? <span className="text-red-500">*</span> : '(optional)'}
+                          </Label>
                           <Input
                             value={lineItem?.notes || ''}
                             onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                            placeholder="Any notes..."
-                            className="mt-1"
+                            placeholder={needsNotes ? "Explain lead time (backordered, out of stock, etc.)" : "Any notes..."}
+                            className={cn(
+                              "mt-1 bg-white",
+                              showNotesError && "border-red-500 ring-1 ring-red-500"
+                            )}
                           />
+                          {showNotesError && (
+                            <p className="text-xs text-red-600 mt-1">Notes required when "See notes" is selected</p>
+                          )}
                         </div>
                       </div>
 
                       {/* Line total */}
                       {hasPrice && (
-                        <div className="mt-2 text-right">
-                          <span className="text-sm text-gray-500">Line Total: </span>
-                          <span className="font-semibold text-emerald-600">
+                        <div className="mt-3 pt-3 border-t border-emerald-200 text-right">
+                          <span className="text-sm text-gray-600">Line Total: </span>
+                          <span className="text-lg font-bold text-emerald-600">
                             {formatCurrency(parseFloat(lineItem.unitPrice) * item.quantity)}
                           </span>
                         </div>
                       )}
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Unmatched Items - Ask supplier to link */}
@@ -1104,38 +1130,25 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               </div>
             )}
 
-            {/* Delivery */}
-            <div className="border rounded-xl p-4 space-y-4">
-              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+            {/* Delivery - Simple input, no toggle */}
+            <div className="border rounded-xl p-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-3">
                 <Truck className="w-4 h-4" />
-                Delivery
+                Delivery Fee (if applicable)
               </h4>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Include Delivery Fee</Label>
-                  <p className="text-xs text-gray-500">Add a delivery charge to the quote</p>
-                </div>
-                <Switch checked={includeDelivery} onCheckedChange={setIncludeDelivery} />
+              <div className="relative max-w-xs">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value)}
+                  placeholder="Leave empty if no delivery fee"
+                  className="pl-10"
+                />
               </div>
-
-              {includeDelivery && (
-                <div className="pl-4 border-l-2 border-emerald-200">
-                  <Label className="text-xs">Delivery Fee</Label>
-                  <div className="relative mt-1 max-w-xs">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={deliveryFee}
-                      onChange={(e) => setDeliveryFee(e.target.value)}
-                      placeholder="0.00"
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              )}
+              <p className="text-xs text-gray-500 mt-2">Leave empty if delivery is included or not applicable</p>
             </div>
 
             {/* Order Notes */}
@@ -1153,20 +1166,26 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             {/* Quote Summary */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
+                <span className="text-gray-600">Subtotal ({lineItems.length} items)</span>
                 <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
               </div>
-              {includeDelivery && (
+              {parseFloat(deliveryFee) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Delivery</span>
                   <span className="font-medium">{formatCurrency(calculateDeliveryTotal())}</span>
                 </div>
               )}
-              {taxesIncluded && taxAmount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Taxes (from quote)</span>
-                  <span className="font-medium">{formatCurrency(taxAmount)}</span>
-                </div>
+              {isQuebec && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">GST (5%)</span>
+                    <span className="font-medium">{formatCurrency(calculateTaxes().gst)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">QST (9.975%)</span>
+                    <span className="font-medium">{formatCurrency(calculateTaxes().qst)}</span>
+                  </div>
+                </>
               )}
               <div className="flex justify-between pt-3 border-t">
                 <span className="font-semibold text-gray-900">Total</span>
@@ -1174,6 +1193,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   {formatCurrency(calculateTotal())}
                 </span>
               </div>
+              {isQuebec && (
+                <p className="text-xs text-gray-500 pt-2">Quebec taxes (GST + QST) applied automatically</p>
+              )}
             </div>
           </CardContent>
         </Card>
