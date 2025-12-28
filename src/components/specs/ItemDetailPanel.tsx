@@ -181,7 +181,17 @@ interface ActivityItem {
   metadata?: any
 }
 
-function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: string; mode: string }) {
+// Progress stages for items
+const ITEM_STAGES = [
+  { key: 'selected', label: 'Selected', icon: CheckCircle2 },
+  { key: 'quoted', label: 'Quoted', icon: DollarSign },
+  { key: 'sent_to_client', label: 'Sent to Client', icon: Send },
+  { key: 'approved', label: 'Approved', icon: CheckCircle2 },
+  { key: 'ordered', label: 'Ordered', icon: ShoppingCart },
+  { key: 'delivered', label: 'Delivered', icon: Package },
+]
+
+function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; roomId?: string; mode: string; specStatus?: string }) {
   const [loading, setLoading] = useState(false)
   const [activities, setActivities] = useState<ActivityItem[]>([])
 
@@ -207,20 +217,41 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
     }
   }
 
+  // Determine current stage based on specStatus and activities
+  const getCurrentStage = () => {
+    // Check activities for specific events
+    const hasQuoteReceived = activities.some(a => a.type === 'QUOTE_RECEIVED')
+    const hasQuoteRequested = activities.some(a => a.type === 'QUOTE_REQUESTED')
+    const hasSentToClient = activities.some(a => a.type === 'SENT_TO_CLIENT')
+    const hasApproved = activities.some(a => a.type === 'CLIENT_APPROVED')
+    const hasOrdered = activities.some(a => a.type === 'ORDERED')
+    const hasDelivered = activities.some(a => a.type === 'DELIVERED')
+
+    if (hasDelivered) return 'delivered'
+    if (hasOrdered) return 'ordered'
+    if (hasApproved) return 'approved'
+    if (hasSentToClient) return 'sent_to_client'
+    if (hasQuoteReceived || specStatus === 'QUOTED' || specStatus === 'PRICE_RECEIVED') return 'quoted'
+    if (specStatus === 'SELECTED' || specStatus === 'QUOTING' || hasQuoteRequested) return 'selected'
+    return 'selected'
+  }
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'QUOTE_REQUESTED':
         return <Send className="w-4 h-4 text-blue-500" />
       case 'QUOTE_RECEIVED':
-        return <MessageSquare className="w-4 h-4 text-green-500" />
+        return <DollarSign className="w-4 h-4 text-green-500" />
       case 'QUOTE_DECLINED':
         return <X className="w-4 h-4 text-red-500" />
       case 'QUOTE_VIEWED':
-        return <ExternalLink className="w-4 h-4 text-gray-500" />
+        return <ExternalLink className="w-4 h-4 text-purple-500" />
       case 'STATUS_CHANGED':
         return <CheckCircle2 className="w-4 h-4 text-purple-500" />
       case 'PRICE_UPDATED':
         return <DollarSign className="w-4 h-4 text-yellow-500" />
+      case 'SENT_TO_CLIENT':
+        return <Send className="w-4 h-4 text-blue-500" />
       case 'CLIENT_APPROVED':
         return <CheckCircle2 className="w-4 h-4 text-green-500" />
       case 'CLIENT_REJECTED':
@@ -237,6 +268,8 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
         return <FileText className="w-4 h-4 text-gray-500" />
       case 'DOCUMENT_UPLOADED':
         return <Upload className="w-4 h-4 text-blue-500" />
+      case 'ITEM_SELECTED':
+        return <CheckCircle2 className="w-4 h-4 text-emerald-500" />
       default:
         return <Clock className="w-4 h-4 text-gray-400" />
     }
@@ -258,7 +291,6 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
     const now = new Date()
     const showYear = date.getFullYear() !== now.getFullYear()
 
-    // Format as "Dec 28 at 3:45 PM" or "Dec 28, 2024 at 3:45 PM" if different year
     const dateStr = date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -290,96 +322,157 @@ function ActivityTab({ itemId, roomId, mode }: { itemId?: string; roomId?: strin
     )
   }
 
-  if (activities.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-        <p className="text-sm font-medium text-gray-600">No activity yet</p>
-        <p className="text-xs text-gray-400 mt-1">Activity will be tracked here when you request quotes, update prices, etc.</p>
-      </div>
-    )
-  }
+  const currentStage = getCurrentStage()
+  const currentStageIndex = ITEM_STAGES.findIndex(s => s.key === currentStage)
 
   return (
-    <div className="space-y-1">
-      {activities.map((activity, index) => (
-        <div
-          key={activity.id}
-          className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          {/* Icon */}
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            {getActivityIcon(activity.type)}
-          </div>
+    <div className="space-y-4">
+      {/* Progress Tracker */}
+      <div className="bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Item Progress</p>
+        <div className="flex items-center justify-between">
+          {ITEM_STAGES.map((stage, index) => {
+            const isCompleted = index <= currentStageIndex
+            const isCurrent = index === currentStageIndex
+            const StageIcon = stage.icon
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                {activity.description && (
-                  <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
+            return (
+              <div key={stage.key} className="flex flex-col items-center flex-1">
+                <div className="flex items-center w-full">
+                  {/* Connector line before */}
+                  {index > 0 && (
+                    <div className={cn(
+                      "flex-1 h-0.5",
+                      index <= currentStageIndex ? "bg-emerald-500" : "bg-gray-200"
+                    )} />
+                  )}
+
+                  {/* Stage circle */}
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
+                    isCompleted ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400",
+                    isCurrent && "ring-2 ring-emerald-300 ring-offset-2"
+                  )}>
+                    <StageIcon className="w-4 h-4" />
+                  </div>
+
+                  {/* Connector line after */}
+                  {index < ITEM_STAGES.length - 1 && (
+                    <div className={cn(
+                      "flex-1 h-0.5",
+                      index < currentStageIndex ? "bg-emerald-500" : "bg-gray-200"
+                    )} />
+                  )}
+                </div>
+                <span className={cn(
+                  "text-[10px] mt-1.5 text-center",
+                  isCurrent ? "text-emerald-700 font-semibold" : isCompleted ? "text-gray-600" : "text-gray-400"
+                )}>
+                  {stage.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Activity List */}
+      {activities.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm text-gray-500">No activity recorded yet</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide px-1">Activity History</p>
+          {activities.map((activity, index) => (
+            <div
+              key={activity.id}
+              className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              {/* Timeline */}
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                  {getActivityIcon(activity.type)}
+                </div>
+                {index < activities.length - 1 && (
+                  <div className="w-0.5 flex-1 bg-gray-200 mt-1" />
                 )}
               </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap">
-                {formatTime(activity.timestamp)}
-              </span>
-            </div>
 
-            {/* Actor */}
-            {activity.actor && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                {activity.actor.image ? (
-                  <img
-                    src={activity.actor.image}
-                    alt={activity.actor.name || ''}
-                    className="w-4 h-4 rounded-full"
-                  />
-                ) : (
-                  <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                    {getActorIcon(activity.actor.type) || (
-                      <span className="text-[10px] font-medium">
-                        {(activity.actor.name || activity.actor.email || '?').charAt(0).toUpperCase()}
-                      </span>
+              {/* Content */}
+              <div className="flex-1 min-w-0 pb-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                    {activity.description && (
+                      <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    {formatTime(activity.timestamp)}
+                  </span>
+                </div>
+
+                {/* Actor */}
+                {activity.actor && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {activity.actor.image ? (
+                      <img
+                        src={activity.actor.image}
+                        alt={activity.actor.name || ''}
+                        className="w-4 h-4 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                        {getActorIcon(activity.actor.type) || (
+                          <span className="text-[10px] font-medium">
+                            {(activity.actor.name || activity.actor.email || '?').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      {activity.actor.name || activity.actor.email}
+                    </span>
+                    {activity.actor.type !== 'user' && (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                        {activity.actor.type}
+                      </Badge>
                     )}
                   </div>
                 )}
-                <span className="text-xs text-gray-500">
-                  {activity.actor.name || activity.actor.email}
-                </span>
-                {activity.actor.type !== 'user' && (
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                    {activity.actor.type}
-                  </Badge>
-                )}
-              </div>
-            )}
 
-            {/* Metadata badges */}
-            {activity.metadata && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {activity.metadata.quoteAmount && (
-                  <Badge variant="secondary" className="text-xs">
-                    ${Number(activity.metadata.quoteAmount).toLocaleString()}
-                  </Badge>
-                )}
-                {activity.metadata.rfqNumber && (
-                  <Badge variant="outline" className="text-xs">
-                    {activity.metadata.rfqNumber}
-                  </Badge>
-                )}
-                {activity.metadata.status && activity.type !== 'QUOTE_REQUESTED' && (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs",
-                      activity.metadata.status === 'QUOTED' && "bg-green-50 text-green-700 border-green-200",
-                      activity.metadata.status === 'DECLINED' && "bg-red-50 text-red-700 border-red-200",
-                      activity.metadata.status === 'VIEWED' && "bg-blue-50 text-blue-700 border-blue-200"
+                {/* Metadata badges */}
+                {activity.metadata && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {activity.metadata.quoteAmount && (
+                      <Badge variant="secondary" className="text-xs">
+                        ${Number(activity.metadata.quoteAmount).toLocaleString()}
+                      </Badge>
                     )}
-                  >
-                    {activity.metadata.status}
-                  </Badge>
+                    {activity.metadata.leadTime && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        {String(activity.metadata.leadTime).replace(/_/g, ' ')}
+                      </Badge>
+                    )}
+                    {activity.metadata.rfqNumber && (
+                      <Badge variant="outline" className="text-xs">
+                        {activity.metadata.rfqNumber}
+                      </Badge>
+                    )}
+                    {activity.metadata.status && activity.type !== 'QUOTE_REQUESTED' && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          activity.metadata.status === 'QUOTED' && "bg-green-50 text-green-700 border-green-200",
+                          activity.metadata.status === 'DECLINED' && "bg-red-50 text-red-700 border-red-200",
+                          activity.metadata.status === 'VIEWED' && "bg-blue-50 text-blue-700 border-blue-200"
+                        )}
+                      >
+                        {activity.metadata.status}
+                      </Badge>
                 )}
                 {activity.metadata.quoteDocumentUrl && (
                   <a
@@ -769,12 +862,20 @@ export function ItemDetailPanel({
 
   // Delete document
   const handleDeleteDocument = async (documentId: string) => {
-    if (!item?.id || !item?.roomId) return
+    const targetRoomId = item?.roomId || roomId
+    if (!item?.id || !targetRoomId) {
+      toast.error('Cannot delete document - missing item information')
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this document?')) {
+      return
+    }
 
     setDeletingDocumentId(documentId)
     try {
       const res = await fetch(
-        `/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents?documentId=${documentId}`,
+        `/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/documents?documentId=${documentId}`,
         { method: 'DELETE' }
       )
 
@@ -2329,7 +2430,7 @@ export function ItemDetailPanel({
             )}
             
             {activeTab === 'activity' && (
-              <ActivityTab itemId={item?.id} roomId={item?.roomId} mode={mode} />
+              <ActivityTab itemId={item?.id} roomId={item?.roomId || roomId} mode={mode} specStatus={item?.specStatus} />
             )}
 
             {activeTab === 'approvals' && (
