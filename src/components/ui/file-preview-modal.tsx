@@ -13,8 +13,8 @@ interface FilePreviewModalProps {
     url: string
     size: number
     uploadedAt: string
-    uploadedBy: {
-      name: string
+    uploadedBy?: {
+      name?: string
     }
     metadata?: {
       sizeFormatted: string
@@ -87,7 +87,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
               <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
                 <span>{file.metadata?.sizeFormatted || `${(file.size / 1024).toFixed(1)} KB`}</span>
                 <span>•</span>
-                <span>Uploaded by {file.uploadedBy.name}</span>
+                <span>Uploaded by {file.uploadedBy?.name || 'Unknown'}</span>
                 <span>•</span>
                 <span>{formatDate(file.uploadedAt)}</span>
               </div>

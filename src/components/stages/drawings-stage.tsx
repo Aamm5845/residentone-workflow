@@ -761,9 +761,11 @@ export default function DrawingsWorkspace({
         <FilePreviewModal
           file={{
             ...previewAsset,
+            name: previewAsset.title,
             originalName: previewAsset.filename || previewAsset.title,
+            type: previewAsset.type === 'IMAGE' ? 'image' : previewAsset.type === 'PDF' ? 'pdf' : 'document',
             uploadedAt: previewAsset.createdAt,
-            uploadedBy: previewAsset.uploader,
+            uploadedBy: previewAsset.uploadedByUser || { name: 'Unknown' },
             size: previewAsset.size || 0
           }}
           isOpen={!!previewAsset}
