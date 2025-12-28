@@ -32,7 +32,6 @@ import {
   Building2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import Image from 'next/image'
 
 interface QuickQuoteDialogProps {
   open: boolean
@@ -334,12 +333,11 @@ export default function QuickQuoteDialog({
                       >
                         <div className="flex items-center gap-3">
                           {group.supplier?.logo ? (
-                            <Image
+                            <img
                               src={group.supplier.logo}
                               alt={group.supplierName}
-                              width={40}
-                              height={40}
-                              className="rounded-lg object-cover border"
+                              className="w-10 h-10 rounded-lg object-cover border"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                             />
                           ) : (
                             <div className={cn(
@@ -396,11 +394,11 @@ export default function QuickQuoteDialog({
                               {/* Image */}
                               <div className="w-12 h-12 relative flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border">
                                 {item.thumbnailUrl || item.images?.[0] ? (
-                                  <Image
+                                  <img
                                     src={item.thumbnailUrl || item.images![0]}
                                     alt={item.name}
-                                    fill
-                                    className="object-cover"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-400">
