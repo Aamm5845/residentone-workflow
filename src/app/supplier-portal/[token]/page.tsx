@@ -1017,7 +1017,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             <option value="6-8 weeks">6-8 Weeks</option>
                             <option value="8-12 weeks">8-12 Weeks</option>
                             <option value="12+ weeks">12+ Weeks</option>
-                            <option value="See notes">See notes (explain below)</option>
+                            <option value="See notes">See notes</option>
                           </select>
                           {showLeadTimeError && (
                             <p className="text-xs text-red-600 mt-1">Lead time is required</p>
@@ -1032,14 +1032,14 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                           <Input
                             value={lineItem?.notes || ''}
                             onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                            placeholder={needsNotes ? "Explain lead time (backordered, out of stock, etc.)" : "Any notes..."}
+                            placeholder=""
                             className={cn(
                               "mt-1 bg-white",
                               showNotesError && "border-red-500 ring-1 ring-red-500"
                             )}
                           />
                           {showNotesError && (
-                            <p className="text-xs text-red-600 mt-1">Notes required when "See notes" is selected</p>
+                            <p className="text-xs text-red-600 mt-1">Required</p>
                           )}
                         </div>
                       </div>
@@ -1049,7 +1049,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                         <div className="mt-3 pt-3 border-t border-emerald-200 text-right">
                           <span className="text-sm text-gray-600">Line Total: </span>
                           <span className="text-lg font-bold text-emerald-600">
-                            {formatCurrency(parseFloat(lineItem.unitPrice) * item.quantity)}
+                            {formatCurrency(parseFloat(lineItem.unitPrice) * lineItem.quantity)}
                           </span>
                         </div>
                       )}
@@ -1146,7 +1146,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   min="0"
                   value={deliveryFee}
                   onChange={(e) => setDeliveryFee(e.target.value)}
-                  placeholder="Leave empty if no delivery fee"
+                  placeholder="0.00"
                   className="pl-10"
                 />
               </div>
