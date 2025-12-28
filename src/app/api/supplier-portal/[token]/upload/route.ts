@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { v4 as uuidv4 } from 'uuid'
 import { DropboxService } from '@/lib/dropbox-service'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +24,7 @@ export async function POST(
   try {
     const { token } = await params
 
-    // Validate token
+    // Validate token and get RFQ with line items to determine category
     const supplierRFQ = await prisma.supplierRFQ.findFirst({
       where: {
         accessToken: token,
@@ -39,7 +38,22 @@ export async function POST(
             project: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                dropboxFolderPath: true
+              }
+            },
+            lineItems: {
+              take: 1,
+              include: {
+                roomFFEItem: {
+                  select: {
+                    section: {
+                      select: {
+                        name: true
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -80,44 +94,41 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Generate unique filename
-    const fileExtension = ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]
-    const uniqueId = uuidv4()
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    // Generate unique filename with supplier name for clarity
+    const supplierName = (supplierRFQ.supplier?.name || supplierRFQ.vendorName || 'Unknown').replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30)
+    const rfqNumber = supplierRFQ.rfq.rfqNumber
+    const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const fileName = `${timestamp}_${uniqueId}_${originalName}`
+    const fileName = `${rfqNumber}_${supplierName}_${timestamp}_${originalName}`
 
     try {
       // Convert file to buffer
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
 
-      // Upload to Dropbox - supplier quotes folder
       const dropboxService = new DropboxService()
 
-      const projectName = supplierRFQ.rfq.project.name.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 50)
-      const supplierName = (supplierRFQ.supplier?.name || supplierRFQ.vendorName || 'Unknown').replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30)
-      const rfqNumber = supplierRFQ.rfq.rfqNumber
-
-      // Create organized folder structure
-      const basePath = `/Meisner Interiors Team Folder/11- SOFTWARE UPLOADS`
-      const quotesFolder = `${basePath}/Supplier Quotes`
-      const projectFolder = `${quotesFolder}/${projectName}`
-      const supplierFolder = `${projectFolder}/${rfqNumber} - ${supplierName}`
-
-      // Ensure folders exist
-      try {
-        await dropboxService.createFolder(quotesFolder)
-        await dropboxService.createFolder(projectFolder)
-        await dropboxService.createFolder(supplierFolder)
-      } catch (folderError) {
-        // Folders may already exist
+      // Get project folder path - use stored path or construct from project name
+      let projectFolderPath = supplierRFQ.rfq.project.dropboxFolderPath
+      if (!projectFolderPath) {
+        const projectName = supplierRFQ.rfq.project.name.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 50)
+        projectFolderPath = `/Meisner Interiors Team Folder/${projectName}`
       }
 
-      const dropboxPath = `${supplierFolder}/${fileName}`
+      // Determine category from RFQ line items (section name)
+      // Default to "General" if no category found
+      const categoryName = supplierRFQ.rfq.lineItems[0]?.roomFFEItem?.section?.name || 'General'
 
-      const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
-      const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
+      // Upload to 6- SHOPPING/{Category}/Quotes/ using the existing method
+      const result = await dropboxService.uploadShoppingFile(
+        projectFolderPath,
+        categoryName,
+        'Quotes',
+        fileName,
+        buffer
+      )
+
+      const sharedLink = result.sharedLink
 
       if (!sharedLink) {
         throw new Error('Failed to create shared link')
@@ -132,7 +143,8 @@ export async function POST(
             fileName: file.name,
             fileSize: file.size,
             fileType: file.type,
-            dropboxPath: dropboxPath
+            dropboxPath: result.path,
+            category: categoryName
           }
         }
       })
@@ -142,7 +154,7 @@ export async function POST(
         url: sharedLink,
         fileName: file.name,
         fileSize: file.size,
-        dropboxPath: dropboxPath
+        dropboxPath: result.path
       })
 
     } catch (storageError) {
