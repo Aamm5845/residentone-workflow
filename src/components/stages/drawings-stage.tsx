@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,7 @@ import PhaseSettingsMenu from './PhaseSettingsMenu'
 import { DropboxFileBrowser } from '../spec-book/DropboxFileBrowser'
 import { WorkspaceTimerButton } from '@/components/timeline/WorkspaceTimerButton'
 import {
+  ArrowLeft,
   CheckCircle,
   PencilRuler,
   User,
@@ -278,10 +280,17 @@ export default function DrawingsWorkspace({
       <div className="p-4 sm:p-6 border-b border-gray-100">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center space-x-4">
+            {/* Back Button */}
+            <Button asChild variant="ghost" size="icon" aria-label="Back to room phases">
+              <Link href={`/projects/${project.id}/rooms/${room.id}`}>
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+
             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
               <PencilRuler className="w-6 h-6 text-white" />
             </div>
-            
+
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Drawings Workspace</h2>
               <p className="text-gray-600">{room.name || room.type} - {project.name}</p>
