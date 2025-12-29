@@ -1368,6 +1368,69 @@ export function ItemDetailPanel({
     }
   }, [isOpen, item?.id])
 
+  // Handle close with immediate save (no debounce)
+  const handleClose = useCallback(async () => {
+    // Cancel any pending auto-save timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+
+    // Skip save for create mode or if no item
+    if (mode === 'create' || !item?.id || !item?.roomId) {
+      onClose()
+      return
+    }
+
+    // Check if there are unsaved changes
+    const currentData = JSON.stringify({ formData, images })
+    if (currentData !== lastSavedDataRef.current && formData.name.trim()) {
+      // Save immediately before closing
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            sku: formData.sku,
+            docCode: formData.docCode,
+            productName: formData.productName,
+            brand: formData.brand,
+            supplierName: formData.supplierName,
+            supplierLink: formData.supplierLink,
+            supplierId: formData.supplierId || undefined,
+            quantity: formData.quantity,
+            unitType: formData.unitType,
+            leadTime: formData.leadTime === 'none' ? null : formData.leadTime,
+            color: formData.color,
+            finish: formData.finish,
+            material: formData.material,
+            width: formData.width,
+            height: formData.height,
+            depth: formData.depth,
+            length: formData.length,
+            notes: formData.notes,
+            tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
+            rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
+            tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            rrpCurrency: formData.rrpCurrency,
+            tradePriceCurrency: formData.tradePriceCurrency,
+            images: images,
+          })
+        })
+
+        if (res.ok) {
+          lastSavedDataRef.current = currentData
+        }
+      } catch (error) {
+        console.error('Save on close error:', error)
+      }
+    }
+
+    onClose()
+  }, [mode, item?.id, item?.roomId, formData, images, onClose])
+
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
@@ -1390,9 +1453,9 @@ export function ItemDetailPanel({
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       {/* Panel */}
@@ -1437,8 +1500,8 @@ export function ItemDetailPanel({
                 <ExternalLink className="w-4 h-4" />
               </a>
             )}
-            <button 
-              onClick={onClose}
+            <button
+              onClick={handleClose}
               className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
             >
               <X className="w-5 h-5" />
