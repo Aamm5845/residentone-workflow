@@ -53,29 +53,63 @@ export async function GET(
       }
     })
 
-    // Fetch the selected items
-    const items = await prisma.roomFFEItem.findMany({
-      where: {
-        id: { in: shareLink.itemIds },
-        visibility: 'VISIBLE'
-      },
-      include: {
-        room: {
-          select: {
-            id: true,
-            name: true,
-            type: true
+    // Fetch items - if itemIds is set, use those; otherwise get all visible items from project
+    const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
+    
+    let items
+    if (hasItemIds) {
+      items = await prisma.roomFFEItem.findMany({
+        where: {
+          id: { in: shareLink.itemIds },
+          visibility: 'VISIBLE'
+        },
+        include: {
+          room: {
+            select: {
+              id: true,
+              name: true,
+              type: true
+            }
+          },
+          section: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         },
-        section: {
-          select: {
-            id: true,
-            name: true
+        orderBy: { order: 'asc' }
+      })
+    } else {
+      // No specific items selected - get all visible specs from the project
+      items = await prisma.roomFFEItem.findMany({
+        where: {
+          room: {
+            projectId: shareLink.projectId
+          },
+          visibility: 'VISIBLE',
+          specStatus: {
+            notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
           }
-        }
-      },
-      orderBy: { order: 'asc' }
-    })
+        },
+        include: {
+          room: {
+            select: {
+              id: true,
+              name: true,
+              type: true
+            }
+          },
+          section: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { order: 'asc' }
+      })
+    }
 
     // Get last updated time from items
     const lastUpdated = items.length > 0

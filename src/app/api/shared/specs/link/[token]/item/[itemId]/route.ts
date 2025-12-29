@@ -40,12 +40,7 @@ export async function GET(
       return NextResponse.json({ error: 'This link has expired' }, { status: 410 })
     }
 
-    // Check if item is in the share link's items
-    if (!shareLink.itemIds.includes(itemId)) {
-      return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
-    }
-
-    // Fetch the item
+    // Fetch the item first
     const item = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
       include: {
@@ -53,7 +48,8 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            type: true
+            type: true,
+            projectId: true
           }
         },
         section: {
@@ -69,18 +65,55 @@ export async function GET(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // Check if item belongs to the project and is in the share link's items
+    // If itemIds is empty, we allow all items from the project
+    const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
+    
+    if (hasItemIds) {
+      // Specific items are selected - check if this item is in the list
+      if (!shareLink.itemIds.includes(itemId)) {
+        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
+      }
+    } else {
+      // No specific items - verify item belongs to the project
+      if (item.room?.projectId !== shareLink.projectId) {
+        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
+      }
+    }
+
     // Get all items for navigation (previous/next)
-    const allItems = await prisma.roomFFEItem.findMany({
-      where: {
-        id: { in: shareLink.itemIds },
-        visibility: 'VISIBLE'
-      },
-      select: {
-        id: true,
-        name: true
-      },
-      orderBy: { order: 'asc' }
-    })
+    // If itemIds is set, use those; otherwise get all visible items from project
+    let allItems
+    if (hasItemIds) {
+      allItems = await prisma.roomFFEItem.findMany({
+        where: {
+          id: { in: shareLink.itemIds },
+          visibility: 'VISIBLE'
+        },
+        select: {
+          id: true,
+          name: true
+        },
+        orderBy: { order: 'asc' }
+      })
+    } else {
+      allItems = await prisma.roomFFEItem.findMany({
+        where: {
+          room: {
+            projectId: shareLink.projectId
+          },
+          visibility: 'VISIBLE',
+          specStatus: {
+            notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
+          }
+        },
+        select: {
+          id: true,
+          name: true
+        },
+        orderBy: { order: 'asc' }
+      })
+    }
 
     const currentIndex = allItems.findIndex(i => i.id === itemId)
     const previousItem = currentIndex > 0 ? allItems[currentIndex - 1] : null
