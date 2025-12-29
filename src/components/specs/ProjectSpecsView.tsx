@@ -2678,12 +2678,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onChange={handleItemImageUpload}
       />
       
-      {/* Header - Matching standard software header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-full mx-auto px-6 py-4">
-          {/* Top Row - Back button and Title */}
+      {/* Sticky Action Bar - Always visible when scrolling */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-full mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={() => router.push(`/projects/${project.id}`)}
                 variant="ghost"
@@ -2691,20 +2690,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 className="text-gray-500 hover:text-gray-700 -ml-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Back to Project
+                Back
               </Button>
-              <div className="h-6 w-px bg-gray-200" />
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <Package className="w-4 h-4 text-white" />
+              <div className="h-5 w-px bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Package className="w-3.5 h-3.5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">All Specs</h1>
-                  <p className="text-xs text-gray-500">{project.name}</p>
+                  <h1 className="text-sm font-semibold text-gray-900">All Specs</h1>
                 </div>
               </div>
+              {selectedItems.size > 0 && (
+                <>
+                  <div className="h-5 w-px bg-gray-200" />
+                  <span className="text-sm font-medium text-blue-600">
+                    {selectedItems.size} selected
+                  </span>
+                </>
+              )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -2714,18 +2720,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     toast.error('Please select items first')
                     return
                   }
-                  // Use Quick Quote dialog for simpler flow with preview
                   setQuickQuoteItems(Array.from(selectedItems))
                   setQuickQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
+                className="h-8"
               >
                 <FileText className="w-4 h-4 mr-1.5" />
                 Request Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 h-8"
                 onClick={() => {
                   if (selectedItems.size === 0) {
                     toast.error('Please select items first')
@@ -2737,12 +2743,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 disabled={selectedItems.size === 0}
               >
                 <DollarSign className="w-4 h-4 mr-1.5" />
-                Client Quote {selectedItems.size > 0 && `(${selectedItems.size})`}
+                Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
                 variant="default"
                 size="sm"
-                className="bg-gray-900 hover:bg-gray-800"
+                className="bg-gray-900 hover:bg-gray-800 h-8"
                 onClick={() => {
                   loadShareSettings()
                   loadShareLinks()
@@ -2752,6 +2758,44 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <Share2 className="w-4 h-4 mr-1.5" />
                 Share
               </Button>
+              {selectedItems.size > 0 && (
+                <>
+                  <div className="h-5 w-px bg-gray-200" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={handleBulkDuplicate}
+                    disabled={bulkDuplicating}
+                  >
+                    {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setBulkMoveModal(true)}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5 text-red-600 hover:bg-red-50"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-gray-500 hover:text-gray-700"
+                    onClick={() => setSelectedItems(new Set())}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -2765,60 +2809,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </DropdownMenu>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Bulk Action Bar - Appears when items are selected */}
-          {selectedItems.size > 0 && (
-            <div className="mt-3 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
-                <Check className="w-4 h-4" />
-                {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} selected
-              </div>
-              <div className="h-4 w-px bg-blue-200 mx-2" />
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-blue-700 hover:bg-blue-100"
-                  onClick={handleBulkDuplicate}
-                  disabled={bulkDuplicating}
-                >
-                  {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                  Duplicate
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-blue-700 hover:bg-blue-100"
-                  onClick={() => setBulkMoveModal(true)}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  Move to Section
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-red-600 hover:bg-red-50"
-                  onClick={handleBulkDelete}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </Button>
-              </div>
-              <div className="flex-1" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-gray-500 hover:text-gray-700"
-                onClick={() => setSelectedItems(new Set())}
-              >
-                <X className="w-3.5 h-3.5 mr-1" />
-                Clear Selection
-              </Button>
-            </div>
-          )}
-
+      {/* Header with Tabs - Scrolls with content */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-full mx-auto px-6 py-3">
           {/* Tabs Row - Modern Style */}
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
               {/* Primary Tabs - Clean underline style */}
               <div className="flex items-center border-b border-gray-200">
