@@ -795,21 +795,72 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 </div>
               )}
 
-              {/* AI Match warning for missing items */}
-              {aiMatchResult && aiMatchResult.summary.missing > 0 && (
-                <div className="mt-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">
-                      {aiMatchResult.summary.missing} item{aiMatchResult.summary.missing > 1 ? 's' : ''} not found in your quote
-                    </p>
-                    <p className="text-xs text-amber-600 mt-0.5">
-                      Please enter prices manually for items marked below
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* Extracted Items from PDF */}
+            {aiMatchResult && aiMatchResult.matchResults.length > 0 && (
+              <div className="border rounded-xl overflow-hidden">
+                <div className="bg-gray-100 px-4 py-3 border-b">
+                  <p className="font-medium text-gray-900">Items from Your Quote</p>
+                  <p className="text-xs text-gray-500">
+                    {aiMatchResult.summary.matched + aiMatchResult.summary.partial} linked, {aiMatchResult.summary.extra} unlinked
+                  </p>
+                </div>
+                <div className="divide-y text-sm">
+                  {/* Show matched/partial items first */}
+                  {aiMatchResult.matchResults
+                    .filter(r => r.status === 'matched' || r.status === 'partial')
+                    .map((result, idx) => (
+                      <div key={`matched-${idx}`} className="px-4 py-2 flex items-center gap-3 bg-white">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-gray-900">{result.extractedItem?.productName}</span>
+                          <span className="text-gray-400 mx-2">→</span>
+                          <span className="text-emerald-600">{result.rfqItem?.itemName}</span>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-medium">{result.extractedItem?.quantity || 1} × </span>
+                          <span className="font-bold text-gray-900">
+                            {currency === 'USD' ? '$' : '$'}{result.extractedItem?.unitPrice?.toFixed(2) || '0.00'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  {/* Show extra/unlinked items */}
+                  {aiMatchResult.matchResults
+                    .filter(r => r.status === 'extra')
+                    .map((result, idx) => (
+                      <div key={`extra-${idx}`} className="px-4 py-2 flex items-center gap-3 bg-amber-50">
+                        <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-gray-900">{result.extractedItem?.productName}</span>
+                          <span className="text-amber-600 ml-2 text-xs">(unlinked)</span>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-medium">{result.extractedItem?.quantity || 1} × </span>
+                          <span className="font-bold text-gray-900">
+                            {currency === 'USD' ? '$' : '$'}{result.extractedItem?.unitPrice?.toFixed(2) || '0.00'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+                {/* Delivery from PDF */}
+                {aiMatchResult.supplierInfo?.shipping && aiMatchResult.supplierInfo.shipping > 0 && (
+                  <div className="px-4 py-2 border-t bg-gray-50 flex justify-between">
+                    <span className="text-gray-600">Delivery/Shipping</span>
+                    <span className="font-bold">{formatCurrency(aiMatchResult.supplierInfo.shipping)}</span>
+                  </div>
+                )}
+                {/* Total from PDF */}
+                {aiMatchResult.supplierInfo?.total && (
+                  <div className="px-4 py-2 border-t bg-gray-100 flex justify-between">
+                    <span className="font-medium text-gray-900">Quote Total</span>
+                    <span className="font-bold text-emerald-600">{formatCurrency(aiMatchResult.supplierInfo.total)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Unified Item Cards - Product info + Price + Lead Time + Notes */}
             <div className="space-y-4">
