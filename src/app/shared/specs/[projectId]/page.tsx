@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   ExternalLink,
@@ -9,10 +9,7 @@ import {
   Image as ImageIcon,
   ChevronDown,
   Search,
-  List,
-  Grid3X3,
-  X,
-  Download
+  X
 } from 'lucide-react'
 
 interface SpecItem {
@@ -57,6 +54,7 @@ interface ShareSettings {
 
 export default function SharedSpecsPage() {
   const params = useParams()
+  const router = useRouter()
   const projectId = params.projectId as string
 
   const [loading, setLoading] = useState(true)
@@ -68,12 +66,6 @@ export default function SharedSpecsPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
 
-  const [imageLightbox, setImageLightbox] = useState<{
-    open: boolean
-    imageUrl: string
-    imageTitle: string
-  }>({ open: false, imageUrl: '', imageTitle: '' })
-
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     showSupplier: false,
     showBrand: true,
@@ -84,9 +76,9 @@ export default function SharedSpecsPage() {
   // UI State
   const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
-  const [selectedDetail, setSelectedDetail] = useState<SpecItem | null>(null)
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchSharedSpecs = async () => {
@@ -149,7 +141,9 @@ export default function SharedSpecsPage() {
           item.productName?.toLowerCase().includes(query) ||
           item.brand?.toLowerCase().includes(query) ||
           item.roomName.toLowerCase().includes(query) ||
-          item.sectionName.toLowerCase().includes(query)
+          item.sectionName.toLowerCase().includes(query) ||
+          item.sku?.toLowerCase().includes(query) ||
+          item.supplierName?.toLowerCase().includes(query)
         )
       }))
       .filter(group => group.items.length > 0)
@@ -173,6 +167,11 @@ export default function SharedSpecsPage() {
     })
     return costs
   }, [specs])
+
+  // Total filtered items count
+  const filteredItemsCount = useMemo(() => {
+    return filteredGroups.reduce((sum, group) => sum + group.items.length, 0)
+  }, [filteredGroups])
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategories(prev => {
@@ -216,6 +215,26 @@ export default function SharedSpecsPage() {
     return `Last Updated ${date.toLocaleDateString()}`
   }
 
+  const openItemDetail = (itemId: string) => {
+    router.push(`/shared/specs/${projectId}/item/${itemId}`)
+  }
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+      if (e.key === 'Escape' && isSearchFocused) {
+        setSearchQuery('')
+        searchInputRef.current?.blur()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSearchFocused])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -243,13 +262,11 @@ export default function SharedSpecsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Clean Header */}
+      {/* Header */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="max-w-[1400px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Left: Logo & Title */}
             <div className="flex items-center gap-4">
-              {/* Simple Logo Placeholder */}
               <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
                 <span className="text-xs font-medium text-gray-500">
                   {orgName.charAt(0) || 'M'}
@@ -263,7 +280,6 @@ export default function SharedSpecsPage() {
               </div>
             </div>
 
-            {/* Right: Last Updated */}
             {lastUpdated && (
               <div className="text-sm text-gray-400">
                 {formatLastUpdated(lastUpdated)}
@@ -335,53 +351,49 @@ export default function SharedSpecsPage() {
               )}
             </div>
 
-            {/* Right: Search & View Toggle */}
+            {/* Right: Search */}
             <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative">
+              <div className={cn(
+                "relative transition-all duration-200",
+                isSearchFocused ? "w-80" : "w-56"
+              )}>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
+                  ref={searchInputRef}
                   type="text"
-                  placeholder="Search"
+                  placeholder="Search Sections"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 w-48 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  className="pl-9 pr-16 py-2 w-full text-sm bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300"
                 />
-                {searchQuery && (
+                {searchQuery ? (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
+                ) : (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                    ⌘K
+                  </span>
                 )}
-              </div>
-
-              {/* View Toggle */}
-              <div className="flex items-center border border-gray-200 rounded-md overflow-hidden">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-1.5 transition-colors",
-                    viewMode === 'list' ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    "p-1.5 transition-colors",
-                    viewMode === 'grid' ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Search Results Count */}
+      {searchQuery && (
+        <div className="max-w-[1400px] mx-auto px-6 py-3 border-b border-gray-100 bg-gray-50">
+          <p className="text-sm text-gray-600">
+            Found <span className="font-medium">{filteredItemsCount}</span> items matching "{searchQuery}"
+          </p>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-[1400px] mx-auto px-6 py-6">
@@ -395,15 +407,14 @@ export default function SharedSpecsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {filteredGroups.map((group) => (
               <div
                 key={group.name}
                 ref={(el) => { sectionRefs.current[group.name] = el }}
-                className="bg-white"
               >
                 {/* Section Header */}
-                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                <div className="flex items-center justify-between py-2 mb-2">
                   <div className="flex items-center gap-3">
                     <h2 className="text-sm font-semibold text-gray-900">{group.name}</h2>
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -430,31 +441,18 @@ export default function SharedSpecsPage() {
                   </button>
                 </div>
 
-                {/* Items Table */}
+                {/* Items */}
                 {expandedCategories.has(group.name) && (
-                  <div className="mt-1">
+                  <div className="space-y-1">
                     {group.items.map((item) => (
                       <div
                         key={item.id}
-                        className="grid grid-cols-12 gap-3 py-4 border-b border-gray-50 hover:bg-gray-50/50 transition-colors items-start"
+                        onClick={() => openItemDetail(item.id)}
+                        className="grid grid-cols-12 gap-3 py-4 px-4 -mx-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors items-center group"
                       >
                         {/* Image */}
                         <div className="col-span-1">
-                          <div
-                            className={cn(
-                              "w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden",
-                              (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all"
-                            )}
-                            onClick={() => {
-                              if (item.thumbnailUrl || item.images?.[0]) {
-                                setImageLightbox({
-                                  open: true,
-                                  imageUrl: item.thumbnailUrl || item.images[0],
-                                  imageTitle: item.name
-                                })
-                              }
-                            }}
-                          >
+                          <div className="w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
                             {item.thumbnailUrl || item.images?.[0] ? (
                               <img
                                 src={item.thumbnailUrl || item.images[0]}
@@ -469,28 +467,23 @@ export default function SharedSpecsPage() {
 
                         {/* Name & Location */}
                         <div className="col-span-2 min-w-0">
-                          <div className="flex items-center gap-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                              {item.name}
+                            </p>
                             {item.supplierLink && (
-                              <a
-                                href={item.supplierLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
+                              <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
                             )}
                           </div>
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
-                          <p className="text-xs text-gray-500 mt-1">{item.roomName}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{item.roomName}</p>
                         </div>
 
-                        {/* Brand */}
+                        {/* Brand & Color */}
                         <div className="col-span-1 min-w-0">
                           {item.productName && (
                             <>
-                              <p className="text-sm text-gray-900 truncate">{item.productName}</p>
+                              <p className="text-sm text-gray-700 truncate">{item.productName}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Color</p>
                             </>
                           )}
@@ -502,88 +495,84 @@ export default function SharedSpecsPage() {
                           )}
                         </div>
 
-                        {/* Dimensions: Width, Length, Height, Depth */}
+                        {/* Dimensions or Financial */}
                         {activeTab === 'summary' ? (
                           <>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{item.width || '-'}</p>
+                              <p className="text-sm text-gray-700">{item.width || '-'}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Width (in)</p>
                             </div>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{item.length || '-'}</p>
+                              <p className="text-sm text-gray-700">{item.length || '-'}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Length (in)</p>
                             </div>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{item.height || '-'}</p>
+                              <p className="text-sm text-gray-700">{item.height || '-'}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Height (in)</p>
                             </div>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{item.depth || '-'}</p>
+                              <p className="text-sm text-gray-700">{item.depth || '-'}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Depth (in)</p>
                             </div>
                           </>
                         ) : (
-                          /* Financial Tab: Qty, Unit Price, Total Price, Unit RRP */
                           <>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{item.quantity || 0}</p>
+                              <p className="text-sm text-gray-700">{item.quantity || 0}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Qty</p>
                             </div>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{formatCurrency(item.rrp)}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Unit Client Price</p>
+                              <p className="text-sm text-gray-700">{formatCurrency(item.rrp)}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Unit Price</p>
                             </div>
                             <div className="col-span-1 text-center">
                               <p className="text-sm font-medium text-gray-900">
                                 {formatCurrency((item.rrp || 0) * (item.quantity || 1))}
                               </p>
-                              <p className="text-[10px] text-gray-400 uppercase">Total Client Price</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Total</p>
                             </div>
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-900">{formatCurrency(item.rrp)}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Unit RRP</p>
+                              <p className="text-sm text-gray-700">{formatCurrency(item.rrp)}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">RRP</p>
                             </div>
                           </>
                         )}
 
-                        {/* Qty */}
+                        {/* Qty (Summary only) */}
                         {activeTab === 'summary' && (
                           <div className="col-span-1 text-center">
-                            <p className="text-sm text-gray-900">{item.quantity || 0}</p>
+                            <p className="text-sm text-gray-700">{item.quantity || 0}</p>
                             <p className="text-[10px] text-gray-400 uppercase">Qty</p>
                           </div>
                         )}
 
                         {/* Lead Time */}
                         <div className="col-span-1 text-center">
-                          <p className="text-sm text-gray-900">{item.leadTime || '-'}</p>
+                          <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
                           <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
                         </div>
 
                         {/* Vendor */}
                         <div className="col-span-1 min-w-0">
-                          {item.supplierName && (
+                          {item.supplierName ? (
                             <>
-                              <p className="text-sm text-gray-900 truncate">{item.supplierName}</p>
+                              <p className="text-sm text-gray-700 truncate">{item.supplierName}</p>
                               <p className="text-[10px] text-gray-400 uppercase">Vendor</p>
                             </>
+                          ) : (
+                            <p className="text-sm text-gray-400">-</p>
                           )}
                         </div>
 
                         {/* Status & Details */}
                         <div className="col-span-1 flex flex-col items-end gap-2">
-                          {/* Draft indicator */}
                           <div className="flex items-center gap-1.5 text-xs text-gray-400">
                             <div className="w-3 h-3 rounded-full border border-gray-300" />
                             <span>{item.specStatus === 'DRAFT' ? 'Draft' : item.specStatus || 'Draft'}</span>
                           </div>
-                          {/* Details button */}
-                          <button
-                            onClick={() => setSelectedDetail(item)}
-                            className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                          >
+                          <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors">
                             Details
-                          </button>
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -594,206 +583,6 @@ export default function SharedSpecsPage() {
           </div>
         )}
       </main>
-
-      {/* Details Modal */}
-      {selectedDetail && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedDetail(null)}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">{selectedDetail.name}</h3>
-              <button
-                onClick={() => setSelectedDetail(null)}
-                className="p-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6">
-              <div className="flex gap-6">
-                {/* Image */}
-                {(selectedDetail.thumbnailUrl || selectedDetail.images?.[0]) && (
-                  <div className="flex-shrink-0">
-                    <img
-                      src={selectedDetail.thumbnailUrl || selectedDetail.images[0]}
-                      alt={selectedDetail.name}
-                      className="w-48 h-48 object-cover rounded-lg border border-gray-200"
-                    />
-                  </div>
-                )}
-
-                {/* Details */}
-                <div className="flex-1 space-y-4">
-                  {/* Location */}
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase mb-1">Location</p>
-                    <p className="text-sm text-gray-900">{selectedDetail.roomName} • {selectedDetail.sectionName}</p>
-                  </div>
-
-                  {/* Product & Brand */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedDetail.productName && (
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase mb-1">Product</p>
-                        <p className="text-sm text-gray-900">{selectedDetail.productName}</p>
-                      </div>
-                    )}
-                    {selectedDetail.brand && (
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase mb-1">Brand</p>
-                        <p className="text-sm text-gray-900">{selectedDetail.brand}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Dimensions */}
-                  <div className="grid grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-1">Width</p>
-                      <p className="text-sm text-gray-900">{selectedDetail.width || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-1">Length</p>
-                      <p className="text-sm text-gray-900">{selectedDetail.length || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-1">Height</p>
-                      <p className="text-sm text-gray-900">{selectedDetail.height || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-1">Depth</p>
-                      <p className="text-sm text-gray-900">{selectedDetail.depth || '-'}</p>
-                    </div>
-                  </div>
-
-                  {/* Quantity & Lead Time */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase mb-1">Quantity</p>
-                      <p className="text-sm text-gray-900">{selectedDetail.quantity || 1}</p>
-                    </div>
-                    {selectedDetail.leadTime && (
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase mb-1">Lead Time</p>
-                        <p className="text-sm text-gray-900">{selectedDetail.leadTime}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Material Details */}
-                  {(selectedDetail.color || selectedDetail.finish || selectedDetail.material) && (
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="flex flex-wrap gap-2">
-                        {selectedDetail.color && (
-                          <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 rounded text-xs text-gray-700">
-                            <span className="w-2 h-2 rounded-full bg-gray-400 mr-1.5" />
-                            {selectedDetail.color}
-                          </span>
-                        )}
-                        {selectedDetail.finish && (
-                          <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 rounded text-xs text-gray-700">
-                            {selectedDetail.finish}
-                          </span>
-                        )}
-                        {selectedDetail.material && (
-                          <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 rounded text-xs text-gray-700">
-                            {selectedDetail.material}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {selectedDetail.description && (
-                    <div className="pt-3 border-t border-gray-100">
-                      <p className="text-xs text-gray-400 uppercase mb-1">Description</p>
-                      <p className="text-sm text-gray-600">{selectedDetail.description}</p>
-                    </div>
-                  )}
-
-                  {/* Supplier Link */}
-                  {selectedDetail.supplierLink && (
-                    <div className="pt-3">
-                      <a
-                        href={selectedDetail.supplierLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        View Product
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Lightbox */}
-      {imageLightbox.open && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
-          onClick={() => setImageLightbox(prev => ({ ...prev, open: false }))}
-        >
-          <div
-            className="relative max-w-5xl max-h-[90vh] p-4 w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-medium truncate pr-4">
-                {imageLightbox.imageTitle}
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch(imageLightbox.imageUrl)
-                      const blob = await response.blob()
-                      const url = window.URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = imageLightbox.imageTitle || 'image.jpg'
-                      document.body.appendChild(a)
-                      a.click()
-                      window.URL.revokeObjectURL(url)
-                      document.body.removeChild(a)
-                    } catch (error) {
-                      console.error('Error downloading image:', error)
-                    }
-                  }}
-                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setImageLightbox(prev => ({ ...prev, open: false }))}
-                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <img
-              src={imageLightbox.imageUrl}
-              alt={imageLightbox.imageTitle}
-              className="max-w-full max-h-[80vh] object-contain mx-auto rounded-lg shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
