@@ -884,13 +884,20 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 const showLeadTimeError = showValidationErrors && !hasLeadTime
                 const showNotesError = showValidationErrors && needsNotes && !lineItem?.notes?.trim()
 
-                // Build specs line
+                // Build specs line - avoid duplicates
                 const specParts: string[] = []
                 if (specs?.brand) specParts.push(specs.brand)
-                if (specs?.sku) specParts.push(`SKU: ${specs.sku}`)
-                if (specs?.modelNumber) specParts.push(`Model: ${specs.modelNumber}`)
+                // Only show SKU or Model if different, prefer SKU
+                if (specs?.sku && specs?.modelNumber && specs.sku !== specs.modelNumber) {
+                  specParts.push(specs.sku)
+                  specParts.push(specs.modelNumber)
+                } else if (specs?.sku) {
+                  specParts.push(specs.sku)
+                } else if (specs?.modelNumber) {
+                  specParts.push(specs.modelNumber)
+                }
                 if (specs?.color) specParts.push(specs.color)
-                if (specs?.finish) specParts.push(specs.finish)
+                if (specs?.finish && specs.finish !== specs?.color) specParts.push(specs.finish)
                 if (specs?.material) specParts.push(specs.material)
                 if (specs?.width || specs?.height || specs?.depth || specs?.length) {
                   const dims = [specs?.width && `W:${specs.width}`, specs?.height && `H:${specs.height}`, specs?.depth && `D:${specs.depth}`, specs?.length && `L:${specs.length}`].filter(Boolean).join(' ')
