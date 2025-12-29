@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes } = body
+    const { name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes, markupPercent } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Business name is required' }, { status: 400 })
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
         address: address || null,
         website: website || null,
         notes: notes || null,
+        markupPercent: markupPercent != null ? parseFloat(markupPercent) : null,
         createdById: userId
       }
     })
@@ -140,7 +141,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes, isActive } = body
+    const { id, name, contactName, logo, phone, email, emails, category, categoryId, currency, address, website, notes, markupPercent, isActive } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 })
@@ -185,6 +186,7 @@ export async function PATCH(request: NextRequest) {
         ...(address !== undefined && { address }),
         ...(website !== undefined && { website }),
         ...(notes !== undefined && { notes }),
+        ...(markupPercent !== undefined && { markupPercent: markupPercent != null ? parseFloat(markupPercent) : null }),
         ...(isActive !== undefined && { isActive })
       }
     })

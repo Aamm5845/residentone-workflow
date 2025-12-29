@@ -1710,6 +1710,7 @@ model Supplier {
   address     String?  // Address (optional)
   website     String?  // Website (optional)
   notes       String?  // Notes (optional)
+  markupPercent Decimal? // Fixed markup percentage for this supplier (overrides category markup)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

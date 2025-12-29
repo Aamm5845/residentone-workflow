@@ -30,7 +30,8 @@ import {
   Settings,
   Check,
   FileText,
-  History
+  History,
+  Percent
 } from 'lucide-react'
 
 // Flag icons as SVG components
@@ -151,6 +152,7 @@ interface Supplier {
   address?: string
   website?: string
   notes?: string
+  markupPercent?: number | null
   isActive: boolean
   createdAt: string
 }
@@ -175,7 +177,8 @@ const emptySupplier = {
   phone: '',
   address: '',
   website: '',
-  notes: ''
+  notes: '',
+  markupPercent: '' as string
 }
 
 export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookProps) {
@@ -323,7 +326,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
         body: JSON.stringify({
           ...formData,
           emails: formData.emails.length > 0 ? formData.emails : null,
-          categoryId: formData.categoryId || null
+          categoryId: formData.categoryId || null,
+          markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : null
         })
       })
 
@@ -370,7 +374,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           id: editingSupplier.id,
           ...formData,
           emails: formData.emails.length > 0 ? formData.emails : null,
-          categoryId: formData.categoryId || null
+          categoryId: formData.categoryId || null,
+          markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : null
         })
       })
 
@@ -456,7 +461,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       phone: supplier.phone || '',
       address: supplier.address || '',
       website: supplier.website || '',
-      notes: supplier.notes || ''
+      notes: supplier.notes || '',
+      markupPercent: supplier.markupPercent != null ? String(supplier.markupPercent) : ''
     })
     setShowEditDialog(true)
   }
@@ -635,6 +641,25 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           </button>
         </div>
         <p className="text-xs text-slate-500">All prices from this supplier will be in this currency</p>
+      </div>
+
+      {/* Fixed Markup */}
+      <div className="space-y-2">
+        <Label className="text-slate-700 font-medium">Fixed Markup %</Label>
+        <div className="relative">
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            max="100"
+            value={formData.markupPercent}
+            onChange={(e) => setFormData(prev => ({ ...prev, markupPercent: e.target.value }))}
+            placeholder="e.g. 15"
+            className="h-11 pr-10"
+          />
+          <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        </div>
+        <p className="text-xs text-slate-500">Leave empty to use category markup. This overrides category markup for this supplier.</p>
       </div>
 
       {/* Business Info */}
@@ -947,6 +972,14 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                           <USAFlag className="w-4 h-3 rounded-sm" /> USD
                         </Badge>
                       )}
+                      {supplier.markupPercent != null && (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-medium px-2 py-0.5 bg-amber-50 text-amber-600 flex items-center gap-1"
+                        >
+                          <Percent className="w-3 h-3" /> {supplier.markupPercent}%
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -1060,12 +1093,12 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                     >
                       {getCategoryInfo(viewingSupplier.categoryId, viewingSupplier.supplierCategory).name}
                     </Badge>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={cn(
                         "text-sm font-medium",
-                        viewingSupplier.currency === 'USD' 
-                          ? "bg-blue-50 text-blue-600" 
+                        viewingSupplier.currency === 'USD'
+                          ? "bg-blue-50 text-blue-600"
                           : "bg-emerald-50 text-emerald-600"
                       )}
                     >
@@ -1076,6 +1109,17 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
                         }
                       </span>
                     </Badge>
+                    {viewingSupplier.markupPercent != null && (
+                      <Badge
+                        variant="secondary"
+                        className="text-sm font-medium bg-amber-50 text-amber-600"
+                      >
+                        <span className="flex items-center gap-1">
+                          <Percent className="w-3 h-3" />
+                          {viewingSupplier.markupPercent}% markup
+                        </span>
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
