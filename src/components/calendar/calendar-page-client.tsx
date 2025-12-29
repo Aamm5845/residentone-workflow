@@ -21,6 +21,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import { getHebrewHolidaysForMonth, HebrewHoliday } from '@/lib/hebrew-holidays'
+import { getCanadianHolidaysForMonth, CanadianHoliday } from '@/lib/canadian-holidays'
+
+type Holiday = (HebrewHoliday | CanadianHoliday) & { source: 'hebrew' | 'canadian' }
 import Link from 'next/link'
 
 interface CalendarTask {
@@ -179,10 +182,12 @@ export default function CalendarPageClient({
   const currentMonth = currentDate.getMonth()
   const currentYear = currentDate.getFullYear()
   
-  // Get Hebrew holidays for the current month
-  const hebrewHolidays = useMemo(() => {
+  // Get all holidays for the current month (Hebrew + Canadian)
+  const allHolidays = useMemo((): Holiday[] => {
     if (!showHolidays) return []
-    return getHebrewHolidaysForMonth(currentYear, currentMonth)
+    const hebrew = getHebrewHolidaysForMonth(currentYear, currentMonth).map(h => ({ ...h, source: 'hebrew' as const }))
+    const canadian = getCanadianHolidaysForMonth(currentYear, currentMonth).map(h => ({ ...h, source: 'canadian' as const }))
+    return [...hebrew, ...canadian].sort((a, b) => a.date.getTime() - b.date.getTime())
   }, [currentYear, currentMonth, showHolidays])
 
   // Get first day of the month and how many days are in the month
@@ -245,7 +250,50 @@ export default function CalendarPageClient({
   
   const getHolidaysForDate = (day: number | null) => {
     if (!day || !showHolidays) return []
-    return hebrewHolidays.filter(holiday => holiday.date.getDate() === day)
+    return allHolidays.filter(holiday => holiday.date.getDate() === day)
+  }
+
+  const getHolidayColor = (holiday: Holiday) => {
+    if (holiday.source === 'canadian') {
+      return 'bg-gradient-to-r from-red-500 to-red-600'
+    }
+    const hebrewHoliday = holiday as HebrewHoliday & { source: string }
+    const colorMap: Record<string, string> = {
+      'major': 'bg-gradient-to-r from-purple-500 to-purple-600',
+      'minor': 'bg-gradient-to-r from-blue-400 to-blue-500',
+      'fast': 'bg-gradient-to-r from-gray-500 to-gray-600',
+      'modern': 'bg-gradient-to-r from-teal-400 to-teal-500'
+    }
+    return colorMap[hebrewHoliday.type] || 'bg-gradient-to-r from-gray-400 to-gray-500'
+  }
+
+  const getHolidayIcon = (holiday: Holiday) => {
+    if (holiday.source === 'canadian') {
+      if (holiday.name.includes('Canada Day')) return '🇨🇦'
+      if (holiday.name.includes('Victoria Day')) return '👑'
+      if (holiday.name.includes('Thanksgiving')) return '🦃'
+      if (holiday.name.includes('Christmas')) return '🎄'
+      if (holiday.name.includes('Boxing')) return '🎁'
+      if (holiday.name.includes('New Year')) return '🎆'
+      if (holiday.name.includes('Good Friday') || holiday.name.includes('Easter')) return '✝️'
+      if (holiday.name.includes('Labour')) return '👷'
+      if (holiday.name.includes('Remembrance')) return '🌺'
+      if (holiday.name.includes('Family')) return '👨‍👩‍👧‍👦'
+      if (holiday.name.includes('Truth')) return '🧡'
+      if (holiday.name.includes('Civic')) return '🏛️'
+      return '🍁'
+    }
+    if (holiday.name.includes('Hanukkah')) return '🕎'
+    if (holiday.name.includes('Passover')) return '🍷'
+    if (holiday.name.includes('Rosh Hashanah')) return '🍎'
+    if (holiday.name.includes('Yom Kippur')) return '🙏'
+    if (holiday.name.includes('Sukkot')) return '🏕️'
+    if (holiday.name.includes('Purim')) return '🎭'
+    if (holiday.name.includes('Tu BiShvat')) return '🌳'
+    if (holiday.name.includes('Shavot')) return '📜'
+    if (holiday.name.includes('Independence')) return '🇮🇱'
+    if (holiday.name.includes('Holocaust')) return '🕯️'
+    return '✡️'
   }
 
   // Phase colors matching the brand
@@ -415,15 +463,15 @@ export default function CalendarPageClient({
                       {isToday && <span className="text-[10px] text-cyan-500 font-medium">Today</span>}
                     </div>
                     <div className="space-y-0.5">
-                      {/* Hebrew Holidays */}
+                      {/* Holidays (Hebrew + Canadian) */}
                       {holidaysForDay.map((holiday) => (
                         <div
                           key={holiday.id}
-                          className="text-[10px] p-1 rounded text-white bg-gradient-to-r from-purple-500 to-purple-600"
-                          title={`${holiday.name} (${holiday.hebrewName}) - ${holiday.description}`}
+                          className={`text-[10px] p-1 rounded text-white ${getHolidayColor(holiday)}`}
+                          title={`${holiday.name}${holiday.source === 'hebrew' ? ` (${(holiday as HebrewHoliday).hebrewName})` : ''} - ${holiday.description}`}
                         >
                           <div className="truncate font-medium flex items-center space-x-0.5">
-                            <span>✡️</span>
+                            <span>{getHolidayIcon(holiday)}</span>
                             <span>{holiday.name.length > 10 ? `${holiday.name.substring(0, 10)}...` : holiday.name}</span>
                           </div>
                         </div>

@@ -98,6 +98,7 @@ import {
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import ImageEditorModal from '@/components/image/ImageEditorModal'
+import CreateSpecShareLinkDialog from '@/components/specs/CreateSpecShareLinkDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
@@ -525,7 +526,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     showDetails: true
   })
   const [savingShareSettings, setSavingShareSettings] = useState(false)
-  
+  const [shareTab, setShareTab] = useState<'publish' | 'links'>('links')
+  const [shareLinks, setShareLinks] = useState<any[]>([])
+  const [loadingShareLinks, setLoadingShareLinks] = useState(false)
+  const [createShareLinkOpen, setCreateShareLinkOpen] = useState(false)
+  const [editingShareLink, setEditingShareLink] = useState<any>(null)
+
   // Image editor modal state
   const [imageEditorModal, setImageEditorModal] = useState<{
     open: boolean
@@ -2496,6 +2502,43 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
+  // Load share links
+  const loadShareLinks = async () => {
+    setLoadingShareLinks(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/spec-share-links`)
+      if (res.ok) {
+        const data = await res.json()
+        setShareLinks(data.shareLinks || [])
+      }
+    } catch (error) {
+      console.error('Failed to load share links:', error)
+    } finally {
+      setLoadingShareLinks(false)
+    }
+  }
+
+  // Delete share link
+  const handleDeleteShareLink = async (linkId: string) => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}/spec-share-links/${linkId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        toast.success('Link deleted')
+        loadShareLinks()
+      }
+    } catch (error) {
+      toast.error('Failed to delete link')
+    }
+  }
+
+  // Copy share link URL
+  const copyShareLinkUrl = (url: string) => {
+    navigator.clipboard.writeText(url)
+    toast.success('Link copied!')
+  }
+
   // Save share settings
   const handleSaveShareSettings = async (newSettings: typeof shareSettings) => {
     setSavingShareSettings(true)
@@ -2690,12 +2733,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DollarSign className="w-4 h-4 mr-1.5" />
                 Client Quote {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
-              <Button 
-                variant="default" 
-                size="sm" 
+              <Button
+                variant="default"
+                size="sm"
                 className="bg-gray-900 hover:bg-gray-800"
                 onClick={() => {
                   loadShareSettings()
+                  loadShareLinks()
                   setShareModal(true)
                 }}
               >
@@ -6526,136 +6570,251 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       {/* Share Modal */}
       <Dialog open={shareModal} onOpenChange={setShareModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Share2 className="w-5 h-5 text-gray-700" />
               Share Schedule
             </DialogTitle>
-            <DialogDescription>
-              Generate a shareable link for clients and collaborators.
-            </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            {/* Publish Toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium text-gray-900">Publish to Web</h4>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  Generate a live link to your online schedule
-                </p>
+
+          {/* Tabs */}
+          <div className="flex border-b">
+            <button
+              onClick={() => setShareTab('links')}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                shareTab === 'links'
+                  ? "border-emerald-600 text-emerald-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              )}
+            >
+              Share Links
+            </button>
+            <button
+              onClick={() => setShareTab('publish')}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                shareTab === 'publish'
+                  ? "border-emerald-600 text-emerald-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              )}
+            >
+              Publish All
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto py-4">
+            {shareTab === 'links' ? (
+              <div className="space-y-4">
+                {/* Create New Link Button */}
+                <Button
+                  onClick={() => {
+                    setEditingShareLink(null)
+                    setCreateShareLinkOpen(true)
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Share Link
+                </Button>
+
+                {/* Share Links List */}
+                {loadingShareLinks ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                  </div>
+                ) : shareLinks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">
+                    <LinkIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p>No share links yet</p>
+                    <p className="text-xs mt-1">Create a link to share specific items</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {shareLinks.map((link) => (
+                      <div
+                        key={link.id}
+                        className={cn(
+                          "border rounded-lg p-3",
+                          link.isExpired ? "bg-gray-50 border-gray-200" : "bg-white border-gray-200"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900 truncate">
+                                {link.name || 'Untitled Link'}
+                              </span>
+                              {link.isExpired && (
+                                <Badge variant="secondary" className="text-xs bg-red-50 text-red-600">
+                                  Expired
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+                              <span>{link.itemCount} items</span>
+                              {link.showPricing && <span>• with pricing</span>}
+                              {link.expiresAt && !link.isExpired && (
+                                <span>• expires {new Date(link.expiresAt).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                            {link.accessCount > 0 && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Viewed {link.accessCount} time{link.accessCount !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => copyShareLinkUrl(link.shareUrl)}
+                              title="Copy link"
+                            >
+                              <ClipboardCopy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => window.open(link.shareUrl, '_blank')}
+                              title="Open link"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setEditingShareLink(link)
+                                  setCreateShareLinkOpen(true)
+                                }}>
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteShareLink(link.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Switch
-                checked={shareSettings.isPublished}
-                onCheckedChange={handleTogglePublish}
-                disabled={savingShareSettings}
-              />
-            </div>
-            
-            {shareSettings.isPublished && (
-              <>
-                {/* Help Link */}
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <HelpCircle className="w-4 h-4" />
-                  <span>Help guide</span>
+            ) : (
+              <div className="space-y-6">
+                {/* Publish Toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-gray-900">Publish to Web</h4>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      Share entire schedule with everyone
+                    </p>
+                  </div>
+                  <Switch
+                    checked={shareSettings.isPublished}
+                    onCheckedChange={handleTogglePublish}
+                    disabled={savingShareSettings}
+                  />
                 </div>
-                
-                {/* Share URL */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 relative">
-                      <Input
-                        value={shareSettings.shareUrl}
-                        readOnly
-                        className="pr-24 text-sm bg-gray-50"
-                      />
+
+                {shareSettings.isPublished && (
+                  <>
+                    {/* Share URL */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={shareSettings.shareUrl}
+                          readOnly
+                          className="text-sm bg-gray-50"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                          onClick={copyShareUrl}
+                        >
+                          <ClipboardCopy className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                          onClick={() => window.open(shareSettings.shareUrl, '_blank')}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      onClick={copyShareUrl}
-                      title="Copy link"
-                    >
-                      <ClipboardCopy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      onClick={() => window.open(shareSettings.shareUrl, '_blank')}
-                      title="Open link"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      onClick={() => toast('QR code feature coming soon')}
-                      title="Show QR code"
-                    >
-                      <QrCode className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Visibility Options */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-700">View supplier</span>
-                    <Switch
-                      checked={shareSettings.showSupplier}
-                      onCheckedChange={(checked) => {
-                        const newSettings = { ...shareSettings, showSupplier: checked }
-                        setShareSettings(newSettings)
-                        handleSaveShareSettings(newSettings)
-                      }}
-                      disabled={savingShareSettings}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-700">View brand</span>
-                    <Switch
-                      checked={shareSettings.showBrand}
-                      onCheckedChange={(checked) => {
-                        const newSettings = { ...shareSettings, showBrand: checked }
-                        setShareSettings(newSettings)
-                        handleSaveShareSettings(newSettings)
-                      }}
-                      disabled={savingShareSettings}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-700">View pricing</span>
-                    <Switch
-                      checked={shareSettings.showPricing}
-                      onCheckedChange={(checked) => {
-                        const newSettings = { ...shareSettings, showPricing: checked }
-                        setShareSettings(newSettings)
-                        handleSaveShareSettings(newSettings)
-                      }}
-                      disabled={savingShareSettings}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-700">View details</span>
-                    <Switch
-                      checked={shareSettings.showDetails}
-                      onCheckedChange={(checked) => {
-                        const newSettings = { ...shareSettings, showDetails: checked }
-                        setShareSettings(newSettings)
-                        handleSaveShareSettings(newSettings)
-                      }}
-                      disabled={savingShareSettings}
-                    />
-                  </div>
-                </div>
-              </>
+
+                    {/* Visibility Options */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">View supplier</span>
+                        <Switch
+                          checked={shareSettings.showSupplier}
+                          onCheckedChange={(checked) => {
+                            const newSettings = { ...shareSettings, showSupplier: checked }
+                            setShareSettings(newSettings)
+                            handleSaveShareSettings(newSettings)
+                          }}
+                          disabled={savingShareSettings}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">View brand</span>
+                        <Switch
+                          checked={shareSettings.showBrand}
+                          onCheckedChange={(checked) => {
+                            const newSettings = { ...shareSettings, showBrand: checked }
+                            setShareSettings(newSettings)
+                            handleSaveShareSettings(newSettings)
+                          }}
+                          disabled={savingShareSettings}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">View pricing</span>
+                        <Switch
+                          checked={shareSettings.showPricing}
+                          onCheckedChange={(checked) => {
+                            const newSettings = { ...shareSettings, showPricing: checked }
+                            setShareSettings(newSettings)
+                            handleSaveShareSettings(newSettings)
+                          }}
+                          disabled={savingShareSettings}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">View details</span>
+                        <Switch
+                          checked={shareSettings.showDetails}
+                          onCheckedChange={(checked) => {
+                            const newSettings = { ...shareSettings, showDetails: checked }
+                            setShareSettings(newSettings)
+                            handleSaveShareSettings(newSettings)
+                          }}
+                          disabled={savingShareSettings}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShareModal(false)}>
               Close
@@ -6663,6 +6822,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create/Edit Share Link Dialog */}
+      <CreateSpecShareLinkDialog
+        open={createShareLinkOpen}
+        onOpenChange={setCreateShareLinkOpen}
+        projectId={project.id}
+        items={allItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          roomName: item.roomName || 'Room',
+          categoryName: item.categoryName || 'General',
+          thumbnailUrl: item.thumbnailUrl
+        }))}
+        onLinkCreated={loadShareLinks}
+        editingLink={editingShareLink}
+      />
       
       {/* Item Detail Panel */}
       <ItemDetailPanel

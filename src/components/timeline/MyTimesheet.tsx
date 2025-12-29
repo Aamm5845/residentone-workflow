@@ -258,12 +258,14 @@ export function MyTimesheet({ userId }: MyTimesheetProps) {
           const dayEntries = entriesByDate[dateStr] || []
           
           return (
-            <Card 
-              key={dateStr} 
+            <Card
+              key={dateStr}
               className={cn(
                 "text-center cursor-pointer hover:border-cyan-300 transition-colors",
-                isToday(day) && "border-cyan-500 bg-cyan-50"
+                isToday(day) && "border-cyan-500 bg-cyan-50",
+                selectedDate.toDateString() === day.toDateString() && !isToday(day) && "border-cyan-400 bg-cyan-50/50"
               )}
+              onClick={() => setSelectedDate(day)}
             >
               <CardContent className="p-3">
                 <div className="text-xs text-gray-500 uppercase">

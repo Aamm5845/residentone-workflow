@@ -179,6 +179,8 @@ model User {
   // Item quote request and activity tracking
   itemQuoteRequestsSent       ItemQuoteRequest[]          @relation("QuoteRequestSentBy")
   itemActivities              ItemActivity[]              @relation("ItemActivityActor")
+  // Spec share links
+  createdSpecShareLinks       SpecShareLink[]             @relation("SpecShareLinkCreatedBy")
 }
 
 model Client {
@@ -286,6 +288,8 @@ model Project {
   orders                    Order[]                    @relation("ProjectOrders")
   supplierMessages          SupplierMessage[]          @relation("ProjectSupplierMessages")
   shopDrawings              SupplierShopDrawing[]      @relation("ProjectShopDrawings")
+  // Spec share links
+  specShareLinks            SpecShareLink[]            @relation("ProjectSpecShareLinks")
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -3651,4 +3655,47 @@ model SupplierShopDrawing {
   @@index([supplierId])
   @@index([projectId])
   @@index([status])
+}
+
+// Spec Share Links - shareable links for specs with customizable visibility
+model SpecShareLink {
+  id             String    @id @default(cuid())
+  projectId      String
+
+  // Link identification
+  token          String    @unique @default(cuid())
+  name           String?   // e.g., "Client", "Contractor", "Architect"
+
+  // Item selection - array of RoomFFEItem IDs to share
+  itemIds        String[]
+
+  // Visibility settings
+  showSupplier   Boolean   @default(false)
+  showBrand      Boolean   @default(true)
+  showPricing    Boolean   @default(false)
+  showDetails    Boolean   @default(true)
+
+  // Expiry (optional - null means no expiry)
+  expiresAt      DateTime?
+
+  // Status
+  active         Boolean   @default(true)
+
+  // Tracking
+  viewedAt       DateTime?
+  lastAccessedAt DateTime?
+  accessCount    Int       @default(0)
+
+  // Audit
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  project        Project   @relation("ProjectSpecShareLinks", fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy      User      @relation("SpecShareLinkCreatedBy", fields: [createdById], references: [id])
+
+  @@index([projectId])
+  @@index([token])
+  @@index([active])
 }
