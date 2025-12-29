@@ -305,28 +305,27 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   }
 
   const handleSubmit = async () => {
-    // If no PDF uploaded, require prices and lead times
-    if (!uploadedFile) {
-      setShowValidationErrors(true)
+    setShowValidationErrors(true)
 
-      // Validate prices
+    // Validate lead times (always required)
+    const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
+    if (hasEmptyLeadTimes) {
+      toast.error('Please select lead time for all items')
+      return
+    }
+
+    // Validate notes required for "See notes" lead time
+    const hasMissingNotes = lineItems.some(item => item.leadTime === 'See notes' && !item.notes?.trim())
+    if (hasMissingNotes) {
+      toast.error('Please enter notes for items with "See notes" lead time')
+      return
+    }
+
+    // If no PDF uploaded, also require prices
+    if (!uploadedFile) {
       const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
       if (hasEmptyPrices) {
         toast.error('Please enter a price for all items')
-        return
-      }
-
-      // Validate lead times
-      const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
-      if (hasEmptyLeadTimes) {
-        toast.error('Please select lead time for all items')
-        return
-      }
-
-      // Validate notes required for "See notes" lead time
-      const hasMissingNotes = lineItems.some(item => item.leadTime === 'See notes' && !item.notes?.trim())
-      if (hasMissingNotes) {
-        toast.error('Please enter notes for items with "See notes" lead time')
         return
       }
     }
