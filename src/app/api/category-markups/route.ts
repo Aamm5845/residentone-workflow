@@ -19,10 +19,18 @@ export async function GET(request: NextRequest) {
 
     const markups = await prisma.categoryMarkup.findMany({
       where: { orgId },
-      orderBy: { category: 'asc' }
+      orderBy: { categoryName: 'asc' }
     })
 
-    return NextResponse.json({ markups })
+    // Map to expected format
+    const formattedMarkups = markups.map(m => ({
+      id: m.id,
+      category: m.categoryName,
+      markupPercentage: Number(m.markupPercent),
+      isActive: m.isActive
+    }))
+
+    return NextResponse.json({ markups: formattedMarkups })
   } catch (error) {
     console.error('Error fetching category markups:', error)
     return NextResponse.json(
@@ -62,24 +70,26 @@ export async function POST(request: NextRequest) {
     // Upsert - create or update
     const markup = await prisma.categoryMarkup.upsert({
       where: {
-        orgId_category: {
+        orgId_categoryName: {
           orgId,
-          category
+          categoryName: category
         }
       },
       create: {
         orgId,
-        category,
-        markupPercentage: parseFloat(markupPercentage),
-        description
+        categoryName: category,
+        markupPercent: parseFloat(markupPercentage)
       },
       update: {
-        markupPercentage: parseFloat(markupPercentage),
-        description
+        markupPercent: parseFloat(markupPercentage)
       }
     })
 
-    return NextResponse.json(markup)
+    return NextResponse.json({
+      id: markup.id,
+      category: markup.categoryName,
+      markupPercentage: Number(markup.markupPercent)
+    })
   } catch (error) {
     console.error('Error saving category markup:', error)
     return NextResponse.json(
@@ -118,9 +128,9 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.categoryMarkup.delete({
       where: {
-        orgId_category: {
+        orgId_categoryName: {
           orgId,
-          category
+          categoryName: category
         }
       }
     })
