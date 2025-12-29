@@ -30,7 +30,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, Search, DollarSign, Percent, AlertCircle, Package, ChevronDown, ChevronRight } from 'lucide-react'
+import { Loader2, Search, DollarSign, Percent, AlertCircle, Package, ChevronDown, ChevronRight, CheckCircle, Send, Printer, Mail, FileText, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -58,6 +58,8 @@ interface SpecItem {
   // Supplier info
   supplierName?: string
   brand?: string
+  // Images
+  images?: string[]
 }
 
 interface LineItem {
@@ -73,6 +75,8 @@ interface LineItem {
   sellingPrice: number
   totalPrice: number
   roomName?: string
+  hasRrp?: boolean // True if RRP was used (markup is calculated, not editable)
+  imageUrl?: string // First image URL
 }
 
 interface CategoryMarkup {
@@ -90,6 +94,12 @@ export default function CreateClientQuoteDialog({
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  // Created quote data (for Step 3 preview)
+  const [createdQuote, setCreatedQuote] = useState<any>(null)
+  const [clientEmail, setClientEmail] = useState('')
+  const [clientName, setClientName] = useState('')
 
   // Form data - Step 1
   const [title, setTitle] = useState('')
@@ -111,13 +121,30 @@ export default function CreateClientQuoteDialog({
     if (open && projectId) {
       loadSpecItems()
       loadCategoryMarkups()
-      
+      loadProjectClient()
+
       // Set default valid until date (30 days from now)
       const defaultDate = new Date()
       defaultDate.setDate(defaultDate.getDate() + 30)
       setValidUntil(defaultDate.toISOString().split('T')[0])
     }
   }, [open, projectId])
+
+  const loadProjectClient = async () => {
+    if (!projectId) return
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`)
+      const project = await response.json()
+
+      if (response.ok && project?.client) {
+        setClientEmail(project.client.email || '')
+        setClientName(project.client.name || '')
+      }
+    } catch (error) {
+      console.error('Error loading project client:', error)
+    }
+  }
 
   // Build line items from preselected items
   useEffect(() => {
@@ -188,10 +215,27 @@ export default function CreateClientQuoteDialog({
   const buildLineItems = (items: SpecItem[]) => {
     const newLineItems: LineItem[] = items.map(item => {
       const category = item.category || item.sectionName || 'General'
-      const markup = getMarkupForCategory(category)
-      // Use tradePrice, then unitCost, then rrp as fallbacks for cost price
-      const costPrice = item.tradePrice || item.unitCost || item.rrp || 0
-      const sellingPrice = costPrice * (1 + markup / 100)
+      const defaultMarkupForCategory = getMarkupForCategory(category)
+
+      // Cost price is always trade price (or unitCost as fallback)
+      const costPrice = item.tradePrice || item.unitCost || 0
+
+      // If RRP exists, use it as selling price and calculate markup from it
+      // If no RRP, apply markup to trade price
+      let sellingPrice: number
+      let markupPercent: number
+
+      if (item.rrp && item.rrp > 0) {
+        // RRP already includes markup - use it directly
+        sellingPrice = item.rrp
+        // Calculate the actual markup percentage from RRP vs cost
+        markupPercent = costPrice > 0 ? ((item.rrp - costPrice) / costPrice) * 100 : 0
+      } else {
+        // No RRP - apply default markup to cost price
+        markupPercent = defaultMarkupForCategory
+        sellingPrice = costPrice * (1 + markupPercent / 100)
+      }
+
       const quantity = item.quantity || 1
 
       return {
@@ -203,10 +247,12 @@ export default function CreateClientQuoteDialog({
         quantity,
         unitType: item.unitType || 'units',
         costPrice,
-        markupPercent: markup,
+        markupPercent: Math.round(markupPercent * 100) / 100, // Round to 2 decimals
         sellingPrice,
         totalPrice: sellingPrice * quantity,
-        roomName: item.roomName
+        roomName: item.roomName,
+        hasRrp: !!(item.rrp && item.rrp > 0), // Track if RRP was used
+        imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined
       }
     })
 
@@ -289,21 +335,31 @@ export default function CreateClientQuoteDialog({
     return groups
   }, [lineItems])
 
+  // Tax rates (defaults - should match org settings)
+  const [gstRate] = useState(5)
+  const [qstRate] = useState(9.975)
+
   // Calculate totals
   const totals = useMemo(() => {
     const totalCost = lineItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0)
-    const totalRevenue = lineItems.reduce((sum, item) => sum + item.totalPrice, 0)
-    const grossProfit = totalRevenue - totalCost
-    const marginPercent = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0
+    const subtotal = lineItems.reduce((sum, item) => sum + item.totalPrice, 0)
+    const gstAmount = subtotal * (gstRate / 100)
+    const qstAmount = subtotal * (qstRate / 100)
+    const totalRevenue = subtotal + gstAmount + qstAmount
+    const grossProfit = subtotal - totalCost // Profit before taxes
+    const marginPercent = subtotal > 0 ? (grossProfit / subtotal) * 100 : 0
 
     return {
       totalCost,
+      subtotal,
+      gstAmount,
+      qstAmount,
       totalRevenue,
       grossProfit,
       marginPercent,
       depositAmount: depositRequired ? (totalRevenue * depositRequired / 100) : 0
     }
-  }, [lineItems, depositRequired])
+  }, [lineItems, depositRequired, gstRate, qstRate])
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -319,12 +375,12 @@ export default function CreateClientQuoteDialog({
 
   const handleCreate = async () => {
     if (!title.trim()) {
-      toast.error('Please enter a quote title')
+      toast.error('Please enter an invoice title')
       return
     }
 
     if (lineItems.length === 0) {
-      toast.error('Please add at least one item to the quote')
+      toast.error('Please add at least one item to the invoice')
       return
     }
 
@@ -370,16 +426,16 @@ export default function CreateClientQuoteDialog({
 
       if (response.ok) {
         const data = await response.json()
-        toast.success('Client quote created successfully!')
-        resetForm()
-        onSuccess(data.quote?.id || data.id)
+        setCreatedQuote(data.quote)
+        setStep(3) // Show preview step
+        toast.success('Invoice created! Review and send to client.')
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to create quote')
+        toast.error(error.error || 'Failed to create invoice')
       }
     } catch (error) {
-      console.error('Error creating client quote:', error)
-      toast.error('Failed to create quote')
+      console.error('Error creating client invoice:', error)
+      toast.error('Failed to create invoice')
     } finally {
       setSaving(false)
     }
@@ -396,6 +452,65 @@ export default function CreateClientQuoteDialog({
     setLineItems([])
     setSearchQuery('')
     setExpandedCategories(new Set())
+    setCreatedQuote(null)
+  }
+
+  const handleSendToClient = async () => {
+    if (!clientEmail) {
+      toast.error('Please enter client email')
+      return
+    }
+
+    if (!createdQuote?.id) {
+      toast.error('Invoice not found')
+      return
+    }
+
+    setSending(true)
+    try {
+      const response = await fetch('/api/client-quotes/send-to-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: createdQuote.id,
+          clientEmail,
+          clientName: clientName || undefined
+        })
+      })
+
+      if (response.ok) {
+        toast.success(`Invoice sent to ${clientEmail}`)
+        handleFinish()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to send invoice')
+      }
+    } catch (error) {
+      toast.error('Failed to send invoice')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handlePrintQuote = () => {
+    if (!createdQuote?.id) return
+    // Open PDF in new tab for printing
+    window.open(`/api/client-quotes/${createdQuote.id}/pdf`, '_blank')
+  }
+
+  const handleViewQuote = () => {
+    if (!createdQuote?.id) return
+    // Open clean client-facing invoice view
+    window.open(`/client/invoice/${createdQuote.id}`, '_blank')
+  }
+
+  const handleFinish = () => {
+    const quoteId = createdQuote?.id
+    resetForm()
+    onOpenChange(false)
+    if (quoteId) {
+      onSuccess(quoteId)
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -410,8 +525,12 @@ export default function CreateClientQuoteDialog({
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-green-600" />
-            {step === 1 ? 'Create Client Quote - Details' : 'Create Client Quote - Pricing'}
+            {step === 3 ? (
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            ) : (
+              <DollarSign className="w-5 h-5 text-green-600" />
+            )}
+            {step === 1 ? 'Create Invoice - Details' : step === 2 ? 'Create Invoice - Pricing' : 'Invoice Created - Send to Client'}
           </DialogTitle>
           {preselectedItemIds?.length ? (
             <p className="text-sm text-gray-500">
@@ -425,7 +544,7 @@ export default function CreateClientQuoteDialog({
           {step === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Quote Title <span className="text-red-500">*</span></Label>
+                <Label>Invoice Title <span className="text-red-500">*</span></Label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -455,71 +574,80 @@ export default function CreateClientQuoteDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Default Markup %</Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={defaultMarkup}
-                      onChange={(e) => setDefaultMarkup(parseFloat(e.target.value) || 0)}
-                      min={0}
-                      max={100}
-                    />
-                    <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <Label>Payment Terms</Label>
                   <Select value={paymentTerms} onValueChange={setPaymentTerms}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="50% deposit, 50% on delivery">50% deposit, 50% on delivery</SelectItem>
                       <SelectItem value="100% upfront">100% upfront</SelectItem>
+                      <SelectItem value="50% deposit, 50% on delivery">50% deposit, 50% on delivery</SelectItem>
                       <SelectItem value="Net 30">Net 30</SelectItem>
                       <SelectItem value="Net 15">Net 15</SelectItem>
                       <SelectItem value="Due on receipt">Due on receipt</SelectItem>
-                      <SelectItem value="Custom">Custom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Deposit Required (%)</Label>
-                  <Input
-                    type="number"
-                    value={depositRequired || ''}
-                    onChange={(e) => setDepositRequired(parseFloat(e.target.value) || undefined)}
-                    min={0}
-                    max={100}
-                    placeholder="e.g., 50"
-                  />
-                </div>
               </div>
+
+              {/* Only show markup settings if some items don't have RRP */}
+              {lineItems.some(item => !item.hasRrp) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Default Markup for items without RRP</p>
+                      <p className="text-xs text-amber-600">{lineItems.filter(i => !i.hasRrp).length} item(s) need markup applied</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={defaultMarkup}
+                        onChange={(e) => setDefaultMarkup(parseFloat(e.target.value) || 0)}
+                        min={0}
+                        max={100}
+                        className="w-20 h-8"
+                      />
+                      <span className="text-amber-700">%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Summary Preview */}
               {lineItems.length > 0 && (
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-gray-700 mb-3">Quote Summary</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-500">Items</p>
-                      <p className="text-lg font-semibold">{lineItems.length}</p>
+                  <h4 className="font-medium text-gray-700 mb-3">Invoice Summary</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Items</span>
+                      <span className="font-semibold">{lineItems.length}</span>
                     </div>
-                    <div>
-                      <p className="text-gray-500">Total (with markup)</p>
-                      <p className="text-lg font-semibold text-green-600">{formatCurrency(totals.totalRevenue)}</p>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-semibold">{formatCurrency(totals.subtotal)}</span>
                     </div>
-                    <div>
-                      <p className="text-gray-500">Your Profit</p>
-                      <p className="text-lg font-semibold text-emerald-600">
-                        {formatCurrency(totals.grossProfit)}
-                        <span className="text-xs text-gray-500 ml-1">({totals.marginPercent.toFixed(1)}%)</span>
-                      </p>
+                    <div className="flex justify-between text-gray-400">
+                      <span>GST ({gstRate}%)</span>
+                      <span>{formatCurrency(totals.gstAmount)}</span>
                     </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>QST ({qstRate}%)</span>
+                      <span>{formatCurrency(totals.qstAmount)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t">
+                      <span className="text-gray-700 font-medium">Total</span>
+                      <span className="text-lg font-semibold text-green-600">{formatCurrency(totals.totalRevenue)}</span>
+                    </div>
+                    {/* Only show profit if some items don't have RRP */}
+                    {lineItems.some(i => !i.hasRrp) && (
+                      <div className="flex justify-between pt-2 border-t bg-emerald-50 -mx-4 px-4 py-2 mt-2 rounded-b-lg">
+                        <span className="text-emerald-700">Your Profit</span>
+                        <span className="font-semibold text-emerald-700">
+                          {formatCurrency(totals.grossProfit)}
+                          <span className="text-xs text-emerald-500 ml-1">({totals.marginPercent.toFixed(1)}%)</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -610,9 +738,9 @@ export default function CreateClientQuoteDialog({
                               <TableRow className="text-xs">
                                 <TableHead className="w-[30%]">Item</TableHead>
                                 <TableHead className="text-right w-[12%]">Qty</TableHead>
-                                <TableHead className="text-right w-[15%]">Cost</TableHead>
+                                <TableHead className="text-right w-[15%]">Trade Price</TableHead>
                                 <TableHead className="text-right w-[12%]">Markup</TableHead>
-                                <TableHead className="text-right w-[15%]">Price</TableHead>
+                                <TableHead className="text-right w-[15%]">Client Price</TableHead>
                                 <TableHead className="text-right w-[15%]">Total</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -654,20 +782,35 @@ export default function CreateClientQuoteDialog({
                                     </div>
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1">
-                                      <Input
-                                        type="number"
-                                        className="w-14 h-7 text-right text-xs"
-                                        value={item.markupPercent}
-                                        onChange={(e) => updateLineItemMarkup(item.id, parseFloat(e.target.value) || 0)}
-                                        min={0}
-                                        max={200}
-                                      />
-                                      <span className="text-xs text-gray-400">%</span>
-                                    </div>
+                                    {item.hasRrp ? (
+                                      // RRP exists - show calculated markup as read-only
+                                      <div className="flex items-center justify-end gap-1">
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                          {item.markupPercent.toFixed(1)}%
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      // No RRP - allow editing markup
+                                      <div className="flex items-center justify-end gap-1">
+                                        <Input
+                                          type="number"
+                                          className="w-14 h-7 text-right text-xs"
+                                          value={item.markupPercent}
+                                          onChange={(e) => updateLineItemMarkup(item.id, parseFloat(e.target.value) || 0)}
+                                          min={0}
+                                          max={200}
+                                        />
+                                        <span className="text-xs text-gray-400">%</span>
+                                      </div>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-right font-medium">
-                                    {formatCurrency(item.sellingPrice)}
+                                    <div>
+                                      {formatCurrency(item.sellingPrice)}
+                                      {item.hasRrp && (
+                                        <p className="text-[10px] text-blue-500">RRP</p>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell className="text-right font-medium text-green-600">
                                     {formatCurrency(item.totalPrice)}
@@ -688,35 +831,189 @@ export default function CreateClientQuoteDialog({
                 <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm">
                   <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
                   <span className="text-orange-700">
-                    {lineItems.filter(i => i.costPrice === 0).length} item(s) have no cost price. 
+                    {lineItems.filter(i => i.costPrice === 0).length} item(s) have no cost price.
                     Add trade/cost prices before sending to client.
                   </span>
                 </div>
               )}
             </div>
           )}
+
+          {/* Step 3: Invoice Created - Client Preview & Send */}
+          {step === 3 && createdQuote && (
+            <div className="space-y-6">
+              {/* Success Header */}
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Invoice Created!</h3>
+                <p className="text-gray-500 mt-1">
+                  {createdQuote.quoteNumber} • {lineItems.length} item{lineItems.length > 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Client Preview - What the client will see */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-1">
+                <div className="bg-white rounded-lg border shadow-sm">
+                  <div className="p-4 border-b bg-gray-50">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Client Preview</p>
+                    <h4 className="font-bold text-lg text-gray-900">{title}</h4>
+                    {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+                  </div>
+
+                  {/* Items - Client View (no markup/profit shown) */}
+                  <div className="divide-y max-h-[250px] overflow-y-auto">
+                    {lineItems.map((item) => (
+                      <div key={item.id} className="px-4 py-3 flex items-center gap-3">
+                        {/* Image */}
+                        {item.imageUrl ? (
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-gray-300" />
+                          </div>
+                        )}
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{item.name}</p>
+                          <p className="text-xs text-gray-400">Qty: {item.quantity} {item.unitType}</p>
+                        </div>
+                        {/* Price */}
+                        <p className="font-semibold text-gray-900 flex-shrink-0">
+                          {formatCurrency(item.totalPrice)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total */}
+                  <div className="p-4 bg-gray-50 border-t">
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span>{formatCurrency(totals.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>GST ({gstRate}%)</span>
+                        <span>{formatCurrency(totals.gstAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>QST ({qstRate}%)</span>
+                        <span>{formatCurrency(totals.qstAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t mt-2">
+                        <span className="font-medium text-gray-700">Total</span>
+                        <span className="text-2xl font-bold text-gray-900">{formatCurrency(totals.totalRevenue)}</span>
+                      </div>
+                    </div>
+                    {validUntil && (
+                      <p className="text-xs text-gray-400 mt-2">Valid until {new Date(validUntil).toLocaleDateString()}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Your Profit (separate, not in client view) */}
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <span className="text-sm text-emerald-700">Your Profit (before taxes)</span>
+                <span className="font-bold text-emerald-700">{formatCurrency(totals.grossProfit)} ({totals.marginPercent.toFixed(1)}%)</span>
+              </div>
+
+              {/* Send to Client Section */}
+              <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Send Invoice to Client</h4>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <Input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="Enter client email..."
+                      className="bg-white"
+                    />
+                    {clientName ? (
+                      <p className="text-xs text-blue-600 mt-1">{clientName}</p>
+                    ) : !clientEmail && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        No client email found in project settings
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleSendToClient}
+                    disabled={sending || !clientEmail}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    Send Invoice
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-600 mt-2">
+                  Client will receive email with invoice link and Stripe payment option
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-center gap-3">
+                <Button variant="outline" onClick={handlePrintQuote}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print / Download PDF
+                </Button>
+                <Button variant="outline" onClick={handleViewQuote}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View as Client
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex gap-2 pt-4 border-t">
-          {step > 1 && (
-            <Button variant="outline" onClick={() => setStep(step - 1)}>
-              Back
-            </Button>
-          )}
-          <div className="flex-1" />
-          {step === 1 ? (
-            <Button
-              onClick={() => setStep(2)}
-              disabled={!title.trim() || lineItems.length === 0}
-            >
-              Next: Review Pricing
-            </Button>
+          {step === 3 ? (
+            <>
+              <div className="flex-1" />
+              <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Done
+              </Button>
+            </>
           ) : (
-            <Button onClick={handleCreate} disabled={saving} className="bg-green-600 hover:bg-green-700">
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <DollarSign className="w-4 h-4 mr-1" />
-              Create Quote ({formatCurrency(totals.totalRevenue)})
-            </Button>
+            <>
+              {step > 1 && (
+                <Button variant="outline" onClick={() => setStep(step - 1)}>
+                  Back
+                </Button>
+              )}
+              <div className="flex-1" />
+              {step === 1 ? (
+                <Button
+                  onClick={() => setStep(2)}
+                  disabled={!title.trim() || lineItems.length === 0}
+                >
+                  Next: Review Pricing
+                </Button>
+              ) : (
+                <Button onClick={handleCreate} disabled={saving} className="bg-green-600 hover:bg-green-700">
+                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <DollarSign className="w-4 h-4 mr-1" />
+                  Create Invoice ({formatCurrency(totals.totalRevenue)})
+                </Button>
+              )}
+            </>
           )}
         </DialogFooter>
       </DialogContent>

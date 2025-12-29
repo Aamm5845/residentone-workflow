@@ -57,7 +57,11 @@ export async function GET(
                 id: true,
                 name: true,
                 description: true,
-                category: true
+                section: {
+                  select: {
+                    name: true
+                  }
+                }
               }
             },
             supplierQuote: {

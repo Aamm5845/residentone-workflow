@@ -200,17 +200,18 @@ export async function POST(request: NextRequest) {
             supplierQuoteId: sqId,
             roomFFEItemId: item.rfqLineItem.roomFFEItemId,
             groupId: category, // Group by category by default
-            itemName: item.rfqLineItem.itemName,
-            itemDescription: item.rfqLineItem.itemDescription,
+            displayName: item.rfqLineItem.itemName,
+            displayDescription: item.rfqLineItem.itemDescription,
+            categoryName: category,
             quantity: item.quantity,
             unitType: item.rfqLineItem.unitType,
-            costPrice: item.unitPrice,
-            markupPercent: itemMarkup,
-            sellingPrice,
-            totalCost: item.totalPrice,
-            totalPrice: new Decimal(sellingPrice * item.quantity),
-            supplierLeadTime: item.leadTimeNotes,
-            supplierSKU: item.supplierSKU
+            supplierUnitPrice: item.unitPrice,
+            supplierTotalPrice: item.totalPrice,
+            markupType: 'PERCENTAGE',
+            markupValue: itemMarkup,
+            markupAmount: new Decimal((sellingPrice - costPrice) * item.quantity),
+            clientUnitPrice: sellingPrice,
+            clientTotalPrice: new Decimal(sellingPrice * item.quantity)
           })
         }
       }
@@ -220,26 +221,46 @@ export async function POST(request: NextRequest) {
         const itemMarkup = item.markupPercent || markup
         const costPrice = parseFloat(item.costPrice || 0)
         const sellingPrice = costPrice * (1 + itemMarkup / 100)
+        const quantity = item.quantity || 1
 
         return {
           roomFFEItemId: item.roomFFEItemId,
           groupId: item.groupId || null,
-          itemName: item.itemName,
-          itemDescription: item.itemDescription || null,
-          quantity: item.quantity || 1,
+          displayName: item.itemName,
+          displayDescription: item.itemDescription || null,
+          categoryName: item.categoryName || item.groupId || null,
+          roomName: item.roomName || null,
+          quantity: quantity,
           unitType: item.unitType || 'units',
-          costPrice: item.costPrice || 0,
-          markupPercent: itemMarkup,
-          sellingPrice,
-          totalCost: costPrice * (item.quantity || 1),
-          totalPrice: sellingPrice * (item.quantity || 1),
-          notes: item.notes || null
+          supplierUnitPrice: costPrice,
+          supplierTotalPrice: costPrice * quantity,
+          markupType: 'PERCENTAGE',
+          markupValue: itemMarkup,
+          markupAmount: (sellingPrice - costPrice) * quantity,
+          clientUnitPrice: sellingPrice,
+          clientTotalPrice: sellingPrice * quantity
         }
       })
     }
 
     // Calculate totals
-    const subtotal = lineItemsData.reduce((sum, item) => sum + parseFloat(item.totalPrice.toString()), 0)
+    const subtotal = lineItemsData.reduce((sum, item) => sum + parseFloat(item.clientTotalPrice.toString()), 0)
+
+    // Get organization tax rates
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        defaultGstRate: true,
+        defaultQstRate: true
+      }
+    })
+
+    // Calculate GST and QST
+    const gstRate = organization?.defaultGstRate ? parseFloat(organization.defaultGstRate.toString()) : 5
+    const qstRate = organization?.defaultQstRate ? parseFloat(organization.defaultQstRate.toString()) : 9.975
+    const gstAmount = subtotal * (gstRate / 100)
+    const qstAmount = subtotal * (qstRate / 100)
+    const totalAmount = subtotal + gstAmount + qstAmount
 
     // Create client quote
     const clientQuote = await prisma.clientQuote.create({
@@ -253,6 +274,11 @@ export async function POST(request: NextRequest) {
         groupTitle: groupTitle || null,
         defaultMarkupPercent: markup,
         subtotal,
+        gstRate,
+        gstAmount,
+        qstRate,
+        qstAmount,
+        totalAmount,
         validUntil: validUntil ? new Date(validUntil) : null,
         paymentTerms: paymentTerms || null,
         depositRequired: depositRequired || null,

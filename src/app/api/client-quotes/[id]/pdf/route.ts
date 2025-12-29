@@ -46,10 +46,14 @@ export async function GET(
       where: { id: orgId },
       select: {
         name: true,
-        address: true,
-        phone: true,
-        email: true,
-        logo: true
+        businessName: true,
+        businessAddress: true,
+        businessCity: true,
+        businessProvince: true,
+        businessPostal: true,
+        businessPhone: true,
+        businessEmail: true,
+        logoUrl: true
       }
     })
 
@@ -62,19 +66,18 @@ export async function GET(
       clientName: quote.project.client?.name || 'Client',
       clientEmail: quote.project.client?.email,
       clientPhone: quote.project.client?.phone,
-      clientAddress: quote.project.client?.address,
       createdAt: quote.createdAt,
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,
       depositRequired: quote.depositRequired,
       depositAmount: quote.depositAmount ? parseFloat(quote.depositAmount.toString()) : undefined,
       lineItems: quote.lineItems.map(item => ({
-        itemName: item.itemName,
-        itemDescription: item.itemDescription,
+        itemName: item.displayName,
+        itemDescription: item.displayDescription,
         quantity: item.quantity,
         unitType: item.unitType || 'units',
-        sellingPrice: parseFloat(item.sellingPrice?.toString() || '0'),
-        totalPrice: parseFloat(item.totalPrice?.toString() || '0'),
+        sellingPrice: parseFloat(item.clientUnitPrice?.toString() || '0'),
+        totalPrice: parseFloat(item.clientTotalPrice?.toString() || '0'),
         groupId: item.groupId
       })),
       subtotal: parseFloat(quote.subtotal?.toString() || '0'),
@@ -174,19 +177,18 @@ export async function POST(
       clientName: quote.project.client?.name || 'Client',
       clientEmail: quote.project.client?.email,
       clientPhone: quote.project.client?.phone,
-      clientAddress: quote.project.client?.address,
       createdAt: quote.createdAt,
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,
       depositRequired: quote.depositRequired,
       depositAmount: quote.depositAmount ? parseFloat(quote.depositAmount.toString()) : undefined,
       lineItems: quote.lineItems.map(item => ({
-        itemName: item.itemName,
-        itemDescription: item.itemDescription,
+        itemName: item.displayName,
+        itemDescription: item.displayDescription,
         quantity: item.quantity,
         unitType: item.unitType || 'units',
-        sellingPrice: parseFloat(item.sellingPrice?.toString() || '0'),
-        totalPrice: parseFloat(item.totalPrice?.toString() || '0'),
+        sellingPrice: parseFloat(item.clientUnitPrice?.toString() || '0'),
+        totalPrice: parseFloat(item.clientTotalPrice?.toString() || '0'),
         groupId: item.groupId
       })),
       subtotal: parseFloat(quote.subtotal?.toString() || '0'),
