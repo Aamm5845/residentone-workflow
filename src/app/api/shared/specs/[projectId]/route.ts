@@ -58,10 +58,13 @@ export async function GET(
                         finish: true,
                         material: true,
                         width: true,
+                        length: true,
                         height: true,
                         depth: true,
                         tradePrice: true,
-                        rrp: true
+                        rrp: true,
+                        updatedAt: true,
+                        createdAt: true
                       },
                       orderBy: { order: 'asc' }
                     }
@@ -112,8 +115,10 @@ export async function GET(
           finish: item.finish,
           material: item.material,
           width: item.width,
+          length: item.length,
           height: item.height,
           depth: item.depth,
+          updatedAt: item.updatedAt,
           tradePrice: shareSettings.showPricing ? item.tradePrice : null,
           rrp: shareSettings.showPricing ? item.rrp : null
         }))
@@ -129,6 +134,15 @@ export async function GET(
       return true
     })
 
+    // Calculate last updated from all items
+    const lastUpdated = specs.length > 0
+      ? specs.reduce((latest, item) => {
+          const itemDate = item.updatedAt
+          if (!itemDate) return latest
+          return !latest || itemDate > latest ? itemDate : latest
+        }, null as Date | null)
+      : null
+
     return NextResponse.json({
       success: true,
       projectName: project.name,
@@ -139,7 +153,8 @@ export async function GET(
         showBrand: shareSettings.showBrand ?? true,
         showPricing: shareSettings.showPricing ?? false,
         showDetails: shareSettings.showDetails ?? true
-      }
+      },
+      lastUpdated: lastUpdated?.toISOString() || null
     })
 
   } catch (error) {
@@ -150,6 +165,7 @@ export async function GET(
     )
   }
 }
+
 
 
 

@@ -77,6 +77,14 @@ export async function GET(
       orderBy: { order: 'asc' }
     })
 
+    // Get last updated time from items
+    const lastUpdated = items.length > 0
+      ? items.reduce((latest, item) => {
+          const itemDate = item.updatedAt || item.createdAt
+          return itemDate > latest ? itemDate : latest
+        }, items[0].updatedAt || items[0].createdAt)
+      : shareLink.updatedAt
+
     // Transform items based on visibility settings
     const specs = items.map(item => ({
       id: item.id,
@@ -101,6 +109,7 @@ export async function GET(
       finish: shareLink.showDetails ? item.finish : null,
       material: shareLink.showDetails ? item.material : null,
       width: shareLink.showDetails ? item.width : null,
+      length: shareLink.showDetails ? item.length : null,
       height: shareLink.showDetails ? item.height : null,
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
@@ -119,7 +128,8 @@ export async function GET(
         showPricing: shareLink.showPricing,
         showDetails: shareLink.showDetails
       },
-      expiresAt: shareLink.expiresAt
+      expiresAt: shareLink.expiresAt,
+      lastUpdated: lastUpdated?.toISOString() || null
     })
 
   } catch (error) {
