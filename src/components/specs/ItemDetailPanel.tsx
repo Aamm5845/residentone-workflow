@@ -1369,6 +1369,7 @@ export function ItemDetailPanel({
   }, [isOpen, item?.id])
 
   // Handle close with immediate save (no debounce)
+  // Always save on close for existing items to ensure no data is lost
   const handleClose = useCallback(async () => {
     // Cancel any pending auto-save timer
     if (autoSaveTimerRef.current) {
@@ -1382,10 +1383,8 @@ export function ItemDetailPanel({
       return
     }
 
-    // Check if there are unsaved changes
-    const currentData = JSON.stringify({ formData, images })
-    if (currentData !== lastSavedDataRef.current && formData.name.trim()) {
-      // Save immediately before closing
+    // Always save on close for existing items (if name is valid)
+    if (formData.name.trim()) {
       try {
         const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
           method: 'PATCH',
@@ -1421,7 +1420,6 @@ export function ItemDetailPanel({
         })
 
         if (res.ok) {
-          lastSavedDataRef.current = currentData
           // Call onSave to refresh the list so changes appear when reopening
           onSave?.()
           return
