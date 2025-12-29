@@ -21,7 +21,6 @@ import {
   Truck,
   Info,
   CheckCircle2,
-  HelpCircle,
   ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -223,9 +222,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   // Validation state
   const [showValidationErrors, setShowValidationErrors] = useState(false)
 
-  // Manual linking of unmatched items
-  const [manualLinks, setManualLinks] = useState<Record<number, string>>({}) // extractedIdx -> rfqItemId
-
   useEffect(() => {
     loadRFQ()
   }, [token])
@@ -309,27 +305,30 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   }
 
   const handleSubmit = async () => {
-    setShowValidationErrors(true)
+    // If no PDF uploaded, require prices and lead times
+    if (!uploadedFile) {
+      setShowValidationErrors(true)
 
-    // Validate prices
-    const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
-    if (hasEmptyPrices) {
-      toast.error('Please enter a price for all items')
-      return
-    }
+      // Validate prices
+      const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
+      if (hasEmptyPrices) {
+        toast.error('Please enter a price for all items')
+        return
+      }
 
-    // Validate lead times
-    const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
-    if (hasEmptyLeadTimes) {
-      toast.error('Please select lead time for all items - look for items highlighted in red')
-      return
-    }
+      // Validate lead times
+      const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
+      if (hasEmptyLeadTimes) {
+        toast.error('Please select lead time for all items')
+        return
+      }
 
-    // Validate notes required for "See notes" lead time
-    const hasMissingNotes = lineItems.some(item => item.leadTime === 'See notes' && !item.notes?.trim())
-    if (hasMissingNotes) {
-      toast.error('Please enter notes for items with "See notes" lead time')
-      return
+      // Validate notes required for "See notes" lead time
+      const hasMissingNotes = lineItems.some(item => item.leadTime === 'See notes' && !item.notes?.trim())
+      if (hasMissingNotes) {
+        toast.error('Please enter notes for items with "See notes" lead time')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -351,9 +350,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           deliveryFee: calculateDeliveryTotal(),
           lineItems: lineItems.map(item => ({
             rfqLineItemId: item.rfqLineItemId,
-            unitPrice: parseFloat(item.unitPrice),
+            unitPrice: parseFloat(item.unitPrice) || 0,
             quantity: item.quantity,
-            leadTime: item.leadTime,
+            leadTime: item.leadTime || null,
             notes: item.notes || null
           }))
         })
@@ -1004,79 +1003,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 )
               })}
             </div>
-
-            {/* Unmatched Items - Ask supplier to link */}
-            {aiMatchResult && aiMatchResult.matchResults.filter(r => r.status === 'extra' && r.suggestedMatches && r.suggestedMatches.length > 0).length > 0 && (
-              <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50">
-                <div className="bg-amber-100 px-4 py-3 border-b border-amber-200">
-                  <p className="font-medium text-amber-800">Link Unmatched Items</p>
-                  <p className="text-xs text-amber-600">We found items in your quote that need to be linked to our request</p>
-                </div>
-                <div className="divide-y divide-amber-200">
-                  {aiMatchResult.matchResults
-                    .map((result, idx) => ({ result, idx }))
-                    .filter(({ result }) => result.status === 'extra' && result.suggestedMatches && result.suggestedMatches.length > 0)
-                    .map(({ result, idx }) => (
-                      <div key={idx} className="p-4">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className="w-6 h-6 bg-amber-200 rounded-full flex items-center justify-center flex-shrink-0">
-                            <HelpCircle className="w-3.5 h-3.5 text-amber-700" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{result.extractedItem?.productName}</p>
-                            <p className="text-xs text-gray-500">
-                              {result.extractedItem?.quantity && `Qty: ${result.extractedItem.quantity}`}
-                              {result.extractedItem?.unitPrice && ` • $${result.extractedItem.unitPrice}`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="ml-9">
-                          <Label className="text-xs text-amber-700">Link to:</Label>
-                          <select
-                            value={manualLinks[idx] || ''}
-                            onChange={(e) => {
-                              const rfqItemId = e.target.value
-                              setManualLinks(prev => ({ ...prev, [idx]: rfqItemId }))
-                              // Auto-fill the linked item's price
-                              if (rfqItemId && result.extractedItem?.unitPrice) {
-                                const itemIndex = lineItems.findIndex(li => li.rfqLineItemId === rfqItemId)
-                                if (itemIndex >= 0) {
-                                  updateLineItem(itemIndex, 'unitPrice', result.extractedItem.unitPrice.toString())
-                                  if (result.extractedItem.leadTime) {
-                                    updateLineItem(itemIndex, 'leadTime', result.extractedItem.leadTime)
-                                  }
-                                }
-                              }
-                            }}
-                            className="mt-1 w-full rounded-md border border-amber-300 px-3 py-2 text-sm bg-white"
-                          >
-                            <option value="">Select item to link...</option>
-                            {result.suggestedMatches?.map(suggestion => (
-                              <option key={suggestion.id} value={suggestion.id}>
-                                {suggestion.itemName}
-                              </option>
-                            ))}
-                            {/* Also show unmatched RFQ items */}
-                            {data.rfq.lineItems
-                              .filter(item => {
-                                const isMatched = aiMatchResult.matchResults.some(
-                                  r => r.rfqItem?.id === item.id && (r.status === 'matched' || r.status === 'partial')
-                                )
-                                const isSuggested = result.suggestedMatches?.some(s => s.id === item.id)
-                                return !isMatched && !isSuggested
-                              })
-                              .map(item => (
-                                <option key={item.id} value={item.id}>
-                                  {item.itemName}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
 
             {/* Delivery - Simple input, no toggle */}
             <div className="border rounded-xl p-4">

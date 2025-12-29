@@ -127,7 +127,7 @@ const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION
 
 // Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
-  { value: '', label: '-' },
+  { value: 'none', label: '-' },
   { value: 'in-stock', label: 'In Stock' },
   { value: '1-2 weeks', label: '1-2 Weeks' },
   { value: '2-4 weeks', label: '2-4 Weeks' },
@@ -4117,23 +4117,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-32">
                                   {LEAD_TIME_OPTIONS.map(opt => (
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                       key={opt.value}
                                       onClick={async () => {
                                         try {
+                                          const valueToSave = opt.value === 'none' ? null : opt.value
                                           const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
                                             method: 'PATCH',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ leadTime: opt.value })
+                                            body: JSON.stringify({ leadTime: valueToSave })
                                           })
                                           if (res.ok) {
-                                            setSpecs(prev => prev.map(s => s.id === item.id ? { ...s, leadTime: opt.value } : s))
+                                            setSpecs(prev => prev.map(s => s.id === item.id ? { ...s, leadTime: valueToSave } : s))
                                           }
                                         } catch (error) {
                                           console.error('Error updating lead time:', error)
                                         }
                                       }}
-                                      className={item.leadTime === opt.value ? 'bg-gray-100' : ''}
+                                      className={(!item.leadTime && opt.value === 'none') || item.leadTime === opt.value ? 'bg-gray-100' : ''}
                                     >
                                       {opt.label}
                                     </DropdownMenuItem>
