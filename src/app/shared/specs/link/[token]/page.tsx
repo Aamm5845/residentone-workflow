@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -110,6 +110,9 @@ export default function SharedSpecLinkPage() {
     showDetails: true
   })
 
+  // Sort/group mode: 'category' or 'room'
+  const [groupBy, setGroupBy] = useState<'category' | 'room'>('category')
+
   useEffect(() => {
     const fetchSharedSpecs = async () => {
       try {
@@ -133,7 +136,8 @@ export default function SharedSpecLinkPage() {
           showDetails: true
         })
 
-        // Group specs by category
+        // Store raw specs - grouping will be computed based on groupBy state
+        // Initial grouping by category
         const groups: Record<string, CategoryGroup> = {}
         data.specs?.forEach((spec: SpecItem) => {
           const key = spec.categoryName || 'General'
@@ -170,6 +174,27 @@ export default function SharedSpecLinkPage() {
       return newSet
     })
   }
+
+  // Compute groups based on groupBy state
+  const displayGroups = useMemo(() => {
+    if (groupBy === 'room') {
+      const groups: Record<string, CategoryGroup> = {}
+      specs.forEach((spec) => {
+        const key = spec.roomName || 'Unassigned'
+        if (!groups[key]) {
+          groups[key] = { name: key, items: [] }
+        }
+        groups[key].items.push(spec)
+      })
+      return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name))
+    }
+    return groupedSpecs
+  }, [specs, groupBy, groupedSpecs])
+
+  // Expand all when groupBy changes
+  useEffect(() => {
+    setExpandedCategories(new Set(displayGroups.map(g => g.name)))
+  }, [groupBy, displayGroups])
 
   const getStatusBadge = (status: string) => {
     const option = ITEM_STATUS_OPTIONS[status] || ITEM_STATUS_OPTIONS['SELECTED']
@@ -246,13 +271,34 @@ export default function SharedSpecLinkPage() {
               </div>
             </div>
 
-            {/* Stats Pills */}
+            {/* Stats Pills & Sort Toggle */}
             <div className="flex items-center gap-3">
               <div className="px-4 py-2 bg-slate-100 rounded-full">
                 <span className="text-sm font-semibold text-slate-700">{specs.length} Items</span>
               </div>
               <div className="px-4 py-2 bg-emerald-50 rounded-full border border-emerald-100">
-                <span className="text-sm font-semibold text-emerald-700">{groupedSpecs.length} Categories</span>
+                <span className="text-sm font-semibold text-emerald-700">{displayGroups.length} {groupBy === 'room' ? 'Rooms' : 'Categories'}</span>
+              </div>
+              {/* Sort Toggle */}
+              <div className="flex items-center bg-slate-100 rounded-full p-1">
+                <button
+                  onClick={() => setGroupBy('category')}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
+                    groupBy === 'category' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Category
+                </button>
+                <button
+                  onClick={() => setGroupBy('room')}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
+                    groupBy === 'room' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Room
+                </button>
               </div>
             </div>
           </div>
@@ -261,7 +307,7 @@ export default function SharedSpecLinkPage() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {groupedSpecs.length === 0 ? (
+        {displayGroups.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm">
             <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Package className="w-10 h-10 text-slate-400" />
@@ -270,173 +316,149 @@ export default function SharedSpecLinkPage() {
             <p className="text-slate-500">No items have been shared in this link.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {groupedSpecs.map((group) => (
+          <div className="space-y-4">
+            {displayGroups.map((group) => (
               <div
                 key={group.name}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
               >
-                {/* Category Header */}
+                {/* Group Header */}
                 <button
                   onClick={() => toggleCategory(group.name)}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                      "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
                       expandedCategories.has(group.name)
                         ? "bg-emerald-100 text-emerald-600"
                         : "bg-slate-100 text-slate-500"
                     )}>
                       {expandedCategories.has(group.name) ? (
-                        <ChevronDown className="w-5 h-5" />
+                        <ChevronDown className="w-4 h-4" />
                       ) : (
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-4 h-4" />
                       )}
                     </div>
                     <div className="text-left">
-                      <h2 className="text-lg font-semibold text-slate-900">{group.name}</h2>
-                      <p className="text-sm text-slate-500">{group.items.length} item{group.items.length !== 1 ? 's' : ''}</p>
+                      <h2 className="text-base font-semibold text-slate-900">{group.name}</h2>
                     </div>
+                    <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {group.items.length}
+                    </span>
                   </div>
                 </button>
 
-                {/* Items Grid */}
+                {/* Compact Items List */}
                 {expandedCategories.has(group.name) && (
                   <div className="border-t border-slate-100">
-                    <div className="p-6 grid gap-4">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-3">Item</div>
+                      <div className="col-span-2">{groupBy === 'category' ? 'Room' : 'Category'}</div>
+                      {shareSettings.showBrand && <div className="col-span-2">Brand</div>}
+                      {shareSettings.showSupplier && <div className="col-span-2">Supplier</div>}
+                      <div className="col-span-1 text-center">Qty</div>
+                      {shareSettings.showPricing && <div className="col-span-1 text-right">Price</div>}
+                    </div>
+
+                    {/* Items */}
+                    <div className="divide-y divide-slate-100">
                       {group.items.map((item) => (
                         <div
                           key={item.id}
-                          className="group bg-slate-50/50 hover:bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-5 transition-all duration-200 hover:shadow-md"
+                          className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-slate-50 transition-colors"
                         >
-                          <div className="flex gap-5">
-                            {/* Image */}
-                            <div className="flex-shrink-0">
-                              <div
-                                className={cn(
-                                  "w-24 h-24 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm",
-                                  (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-purple-400 hover:ring-offset-1 transition-all"
-                                )}
-                                onClick={() => {
-                                  if (item.thumbnailUrl || item.images?.[0]) {
-                                    setImageLightbox({
-                                      open: true,
-                                      imageUrl: item.thumbnailUrl || item.images[0],
-                                      imageTitle: `${item.sectionName}: ${item.name}`
-                                    })
-                                  }
-                                }}
-                              >
-                                {item.thumbnailUrl || item.images?.[0] ? (
-                                  <img
-                                    src={item.thumbnailUrl || item.images[0]}
-                                    alt={item.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <ImageIcon className="w-8 h-8 text-slate-300" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-4 mb-3">
-                                <div className="min-w-0">
-                                  <h3 className="text-base font-semibold text-slate-900 truncate">{item.name}</h3>
-                                  <p className="text-sm text-slate-500">{item.roomName}</p>
-                                </div>
-                                <div className="flex-shrink-0">
-                                  {getStatusBadge(item.specStatus || 'SELECTED')}
-                                </div>
-                              </div>
-
-                              {/* Details Grid */}
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
-                                {item.productName && (
-                                  <div>
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Product</p>
-                                    <p className="text-sm text-slate-700 font-medium truncate">{item.productName}</p>
-                                  </div>
-                                )}
-
-                                {shareSettings.showBrand && item.brand && (
-                                  <div>
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Brand</p>
-                                    <p className="text-sm text-slate-700 font-medium">{item.brand}</p>
-                                  </div>
-                                )}
-
-                                {shareSettings.showSupplier && item.supplierName && (
-                                  <div>
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Supplier</p>
-                                    <div className="flex items-center gap-1.5">
-                                      <p className="text-sm text-slate-700 font-medium truncate">{item.supplierName}</p>
-                                      {item.supplierLink && (
-                                        <a
-                                          href={item.supplierLink}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-500 hover:text-blue-600 flex-shrink-0"
-                                        >
-                                          <ExternalLink className="w-3.5 h-3.5" />
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                <div>
-                                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Qty</p>
-                                  <p className="text-sm text-slate-700 font-medium">{item.quantity || 1}</p>
-                                </div>
-
-                                {item.leadTime && (
-                                  <div>
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Lead Time</p>
-                                    <p className="text-sm text-slate-700 font-medium">{item.leadTime}</p>
-                                  </div>
-                                )}
-
-                                {shareSettings.showPricing && (item.rrp || item.tradePrice) && (
-                                  <div>
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Price</p>
-                                    <p className="text-sm text-slate-900 font-semibold">{formatCurrency(item.rrp || item.tradePrice)}</p>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Description & Details */}
-                              {shareSettings.showDetails && (item.description || item.color || item.finish || item.material) && (
-                                <div className="mt-3 pt-3 border-t border-slate-200/60">
-                                  {item.description && (
-                                    <p className="text-sm text-slate-600 line-clamp-2 mb-2">{item.description}</p>
-                                  )}
-                                  {(item.color || item.finish || item.material) && (
-                                    <div className="flex flex-wrap gap-2">
-                                      {item.color && (
-                                        <span className="inline-flex items-center px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
-                                          <span className="w-2 h-2 rounded-full bg-slate-400 mr-1.5" />
-                                          {item.color}
-                                        </span>
-                                      )}
-                                      {item.finish && (
-                                        <span className="inline-flex items-center px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
-                                          {item.finish}
-                                        </span>
-                                      )}
-                                      {item.material && (
-                                        <span className="inline-flex items-center px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
-                                          {item.material}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
+                          {/* Thumbnail */}
+                          <div className="col-span-1">
+                            <div
+                              className={cn(
+                                "w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden",
+                                (item.thumbnailUrl || item.images?.[0]) && "cursor-pointer hover:ring-2 hover:ring-emerald-400 transition-all"
+                              )}
+                              onClick={() => {
+                                if (item.thumbnailUrl || item.images?.[0]) {
+                                  setImageLightbox({
+                                    open: true,
+                                    imageUrl: item.thumbnailUrl || item.images[0],
+                                    imageTitle: `${item.sectionName}: ${item.name}`
+                                  })
+                                }
+                              }}
+                            >
+                              {item.thumbnailUrl || item.images?.[0] ? (
+                                <img
+                                  src={item.thumbnailUrl || item.images[0]}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ImageIcon className="w-4 h-4 text-slate-300" />
                               )}
                             </div>
                           </div>
+
+                          {/* Item Name */}
+                          <div className="col-span-3 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{item.name}</p>
+                            {item.sku && (
+                              <p className="text-xs text-slate-400 truncate">{item.sku}</p>
+                            )}
+                          </div>
+
+                          {/* Room or Category */}
+                          <div className="col-span-2 min-w-0">
+                            <p className="text-sm text-slate-600 truncate">
+                              {groupBy === 'category' ? item.roomName : item.categoryName}
+                            </p>
+                          </div>
+
+                          {/* Brand */}
+                          {shareSettings.showBrand && (
+                            <div className="col-span-2 min-w-0">
+                              <p className="text-sm text-slate-600 truncate">{item.brand || '-'}</p>
+                            </div>
+                          )}
+
+                          {/* Supplier with Link */}
+                          {shareSettings.showSupplier && (
+                            <div className="col-span-2 min-w-0">
+                              {item.supplierName ? (
+                                <div className="flex items-center gap-1">
+                                  {item.supplierLink ? (
+                                    <a
+                                      href={item.supplierLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline truncate flex items-center gap-1"
+                                    >
+                                      {item.supplierName}
+                                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-slate-600 truncate">{item.supplierName}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-400">-</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Quantity */}
+                          <div className="col-span-1 text-center">
+                            <span className="text-sm font-medium text-slate-700">{item.quantity || 1}</span>
+                          </div>
+
+                          {/* Price */}
+                          {shareSettings.showPricing && (
+                            <div className="col-span-1 text-right">
+                              <span className="text-sm font-medium text-slate-900">
+                                {formatCurrency(item.rrp) || '-'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
