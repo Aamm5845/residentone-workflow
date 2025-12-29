@@ -6828,7 +6828,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         open={createShareLinkOpen}
         onOpenChange={setCreateShareLinkOpen}
         projectId={project.id}
-        items={allItems.map(item => ({
+        items={specs.map(item => ({
           id: item.id,
           name: item.name,
           roomName: item.roomName || 'Room',
