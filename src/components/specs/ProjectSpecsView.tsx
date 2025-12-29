@@ -93,7 +93,8 @@ import {
   Check,
   StickyNote,
   Scissors,
-  DollarSign
+  DollarSign,
+  Mail
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -104,6 +105,7 @@ import { ItemDetailPanel } from './ItemDetailPanel'
 import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
 import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
 import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
+import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 
 // Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
@@ -449,6 +451,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Client Quote Dialog (direct invoice to client with markup)
   const [clientQuoteDialogOpen, setClientQuoteDialogOpen] = useState(false)
   const [clientQuotePreselectedItems, setClientQuotePreselectedItems] = useState<string[]>([])
+
+  // Send to Client Dialog (send quote with payment link)
+  const [sendToClientDialogOpen, setSendToClientDialogOpen] = useState(false)
+  const [sendToClientItems, setSendToClientItems] = useState<string[]>([])
 
   // Item detail panel
   const [detailPanel, setDetailPanel] = useState<{
@@ -4464,7 +4470,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <DollarSign className="w-3.5 h-3.5 mr-2" />
                                       Create Client Quote
                                     </DropdownMenuItem>
-                                    
+
+                                    {/* Send Quote to Client (email with payment link) */}
+                                    <DropdownMenuItem
+                                      className="text-xs text-blue-700"
+                                      onSelect={() => {
+                                        setSendToClientItems([item.id])
+                                        setSendToClientDialogOpen(true)
+                                      }}
+                                    >
+                                      <Mail className="w-3.5 h-3.5 mr-2" />
+                                      Send Quote to Client
+                                    </DropdownMenuItem>
+
                                     <div className="h-px bg-gray-100 my-1" />
                                     
                                     {/* Flag */}
@@ -7277,6 +7295,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }}
         projectId={project.id}
         preselectedItemIds={clientQuotePreselectedItems}
+      />
+
+      {/* Send to Client Dialog - Send quote with payment link */}
+      <SendToClientDialog
+        open={sendToClientDialogOpen}
+        onOpenChange={(open) => {
+          setSendToClientDialogOpen(open)
+          if (!open) {
+            setSendToClientItems([])
+          }
+        }}
+        onSuccess={(quoteId) => {
+          setSendToClientDialogOpen(false)
+          setSendToClientItems([])
+          setSelectedItems(new Set())
+        }}
+        projectId={project.id}
+        itemIds={sendToClientItems}
       />
     </div>
   )

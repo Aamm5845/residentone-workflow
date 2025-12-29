@@ -469,3 +469,206 @@ export function generateConfirmationEmailTemplate(data: { clientName: string; pr
 
   return { subject, html };
 }
+
+// Client Quote Email Template
+interface ClientQuoteEmailData {
+  quoteNumber: string
+  clientName: string
+  projectName: string
+  companyName: string
+  companyLogo?: string
+  companyPhone?: string
+  companyEmail?: string
+  quoteUrl: string
+  validUntil?: Date
+  lineItems: Array<{
+    name: string
+    quantity: number
+    unitPrice: number
+    total: number
+  }>
+  subtotal: number
+  gstRate: number
+  gstAmount: number
+  qstRate: number
+  qstAmount: number
+  total: number
+  note?: string
+  trackingPixelUrl?: string
+}
+
+export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
+  subject: string
+  html: string
+} {
+  const subject = `Quote ${data.quoteNumber} from ${data.companyName} | ${data.projectName}`
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+    }).format(amount)
+  }
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(date)
+  }
+
+  // Show first 5 items, then summary
+  const displayItems = data.lineItems.slice(0, 5)
+  const remainingCount = data.lineItems.length - 5
+
+  const lineItemsHtml = displayItems.map(item => `
+    <tr>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #374151;">
+        <div style="font-weight: 500;">${item.name}</div>
+        <div style="font-size: 12px; color: #6b7280;">Qty: ${item.quantity}</div>
+      </td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #374151;">${formatCurrency(item.total)}</td>
+    </tr>
+  `).join('')
+
+  const remainingItemsHtml = remainingCount > 0 ? `
+    <tr>
+      <td colspan="2" style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-style: italic;">
+        + ${remainingCount} more item${remainingCount > 1 ? 's' : ''}
+      </td>
+    </tr>
+  ` : ''
+
+  const validUntilHtml = data.validUntil ? `
+    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; text-align: center;">
+      <span style="color: #92400e; font-size: 14px;">
+        <strong>Valid until:</strong> ${formatDate(data.validUntil)}
+      </span>
+    </div>
+  ` : ''
+
+  const noteHtml = data.note ? `
+    <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+      <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Note from designer</div>
+      <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.6;">${data.note}</p>
+    </div>
+  ` : ''
+
+  const trackingPixelHtml = data.trackingPixelUrl
+    ? `<img src="${data.trackingPixelUrl}" width="1" height="1" style="display:none;" alt="" />`
+    : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote ${data.quoteNumber}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 32px; text-align: center;">
+            ${data.companyLogo ? `
+            <img src="${data.companyLogo}"
+                 alt="${data.companyName}"
+                 style="max-width: 180px; max-height: 60px; height: auto; margin-bottom: 16px; background-color: white; padding: 12px; border-radius: 6px;" />
+            ` : `
+            <div style="color: white; font-size: 24px; font-weight: 700; margin-bottom: 16px;">${data.companyName}</div>
+            `}
+            <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">Quote ${data.quoteNumber}</h1>
+            <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 14px;">${data.projectName}</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+            <p style="margin: 0 0 24px 0; color: #1f2937; font-size: 16px;">Dear ${data.clientName},</p>
+
+            <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 15px;">
+                Thank you for your interest. Please find below the quote for your project. Click the button to view the full details and proceed with payment.
+            </p>
+
+            ${validUntilHtml}
+
+            ${noteHtml}
+
+            <!-- Items Summary -->
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f9fafb;">
+                            <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Item</th>
+                            <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${lineItemsHtml}
+                        ${remainingItemsHtml}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">Subtotal</td>
+                        <td style="padding: 4px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.subtotal)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">GST (${data.gstRate}%)</td>
+                        <td style="padding: 4px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.gstAmount)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 14px;">QST (${data.qstRate}%)</td>
+                        <td style="padding: 4px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.qstAmount)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding: 12px 0 4px 0; border-top: 1px solid #e5e7eb;"></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; color: #111827; font-size: 18px; font-weight: 700;">Total</td>
+                        <td style="padding: 4px 0; text-align: right; color: #111827; font-size: 18px; font-weight: 700;">${formatCurrency(data.total)}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <a href="${data.quoteUrl}"
+                   style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 16px 48px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    View Quote & Pay
+                </a>
+            </div>
+
+            <!-- Payment Options Note -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                    Payment options: Credit Card, Wire Transfer, Check, or Cash
+                </p>
+                <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 12px;">
+                    Credit card payments include a 3% processing fee
+                </p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <p style="margin: 0; color: #6b7280; font-size: 13px; text-align: center;">
+                Questions? Contact us at ${data.companyEmail || 'info@company.com'}
+                ${data.companyPhone ? ` or ${data.companyPhone}` : ''}
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 24px; text-align: center;">
+            <div style="color: #374151; font-size: 14px; font-weight: 600; margin-bottom: 8px;">${data.companyName}</div>
+            <p style="margin: 0; color: #9ca3af; font-size: 12px;">&copy; ${new Date().getFullYear()} All rights reserved.</p>
+        </div>
+    </div>
+    ${trackingPixelHtml}
+</body>
+</html>`
+
+  return { subject, html }
+}

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2 } from 'lucide-react'
+import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -198,6 +198,16 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3">
+              <Link href="/settings/business" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">Business Profile</p>
+                    <p className="text-sm text-gray-500">Logo, tax numbers, and invoice settings</p>
+                  </div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-gray-400" />
+              </Link>
               <Link href="/settings/item-library" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
                 <div className="flex items-center gap-3">
                   <FolderOpen className="w-5 h-5 text-gray-400" />

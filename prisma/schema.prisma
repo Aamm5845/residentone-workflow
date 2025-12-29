@@ -58,6 +58,30 @@ model Organization {
   slug         String        @unique
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  // Business Profile for invoicing
+  logoUrl           String?
+  businessName      String?       // Legal business name (may differ from "name")
+  businessAddress   String?
+  businessCity      String?
+  businessProvince  String?
+  businessPostal    String?
+  businessCountry   String?       @default("Canada")
+  businessPhone     String?
+  businessEmail     String?
+
+  // Tax Registration Numbers
+  gstNumber         String?       // GST registration number
+  qstNumber         String?       // QST registration number (Quebec)
+
+  // Default Tax Rates
+  defaultGstRate    Decimal?      @default(5.0)     // GST 5%
+  defaultQstRate    Decimal?      @default(9.975)   // QST 9.975%
+
+  // Payment Instructions
+  wireInstructions  String?       @db.Text
+  checkInstructions String?       @db.Text
+
   clients      Client[]
   contractors  Contractor[]
   projects     Project[]
@@ -1595,6 +1619,9 @@ enum ItemActivityType {
   DELIVERED             // Item delivered
   NOTE_ADDED            // Note added to item
   DOCUMENT_UPLOADED     // Document attached
+  SENT_TO_CLIENT_QUOTE  // Item sent to client via quote
+  CLIENT_QUOTE_VIEWED   // Client viewed the quote
+  CLIENT_QUOTE_PAID     // Client paid for item via quote
 }
 
 model FFEChangeLog {
@@ -3168,6 +3195,12 @@ model ClientQuote {
   totalAmount          Decimal?
   currency             String            @default("CAD")
 
+  // GST/QST Tax Breakdown
+  gstRate              Decimal?          @default(5.0)
+  gstAmount            Decimal?
+  qstRate              Decimal?          @default(9.975)
+  qstAmount            Decimal?
+
   // Default markup for this quote
   defaultMarkupPercent Decimal?          @default(25)
 
@@ -3176,6 +3209,17 @@ model ClientQuote {
   paymentTerms         String?
   depositRequired      Decimal?
   depositAmount        Decimal?
+
+  // Client Info Snapshot (for invoice)
+  clientName           String?
+  clientEmail          String?
+  clientPhone          String?
+  clientAddress        String?
+
+  // Payment Method
+  selectedPaymentMethod String?          // CREDIT_CARD, WIRE, CHECK, CASH
+  ccSurchargePercent    Decimal?         @default(3.0)
+  ccSurchargeAmount     Decimal?
 
   // Email tracking
   sentToClientAt       DateTime?
