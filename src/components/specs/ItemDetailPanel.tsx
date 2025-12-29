@@ -1422,6 +1422,9 @@ export function ItemDetailPanel({
 
         if (res.ok) {
           lastSavedDataRef.current = currentData
+          // Call onSave to refresh the list so changes appear when reopening
+          onSave?.()
+          return
         }
       } catch (error) {
         console.error('Save on close error:', error)
@@ -1429,7 +1432,7 @@ export function ItemDetailPanel({
     }
 
     onClose()
-  }, [mode, item?.id, item?.roomId, formData, images, onClose])
+  }, [mode, item?.id, item?.roomId, formData, images, onClose, onSave])
 
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
