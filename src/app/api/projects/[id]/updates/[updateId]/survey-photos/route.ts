@@ -5,6 +5,7 @@ import { dropboxService } from '@/lib/dropbox-service'
 import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/attribution'
 
 // Configure route for larger file uploads (photos/videos)
+// Updated: 2024-12-30 to fix 405 error
 export const runtime = 'nodejs'
 export const maxDuration = 120 // 2 minutes for upload
 export const dynamic = 'force-dynamic'
