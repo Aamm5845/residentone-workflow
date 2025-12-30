@@ -18,6 +18,13 @@ interface SupplierQuoteRequest {
   responseDeadline?: string  // ISO date string
   includeSpecSheet?: boolean  // Include spec sheet & documents in portal
   includeNotes?: boolean  // Include item notes in portal
+  shippingAddress?: {  // Custom shipping address (if different from project)
+    street?: string
+    city?: string
+    province?: string
+    postalCode?: string
+    country?: string
+  }
 }
 
 /**
@@ -39,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SupplierQuoteRequest = await request.json()
-    const { projectId, items, message, responseDeadline, includeSpecSheet = true, includeNotes = true } = body
+    const { projectId, items, message, responseDeadline, includeSpecSheet = true, includeNotes = true, shippingAddress } = body
 
     if (!projectId || !items?.length) {
       return NextResponse.json(
@@ -337,16 +344,18 @@ export async function POST(request: NextRequest) {
             vendorName: vendorName || null,
             vendorEmail: !supplier ? email : null,
             tokenExpiresAt: deadline,
-            sentAt: new Date()
+            sentAt: new Date(),
+            shippingAddress: shippingAddress || null
           }
         })
       } else {
-        // Update existing record with new sent time
+        // Update existing record with new sent time and shipping address
         supplierRFQ = await prisma.supplierRFQ.update({
           where: { id: supplierRFQ.id },
           data: {
             sentAt: new Date(),
-            tokenExpiresAt: deadline
+            tokenExpiresAt: deadline,
+            shippingAddress: shippingAddress || supplierRFQ.shippingAddress
           }
         })
       }

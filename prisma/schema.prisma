@@ -3055,6 +3055,9 @@ model SupplierRFQ {
   respondedAt    DateTime?
   declineReason  String?
 
+  // Custom shipping address (if different from project)
+  shippingAddress Json?    // { street, city, province, postalCode, country }
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

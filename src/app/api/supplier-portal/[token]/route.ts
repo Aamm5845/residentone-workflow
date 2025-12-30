@@ -258,6 +258,9 @@ export async function GET(
       return true
     })
 
+    // Get custom shipping address if set
+    const customShipping = supplierRFQ.shippingAddress as { street?: string; city?: string; province?: string; postalCode?: string; country?: string } | null
+
     // Return RFQ data (without sensitive info)
     return NextResponse.json({
       rfq: {
@@ -270,14 +273,18 @@ export async function GET(
         project: {
           id: projectId,
           name: supplierRFQ.rfq.project.name,
-          streetAddress: supplierRFQ.rfq.project.streetAddress,
-          city: supplierRFQ.rfq.project.city,
-          province: supplierRFQ.rfq.project.province,
-          postalCode: supplierRFQ.rfq.project.postalCode,
+          // Use custom shipping if provided, otherwise use project address
+          streetAddress: customShipping?.street || supplierRFQ.rfq.project.streetAddress,
+          city: customShipping?.city || supplierRFQ.rfq.project.city,
+          province: customShipping?.province || supplierRFQ.rfq.project.province,
+          postalCode: customShipping?.postalCode || supplierRFQ.rfq.project.postalCode,
+          country: customShipping?.country || 'Canada',
           // Only expose client name to suppliers, not contact info
           client: supplierRFQ.rfq.project.client ? {
             name: supplierRFQ.rfq.project.client.name
-          } : null
+          } : null,
+          // Flag to indicate if using custom shipping
+          hasCustomShipping: !!customShipping
         },
         lineItems: supplierRFQ.rfq.lineItems.map(item => ({
           id: item.id,

@@ -29,7 +29,9 @@ import {
   ChevronUp,
   RefreshCw,
   Calendar,
-  Building2
+  Building2,
+  Eye,
+  MapPin
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -119,6 +121,17 @@ export default function QuickQuoteDialog({
   const [includeSpecSheet, setIncludeSpecSheet] = useState(true)
   // Include notes in quote request
   const [includeNotes, setIncludeNotes] = useState(true)
+  // Custom shipping address
+  const [useCustomShipping, setUseCustomShipping] = useState(false)
+  const [shippingAddress, setShippingAddress] = useState({
+    street: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    country: 'Canada'
+  })
+  // Preview state
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     if (open && itemIds.length > 0) {
@@ -128,6 +141,8 @@ export default function QuickQuoteDialog({
       setSupplierOverrides({})
       setResendItems(new Set())
       setExpandedGroups(new Set())
+      setUseCustomShipping(false)
+      setShippingAddress({ street: '', city: '', province: '', postalCode: '', country: 'Canada' })
     }
   }, [open, itemIds])
 
@@ -191,6 +206,43 @@ export default function QuickQuoteDialog({
     })
   }
 
+  const handlePreview = async () => {
+    if (!preview) return
+
+    setPreviewLoading(true)
+    try {
+      // Get the first supplier from the groups
+      const firstGroup = preview.supplierGroups.find(g => g.supplier)
+      const supplierId = firstGroup?.supplier?.id
+
+      const res = await fetch('/api/rfq/supplier-quote/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          itemIds,
+          supplierId,
+          shippingAddress: useCustomShipping ? shippingAddress : undefined
+        })
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success && data.previewUrl) {
+        // Open preview in new tab
+        window.open(data.previewUrl, '_blank')
+        toast.success('Preview opened in new tab')
+      } else {
+        toast.error(data.error || 'Failed to create preview')
+      }
+    } catch (error) {
+      console.error('Error creating preview:', error)
+      toast.error('Failed to create preview')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   const handleSend = async () => {
     if (!preview) return
 
@@ -222,7 +274,8 @@ export default function QuickQuoteDialog({
           message: message || undefined,
           responseDeadline,
           includeSpecSheet,
-          includeNotes
+          includeNotes,
+          shippingAddress: useCustomShipping ? shippingAddress : undefined
         })
       })
 
@@ -582,10 +635,109 @@ export default function QuickQuoteDialog({
                     </>
                   )
                 })()}
+
+                {/* Custom Shipping Address */}
+                <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="useCustomShipping"
+                      checked={useCustomShipping}
+                      onCheckedChange={(checked) => setUseCustomShipping(checked === true)}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="useCustomShipping" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-blue-600" />
+                        Use custom shipping address
+                      </Label>
+                      <p className="text-xs text-gray-500">
+                        For orders that don't get delivered to the project site
+                      </p>
+                    </div>
+                  </div>
+
+                  {useCustomShipping && (
+                    <div className="mt-3 space-y-3 pt-3 border-t border-blue-200">
+                      <div>
+                        <Label className="text-xs text-gray-600">Street Address</Label>
+                        <input
+                          type="text"
+                          value={shippingAddress.street}
+                          onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
+                          placeholder="123 Main Street"
+                          className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-gray-600">City</Label>
+                          <input
+                            type="text"
+                            value={shippingAddress.city}
+                            onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                            placeholder="Montreal"
+                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Province</Label>
+                          <input
+                            type="text"
+                            value={shippingAddress.province}
+                            onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
+                            placeholder="QC"
+                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-gray-600">Postal Code</Label>
+                          <input
+                            type="text"
+                            value={shippingAddress.postalCode}
+                            onChange={(e) => setShippingAddress(prev => ({ ...prev, postalCode: e.target.value }))}
+                            placeholder="H2V4H9"
+                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Country</Label>
+                          <input
+                            type="text"
+                            value={shippingAddress.country}
+                            onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+                            placeholder="Canada"
+                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </ScrollArea>
 
-            <DialogFooter className="border-t pt-4">
+            <DialogFooter className="border-t pt-4 flex-wrap gap-2">
+              <div className="flex items-center gap-2 mr-auto">
+                <Button
+                  variant="outline"
+                  onClick={handlePreview}
+                  disabled={previewLoading || loading}
+                  className="gap-2"
+                >
+                  {previewLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      Preview Portal
+                    </>
+                  )}
+                </Button>
+              </div>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
