@@ -148,9 +148,10 @@ export default function CropFromRenderingDialog({
         `cropped-${Date.now()}.jpg`
       )
 
-      // Upload to the server
+      // Upload to the server with spec-item type for instant CDN loading
       const formData = new FormData()
       formData.append('file', croppedBlob, `cropped-${Date.now()}.jpg`)
+      formData.append('imageType', 'spec-item')
 
       const response = await fetch('/api/upload-image', {
         method: 'POST',

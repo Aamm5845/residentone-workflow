@@ -1791,7 +1791,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('imageType', 'general')
+      formData.append('imageType', 'spec-item')
       
       const uploadRes = await fetch('/api/upload-image', {
         method: 'POST',
