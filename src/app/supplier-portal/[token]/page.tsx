@@ -797,19 +797,65 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                           </div>
                         )}
 
-                        {/* Show price if matched (upload mode) or entered (manual mode) */}
-                        {quoteMode === 'upload' && matchedPrice && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            <span className="text-sm text-gray-600">
-                              {formatCurrency(matchedPrice)} each = <strong className="text-emerald-600">{formatCurrency(matchedPrice * item.quantity)}</strong>
-                            </span>
+                        {/* Upload mode: show matched price and inputs */}
+                        {quoteMode === 'upload' && aiMatchResult && (
+                          <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
+                            {/* Price from AI */}
+                            <div className="min-w-[120px]">
+                              <Label className="text-xs text-gray-500">Unit Price</Label>
+                              <div className="mt-1 h-9 px-3 flex items-center bg-emerald-50 border border-emerald-200 rounded-md">
+                                {matchedPrice ? (
+                                  <span className="font-semibold text-emerald-700">{formatCurrency(matchedPrice)}</span>
+                                ) : (
+                                  <span className="text-amber-600 text-sm">Not found</span>
+                                )}
+                              </div>
+                            </div>
+                            {/* Lead Time */}
+                            <div className="min-w-[140px]">
+                              <Label className="text-xs text-gray-500">Lead Time</Label>
+                              <select
+                                value={lineItem?.leadTime || ''}
+                                onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
+                                className={cn(
+                                  "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
+                                  showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
+                                )}
+                              >
+                                <option value="">Select...</option>
+                                <option value="In Stock">In Stock</option>
+                                <option value="1-2 weeks">1-2 Weeks</option>
+                                <option value="2-4 weeks">2-4 Weeks</option>
+                                <option value="4-6 weeks">4-6 Weeks</option>
+                                <option value="6-8 weeks">6-8 Weeks</option>
+                                <option value="8-12 weeks">8-12 Weeks</option>
+                                <option value="12+ weeks">12+ Weeks</option>
+                                <option value="See notes">See notes</option>
+                              </select>
+                            </div>
+                            {/* Notes */}
+                            <div className="flex-1 min-w-[150px]">
+                              <Label className="text-xs text-gray-500">Notes</Label>
+                              <Input
+                                value={lineItem?.notes || ''}
+                                onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                                placeholder="Optional notes..."
+                                className="mt-1 h-9"
+                              />
+                            </div>
+                            {/* Line Total */}
+                            {matchedPrice && (
+                              <div className="text-right min-w-[100px]">
+                                <p className="text-xs text-gray-500">Total</p>
+                                <p className="font-bold text-emerald-600">{formatCurrency(matchedPrice * item.quantity)}</p>
+                              </div>
+                            )}
                           </div>
                         )}
 
                         {/* Manual mode: show input fields */}
                         {quoteMode === 'manual' && (
-                          <div className="mt-3 flex flex-wrap items-end gap-3">
+                          <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
                             <div className="min-w-[120px]">
                               <Label className="text-xs text-gray-500">Unit Price</Label>
                               <div className="relative mt-1">
@@ -849,8 +895,18 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                 <option value="See notes">See notes</option>
                               </select>
                             </div>
+                            {/* Notes */}
+                            <div className="flex-1 min-w-[150px]">
+                              <Label className="text-xs text-gray-500">Notes</Label>
+                              <Input
+                                value={lineItem?.notes || ''}
+                                onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                                placeholder="Optional notes..."
+                                className="mt-1 h-9"
+                              />
+                            </div>
                             {manualPrice && manualPrice > 0 && (
-                              <div className="text-right">
+                              <div className="text-right min-w-[100px]">
                                 <p className="text-xs text-gray-500">Total</p>
                                 <p className="font-bold text-emerald-600">{formatCurrency(manualPrice * item.quantity)}</p>
                               </div>
@@ -923,211 +979,159 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
         {/* Upload Mode Content */}
         {quoteMode === 'upload' && (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-emerald-600" />
-                  Upload Your Quote
-                </CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setQuoteMode('select')}>
-                  <X className="w-4 h-4 mr-1" />
-                  Cancel
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
-              {uploading || aiMatching ? (
-                <div className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center bg-emerald-50">
-                  <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
-                  <p className="text-emerald-700 font-medium text-lg">
-                    {aiMatching ? 'Analyzing your quote...' : 'Uploading...'}
-                  </p>
-                  {uploadingFileName && (
-                    <p className="text-sm text-emerald-600 mt-2">{uploadingFileName}</p>
-                  )}
-                </div>
-              ) : !uploadedFile ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
-                >
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-700 font-medium text-lg">Click to upload your quote</p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    PDF, Word, Excel, or image files up to 10MB
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <File className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {aiMatchResult ? `${aiMatchResult.summary.matched + aiMatchResult.summary.partial} items matched` : 'Uploaded'}
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
-                    <X className="w-4 h-4" />
+          <>
+            {/* File Upload Area */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-emerald-600" />
+                    Your Quote
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setQuoteMode('select')}>
+                    <X className="w-4 h-4 mr-1" />
+                    Cancel
                   </Button>
                 </div>
-              )}
+              </CardHeader>
+              <CardContent>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
 
-              {/* AI Match Results */}
-              {aiMatchResult && (
-                <div className="space-y-4">
-                  {/* Matched Items */}
-                  {aiMatchResult.matchResults.filter(r => r.status === 'matched' || r.status === 'partial').length > 0 && (
-                    <div className="border rounded-xl overflow-hidden">
-                      <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100">
-                        <p className="font-medium text-emerald-800 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Matched Items ({aiMatchResult.summary.matched + aiMatchResult.summary.partial})
-                        </p>
-                      </div>
-                      <div className="divide-y">
-                        {aiMatchResult.matchResults
-                          .filter(r => r.status === 'matched' || r.status === 'partial')
-                          .map((result, idx) => (
-                            <div key={idx} className="px-4 py-3 flex items-center justify-between bg-white">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900">{result.rfqItem?.itemName}</p>
-                                <p className="text-sm text-gray-500">
-                                  {result.extractedItem?.productName}
-                                  {result.extractedItem?.sku && ` • ${result.extractedItem.sku}`}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold text-emerald-600">
-                                  {formatCurrency(result.extractedItem?.unitPrice || 0)}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  × {result.extractedItem?.quantity || result.rfqItem?.quantity} = {formatCurrency((result.extractedItem?.unitPrice || 0) * (result.extractedItem?.quantity || result.rfqItem?.quantity || 1))}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
+                {uploading || aiMatching ? (
+                  <div className="border-2 border-dashed border-emerald-300 rounded-xl p-6 text-center bg-emerald-50">
+                    <Loader2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 animate-spin" />
+                    <p className="text-emerald-700 font-medium">
+                      {aiMatching ? 'Analyzing your quote...' : 'Uploading...'}
+                    </p>
+                  </div>
+                ) : !uploadedFile ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
+                  >
+                    <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-700 font-medium">Click to upload your quote</p>
+                    <p className="text-sm text-gray-400 mt-1">PDF, Word, Excel, or image files</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <File className="w-5 h-5 text-emerald-600" />
                     </div>
-                  )}
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                      <p className="text-sm text-emerald-600">
+                        {aiMatchResult && `${aiMatchResult.summary.matched + aiMatchResult.summary.partial} of ${aiMatchResult.summary.totalRequested} items matched`}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-                  {/* Unmatched/Extra Items */}
-                  {aiMatchResult.matchResults.filter(r => r.status === 'extra').length > 0 && (
-                    <div className="border rounded-xl overflow-hidden">
-                      <div className="bg-amber-50 px-4 py-3 border-b border-amber-100">
-                        <p className="font-medium text-amber-800 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" />
-                          Additional Items ({aiMatchResult.summary.extra})
-                        </p>
-                      </div>
+            {/* After AI Match: Unmatched Items + Summary */}
+            {aiMatchResult && (
+              <>
+                {/* Unmatched/Extra Items from their quote */}
+                {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'extra').length > 0 && (
+                  <Card className="shadow-sm border-l-4 border-l-amber-400">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2 text-amber-800">
+                        <AlertCircle className="w-4 h-4" />
+                        Additional Items in Your Quote
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
                       <div className="divide-y">
                         {aiMatchResult.matchResults
-                          .filter(r => r.status === 'extra')
-                          .map((result, idx) => (
-                            <div key={idx} className="px-4 py-3 flex items-center justify-between bg-white">
-                              <div className="flex-1 min-w-0">
+                          .filter((r: AIMatchResult) => r.status === 'extra')
+                          .map((result: AIMatchResult, idx: number) => (
+                            <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between">
+                              <div>
                                 <p className="font-medium text-gray-900">{result.extractedItem?.productName}</p>
                                 {result.extractedItem?.sku && (
                                   <p className="text-sm text-gray-500">{result.extractedItem.sku}</p>
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-gray-700">
-                                  {formatCurrency(result.extractedItem?.unitPrice || 0)}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  × {result.extractedItem?.quantity || 1}
-                                </p>
+                                <p className="font-semibold">{formatCurrency(result.extractedItem?.unitPrice || 0)}</p>
+                                <p className="text-xs text-gray-500">× {result.extractedItem?.quantity || 1}</p>
                               </div>
                             </div>
                           ))}
                       </div>
-                    </div>
-                  )}
+                    </CardContent>
+                  </Card>
+                )}
 
-                  {/* Missing Items Warning */}
-                  {aiMatchResult.summary.missing > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                      <p className="text-red-800 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
-                        {aiMatchResult.summary.missing} requested item{aiMatchResult.summary.missing > 1 ? 's were' : ' was'} not found in your quote
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Quote Total */}
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                    {aiMatchResult.supplierInfo?.shipping && aiMatchResult.supplierInfo.shipping > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Shipping</span>
-                        <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.shipping)}</span>
-                      </div>
-                    )}
-                    {aiMatchResult.supplierInfo?.taxes && aiMatchResult.supplierInfo.taxes > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Taxes</span>
-                        <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.taxes)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between pt-2 border-t">
-                      <span className="font-semibold text-gray-900">Quote Total</span>
-                      <span className="text-2xl font-bold text-emerald-600">
-                        {formatCurrency(aiMatchResult.supplierInfo?.total || 0)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Lead Times */}
-                  <div className="border rounded-xl p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">Confirm Lead Times</h4>
+                {/* Quote Summary - clean layout */}
+                <Card className="shadow-sm">
+                  <CardContent className="pt-5 pb-5">
                     <div className="space-y-3">
-                      {data.rfq.lineItems.map((item, index) => {
-                        const lineItem = lineItems[index]
-                        const matched = aiMatchResult?.matchResults.find(
-                          r => r.rfqItem?.id === item.id && (r.status === 'matched' || r.status === 'partial')
-                        )
-                        if (!matched) return null
+                      {/* Subtotal */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Subtotal ({aiMatchResult.summary.matched + aiMatchResult.summary.partial} items)</span>
+                        <span className="font-medium">
+                          {formatCurrency(
+                            aiMatchResult.matchResults
+                              .filter((r: AIMatchResult) => r.status === 'matched' || r.status === 'partial')
+                              .reduce((sum: number, r: AIMatchResult) => sum + ((r.extractedItem?.unitPrice || 0) * (r.extractedItem?.quantity || r.rfqItem?.quantity || 1)), 0)
+                          )}
+                        </span>
+                      </div>
 
-                        return (
-                          <div key={item.id} className="flex items-center gap-3">
-                            <span className="text-sm text-gray-600 flex-1">{item.itemName}</span>
-                            <select
-                              value={lineItem?.leadTime || ''}
-                              onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
-                              className={cn(
-                                "h-9 rounded-md border px-3 text-sm bg-white min-w-[150px]",
-                                showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
-                              )}
-                            >
-                              <option value="">Select lead time...</option>
-                              <option value="In Stock">In Stock</option>
-                              <option value="1-2 weeks">1-2 Weeks</option>
-                              <option value="2-4 weeks">2-4 Weeks</option>
-                              <option value="4-6 weeks">4-6 Weeks</option>
-                              <option value="6-8 weeks">6-8 Weeks</option>
-                              <option value="8-12 weeks">8-12 Weeks</option>
-                              <option value="12+ weeks">12+ Weeks</option>
-                              <option value="See notes">See notes</option>
-                            </select>
-                          </div>
-                        )
-                      })}
+                      {/* Extra items total */}
+                      {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'extra').length > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Additional items</span>
+                          <span className="font-medium">
+                            {formatCurrency(
+                              aiMatchResult.matchResults
+                                .filter((r: AIMatchResult) => r.status === 'extra')
+                                .reduce((sum: number, r: AIMatchResult) => sum + ((r.extractedItem?.unitPrice || 0) * (r.extractedItem?.quantity || 1)), 0)
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Shipping */}
+                      {aiMatchResult.supplierInfo?.shipping && aiMatchResult.supplierInfo.shipping > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Shipping / Delivery</span>
+                          <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.shipping)}</span>
+                        </div>
+                      )}
+
+                      {/* Taxes */}
+                      {aiMatchResult.supplierInfo?.taxes && aiMatchResult.supplierInfo.taxes > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Taxes</span>
+                          <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.taxes)}</span>
+                        </div>
+                      )}
+
+                      {/* Total */}
+                      <div className="flex justify-between pt-3 border-t border-gray-200">
+                        <span className="font-semibold text-gray-900">Quote Total</span>
+                        <span className="text-2xl font-bold text-emerald-600">
+                          {formatCurrency(aiMatchResult.supplierInfo?.total || 0)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </>
         )}
 
         {/* Manual Mode Content - Total & Delivery */}
