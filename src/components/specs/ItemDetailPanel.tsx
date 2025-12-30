@@ -943,22 +943,14 @@ export function ItemDetailPanel({
 
   // Delete document
   const handleDeleteDocument = async (documentId: string) => {
-    const targetRoomId = item?.roomId || roomId
-    if (!item?.id || !targetRoomId) {
-      toast.error('Cannot delete document - missing item information')
-      return
-    }
-
     if (!confirm('Are you sure you want to delete this document?')) {
       return
     }
 
     setDeletingDocumentId(documentId)
     try {
-      const res = await fetch(
-        `/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/documents?documentId=${documentId}`,
-        { method: 'DELETE' }
-      )
+      // Use direct delete endpoint which works with any document type
+      const res = await fetch(`/api/documents/${documentId}`, { method: 'DELETE' })
 
       if (res.ok) {
         setDocuments(prev => prev.filter(d => d.id !== documentId))
