@@ -514,40 +514,55 @@ export default function SupplierPortalDemoPage() {
 
         {/* Quote Mode Selection */}
         {quoteMode === 'select' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card
-              className="shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all"
-              onClick={() => {
-                setQuoteMode('upload')
-                setTimeout(() => fileInputRef.current?.click(), 100)
-              }}
-            >
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Upload className="w-8 h-8 text-emerald-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Quote</h3>
-                <p className="text-sm text-gray-500">
-                  Upload your quote PDF or image and we'll automatically extract and match the prices
-                </p>
-              </CardContent>
-            </Card>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card
+                className="shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all"
+                onClick={() => {
+                  setQuoteMode('upload')
+                  setTimeout(() => fileInputRef.current?.click(), 100)
+                }}
+              >
+                <CardContent className="pt-8 pb-8 text-center">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Upload className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Quote</h3>
+                  <p className="text-sm text-gray-500">
+                    Upload your quote PDF or image and we'll automatically extract and match the prices
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card
-              className="shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
-              onClick={() => setQuoteMode('manual')}
-            >
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Edit3 className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Manually</h3>
-                <p className="text-sm text-gray-500">
-                  Enter prices and lead times manually for each item
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card
+                className="shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
+                onClick={() => setQuoteMode('manual')}
+              >
+                <CardContent className="pt-8 pb-8 text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Edit3 className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Manually</h3>
+                  <p className="text-sm text-gray-500">
+                    Enter prices and lead times manually for each item
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Email Alternative */}
+            <div className="text-center pt-4 pb-8">
+              <p className="text-sm text-gray-500 mb-2">Prefer to send your quote by email?</p>
+              <Button
+                variant="ghost"
+                onClick={() => toast('Demo: Would open email client')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send Quote by Email Instead
+              </Button>
+            </div>
+          </>
         )}
 
         {/* Upload Mode */}
