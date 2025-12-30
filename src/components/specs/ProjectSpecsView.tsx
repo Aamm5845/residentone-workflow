@@ -3020,34 +3020,44 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           {/* Client Approval Summary Bar - Always visible */}
           {specs.length > 0 && (
-            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <div className="flex items-center justify-between gap-6 mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
+                    <p className="text-lg font-semibold text-emerald-600">{specs.filter(s => s.clientApproved).length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
-                  <p className="text-lg font-semibold text-emerald-600">{specs.filter(s => s.clientApproved).length}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Pending Approval</p>
+                    <p className="text-lg font-semibold text-amber-600">{specs.filter(s => !s.clientApproved).length}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Need Price</p>
+                    <p className="text-lg font-semibold text-red-600">{specs.filter(s => !s.rrp).length}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Pending Approval</p>
-                  <p className="text-lg font-semibold text-amber-600">{specs.filter(s => !s.clientApproved).length}</p>
-                </div>
-              </div>
-              <div className="h-8 w-px bg-gray-200" />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <div className="w-full max-w-[200px] h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
                     style={{ width: `${specs.length > 0 ? (specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}%` }}
                   />
                 </div>
-                <span className="text-xs font-medium text-gray-500">
+                <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
                   {specs.length > 0 ? Math.round(specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}% approved
                 </span>
               </div>
