@@ -358,7 +358,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       })
 
       if (response.ok) {
-        toast.success('Quote submitted successfully!')
+        const result = await response.json()
+        // Show different message for revision vs new submission
+        const isRevision = data?.existingQuote || data?.responseStatus === 'SUBMITTED'
+        toast.success(isRevision ? 'Quote revised successfully! We\'ll review your changes.' : 'Quote submitted successfully!')
+
+        // Reload the data to show updated quote info
+        await loadRFQ()
         setSubmitted(true)
       } else {
         const err = await response.json()
@@ -549,41 +555,22 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
   if (!data) return null
 
-  if (submitted || data.responseStatus !== 'PENDING') {
+  // Check if already submitted (but allow viewing and resubmission)
+  const hasExistingQuote = submitted || data.responseStatus === 'SUBMITTED' || data.existingQuote
+  const isDeclined = data.responseStatus === 'DECLINED'
+
+  // If declined, show a simple message (no resubmission)
+  if (isDeclined) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <Toaster position="top-right" />
         <Card className="max-w-md w-full shadow-lg">
           <CardContent className="pt-8 pb-8 text-center">
-            <div className={cn(
-              "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
-              data.responseStatus === 'DECLINED' ? "bg-gray-100" : "bg-green-100"
-            )}>
-              <CheckCircle className={cn(
-                "w-8 h-8",
-                data.responseStatus === 'DECLINED' ? "text-gray-500" : "text-green-500"
-              )} />
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-gray-500" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {data.responseStatus === 'DECLINED' ? 'Quote Declined' : 'Quote Submitted'}
-            </h2>
-            <p className="text-gray-500">
-              {data.responseStatus === 'DECLINED'
-                ? 'You have declined this quote request.'
-                : 'Thank you! Your quote has been submitted successfully.'}
-            </p>
-            {data.existingQuote && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-xl text-left space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Quote Reference</span>
-                  <span className="font-medium">{data.existingQuote.quoteNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Total Amount</span>
-                  <span className="font-semibold text-emerald-600">{formatCurrency(data.existingQuote.totalAmount || 0)}</span>
-                </div>
-              </div>
-            )}
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Quote Declined</h2>
+            <p className="text-gray-500">You have declined this quote request.</p>
           </CardContent>
         </Card>
         <SupplierMessaging
@@ -601,6 +588,22 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Toaster position="top-right" />
+
+      {/* Already Submitted Banner */}
+      {hasExistingQuote && (
+        <div className="bg-emerald-500 text-white text-center py-3 px-4">
+          <div className="flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="font-medium">Quote Submitted</span>
+            {data.existingQuote && (
+              <span className="text-emerald-100">
+                ({data.existingQuote.quoteNumber} - {formatCurrency(data.existingQuote.totalAmount || 0)})
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-emerald-100 mt-1">You can revise and resubmit your quote below</p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
@@ -1288,7 +1291,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Send className="w-4 h-4 mr-2" />
-                Submit Quote
+                {hasExistingQuote ? 'Revise Quote' : 'Submit Quote'}
               </Button>
             </div>
           </>

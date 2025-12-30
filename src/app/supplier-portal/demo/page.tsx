@@ -17,7 +17,8 @@ import {
   Edit3,
   Mail,
   Plus,
-  Info
+  Info,
+  ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,7 +57,8 @@ const DEMO_DATA = {
           images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200'],
           brand: 'West Elm',
           sku: 'WE-SECT-001',
-          color: 'Charcoal'
+          color: 'Charcoal',
+          supplierLink: 'https://www.westelm.com/products/sectional-sofa'
         }
       },
       {
@@ -69,7 +71,8 @@ const DEMO_DATA = {
           images: ['https://images.unsplash.com/photo-1532372320572-cda25653a26d?w=200'],
           brand: 'CB2',
           sku: 'CB2-CT-445',
-          color: 'White/Brass'
+          color: 'White/Brass',
+          supplierLink: 'https://www.cb2.com/marble-coffee-table'
         }
       },
       {
@@ -81,7 +84,8 @@ const DEMO_DATA = {
         roomFFEItem: {
           brand: 'Article',
           sku: 'ART-AC-221',
-          color: 'Teal'
+          color: 'Teal',
+          supplierLink: 'https://www.article.com/accent-chair'
         }
       },
       {
@@ -92,7 +96,8 @@ const DEMO_DATA = {
         unitType: 'unit',
         roomFFEItem: {
           brand: 'West Elm',
-          sku: 'WE-FL-089'
+          sku: 'WE-FL-089',
+          supplierLink: 'https://www.westelm.com/floor-lamp'
         }
       },
       {
@@ -104,7 +109,8 @@ const DEMO_DATA = {
         notes: 'Must be low pile',
         roomFFEItem: {
           brand: 'Loloi',
-          sku: 'LOL-RUG-810'
+          sku: 'LOL-RUG-810',
+          supplierLink: 'https://www.loloirugs.com/area-rug'
         }
       }
     ]
@@ -360,6 +366,7 @@ export default function SupplierPortalDemoPage() {
                 const specs = item.roomFFEItem
                 const lineItem = lineItems[index]
                 const manualPrice = lineItem?.unitPrice ? parseFloat(lineItem.unitPrice) : null
+                const supplierLink = specs?.supplierLink
 
                 const specParts: string[] = []
                 if (specs?.brand) specParts.push(specs.brand)
@@ -393,6 +400,17 @@ export default function SupplierPortalDemoPage() {
                             </h3>
                             {specsLine && <p className="text-sm text-gray-500 mt-1">{specsLine}</p>}
                             {item.itemDescription && <p className="text-sm text-gray-400 mt-1">{item.itemDescription}</p>}
+                            {supplierLink && (
+                              <a
+                                href={supplierLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Product Link
+                              </a>
+                            )}
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
