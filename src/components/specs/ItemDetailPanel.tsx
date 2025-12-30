@@ -2573,63 +2573,65 @@ export function ItemDetailPanel({
                                   key={doc.id}
                                   className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 group hover:bg-white hover:border-gray-300 transition-all"
                                 >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-white border flex items-center justify-center flex-shrink-0">
+                                  {/* Document info row */}
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-8 h-8 rounded bg-white border flex items-center justify-center flex-shrink-0">
                                       <FileIcon className="w-4 h-4 text-gray-500" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                      <p className="text-sm font-medium text-gray-900 break-words">
                                         {doc.title || doc.fileName}
                                       </p>
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
                                         <span>{dateStr}</span>
                                         <span className="text-gray-300">•</span>
                                         <span>{formatFileSize(doc.fileSize)}</span>
                                       </div>
                                       {doc.description && (
-                                        <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 italic">
                                           {doc.description}
                                         </p>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {doc.fileUrl && !doc.fileUrl.startsWith('dropbox:') && (
-                                        <a
-                                          href={doc.fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded border border-blue-200 flex items-center gap-1"
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                          Open
-                                        </a>
+                                  </div>
+                                  {/* Action buttons row */}
+                                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                                    {doc.fileUrl && !doc.fileUrl.startsWith('dropbox:') && (
+                                      <a
+                                        href={doc.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded border border-blue-200 flex items-center gap-1"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        Open
+                                      </a>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleEditDocument(doc)
+                                      }}
+                                      className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded border border-gray-200 flex items-center gap-1"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDeleteDocument(doc.id)
+                                      }}
+                                      disabled={deletingDocumentId === doc.id}
+                                      className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                      {deletingDocumentId === doc.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-3 h-3" />
                                       )}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleEditDocument(doc)
-                                        }}
-                                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded border border-gray-200 flex items-center gap-1"
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleDeleteDocument(doc.id)
-                                        }}
-                                        disabled={deletingDocumentId === doc.id}
-                                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center gap-1 disabled:opacity-50"
-                                      >
-                                        {deletingDocumentId === doc.id ? (
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="w-3 h-3" />
-                                        )}
-                                        Delete
-                                      </button>
-                                    </div>
+                                      Delete
+                                    </button>
                                   </div>
                                 </div>
                               )
