@@ -926,24 +926,45 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                           </div>
                         </div>
 
-                        {/* Notes & Documents */}
-                        {(hasItemNotes || documents.length > 0) && (
-                          <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                            {hasItemNotes && (
-                              <span className="text-amber-700 bg-amber-50 px-2 py-1 rounded">Note: {item.notes || specs?.notes}</span>
-                            )}
-                            {documents.map(doc => (
-                              <a
-                                key={doc.id}
-                                href={doc.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                              >
-                                <FileText className="w-3 h-3" />
-                                {doc.title || doc.fileName}
-                              </a>
-                            ))}
+                        {/* Notes */}
+                        {hasItemNotes && (
+                          <div className="mt-2 text-xs">
+                            <span className="text-amber-700 bg-amber-50 px-2 py-1 rounded">Note: {item.notes || specs?.notes}</span>
+                          </div>
+                        )}
+
+                        {/* Spec Sheets & Documents */}
+                        {documents.length > 0 && (
+                          <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                            <p className="text-xs font-medium text-purple-700 mb-2 flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5" />
+                              Spec Sheets & Documents
+                            </p>
+                            <div className="space-y-1.5">
+                              {documents.map(doc => (
+                                <a
+                                  key={doc.id}
+                                  href={doc.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="flex items-center gap-2 p-2 bg-white rounded border border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-colors group"
+                                >
+                                  <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center flex-shrink-0">
+                                    <FileText className="w-4 h-4 text-purple-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                      {doc.title || doc.fileName}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {doc.type === 'DRAWING' ? 'Spec Sheet' : doc.type === 'SUPPLIER_QUOTE' ? 'Quote' : doc.type}
+                                    </p>
+                                  </div>
+                                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 flex-shrink-0" />
+                                </a>
+                              ))}
+                            </div>
                           </div>
                         )}
 

@@ -31,7 +31,8 @@ import {
   Calendar,
   Building2,
   Eye,
-  MapPin
+  MapPin,
+  FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AddressPicker from '@/components/shipping/AddressPicker'
@@ -224,7 +225,7 @@ export default function QuickQuoteDialog({
           itemIds,
           supplierId,
           shippingAddress: useCustomShipping ? shippingAddress : undefined,
-          message: customMessage || undefined
+          message: message || undefined
         })
       })
 
@@ -597,27 +598,36 @@ export default function QuickQuoteDialog({
                 {/* Include Spec Sheet & Notes - only show if applicable */}
                 {(() => {
                   const allItems = preview?.supplierGroups.flatMap(g => g.items.map(i => i.item)) || []
-                  const anyHasSpecs = allItems.some(item => {
+                  const itemsWithDocs = allItems.filter(item => {
                     const docs = (item as any).documents || []
-                    return docs.length > 0 || item.specStatus === 'COMPLETE' || item.specStatus === 'APPROVED'
+                    return docs.length > 0
                   })
+                  const anyHasSpecs = itemsWithDocs.length > 0 || allItems.some(item =>
+                    item.specStatus === 'COMPLETE' || item.specStatus === 'APPROVED'
+                  )
                   const anyHasNotes = allItems.some(item => item.notes && item.notes.trim().length > 0)
 
                   return (
                     <>
                       {anyHasSpecs && (
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
                           <Checkbox
                             id="includeSpecSheet"
                             checked={includeSpecSheet}
                             onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
                           />
                           <div className="flex-1">
-                            <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer">
-                              Include spec sheet & documents
+                            <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-purple-600" />
+                              Include spec sheets & attachments
+                              {itemsWithDocs.length > 0 && (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                                  {itemsWithDocs.length} {itemsWithDocs.length === 1 ? 'item' : 'items'} with docs
+                                </Badge>
+                              )}
                             </Label>
-                            <p className="text-xs text-gray-500">
-                              Supplier will be able to view item specifications and uploaded documents in the portal
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Supplier will be able to download spec sheets and documents from the portal
                             </p>
                           </div>
                         </div>
