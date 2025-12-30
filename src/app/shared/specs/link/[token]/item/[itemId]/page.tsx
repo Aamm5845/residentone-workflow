@@ -380,28 +380,33 @@ export default function ItemDetailPage() {
 
           {/* Right Column: Contact/Supplier Info */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">Contact Info</h3>
-            {shareSettings.showSupplier && item.supplierName ? (
-              <div className="space-y-4">
-                <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">Product Link</h3>
+            <div className="space-y-4">
+              {/* Always show product link if available */}
+              {item.supplierLink && (
+                <a
+                  href={item.supplierLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Product Page
+                </a>
+              )}
+
+              {/* Show supplier name if enabled */}
+              {shareSettings.showSupplier && item.supplierName && (
+                <div className="mt-4">
                   <p className="text-lg text-gray-900">{item.supplierName}</p>
                   <p className="text-xs text-gray-400 uppercase mt-1">Vendor</p>
                 </div>
-                {item.supplierLink && (
-                  <a
-                    href={item.supplierLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View Product
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">No contact information available</p>
-            )}
+              )}
+
+              {!item.supplierLink && !item.supplierName && (
+                <p className="text-gray-400 text-sm">No product link available</p>
+              )}
+            </div>
 
             {/* Room Info */}
             <div className="mt-8">

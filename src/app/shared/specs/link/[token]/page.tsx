@@ -469,16 +469,25 @@ export default function SharedSpecLinkPage() {
 
                         {/* Name & Location */}
                         <div className="col-span-2 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
-                              {item.name}
-                            </p>
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-gray-500">{item.roomName}</p>
                             {item.supplierLink && (
-                              <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                              <a
+                                href={item.supplierLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View
+                              </a>
                             )}
                           </div>
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{item.roomName}</p>
                         </div>
 
                         {/* Brand & Color */}

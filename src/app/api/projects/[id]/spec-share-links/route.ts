@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +42,7 @@ export async function GET(
     })
 
     // Build share URLs and add item count summary
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const linksWithMeta = shareLinks.map(link => ({
       ...link,
       shareUrl: `${baseUrl}/shared/specs/link/${link.token}`,
@@ -144,12 +145,10 @@ export async function POST(
       }
     })
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-
     return NextResponse.json({
       shareLink: {
         ...shareLink,
-        shareUrl: `${baseUrl}/shared/specs/link/${shareLink.token}`,
+        shareUrl: `${getBaseUrl()}/shared/specs/link/${shareLink.token}`,
         itemCount: shareLink.itemIds.length,
         isExpired: false
       }
