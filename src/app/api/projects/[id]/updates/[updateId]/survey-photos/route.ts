@@ -4,19 +4,30 @@ import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
 import { logActivity, ActivityActions, EntityTypes, getIPAddress } from '@/lib/attribution'
 
+// Configure route for larger file uploads (photos/videos)
+export const runtime = 'nodejs'
+export const maxDuration = 120 // 2 minutes for upload
+export const dynamic = 'force-dynamic'
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; updateId: string }> }
 ) {
   try {
+    console.log('[SurveyPhotos] Starting upload request...')
+
     const session = await getSession()
     if (!session?.user) {
+      console.log('[SurveyPhotos] No session found - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id: projectId, updateId } = await params
+    console.log('[SurveyPhotos] User authenticated:', session.user.id, session.user.email)
 
-    // Verify project access
+    const { id: projectId, updateId } = await params
+    console.log('[SurveyPhotos] Project ID:', projectId, 'Update ID:', updateId)
+
+    // Verify project access - user must be in the same org as the project
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
@@ -40,8 +51,28 @@ export async function POST(
     })
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      // Log more details to help debug
+      const projectExists = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true, orgId: true }
+      })
+      const userOrg = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { orgId: true }
+      })
+      console.log('[SurveyPhotos] Access denied - Project exists:', !!projectExists,
+        'Project orgId:', projectExists?.orgId,
+        'User orgId:', userOrg?.orgId)
+      return NextResponse.json({
+        error: 'Project not found or access denied',
+        debug: {
+          projectExists: !!projectExists,
+          orgMatch: projectExists?.orgId === userOrg?.orgId
+        }
+      }, { status: 404 })
     }
+
+    console.log('[SurveyPhotos] Project access verified:', project.name)
 
     // Verify update exists and belongs to project
     const update = await prisma.projectUpdate.findFirst({
