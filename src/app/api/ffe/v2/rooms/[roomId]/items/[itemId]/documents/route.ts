@@ -150,6 +150,16 @@ export async function GET(
       }
     }
 
+    // Helper to fix Dropbox URLs - convert raw=1 to dl=0 for document viewing
+    const fixDropboxUrl = (url: string | null): string | null => {
+      if (!url) return url
+      // Convert raw=1 to dl=0 for Dropbox URLs so documents open in browser
+      if (url.includes('dropbox.com') && url.includes('raw=1')) {
+        return url.replace('raw=1', 'dl=0')
+      }
+      return url
+    }
+
     // Combine all documents
     const allDocuments = [
       ...documents.map(doc => ({
@@ -157,7 +167,7 @@ export async function GET(
         title: doc.title,
         description: doc.description,
         fileName: doc.fileName,
-        fileUrl: doc.fileUrl,
+        fileUrl: fixDropboxUrl(doc.fileUrl),
         fileSize: doc.fileSize,
         mimeType: doc.mimeType,
         type: doc.type,
@@ -337,7 +347,9 @@ export async function POST(
 
         dropboxPath = result.path
         if (result.sharedLink) {
-          fileUrl = result.sharedLink
+          // For documents/PDFs, use dl=0 for browser viewing instead of raw=1
+          // raw=1 is for direct image embedding, dl=0 is for viewing in browser
+          fileUrl = result.sharedLink.replace('raw=1', 'dl=0')
         }
 
         console.log('[ItemDocuments] File uploaded to Dropbox:', dropboxPath)
