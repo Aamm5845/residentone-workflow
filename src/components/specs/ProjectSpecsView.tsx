@@ -3027,85 +3027,68 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
-          {/* Client Approval Summary Bar - Always visible */}
+          {/* Status Overview Bar - Always visible */}
           {specs.length > 0 && (
-            <div className="flex items-center justify-between gap-6 mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-4">
-                {/* Needs Approval - Clickable */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-500 mr-1">{specs.length} items:</span>
+
+                {/* Approved - Green */}
                 <button
-                  onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
+                  onClick={() => setSummaryFilter('all')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
-                    summaryFilter === 'needs_approval'
-                      ? "bg-amber-100 ring-2 ring-amber-400"
-                      : "hover:bg-gray-50"
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                    summaryFilter === 'all'
+                      ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300"
+                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                   )}
                 >
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center",
-                    summaryFilter === 'needs_approval'
-                      ? "bg-amber-200"
-                      : "bg-gradient-to-br from-amber-100 to-amber-200"
-                  )}>
-                    <Clock className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Needs Approval</p>
-                    <p className="text-lg font-semibold text-amber-600">
-                      {specs.filter(s => !s.clientApproved).length}/{specs.length}
-                    </p>
-                  </div>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {specs.filter(s => s.clientApproved).length} Approved
                 </button>
 
-                {/* Needs Price - Clickable */}
-                <button
-                  onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
-                    summaryFilter === 'needs_price'
-                      ? "bg-red-100 ring-2 ring-red-400"
-                      : "hover:bg-gray-50"
-                  )}
-                >
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center",
-                    summaryFilter === 'needs_price'
-                      ? "bg-red-200"
-                      : "bg-gradient-to-br from-red-100 to-red-200"
-                  )}>
-                    <DollarSign className="w-4 h-4 text-red-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Needs Price</p>
-                    <p className="text-lg font-semibold text-red-600">
-                      {specs.filter(s => !s.rrp).length}/{specs.length}
-                    </p>
-                  </div>
-                </button>
+                {/* Needs Approval - Amber */}
+                {specs.filter(s => !s.clientApproved).length > 0 && (
+                  <button
+                    onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                      summaryFilter === 'needs_approval'
+                        ? "bg-amber-100 text-amber-700 ring-1 ring-amber-300"
+                        : "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                    )}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {specs.filter(s => !s.clientApproved).length} Need Approval
+                  </button>
+                )}
 
-                {/* Clear Filter Button - Only show when filter is active */}
+                {/* Needs Price - Red */}
+                {specs.filter(s => !s.rrp).length > 0 && (
+                  <button
+                    onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                      summaryFilter === 'needs_price'
+                        ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                        : "bg-red-50 text-red-600 hover:bg-red-100"
+                    )}
+                  >
+                    <DollarSign className="w-3.5 h-3.5" />
+                    {specs.filter(s => !s.rrp).length} Need Price
+                  </button>
+                )}
+
+                {/* Clear filter indicator */}
                 {summaryFilter !== 'all' && (
                   <button
                     onClick={() => setSummaryFilter('all')}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
                   >
                     <X className="w-3 h-3" />
-                    Clear filter
+                    Clear
                   </button>
                 )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
-                    <p className="text-lg font-semibold text-emerald-600">
-                      {specs.filter(s => s.clientApproved).length}/{specs.length}
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
