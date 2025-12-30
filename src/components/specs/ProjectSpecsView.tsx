@@ -333,6 +333,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterRoom, setFilterRoom] = useState<string>('all')
+  const [summaryFilter, setSummaryFilter] = useState<'all' | 'needs_approval' | 'needs_price'>('all')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
@@ -1021,6 +1022,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       filtered = filtered.filter(spec => spec.sectionId === filterSection)
     }
 
+    // Apply summary filter (needs approval or needs price)
+    if (summaryFilter === 'needs_approval') {
+      filtered = filtered.filter(spec => !spec.clientApproved)
+    } else if (summaryFilter === 'needs_price') {
+      filtered = filtered.filter(spec => !spec.rrp)
+    }
+
     // Group by category or room, preserving sectionId and roomId
     const groups: Record<string, CategoryGroup> = {}
     filtered.forEach(spec => {
@@ -1051,7 +1059,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       setExpandedCategories(new Set(groupedArray.map(g => g.name)))
       prevSortByRef.current = sortBy
     }
-  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, sortBy])
+  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, summaryFilter, sortBy])
   
   // Filter ffeItems based on room and section filters for Needs Selection tab
   const filteredFfeItems = useMemo(() => {
@@ -2908,13 +2916,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
                     "h-8",
-                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') ? "text-emerald-600" : "text-gray-500"
+                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') ? "text-emerald-600" : "text-gray-500"
                   )}>
                     <Filter className="w-4 h-4 mr-1.5" />
                     Filter
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') && (
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') && (
                       <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-emerald-100 text-emerald-600">
-                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0)}
+                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0) + (summaryFilter !== 'all' ? 1 : 0)}
                       </Badge>
                     )}
                   </Button>
@@ -2980,15 +2988,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </div>
                     
                     {/* Clear Filters */}
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all') && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="w-full h-8 text-xs text-gray-500 hover:text-gray-700"
                         onClick={() => {
                           setFilterStatus('all')
                           setFilterRoom('all')
                           setFilterSection('all')
+                          setSummaryFilter('all')
                         }}
                       >
                         Clear All Filters
@@ -3021,45 +3030,82 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           {/* Client Approval Summary Bar - Always visible */}
           {specs.length > 0 && (
             <div className="flex items-center justify-between gap-6 mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
+                {/* Needs Approval - Clickable */}
+                <button
+                  onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
+                    summaryFilter === 'needs_approval'
+                      ? "bg-amber-100 ring-2 ring-amber-400"
+                      : "hover:bg-gray-50"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center",
+                    summaryFilter === 'needs_approval'
+                      ? "bg-amber-200"
+                      : "bg-gradient-to-br from-amber-100 to-amber-200"
+                  )}>
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Needs Approval</p>
+                    <p className="text-lg font-semibold text-amber-600">
+                      {specs.filter(s => !s.clientApproved).length}/{specs.length}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Needs Price - Clickable */}
+                <button
+                  onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
+                    summaryFilter === 'needs_price'
+                      ? "bg-red-100 ring-2 ring-red-400"
+                      : "hover:bg-gray-50"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center",
+                    summaryFilter === 'needs_price'
+                      ? "bg-red-200"
+                      : "bg-gradient-to-br from-red-100 to-red-200"
+                  )}>
+                    <DollarSign className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Needs Price</p>
+                    <p className="text-lg font-semibold text-red-600">
+                      {specs.filter(s => !s.rrp).length}/{specs.length}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Clear Filter Button - Only show when filter is active */}
+                {summaryFilter !== 'all' && (
+                  <button
+                    onClick={() => setSummaryFilter('all')}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                    Clear filter
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wide">Approved</p>
-                    <p className="text-lg font-semibold text-emerald-600">{specs.filter(s => s.clientApproved).length}</p>
+                    <p className="text-lg font-semibold text-emerald-600">
+                      {specs.filter(s => s.clientApproved).length}/{specs.length}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Pending Approval</p>
-                    <p className="text-lg font-semibold text-amber-600">{specs.filter(s => !s.clientApproved).length}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Need Price</p>
-                    <p className="text-lg font-semibold text-red-600">{specs.filter(s => !s.rrp).length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-full max-w-[200px] h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: `${specs.length > 0 ? (specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}%` }}
-                  />
-                </div>
-                <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
-                  {specs.length > 0 ? Math.round(specs.filter(s => s.clientApproved).length / specs.length * 100) : 0}% approved
-                </span>
               </div>
             </div>
           )}
