@@ -498,20 +498,27 @@ export async function DELETE(
     }
 
     // Regular document deletion
-    // Verify document exists and belongs to org (specItemId check is optional for older docs)
-    const document = await prisma.rFQDocument.findFirst({
+    // First try to find document linked to this specific item
+    let document = await prisma.rFQDocument.findFirst({
       where: {
         id: documentId,
         orgId,
-        OR: [
-          { specItemId: itemId },
-          { specItemId: null }  // Allow deleting older docs without specItemId
-        ]
+        specItemId: itemId
       }
     })
 
+    // If not found, try to find by ID only (for older docs or docs with different specItemId)
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+      document = await prisma.rFQDocument.findFirst({
+        where: {
+          id: documentId,
+          orgId
+        }
+      })
+    }
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found - ID: ' + documentId }, { status: 404 })
     }
 
     // Try to delete from Dropbox if path exists
@@ -578,20 +585,27 @@ export async function PUT(
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 })
     }
 
-    // Verify document exists and belongs to org (specItemId check is optional for older docs)
-    const document = await prisma.rFQDocument.findFirst({
+    // First try to find document linked to this specific item
+    let document = await prisma.rFQDocument.findFirst({
       where: {
         id: documentId,
         orgId,
-        OR: [
-          { specItemId: itemId },
-          { specItemId: null }  // Allow editing older docs without specItemId
-        ]
+        specItemId: itemId
       }
     })
 
+    // If not found, try to find by ID only (for older docs or docs with different specItemId)
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+      document = await prisma.rFQDocument.findFirst({
+        where: {
+          id: documentId,
+          orgId
+        }
+      })
+    }
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found - ID: ' + documentId }, { status: 404 })
     }
 
     // Update document

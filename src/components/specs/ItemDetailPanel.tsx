@@ -964,11 +964,13 @@ export function ItemDetailPanel({
         setDocuments(prev => prev.filter(d => d.id !== documentId))
         toast.success('Document deleted')
       } else {
-        toast.error('Failed to delete document')
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Delete failed:', res.status, errorData)
+        toast.error(errorData.error || 'Failed to delete document')
       }
     } catch (error) {
       console.error('Delete error:', error)
-      toast.error('Failed to delete document')
+      toast.error('Failed to delete document - network error')
     } finally {
       setDeletingDocumentId(null)
     }
@@ -1016,11 +1018,13 @@ export function ItemDetailPanel({
         setEditingDocument(null)
         toast.success('Document updated')
       } else {
-        toast.error('Failed to update document')
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Update failed:', res.status, errorData)
+        toast.error(errorData.error || 'Failed to update document')
       }
     } catch (error) {
       console.error('Update error:', error)
-      toast.error('Failed to update document')
+      toast.error('Failed to update document - network error')
     } finally {
       setSavingDocumentEdit(false)
     }
