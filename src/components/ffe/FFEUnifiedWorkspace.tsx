@@ -1531,7 +1531,55 @@ export default function FFEUnifiedWorkspace({
                                     {item.quantity > 1 && (
                                       <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
                                     )}
-                                    
+
+                                    {/* Doc Code - inline editable */}
+                                    <div className="flex items-center gap-1">
+                                      {editingDocCodeItemId === item.id ? (
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            value={editDocCodeValue}
+                                            onChange={(e) => setEditDocCodeValue(e.target.value)}
+                                            placeholder="Doc Code"
+                                            className="h-6 w-24 text-xs"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleUpdateItemDocCode(item.id)
+                                              if (e.key === 'Escape') { setEditingDocCodeItemId(null); setEditDocCodeValue('') }
+                                            }}
+                                          />
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleUpdateItemDocCode(item.id)}
+                                            className="h-6 w-6 p-0 text-green-600"
+                                            disabled={savingDocCode}
+                                          >
+                                            {savingDocCode ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => { setEditingDocCodeItemId(null); setEditDocCodeValue('') }}
+                                            className="h-6 w-6 p-0 text-gray-400"
+                                            disabled={savingDocCode}
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-xs cursor-pointer hover:bg-gray-100 transition-colors",
+                                            item.docCode ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-gray-50 text-gray-500 border-dashed"
+                                          )}
+                                          onClick={() => { setEditingDocCodeItemId(item.id); setEditDocCodeValue(item.docCode || '') }}
+                                        >
+                                          {item.docCode || '+ Code'}
+                                        </Badge>
+                                      )}
+                                    </div>
+
                                     {/* Linked children indicator */}
                                     {groupedChildren.length > 0 && (
                                       <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">

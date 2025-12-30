@@ -157,6 +157,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Sync docCode from FFE requirement to spec item (if FFE has a docCode)
+    if (ffeRequirement.docCode) {
+      await prisma.roomFFEItem.update({
+        where: { id: specItemId },
+        data: { docCode: ffeRequirement.docCode }
+      })
+    }
+
     return NextResponse.json({
       success: true,
       link: {

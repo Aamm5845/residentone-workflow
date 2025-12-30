@@ -32,7 +32,7 @@ export async function PUT(
 
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
-    const { name, description, quantity, unitType, state, notes } = await request.json()
+    const { name, description, quantity, unitType, state, notes, docCode } = await request.json()
 
     if (!roomId || !itemId) {
       return NextResponse.json({ 
@@ -113,10 +113,39 @@ export async function PUT(
         ...(unitType !== undefined && { unitType }),
         ...(state !== undefined && { state }),
         ...(notes !== undefined && { notes }),
+        ...(docCode !== undefined && { docCode }),
         updatedById: userId,
         updatedAt: new Date()
       }
     })
+
+    // Sync docCode to linked items (bidirectional sync)
+    if (docCode !== undefined) {
+      // Check if this item is an FFE requirement (not a spec item)
+      if (!existingItem.isSpecItem) {
+        // Sync docCode to all linked spec items
+        const ffeLinks = await prisma.fFESpecLink.findMany({
+          where: { ffeRequirementId: itemId }
+        })
+        if (ffeLinks.length > 0) {
+          await prisma.roomFFEItem.updateMany({
+            where: { id: { in: ffeLinks.map(l => l.specItemId) } },
+            data: { docCode: docCode || null }
+          })
+        }
+      } else {
+        // This is a spec item - sync docCode back to linked FFE requirements
+        const specLinks = await prisma.fFESpecLink.findMany({
+          where: { specItemId: itemId }
+        })
+        if (specLinks.length > 0) {
+          await prisma.roomFFEItem.updateMany({
+            where: { id: { in: specLinks.map(l => l.ffeRequirementId) } },
+            data: { docCode: docCode || null }
+          })
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
