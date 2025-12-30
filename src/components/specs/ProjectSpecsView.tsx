@@ -4457,7 +4457,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       )}
                                     </DropdownMenuItem>
                                     
-                                    {/* Create Client Quote (Invoice with markup) */}
+                                    {/* Client Invoice (same as top button but for single item) */}
                                     <DropdownMenuItem
                                       className="text-xs text-green-700"
                                       onSelect={() => {
@@ -4466,19 +4466,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       }}
                                     >
                                       <DollarSign className="w-3.5 h-3.5 mr-2" />
-                                      Create Client Quote
-                                    </DropdownMenuItem>
-
-                                    {/* Send Quote to Client (email with payment link) */}
-                                    <DropdownMenuItem
-                                      className="text-xs text-blue-700"
-                                      onSelect={() => {
-                                        setSendToClientItems([item.id])
-                                        setSendToClientDialogOpen(true)
-                                      }}
-                                    >
-                                      <Mail className="w-3.5 h-3.5 mr-2" />
-                                      Send Quote to Client
+                                      Client Invoice
                                     </DropdownMenuItem>
 
                                     <div className="h-px bg-gray-100 my-1" />
