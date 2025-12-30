@@ -1462,6 +1462,8 @@ model RoomFFEItem {
   visibility       FFEItemVisibility   @default(HIDDEN)
   specStatus       FFESpecStatus       @default(DRAFT)
   clientApproved   Boolean             @default(false)  // Client approval flag for ordering
+  clientApprovedAt DateTime?           // When client approved this item
+  clientApprovedVia String?            // How approved: "share_link", "portal", etc.
   isRequired       Boolean             @default(false)
   isCustom         Boolean             @default(false)
   order            Int                 @default(0)
@@ -3742,6 +3744,9 @@ model SpecShareLink {
   showBrand      Boolean   @default(true)
   showPricing    Boolean   @default(false)
   showDetails    Boolean   @default(true)
+
+  // Client approval feature
+  allowApproval  Boolean   @default(false)  // Allow recipient to approve items
 
   // Expiry (optional - null means no expiry)
   expiresAt      DateTime?

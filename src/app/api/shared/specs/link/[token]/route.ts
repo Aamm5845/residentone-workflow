@@ -161,7 +161,9 @@ export async function GET(
       height: shareLink.showDetails ? item.height : null,
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
-      rrp: shareLink.showPricing ? item.rrp : null
+      rrp: shareLink.showPricing ? item.rrp : null,
+      clientApproved: item.clientApproved || false,
+      clientApprovedAt: item.clientApprovedAt?.toISOString() || null
       }
     })
 
@@ -175,7 +177,8 @@ export async function GET(
         showSupplier: shareLink.showSupplier,
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
-        showDetails: shareLink.showDetails
+        showDetails: shareLink.showDetails,
+        allowApproval: shareLink.allowApproval || false
       },
       expiresAt: shareLink.expiresAt,
       lastUpdated: lastUpdated?.toISOString() || null

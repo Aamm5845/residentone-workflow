@@ -9,8 +9,11 @@ import {
   Image as ImageIcon,
   ChevronDown,
   Search,
-  X
+  X,
+  Check,
+  CheckCircle2
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 interface SpecItem {
   id: string
@@ -19,7 +22,7 @@ interface SpecItem {
   roomName: string
   sectionName: string
   categoryName: string
-  productName: string | null
+  modelNumber: string | null
   brand: string | null
   sku: string | null
   quantity: number
@@ -38,6 +41,8 @@ interface SpecItem {
   length: string | null
   height: string | null
   depth: string | null
+  clientApproved: boolean
+  clientApprovedAt: string | null
 }
 
 interface CategoryGroup {
@@ -50,6 +55,7 @@ interface ShareSettings {
   showBrand: boolean
   showPricing: boolean
   showDetails: boolean
+  allowApproval: boolean
 }
 
 export default function SharedSpecLinkPage() {
@@ -66,16 +72,17 @@ export default function SharedSpecLinkPage() {
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [approvingItems, setApprovingItems] = useState<Set<string>>(new Set())
 
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     showSupplier: false,
     showBrand: true,
     showPricing: false,
-    showDetails: true
+    showDetails: true,
+    allowApproval: false
   })
 
   // UI State
-  const [activeTab, setActiveTab] = useState<'summary' | 'financial'>('summary')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -101,7 +108,8 @@ export default function SharedSpecLinkPage() {
           showSupplier: false,
           showBrand: true,
           showPricing: false,
-          showDetails: true
+          showDetails: true,
+          allowApproval: false
         })
 
         // Group specs by category
@@ -140,7 +148,7 @@ export default function SharedSpecLinkPage() {
         ...group,
         items: group.items.filter(item =>
           item.name.toLowerCase().includes(query) ||
-          item.productName?.toLowerCase().includes(query) ||
+          item.modelNumber?.toLowerCase().includes(query) ||
           item.brand?.toLowerCase().includes(query) ||
           item.roomName.toLowerCase().includes(query) ||
           item.sectionName.toLowerCase().includes(query) ||
@@ -151,7 +159,7 @@ export default function SharedSpecLinkPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost for financial tab
+  // Calculate total cost
   const totalCost = useMemo(() => {
     return specs.reduce((sum, item) => {
       const price = item.rrp || item.tradePrice || 0
@@ -159,21 +167,15 @@ export default function SharedSpecLinkPage() {
     }, 0)
   }, [specs])
 
-  // Calculate category costs
-  const categoryCosts = useMemo(() => {
-    const costs: Record<string, number> = {}
-    specs.forEach(item => {
-      const category = item.categoryName || 'General'
-      const price = item.rrp || item.tradePrice || 0
-      costs[category] = (costs[category] || 0) + (price * (item.quantity || 1))
-    })
-    return costs
-  }, [specs])
-
   // Total filtered items count
   const filteredItemsCount = useMemo(() => {
     return filteredGroups.reduce((sum, group) => sum + group.items.length, 0)
   }, [filteredGroups])
+
+  // Count approved items
+  const approvedCount = useMemo(() => {
+    return specs.filter(s => s.clientApproved).length
+  }, [specs])
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategories(prev => {
@@ -206,7 +208,7 @@ export default function SharedSpecLinkPage() {
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays === 0) return 'Updated today'
     if (diffDays === 1) return 'Last Updated 1 day ago'
     if (diffDays < 30) return `Last Updated ${diffDays} days ago`
@@ -219,6 +221,52 @@ export default function SharedSpecLinkPage() {
 
   const openItemDetail = (itemId: string) => {
     router.push(`/shared/specs/link/${token}/item/${itemId}`)
+  }
+
+  const handleApproveItem = async (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (approvingItems.has(itemId)) return
+
+    setApprovingItems(prev => new Set([...prev, itemId]))
+
+    try {
+      const res = await fetch(`/api/shared/specs/link/${token}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to approve')
+      }
+
+      // Update local state
+      setSpecs(prev => prev.map(s =>
+        s.id === itemId
+          ? { ...s, clientApproved: true, clientApprovedAt: new Date().toISOString() }
+          : s
+      ))
+      setGroupedSpecs(prev => prev.map(g => ({
+        ...g,
+        items: g.items.map(s =>
+          s.id === itemId
+            ? { ...s, clientApproved: true, clientApprovedAt: new Date().toISOString() }
+            : s
+        )
+      })))
+
+      toast.success('Item approved')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to approve item')
+    } finally {
+      setApprovingItems(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(itemId)
+        return newSet
+      })
+    }
   }
 
   // Keyboard shortcut for search
@@ -282,48 +330,31 @@ export default function SharedSpecLinkPage() {
               </div>
             </div>
 
-            {lastUpdated && (
-              <div className="text-sm text-gray-400">
-                {formatLastUpdated(lastUpdated)}
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {shareSettings.allowApproval && (
+                <div className="text-sm text-gray-500">
+                  <span className="font-medium text-emerald-600">{approvedCount}</span>
+                  <span className="text-gray-400"> / {specs.length} approved</span>
+                </div>
+              )}
+              {lastUpdated && (
+                <div className="text-sm text-gray-400">
+                  {formatLastUpdated(lastUpdated)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Tab Bar & Controls */}
+      {/* Controls Bar */}
       <div className="border-b border-gray-200 bg-white sticky top-[73px] z-40">
         <div className="max-w-[1400px] mx-auto px-6">
           <div className="flex items-center justify-between h-12">
-            {/* Left: Tabs */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setActiveTab('summary')}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  activeTab === 'summary'
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                )}
-              >
-                Summary
-              </button>
-              {shareSettings.showPricing && (
-                <button
-                  onClick={() => setActiveTab('financial')}
-                  className={cn(
-                    "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                    activeTab === 'financial'
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                  )}
-                >
-                  Financial
-                </button>
-              )}
-
+            {/* Left: Navigation & Total */}
+            <div className="flex items-center gap-4">
               {/* Navigate to Section Dropdown */}
-              <div className="relative ml-2">
+              <div className="relative">
                 <select
                   onChange={(e) => {
                     if (e.target.value) {
@@ -344,11 +375,11 @@ export default function SharedSpecLinkPage() {
                 <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
 
-              {/* Total Cost for Financial Tab */}
-              {activeTab === 'financial' && shareSettings.showPricing && (
-                <div className="ml-4 pl-4 border-l border-gray-200">
+              {/* Total Cost - only if pricing is shown */}
+              {shareSettings.showPricing && (
+                <div className="pl-4 border-l border-gray-200">
                   <span className="text-lg font-semibold text-gray-900">{formatCurrency(totalCost)}</span>
-                  <span className="text-xs text-gray-400 uppercase ml-2">Total Cost</span>
+                  <span className="text-xs text-gray-400 uppercase ml-2">Total</span>
                 </div>
               )}
             </div>
@@ -422,14 +453,6 @@ export default function SharedSpecLinkPage() {
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                       {group.items.length}
                     </span>
-                    {activeTab === 'financial' && shareSettings.showPricing && categoryCosts[group.name] && (
-                      <div className="ml-2">
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatCurrency(categoryCosts[group.name])}
-                        </span>
-                        <span className="text-[10px] text-gray-400 uppercase ml-1">Total Cost</span>
-                      </div>
-                    )}
                   </div>
                   <button
                     onClick={() => toggleCategory(group.name)}
@@ -490,51 +513,48 @@ export default function SharedSpecLinkPage() {
                           </div>
                         </div>
 
-                        {/* Brand & Color */}
+                        {/* Model Number */}
                         <div className="col-span-1 min-w-0">
-                          {item.productName && (
+                          {item.modelNumber && (
                             <>
-                              <p className="text-sm text-gray-700 truncate">{item.productName}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Color</p>
+                              <p className="text-sm text-gray-700 truncate">{item.modelNumber}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Model</p>
                             </>
-                          )}
-                          {item.brand && (
-                            <div className="mt-1">
-                              <p className="text-sm text-gray-600 truncate">{item.brand}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Brand</p>
-                            </div>
                           )}
                         </div>
 
-                        {/* Dimensions or Financial */}
-                        {activeTab === 'summary' ? (
+                        {/* Brand */}
+                        <div className="col-span-1 min-w-0">
+                          {item.brand && (
+                            <>
+                              <p className="text-sm text-gray-600 truncate">{item.brand}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Brand</p>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Color */}
+                        <div className="col-span-1 min-w-0">
+                          {item.color && (
+                            <>
+                              <p className="text-sm text-gray-600 truncate">{item.color}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Color</p>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Qty */}
+                        <div className="col-span-1 text-center">
+                          <p className="text-sm text-gray-700">{item.quantity || 0}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Qty</p>
+                        </div>
+
+                        {/* Price - only if pricing is shown */}
+                        {shareSettings.showPricing ? (
                           <>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.width || '-'}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Width (in)</p>
-                            </div>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.length || '-'}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Length (in)</p>
-                            </div>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.height || '-'}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Height (in)</p>
-                            </div>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.depth || '-'}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Depth (in)</p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.quantity || 0}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Qty</p>
-                            </div>
                             <div className="col-span-1 text-center">
                               <p className="text-sm text-gray-700">{formatCurrency(item.rrp)}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Unit Price</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Price</p>
                             </div>
                             <div className="col-span-1 text-center">
                               <p className="text-sm font-medium text-gray-900">
@@ -542,45 +562,56 @@ export default function SharedSpecLinkPage() {
                               </p>
                               <p className="text-[10px] text-gray-400 uppercase">Total</p>
                             </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Lead Time when no pricing */}
                             <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{formatCurrency(item.rrp)}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">RRP</p>
+                              <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
+                              <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
+                            </div>
+                            {/* Vendor when no pricing */}
+                            <div className="col-span-1 min-w-0">
+                              {item.supplierName ? (
+                                <>
+                                  <p className="text-sm text-gray-700 truncate">{item.supplierName}</p>
+                                  <p className="text-[10px] text-gray-400 uppercase">Vendor</p>
+                                </>
+                              ) : (
+                                <p className="text-sm text-gray-400">-</p>
+                              )}
                             </div>
                           </>
                         )}
 
-                        {/* Qty (Summary only) */}
-                        {activeTab === 'summary' && (
-                          <div className="col-span-1 text-center">
-                            <p className="text-sm text-gray-700">{item.quantity || 0}</p>
-                            <p className="text-[10px] text-gray-400 uppercase">Qty</p>
-                          </div>
-                        )}
-
-                        {/* Lead Time */}
-                        <div className="col-span-1 text-center">
-                          <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
-                        </div>
-
-                        {/* Vendor */}
-                        <div className="col-span-1 min-w-0">
-                          {item.supplierName ? (
-                            <>
-                              <p className="text-sm text-gray-700 truncate">{item.supplierName}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Vendor</p>
-                            </>
+                        {/* Status & Approval */}
+                        <div className="col-span-2 flex items-center justify-end gap-3">
+                          {/* Approval Status */}
+                          {item.clientApproved ? (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">Approved</span>
+                            </div>
+                          ) : shareSettings.allowApproval ? (
+                            <button
+                              onClick={(e) => handleApproveItem(item.id, e)}
+                              disabled={approvingItems.has(item.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                            >
+                              {approvingItems.has(item.id) ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                              Approve
+                            </button>
                           ) : (
-                            <p className="text-sm text-gray-400">-</p>
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full">
+                              <span className="text-xs">Pending</span>
+                            </div>
                           )}
-                        </div>
 
-                        {/* Status & Details */}
-                        <div className="col-span-1 flex flex-col items-end gap-2">
-                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                            <div className="w-3 h-3 rounded-full border border-gray-300" />
-                            <span>{item.specStatus === 'DRAFT' ? 'Draft' : item.specStatus || 'Draft'}</span>
-                          </div>
+                          {/* Details Button */}
                           <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors">
                             Details
                           </span>

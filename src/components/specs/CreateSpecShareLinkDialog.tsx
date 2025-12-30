@@ -20,7 +20,8 @@ import {
   Search,
   CheckSquare,
   Square,
-  Building2
+  Building2,
+  UserCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +48,7 @@ interface CreateSpecShareLinkDialogProps {
     showBrand: boolean
     showPricing: boolean
     showDetails: boolean
+    allowApproval: boolean
     expiresAt: string | null
   } | null
 }
@@ -69,6 +71,7 @@ export default function CreateSpecShareLinkDialog({
   const [showBrand, setShowBrand] = useState(true)
   const [showPricing, setShowPricing] = useState(false)
   const [showDetails, setShowDetails] = useState(true)
+  const [allowApproval, setAllowApproval] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
 
   // Reset form when dialog opens/closes or editing link changes
@@ -81,6 +84,7 @@ export default function CreateSpecShareLinkDialog({
         setShowBrand(editingLink.showBrand)
         setShowPricing(editingLink.showPricing)
         setShowDetails(editingLink.showDetails)
+        setAllowApproval(editingLink.allowApproval || false)
         setExpiresAt(editingLink.expiresAt ? editingLink.expiresAt.split('T')[0] : '')
       } else {
         setName('')
@@ -89,6 +93,7 @@ export default function CreateSpecShareLinkDialog({
         setShowBrand(true)
         setShowPricing(false)
         setShowDetails(true)
+        setAllowApproval(false)
         setExpiresAt('')
       }
       setSearchQuery('')
@@ -156,6 +161,7 @@ export default function CreateSpecShareLinkDialog({
           showBrand,
           showPricing,
           showDetails,
+          allowApproval,
           expiresAt: expiresAt || null
         })
       })
@@ -322,6 +328,21 @@ export default function CreateSpecShareLinkDialog({
                 <Switch checked={showDetails} onCheckedChange={setShowDetails} />
               </label>
             </div>
+          </div>
+
+          {/* Client Approval Option */}
+          <div className="space-y-2">
+            <Label>Client Actions</Label>
+            <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                <div>
+                  <span className="text-sm font-medium">Allow Approval</span>
+                  <p className="text-xs text-slate-500">Client can approve items directly from the shared link</p>
+                </div>
+              </div>
+              <Switch checked={allowApproval} onCheckedChange={setAllowApproval} />
+            </label>
           </div>
 
           {/* Expiry Date */}
