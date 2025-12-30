@@ -263,6 +263,21 @@ export async function POST(
   }
 }
 
+// Handle GET requests (for debugging - should not normally be called)
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; updateId: string }> }
+) {
+  const { id: projectId, updateId } = await params
+  console.log('[SurveyPhotos] GET request received (unexpected) - projectId:', projectId, 'updateId:', updateId)
+  return NextResponse.json({
+    error: 'Use POST to upload photos',
+    method: 'GET',
+    projectId,
+    updateId
+  }, { status: 405 })
+}
+
 // Handle CORS preflight requests
 export async function OPTIONS() {
   return new NextResponse(null, {
