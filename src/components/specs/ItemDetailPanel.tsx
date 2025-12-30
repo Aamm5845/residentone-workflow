@@ -2592,16 +2592,16 @@ export function ItemDetailPanel({
                                         </p>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
                                       {doc.fileUrl && !doc.fileUrl.startsWith('dropbox:') && (
                                         <a
                                           href={doc.fileUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                          title="Open"
+                                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded border border-blue-200 flex items-center gap-1"
                                         >
-                                          <ExternalLink className="w-4 h-4" />
+                                          <ExternalLink className="w-3 h-3" />
+                                          Open
                                         </a>
                                       )}
                                       <button
@@ -2609,10 +2609,10 @@ export function ItemDetailPanel({
                                           e.stopPropagation()
                                           handleEditDocument(doc)
                                         }}
-                                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                        title="Edit title/note"
+                                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded border border-gray-200 flex items-center gap-1"
                                       >
-                                        <Edit className="w-4 h-4" />
+                                        <Edit className="w-3 h-3" />
+                                        Edit
                                       </button>
                                       <button
                                         onClick={(e) => {
@@ -2620,14 +2620,14 @@ export function ItemDetailPanel({
                                           handleDeleteDocument(doc.id)
                                         }}
                                         disabled={deletingDocumentId === doc.id}
-                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                                        title="Delete"
+                                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center gap-1 disabled:opacity-50"
                                       >
                                         {deletingDocumentId === doc.id ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                          <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                          <Trash2 className="w-4 h-4" />
+                                          <Trash2 className="w-3 h-3" />
                                         )}
+                                        Delete
                                       </button>
                                     </div>
                                   </div>
