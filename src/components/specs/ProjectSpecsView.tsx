@@ -3966,18 +3966,56 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Doc Code - Fixed width (5 chars max) */}
-                            <div className="flex-shrink-0 w-16 h-9">
+                            {/* Doc Code - Fixed width, prefix-aware editing */}
+                            <div className="flex-shrink-0 w-20 h-9">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
                               {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
-                                <Input
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={saveInlineEdit}
-                                  onKeyDown={handleEditKeyDown}
-                                  className="h-6 text-xs"
-                                  autoFocus
-                                />
+                                (() => {
+                                  // Check if doc code has prefix format (e.g., "PL-01")
+                                  const prefixMatch = (item.docCode || '').match(/^([A-Z]{1,3})-(\d+)$/)
+                                  if (prefixMatch) {
+                                    // Prefix mode: show prefix static, edit number only
+                                    const prefix = prefixMatch[1]
+                                    return (
+                                      <div className="flex items-center h-6">
+                                        <span className="text-xs text-gray-500 font-mono mr-0.5">{prefix}-</span>
+                                        <Input
+                                          value={editValue}
+                                          onChange={(e) => setEditValue(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                                          onBlur={() => {
+                                            // Reconstruct full doc code before saving
+                                            const num = editValue.padStart(2, '0')
+                                            setEditValue(`${prefix}-${num}`)
+                                            setTimeout(saveInlineEdit, 0)
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              const num = editValue.padStart(2, '0')
+                                              setEditValue(`${prefix}-${num}`)
+                                              setTimeout(saveInlineEdit, 0)
+                                            } else if (e.key === 'Escape') {
+                                              cancelEditing()
+                                            }
+                                          }}
+                                          className="h-6 text-xs w-10 font-mono px-1"
+                                          autoFocus
+                                          placeholder="01"
+                                        />
+                                      </div>
+                                    )
+                                  }
+                                  // No prefix: allow full editing
+                                  return (
+                                    <Input
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={saveInlineEdit}
+                                      onKeyDown={handleEditKeyDown}
+                                      className="h-6 text-xs"
+                                      autoFocus
+                                    />
+                                  )
+                                })()
                               ) : (
                                 <p
                                   className={cn(
@@ -3986,7 +4024,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       ? "text-gray-900 hover:bg-gray-100"
                                       : "text-red-500 bg-red-50 hover:bg-red-100 font-medium"
                                   )}
-                                  onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'docCode', item.docCode || '') }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    // If prefix format, start editing with just the number
+                                    const prefixMatch = (item.docCode || '').match(/^([A-Z]{1,3})-(\d+)$/)
+                                    if (prefixMatch) {
+                                      startEditing(item.id, 'docCode', prefixMatch[2])
+                                    } else {
+                                      startEditing(item.id, 'docCode', item.docCode || '')
+                                    }
+                                  }}
                                   title={item.docCode || 'Click to add doc code'}
                                 >
                                   {item.docCode || 'Add'}

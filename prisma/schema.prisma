@@ -1436,8 +1436,10 @@ model RoomFFESection {
   id                String          @id @default(cuid())
   instanceId        String
   templateSectionId String?
+  presetId          String?         // Link to FFESectionPreset
   name              String
   description       String?
+  docCodePrefix     String?         // Doc code prefix for items (e.g., "PL" for Plumbing)
   order             Int             @default(0)
   isExpanded        Boolean         @default(true)
   isCompleted       Boolean         @default(false)
@@ -1447,8 +1449,29 @@ model RoomFFESection {
   updatedAt         DateTime        @updatedAt
   items             RoomFFEItem[]   @relation("RoomFFESectionItems")
   instance          RoomFFEInstance @relation("RoomFFEInstanceSections", fields: [instanceId], references: [id], onDelete: Cascade)
+  preset            FFESectionPreset? @relation(fields: [presetId], references: [id])
 
   @@index([instanceId, order])
+  @@index([presetId])
+}
+
+// Section presets with doc code prefixes (configured per organization)
+model FFESectionPreset {
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String           // e.g., "Plumbing"
+  docCodePrefix String           // e.g., "PL" (1-3 uppercase letters)
+  description   String?
+  order         Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sections      RoomFFESection[]
+
+  @@unique([orgId, name])
+  @@unique([orgId, docCodePrefix])
+  @@index([orgId])
 }
 
 model RoomFFEItem {

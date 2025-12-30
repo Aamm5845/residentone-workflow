@@ -110,6 +110,11 @@ export default function FFESettingsDepartment({
   const [templatesError, setTemplatesError] = useState<any>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
+  // Section presets state
+  const [sectionPresets, setSectionPresets] = useState<Array<{id: string, name: string, docCodePrefix: string, description: string | null}>>([])
+  const [sectionCreationMode, setSectionCreationMode] = useState<'preset' | 'custom'>('preset')
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('')
+
   // Form states
   const [newSectionName, setNewSectionName] = useState('')
   const [newSectionDescription, setNewSectionDescription] = useState('')
@@ -214,6 +219,18 @@ export default function FFESettingsDepartment({
     }
   }
 
+  const loadSectionPresets = async () => {
+    try {
+      const response = await fetch('/api/ffe/section-presets')
+      if (response.ok) {
+        const data = await response.json()
+        setSectionPresets(data.presets?.filter((p: any) => p.isActive) || [])
+      }
+    } catch (error) {
+      console.error('Error loading section presets:', error)
+    }
+  }
+
   const calculateStats = (sectionsData: FFESection[]) => {
     const allItems = sectionsData.flatMap(section => section.items)
     const newStats = {
@@ -266,19 +283,45 @@ export default function FFESettingsDepartment({
   }
 
   const handleAddSection = async () => {
-    if (!newSectionName.trim()) { toast.error('Section name is required'); return }
+    // Determine name and preset based on mode
+    let sectionName = ''
+    let sectionDescription = ''
+    let presetId: string | undefined
+    let docCodePrefix: string | undefined
+
+    if (sectionCreationMode === 'preset' && selectedPresetId) {
+      const preset = sectionPresets.find(p => p.id === selectedPresetId)
+      if (!preset) { toast.error('Please select a preset'); return }
+      sectionName = preset.name
+      sectionDescription = preset.description || ''
+      presetId = preset.id
+      docCodePrefix = preset.docCodePrefix
+    } else {
+      if (!newSectionName.trim()) { toast.error('Section name is required'); return }
+      sectionName = newSectionName.trim()
+      sectionDescription = newSectionDescription.trim()
+    }
+
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newSectionName.trim(), description: newSectionDescription.trim() || undefined, order: sections.length })
+        body: JSON.stringify({
+          name: sectionName,
+          description: sectionDescription || undefined,
+          order: sections.length,
+          presetId,
+          docCodePrefix
+        })
       })
       if (!response.ok) throw new Error('Failed to add section')
       await loadFFEData()
       setShowAddSectionDialog(false)
       setNewSectionName('')
       setNewSectionDescription('')
+      setSelectedPresetId('')
+      setSectionCreationMode('preset')
       toast.success('Section added')
     } catch (error) {
       toast.error('Failed to add section')
@@ -911,7 +954,16 @@ export default function FFESettingsDepartment({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
+        <Dialog open={showAddSectionDialog} onOpenChange={(open) => {
+          setShowAddSectionDialog(open)
+          if (open) {
+            loadSectionPresets()
+            setSectionCreationMode('preset')
+            setSelectedPresetId('')
+            setNewSectionName('')
+            setNewSectionDescription('')
+          }
+        }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -920,18 +972,71 @@ export default function FFESettingsDepartment({
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div>
-                <Label>Name</Label>
-                <Input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} placeholder="e.g., Flooring, Lighting" className="mt-1.5" />
+              {/* Mode selection */}
+              <div className="flex gap-2">
+                <Button
+                  variant={sectionCreationMode === 'preset' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSectionCreationMode('preset')}
+                >
+                  Choose Preset
+                </Button>
+                <Button
+                  variant={sectionCreationMode === 'custom' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSectionCreationMode('custom')}
+                >
+                  Custom Section
+                </Button>
               </div>
-              <div>
-                <Label>Description (optional)</Label>
-                <Textarea value={newSectionDescription} onChange={(e) => setNewSectionDescription(e.target.value)} placeholder="Brief description..." rows={2} className="mt-1.5" />
-              </div>
+
+              {sectionCreationMode === 'preset' ? (
+                <div className="space-y-3">
+                  <Label>Select a preset</Label>
+                  {sectionPresets.length === 0 ? (
+                    <p className="text-sm text-gray-500">No presets available. Create presets in FFE Management settings.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-auto">
+                      {sectionPresets.map(preset => (
+                        <div
+                          key={preset.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedPresetId === preset.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setSelectedPresetId(preset.id)}
+                        >
+                          <div className="font-medium text-sm">{preset.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            Doc code: <span className="font-mono bg-gray-100 px-1 rounded">{preset.docCodePrefix}-XX</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>Name</Label>
+                    <Input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} placeholder="e.g., Flooring, Lighting" className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label>Description (optional)</Label>
+                    <Textarea value={newSectionDescription} onChange={(e) => setNewSectionDescription(e.target.value)} placeholder="Brief description..." rows={2} className="mt-1.5" />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => { setShowAddSectionDialog(false); setNewSectionName(''); setNewSectionDescription('') }}>Cancel</Button>
-              <Button onClick={handleAddSection} disabled={saving || !newSectionName.trim()}>
+              <Button variant="outline" onClick={() => { setShowAddSectionDialog(false); setNewSectionName(''); setNewSectionDescription(''); setSelectedPresetId('') }}>Cancel</Button>
+              <Button
+                onClick={handleAddSection}
+                disabled={saving || (sectionCreationMode === 'preset' ? !selectedPresetId : !newSectionName.trim())}
+              >
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
                 Add Section
               </Button>

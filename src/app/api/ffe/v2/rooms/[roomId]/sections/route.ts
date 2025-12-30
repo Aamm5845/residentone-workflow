@@ -31,7 +31,7 @@ export async function POST(
     }
     
     const { roomId } = await params
-    const { name, description, items = [] } = await request.json()
+    const { name, description, items = [], presetId, docCodePrefix } = await request.json()
 
     if (!roomId || !name?.trim()) {
       return NextResponse.json({ error: 'Room ID and section name are required' }, { status: 400 })
@@ -91,7 +91,9 @@ export async function POST(
           description: description?.trim() || null,
           order: nextOrder,
           isExpanded: true,
-          isCompleted: false
+          isCompleted: false,
+          presetId: presetId || null,
+          docCodePrefix: docCodePrefix?.toUpperCase() || null
         }
       })
 

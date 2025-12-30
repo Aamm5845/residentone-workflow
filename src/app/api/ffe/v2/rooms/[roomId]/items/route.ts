@@ -167,7 +167,14 @@ export async function POST(
         }
       },
       include: {
-        items: { orderBy: { order: 'asc' } }
+        items: { orderBy: { order: 'asc' } },
+        instance: {
+          include: {
+            room: {
+              select: { projectId: true }
+            }
+          }
+        }
       }
     })
 
@@ -180,13 +187,55 @@ export async function POST(
       ? Math.max(...section.items.map(i => i.order)) + 1
       : 1
 
+    // Auto-generate doc code if section has prefix and no docCode provided
+    let generatedDocCode = docCode || null
+    if (!docCode && section.docCodePrefix) {
+      // Find the highest existing number for this prefix in the entire project
+      const projectId = section.instance.room.projectId
+      const existingItems = await prisma.roomFFEItem.findMany({
+        where: {
+          docCode: { startsWith: `${section.docCodePrefix}-` },
+          section: {
+            instance: {
+              room: { projectId }
+            }
+          }
+        },
+        select: { docCode: true }
+      })
+
+      // Extract numbers and find the highest
+      let maxNumber = 0
+      for (const item of existingItems) {
+        if (item.docCode) {
+          const match = item.docCode.match(new RegExp(`^${section.docCodePrefix}-(\\d+)$`))
+          if (match) {
+            const num = parseInt(match[1], 10)
+            if (num > maxNumber) maxNumber = num
+          }
+        }
+      }
+
+      // Generate next doc code
+      generatedDocCode = `${section.docCodePrefix}-${String(maxNumber + 1).padStart(2, '0')}`
+    }
+
     // Create items based on quantity
     const createdItems = []
-    
+    let currentDocCodeNumber = 0
+
+    // Parse initial doc code number if we have a generated one
+    if (generatedDocCode && section.docCodePrefix) {
+      const match = generatedDocCode.match(new RegExp(`^${section.docCodePrefix}-(\\d+)$`))
+      if (match) {
+        currentDocCodeNumber = parseInt(match[1], 10)
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       for (let i = 1; i <= quantity; i++) {
         const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
-        
+
         // Determine visibility and specStatus based on item type:
         // - isSpecItem = true: This is a product spec (from All Specs view), linked to FFE requirement
         // - isSpec = true (legacy): This is an actual spec, should be visible
@@ -194,7 +243,15 @@ export async function POST(
         const isActualSpec = isSpecItem || isSpec
         const finalVisibility = visibility || (isActualSpec ? 'VISIBLE' : 'VISIBLE')
         const finalSpecStatus = specStatus || (isActualSpec ? 'SELECTED' : 'DRAFT')
-        
+
+        // Generate unique doc code for each item in bulk creation
+        let itemDocCode = docCode || null
+        if (!docCode && section.docCodePrefix && currentDocCodeNumber > 0) {
+          itemDocCode = `${section.docCodePrefix}-${String(currentDocCodeNumber + i - 1).padStart(2, '0')}`
+        } else if (!docCode && generatedDocCode && i === 1) {
+          itemDocCode = generatedDocCode
+        }
+
         const newItem = await tx.roomFFEItem.create({
           data: {
             sectionId,
@@ -210,7 +267,7 @@ export async function POST(
             // Include spec fields if provided
             brand: brand || null,
             sku: sku || null,
-            docCode: docCode || null,
+            docCode: itemDocCode,
             material: material || null,
             color: color || null,
             finish: finish || null,
