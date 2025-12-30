@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { upload } from '@vercel/blob/client'
 import {
   Dialog,
   DialogContent,
@@ -108,44 +109,46 @@ export default function SiteSurveyDialog({
 
       const update = await updateResponse.json()
 
-      // Step 2: Upload photos with metadata
+      // Step 2: Upload photos using client-side Blob upload (bypasses 4.5MB serverless limit)
       const results: PhotoUploadResult[] = []
-      
+
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i]
-        
-        try {
-          const formData = new FormData()
-          formData.append('file', photo.file)
-          formData.append('projectId', projectId)
-          formData.append('updateId', update.id)
-          formData.append('caption', photo.caption)
-          formData.append('notes', photo.notes)
-          formData.append('tags', JSON.stringify(photo.tags))
-          
-          if (photo.roomId) {
-            formData.append('roomId', photo.roomId)
-          }
-          if (photo.customArea) {
-            formData.append('customArea', photo.customArea)
-          }
-          if (photo.tradeCategory) {
-            formData.append('tradeCategory', photo.tradeCategory)
-          }
-          if (photo.gpsCoordinates) {
-            formData.append('gpsCoordinates', JSON.stringify(photo.gpsCoordinates))
-          }
-          formData.append('takenAt', photo.takenAt.toISOString())
 
-          const response = await fetch(`/api/projects/${projectId}/updates/${update.id}/survey-photos`, {
+        try {
+          // Step 2a: Upload directly to Vercel Blob (client-side, no size limit)
+          const timestamp = Date.now()
+          const sanitizedName = photo.file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+          const blobPath = `site-survey/${projectId}/${update.id}/${timestamp}-${sanitizedName}`
+
+          const blob = await upload(blobPath, photo.file, {
+            access: 'public',
+            handleUploadUrl: '/api/blob-upload'
+          })
+
+          // Step 2b: Save to database via our API
+          const response = await fetch(`/api/projects/${projectId}/updates/${update.id}/blob-photo`, {
             method: 'POST',
-            body: formData,
-            credentials: 'include'  // Ensure cookies are sent
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              blobUrl: blob.url,
+              filename: photo.file.name,
+              size: photo.file.size,
+              mimeType: photo.file.type,
+              caption: photo.caption || '',
+              notes: photo.notes || '',
+              tags: photo.tags || [],
+              roomId: photo.roomId || null,
+              customArea: photo.customArea || '',
+              tradeCategory: photo.tradeCategory || null,
+              gpsCoordinates: photo.gpsCoordinates || null,
+              takenAt: photo.takenAt.toISOString()
+            })
           })
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
-            throw new Error(errorData.error || `Failed to upload photo ${i + 1}`)
+            throw new Error(errorData.error || `Failed to save photo ${i + 1}`)
           }
 
           results.push({
@@ -241,7 +244,7 @@ export default function SiteSurveyDialog({
               <Alert>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <AlertDescription>
-                  Uploading files to Dropbox... {successCount} of {photos.length} uploaded
+                  Uploading files... {successCount} of {photos.length} uploaded
                 </AlertDescription>
                 <Progress value={uploadProgress} className="mt-2" />
               </Alert>
