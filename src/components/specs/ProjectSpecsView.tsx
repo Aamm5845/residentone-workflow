@@ -94,12 +94,15 @@ import {
   StickyNote,
   Scissors,
   DollarSign,
-  Mail
+  Mail,
+  Link2,
+  FileDown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import ImageEditorModal from '@/components/image/ImageEditorModal'
 import CreateSpecShareLinkDialog from '@/components/specs/CreateSpecShareLinkDialog'
+import SpecPDFExportDialog from '@/components/specs/SpecPDFExportDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
@@ -2722,7 +2725,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -2735,14 +2738,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   setQuickQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
-                className="h-8"
+                className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50"
               >
-                <FileText className="w-4 h-4 mr-1.5" />
+                <Mail className="w-3.5 h-3.5 mr-1.5" />
                 Request Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
+                variant="outline"
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 h-8"
                 onClick={() => {
                   if (selectedItems.size === 0) {
                     toast.error('Please select items first')
@@ -2752,21 +2755,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   setClientQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
+                className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-50"
               >
-                <DollarSign className="w-4 h-4 mr-1.5" />
+                <DollarSign className="w-3.5 h-3.5 mr-1.5" />
                 Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
-                className="bg-gray-900 hover:bg-gray-800 h-8"
+                className="h-8 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
                 onClick={() => {
                   loadShareSettings()
                   loadShareLinks()
                   setShareModal(true)
                 }}
               >
-                <Share2 className="w-4 h-4 mr-1.5" />
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
                 Share
               </Button>
               {selectedItems.size > 0 && (

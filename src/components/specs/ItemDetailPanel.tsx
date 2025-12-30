@@ -737,7 +737,7 @@ export function ItemDetailPanel({
   const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [uploadingDocument, setUploadingDocument] = useState(false)
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null)
-  const [pendingDocumentFile, setPendingDocumentFile] = useState<File | null>(null)
+  const [pendingDocumentFiles, setPendingDocumentFiles] = useState<File[]>([])
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('Quotes')
   const [customDocumentType, setCustomDocumentType] = useState('')
   const [documentNote, setDocumentNote] = useState('')
@@ -834,21 +834,32 @@ export function ItemDetailPanel({
       return
     }
 
-    const file = files[0]
+    const validFiles: File[] = []
+    const errors: string[] = []
 
-    // Validate size
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error('File must be less than 25MB')
-      return
+    // Validate each file
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (file.size > 25 * 1024 * 1024) {
+        errors.push(`${file.name} exceeds 25MB limit`)
+      } else {
+        validFiles.push(file)
+      }
     }
 
-    // Store the file and show type selector
-    setPendingDocumentFile(file)
+    if (errors.length > 0) {
+      toast.error(errors.join(', '))
+    }
+
+    if (validFiles.length > 0) {
+      // Add to existing pending files
+      setPendingDocumentFiles(prev => [...prev, ...validFiles])
+    }
   }
 
-  // Upload document with selected type
+  // Upload documents with selected type
   const handleDocumentUpload = async () => {
-    if (!pendingDocumentFile || !item?.id || !item?.roomId) return
+    if (pendingDocumentFiles.length === 0 || !item?.id || !item?.roomId) return
 
     // Get the document type config
     const typeConfig = defaultDocumentTypes.find(t => t.id === selectedDocumentType)
@@ -861,36 +872,57 @@ export function ItemDetailPanel({
     }
 
     setUploadingDocument(true)
+    const uploadedDocs: ItemDocument[] = []
+    const failedFiles: string[] = []
+
     try {
-      const formData = new FormData()
-      formData.append('file', pendingDocumentFile)
-      formData.append('fileType', selectedDocumentType)
-      formData.append('documentType', dbType)
-      formData.append('title', pendingDocumentFile.name)
-      if (description) {
-        formData.append('description', description)
+      // Upload each file sequentially
+      for (const file of pendingDocumentFiles) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('fileType', selectedDocumentType)
+          formData.append('documentType', dbType)
+          formData.append('title', file.name)
+          if (description) {
+            formData.append('description', description)
+          }
+
+          const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents`, {
+            method: 'POST',
+            body: formData
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            uploadedDocs.push(data.document)
+          } else {
+            failedFiles.push(file.name)
+          }
+        } catch (error) {
+          console.error('Upload error for file:', file.name, error)
+          failedFiles.push(file.name)
+        }
       }
 
-      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/documents`, {
-        method: 'POST',
-        body: formData
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setDocuments(prev => [data.document, ...prev])
-        toast.success('Document uploaded successfully')
-        setPendingDocumentFile(null)
-        setSelectedDocumentType('Quotes')
-        setCustomDocumentType('')
-        setDocumentNote('')
-      } else {
-        const error = await res.json()
-        toast.error(error.error || 'Failed to upload document')
+      // Update state with uploaded documents
+      if (uploadedDocs.length > 0) {
+        setDocuments(prev => [...uploadedDocs, ...prev])
+        toast.success(`${uploadedDocs.length} document${uploadedDocs.length > 1 ? 's' : ''} uploaded successfully`)
       }
+
+      if (failedFiles.length > 0) {
+        toast.error(`Failed to upload: ${failedFiles.join(', ')}`)
+      }
+
+      // Clear pending files and reset form
+      setPendingDocumentFiles([])
+      setSelectedDocumentType('Quotes')
+      setCustomDocumentType('')
+      setDocumentNote('')
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error('Failed to upload document')
+      toast.error('Failed to upload documents')
     } finally {
       setUploadingDocument(false)
     }
@@ -898,10 +930,15 @@ export function ItemDetailPanel({
 
   // Cancel pending upload
   const cancelDocumentUpload = () => {
-    setPendingDocumentFile(null)
+    setPendingDocumentFiles([])
     setSelectedDocumentType('Quotes')
     setCustomDocumentType('')
     setDocumentNote('')
+  }
+
+  // Remove a specific file from pending files
+  const removePendingFile = (index: number) => {
+    setPendingDocumentFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   // Delete document
@@ -2325,12 +2362,13 @@ export function ItemDetailPanel({
             
             {activeTab === 'attachments' && (
               <div className="space-y-4">
-                {/* Hidden file input for documents */}
+                {/* Hidden file input for documents - allows multiple */}
                 <input
                   ref={documentInputRef}
                   type="file"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.dwg,.dxf"
                   className="hidden"
+                  multiple
                   onChange={(e) => {
                     handleDocumentFileSelect(e.target.files)
                     e.target.value = '' // Reset input
@@ -2345,7 +2383,7 @@ export function ItemDetailPanel({
                       Spec sheets, quotes, invoices & receipts
                     </p>
                   </div>
-                  {mode !== 'create' && !pendingDocumentFile && (
+                  {mode !== 'create' && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -2359,29 +2397,48 @@ export function ItemDetailPanel({
                   )}
                 </div>
 
-                {/* Pending file - show type selector */}
-                {pendingDocumentFile && (
+                {/* Pending files - show type selector */}
+                {pendingDocumentFiles.length > 0 && (
                   <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <File className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                        <span className="text-sm font-medium text-gray-900 truncate">
-                          {pendingDocumentFile.name}
-                        </span>
-                        <span className="text-xs text-gray-500 flex-shrink-0">
-                          ({formatFileSize(pendingDocumentFile.size)})
-                        </span>
+                    {/* List of pending files */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-gray-700">
+                          {pendingDocumentFiles.length} file{pendingDocumentFiles.length > 1 ? 's' : ''} selected
+                        </Label>
+                        <button
+                          onClick={() => documentInputRef.current?.click()}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          + Add more
+                        </button>
                       </div>
-                      <button
-                        onClick={cancelDocumentUpload}
-                        className="p-1 hover:bg-blue-100 rounded"
-                      >
-                        <X className="w-4 h-4 text-gray-500" />
-                      </button>
+                      <div className="max-h-32 overflow-y-auto space-y-1.5">
+                        {pendingDocumentFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-blue-100">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <File className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <span className="text-sm text-gray-900 truncate">
+                                {file.name}
+                              </span>
+                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                ({formatFileSize(file.size)})
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => removePendingFile(index)}
+                              className="p-0.5 hover:bg-red-100 rounded"
+                              title="Remove file"
+                            >
+                              <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-700">Type</Label>
+                      <Label className="text-xs font-medium text-gray-700">Type (applies to all files)</Label>
                       <div className="flex flex-wrap gap-1.5">
                         {defaultDocumentTypes.map((type) => (
                           <button
@@ -2417,11 +2474,11 @@ export function ItemDetailPanel({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-700">Note (optional)</Label>
+                      <Label className="text-xs font-medium text-gray-700">Note (optional, applies to all)</Label>
                       <Textarea
                         value={documentNote}
                         onChange={(e) => setDocumentNote(e.target.value)}
-                        placeholder="Add a note about this document..."
+                        placeholder="Add a note about these documents..."
                         className="h-16 text-sm resize-none bg-white"
                       />
                     </div>
@@ -2449,7 +2506,7 @@ export function ItemDetailPanel({
                         ) : (
                           <>
                             <Upload className="w-4 h-4 mr-1.5" />
-                            Upload
+                            Upload {pendingDocumentFiles.length > 1 ? `${pendingDocumentFiles.length} files` : ''}
                           </>
                         )}
                       </Button>
@@ -2589,7 +2646,7 @@ export function ItemDetailPanel({
                 )}
 
                 {/* Empty state */}
-                {!loadingDocuments && documents.length === 0 && mode !== 'create' && !pendingDocumentFile && (
+                {!loadingDocuments && documents.length === 0 && mode !== 'create' && pendingDocumentFiles.length === 0 && (
                   <div
                     onClick={() => documentInputRef.current?.click()}
                     className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors"
