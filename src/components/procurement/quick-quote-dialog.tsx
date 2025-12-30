@@ -34,6 +34,7 @@ import {
   MapPin
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AddressPicker from '@/components/shipping/AddressPicker'
 
 interface QuickQuoteDialogProps {
   open: boolean
@@ -215,29 +216,36 @@ export default function QuickQuoteDialog({
       const firstGroup = preview.supplierGroups.find(g => g.supplier)
       const supplierId = firstGroup?.supplier?.id
 
-      const res = await fetch('/api/rfq/supplier-quote/preview', {
+      const res = await fetch('/api/rfq/supplier-quote/preview-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
           itemIds,
           supplierId,
-          shippingAddress: useCustomShipping ? shippingAddress : undefined
+          shippingAddress: useCustomShipping ? shippingAddress : undefined,
+          message: customMessage || undefined
         })
       })
 
       const data = await res.json()
 
-      if (res.ok && data.success && data.previewUrl) {
-        // Open preview in new tab
-        window.open(data.previewUrl, '_blank')
-        toast.success('Preview opened in new tab')
+      if (res.ok && data.success && data.emailHtml) {
+        // Open email preview in new tab
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(data.emailHtml)
+          newWindow.document.close()
+          toast.success('Email preview opened')
+        } else {
+          toast.error('Please allow popups to view the email preview')
+        }
       } else {
-        toast.error(data.error || 'Failed to create preview')
+        toast.error(data.error || 'Failed to create email preview')
       }
     } catch (error) {
       console.error('Error creating preview:', error)
-      toast.error('Failed to create preview')
+      toast.error('Failed to create email preview')
     } finally {
       setPreviewLoading(false)
     }
@@ -650,67 +658,18 @@ export default function QuickQuoteDialog({
                         Use custom shipping address
                       </Label>
                       <p className="text-xs text-gray-500">
-                        For orders that don't get delivered to the project site
+                        Select from saved addresses or enter a new one
                       </p>
                     </div>
                   </div>
 
                   {useCustomShipping && (
-                    <div className="mt-3 space-y-3 pt-3 border-t border-blue-200">
-                      <div>
-                        <Label className="text-xs text-gray-600">Street Address</Label>
-                        <input
-                          type="text"
-                          value={shippingAddress.street}
-                          onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
-                          placeholder="123 Main Street"
-                          className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs text-gray-600">City</Label>
-                          <input
-                            type="text"
-                            value={shippingAddress.city}
-                            onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
-                            placeholder="Montreal"
-                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-gray-600">Province</Label>
-                          <input
-                            type="text"
-                            value={shippingAddress.province}
-                            onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
-                            placeholder="QC"
-                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs text-gray-600">Postal Code</Label>
-                          <input
-                            type="text"
-                            value={shippingAddress.postalCode}
-                            onChange={(e) => setShippingAddress(prev => ({ ...prev, postalCode: e.target.value }))}
-                            placeholder="H2V4H9"
-                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-gray-600">Country</Label>
-                          <input
-                            type="text"
-                            value={shippingAddress.country}
-                            onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
-                            placeholder="Canada"
-                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <AddressPicker
+                        value={shippingAddress}
+                        onChange={(addr) => setShippingAddress({ ...addr, country: addr.country || 'Canada' })}
+                        showSavedAddresses={true}
+                      />
                     </div>
                   )}
                 </div>
@@ -733,7 +692,7 @@ export default function QuickQuoteDialog({
                   ) : (
                     <>
                       <Eye className="w-4 h-4" />
-                      Preview Portal
+                      View Email
                     </>
                   )}
                 </Button>

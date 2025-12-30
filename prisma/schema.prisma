@@ -82,12 +82,33 @@ model Organization {
   wireInstructions  String?       @db.Text
   checkInstructions String?       @db.Text
 
-  clients      Client[]
-  contractors  Contractor[]
-  projects     Project[]
-  tags         Tag[]
-  users        User[]
-  chatMessages ChatMessage[] @relation("OrgChatMessages")
+  clients        Client[]
+  contractors    Contractor[]
+  projects       Project[]
+  tags           Tag[]
+  users          User[]
+  chatMessages   ChatMessage[] @relation("OrgChatMessages")
+  savedAddresses SavedAddress[]
+}
+
+// Shipping address phonebook - saved addresses for quick selection
+model SavedAddress {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  name          String    // e.g., "Office", "Warehouse", "Client Showroom"
+  street        String
+  city          String
+  province      String
+  postalCode    String
+  country       String    @default("Canada")
+
+  isDefault     Boolean   @default(false)  // Default shipping address
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([orgId])
 }
 
 model User {
