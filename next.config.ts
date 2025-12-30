@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
         'app.meisnerinteriors.com',
         'studioflow-workflow.vercel.app'
       ],
-      bodySizeLimit: '10mb',
+      bodySizeLimit: '50mb',
     },
   },
   images: {

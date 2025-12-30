@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { upload } from '@vercel/blob/client'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, Loader2, Upload, X, FileImage, FileText, File, Video } from 'lucide-react'
+import { AlertCircle, Loader2, Upload as UploadIcon, X, FileImage, FileText, File, Video } from 'lucide-react'
 
 interface Room {
   id: string
@@ -79,8 +80,8 @@ export default function CreateUpdateDialog({
       const isVideo = file.type.startsWith('video/')
       const isPdf = file.type === 'application/pdf'
       const isValidType = isImage || isVideo || isPdf
-      // Allow 100MB for videos, 10MB for images/PDFs
-      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024
+      // Allow 100MB for videos, 50MB for images/PDFs (using client-side upload to bypass 4.5MB limit)
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 50 * 1024 * 1024
       const isValidSize = file.size <= maxSize
       return isValidType && isValidSize
     })
@@ -138,55 +139,44 @@ export default function CreateUpdateDialog({
 
       const update = await response.json()
 
-      // Upload files if any - use survey-photos endpoint for images/videos to go to Site Photos folder
+      // Upload files using client-side Blob upload (bypasses 4.5MB serverless limit)
       if (selectedFiles.length > 0) {
         setUploadProgress(`Uploading files (0/${selectedFiles.length})...`)
-        
+
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i]
           setUploadProgress(`Uploading files (${i + 1}/${selectedFiles.length})...`)
-          
-          const fileFormData = new FormData()
-          fileFormData.append('file', file)
-          
-          // Check if this is an image or video - use survey-photos endpoint
-          const isMediaFile = file.type.startsWith('image/') || file.type.startsWith('video/')
-          
-          if (isMediaFile) {
-            // Use survey-photos endpoint - uploads to 7- SOURCES/Site Photos/
-            fileFormData.append('caption', formData.title || '')
-            fileFormData.append('notes', formData.description || '')
-            fileFormData.append('tags', JSON.stringify([]))
-            fileFormData.append('takenAt', new Date().toISOString())
-            if (formData.roomId) {
-              fileFormData.append('roomId', formData.roomId)
-            }
 
-            try {
-              await fetch(`/api/projects/${projectId}/updates/${update.id}/survey-photos`, {
-                method: 'POST',
-                body: fileFormData
-              })
-            } catch (uploadError) {
-              console.error('File upload error:', uploadError)
-            }
-          } else {
-            // Use general upload for non-media files (PDFs, documents, etc.)
-            fileFormData.append('projectId', projectId)
-            fileFormData.append('updateId', update.id)
-            if (formData.roomId) {
-              fileFormData.append('roomId', formData.roomId)
-            }
-            fileFormData.append('description', `Uploaded with update: ${formData.title || update.type}`)
+          try {
+            // Step 1: Upload directly to Vercel Blob (client-side, no size limit)
+            const timestamp = Date.now()
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+            const blobPath = `project-updates/${projectId}/${update.id}/${timestamp}-${sanitizedName}`
 
-            try {
-              await fetch('/api/upload', {
-                method: 'POST',
-                body: fileFormData
+            const blob = await upload(blobPath, file, {
+              access: 'public',
+              handleUploadUrl: '/api/blob-upload'
+            })
+
+            // Step 2: Save to database via our API
+            await fetch(`/api/projects/${projectId}/updates/${update.id}/blob-photo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                blobUrl: blob.url,
+                filename: file.name,
+                size: file.size,
+                mimeType: file.type,
+                caption: formData.title || '',
+                notes: formData.description || '',
+                tags: [],
+                roomId: formData.roomId || null,
+                takenAt: new Date().toISOString()
               })
-            } catch (uploadError) {
-              console.error('File upload error:', uploadError)
-            }
+            })
+          } catch (uploadError) {
+            console.error('File upload error:', uploadError)
+            // Continue with other files even if one fails
           }
         }
       }
@@ -335,9 +325,9 @@ export default function CreateUpdateDialog({
                 htmlFor="file-upload"
                 className="flex flex-col items-center cursor-pointer"
               >
-                <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                <UploadIcon className="w-8 h-8 text-gray-400 mb-2" />
                 <span className="text-sm text-gray-600">Click to upload images, videos, or PDFs</span>
-                <span className="text-xs text-gray-400 mt-1">Max 10MB for images/PDFs, 100MB for videos</span>
+                <span className="text-xs text-gray-400 mt-1">Max 50MB for images/PDFs, 100MB for videos</span>
               </label>
             </div>
             
