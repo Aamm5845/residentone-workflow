@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   Building2,
   Package,
@@ -15,7 +15,9 @@ import {
   File,
   Truck,
   Edit3,
-  Mail
+  Mail,
+  Plus,
+  Info
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -138,6 +140,20 @@ export default function SupplierPortalDemoPage() {
   const [deliveryFee, setDeliveryFee] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
   const [showValidationErrors, setShowValidationErrors] = useState(false)
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+
+  const toggleNoteExpanded = useCallback((itemId: string) => {
+    setExpandedNotes(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
+      return next
+    })
+  }, [])
+
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>(
     DEMO_DATA.rfq.lineItems.map(item => ({
       rfqLineItemId: item.id,
@@ -194,7 +210,7 @@ export default function SupplierPortalDemoPage() {
     setAiMatching(true)
     await new Promise(resolve => setTimeout(resolve, 2000))
 
-    // Mock AI result
+    // Mock AI result - includes missing and extra items to demo the notes
     setAiMatchResult({
       success: true,
       supplierInfo: { shipping: 250, taxes: 450, total: 8750 },
@@ -202,11 +218,11 @@ export default function SupplierPortalDemoPage() {
         { status: 'matched', rfqItem: { id: 'item-1', itemName: 'Modern Sectional Sofa', quantity: 1 }, extractedItem: { productName: 'Sectional Sofa - Grey', unitPrice: 3200, quantity: 1 } },
         { status: 'matched', rfqItem: { id: 'item-2', itemName: 'Coffee Table - Marble Top', quantity: 1 }, extractedItem: { productName: 'Marble Coffee Table', unitPrice: 890, quantity: 1 } },
         { status: 'matched', rfqItem: { id: 'item-3', itemName: 'Accent Chair', quantity: 2 }, extractedItem: { productName: 'Mid-Century Accent Chair', unitPrice: 650, quantity: 2 } },
-        { status: 'matched', rfqItem: { id: 'item-4', itemName: 'Floor Lamp', quantity: 1 }, extractedItem: { productName: 'Arc Floor Lamp', unitPrice: 420, quantity: 1 } },
+        { status: 'missing', rfqItem: { id: 'item-4', itemName: 'Floor Lamp', quantity: 1 } },
         { status: 'partial', rfqItem: { id: 'item-5', itemName: 'Area Rug 8x10', quantity: 1 }, extractedItem: { productName: 'Wool Area Rug 8x10', unitPrice: 1290, quantity: 1 } },
         { status: 'extra', extractedItem: { productName: 'Throw Pillows (Set of 4)', unitPrice: 180, quantity: 1 } }
       ],
-      summary: { totalRequested: 5, matched: 4, partial: 1, missing: 0, extra: 1 }
+      summary: { totalRequested: 5, matched: 3, partial: 1, missing: 1, extra: 1 }
     })
     setAiMatching(false)
     toast.success('All items matched!')
@@ -417,15 +433,28 @@ export default function SupplierPortalDemoPage() {
                                 <option value="4-6 weeks">4-6 Weeks</option>
                               </select>
                             </div>
-                            <div className="flex-1 min-w-[150px]">
-                              <Label className="text-xs text-gray-500">Notes</Label>
-                              <Input
-                                value={lineItem?.notes || ''}
-                                onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                                placeholder="Optional notes..."
-                                className="mt-1 h-9"
-                              />
-                            </div>
+                            {/* Notes - Collapsed by default */}
+                            {expandedNotes.has(item.id) ? (
+                              <div className="flex-1 min-w-[150px]">
+                                <Label className="text-xs text-gray-500">Notes</Label>
+                                <Input
+                                  value={lineItem?.notes || ''}
+                                  onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                                  placeholder="Add any notes for this item..."
+                                  className="mt-1 h-9"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => toggleNoteExpanded(item.id)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                                Add note
+                              </button>
+                            )}
                             {matchedPrice && (
                               <div className="text-right min-w-[100px]">
                                 <p className="text-xs text-gray-500">Total</p>
@@ -466,15 +495,28 @@ export default function SupplierPortalDemoPage() {
                                 <option value="4-6 weeks">4-6 Weeks</option>
                               </select>
                             </div>
-                            <div className="flex-1 min-w-[150px]">
-                              <Label className="text-xs text-gray-500">Notes</Label>
-                              <Input
-                                value={lineItem?.notes || ''}
-                                onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                                placeholder="Optional notes..."
-                                className="mt-1 h-9"
-                              />
-                            </div>
+                            {/* Notes - Collapsed by default */}
+                            {expandedNotes.has(item.id) ? (
+                              <div className="flex-1 min-w-[150px]">
+                                <Label className="text-xs text-gray-500">Notes</Label>
+                                <Input
+                                  value={lineItem?.notes || ''}
+                                  onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
+                                  placeholder="Add any notes for this item..."
+                                  className="mt-1 h-9"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => toggleNoteExpanded(item.id)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                                Add note
+                              </button>
+                            )}
                             {manualPrice && manualPrice > 0 && (
                               <div className="text-right min-w-[100px]">
                                 <p className="text-xs text-gray-500">Total</p>
@@ -588,9 +630,25 @@ export default function SupplierPortalDemoPage() {
               </CardContent>
             </Card>
 
-            {/* Extra items + Summary */}
+            {/* Missing items + Extra items + Summary */}
             {aiMatchResult && (
               <>
+                {/* Missing items - reassuring note */}
+                {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'missing').length > 0 && (
+                  <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900">
+                        {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'missing').length} item(s) not found in your quote
+                      </p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Don't worry - we'll review your quote and follow up if needed. You can continue submitting.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Extra items */}
                 {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'extra').length > 0 && (
                   <Card className="shadow-sm border-l-4 border-l-amber-400">
                     <CardHeader className="pb-3">
@@ -598,6 +656,9 @@ export default function SupplierPortalDemoPage() {
                         <AlertCircle className="w-4 h-4" />
                         Additional Items in Your Quote
                       </CardTitle>
+                      <p className="text-sm text-amber-600 mt-1">
+                        These items weren't in our original request - we'll review and include them if applicable.
+                      </p>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="divide-y">
