@@ -486,12 +486,15 @@ export async function DELETE(
     }
 
     // Regular document deletion
-    // Verify document exists and belongs to this item and org
+    // Verify document exists and belongs to org (specItemId check is optional for older docs)
     const document = await prisma.rFQDocument.findFirst({
       where: {
         id: documentId,
-        specItemId: itemId,
-        orgId
+        orgId,
+        OR: [
+          { specItemId: itemId },
+          { specItemId: null }  // Allow deleting older docs without specItemId
+        ]
       }
     })
 
@@ -563,12 +566,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 })
     }
 
-    // Verify document exists and belongs to this item and org
+    // Verify document exists and belongs to org (specItemId check is optional for older docs)
     const document = await prisma.rFQDocument.findFirst({
       where: {
         id: documentId,
-        specItemId: itemId,
-        orgId
+        orgId,
+        OR: [
+          { specItemId: itemId },
+          { specItemId: null }  // Allow editing older docs without specItemId
+        ]
       }
     })
 
