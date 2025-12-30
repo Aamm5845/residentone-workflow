@@ -2408,7 +2408,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             productName: item.productName,
             brand: item.brand,
             modelNumber: item.modelNumber,
-            docCode: item.docCode,
+            // docCode intentionally not copied - must be unique per project
             supplierName: item.supplierName,
             supplierLink: item.supplierLink,
             supplierId: item.supplierId,
@@ -3968,11 +3968,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className={cn(
+                                    "text-xs truncate cursor-text rounded px-1 -mx-1",
+                                    item.docCode
+                                      ? "text-gray-900 hover:bg-gray-100"
+                                      : "text-red-500 bg-red-50 hover:bg-red-100 font-medium"
+                                  )}
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'docCode', item.docCode || '') }}
-                                  title={item.docCode || undefined}
+                                  title={item.docCode || 'Click to add doc code'}
                                 >
-                                  {item.docCode || '-'}
+                                  {item.docCode || 'Add'}
                                 </p>
                               )}
                             </div>
