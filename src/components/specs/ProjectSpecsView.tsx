@@ -2776,6 +2776,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     className="h-8 text-xs gap-1.5"
                     onClick={handleBulkDuplicate}
                     disabled={bulkDuplicating}
+                    title="Duplicate selected items"
                   >
                     {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
                   </Button>
@@ -2784,6 +2785,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     size="sm"
                     className="h-8 text-xs gap-1.5"
                     onClick={() => setBulkMoveModal(true)}
+                    title="Move to section"
                   >
                     <Layers className="w-3.5 h-3.5" />
                   </Button>
@@ -2792,6 +2794,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     size="sm"
                     className="h-8 text-xs gap-1.5 text-red-600 hover:bg-red-50"
                     onClick={handleBulkDelete}
+                    title="Delete selected items"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -2800,6 +2803,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     size="sm"
                     className="h-8 text-xs text-gray-500 hover:text-gray-700"
                     onClick={() => setSelectedItems(new Set())}
+                    title="Clear selection"
                   >
                     <X className="w-3.5 h-3.5" />
                   </Button>
@@ -3472,43 +3476,69 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         ) : (
           <div className="space-y-3">
             {groupedSpecs.map((group) => (
-              <div 
-                key={group.name} 
+              <div
+                key={group.name}
                 id={`section-${group.name.replace(/\s+/g, '-')}`}
                 className="bg-white rounded-xl border border-gray-200 overflow-hidden scroll-mt-40"
-                onMouseEnter={() => setHoveredSection(group.name)}
-                onMouseLeave={() => setHoveredSection(null)}
               >
                 {/* Category Header */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                  <button
-                    onClick={() => toggleCategory(group.name)}
-                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                  >
-                    {expandedCategories.has(group.name) ? (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    )}
-                    <h2 className="text-sm font-semibold text-gray-900">{group.name}</h2>
-                    <Badge variant="secondary" className="bg-gray-200 text-gray-700 text-xs h-5">
-                      {group.items.length}
-                    </Badge>
-                    {activeTab === 'financial' && (
-                      <span className="text-sm font-medium text-gray-700 ml-2">
-                        {(() => {
-                          const totals = getSectionTotals(group.items)
-                          // Show trade total if available, otherwise show RRP total
-                          if (totals.tradeTotal > 0) {
-                            return formatCurrency(totals.tradeTotal)
-                          } else if (totals.rrpTotal > 0) {
-                            return <span className="text-gray-500">{formatCurrency(totals.rrpTotal)} <span className="text-[10px]">(RRP)</span></span>
-                          }
-                          return formatCurrency(0)
-                        })()}
-                      </span>
-                    )}
-                  </button>
+                <div
+                  className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100 group/header"
+                  onMouseEnter={() => setHoveredSection(group.name)}
+                  onMouseLeave={() => setHoveredSection(null)}
+                >
+                  <div className="flex items-center gap-2">
+                    {/* Select all checkbox - show on hover */}
+                    <div className={cn(
+                      "transition-opacity duration-150",
+                      hoveredSection === group.name || group.items.some(i => selectedItems.has(i.id)) ? "opacity-100" : "opacity-0"
+                    )}>
+                      <Checkbox
+                        checked={group.items.every(i => selectedItems.has(i.id))}
+                        onCheckedChange={(checked) => {
+                          setSelectedItems(prev => {
+                            const newSet = new Set(prev)
+                            if (checked) {
+                              group.items.forEach(i => newSet.add(i.id))
+                            } else {
+                              group.items.forEach(i => newSet.delete(i.id))
+                            }
+                            return newSet
+                          })
+                        }}
+                        className="h-4 w-4"
+                        title={`Select all in ${group.name}`}
+                      />
+                    </div>
+                    <button
+                      onClick={() => toggleCategory(group.name)}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      {expandedCategories.has(group.name) ? (
+                        <ChevronUp className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
+                      <h2 className="text-sm font-semibold text-gray-900">{group.name}</h2>
+                      <Badge variant="secondary" className="bg-gray-200 text-gray-700 text-xs h-5">
+                        {group.items.length}
+                      </Badge>
+                      {activeTab === 'financial' && (
+                        <span className="text-sm font-medium text-gray-700 ml-2">
+                          {(() => {
+                            const totals = getSectionTotals(group.items)
+                            // Show trade total if available, otherwise show RRP total
+                            if (totals.tradeTotal > 0) {
+                              return formatCurrency(totals.tradeTotal)
+                            } else if (totals.rrpTotal > 0) {
+                              return <span className="text-gray-500">{formatCurrency(totals.rrpTotal)} <span className="text-[10px]">(RRP)</span></span>
+                            }
+                            return formatCurrency(0)
+                          })()}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Items */}
@@ -3593,10 +3623,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           onMouseEnter={() => setHoveredItem(displayItem.id)}
                           onMouseLeave={() => setHoveredItem(null)}
                         >
-                          {/* Hover Actions - Fixed on left side, always show if selected */}
+                          {/* Hover Actions - Fixed on left side, show on hover or if selected */}
                           <div className={cn(
                             "absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10 transition-opacity duration-150",
-                            "opacity-100"
+                            hoveredItem === displayItem.id || selectedItems.has(item.id) ? "opacity-100" : "opacity-0"
                           )}>
                             <Checkbox
                               checked={selectedItems.has(item.id)}
@@ -3604,7 +3634,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               onClick={(e) => e.stopPropagation()}
                               className="h-4 w-4"
                             />
-                            <button 
+                            <button
                               {...listeners}
                               className="p-0.5 cursor-grab hover:bg-gray-200 rounded touch-none"
                             >
