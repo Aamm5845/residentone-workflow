@@ -178,33 +178,37 @@ export default function EnhancedFilePreviewModal({ file, isOpen, onClose }: File
         </div>
         
         {/* Content */}
-        <div className="relative overflow-auto flex-grow bg-gray-50 min-h-[200px]">
+        <div className="relative flex-grow bg-gray-100 min-h-[200px] overflow-hidden">
           {file.type === 'image' ? (
-            <div className="flex flex-col items-center justify-center p-6 min-h-[400px] bg-gray-50">
-              {/* Image controls */}
-              <div className="absolute top-4 right-4 flex space-x-2 z-10 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-1">
-                <Button variant="ghost" size="sm" onClick={zoomIn} title="Zoom In">
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={zoomOut} title="Zoom Out">
+            <div className="relative w-full h-full min-h-[400px] flex items-center justify-center">
+              {/* Image controls - fixed position */}
+              <div className="absolute top-4 right-4 flex space-x-2 z-20 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-1">
+                <Button variant="ghost" size="sm" onClick={zoomOut} title="Zoom Out" disabled={zoom <= 0.5}>
                   <ZoomOut className="w-4 h-4" />
                 </Button>
+                <span className="flex items-center px-2 text-sm font-medium text-gray-600 min-w-[50px] justify-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <Button variant="ghost" size="sm" onClick={zoomIn} title="Zoom In" disabled={zoom >= 3}>
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <div className="w-px bg-gray-300 mx-1" />
                 <Button variant="ghost" size="sm" onClick={rotateImage} title="Rotate">
                   <RotateCw className="w-4 h-4" />
                 </Button>
               </div>
-              
+
               {/* Loading indicator */}
               {!imageLoaded && !imageError && (
-                <div className="flex flex-col items-center justify-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
                   <p className="text-gray-500 mt-4">Loading image...</p>
                 </div>
               )}
-              
+
               {/* Error state */}
               {imageError && (
-                <div className="flex flex-col items-center justify-center text-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-gray-100 p-6">
                   <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                     <ImageIcon className="w-8 h-8 text-red-500" />
                   </div>
@@ -215,14 +219,14 @@ export default function EnhancedFilePreviewModal({ file, isOpen, onClose }: File
                     The image could not be loaded. It may be unavailable or the URL might be incorrect.
                   </p>
                   <div className="flex space-x-4">
-                    <Button 
+                    <Button
                       onClick={handleOpenExternal}
                       variant="outline"
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Try opening externally
                     </Button>
-                    <Button 
+                    <Button
                       onClick={handleDownload}
                       variant="outline"
                     >
@@ -235,28 +239,34 @@ export default function EnhancedFilePreviewModal({ file, isOpen, onClose }: File
                   </p>
                 </div>
               )}
-              
-              {/* Actual image with zoom and rotation */}
-              <img
-                src={file.url}
-                alt={file.originalName || file.name}
-                className={`max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                style={{ 
-                  transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                  transition: 'transform 0.3s ease',
-                  maxHeight: '70vh',
-                  cursor: 'grab'
-                }}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-              />
-              
-              {/* Image details when loaded */}
-              {imageLoaded && (
-                <div className="mt-4 text-sm text-gray-500">
-                  {file.metadata?.extension && (
-                    <span className="bg-gray-100 px-2 py-1 rounded-md">{file.metadata.extension.toUpperCase()}</span>
-                  )}
+
+              {/* Scrollable image container */}
+              <div
+                className="w-full h-full overflow-auto flex items-center justify-center p-4"
+                style={{ minHeight: '400px', maxHeight: '70vh' }}
+              >
+                {/* Actual image with zoom and rotation */}
+                <img
+                  src={file.url}
+                  alt={file.originalName || file.name}
+                  className={`rounded-lg shadow-lg transition-all duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
+                  style={{
+                    transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                    transformOrigin: 'center center',
+                    maxWidth: zoom <= 1 ? '100%' : 'none',
+                    maxHeight: zoom <= 1 ? '65vh' : 'none',
+                    cursor: zoom > 1 ? 'grab' : 'default'
+                  }}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  draggable={false}
+                />
+              </div>
+
+              {/* Zoom hint */}
+              {imageLoaded && zoom === 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-500 bg-white/80 px-3 py-1 rounded-full">
+                  Use zoom controls to enlarge
                 </div>
               )}
             </div>
