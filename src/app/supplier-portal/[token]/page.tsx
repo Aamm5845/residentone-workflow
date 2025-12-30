@@ -14,14 +14,11 @@ import {
   Upload,
   X,
   File,
-  MapPin,
-  User,
-  Phone,
-  Mail,
   Truck,
-  Info,
   CheckCircle2,
-  ExternalLink
+  ExternalLink,
+  Edit3,
+  Mail
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -100,25 +97,6 @@ interface RFQData {
   }
   existingQuote: any
   responseStatus: string
-  allProjectItems?: Array<{
-    id: string
-    rfqNumber: string
-    itemName: string
-    itemDescription?: string
-    quantity: number
-    unitType?: string
-    category?: string
-    roomFFEItem?: {
-      images?: string[]
-      brand?: string
-      sku?: string
-    }
-    isCurrentRfq: boolean
-    hasQuote: boolean
-    quoteStatus: string
-    quotedPrice?: number
-    quotedAt?: string
-  }>
 }
 
 interface QuoteLineItem {
@@ -150,11 +128,6 @@ interface AIMatchResult {
     leadTime?: string
   }
   discrepancies?: string[]
-  suggestedMatches?: {
-    id: string
-    itemName: string
-    confidence: number
-  }[]
 }
 
 interface AIMatchResponse {
@@ -183,6 +156,8 @@ interface AIMatchResponse {
   notes?: string
 }
 
+type QuoteMode = 'select' | 'upload' | 'manual'
+
 export default function SupplierPortalPage({ params }: SupplierPortalPageProps) {
   const { token } = use(params)
   const [loading, setLoading] = useState(true)
@@ -190,12 +165,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [data, setData] = useState<RFQData | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [showAllItems, setShowAllItems] = useState(false)
 
-  // File upload state (optional - to auto-fill)
+  // Quote mode: 'select' (initial), 'upload', or 'manual'
+  const [quoteMode, setQuoteMode] = useState<QuoteMode>('select')
+
+  // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null)
-  const [uploadedFileSize, setUploadedFileSize] = useState<number>(0)
   const [uploading, setUploading] = useState(false)
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -204,13 +180,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [aiMatching, setAiMatching] = useState(false)
   const [aiMatchResult, setAiMatchResult] = useState<AIMatchResponse | null>(null)
 
-  // Delivery fee (simple input, not toggle)
+  // Delivery fee
   const [deliveryFee, setDeliveryFee] = useState('')
-
-  // Taxes - Quebec suppliers always show GST/QST
-  const [isQuebec, setIsQuebec] = useState(false)
-  const [gstAmount, setGstAmount] = useState(0)
-  const [qstAmount, setQstAmount] = useState(0)
 
   // Currency - detect USD for US suppliers
   const [currency, setCurrency] = useState<'CAD' | 'USD'>('CAD')
@@ -248,14 +219,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           setSubmitted(true)
         }
 
-        // Detect Quebec for tax calculation
-        const province = result.rfq.project?.province?.toLowerCase() || ''
-        if (province.includes('quebec') || province === 'qc') {
-          setIsQuebec(true)
-        }
-
         // Detect US for currency (check for US states)
-        const usStates = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md', 'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj', 'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc', 'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy', 'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new hampshire', 'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 'rhode island', 'south carolina', 'south dakota', 'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 'west virginia', 'wisconsin', 'wyoming']
+        const province = result.rfq.project?.province?.toLowerCase() || ''
+        const usStates = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md', 'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj', 'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc', 'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy']
         if (usStates.includes(province)) {
           setCurrency('USD')
         }
@@ -289,29 +255,39 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     return parseFloat(deliveryFee) || 0
   }
 
-  const calculateTaxes = () => {
-    if (!isQuebec) return { gst: 0, qst: 0 }
-    const subtotal = calculateSubtotal() + calculateDeliveryTotal()
-    const gst = subtotal * 0.05 // 5% GST
-    const qst = subtotal * 0.09975 // 9.975% QST
-    return { gst, qst }
-  }
-
   const calculateTotal = () => {
-    const subtotal = calculateSubtotal()
-    const delivery = calculateDeliveryTotal()
-    const { gst, qst } = calculateTaxes()
-    return subtotal + delivery + gst + qst
+    return calculateSubtotal() + calculateDeliveryTotal()
   }
 
   const handleSubmit = async () => {
     setShowValidationErrors(true)
 
-    // Validate lead times (always required)
-    const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
-    if (hasEmptyLeadTimes) {
-      toast.error('Please select lead time for all items')
-      return
+    // For upload mode, we need the AI result with prices
+    if (quoteMode === 'upload') {
+      if (!aiMatchResult) {
+        toast.error('Please upload your quote first')
+        return
+      }
+      // Validate lead times
+      const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
+      if (hasEmptyLeadTimes) {
+        toast.error('Please select lead time for all items')
+        return
+      }
+    }
+
+    // For manual mode, validate all inputs
+    if (quoteMode === 'manual') {
+      const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
+      if (hasEmptyPrices) {
+        toast.error('Please enter a price for all items')
+        return
+      }
+      const hasEmptyLeadTimes = lineItems.some(item => !item.leadTime)
+      if (hasEmptyLeadTimes) {
+        toast.error('Please select lead time for all items')
+        return
+      }
     }
 
     // Validate notes required for "See notes" lead time
@@ -321,18 +297,16 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
-    // If no PDF uploaded, also require prices
-    if (!uploadedFile) {
-      const hasEmptyPrices = lineItems.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)
-      if (hasEmptyPrices) {
-        toast.error('Please enter a price for all items')
-        return
-      }
-    }
-
     setSubmitting(true)
-    const { gst, qst } = calculateTaxes()
     try {
+      // Calculate total based on mode
+      let totalAmount = 0
+      if (quoteMode === 'upload' && aiMatchResult?.supplierInfo?.total) {
+        totalAmount = aiMatchResult.supplierInfo.total
+      } else {
+        totalAmount = calculateTotal()
+      }
+
       const response = await fetch(`/api/supplier-portal/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -341,19 +315,27 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           quoteNumber: `SQ-${Date.now()}`,
           quoteDocumentUrl: uploadedFileUrl || null,
           supplierNotes: orderNotes || null,
-          totalAmount: calculateTotal(),
-          // Tax and delivery info
-          isQuebec,
-          gstAmount: gst,
-          qstAmount: qst,
-          deliveryFee: calculateDeliveryTotal(),
-          lineItems: lineItems.map(item => ({
-            rfqLineItemId: item.rfqLineItemId,
-            unitPrice: parseFloat(item.unitPrice) || 0,
-            quantity: item.quantity,
-            leadTime: item.leadTime || null,
-            notes: item.notes || null
-          }))
+          totalAmount,
+          deliveryFee: quoteMode === 'upload' ? (aiMatchResult?.supplierInfo?.shipping || 0) : calculateDeliveryTotal(),
+          lineItems: lineItems.map(item => {
+            // For upload mode, get price from AI match
+            let unitPrice = parseFloat(item.unitPrice) || 0
+            if (quoteMode === 'upload' && aiMatchResult) {
+              const match = aiMatchResult.matchResults.find(
+                r => r.rfqItem?.id === item.rfqLineItemId && (r.status === 'matched' || r.status === 'partial')
+              )
+              if (match?.extractedItem?.unitPrice) {
+                unitPrice = match.extractedItem.unitPrice
+              }
+            }
+            return {
+              rfqLineItemId: item.rfqLineItemId,
+              unitPrice,
+              quantity: item.quantity,
+              leadTime: item.leadTime || null,
+              notes: item.notes || null
+            }
+          })
         })
       })
 
@@ -372,12 +354,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   }
 
   const handleSendByEmail = () => {
-    // Open email client to send quote via email
     const rfqNumber = data?.rfq?.rfqNumber || 'Quote Request'
     const projectName = data?.rfq?.project?.name || ''
     const subject = encodeURIComponent(`Quote for ${rfqNumber}${projectName ? ` - ${projectName}` : ''}`)
     const body = encodeURIComponent(`Hi,\n\nPlease find attached my quote for ${rfqNumber}.\n\n[Please attach your quote PDF to this email]\n\nBest regards`)
-
     window.location.href = `mailto:shaya@meisnerinteriors.com?subject=${subject}&body=${body}`
   }
 
@@ -396,7 +376,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       return
     }
 
-    const fileSize = file.size
     setUploading(true)
     setUploadingFileName(file.name)
     setAiMatchResult(null)
@@ -414,7 +393,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         const uploadData = await uploadResponse.json()
         setUploadedFile(file)
         setUploadedFileUrl(uploadData.url)
-        setUploadedFileSize(fileSize)
         setUploading(false)
         toast.success('Quote uploaded - analyzing...')
 
@@ -437,16 +415,15 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             if (aiResult.success) {
               setAiMatchResult(aiResult)
 
-              // Auto-fill prices and lead times from matched items
+              // Auto-fill lead times from matched items
               setLineItems(prev => prev.map(item => {
                 const match = aiResult.matchResults.find(
                   (r: AIMatchResult) => r.rfqItem?.id === item.rfqLineItemId && (r.status === 'matched' || r.status === 'partial')
                 )
-                if (match?.extractedItem) {
+                if (match?.extractedItem?.leadTime) {
                   return {
                     ...item,
-                    unitPrice: match.extractedItem.unitPrice?.toString() || item.unitPrice,
-                    leadTime: match.extractedItem.leadTime || item.leadTime
+                    leadTime: match.extractedItem.leadTime
                   }
                 }
                 return item
@@ -459,16 +436,16 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
               const matched = aiResult.summary.matched + aiResult.summary.partial
               if (matched === aiResult.summary.totalRequested) {
-                toast.success('All items matched and filled in!')
+                toast.success('All items matched!')
               } else {
                 toast.success(`${matched} of ${aiResult.summary.totalRequested} items matched`)
               }
             } else {
-              toast('Could not analyze document. Please fill in details manually.')
+              toast('Could not analyze document. Please try again or enter manually.')
             }
           } catch (aiErr) {
             console.error('AI matching failed:', aiErr)
-            toast('Analysis failed. Please fill in details manually.')
+            toast('Analysis failed. Please try again or enter manually.')
           } finally {
             setAiMatching(false)
           }
@@ -494,9 +471,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const removeUploadedFile = () => {
     setUploadedFile(null)
     setUploadedFileUrl(null)
-    setUploadedFileSize(0)
     setAiMatchResult(null)
-    // Reset line items to empty values
+    setQuoteMode('select')
     setLineItems(prev => prev.map(item => ({
       ...item,
       unitPrice: '',
@@ -635,18 +611,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   </p>
                 </div>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                className="bg-white/20 hover:bg-white/30 text-white border-0"
-                onClick={() => {
-                  // TODO: Navigate to supplier portal home with all requests
-                  toast('Supplier Portal coming soon!')
-                }}
-              >
-                <Package className="w-4 h-4 mr-2" />
-                My Requests
-              </Button>
             </div>
           </div>
         </div>
@@ -705,7 +669,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Card>
         </div>
 
-        {/* Supplier Info (smaller) */}
+        {/* Supplier Info */}
         <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg border">
           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
             <span className="text-sm font-semibold text-gray-600">
@@ -729,25 +693,235 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Card>
         )}
 
-        {/* Quote Submission - Unified Item Cards */}
+        {/* Items List - Read Only */}
         <Card className="shadow-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Package className="w-5 h-5 text-emerald-600" />
-                  Items to Quote
-                  <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Upload your quote to auto-fill, or enter prices manually for each item
-                </CardDescription>
-              </div>
-            </div>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-emerald-600" />
+              Items Requested
+              <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Optional Upload Section */}
-            <div>
+          <CardContent className="pt-0">
+            <div className="divide-y">
+              {data.rfq.lineItems.map((item, index) => {
+                const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
+                const specs = item.roomFFEItem
+                const documents = specs?.documents || []
+                const hasItemNotes = item.notes || specs?.notes
+                const supplierLink = specs?.supplierLink
+
+                // Build specs line
+                const specParts: string[] = []
+                if (specs?.brand) specParts.push(specs.brand)
+                if (specs?.sku) specParts.push(specs.sku)
+                else if (specs?.modelNumber) specParts.push(specs.modelNumber)
+                if (specs?.color) specParts.push(specs.color)
+                if (specs?.finish && specs.finish !== specs?.color) specParts.push(specs.finish)
+                const specsLine = specParts.join(' • ')
+
+                // Get matched price if in upload mode
+                const matchedItem = aiMatchResult?.matchResults.find(
+                  r => r.rfqItem?.id === item.id && (r.status === 'matched' || r.status === 'partial')
+                )
+                const matchedPrice = matchedItem?.extractedItem?.unitPrice
+
+                // Get manual price
+                const lineItem = lineItems[index]
+                const manualPrice = lineItem?.unitPrice ? parseFloat(lineItem.unitPrice) : null
+
+                return (
+                  <div key={item.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex gap-4">
+                      {/* Image */}
+                      <div className="flex-shrink-0">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.itemName} className="w-16 h-16 object-cover rounded-lg border" />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-gray-900">
+                              <span className="text-emerald-600 mr-2">{index + 1}.</span>
+                              {item.itemName}
+                            </h3>
+                            {specsLine && (
+                              <p className="text-sm text-gray-500 mt-1">{specsLine}</p>
+                            )}
+                            {item.itemDescription && (
+                              <p className="text-sm text-gray-400 mt-1 line-clamp-1">{item.itemDescription}</p>
+                            )}
+                            {supplierLink && (
+                              <a
+                                href={supplierLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Product Link
+                              </a>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
+                            <p className="text-xs text-gray-400">{item.unitType || 'units'}</p>
+                          </div>
+                        </div>
+
+                        {/* Notes & Documents */}
+                        {(hasItemNotes || documents.length > 0) && (
+                          <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                            {hasItemNotes && (
+                              <span className="text-amber-700 bg-amber-50 px-2 py-1 rounded">Note: {item.notes || specs?.notes}</span>
+                            )}
+                            {documents.map(doc => (
+                              <a
+                                key={doc.id}
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                              >
+                                <FileText className="w-3 h-3" />
+                                {doc.title || doc.fileName}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Show price if matched (upload mode) or entered (manual mode) */}
+                        {quoteMode === 'upload' && matchedPrice && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            <span className="text-sm text-gray-600">
+                              {formatCurrency(matchedPrice)} each = <strong className="text-emerald-600">{formatCurrency(matchedPrice * item.quantity)}</strong>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Manual mode: show input fields */}
+                        {quoteMode === 'manual' && (
+                          <div className="mt-3 flex flex-wrap items-end gap-3">
+                            <div className="min-w-[120px]">
+                              <Label className="text-xs text-gray-500">Unit Price</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={lineItem?.unitPrice || ''}
+                                  onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
+                                  placeholder="0.00"
+                                  className={cn(
+                                    "pl-7 h-9",
+                                    showValidationErrors && !lineItem?.unitPrice && "border-red-500"
+                                  )}
+                                />
+                              </div>
+                            </div>
+                            <div className="min-w-[140px]">
+                              <Label className="text-xs text-gray-500">Lead Time</Label>
+                              <select
+                                value={lineItem?.leadTime || ''}
+                                onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
+                                className={cn(
+                                  "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
+                                  showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
+                                )}
+                              >
+                                <option value="">Select...</option>
+                                <option value="In Stock">In Stock</option>
+                                <option value="1-2 weeks">1-2 Weeks</option>
+                                <option value="2-4 weeks">2-4 Weeks</option>
+                                <option value="4-6 weeks">4-6 Weeks</option>
+                                <option value="6-8 weeks">6-8 Weeks</option>
+                                <option value="8-12 weeks">8-12 Weeks</option>
+                                <option value="12+ weeks">12+ Weeks</option>
+                                <option value="See notes">See notes</option>
+                              </select>
+                            </div>
+                            {manualPrice && manualPrice > 0 && (
+                              <div className="text-right">
+                                <p className="text-xs text-gray-500">Total</p>
+                                <p className="font-bold text-emerald-600">{formatCurrency(manualPrice * item.quantity)}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quote Mode Selection */}
+        {quoteMode === 'select' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Upload Quote Option */}
+            <Card
+              className="shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all"
+              onClick={() => {
+                setQuoteMode('upload')
+                setTimeout(() => fileInputRef.current?.click(), 100)
+              }}
+            >
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Upload className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Quote</h3>
+                <p className="text-sm text-gray-500">
+                  Upload your quote PDF or image and we'll automatically extract and match the prices
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Enter Manually Option */}
+            <Card
+              className="shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
+              onClick={() => setQuoteMode('manual')}
+            >
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Edit3 className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Manually</h3>
+                <p className="text-sm text-gray-500">
+                  Enter prices and lead times manually for each item
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Upload Mode Content */}
+        {quoteMode === 'upload' && (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-emerald-600" />
+                  Upload Your Quote
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setQuoteMode('select')}>
+                  <X className="w-4 h-4 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -757,36 +931,35 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               />
 
               {uploading || aiMatching ? (
-                <div className="border-2 border-dashed border-emerald-300 rounded-xl p-6 text-center bg-emerald-50">
-                  <Loader2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 animate-spin" />
-                  <p className="text-emerald-700 font-medium">
-                    {aiMatching ? 'Analyzing quote...' : 'Uploading...'}
+                <div className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center bg-emerald-50">
+                  <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-spin" />
+                  <p className="text-emerald-700 font-medium text-lg">
+                    {aiMatching ? 'Analyzing your quote...' : 'Uploading...'}
                   </p>
                   {uploadingFileName && (
-                    <p className="text-sm text-emerald-600 mt-1">{uploadingFileName}</p>
+                    <p className="text-sm text-emerald-600 mt-2">{uploadingFileName}</p>
                   )}
                 </div>
               ) : !uploadedFile ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
+                  className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
                 >
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-700 font-medium">Upload your quote (optional)</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    PDF or image - we'll auto-fill prices for you
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-700 font-medium text-lg">Click to upload your quote</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    PDF, Word, Excel, or image files up to 10MB
                   </p>
                 </div>
               ) : (
                 <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <File className="w-5 h-5 text-emerald-600" />
+                  <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <File className="w-6 h-6 text-emerald-600" />
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{uploadedFile.name}</p>
                     <p className="text-sm text-gray-500">
-                      {uploadedFileSize > 0 ? `${(uploadedFileSize / 1024 / 1024).toFixed(2)} MB` : 'Uploaded'}
-                      {aiMatchResult && ` • ${aiMatchResult.summary.matched + aiMatchResult.summary.partial} items matched`}
+                      {aiMatchResult ? `${aiMatchResult.summary.matched + aiMatchResult.summary.partial} items matched` : 'Uploaded'}
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={removeUploadedFile}>
@@ -795,362 +968,252 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 </div>
               )}
 
-            </div>
-
-            {/* Extracted Items from PDF */}
-            {aiMatchResult && aiMatchResult.matchResults.length > 0 && (
-              <div className="border rounded-xl overflow-hidden">
-                <div className="bg-gray-100 px-4 py-3 border-b">
-                  <p className="font-medium text-gray-900">Items from Your Quote</p>
-                  <p className="text-xs text-gray-500">
-                    {aiMatchResult.summary.matched + aiMatchResult.summary.partial} linked, {aiMatchResult.summary.extra} unlinked
-                  </p>
-                </div>
-                <div className="divide-y text-sm">
-                  {/* Show matched/partial items first */}
-                  {aiMatchResult.matchResults
-                    .filter(r => r.status === 'matched' || r.status === 'partial')
-                    .map((result, idx) => (
-                      <div key={`matched-${idx}`} className="px-4 py-2 flex items-center gap-3 bg-white">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-gray-900">{result.extractedItem?.productName}</span>
-                          <span className="text-gray-400 mx-2">→</span>
-                          <span className="text-emerald-600">{result.rfqItem?.itemName}</span>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className="font-medium">{result.extractedItem?.quantity || 1} × </span>
-                          <span className="font-bold text-gray-900">
-                            {currency === 'USD' ? '$' : '$'}{result.extractedItem?.unitPrice?.toFixed(2) || '0.00'}
-                          </span>
-                        </div>
+              {/* AI Match Results */}
+              {aiMatchResult && (
+                <div className="space-y-4">
+                  {/* Matched Items */}
+                  {aiMatchResult.matchResults.filter(r => r.status === 'matched' || r.status === 'partial').length > 0 && (
+                    <div className="border rounded-xl overflow-hidden">
+                      <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100">
+                        <p className="font-medium text-emerald-800 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Matched Items ({aiMatchResult.summary.matched + aiMatchResult.summary.partial})
+                        </p>
                       </div>
-                    ))}
-                  {/* Show extra/unlinked items */}
-                  {aiMatchResult.matchResults
-                    .filter(r => r.status === 'extra')
-                    .map((result, idx) => (
-                      <div key={`extra-${idx}`} className="px-4 py-2 flex items-center gap-3 bg-amber-50">
-                        <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-gray-900">{result.extractedItem?.productName}</span>
-                          <span className="text-amber-600 ml-2 text-xs">(unlinked)</span>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className="font-medium">{result.extractedItem?.quantity || 1} × </span>
-                          <span className="font-bold text-gray-900">
-                            {currency === 'USD' ? '$' : '$'}{result.extractedItem?.unitPrice?.toFixed(2) || '0.00'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                {/* Delivery from PDF */}
-                {aiMatchResult.supplierInfo?.shipping && aiMatchResult.supplierInfo.shipping > 0 && (
-                  <div className="px-4 py-2 border-t bg-gray-50 flex justify-between">
-                    <span className="text-gray-600">Delivery/Shipping</span>
-                    <span className="font-bold">{formatCurrency(aiMatchResult.supplierInfo.shipping)}</span>
-                  </div>
-                )}
-                {/* Total from PDF */}
-                {aiMatchResult.supplierInfo?.total && (
-                  <div className="px-4 py-2 border-t bg-gray-100 flex justify-between">
-                    <span className="font-medium text-gray-900">Quote Total</span>
-                    <span className="font-bold text-emerald-600">{formatCurrency(aiMatchResult.supplierInfo.total)}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Unified Item Cards - Product info + Price + Lead Time + Notes */}
-            <div className="space-y-4">
-              {data.rfq.lineItems.map((item, index) => {
-                const lineItem = lineItems[index]
-                const imageUrl = (item.roomFFEItem?.images && item.roomFFEItem.images[0]) || null
-                const specs = item.roomFFEItem
-                const documents = specs?.documents || []
-                const hasItemNotes = item.notes || specs?.notes
-                const supplierLink = specs?.supplierLink
-
-                const hasPrice = lineItem?.unitPrice && parseFloat(lineItem.unitPrice) > 0
-                const hasLeadTime = lineItem?.leadTime
-                const needsNotes = lineItem?.leadTime === 'See notes'
-                const isMissing = aiMatchResult?.matchResults.find(
-                  r => r.rfqItem?.id === item.id && r.status === 'missing'
-                )
-
-                // Validation highlighting
-                const showPriceError = showValidationErrors && !hasPrice
-                const showLeadTimeError = showValidationErrors && !hasLeadTime
-                const showNotesError = showValidationErrors && needsNotes && !lineItem?.notes?.trim()
-
-                // Build specs line - avoid duplicates
-                const specParts: string[] = []
-                if (specs?.brand) specParts.push(specs.brand)
-                // Only show SKU or Model if different, prefer SKU
-                if (specs?.sku && specs?.modelNumber && specs.sku !== specs.modelNumber) {
-                  specParts.push(specs.sku)
-                  specParts.push(specs.modelNumber)
-                } else if (specs?.sku) {
-                  specParts.push(specs.sku)
-                } else if (specs?.modelNumber) {
-                  specParts.push(specs.modelNumber)
-                }
-                if (specs?.color) specParts.push(specs.color)
-                if (specs?.finish && specs.finish !== specs?.color) specParts.push(specs.finish)
-                if (specs?.material) specParts.push(specs.material)
-                if (specs?.width || specs?.height || specs?.depth || specs?.length) {
-                  const dims = [specs?.width && `W:${specs.width}`, specs?.height && `H:${specs.height}`, specs?.depth && `D:${specs.depth}`, specs?.length && `L:${specs.length}`].filter(Boolean).join(' ')
-                  specParts.push(dims)
-                }
-                const specsLine = specParts.join(' • ')
-
-                return (
-                  <div key={item.id} className={cn(
-                    "border rounded-xl overflow-hidden bg-white transition-all",
-                    isMissing && "ring-2 ring-amber-300",
-                    (showPriceError || showLeadTimeError) && "ring-2 ring-red-300"
-                  )}>
-                    {/* Product Info - Clean Layout */}
-                    <div className="p-4">
-                      <div className="flex gap-4">
-                        {/* Image */}
-                        <div className="flex-shrink-0">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={item.itemName} className="w-16 h-16 object-cover rounded-lg border" />
-                          ) : (
-                            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <Package className="w-6 h-6 text-gray-400" />
+                      <div className="divide-y">
+                        {aiMatchResult.matchResults
+                          .filter(r => r.status === 'matched' || r.status === 'partial')
+                          .map((result, idx) => (
+                            <div key={idx} className="px-4 py-3 flex items-center justify-between bg-white">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900">{result.rfqItem?.itemName}</p>
+                                <p className="text-sm text-gray-500">
+                                  {result.extractedItem?.productName}
+                                  {result.extractedItem?.sku && ` • ${result.extractedItem.sku}`}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-emerald-600">
+                                  {formatCurrency(result.extractedItem?.unitPrice || 0)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  × {result.extractedItem?.quantity || result.rfqItem?.quantity} = {formatCurrency((result.extractedItem?.unitPrice || 0) * (result.extractedItem?.quantity || result.rfqItem?.quantity || 1))}
+                                </p>
+                              </div>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="font-semibold text-gray-900">
-                                <span className="text-emerald-600 mr-2">{index + 1}.</span>
-                                {item.itemName}
-                              </h3>
-                              {specsLine && (
-                                <p className="text-sm text-gray-500 mt-1">{specsLine}</p>
-                              )}
-                              {item.itemDescription && (
-                                <p className="text-sm text-gray-400 mt-1 line-clamp-1">{item.itemDescription}</p>
-                              )}
-                              {supplierLink && (
-                                <a
-                                  href={supplierLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  Product Link
-                                </a>
-                              )}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
-                              <p className="text-xs text-gray-400">{item.unitType || 'units'}</p>
-                              {isMissing && (
-                                <p className="text-xs text-amber-600 mt-1">Not found</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Notes & Documents - compact */}
-                      {(hasItemNotes || documents.length > 0) && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-3 text-xs">
-                          {hasItemNotes && (
-                            <span className="text-amber-700">Note: {item.notes || specs?.notes}</span>
-                          )}
-                          {documents.map(doc => (
-                            <a
-                              key={doc.id}
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                            >
-                              <FileText className="w-3 h-3" />
-                              {doc.title || doc.fileName}
-                            </a>
                           ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
+                  )}
 
-                    {/* Quote Input - Simple */}
-                    <div className="px-4 py-3 border-t bg-gray-50 flex flex-wrap items-end gap-4">
-                      {/* Price */}
-                      <div className="flex-1 min-w-[120px]">
-                        <Label className="text-xs text-gray-500">Price ({currency})</Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                            {currency === 'USD' ? '$' : '$'}
-                          </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={lineItem?.unitPrice || ''}
-                            onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
-                            placeholder="0.00"
-                            className={cn(
-                              "pl-7 h-9",
-                              showPriceError && "border-red-500"
-                            )}
-                          />
-                        </div>
+                  {/* Unmatched/Extra Items */}
+                  {aiMatchResult.matchResults.filter(r => r.status === 'extra').length > 0 && (
+                    <div className="border rounded-xl overflow-hidden">
+                      <div className="bg-amber-50 px-4 py-3 border-b border-amber-100">
+                        <p className="font-medium text-amber-800 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4" />
+                          Additional Items ({aiMatchResult.summary.extra})
+                        </p>
                       </div>
-
-                      {/* Lead Time */}
-                      <div className="flex-1 min-w-[140px]">
-                        <Label className="text-xs text-gray-500">Lead Time</Label>
-                        <select
-                          value={lineItem?.leadTime || ''}
-                          onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
-                          className={cn(
-                            "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
-                            showLeadTimeError ? "border-red-500" : "border-gray-200"
-                          )}
-                        >
-                          <option value="">Select...</option>
-                          <option value="In Stock">In Stock</option>
-                          <option value="1-2 weeks">1-2 Weeks</option>
-                          <option value="2-4 weeks">2-4 Weeks</option>
-                          <option value="4-6 weeks">4-6 Weeks</option>
-                          <option value="6-8 weeks">6-8 Weeks</option>
-                          <option value="8-12 weeks">8-12 Weeks</option>
-                          <option value="12+ weeks">12+ Weeks</option>
-                          <option value="See notes">See notes</option>
-                        </select>
+                      <div className="divide-y">
+                        {aiMatchResult.matchResults
+                          .filter(r => r.status === 'extra')
+                          .map((result, idx) => (
+                            <div key={idx} className="px-4 py-3 flex items-center justify-between bg-white">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900">{result.extractedItem?.productName}</p>
+                                {result.extractedItem?.sku && (
+                                  <p className="text-sm text-gray-500">{result.extractedItem.sku}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-gray-700">
+                                  {formatCurrency(result.extractedItem?.unitPrice || 0)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  × {result.extractedItem?.quantity || 1}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
                       </div>
+                    </div>
+                  )}
 
-                      {/* Notes */}
-                      <div className="flex-1 min-w-[140px]">
-                        <Label className="text-xs text-gray-500">
-                          Notes {needsNotes && <span className="text-red-500">*</span>}
-                        </Label>
-                        <Input
-                          value={lineItem?.notes || ''}
-                          onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                          className={cn(
-                            "mt-1 h-9",
-                            showNotesError && "border-red-500"
-                          )}
-                        />
+                  {/* Missing Items Warning */}
+                  {aiMatchResult.summary.missing > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                      <p className="text-red-800 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {aiMatchResult.summary.missing} requested item{aiMatchResult.summary.missing > 1 ? 's were' : ' was'} not found in your quote
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Quote Total */}
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                    {aiMatchResult.supplierInfo?.shipping && aiMatchResult.supplierInfo.shipping > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Shipping</span>
+                        <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.shipping)}</span>
                       </div>
-
-                      {/* Line Total */}
-                      {hasPrice && (
-                        <div className="text-right min-w-[100px]">
-                          <p className="text-xs text-gray-500">Total</p>
-                          <p className="font-bold text-emerald-600">
-                            {formatCurrency(parseFloat(lineItem.unitPrice) * lineItem.quantity)}
-                          </p>
-                        </div>
-                      )}
+                    )}
+                    {aiMatchResult.supplierInfo?.taxes && aiMatchResult.supplierInfo.taxes > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Taxes</span>
+                        <span className="font-medium">{formatCurrency(aiMatchResult.supplierInfo.taxes)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-2 border-t">
+                      <span className="font-semibold text-gray-900">Quote Total</span>
+                      <span className="text-2xl font-bold text-emerald-600">
+                        {formatCurrency(aiMatchResult.supplierInfo?.total || 0)}
+                      </span>
                     </div>
                   </div>
-                )
-              })}
-            </div>
 
-            {/* Delivery - Simple input, no toggle */}
-            <div className="border rounded-xl p-4">
-              <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-3">
-                <Truck className="w-4 h-4" />
-                Delivery Fee (if applicable)
-              </h4>
-              <div className="relative max-w-xs">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={deliveryFee}
-                  onChange={(e) => setDeliveryFee(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-10"
-                />
-              </div>
-            </div>
+                  {/* Lead Times */}
+                  <div className="border rounded-xl p-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Confirm Lead Times</h4>
+                    <div className="space-y-3">
+                      {data.rfq.lineItems.map((item, index) => {
+                        const lineItem = lineItems[index]
+                        const matched = aiMatchResult?.matchResults.find(
+                          r => r.rfqItem?.id === item.id && (r.status === 'matched' || r.status === 'partial')
+                        )
+                        if (!matched) return null
 
-            {/* Order Notes */}
-            <div>
-              <Label>Additional Notes (optional)</Label>
-              <Textarea
-                value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
-                placeholder="Payment terms, special instructions, etc."
-                rows={2}
-                className="mt-1.5"
-              />
-            </div>
-
-            {/* Quote Summary */}
-            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal ({lineItems.length} items)</span>
-                <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
-              </div>
-              {parseFloat(deliveryFee) > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Delivery</span>
-                  <span className="font-medium">{formatCurrency(calculateDeliveryTotal())}</span>
+                        return (
+                          <div key={item.id} className="flex items-center gap-3">
+                            <span className="text-sm text-gray-600 flex-1">{item.itemName}</span>
+                            <select
+                              value={lineItem?.leadTime || ''}
+                              onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
+                              className={cn(
+                                "h-9 rounded-md border px-3 text-sm bg-white min-w-[150px]",
+                                showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
+                              )}
+                            >
+                              <option value="">Select lead time...</option>
+                              <option value="In Stock">In Stock</option>
+                              <option value="1-2 weeks">1-2 Weeks</option>
+                              <option value="2-4 weeks">2-4 Weeks</option>
+                              <option value="4-6 weeks">4-6 Weeks</option>
+                              <option value="6-8 weeks">6-8 Weeks</option>
+                              <option value="8-12 weeks">8-12 Weeks</option>
+                              <option value="12+ weeks">12+ Weeks</option>
+                              <option value="See notes">See notes</option>
+                            </select>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
-              {isQuebec && (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">GST (5%)</span>
-                    <span className="font-medium">{formatCurrency(calculateTaxes().gst)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">QST (9.975%)</span>
-                    <span className="font-medium">{formatCurrency(calculateTaxes().qst)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between pt-3 border-t">
-                <span className="font-semibold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-emerald-600">
-                  {formatCurrency(calculateTotal())}
-                </span>
-              </div>
-              {isQuebec && (
-                <p className="text-xs text-gray-500 pt-2">Quebec taxes (GST + QST) applied automatically</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-8">
-          <Button
-            variant="outline"
-            onClick={handleSendByEmail}
-            className="w-full sm:w-auto order-2 sm:order-1"
-          >
-            <Mail className="w-4 h-4 mr-2" />
-            Send Quote by Email
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || aiMatching}
-            size="lg"
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 order-1 sm:order-2"
-          >
-            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            <Send className="w-4 h-4 mr-2" />
-            Submit Quote
-          </Button>
-        </div>
+        {/* Manual Mode Content - Total & Delivery */}
+        {quoteMode === 'manual' && (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  Quote Summary
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setQuoteMode('select')}>
+                  <X className="w-4 h-4 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Delivery Fee */}
+              <div className="border rounded-xl p-4">
+                <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-3">
+                  <Truck className="w-4 h-4" />
+                  Delivery Fee (if applicable)
+                </h4>
+                <div className="relative max-w-xs">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                    placeholder="0.00"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal ({lineItems.filter(i => i.unitPrice && parseFloat(i.unitPrice) > 0).length} items)</span>
+                  <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
+                </div>
+                {parseFloat(deliveryFee) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Delivery</span>
+                    <span className="font-medium">{formatCurrency(calculateDeliveryTotal())}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-3 border-t">
+                  <span className="font-semibold text-gray-900">Total</span>
+                  <span className="text-2xl font-bold text-emerald-600">
+                    {formatCurrency(calculateTotal())}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Order Notes & Submit - Show when mode is selected */}
+        {quoteMode !== 'select' && (
+          <>
+            {/* Order Notes */}
+            <Card className="shadow-sm">
+              <CardContent className="pt-5 pb-5">
+                <Label className="font-medium">Additional Notes (optional)</Label>
+                <Textarea
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Payment terms, special instructions, etc."
+                  rows={2}
+                  className="mt-2"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-8">
+              <Button
+                variant="outline"
+                onClick={handleSendByEmail}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send Quote by Email
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || aiMatching || (quoteMode === 'upload' && !aiMatchResult)}
+                size="lg"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 order-1 sm:order-2"
+              >
+                {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Send className="w-4 h-4 mr-2" />
+                Submit Quote
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Messaging widget */}
