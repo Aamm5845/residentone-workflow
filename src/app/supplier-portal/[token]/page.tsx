@@ -196,6 +196,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   // Validation state
   const [showValidationErrors, setShowValidationErrors] = useState(false)
 
+  // State to control if user wants to revise an existing quote
+  const [isRevising, setIsRevising] = useState(false)
+
   // Track which items have notes expanded
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 
@@ -360,11 +363,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       if (response.ok) {
         const result = await response.json()
         // Show different message for revision vs new submission
-        const isRevision = data?.existingQuote || data?.responseStatus === 'SUBMITTED'
-        toast.success(isRevision ? 'Quote revised successfully! We\'ll review your changes.' : 'Quote submitted successfully!')
+        const wasRevision = isRevising || data?.existingQuote || data?.responseStatus === 'SUBMITTED'
+        toast.success(wasRevision ? 'Quote revised successfully! We\'ll review your changes.' : 'Quote submitted successfully!')
 
         // Reload the data to show updated quote info
         await loadRFQ()
+        setIsRevising(false) // Go back to summary view
         setSubmitted(true)
       } else {
         const err = await response.json()
@@ -555,8 +559,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
   if (!data) return null
 
-  // Check if already submitted (but allow viewing and resubmission)
-  const hasExistingQuote = submitted || data.responseStatus === 'SUBMITTED' || data.existingQuote
+  // Check if already submitted
+  const hasExistingQuote = data.responseStatus === 'SUBMITTED' || data.existingQuote
   const isDeclined = data.responseStatus === 'DECLINED'
 
   // If declined, show a simple message (no resubmission)
@@ -582,6 +586,129 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     )
   }
 
+  // If already submitted and not revising, show submitted summary
+  if (hasExistingQuote && !isRevising) {
+    const quote = data.existingQuote
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+        <Toaster position="top-right" />
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-emerald-100 text-sm font-medium">Quote Submitted</p>
+                <h1 className="text-2xl font-bold">{data.rfq.rfqNumber}</h1>
+              </div>
+            </div>
+            <p className="text-emerald-100">{data.rfq.project.name}</p>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+          {/* Quote Summary Card */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-600" />
+                Your Quote
+              </CardTitle>
+              <CardDescription>
+                Submitted on {quote?.submittedAt ? new Date(quote.submittedAt).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' }) : 'recently'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Quote Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-500 mb-1">Quote Reference</p>
+                  <p className="font-semibold text-gray-900">{quote?.quoteNumber || 'N/A'}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-4">
+                  <p className="text-sm text-emerald-600 mb-1">Total Amount</p>
+                  <p className="text-2xl font-bold text-emerald-600">{formatCurrency(quote?.totalAmount || 0)}</p>
+                </div>
+              </div>
+
+              {/* Items Summary */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Items Quoted ({data.rfq.lineItems.length})</p>
+                <div className="space-y-2">
+                  {data.rfq.lineItems.slice(0, 5).map((item, index) => {
+                    const quoteLineItem = quote?.lineItems?.find((ql: any) => ql.rfqLineItemId === item.id)
+                    return (
+                      <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-400">{index + 1}.</span>
+                          <span className="text-sm text-gray-900">{item.itemName}</span>
+                          <span className="text-xs text-gray-400">×{item.quantity}</span>
+                        </div>
+                        {quoteLineItem?.unitPrice && (
+                          <span className="text-sm font-medium text-gray-900">
+                            {formatCurrency(quoteLineItem.unitPrice)}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {data.rfq.lineItems.length > 5 && (
+                    <p className="text-sm text-gray-500 pt-2">
+                      +{data.rfq.lineItems.length - 5} more items
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Supplier Notes */}
+              {quote?.supplierNotes && (
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Your Notes</p>
+                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{quote.supplierNotes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => setIsRevising(true)}
+              size="lg"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Edit3 className="w-4 h-4 mr-2" />
+              Revise Quote
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleSendByEmail}
+              size="lg"
+              className="flex-1"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Send Update by Email
+            </Button>
+          </div>
+
+          <p className="text-center text-sm text-gray-500">
+            Need to make changes? Click "Revise Quote" to update your pricing.
+          </p>
+        </div>
+
+        {/* Messaging widget */}
+        <SupplierMessaging
+          token={token}
+          projectName={data.rfq.project.name}
+          supplierName={data.supplier.name}
+        />
+      </div>
+    )
+  }
+
   const project = data.rfq.project
   const hasShippingAddress = project.streetAddress || project.city
 
@@ -589,19 +716,21 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Toaster position="top-right" />
 
-      {/* Already Submitted Banner */}
-      {hasExistingQuote && (
-        <div className="bg-emerald-500 text-white text-center py-3 px-4">
+      {/* Revising Banner */}
+      {isRevising && hasExistingQuote && (
+        <div className="bg-amber-500 text-white text-center py-2 px-4">
           <div className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-5 h-5" />
-            <span className="font-medium">Quote Submitted</span>
-            {data.existingQuote && (
-              <span className="text-emerald-100">
-                ({data.existingQuote.quoteNumber} - {formatCurrency(data.existingQuote.totalAmount || 0)})
-              </span>
-            )}
+            <Edit3 className="w-4 h-4" />
+            <span className="font-medium">Revising Quote</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsRevising(false)}
+              className="text-white hover:bg-amber-600 ml-2 h-7 px-2"
+            >
+              Cancel
+            </Button>
           </div>
-          <p className="text-sm text-emerald-100 mt-1">You can revise and resubmit your quote below</p>
         </div>
       )}
 
@@ -1291,7 +1420,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Send className="w-4 h-4 mr-2" />
-                {hasExistingQuote ? 'Revise Quote' : 'Submit Quote'}
+                {isRevising ? 'Update Quote' : 'Submit Quote'}
               </Button>
             </div>
           </>
