@@ -470,6 +470,206 @@ export function generateConfirmationEmailTemplate(data: { clientName: string; pr
   return { subject, html };
 }
 
+// Supplier Quote Request Email Template
+export interface SupplierQuoteEmailData {
+  rfqNumber?: string
+  projectName: string
+  projectAddress?: string | null
+  clientName: string
+  supplierName: string
+  items: Array<{
+    name: string
+    description?: string | null
+    brand?: string | null
+    sku?: string | null
+    color?: string | null
+    finish?: string | null
+    material?: string | null
+    quantity?: number | null
+    unitType?: string | null
+    images?: string[] | null
+    section?: { name?: string; instance?: { room?: { name?: string } } } | null
+  }>
+  portalUrl: string
+  message?: string
+  deadline: Date
+  includeSpecSheet?: boolean
+  includeNotes?: boolean
+  isPreview?: boolean
+}
+
+export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData): string {
+  const itemRows = data.items.map(item => {
+    const imageUrl = item.images?.[0]
+    const specs = [
+      item.brand && `Brand: ${item.brand}`,
+      item.sku && `SKU: ${item.sku}`,
+      item.color && `Color: ${item.color}`,
+      item.finish && `Finish: ${item.finish}`,
+      item.material && `Material: ${item.material}`,
+    ].filter(Boolean).join(' | ')
+
+    return `
+      <tr>
+        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 80px;">
+          ${imageUrl
+            ? `<img src="${imageUrl}" alt="${item.name}" width="70" height="70" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;" />`
+            : `<div style="width: 70px; height: 70px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 24px;">📦</div>`
+          }
+        </td>
+        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
+          <div style="font-weight: 600; color: #111827; font-size: 15px; margin-bottom: 4px;">${item.name}</div>
+          ${item.description ? `<div style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${item.description}</div>` : ''}
+          ${specs ? `<div style="color: #9ca3af; font-size: 12px;">${specs}</div>` : ''}
+          ${item.section?.instance?.room?.name ? `<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">📍 ${item.section.instance.room.name} - ${item.section.name}</div>` : ''}
+        </td>
+        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: center; width: 100px;">
+          <div style="font-weight: 600; color: #111827; font-size: 16px;">${item.quantity || 1}</div>
+          <div style="color: #6b7280; font-size: 12px;">${item.unitType || 'units'}</div>
+        </td>
+      </tr>
+    `
+  }).join('')
+
+  const previewBanner = data.isPreview ? `
+  <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+    <strong style="color: #92400e;">📧 Email Preview</strong>
+    <span style="color: #92400e;"> - This is exactly what the supplier will receive. Click the button to test the portal.</span>
+  </div>
+  ` : ''
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Request from Meisner Interiors</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 650px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+
+  ${previewBanner}
+
+  <!-- Header with Meisner Branding -->
+  <div style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
+    <p style="color: #9ca3af; margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Meisner Interiors</p>
+    <h1 style="color: white; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">Quote Request</h1>
+    <p style="color: #d1d5db; margin: 0; font-size: 14px;">${data.projectName}</p>
+  </div>
+
+  <!-- Content -->
+  <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
+
+    <!-- Greeting -->
+    <p style="margin: 0 0 20px 0; font-size: 15px;">
+      Dear ${data.supplierName},
+    </p>
+
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #4b5563;">
+      <strong>Meisner Interiors</strong> is requesting a quote for the following items for our project. Please review the details below and submit your pricing through our secure portal.
+    </p>
+
+    ${data.message ? `
+    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 0 0 24px 0; border-radius: 0 8px 8px 0;">
+      <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>Note:</strong> ${data.message}</p>
+    </div>
+    ` : ''}
+
+    <!-- Project Info -->
+    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 0 0 24px 0;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 4px 0; color: #6b7280; font-size: 13px; width: 120px;">Project:</td>
+          <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${data.projectName}</td>
+        </tr>
+        ${data.projectAddress ? `
+        <tr>
+          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Address:</td>
+          <td style="padding: 4px 0; color: #111827; font-size: 13px;">${data.projectAddress}</td>
+        </tr>
+        ` : ''}
+        <tr>
+          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Client:</td>
+          <td style="padding: 4px 0; color: #111827; font-size: 13px;">${data.clientName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Items:</td>
+          <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${data.items.length} item${data.items.length > 1 ? 's' : ''}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Items Table -->
+    <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">Items Requested</h3>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0;">
+      <thead>
+        <tr style="background: #f9fafb;">
+          <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;"></th>
+          <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Item Details</th>
+          <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
+
+    ${data.includeSpecSheet ? `
+    <!-- Spec Sheet Note -->
+    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #0369a1; font-size: 14px;">
+        <strong>📋 Spec sheets & documents available</strong><br>
+        <span style="font-size: 13px; color: #0284c7;">Full specifications and product documents are available in the portal for your review.</span>
+      </p>
+    </div>
+    ` : ''}
+
+    ${data.includeNotes ? `
+    <!-- Notes Available -->
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #b45309; font-size: 14px;">
+        <strong>📝 Item notes included</strong><br>
+        <span style="font-size: 13px; color: #d97706;">Specific notes and requirements for each item are available in the portal.</span>
+      </p>
+    </div>
+    ` : ''}
+
+    <!-- CTA Button -->
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${data.portalUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; padding: 16px 48px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+        Submit Your Quote
+      </a>
+    </div>
+
+    <p style="text-align: center; color: #9ca3af; font-size: 11px; margin: 0 0 16px 0;">
+      Please respond by ${data.deadline.toLocaleDateString()}
+    </p>
+
+    <!-- Direct Link -->
+    <div style="background: #f0fdf4; border-radius: 6px; padding: 12px; text-align: center;">
+      <strong style="font-size: 12px; color: #166534;">Direct link:</strong><br/>
+      <a href="${data.portalUrl}" target="_blank" style="color: #059669; font-size: 11px; word-break: break-all;">${data.portalUrl}</a>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div style="padding: 24px; text-align: center; border-radius: 0 0 12px 12px; background: #f9fafb;">
+    <p style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 4px 0;">
+      Meisner Interiors
+    </p>
+    <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
+      Questions? Reply to this email or contact us directly.
+    </p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+      www.meisnerinteriors.com | Powered by StudioFlow
+    </p>
+  </div>
+
+</body>
+</html>`
+}
+
 // Client Quote Email Template
 interface ClientQuoteEmailData {
   quoteNumber: string

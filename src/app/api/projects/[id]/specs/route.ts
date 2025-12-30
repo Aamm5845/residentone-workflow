@@ -128,7 +128,7 @@ export async function GET(
           specStatus: item.specStatus,
           visibility: item.visibility,
           images: item.images?.length ? item.images : (item.libraryProduct?.images || []),
-          thumbnailUrl: item.libraryProduct?.thumbnailUrl,
+          thumbnailUrl: item.images?.[0] || item.libraryProduct?.thumbnailUrl || null,
           unitCost: item.unitCost ? Number(item.unitCost) : null,
           totalCost: item.totalCost ? Number(item.totalCost) : null,
           tradePrice: item.tradePrice ? Number(item.tradePrice) : null,

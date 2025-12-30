@@ -2686,9 +2686,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onChange={handleItemImageUpload}
       />
       
-      {/* Sticky Action Bar - Always visible when scrolling */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-full mx-auto px-6 py-3">
+      {/* Sticky Header - Action Bar + Tabs (top-16 = 64px for fixed navbar) */}
+      <div className="sticky top-16 z-30 bg-white shadow-sm">
+        {/* Action Bar */}
+        <div className="border-b border-gray-200">
+          <div className="max-w-full mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
@@ -2822,13 +2824,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </DropdownMenu>
             </div>
           </div>
+          </div>
         </div>
-      </div>
 
-      {/* Header with Tabs - Scrolls with content */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-full mx-auto px-6 py-3">
-          {/* Tabs Row - Modern Style */}
+        {/* Tabs Row */}
+        <div className="border-b border-gray-200">
+          <div className="max-w-full mx-auto px-6 py-3">
+            {/* Tabs Row - Modern Style */}
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               {/* Primary Tabs - Clean underline style */}
@@ -3124,6 +3126,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
 

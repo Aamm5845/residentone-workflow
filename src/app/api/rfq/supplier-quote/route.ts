@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { generateSupplierQuoteEmailTemplate } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -363,19 +364,23 @@ export async function POST(request: NextRequest) {
       const portalUrl = `${baseUrl}/supplier-portal/${supplierRFQ.accessToken}`
 
       try {
-        // Send professional email
+        // Send professional email using shared template
         await sendEmail({
           to: email,
           subject: `Quote Request ${rfq.rfqNumber}: ${project.name}`,
-          html: generateProfessionalQuoteEmail({
-            project,
-            items: supplierItems,
+          html: generateSupplierQuoteEmailTemplate({
+            rfqNumber: rfq.rfqNumber,
+            projectName: project.name,
+            projectAddress: project.address,
+            clientName: project.client.name,
             supplierName: supplier?.contactName || supplier?.name || vendorName || 'Valued Supplier',
+            items: supplierItems,
             portalUrl,
             message,
             deadline,
-            includeSpecSheet: includeSpecSheet && hasDocuments, // Only show if checkbox enabled AND documents exist
-            includeNotes: includeNotes && hasNotes // Only show if checkbox enabled AND notes exist
+            includeSpecSheet: includeSpecSheet && hasDocuments,
+            includeNotes: includeNotes && hasNotes,
+            isPreview: false
           })
         })
 
@@ -692,179 +697,4 @@ async function generateRFQNumber(orgId: string): Promise<string> {
   }
 
   return `${prefix}${nextNumber.toString().padStart(4, '0')}`
-}
-
-function generateProfessionalQuoteEmail({
-  project,
-  items,
-  supplierName,
-  portalUrl,
-  message,
-  deadline,
-  includeSpecSheet = true,
-  includeNotes = true
-}: {
-  project: { name: string; address?: string | null; client: { name: string } }
-  items: any[]
-  supplierName: string
-  portalUrl: string
-  message?: string
-  deadline: Date
-  includeSpecSheet?: boolean
-  includeNotes?: boolean
-}) {
-  const itemRows = items.map(item => {
-    const imageUrl = item.images?.[0]
-    const specs = [
-      item.brand && `Brand: ${item.brand}`,
-      item.sku && `SKU: ${item.sku}`,
-      item.color && `Color: ${item.color}`,
-      item.finish && `Finish: ${item.finish}`,
-      item.material && `Material: ${item.material}`,
-    ].filter(Boolean).join(' | ')
-
-    return `
-      <tr>
-        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 80px;">
-          ${imageUrl
-            ? `<img src="${imageUrl}" alt="${item.name}" width="70" height="70" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;" />`
-            : `<div style="width: 70px; height: 70px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 24px;">📦</div>`
-          }
-        </td>
-        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
-          <div style="font-weight: 600; color: #111827; font-size: 15px; margin-bottom: 4px;">${item.name}</div>
-          ${item.description ? `<div style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${item.description}</div>` : ''}
-          ${specs ? `<div style="color: #9ca3af; font-size: 12px;">${specs}</div>` : ''}
-          ${item.section?.instance?.room?.name ? `<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">📍 ${item.section.instance.room.name} - ${item.section.name}</div>` : ''}
-        </td>
-        <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: center; width: 100px;">
-          <div style="font-weight: 600; color: #111827; font-size: 16px;">${item.quantity || 1}</div>
-          <div style="color: #6b7280; font-size: 12px;">${item.unitType || 'units'}</div>
-        </td>
-      </tr>
-    `
-  }).join('')
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quote Request from Meisner Interiors</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 650px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
-
-  <!-- Header with Meisner Branding -->
-  <div style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-    <p style="color: #9ca3af; margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Meisner Interiors</p>
-    <h1 style="color: white; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">Quote Request</h1>
-    <p style="color: #d1d5db; margin: 0; font-size: 14px;">${project.name}</p>
-  </div>
-
-  <!-- Content -->
-  <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
-
-    <!-- Greeting -->
-    <p style="margin: 0 0 20px 0; font-size: 15px;">
-      Dear ${supplierName},
-    </p>
-
-    <p style="margin: 0 0 24px 0; font-size: 15px; color: #4b5563;">
-      <strong>Meisner Interiors</strong> is requesting a quote for the following items for our project. Please review the details below and submit your pricing through our secure portal.
-    </p>
-
-    ${message ? `
-    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 0 0 24px 0; border-radius: 0 8px 8px 0;">
-      <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>Note:</strong> ${message}</p>
-    </div>
-    ` : ''}
-
-    <!-- Project Info -->
-    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 0 0 24px 0;">
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="padding: 4px 0; color: #6b7280; font-size: 13px; width: 120px;">Project:</td>
-          <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${project.name}</td>
-        </tr>
-        ${project.address ? `
-        <tr>
-          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Address:</td>
-          <td style="padding: 4px 0; color: #111827; font-size: 13px;">${project.address}</td>
-        </tr>
-        ` : ''}
-        <tr>
-          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Client:</td>
-          <td style="padding: 4px 0; color: #111827; font-size: 13px;">${project.client.name}</td>
-        </tr>
-        <tr>
-          <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Items:</td>
-          <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${items.length} item${items.length > 1 ? 's' : ''}</td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Items Table -->
-    <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">Items Requested</h3>
-
-    <table style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0;">
-      <thead>
-        <tr style="background: #f9fafb;">
-          <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;"></th>
-          <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Item Details</th>
-          <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemRows}
-      </tbody>
-    </table>
-
-    ${includeSpecSheet ? `
-    <!-- Spec Sheet Note -->
-    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 24px 0;">
-      <p style="margin: 0; color: #0369a1; font-size: 14px;">
-        <strong>📋 Spec sheets & documents available</strong><br>
-        <span style="font-size: 13px; color: #0284c7;">Full specifications and product documents are available in the portal for your review.</span>
-      </p>
-    </div>
-    ` : ''}
-
-    ${includeNotes ? `
-    <!-- Notes Available -->
-    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
-      <p style="margin: 0; color: #b45309; font-size: 14px;">
-        <strong>📝 Item notes included</strong><br>
-        <span style="font-size: 13px; color: #d97706;">Specific notes and requirements for each item are available in the portal.</span>
-      </p>
-    </div>
-    ` : ''}
-
-    <!-- CTA Button -->
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${portalUrl}" style="display: inline-block; background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; padding: 16px 48px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-        Submit Your Quote
-      </a>
-    </div>
-
-    <p style="text-align: center; color: #9ca3af; font-size: 11px; margin: 0;">
-      Please respond by ${deadline.toLocaleDateString()}
-    </p>
-
-  </div>
-
-  <!-- Footer -->
-  <div style="padding: 24px; text-align: center; border-radius: 0 0 12px 12px; background: #f9fafb;">
-    <p style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 4px 0;">
-      Meisner Interiors
-    </p>
-    <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
-      Questions? Reply to this email or contact us directly.
-    </p>
-    <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-      www.meisnerinteriors.com | Powered by StudioFlow
-    </p>
-  </div>
-
-</body>
-</html>`
 }
