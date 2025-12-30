@@ -67,9 +67,38 @@ export async function GET(
       return NextResponse.json({ error: 'Rendering version not found' }, { status: 404 })
     }
 
-    // Generate temporary Dropbox links for assets stored in Dropbox
+    // Generate URLs for assets - prefer Blob for speed, fallback to Dropbox
     const assetsWithLinks = await Promise.all(
       renderingVersion.assets.map(async (asset) => {
+        // Parse metadata to check for blobUrl
+        let metadata: Record<string, any> = {}
+        try {
+          if (typeof asset.metadata === 'string') {
+            metadata = JSON.parse(asset.metadata || '{}')
+          } else if (asset.metadata && typeof asset.metadata === 'object') {
+            metadata = asset.metadata as Record<string, any>
+          }
+        } catch {
+          metadata = {}
+        }
+
+        // Priority 1: Use blobUrl from metadata (fastest)
+        if (metadata.blobUrl && metadata.blobUrl.startsWith('http')) {
+          return {
+            ...asset,
+            temporaryUrl: metadata.blobUrl
+          }
+        }
+
+        // Priority 2: If provider is blob and URL is http, use it directly
+        if (asset.provider === 'blob' && asset.url?.startsWith('http')) {
+          return {
+            ...asset,
+            temporaryUrl: asset.url
+          }
+        }
+
+        // Priority 3: If stored in Dropbox, get temporary link
         if (asset.provider === 'dropbox' && asset.url) {
           try {
             const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
@@ -82,6 +111,15 @@ export async function GET(
             return asset
           }
         }
+
+        // Fallback: use asset.url directly if it's http
+        if (asset.url?.startsWith('http')) {
+          return {
+            ...asset,
+            temporaryUrl: asset.url
+          }
+        }
+
         return asset
       })
     )
