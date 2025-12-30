@@ -2707,6 +2707,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 </div>
                 <div>
                   <h1 className="text-sm font-semibold text-gray-900">All Specs</h1>
+                  <p className="text-xs text-gray-500">{project.name}</p>
                 </div>
               </div>
               {selectedItems.size > 0 && (
