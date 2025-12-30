@@ -6,7 +6,19 @@ import { dropboxService } from '@/lib/dropbox-service'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-// GET /api/assets/[assetId]/view - View/download asset from Dropbox
+/**
+ * Check if a URL is accessible (for Blob URLs)
+ */
+async function isUrlAccessible(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: 'HEAD' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+// GET /api/assets/[assetId]/view - View/download asset
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> }
@@ -41,39 +53,65 @@ export async function GET(
       }
     }
 
-    // If stored in Dropbox, get temporary download link
-    if (asset.provider === 'dropbox' && asset.url.startsWith('/')) {
+    // Parse metadata to check for blobUrl
+    let metadata: Record<string, any> = {}
+    try {
+      if (typeof asset.metadata === 'string') {
+        metadata = JSON.parse(asset.metadata || '{}')
+      } else if (asset.metadata && typeof asset.metadata === 'object') {
+        metadata = asset.metadata as Record<string, any>
+      }
+    } catch {
+      metadata = {}
+    }
+
+    // Priority 1: Try Blob URL from metadata (fastest access)
+    if (metadata.blobUrl && metadata.blobUrl.startsWith('http')) {
+      // Verify URL is accessible before redirecting
+      const accessible = await isUrlAccessible(metadata.blobUrl)
+      if (accessible) {
+        return NextResponse.redirect(metadata.blobUrl)
+      }
+      console.warn(`[Asset View] Blob URL not accessible for asset ${assetId}, falling back`)
+    }
+
+    // Priority 2: If provider is blob and URL is http, use it directly
+    if (asset.provider === 'blob' && asset.url?.startsWith('http')) {
+      const accessible = await isUrlAccessible(asset.url)
+      if (accessible) {
+        return NextResponse.redirect(asset.url)
+      }
+      console.warn(`[Asset View] Primary blob URL not accessible for asset ${assetId}, trying Dropbox fallback`)
+    }
+
+    // Priority 3: If stored in Dropbox or has Dropbox fallback
+    const dropboxPath = metadata.dropboxPath || (asset.provider === 'dropbox' ? asset.url : null)
+    if (dropboxPath && dropboxPath.startsWith('/')) {
       try {
         // Get temporary link from Dropbox (valid for 4 hours)
-        const tempLink = await dropboxService.getTemporaryLink(asset.url)
-        
-        if (!tempLink) {
-          throw new Error('Failed to get Dropbox download link')
-        }
+        const tempLink = await dropboxService.getTemporaryLink(dropboxPath)
 
-        // Redirect to Dropbox temporary link
-        return NextResponse.redirect(tempLink)
+        if (tempLink) {
+          return NextResponse.redirect(tempLink)
+        }
       } catch (error) {
         console.error('[Asset View] Failed to get Dropbox link:', error)
-        return NextResponse.json({ 
-          error: 'Failed to retrieve file from Dropbox' 
-        }, { status: 500 })
       }
     }
 
-    // For Vercel Blob or other URLs, redirect directly
-    if (asset.url.startsWith('http')) {
+    // Priority 4: For any HTTP URLs (including Dropbox shared links), redirect directly
+    if (asset.url?.startsWith('http')) {
       return NextResponse.redirect(asset.url)
     }
 
-    // For base64 data URLs (dev only), serve directly
-    if (asset.url.startsWith('data:')) {
+    // Priority 5: For base64 data URLs (dev only), serve directly
+    if (asset.url?.startsWith('data:')) {
       const [header, data] = asset.url.split(',')
       const mimeMatch = header.match(/data:([^;]+);base64/)
       const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream'
-      
+
       const buffer = Buffer.from(data, 'base64')
-      
+
       return new NextResponse(buffer, {
         headers: {
           'Content-Type': mimeType,
@@ -87,8 +125,8 @@ export async function GET(
 
   } catch (error) {
     console.error('[Asset View] Error:', error)
-    return NextResponse.json({ 
-      error: 'Failed to retrieve asset' 
+    return NextResponse.json({
+      error: 'Failed to retrieve asset'
     }, { status: 500 })
   }
 }
