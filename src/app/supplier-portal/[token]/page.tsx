@@ -186,6 +186,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   // Delivery fee
   const [deliveryFee, setDeliveryFee] = useState('')
 
+  // Tax fields for CAD suppliers (GST 5%, QST 9.975%)
+  const [includeTax, setIncludeTax] = useState(false)
+  const [gstAmount, setGstAmount] = useState('')
+  const [qstAmount, setQstAmount] = useState('')
+
   // Currency - detect USD for US suppliers
   const [currency, setCurrency] = useState<'CAD' | 'USD'>('CAD')
 
@@ -276,8 +281,26 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     return parseFloat(deliveryFee) || 0
   }
 
+  const calculateGST = () => {
+    if (!includeTax || currency !== 'CAD') return 0
+    if (gstAmount) return parseFloat(gstAmount) || 0
+    // Auto-calculate 5% GST
+    return calculateSubtotal() * 0.05
+  }
+
+  const calculateQST = () => {
+    if (!includeTax || currency !== 'CAD') return 0
+    if (qstAmount) return parseFloat(qstAmount) || 0
+    // Auto-calculate 9.975% QST
+    return calculateSubtotal() * 0.09975
+  }
+
+  const calculateTaxTotal = () => {
+    return calculateGST() + calculateQST()
+  }
+
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateDeliveryTotal()
+    return calculateSubtotal() + calculateDeliveryTotal() + calculateTaxTotal()
   }
 
   const handleSubmit = async () => {
@@ -381,12 +404,33 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     }
   }
 
-  const handleSendByEmail = () => {
-    const rfqNumber = data?.rfq?.rfqNumber || 'Quote Request'
-    const projectName = data?.rfq?.project?.name || ''
-    const subject = encodeURIComponent(`Quote for ${rfqNumber}${projectName ? ` - ${projectName}` : ''}`)
-    const body = encodeURIComponent(`Hi,\n\nPlease find attached my quote for ${rfqNumber}.\n\n[Please attach your quote PDF to this email]\n\nBest regards`)
-    window.location.href = `mailto:shaya@meisnerinteriors.com?subject=${subject}&body=${body}`
+  const [sendingEmail, setSendingEmail] = useState(false)
+
+  const handleSendByEmail = async () => {
+    setSendingEmail(true)
+    try {
+      const response = await fetch(`/api/supplier-portal/${token}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: orderNotes || null,
+          attachmentUrl: uploadedFileUrl || null,
+          attachmentName: uploadedFile?.name || null
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Quote sent by email successfully!')
+      } else {
+        const err = await response.json()
+        toast.error(err.error || 'Failed to send email')
+      }
+    } catch (error) {
+      console.error('Error sending email:', error)
+      toast.error('Failed to send email. Please try again.')
+    } finally {
+      setSendingEmail(false)
+    }
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -686,11 +730,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             <Button
               variant="outline"
               onClick={handleSendByEmail}
+              disabled={sendingEmail}
               size="lg"
               className="flex-1"
             >
-              <Mail className="w-4 h-4 mr-2" />
-              Send Update by Email
+              {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+              {sendingEmail ? 'Sending...' : 'Send Update by Email'}
             </Button>
           </div>
 
@@ -1163,10 +1208,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               <Button
                 variant="ghost"
                 onClick={handleSendByEmail}
+                disabled={sendingEmail}
                 className="text-gray-600 hover:text-gray-900"
               >
-                <Mail className="w-4 h-4 mr-2" />
-                Send Quote by Email Instead
+                {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                {sendingEmail ? 'Sending...' : 'Send Quote by Email Instead'}
               </Button>
             </div>
           </>
@@ -1383,6 +1429,72 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 </div>
               </div>
 
+              {/* GST/QST Taxes - Only for CAD */}
+              {currency === 'CAD' && (
+                <div className="border rounded-xl p-4 bg-blue-50 border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      Quebec Taxes (GST + QST)
+                    </h4>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeTax}
+                        onChange={(e) => {
+                          setIncludeTax(e.target.checked)
+                          if (!e.target.checked) {
+                            setGstAmount('')
+                            setQstAmount('')
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">Include taxes</span>
+                    </label>
+                  </div>
+                  {includeTax && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-gray-500">GST (5%)</Label>
+                          <div className="relative mt-1">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={gstAmount || (calculateSubtotal() * 0.05).toFixed(2)}
+                              onChange={(e) => setGstAmount(e.target.value)}
+                              placeholder={(calculateSubtotal() * 0.05).toFixed(2)}
+                              className="pl-10 h-9"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500">QST (9.975%)</Label>
+                          <div className="relative mt-1">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={qstAmount || (calculateSubtotal() * 0.09975).toFixed(2)}
+                              onChange={(e) => setQstAmount(e.target.value)}
+                              placeholder={(calculateSubtotal() * 0.09975).toFixed(2)}
+                              className="pl-10 h-9"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Taxes are auto-calculated based on subtotal. You can adjust if needed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Total */}
               <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
@@ -1394,6 +1506,18 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     <span className="text-gray-600">Delivery</span>
                     <span className="font-medium">{formatCurrency(calculateDeliveryTotal())}</span>
                   </div>
+                )}
+                {includeTax && currency === 'CAD' && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">GST (5%)</span>
+                      <span className="font-medium">{formatCurrency(calculateGST())}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">QST (9.975%)</span>
+                      <span className="font-medium">{formatCurrency(calculateQST())}</span>
+                    </div>
+                  </>
                 )}
                 <div className="flex justify-between pt-3 border-t">
                   <span className="font-semibold text-gray-900">Total</span>
@@ -1428,10 +1552,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               <Button
                 variant="outline"
                 onClick={handleSendByEmail}
+                disabled={sendingEmail}
                 className="w-full sm:w-auto order-2 sm:order-1"
               >
-                <Mail className="w-4 h-4 mr-2" />
-                Send Quote by Email
+                {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                {sendingEmail ? 'Sending...' : 'Send Quote by Email'}
               </Button>
               <Button
                 onClick={handleSubmit}

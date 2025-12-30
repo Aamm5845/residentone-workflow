@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { projectId, itemIds, supplierId, shippingAddress, message } = body
+    const { projectId, itemIds, supplierId, shippingAddress, message, includeSpecSheet = true, includeNotes = true } = body
 
     if (!projectId || !itemIds?.length) {
       return NextResponse.json(
@@ -65,9 +65,17 @@ export async function POST(request: NextRequest) {
         images: true,
         color: true,
         finish: true,
-        material: true
+        material: true,
+        documents: {
+          where: { visibleToSupplier: true },
+          select: { id: true }
+        }
       }
     })
+
+    // Check if any items have documents or notes
+    const hasDocuments = items.some(item => item.documents && item.documents.length > 0)
+    const hasNotes = items.some(item => item.notes && item.notes.trim().length > 0)
 
     if (items.length === 0) {
       return NextResponse.json({ error: 'No valid items found' }, { status: 400 })
@@ -157,7 +165,9 @@ export async function POST(request: NextRequest) {
           vendorEmail: supplier?.email || 'preview@example.com',
           tokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           responseStatus: 'PENDING',
-          shippingAddress: shippingAddress || null
+          shippingAddress: shippingAddress || null,
+          includeSpecSheet: includeSpecSheet,
+          includeNotes: includeNotes
         }
       })
     } else {
@@ -168,7 +178,9 @@ export async function POST(request: NextRequest) {
           responseStatus: 'PENDING',
           viewedAt: null,
           respondedAt: null,
-          shippingAddress: shippingAddress || previewSupplierRfq.shippingAddress
+          shippingAddress: shippingAddress || previewSupplierRfq.shippingAddress,
+          includeSpecSheet: includeSpecSheet,
+          includeNotes: includeNotes
         }
       })
     }
@@ -194,6 +206,8 @@ export async function POST(request: NextRequest) {
       portalUrl,
       message,
       deadline,
+      includeSpecSheet: includeSpecSheet && hasDocuments,
+      includeNotes: includeNotes && hasNotes,
       isPreview: true
     })
 

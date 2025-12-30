@@ -91,6 +91,7 @@ interface FFEItem {
   isSpecItem: boolean
   ffeRequirementId?: string
   linkedSpecs?: LinkedSpec[]
+  docCode?: string
 }
 
 interface FFESection {
@@ -168,6 +169,11 @@ export default function FFEUnifiedWorkspace({
   const [editingNotesItemId, setEditingNotesItemId] = useState<string | null>(null)
   const [editNotesValue, setEditNotesValue] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+
+  // Doc Code editing state
+  const [editingDocCodeItemId, setEditingDocCodeItemId] = useState<string | null>(null)
+  const [editDocCodeValue, setEditDocCodeValue] = useState('')
+  const [savingDocCode, setSavingDocCode] = useState(false)
 
   // Generate from URL states
   const [showUrlGenerateDialog, setShowUrlGenerateDialog] = useState(false)
@@ -1081,6 +1087,26 @@ export default function FFEUnifiedWorkspace({
       toast.error('Failed to update notes')
     } finally {
       setSavingNotes(false)
+    }
+  }
+
+  const handleUpdateItemDocCode = async (itemId: string) => {
+    try {
+      setSavingDocCode(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docCode: editDocCodeValue.trim() || null })
+      })
+      if (!response.ok) throw new Error('Failed to update doc code')
+      await loadFFEData()
+      setEditingDocCodeItemId(null)
+      setEditDocCodeValue('')
+      toast.success('Doc Code updated')
+    } catch (error) {
+      toast.error('Failed to update doc code')
+    } finally {
+      setSavingDocCode(false)
     }
   }
 

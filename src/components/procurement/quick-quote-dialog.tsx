@@ -225,7 +225,9 @@ export default function QuickQuoteDialog({
           itemIds,
           supplierId,
           shippingAddress: useCustomShipping ? shippingAddress : undefined,
-          message: message || undefined
+          message: message || undefined,
+          includeSpecSheet,
+          includeNotes
         })
       })
 
