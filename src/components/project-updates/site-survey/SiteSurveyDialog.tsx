@@ -139,7 +139,8 @@ export default function SiteSurveyDialog({
 
           const response = await fetch(`/api/projects/${projectId}/updates/${update.id}/survey-photos`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'include'  // Ensure cookies are sent
           })
 
           if (!response.ok) {
