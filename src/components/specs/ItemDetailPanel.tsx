@@ -697,7 +697,7 @@ export function ItemDetailPanel({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    sku: '',         // SKU / Model number
+    sku: '',         // Model number
     docCode: '',     // Document Code (separate from SKU)
     productName: '',
     brand: '',
@@ -741,6 +741,11 @@ export function ItemDetailPanel({
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('Quotes')
   const [customDocumentType, setCustomDocumentType] = useState('')
   const [documentNote, setDocumentNote] = useState('')
+  // Edit document state
+  const [editingDocument, setEditingDocument] = useState<ItemDocument | null>(null)
+  const [editDocumentTitle, setEditDocumentTitle] = useState('')
+  const [editDocumentNote, setEditDocumentNote] = useState('')
+  const [savingDocumentEdit, setSavingDocumentEdit] = useState(false)
 
   // Default document types with labels and colors
   const defaultDocumentTypes = [
@@ -929,6 +934,58 @@ export function ItemDetailPanel({
       toast.error('Failed to delete document')
     } finally {
       setDeletingDocumentId(null)
+    }
+  }
+
+  // Open edit document dialog
+  const handleEditDocument = (doc: ItemDocument) => {
+    setEditingDocument(doc)
+    setEditDocumentTitle(doc.title || doc.fileName)
+    setEditDocumentNote(doc.description || '')
+  }
+
+  // Save document edits
+  const handleSaveDocumentEdit = async () => {
+    if (!editingDocument || !item?.id) return
+
+    const targetRoomId = item.roomId || roomId
+    if (!targetRoomId) {
+      toast.error('Cannot update document - missing room information')
+      return
+    }
+
+    setSavingDocumentEdit(true)
+    try {
+      const res = await fetch(
+        `/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/documents`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: editingDocument.id,
+            title: editDocumentTitle,
+            description: editDocumentNote
+          })
+        }
+      )
+
+      if (res.ok) {
+        const data = await res.json()
+        setDocuments(prev => prev.map(d =>
+          d.id === editingDocument.id
+            ? { ...d, title: editDocumentTitle, description: editDocumentNote }
+            : d
+        ))
+        setEditingDocument(null)
+        toast.success('Document updated')
+      } else {
+        toast.error('Failed to update document')
+      }
+    } catch (error) {
+      console.error('Update error:', error)
+      toast.error('Failed to update document')
+    } finally {
+      setSavingDocumentEdit(false)
     }
   }
 
@@ -1894,13 +1951,13 @@ export function ItemDetailPanel({
                   </div>
                 </div>
                 
-                {/* SKU */}
+                {/* Model */}
                 <div className="space-y-2">
-                  <Label>SKU</Label>
+                  <Label>Model</Label>
                   <Input
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    placeholder="SKU / Model number"
+                    placeholder="Model number"
                   />
                 </div>
                 
@@ -2497,6 +2554,16 @@ export function ItemDetailPanel({
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
+                                          handleEditDocument(doc)
+                                        }}
+                                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="Edit title/note"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
                                           handleDeleteDocument(doc.id)
                                         }}
                                         disabled={deletingDocumentId === doc.id}
@@ -2719,6 +2786,48 @@ export function ItemDetailPanel({
               ) : (
                 'Add to Phonebook'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Document Dialog */}
+      <Dialog open={!!editingDocument} onOpenChange={(open) => !open && setEditingDocument(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Edit Document
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={editDocumentTitle}
+                onChange={(e) => setEditDocumentTitle(e.target.value)}
+                placeholder="Document title"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Note</Label>
+              <Textarea
+                value={editDocumentNote}
+                onChange={(e) => setEditDocumentNote(e.target.value)}
+                placeholder="Add a note about this document..."
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingDocument(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDocumentEdit} disabled={savingDocumentEdit}>
+              {savingDocumentEdit && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

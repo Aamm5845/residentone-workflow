@@ -528,3 +528,77 @@ export async function DELETE(
     )
   }
 }
+
+/**
+ * PUT /api/ffe/v2/rooms/[roomId]/items/[itemId]/documents
+ * Update document title and description
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string; itemId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let orgId = (session.user as any).orgId
+    if (!orgId) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+      orgId = user.orgId
+    }
+
+    const { itemId } = await params
+    const body = await request.json()
+    const { documentId, title, description } = body
+
+    if (!documentId) {
+      return NextResponse.json({ error: 'Document ID is required' }, { status: 400 })
+    }
+
+    // Verify document exists and belongs to this item and org
+    const document = await prisma.rFQDocument.findFirst({
+      where: {
+        id: documentId,
+        specItemId: itemId,
+        orgId
+      }
+    })
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    }
+
+    // Update document
+    const updated = await prisma.rFQDocument.update({
+      where: { id: documentId },
+      data: {
+        title: title || document.title,
+        description: description ?? document.description
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      document: {
+        id: updated.id,
+        title: updated.title,
+        description: updated.description
+      }
+    })
+
+  } catch (error) {
+    console.error('[ItemDocuments PUT] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update document' },
+      { status: 500 }
+    )
+  }
+}

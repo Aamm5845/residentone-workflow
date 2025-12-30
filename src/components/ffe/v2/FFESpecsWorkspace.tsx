@@ -872,20 +872,20 @@ function SpecTable({
   }
   return (
     <Table>
-      <TableHeader>
-        <TableRow className="bg-gray-50">
-          <TableHead className="w-10"></TableHead>
-          <TableHead className="w-12"></TableHead>
-          <TableHead>Item</TableHead>
-          <TableHead>Linked Specs</TableHead>
-          <TableHead>Brand</TableHead>
-          <TableHead>Dimensions</TableHead>
-          <TableHead>Color</TableHead>
-          <TableHead>Finish</TableHead>
-          <TableHead className="text-center">Qty</TableHead>
-          <TableHead>Lead Time</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-10"></TableHead>
+      <TableHeader className="sticky top-0 z-10">
+        <TableRow className="bg-gray-50 shadow-sm">
+          <TableHead className="w-10 bg-gray-50"></TableHead>
+          <TableHead className="w-12 bg-gray-50"></TableHead>
+          <TableHead className="bg-gray-50">Item</TableHead>
+          <TableHead className="bg-gray-50">Linked Specs</TableHead>
+          <TableHead className="bg-gray-50">Brand</TableHead>
+          <TableHead className="bg-gray-50">Dimensions</TableHead>
+          <TableHead className="bg-gray-50">Color</TableHead>
+          <TableHead className="bg-gray-50">Finish</TableHead>
+          <TableHead className="text-center bg-gray-50">Qty</TableHead>
+          <TableHead className="bg-gray-50">Lead Time</TableHead>
+          <TableHead className="bg-gray-50">Status</TableHead>
+          <TableHead className="w-10 bg-gray-50"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
