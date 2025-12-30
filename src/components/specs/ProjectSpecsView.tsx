@@ -852,6 +852,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           const categories = [...new Set(data.specs.map((s: SpecItem) => s.categoryName))]
           setExpandedCategories(new Set(categories))
         }
+        // Preload all images for instant display
+        const imageUrls = data.specs
+          .map((s: SpecItem) => s.thumbnailUrl || s.images?.[0])
+          .filter(Boolean) as string[]
+        imageUrls.forEach(url => {
+          const img = new window.Image()
+          img.src = url
+        })
       }
       if (data.financials) {
         setFinancials(data.financials)
@@ -3710,6 +3718,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         src={displayItem.thumbnailUrl || displayItem.images[0]}
                                         alt={displayItem.name}
                                         className="w-full h-full object-cover"
+                                        loading="eager"
+                                        decoding="async"
                                       />
                                     ) : (
                                       <div className="flex flex-col items-center">
@@ -3727,6 +3737,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           src={displayItem.thumbnailUrl || displayItem.images[0]}
                                           alt={displayItem.name}
                                           className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                                          loading="eager"
+                                          decoding="async"
                                         />
                                       )}
                                       <div className="min-w-0 flex-1">
