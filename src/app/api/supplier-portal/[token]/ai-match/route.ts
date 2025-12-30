@@ -454,6 +454,24 @@ Extract everything you can see in the quote, including any items that might not 
     // Detect if taxes are included in quote
     const hasTaxes = extractedData.supplierInfo?.taxes && extractedData.supplierInfo.taxes > 0
 
+    // Log AI match results for email notifications
+    await prisma.supplierAccessLog.create({
+      data: {
+        supplierRFQId: supplierRFQ.id,
+        action: 'AI_MATCH',
+        metadata: {
+          totalRequested: rfqItems.length,
+          matched,
+          partial,
+          missing,
+          extra,
+          extractedTotal: extractedItems.length,
+          hasTaxes,
+          fileType: fileType || 'unknown'
+        }
+      }
+    })
+
     return NextResponse.json({
       success: true,
       supplierInfo: extractedData.supplierInfo || {},

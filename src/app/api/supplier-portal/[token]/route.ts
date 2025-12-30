@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
+import { sendEmail } from '@/lib/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -362,7 +364,14 @@ export async function POST(
         },
         rfq: {
           include: {
-            lineItems: true
+            lineItems: true,
+            project: {
+              select: {
+                id: true,
+                name: true,
+                orgId: true
+              }
+            }
           }
         }
       }
@@ -593,6 +602,23 @@ export async function POST(
         })
       }
 
+      // Send email notification to team about the new quote
+      try {
+        await sendSupplierQuoteNotification({
+          supplierRFQ,
+          quote,
+          projectName: supplierRFQ.rfq.project?.name || 'Unknown Project',
+          rfqNumber: supplierRFQ.rfq.rfqNumber,
+          supplierName,
+          lineItemsCount: processedLineItems.length,
+          totalAmount: finalTotal,
+          hasDocument: !!quoteDocumentUrl
+        })
+      } catch (emailError) {
+        // Don't fail the submission if email fails
+        console.error('Failed to send quote notification email:', emailError)
+      }
+
       return NextResponse.json({
         success: true,
         action: 'submitted',
@@ -612,5 +638,220 @@ export async function POST(
       { error: 'Failed to process quote' },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Send email notification to team when supplier submits a quote
+ */
+async function sendSupplierQuoteNotification(data: {
+  supplierRFQ: any
+  quote: any
+  projectName: string
+  rfqNumber: string
+  supplierName: string
+  lineItemsCount: number
+  totalAmount: number
+  hasDocument: boolean
+}) {
+  const { supplierRFQ, quote, projectName, rfqNumber, supplierName, lineItemsCount, totalAmount, hasDocument } = data
+
+  // Get organization to find team members to notify
+  const orgId = supplierRFQ.rfq.project?.orgId
+  if (!orgId) {
+    console.log('No orgId found, skipping notification')
+    return
+  }
+
+  // Get organization members with their emails
+  const orgMembers = await prisma.user.findMany({
+    where: {
+      orgId,
+      OR: [
+        { role: 'ADMIN' },
+        { role: 'OWNER' }
+      ]
+    },
+    select: {
+      email: true,
+      name: true
+    }
+  })
+
+  // Team members to always notify (can be moved to org settings later)
+  const notificationEmails = [
+    ...orgMembers.map(m => m.email).filter(Boolean),
+  ].filter((email, index, self) => self.indexOf(email) === index) // Remove duplicates
+
+  if (notificationEmails.length === 0) {
+    console.log('No team members to notify')
+    return
+  }
+
+  // Build the review URL
+  const baseUrl = getBaseUrl()
+  const reviewUrl = `${baseUrl}/procurement/rfq/${supplierRFQ.rfqId}?supplier=${supplierRFQ.id}`
+
+  // Get AI match summary if available (stored in quote metadata or access log)
+  const latestAccessLog = await prisma.supplierAccessLog.findFirst({
+    where: {
+      supplierRFQId: supplierRFQ.id,
+      action: 'AI_MATCH'
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  const aiMatchSummary = latestAccessLog?.metadata as {
+    matched?: number
+    partial?: number
+    missing?: number
+    extra?: number
+    totalRequested?: number
+  } | null
+
+  // Build mismatch section for email
+  let mismatchHtml = ''
+  let hasMismatch = false
+
+  if (aiMatchSummary) {
+    const issues: string[] = []
+
+    if (aiMatchSummary.missing && aiMatchSummary.missing > 0) {
+      issues.push(`<li style="color: #dc2626;"><strong>${aiMatchSummary.missing} missing item${aiMatchSummary.missing > 1 ? 's' : ''}</strong> - Items we requested but not found in their quote</li>`)
+      hasMismatch = true
+    }
+
+    if (aiMatchSummary.extra && aiMatchSummary.extra > 0) {
+      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.extra} extra item${aiMatchSummary.extra > 1 ? 's' : ''}</strong> - Items in their quote we didn't request</li>`)
+      hasMismatch = true
+    }
+
+    if (aiMatchSummary.partial && aiMatchSummary.partial > 0) {
+      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.partial} partial match${aiMatchSummary.partial > 1 ? 'es' : ''}</strong> - Items with quantity or other discrepancies</li>`)
+      hasMismatch = true
+    }
+
+    if (issues.length > 0) {
+      mismatchHtml = `
+        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <h3 style="margin: 0 0 12px 0; color: #92400e; font-size: 16px;">⚠️ AI Analysis Found Discrepancies</h3>
+          <ul style="margin: 0; padding-left: 20px;">
+            ${issues.join('')}
+          </ul>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color: #78350f;">
+            Please review the quote to ensure all items are properly matched.
+          </p>
+        </div>
+      `
+    }
+  }
+
+  // Format currency
+  const formattedTotal = new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD'
+  }).format(totalAmount)
+
+  // Build the email HTML
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 24px; text-align: center;">
+          <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600;">
+            New Quote Received
+          </h1>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 24px;">
+          <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+            <strong>${supplierName}</strong> has submitted a quote for:
+          </p>
+
+          <!-- Quote Details Card -->
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Project</td>
+                <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 500; text-align: right;">${projectName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">RFQ Number</td>
+                <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 500; text-align: right;">${rfqNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Items Quoted</td>
+                <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 500; text-align: right;">${lineItemsCount} item${lineItemsCount > 1 ? 's' : ''}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Quote Total</td>
+                <td style="padding: 8px 0; color: #10b981; font-size: 18px; font-weight: 600; text-align: right;">${formattedTotal}</td>
+              </tr>
+              ${hasDocument ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Document</td>
+                <td style="padding: 8px 0; color: #3b82f6; font-size: 14px; text-align: right;">📎 Quote document attached</td>
+              </tr>
+              ` : ''}
+            </table>
+          </div>
+
+          ${mismatchHtml}
+
+          ${!hasMismatch && aiMatchSummary ? `
+          <div style="background-color: #d1fae5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0; color: #065f46; font-size: 14px;">
+              ✅ <strong>All items matched!</strong> The AI analysis found all requested items in the supplier's quote.
+            </p>
+          </div>
+          ` : ''}
+
+          <!-- CTA Button -->
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${reviewUrl}" style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+              Review & Match Quote
+            </a>
+          </div>
+
+          <p style="margin: 20px 0 0 0; font-size: 13px; color: #9ca3af; text-align: center;">
+            Click the button above to review the quote, match items, and accept or request revisions.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+            This is an automated notification from your procurement system.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  // Send to all team members
+  const subject = hasMismatch
+    ? `⚠️ Quote Received (Review Needed) - ${supplierName} for ${projectName}`
+    : `✅ Quote Received - ${supplierName} for ${projectName}`
+
+  for (const email of notificationEmails) {
+    try {
+      await sendEmail({
+        to: email,
+        subject,
+        html: emailHtml
+      })
+      console.log(`Quote notification sent to ${email}`)
+    } catch (err) {
+      console.error(`Failed to send notification to ${email}:`, err)
+    }
   }
 }
