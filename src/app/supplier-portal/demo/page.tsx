@@ -654,10 +654,10 @@ export default function SupplierPortalDemoPage() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2 text-amber-800">
                         <AlertCircle className="w-4 h-4" />
-                        Additional Items in Your Quote
+                        Additional Items
                       </CardTitle>
                       <p className="text-sm text-amber-600 mt-1">
-                        These items weren't in our original request - we'll review and include them if applicable.
+                        We'll review these and match them accordingly.
                       </p>
                     </CardHeader>
                     <CardContent className="pt-0">
