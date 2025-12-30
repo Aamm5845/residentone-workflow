@@ -451,8 +451,33 @@ Extract everything you can see in the quote, including any items that might not 
     const missing = matchResults.filter(r => r.status === 'missing').length
     const extra = matchResults.filter(r => r.status === 'extra').length
 
+    // Count items with quantity discrepancies
+    const quantityDiscrepancies = matchResults.filter(r =>
+      r.discrepancies?.some(d => d.toLowerCase().includes('quantity'))
+    ).length
+
     // Detect if taxes are included in quote
     const hasTaxes = extractedData.supplierInfo?.taxes && extractedData.supplierInfo.taxes > 0
+
+    // Calculate expected total from extracted items
+    const calculatedTotal = extractedItems.reduce((sum: number, item: ExtractedItem) =>
+      sum + (item.totalPrice || (item.unitPrice || 0) * (item.quantity || 1)), 0
+    )
+    const quoteTotal = extractedData.supplierInfo?.total || 0
+    const totalDiscrepancy = quoteTotal > 0 && calculatedTotal > 0
+      ? Math.abs(quoteTotal - calculatedTotal) > 1 // More than $1 difference
+      : false
+
+    // Check for shipping/delivery info
+    const hasShippingFee = extractedData.supplierInfo?.deliveryFee && extractedData.supplierInfo.deliveryFee > 0
+
+    // Collect all discrepancy messages
+    const allDiscrepancies: string[] = []
+    matchResults.forEach(r => {
+      if (r.discrepancies) {
+        allDiscrepancies.push(...r.discrepancies)
+      }
+    })
 
     // Log AI match results for email notifications
     await prisma.supplierAccessLog.create({
@@ -467,6 +492,13 @@ Extract everything you can see in the quote, including any items that might not 
           extra,
           extractedTotal: extractedItems.length,
           hasTaxes,
+          hasShippingFee,
+          shippingFee: extractedData.supplierInfo?.deliveryFee || 0,
+          quoteTotal,
+          calculatedTotal,
+          totalDiscrepancy,
+          quantityDiscrepancies,
+          discrepancyMessages: allDiscrepancies,
           fileType: fileType || 'unknown'
         }
       }

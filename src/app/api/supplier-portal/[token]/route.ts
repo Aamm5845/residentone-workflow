@@ -656,37 +656,11 @@ async function sendSupplierQuoteNotification(data: {
 }) {
   const { supplierRFQ, quote, projectName, rfqNumber, supplierName, lineItemsCount, totalAmount, hasDocument } = data
 
-  // Get organization to find team members to notify
-  const orgId = supplierRFQ.rfq.project?.orgId
-  if (!orgId) {
-    console.log('No orgId found, skipping notification')
-    return
-  }
-
-  // Get organization members with their emails
-  const orgMembers = await prisma.user.findMany({
-    where: {
-      orgId,
-      OR: [
-        { role: 'ADMIN' },
-        { role: 'OWNER' }
-      ]
-    },
-    select: {
-      email: true,
-      name: true
-    }
-  })
-
-  // Team members to always notify (can be moved to org settings later)
+  // Only notify Aaron and Shaya when supplier submits a quote
   const notificationEmails = [
-    ...orgMembers.map(m => m.email).filter(Boolean),
-  ].filter((email, index, self) => self.indexOf(email) === index) // Remove duplicates
-
-  if (notificationEmails.length === 0) {
-    console.log('No team members to notify')
-    return
-  }
+    'aaron@meisnerinteriors.com',
+    'shaya@meisnerinteriors.com'
+  ]
 
   // Build the review URL
   const baseUrl = getBaseUrl()
@@ -707,6 +681,13 @@ async function sendSupplierQuoteNotification(data: {
     missing?: number
     extra?: number
     totalRequested?: number
+    quantityDiscrepancies?: number
+    totalDiscrepancy?: boolean
+    quoteTotal?: number
+    calculatedTotal?: number
+    hasShippingFee?: boolean
+    shippingFee?: number
+    discrepancyMessages?: string[]
   } | null
 
   // Build mismatch section for email
@@ -726,9 +707,26 @@ async function sendSupplierQuoteNotification(data: {
       hasMismatch = true
     }
 
-    if (aiMatchSummary.partial && aiMatchSummary.partial > 0) {
-      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.partial} partial match${aiMatchSummary.partial > 1 ? 'es' : ''}</strong> - Items with quantity or other discrepancies</li>`)
+    if (aiMatchSummary.quantityDiscrepancies && aiMatchSummary.quantityDiscrepancies > 0) {
+      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.quantityDiscrepancies} quantity mismatch${aiMatchSummary.quantityDiscrepancies > 1 ? 'es' : ''}</strong> - Quoted quantities differ from requested</li>`)
       hasMismatch = true
+    }
+
+    if (aiMatchSummary.totalDiscrepancy) {
+      const diff = Math.abs((aiMatchSummary.quoteTotal || 0) - (aiMatchSummary.calculatedTotal || 0))
+      issues.push(`<li style="color: #dc2626;"><strong>Total mismatch ($${diff.toFixed(2)})</strong> - Quote total doesn't match line item sum</li>`)
+      hasMismatch = true
+    }
+
+    if (aiMatchSummary.partial && aiMatchSummary.partial > 0 && !aiMatchSummary.quantityDiscrepancies) {
+      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.partial} partial match${aiMatchSummary.partial > 1 ? 'es' : ''}</strong> - Items with potential discrepancies</li>`)
+      hasMismatch = true
+    }
+
+    // Show specific discrepancy messages if any
+    if (aiMatchSummary.discrepancyMessages && aiMatchSummary.discrepancyMessages.length > 0) {
+      const uniqueMessages = [...new Set(aiMatchSummary.discrepancyMessages)].slice(0, 5)
+      issues.push(`<li style="color: #6b7280; font-size: 13px; margin-top: 8px;"><em>Details: ${uniqueMessages.join(', ')}</em></li>`)
     }
 
     if (issues.length > 0) {
