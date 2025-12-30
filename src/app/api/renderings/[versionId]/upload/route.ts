@@ -115,8 +115,30 @@ export async function POST(
         
         let fileUrl: string
         let storageProvider: string
-        
-        // Upload to Dropbox as primary storage
+        let dropboxPath: string | null = null
+        let blobUrl: string | null = null
+
+        // Upload to Blob for fast access (if configured)
+        if (isBlobConfigured()) {
+          try {
+            const blobPath = generateFilePath(
+              renderingVersion.room.project.orgId,
+              renderingVersion.room.project.id,
+              renderingVersion.room.id,
+              undefined,
+              filename
+            )
+            const blobResult = await uploadFile(buffer, blobPath, {
+              contentType: getContentType(file.name)
+            })
+            blobUrl = blobResult.url
+            console.log(`✅ File uploaded to Blob for fast access: ${blobUrl}`)
+          } catch (blobError) {
+            console.warn('⚠️ Blob upload failed, continuing with Dropbox only:', blobError)
+          }
+        }
+
+        // Upload to Dropbox as archive storage
         if (renderingVersion.room.project.dropboxFolder) {
           // Use custom room name if provided, otherwise use room type (converted to readable format)
           let roomName = renderingVersion.room.name && renderingVersion.room.name.trim()
@@ -159,14 +181,21 @@ export async function POST(
           // Upload to Dropbox
           const dropboxFilePath = `${versionFolderPath}/${filename}`
           await dropboxService.uploadFile(dropboxFilePath, buffer)
-
-          fileUrl = dropboxFilePath
-          storageProvider = 'dropbox'
+          dropboxPath = dropboxFilePath
 
           console.log(`✅ File uploaded to Dropbox: ${dropboxFilePath}`)
+        }
+
+        // Determine primary URL and provider
+        // Prefer Blob for fast access, fallback to Dropbox
+        if (blobUrl) {
+          fileUrl = blobUrl
+          storageProvider = 'blob'
+        } else if (dropboxPath) {
+          fileUrl = dropboxPath
+          storageProvider = 'dropbox'
         } else {
-          // Fallback: Project must have Dropbox integration
-          throw new Error('Project does not have Dropbox integration enabled. Please configure Dropbox in project settings.')
+          throw new Error('Failed to upload file - neither Blob nor Dropbox upload succeeded')
         }
 
         // Determine asset type
@@ -182,7 +211,7 @@ export async function POST(
           data: {
             title: file.name,
             filename: filename,
-            url: fileUrl,
+            url: fileUrl,  // Primary URL (Blob for fast access, or Dropbox)
             type: assetType,
             size: file.size,
             mimeType: file.type,
@@ -191,10 +220,11 @@ export async function POST(
               originalName: file.name,
               uploadDate: new Date().toISOString(),
               uploadedToVersion: renderingVersion.version,
-              storageMethod: 'dropbox',
+              blobUrl: blobUrl || null,
+              dropboxPath: dropboxPath || null,
               renderingWorkspace: true
             }),
-            orgId: renderingVersion.room.project.orgId, // Use the actual organization ID from the project
+            orgId: renderingVersion.room.project.orgId,
             projectId: renderingVersion.room.project.id,
             roomId: renderingVersion.room.id,
             stageId: renderingVersion.stageId,

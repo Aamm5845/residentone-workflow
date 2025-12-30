@@ -160,10 +160,24 @@ export async function POST(
       return await analyzeImages(imageUrls, context, startTime)
     }
 
-    // 8. Get image URLs (handle Dropbox links)
+    // 8. Get image URLs (prefer Blob for fast access, fallback to Dropbox)
     const imageUrls: string[] = []
-    
+
     for (const asset of imageAssets) {
+      // First check if there's a blob URL in metadata (fast access)
+      const metadata = typeof asset.metadata === 'string' ? JSON.parse(asset.metadata || '{}') : (asset.metadata || {})
+      if (metadata.blobUrl) {
+        imageUrls.push(metadata.blobUrl)
+        continue
+      }
+
+      // If provider is blob, use URL directly
+      if (asset.provider === 'blob' && asset.url?.startsWith('http')) {
+        imageUrls.push(asset.url)
+        continue
+      }
+
+      // Handle Dropbox links
       if (asset.provider === 'dropbox' && asset.url) {
         try {
           const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
