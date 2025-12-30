@@ -542,6 +542,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [createShareLinkOpen, setCreateShareLinkOpen] = useState(false)
   const [editingShareLink, setEditingShareLink] = useState<any>(null)
 
+  // PDF Export dialog state
+  const [pdfExportDialogOpen, setPdfExportDialogOpen] = useState(false)
+
   // Image editor modal state
   const [imageEditorModal, setImageEditorModal] = useState<{
     open: boolean
@@ -2760,19 +2763,40 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DollarSign className="w-3.5 h-3.5 mr-1.5" />
                 Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                onClick={() => {
-                  loadShareSettings()
-                  loadShareLinks()
-                  setShareModal(true)
-                }}
-              >
-                <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                Share
-              </Button>
+              <div className="h-5 w-px bg-gray-200 mx-1" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                  >
+                    <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                    Share
+                    <ChevronDown className="w-3 h-3 ml-1.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    className="text-sm cursor-pointer"
+                    onClick={() => {
+                      loadShareSettings()
+                      loadShareLinks()
+                      setShareModal(true)
+                    }}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Share Link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-sm cursor-pointer"
+                    onClick={() => setPdfExportDialogOpen(true)}
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {selectedItems.size > 0 && (
                 <>
                   <div className="h-5 w-px bg-gray-200" />
@@ -7376,6 +7400,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }}
         projectId={project.id}
         itemIds={sendToClientItems}
+      />
+
+      {/* PDF Export Dialog */}
+      <SpecPDFExportDialog
+        open={pdfExportDialogOpen}
+        onOpenChange={setPdfExportDialogOpen}
+        projectId={project.id}
+        projectName={project.name}
+        items={specs}
+        selectedItemIds={selectedItems}
       />
     </div>
   )
