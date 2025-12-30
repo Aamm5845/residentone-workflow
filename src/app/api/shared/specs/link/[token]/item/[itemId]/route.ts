@@ -44,18 +44,22 @@ export async function GET(
     const item = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
       include: {
-        room: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            projectId: true
-          }
-        },
         section: {
           select: {
             id: true,
-            name: true
+            name: true,
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    projectId: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -68,7 +72,8 @@ export async function GET(
     // Check if item belongs to the project and is in the share link's items
     // If itemIds is empty, we allow all items from the project
     const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
-    
+    const room = item.section?.instance?.room
+
     if (hasItemIds) {
       // Specific items are selected - check if this item is in the list
       if (!shareLink.itemIds.includes(itemId)) {
@@ -76,7 +81,7 @@ export async function GET(
       }
     } else {
       // No specific items - verify item belongs to the project
-      if (item.room?.projectId !== shareLink.projectId) {
+      if (room?.projectId !== shareLink.projectId) {
         return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
       }
     }
@@ -99,8 +104,12 @@ export async function GET(
     } else {
       allItems = await prisma.roomFFEItem.findMany({
         where: {
-          room: {
-            projectId: shareLink.projectId
+          section: {
+            instance: {
+              room: {
+                projectId: shareLink.projectId
+              }
+            }
           },
           visibility: 'VISIBLE',
           specStatus: {
@@ -124,8 +133,8 @@ export async function GET(
       id: item.id,
       name: item.name,
       description: item.description,
-      roomName: item.room?.name || item.room?.type?.replace(/_/g, ' ') || 'Room',
-      roomType: item.room?.type,
+      roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
+      roomType: room?.type,
       sectionName: item.section?.name || '',
       categoryName: item.section?.name || '',
       productName: item.modelNumber,
@@ -133,7 +142,7 @@ export async function GET(
       sku: item.sku,
       modelNumber: item.modelNumber,
       supplierName: shareLink.showSupplier ? item.supplierName : null,
-      supplierLink: shareLink.showSupplier ? item.supplierLink : null,
+      supplierLink: item.supplierLink,
       quantity: item.quantity,
       leadTime: item.leadTime,
       specStatus: item.specStatus,

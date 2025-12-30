@@ -64,17 +64,21 @@ export async function GET(
           visibility: 'VISIBLE'
         },
         include: {
-          room: {
-            select: {
-              id: true,
-              name: true,
-              type: true
-            }
-          },
           section: {
             select: {
               id: true,
-              name: true
+              name: true,
+              instance: {
+                select: {
+                  room: {
+                    select: {
+                      id: true,
+                      name: true,
+                      type: true
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -84,8 +88,12 @@ export async function GET(
       // No specific items selected - get all visible specs from the project
       items = await prisma.roomFFEItem.findMany({
         where: {
-          room: {
-            projectId: shareLink.projectId
+          section: {
+            instance: {
+              room: {
+                projectId: shareLink.projectId
+              }
+            }
           },
           visibility: 'VISIBLE',
           specStatus: {
@@ -93,17 +101,21 @@ export async function GET(
           }
         },
         include: {
-          room: {
-            select: {
-              id: true,
-              name: true,
-              type: true
-            }
-          },
           section: {
             select: {
               id: true,
-              name: true
+              name: true,
+              instance: {
+                select: {
+                  room: {
+                    select: {
+                      id: true,
+                      name: true,
+                      type: true
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -120,20 +132,22 @@ export async function GET(
       : shareLink.updatedAt
 
     // Transform items based on visibility settings
-    const specs = items.map(item => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      roomName: item.room?.name || item.room?.type?.replace(/_/g, ' ') || 'Room',
-      roomType: item.room?.type,
-      sectionName: item.section?.name || '',
-      categoryName: item.section?.name || '',
+    const specs = items.map(item => {
+      const room = item.section?.instance?.room
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
+        roomType: room?.type,
+        sectionName: item.section?.name || '',
+        categoryName: item.section?.name || '',
       productName: item.modelNumber,
       brand: shareLink.showBrand ? item.brand : null,
       sku: item.sku,
       modelNumber: item.modelNumber,
       supplierName: shareLink.showSupplier ? item.supplierName : null,
-      supplierLink: shareLink.showSupplier ? item.supplierLink : null,
+      supplierLink: item.supplierLink,
       quantity: item.quantity,
       leadTime: item.leadTime,
       specStatus: item.specStatus,
@@ -148,7 +162,8 @@ export async function GET(
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
       rrp: shareLink.showPricing ? item.rrp : null
-    }))
+      }
+    })
 
     return NextResponse.json({
       success: true,

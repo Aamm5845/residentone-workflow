@@ -105,12 +105,12 @@ export async function POST(
     }
 
     // Verify items belong to this project
-    // RoomFFEItem -> section -> ffeInstance -> room -> project
+    // RoomFFEItem -> section -> instance -> room -> project
     const validItems = await prisma.roomFFEItem.findMany({
       where: {
         id: { in: itemIds },
         section: {
-          ffeInstance: {
+          instance: {
             room: { projectId }
           }
         }
