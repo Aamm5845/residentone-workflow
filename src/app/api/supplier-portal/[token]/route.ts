@@ -293,7 +293,8 @@ export async function GET(
           quantity: item.quantity,
           unitType: item.unitType,
           specifications: item.specifications,
-          notes: item.notes,
+          // Only include notes if includeNotes is true
+          notes: supplierRFQ.includeNotes ? item.notes : null,
           category: item.roomFFEItem?.section?.name || 'General',
           // Additional item details for spec sheet
           roomFFEItem: item.roomFFEItem ? {
@@ -311,9 +312,10 @@ export async function GET(
             supplierLink: item.roomFFEItem.supplierLink,
             supplierName: item.roomFFEItem.supplierName,
             leadTime: item.roomFFEItem.leadTime,
-            notes: item.roomFFEItem.notes,
-            // Include documents visible to supplier
-            documents: item.roomFFEItem.documents || []
+            // Only include notes if includeNotes is true
+            notes: supplierRFQ.includeNotes ? item.roomFFEItem.notes : null,
+            // Only include documents if includeSpecSheet is true
+            documents: supplierRFQ.includeSpecSheet ? (item.roomFFEItem.documents || []) : []
           } : null
         }))
       },

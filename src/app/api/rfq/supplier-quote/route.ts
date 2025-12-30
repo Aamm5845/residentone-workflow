@@ -346,7 +346,9 @@ export async function POST(request: NextRequest) {
             vendorEmail: !supplier ? email : null,
             tokenExpiresAt: deadline,
             sentAt: new Date(),
-            shippingAddress: shippingAddress || null
+            shippingAddress: shippingAddress || null,
+            includeSpecSheet: includeSpecSheet,
+            includeNotes: includeNotes
           }
         })
       } else {
@@ -356,7 +358,9 @@ export async function POST(request: NextRequest) {
           data: {
             sentAt: new Date(),
             tokenExpiresAt: deadline,
-            shippingAddress: shippingAddress || supplierRFQ.shippingAddress
+            shippingAddress: shippingAddress || supplierRFQ.shippingAddress,
+            includeSpecSheet: includeSpecSheet,
+            includeNotes: includeNotes
           }
         })
       }

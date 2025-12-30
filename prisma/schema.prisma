@@ -3081,6 +3081,10 @@ model SupplierRFQ {
   // Custom shipping address (if different from project)
   shippingAddress Json?    // { street, city, province, postalCode, country }
 
+  // Content visibility settings for supplier portal
+  includeSpecSheet Boolean  @default(true)  // Show spec sheets/documents in portal
+  includeNotes     Boolean  @default(true)  // Show item notes in portal
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
