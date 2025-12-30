@@ -31,7 +31,7 @@
       "maxDuration": 120,
       "memory": 1024
     },
-    "app/api/projects/*/updates/*/survey-photos/route.ts": {
+    "app/api/projects/[id]/updates/[updateId]/survey-photos/route.ts": {
       "maxDuration": 120,
       "memory": 1024
     },

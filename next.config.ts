@@ -7,7 +7,11 @@ const BUILD_TIME = new Date().toISOString()
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: [
+        'localhost:3000',
+        'app.meisnerinteriors.com',
+        'studioflow-workflow.vercel.app'
+      ],
       bodySizeLimit: '10mb',
     },
   },
