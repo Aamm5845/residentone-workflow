@@ -211,13 +211,20 @@ interface SpecItem {
   images: string[]
   thumbnailUrl: string | null
   roomId: string
-  // Custom fields (for flags, etc.)
+  // Custom fields (for flags, grouped items, etc.)
   customFields?: {
     flag?: {
       color: string
       note?: string
       addedAt?: string
     }
+    // Grouped/Linked item fields (parent-child relationship from FFE Workspace)
+    hasChildren?: boolean
+    linkedItems?: string[]  // Array of child item names (for parent items)
+    isLinkedItem?: boolean
+    isGroupedItem?: boolean
+    parentId?: string       // Parent item ID (for child items)
+    parentName?: string     // Parent item name (for child items)
   } | null
   // Pricing fields
   unitCost: number | null
@@ -3866,6 +3873,44 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         </Button>
                                       </PopoverContent>
                                     </Popover>
+                                  )}
+                                  {/* Grouped item indicator - parent with children */}
+                                  {(displayItem.customFields as any)?.hasChildren && (displayItem.customFields as any)?.linkedItems?.length > 0 && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-medium hover:bg-violet-200 transition-colors"
+                                          title={`Grouped with ${(displayItem.customFields as any).linkedItems.length} item(s)`}
+                                        >
+                                          <Layers className="w-2.5 h-2.5" />
+                                          {(displayItem.customFields as any).linkedItems.length}
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                                          <Layers className="w-3.5 h-3.5 text-violet-600" />
+                                          Grouped Items
+                                        </p>
+                                        <div className="space-y-1">
+                                          {(displayItem.customFields as any).linkedItems.map((childName: string, idx: number) => (
+                                            <div key={idx} className="text-xs text-gray-600 pl-2 border-l-2 border-violet-200">
+                                              {childName}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                  {/* Grouped item indicator - child linked to parent */}
+                                  {(displayItem.customFields as any)?.isLinkedItem && (displayItem.customFields as any)?.parentName && (
+                                    <span
+                                      className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[9px] font-medium border border-violet-200"
+                                      title={`Linked to: ${(displayItem.customFields as any).parentName}`}
+                                    >
+                                      <LinkIcon className="w-2.5 h-2.5" />
+                                      {(displayItem.customFields as any).parentName}
+                                    </span>
                                   )}
                                 </div>
                               )}
