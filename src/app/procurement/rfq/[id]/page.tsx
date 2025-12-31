@@ -27,7 +27,7 @@ export default async function RFQDetailPage({
   const { id } = await params
 
   return (
-    <DashboardLayout>
+    <DashboardLayout session={session}>
       <RFQDetailView
         rfqId={id}
         user={{

@@ -27,7 +27,7 @@ export default async function OrderDetailPage({
   const { id } = await params
 
   return (
-    <DashboardLayout>
+    <DashboardLayout session={session}>
       <OrderDetailView
         orderId={id}
         user={{

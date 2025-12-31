@@ -27,7 +27,7 @@ export default async function ClientQuoteDetailPage({
   const { id } = await params
 
   return (
-    <DashboardLayout>
+    <DashboardLayout session={session}>
       <ClientQuoteDetailView
         quoteId={id}
         user={{

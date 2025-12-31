@@ -22,7 +22,7 @@ export default async function ProcurementPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout session={session}>
       <ProcurementDashboard
         user={{
           id: session.user.id,
