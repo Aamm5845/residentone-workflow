@@ -56,7 +56,7 @@ export async function GET(
                   },
                   orderBy: { order: 'asc' },
                   include: {
-                    // Include linked specs to show "chosen" status
+                    // Include linked specs to show "chosen" status (legacy one-to-one via ffeRequirementId)
                     linkedSpecs: {
                       select: {
                         id: true,
@@ -65,6 +65,23 @@ export async function GET(
                         sku: true,
                         isOption: true,
                         optionNumber: true
+                      }
+                    },
+                    // Include ffeLinks to show "chosen" status (new many-to-many via FFESpecLink)
+                    ffeLinks: {
+                      select: {
+                        id: true,
+                        specItemId: true,
+                        specItem: {
+                          select: {
+                            id: true,
+                            name: true,
+                            brand: true,
+                            sku: true,
+                            isOption: true,
+                            optionNumber: true
+                          }
+                        }
                       }
                     }
                   }
@@ -105,22 +122,34 @@ export async function GET(
                 const customFields = item.customFields as any
                 const isLinkedItem = customFields?.isLinkedItem === true
                 const parentName = customFields?.parentName || null
-                
+
+                // Combine both legacy (linkedSpecs) and new (ffeLinks) linking methods
+                const legacyLinkedSpecs = item.linkedSpecs || []
+                const newLinkedSpecs = (item.ffeLinks || []).map(link => link.specItem)
+
+                // Merge and deduplicate by id
+                const allLinkedSpecsMap = new Map()
+                legacyLinkedSpecs.forEach(spec => allLinkedSpecsMap.set(spec.id, spec))
+                newLinkedSpecs.forEach(spec => allLinkedSpecsMap.set(spec.id, spec))
+                const allLinkedSpecs = Array.from(allLinkedSpecsMap.values())
+
+                const totalLinkedCount = allLinkedSpecs.length
+
                 return {
                   id: item.id,
                   name: item.name,
                   description: item.description,
                   notes: item.notes,
                   quantity: item.quantity,
-                  hasLinkedSpecs: item.linkedSpecs.length > 0,
-                  linkedSpecsCount: item.linkedSpecs.length,
-                  linkedSpecs: item.linkedSpecs,
+                  hasLinkedSpecs: totalLinkedCount > 0,
+                  linkedSpecsCount: totalLinkedCount,
+                  linkedSpecs: allLinkedSpecs,
                   // Linked item info (child of another item)
                   isLinkedItem,
                   parentName,
-                  // For display: show if already chosen
-                  status: item.linkedSpecs.length > 0 
-                    ? (item.linkedSpecs.length === 1 ? 'chosen' : `${item.linkedSpecs.length} options`)
+                  // For display: show if already chosen (check BOTH linking methods)
+                  status: totalLinkedCount > 0
+                    ? (totalLinkedCount === 1 ? 'chosen' : `${totalLinkedCount} options`)
                     : 'needs_selection'
                 }
               })
