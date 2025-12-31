@@ -339,6 +339,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [specs, setSpecs] = useState<SpecItem[]>([])
+  const [filteredSpecs, setFilteredSpecs] = useState<SpecItem[]>([]) // Filtered specs for stats
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -987,30 +988,32 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Get unique rooms for filter
   const uniqueRooms = Array.from(new Set(specs.map(s => s.roomName))).sort()
   
-  // Recalculate financials whenever specs change
+  // Recalculate financials whenever filtered specs change (respects room/status filters)
   useEffect(() => {
-    const totalTradePrice = specs.reduce((sum, s) => {
+    const specsToCalculate = filteredSpecs.length > 0 ? filteredSpecs : specs
+
+    const totalTradePrice = specsToCalculate.reduce((sum, s) => {
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
-    
-    const totalRRP = specs.reduce((sum, s) => {
+
+    const totalRRP = specsToCalculate.reduce((sum, s) => {
       const price = s.rrp || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
-    
-    const avgTradeDiscount = totalRRP > 0 
+
+    const avgTradeDiscount = totalRRP > 0
       ? ((totalRRP - totalTradePrice) / totalRRP * 100)
       : 0
-    
+
     setFinancials({
       totalTradePrice,
       totalRRP,
       avgTradeDiscount: Math.round(avgTradeDiscount * 100) / 100
     })
-  }, [specs])
+  }, [filteredSpecs, specs])
   
   // Filter and group specs
   useEffect(() => {
@@ -1043,12 +1046,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       filtered = filtered.filter(spec => spec.sectionId === filterSection)
     }
 
+    // Store filtered specs BEFORE summary filter (for accurate stats)
+    // Summary filter is a view filter, not a data filter
+    const baseFiltered = [...filtered]
+
     // Apply summary filter (needs approval or needs price)
     if (summaryFilter === 'needs_approval') {
       filtered = filtered.filter(spec => !spec.clientApproved)
     } else if (summaryFilter === 'needs_price') {
       filtered = filtered.filter(spec => !spec.rrp)
     }
+
+    // Update filteredSpecs for stats calculation (use baseFiltered to exclude summary filter from stats)
+    setFilteredSpecs(baseFiltered)
 
     // Group by category or room, preserving sectionId and roomId
     const groups: Record<string, CategoryGroup> = {}
@@ -3077,11 +3087,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
-          {/* Status Overview Bar - Always visible */}
+          {/* Status Overview Bar - Always visible (uses filteredSpecs to respect room/status filters) */}
           {specs.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-500 mr-1">{specs.length} items:</span>
+                <span className="text-sm text-gray-500 mr-1">
+                  {filteredSpecs.length} {filteredSpecs.length !== specs.length ? `of ${specs.length}` : ''} items:
+                </span>
 
                 {/* Approved - Green */}
                 <button
@@ -3094,11 +3106,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   )}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  {specs.filter(s => s.clientApproved).length} Approved
+                  {filteredSpecs.filter(s => s.clientApproved).length} Approved
                 </button>
 
                 {/* Needs Approval - Amber */}
-                {specs.filter(s => !s.clientApproved).length > 0 && (
+                {filteredSpecs.filter(s => !s.clientApproved).length > 0 && (
                   <button
                     onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
                     className={cn(
@@ -3109,12 +3121,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    {specs.filter(s => !s.clientApproved).length} Need Approval
+                    {filteredSpecs.filter(s => !s.clientApproved).length} Need Approval
                   </button>
                 )}
 
                 {/* Needs Price - Red */}
-                {specs.filter(s => !s.rrp).length > 0 && (
+                {filteredSpecs.filter(s => !s.rrp).length > 0 && (
                   <button
                     onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
                     className={cn(
@@ -3125,7 +3137,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   >
                     <DollarSign className="w-3.5 h-3.5" />
-                    {specs.filter(s => !s.rrp).length} Need Price
+                    {filteredSpecs.filter(s => !s.rrp).length} Need Price
                   </button>
                 )}
 
