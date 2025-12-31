@@ -51,7 +51,8 @@ export async function GET(
                       select: {
                         id: true,
                         name: true,
-                        description: true
+                        description: true,
+                        customFields: true  // Include grouping info
                       }
                     },
                     // Include all linked FFE items (new many-to-many)
@@ -62,7 +63,8 @@ export async function GET(
                             id: true,
                             name: true,
                             description: true,
-                            notes: true
+                            notes: true,
+                            customFields: true  // Include grouping info
                           }
                         }
                       },
@@ -144,15 +146,30 @@ export async function GET(
           clientApproved: item.clientApproved || false,
           // NEW: Multiple linked FFE items (many-to-many)
           notes: item.notes,
-          linkedFfeItems: (item.specLinks || []).map(link => ({
-            linkId: link.id,
-            ffeItemId: link.ffeRequirementId,
-            ffeItemName: link.ffeRequirement?.name || 'Unknown',
-            roomId: link.roomId,
-            roomName: link.roomName || 'Unknown Room',
-            sectionName: link.sectionName || 'Unknown Section'
-          })),
+          linkedFfeItems: (item.specLinks || []).map(link => {
+            const ffeCustomFields = link.ffeRequirement?.customFields as any
+            return {
+              linkId: link.id,
+              ffeItemId: link.ffeRequirementId,
+              ffeItemName: link.ffeRequirement?.name || 'Unknown',
+              roomId: link.roomId,
+              roomName: link.roomName || 'Unknown Room',
+              sectionName: link.sectionName || 'Unknown Section',
+              // Include FFE requirement's grouping info
+              isGroupedItem: ffeCustomFields?.isLinkedItem || ffeCustomFields?.isGroupedItem || false,
+              parentName: ffeCustomFields?.parentName || null,
+              hasChildren: ffeCustomFields?.hasChildren || false,
+              linkedItems: ffeCustomFields?.linkedItems || []
+            }
+          }),
           linkedFfeCount: (item.specLinks || []).length,
+          // Expose FFE grouping info from legacy one-to-one link
+          ffeGroupingInfo: item.ffeRequirement ? {
+            isGroupedItem: (item.ffeRequirement.customFields as any)?.isLinkedItem || (item.ffeRequirement.customFields as any)?.isGroupedItem || false,
+            parentName: (item.ffeRequirement.customFields as any)?.parentName || null,
+            hasChildren: (item.ffeRequirement.customFields as any)?.hasChildren || false,
+            linkedItems: (item.ffeRequirement.customFields as any)?.linkedItems || []
+          } : null,
           // Quote request status for 3-dot menu
           hasQuoteSent: (item.quoteRequests || []).length > 0,
           lastQuoteRequest: item.quoteRequests?.[0] ? {

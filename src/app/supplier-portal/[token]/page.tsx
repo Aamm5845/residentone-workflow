@@ -404,33 +404,21 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     }
   }
 
-  const [sendingEmail, setSendingEmail] = useState(false)
+  const handleSendByEmail = () => {
+    // Build mailto link to open user's email client
+    const toEmail = 'shaya@meisnerinteriors.com'
+    const subject = encodeURIComponent(`Quote Submission - ${data?.rfq.rfqNumber || 'RFQ'} - ${data?.supplier.name || 'Supplier'}`)
+    const body = encodeURIComponent(
+      `Hi,\n\n` +
+      `Please find attached my quote for ${data?.rfq.rfqNumber || 'the RFQ'}.\n\n` +
+      `Project: ${data?.rfq.project.name || 'N/A'}\n` +
+      `Items: ${data?.rfq.lineItems.length || 0}\n\n` +
+      (orderNotes ? `Notes:\n${orderNotes}\n\n` : '') +
+      `Best regards,\n${data?.supplier.name || 'Supplier'}`
+    )
 
-  const handleSendByEmail = async () => {
-    setSendingEmail(true)
-    try {
-      const response = await fetch(`/api/supplier-portal/${token}/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: orderNotes || null,
-          attachmentUrl: uploadedFileUrl || null,
-          attachmentName: uploadedFile?.name || null
-        })
-      })
-
-      if (response.ok) {
-        toast.success('Quote sent by email successfully!')
-      } else {
-        const err = await response.json()
-        toast.error(err.error || 'Failed to send email')
-      }
-    } catch (error) {
-      console.error('Error sending email:', error)
-      toast.error('Failed to send email. Please try again.')
-    } finally {
-      setSendingEmail(false)
-    }
+    // Open email client
+    window.location.href = `mailto:${toEmail}?subject=${subject}&body=${body}`
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -730,12 +718,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             <Button
               variant="outline"
               onClick={handleSendByEmail}
-              disabled={sendingEmail}
               size="lg"
               className="flex-1"
             >
-              {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-              {sendingEmail ? 'Sending...' : 'Send Update by Email'}
+              <Mail className="w-4 h-4 mr-2" />
+              Send Update by Email
             </Button>
           </div>
 
@@ -1208,11 +1195,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               <Button
                 variant="ghost"
                 onClick={handleSendByEmail}
-                disabled={sendingEmail}
                 className="text-gray-600 hover:text-gray-900"
               >
-                {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                {sendingEmail ? 'Sending...' : 'Send Quote by Email Instead'}
+                <Mail className="w-4 h-4 mr-2" />
+                Send Quote by Email Instead
               </Button>
             </div>
           </>
@@ -1552,11 +1538,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               <Button
                 variant="outline"
                 onClick={handleSendByEmail}
-                disabled={sendingEmail}
                 className="w-full sm:w-auto order-2 sm:order-1"
               >
-                {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                {sendingEmail ? 'Sending...' : 'Send Quote by Email'}
+                <Mail className="w-4 h-4 mr-2" />
+                Send Quote by Email
               </Button>
               <Button
                 onClick={handleSubmit}

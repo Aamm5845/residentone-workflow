@@ -45,6 +45,15 @@ interface QuickQuoteDialogProps {
   itemIds: string[]
 }
 
+interface ItemDocument {
+  id: string
+  title: string
+  fileName: string
+  fileUrl: string
+  type: string
+  mimeType?: string
+}
+
 interface ItemInfo {
   id: string
   name: string
@@ -60,6 +69,7 @@ interface ItemInfo {
   sectionName?: string
   notes?: string
   hasDocuments?: boolean
+  documents?: ItemDocument[]
 }
 
 interface SupplierInfo {
@@ -492,6 +502,30 @@ export default function QuickQuoteDialog({
                                       {item.brand}
                                     </span>
                                   )}
+                                  {/* Spec sheet preview indicator */}
+                                  {item.documents && item.documents.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-purple-50 text-purple-700 border-purple-200">
+                                        <FileText className="w-3 h-3 mr-1" />
+                                        {item.documents.length} spec{item.documents.length > 1 ? 's' : ''}
+                                      </Badge>
+                                      {item.documents.map((doc, docIdx) => (
+                                        <a
+                                          key={doc.id}
+                                          href={doc.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-[10px] text-purple-600 hover:text-purple-800 hover:underline"
+                                          title={doc.title || doc.fileName}
+                                        >
+                                          {docIdx === 0 && '('}
+                                          <Eye className="w-3 h-3 inline" />
+                                          {docIdx === item.documents!.length - 1 ? ')' : ', '}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {item.quantity || 1} {item.unitType || 'units'}
@@ -612,26 +646,52 @@ export default function QuickQuoteDialog({
                   return (
                     <>
                       {anyHasSpecs && (
-                        <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                          <Checkbox
-                            id="includeSpecSheet"
-                            checked={includeSpecSheet}
-                            onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
-                          />
-                          <div className="flex-1">
-                            <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-purple-600" />
-                              Include spec sheets & attachments
-                              {itemsWithDocs.length > 0 && (
-                                <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
-                                  {itemsWithDocs.length} {itemsWithDocs.length === 1 ? 'item' : 'items'} with docs
-                                </Badge>
-                              )}
-                            </Label>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              Supplier will be able to download spec sheets and documents from the portal
-                            </p>
+                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              id="includeSpecSheet"
+                              checked={includeSpecSheet}
+                              onCheckedChange={(checked) => setIncludeSpecSheet(checked === true)}
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="includeSpecSheet" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-purple-600" />
+                                Include spec sheets & attachments
+                                {itemsWithDocs.length > 0 && (
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                                    {itemsWithDocs.length} {itemsWithDocs.length === 1 ? 'item' : 'items'} with docs
+                                  </Badge>
+                                )}
+                              </Label>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Supplier will be able to download spec sheets and documents from the portal
+                              </p>
+                            </div>
                           </div>
+                          {/* Preview documents */}
+                          {includeSpecSheet && itemsWithDocs.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-purple-200 space-y-2">
+                              <p className="text-xs font-medium text-purple-700">Documents that will be shared:</p>
+                              <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                                {itemsWithDocs.flatMap(item =>
+                                  ((item as any).documents || []).map((doc: any) => (
+                                    <a
+                                      key={doc.id}
+                                      href={doc.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 p-2 bg-white rounded border border-purple-100 hover:border-purple-300 hover:bg-purple-50 transition-colors text-xs"
+                                    >
+                                      <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                      <span className="flex-1 truncate text-gray-700">{doc.title || doc.fileName}</span>
+                                      <span className="text-gray-400 flex-shrink-0">{item.name}</span>
+                                      <Eye className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+                                    </a>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 

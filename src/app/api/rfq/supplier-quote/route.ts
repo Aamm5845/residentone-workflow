@@ -565,7 +565,14 @@ export async function GET(request: NextRequest) {
         notes: true,
         documents: {
           where: { visibleToSupplier: true },
-          select: { id: true }
+          select: {
+            id: true,
+            title: true,
+            fileName: true,
+            fileUrl: true,
+            type: true,
+            mimeType: true
+          }
         },
         section: {
           select: {

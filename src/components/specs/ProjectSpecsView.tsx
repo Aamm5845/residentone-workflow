@@ -245,8 +245,20 @@ interface SpecItem {
     roomId: string
     roomName: string
     sectionName: string
+    // FFE grouping info
+    isGroupedItem?: boolean
+    parentName?: string | null
+    hasChildren?: boolean
+    linkedItems?: string[]
   }>
   linkedFfeCount?: number
+  // FFE grouping info from legacy one-to-one link
+  ffeGroupingInfo?: {
+    isGroupedItem: boolean
+    parentName: string | null
+    hasChildren: boolean
+    linkedItems: string[]
+  } | null
   // Quote request tracking
   hasQuoteSent?: boolean
   lastQuoteRequest?: {
@@ -3898,44 +3910,63 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </PopoverContent>
                                     </Popover>
                                   )}
-                                  {/* Grouped item indicator - parent with children */}
-                                  {(displayItem.customFields as any)?.hasChildren && (displayItem.customFields as any)?.linkedItems?.length > 0 && (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <button
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-medium hover:bg-violet-200 transition-colors"
-                                          title={`Grouped with ${(displayItem.customFields as any).linkedItems.length} item(s)`}
-                                        >
-                                          <Layers className="w-2.5 h-2.5" />
-                                          {(displayItem.customFields as any).linkedItems.length}
-                                        </button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                          <Layers className="w-3.5 h-3.5 text-violet-600" />
-                                          Grouped Items
-                                        </p>
-                                        <div className="space-y-1">
-                                          {(displayItem.customFields as any).linkedItems.map((childName: string, idx: number) => (
-                                            <div key={idx} className="text-xs text-gray-600 pl-2 border-l-2 border-violet-200">
-                                              {childName}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  )}
-                                  {/* Grouped item indicator - child linked to parent */}
-                                  {(displayItem.customFields as any)?.isLinkedItem && (displayItem.customFields as any)?.parentName && (
-                                    <span
-                                      className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[9px] font-medium border border-violet-200"
-                                      title={`Linked to: ${(displayItem.customFields as any).parentName}`}
-                                    >
-                                      <LinkIcon className="w-2.5 h-2.5" />
-                                      {(displayItem.customFields as any).parentName}
-                                    </span>
-                                  )}
+                                  {/* Grouped item indicator - check both spec's customFields AND linked FFE requirement's grouping info */}
+                                  {(() => {
+                                    // Get grouping info from FFE requirement (new many-to-many or legacy one-to-one)
+                                    const ffeGrouping = displayItem.linkedFfeItems?.[0] || displayItem.ffeGroupingInfo
+                                    const specGrouping = displayItem.customFields as any
+
+                                    // Check for parent with children
+                                    const hasChildren = ffeGrouping?.hasChildren || specGrouping?.hasChildren
+                                    const linkedItems = ffeGrouping?.linkedItems || specGrouping?.linkedItems || []
+
+                                    // Check for child linked to parent
+                                    const isGroupedItem = ffeGrouping?.isGroupedItem || specGrouping?.isLinkedItem || specGrouping?.isGroupedItem
+                                    const parentName = ffeGrouping?.parentName || specGrouping?.parentName
+
+                                    return (
+                                      <>
+                                        {/* Parent with children */}
+                                        {hasChildren && linkedItems.length > 0 && (
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-medium hover:bg-violet-200 transition-colors"
+                                                title={`Grouped with ${linkedItems.length} item(s)`}
+                                              >
+                                                <Layers className="w-2.5 h-2.5" />
+                                                {linkedItems.length}
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                                                <Layers className="w-3.5 h-3.5 text-violet-600" />
+                                                Grouped Items (FFE)
+                                              </p>
+                                              <div className="space-y-1">
+                                                {linkedItems.map((childName: string, idx: number) => (
+                                                  <div key={idx} className="text-xs text-gray-600 pl-2 border-l-2 border-violet-200">
+                                                    {childName}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </PopoverContent>
+                                          </Popover>
+                                        )}
+                                        {/* Child linked to parent */}
+                                        {isGroupedItem && parentName && (
+                                          <span
+                                            className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[9px] font-medium border border-violet-200"
+                                            title={`Linked to: ${parentName}`}
+                                          >
+                                            <LinkIcon className="w-2.5 h-2.5" />
+                                            {parentName}
+                                          </span>
+                                        )}
+                                      </>
+                                    )
+                                  })()}
                                 </div>
                               )}
                               <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">{item.roomName}</p>

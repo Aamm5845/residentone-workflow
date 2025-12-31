@@ -39,7 +39,7 @@ export default function SupplierMessaging({ token, projectName, supplierName }: 
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -124,20 +124,30 @@ export default function SupplierMessaging({ token, projectName, supplierName }: 
   return (
     <Card className="fixed bottom-4 right-4 w-96 shadow-xl border-purple-200 z-50">
       <CardHeader
-        className="pb-2 cursor-pointer bg-purple-50 rounded-t-lg"
+        className={cn(
+          "pb-2 cursor-pointer rounded-t-lg transition-colors",
+          expanded ? "bg-purple-50" : "bg-purple-600 hover:bg-purple-700"
+        )}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-              <MessageCircle className="w-4 h-4 text-white" />
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center",
+              expanded ? "bg-purple-600" : "bg-white/20"
+            )}>
+              <MessageCircle className={cn("w-4 h-4", expanded ? "text-white" : "text-white")} />
             </div>
             <div>
-              <CardTitle className="text-sm font-medium">Messages</CardTitle>
-              <p className="text-xs text-gray-500">{projectName || 'Project'}</p>
+              <CardTitle className={cn("text-sm font-medium", expanded ? "" : "text-white")}>
+                {expanded ? 'Messages' : 'Have a question?'}
+              </CardTitle>
+              {expanded && (
+                <p className="text-xs text-gray-500">{projectName || 'Project'}</p>
+              )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="p-1">
+          <Button variant="ghost" size="sm" className={cn("p-1", expanded ? "" : "text-white hover:bg-white/20")}>
             {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </Button>
         </div>
