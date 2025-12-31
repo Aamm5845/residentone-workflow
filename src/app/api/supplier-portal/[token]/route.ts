@@ -697,6 +697,13 @@ async function sendSupplierQuoteNotification(data: {
     hasShippingFee?: boolean
     shippingFee?: number
     discrepancyMessages?: string[]
+    itemDiscrepancies?: Array<{
+      itemName: string
+      type: string
+      requested?: number
+      quoted?: number
+      details: string
+    }>
   } | null
 
   // Build mismatch section for email
@@ -717,7 +724,30 @@ async function sendSupplierQuoteNotification(data: {
     }
 
     if (aiMatchSummary.quantityDiscrepancies && aiMatchSummary.quantityDiscrepancies > 0) {
-      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.quantityDiscrepancies} quantity mismatch${aiMatchSummary.quantityDiscrepancies > 1 ? 'es' : ''}</strong> - Quoted quantities differ from requested</li>`)
+      // Build a detailed list of items with quantity mismatches
+      let qtyMismatchDetails = ''
+      if (aiMatchSummary.itemDiscrepancies && aiMatchSummary.itemDiscrepancies.length > 0) {
+        const qtyItems = aiMatchSummary.itemDiscrepancies.filter(d => d.type === 'quantity')
+        if (qtyItems.length > 0) {
+          qtyMismatchDetails = `
+            <table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 13px;">
+              <tr style="background-color: #fef3c7;">
+                <th style="text-align: left; padding: 6px 8px; border-bottom: 1px solid #f59e0b;">Item</th>
+                <th style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #f59e0b;">Requested</th>
+                <th style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #f59e0b;">Quoted</th>
+              </tr>
+              ${qtyItems.map(item => `
+                <tr>
+                  <td style="padding: 6px 8px; border-bottom: 1px solid #fde68a;">${item.itemName}</td>
+                  <td style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #fde68a; color: #059669; font-weight: 500;">${item.requested}</td>
+                  <td style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #fde68a; color: #dc2626; font-weight: 500;">${item.quoted}</td>
+                </tr>
+              `).join('')}
+            </table>
+          `
+        }
+      }
+      issues.push(`<li style="color: #f59e0b;"><strong>${aiMatchSummary.quantityDiscrepancies} quantity mismatch${aiMatchSummary.quantityDiscrepancies > 1 ? 'es' : ''}</strong> - Quoted quantities differ from requested${qtyMismatchDetails}</li>`)
       hasMismatch = true
     }
 

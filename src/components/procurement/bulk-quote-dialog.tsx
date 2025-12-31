@@ -279,7 +279,7 @@ export function BulkQuoteDialog({
               )}
             </div>
 
-            <ScrollArea className="flex-1 -mx-6 px-6">
+            <ScrollArea className="flex-1 min-h-0 -mx-6 px-6" style={{ maxHeight: 'calc(90vh - 280px)' }}>
               <div className="space-y-4 py-2">
                 {/* Supplier Groups */}
                 {preview.supplierGroups.map(group => {

@@ -142,6 +142,35 @@ interface Supplier {
   }
 }
 
+interface SupplierQuote {
+  id: string
+  quoteNumber: string
+  version: number
+  status: string
+  totalAmount?: number
+  subtotal?: number
+  submittedAt?: string
+  validUntil?: string
+  estimatedLeadTime?: string
+  quoteDocumentUrl?: string
+  supplier: {
+    id?: string
+    name: string
+    email?: string
+    logo?: string
+  }
+  project: {
+    id: string
+    name: string
+    projectNumber?: string
+  }
+  rfq: {
+    id: string
+    rfqNumber: string
+  }
+  lineItemsCount: number
+}
+
 const statusColors: Record<string, string> = {
   // RFQ statuses
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -176,6 +205,7 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
   const [activeTab, setActiveTab] = useState('rfqs')
   const [searchQuery, setSearchQuery] = useState('')
   const [rfqs, setRfqs] = useState<RFQ[]>([])
+  const [supplierQuotes, setSupplierQuotes] = useState<SupplierQuote[]>([])
   const [clientQuotes, setClientQuotes] = useState<ClientQuote[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -197,8 +227,9 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
   const loadData = async () => {
     setLoading(true)
     try {
-      const [rfqsRes, quotesRes, ordersRes, suppliersRes] = await Promise.all([
+      const [rfqsRes, supplierQuotesRes, quotesRes, ordersRes, suppliersRes] = await Promise.all([
         fetch('/api/rfq?limit=20'),
+        fetch('/api/supplier-quotes?limit=50'),
         fetch('/api/client-quotes?limit=20'),
         fetch('/api/orders?limit=20'),
         fetch('/api/suppliers')
@@ -207,6 +238,11 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
       if (rfqsRes.ok) {
         const data = await rfqsRes.json()
         setRfqs(data.rfqs || [])
+      }
+
+      if (supplierQuotesRes.ok) {
+        const data = await supplierQuotesRes.json()
+        setSupplierQuotes(data.quotes || [])
       }
 
       if (quotesRes.ok) {
@@ -482,10 +518,98 @@ export default function ProcurementDashboard({ user, orgId }: ProcurementDashboa
               <CardDescription>Compare and accept quotes from suppliers</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-gray-500">
-                <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p>Supplier quotes will appear here after sending RFQs</p>
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : supplierQuotes.length === 0 ? (
+                <div className="text-center py-12">
+                  <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No supplier quotes yet</h3>
+                  <p className="text-gray-500 mb-4">Supplier quotes will appear here after sending RFQs and suppliers respond</p>
+                  <Button onClick={() => setShowCreateRFQ(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create RFQ
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {supplierQuotes
+                    .filter(quote =>
+                      !searchQuery ||
+                      quote.quoteNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      quote.supplier.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      quote.project.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((quote) => (
+                    <Link
+                      key={quote.id}
+                      href={`/procurement/rfq/${quote.rfq.id}?supplier=${quote.id}`}
+                      className="flex items-center justify-between py-4 hover:bg-gray-50 -mx-6 px-6 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        {quote.supplier.logo ? (
+                          <img
+                            src={quote.supplier.logo}
+                            alt={quote.supplier.name}
+                            className="w-10 h-10 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-emerald-600" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">{quote.supplier.name}</span>
+                            <Badge className={statusColors[quote.status] || 'bg-gray-100'}>
+                              {formatStatus(quote.status)}
+                            </Badge>
+                            {quote.version > 1 && (
+                              <Badge variant="outline" className="text-xs">v{quote.version}</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {quote.rfq.rfqNumber} • {quote.project.name}
+                          </p>
+                          {quote.quoteNumber && (
+                            <p className="text-xs text-gray-400">Quote #: {quote.quoteNumber}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6 text-sm">
+                        <div className="text-right">
+                          <p className="font-medium text-gray-900">{formatCurrency(quote.totalAmount || quote.subtotal)}</p>
+                          <p className="text-gray-400">{quote.lineItemsCount} items</p>
+                        </div>
+                        <div className="text-right">
+                          {quote.submittedAt && (
+                            <p className="text-gray-400">{formatDate(quote.submittedAt)}</p>
+                          )}
+                          {quote.estimatedLeadTime && (
+                            <p className="text-xs text-blue-600">Lead: {quote.estimatedLeadTime}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {quote.quoteDocumentUrl && (
+                            <a
+                              href={quote.quoteDocumentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 hover:bg-gray-100 rounded-md"
+                              title="View quote document"
+                            >
+                              <ExternalLink className="w-4 h-4 text-gray-400" />
+                            </a>
+                          )}
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

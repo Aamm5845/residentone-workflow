@@ -471,11 +471,33 @@ Extract everything you can see in the quote, including any items that might not 
     // Check for shipping/delivery info
     const hasShippingFee = extractedData.supplierInfo?.deliveryFee && extractedData.supplierInfo.deliveryFee > 0
 
-    // Collect all discrepancy messages
+    // Collect all discrepancy messages WITH item names
     const allDiscrepancies: string[] = []
+    const itemDiscrepancies: Array<{
+      itemName: string
+      type: string
+      requested?: number
+      quoted?: number
+      details: string
+    }> = []
+
     matchResults.forEach(r => {
-      if (r.discrepancies) {
-        allDiscrepancies.push(...r.discrepancies)
+      if (r.discrepancies && r.rfqItem) {
+        r.discrepancies.forEach(d => {
+          allDiscrepancies.push(`${r.rfqItem.itemName}: ${d}`)
+
+          // Parse quantity discrepancy for structured data
+          const qtyMatch = d.match(/Quantity: requested (\d+), quoted (\d+)/)
+          if (qtyMatch) {
+            itemDiscrepancies.push({
+              itemName: r.rfqItem.itemName,
+              type: 'quantity',
+              requested: parseInt(qtyMatch[1]),
+              quoted: parseInt(qtyMatch[2]),
+              details: d
+            })
+          }
+        })
       }
     })
 
@@ -499,6 +521,7 @@ Extract everything you can see in the quote, including any items that might not 
           totalDiscrepancy,
           quantityDiscrepancies,
           discrepancyMessages: allDiscrepancies,
+          itemDiscrepancies, // Include structured item-level discrepancies
           fileType: fileType || 'unknown'
         }
       }
