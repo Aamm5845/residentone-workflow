@@ -606,7 +606,6 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
               <RFQLineItemsManager
                 rfqId={rfqId}
                 isDraft={rfq.status === 'DRAFT'}
-                onItemsChange={() => loadRFQ()}
               />
             </CardContent>
           </Card>
