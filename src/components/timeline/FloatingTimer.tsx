@@ -3,37 +3,55 @@
 import { useState } from 'react'
 import { useTimer, formatElapsedTime } from '@/contexts/TimerContext'
 import { Button } from '@/components/ui/button'
-import { 
-  Play, 
-  Pause, 
-  Square, 
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog'
+import {
+  Play,
+  Pause,
+  Square,
   Timer,
   FolderOpen,
   Home,
   Layers,
   ChevronUp,
   ChevronDown,
-  X
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getStageName } from '@/constants/workflow'
 
 export function FloatingTimer() {
-  const { 
-    activeEntry, 
-    elapsedSeconds, 
-    isRunning, 
-    isPaused, 
+  const {
+    activeEntry,
+    elapsedSeconds,
+    isRunning,
+    isPaused,
     pauseTimer,
     resumeTimer,
-    stopTimer 
+    stopTimer
   } = useTimer()
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true) // Start minimized/collapsed by default
+  const [showStopDialog, setShowStopDialog] = useState(false)
+  const [customEndDate, setCustomEndDate] = useState('')
+  const [customEndTime, setCustomEndTime] = useState('')
+  const [isStopping, setIsStopping] = useState(false)
 
   // Don't show if no active timer
   if (!activeEntry) return null
+
+  // Check if timer has been running overnight (more than 12 hours)
+  const hoursRunning = elapsedSeconds / 3600
+  const isOvernightTimer = hoursRunning > 12
 
   const formatStageType = (type: string) => {
     return getStageName(type)
@@ -47,8 +65,40 @@ export function FloatingTimer() {
     }
   }
 
-  const handleStop = async () => {
-    await stopTimer()
+  const handleStopClick = () => {
+    if (isOvernightTimer) {
+      // Pre-fill with start date and a reasonable end time (6 PM on start day)
+      const startDate = new Date(activeEntry.startTime)
+      setCustomEndDate(startDate.toISOString().split('T')[0])
+      setCustomEndTime('18:00')
+      setShowStopDialog(true)
+    } else {
+      // Normal stop
+      handleStopNow()
+    }
+  }
+
+  const handleStopNow = async () => {
+    setIsStopping(true)
+    try {
+      await stopTimer()
+    } finally {
+      setIsStopping(false)
+      setShowStopDialog(false)
+    }
+  }
+
+  const handleStopWithCustomTime = async () => {
+    if (!customEndDate || !customEndTime) return
+
+    setIsStopping(true)
+    try {
+      const endDateTime = new Date(`${customEndDate}T${customEndTime}`)
+      await stopTimer({ endTime: endDateTime.toISOString() })
+    } finally {
+      setIsStopping(false)
+      setShowStopDialog(false)
+    }
   }
 
   // Minimized pill view
@@ -167,6 +217,14 @@ export function FloatingTimer() {
             </div>
           )}
 
+          {/* Overnight warning */}
+          {isOvernightTimer && (
+            <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-amber-700 text-xs">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>Timer running {Math.floor(hoursRunning)}+ hours</span>
+            </div>
+          )}
+
           {/* Controls */}
           <div className="flex gap-2">
             <Button
@@ -174,8 +232,8 @@ export function FloatingTimer() {
               variant="outline"
               className={cn(
                 "flex-1 h-9",
-                isRunning 
-                  ? "border-yellow-300 text-yellow-700 hover:bg-yellow-50" 
+                isRunning
+                  ? "border-yellow-300 text-yellow-700 hover:bg-yellow-50"
                   : "border-green-300 text-green-700 hover:bg-green-50"
               )}
               onClick={handlePauseResume}
@@ -196,7 +254,7 @@ export function FloatingTimer() {
               size="sm"
               variant="outline"
               className="flex-1 h-9 border-red-300 text-red-700 hover:bg-red-50"
-              onClick={handleStop}
+              onClick={handleStopClick}
             >
               <Square className="w-4 h-4 mr-1.5" />
               Stop
@@ -204,6 +262,67 @@ export function FloatingTimer() {
           </div>
         </div>
       </div>
+
+      {/* Stop Timer Dialog for Overnight Timers */}
+      <Dialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Stop Timer
+            </DialogTitle>
+            <DialogDescription>
+              This timer has been running for over {Math.floor(hoursRunning)} hours.
+              When did you actually stop working?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-gray-50 rounded-lg text-sm">
+              <p className="text-gray-600">
+                Started: {new Date(activeEntry.startTime).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>End Date</Label>
+              <Input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                min={activeEntry.startTime.split('T')[0]}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>End Time</Label>
+              <Input
+                type="time"
+                value={customEndTime}
+                onChange={(e) => setCustomEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleStopNow}
+              disabled={isStopping}
+            >
+              Stop Now
+            </Button>
+            <Button
+              onClick={handleStopWithCustomTime}
+              disabled={isStopping || !customEndDate || !customEndTime}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isStopping ? 'Stopping...' : 'Stop at Selected Time'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
