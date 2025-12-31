@@ -359,6 +359,43 @@ export async function POST(
 
         return NextResponse.json({ success: true, action: 'marked_delivered' })
 
+      case 'pay_supplier':
+        // Record payment to supplier
+        const { paymentMethod, paymentRef, paymentAmount, paymentNotes } = data
+
+        if (!paymentMethod) {
+          return NextResponse.json(
+            { error: 'Payment method is required' },
+            { status: 400 }
+          )
+        }
+
+        const amount = paymentAmount || parseFloat(order.totalAmount?.toString() || '0')
+
+        await prisma.order.update({
+          where: { id },
+          data: {
+            supplierPaidAt: new Date(),
+            supplierPaymentMethod: paymentMethod,
+            supplierPaymentRef: paymentRef || null,
+            supplierPaymentAmount: amount,
+            supplierPaymentNotes: paymentNotes || null,
+            updatedById: userId
+          }
+        })
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: id,
+            type: 'SUPPLIER_PAID',
+            message: `Supplier paid $${amount.toFixed(2)} via ${paymentMethod}${paymentRef ? ` (Ref: ${paymentRef})` : ''}`,
+            userId,
+            metadata: { paymentMethod, paymentRef, paymentAmount: amount }
+          }
+        })
+
+        return NextResponse.json({ success: true, action: 'supplier_paid' })
+
       case 'cancel':
         const { reason } = data
 

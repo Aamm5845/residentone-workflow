@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: ['warn', 'error'],
+  log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'],
   ...(process.env.DATABASE_URL ? {
     datasources: {
       db: {
@@ -15,4 +15,6 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   } : {}),
 })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Cache the Prisma client in both development AND production
+// This prevents connection pool exhaustion in serverless environments
+globalForPrisma.prisma = prisma

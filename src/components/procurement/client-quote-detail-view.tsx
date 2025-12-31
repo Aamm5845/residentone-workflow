@@ -990,9 +990,10 @@ export default function ClientQuoteDetailView({ quoteId, user, orgId }: ClientQu
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
+                  <SelectItem value="E_TRANSFER">E-Transfer (Interac)</SelectItem>
+                  <SelectItem value="WIRE_TRANSFER">Wire Transfer</SelectItem>
                   <SelectItem value="ACH_BANK_TRANSFER">ACH Bank Transfer</SelectItem>
                   <SelectItem value="CHECK">Check</SelectItem>
-                  <SelectItem value="WIRE_TRANSFER">Wire Transfer</SelectItem>
                   <SelectItem value="CASH">Cash</SelectItem>
                   <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>

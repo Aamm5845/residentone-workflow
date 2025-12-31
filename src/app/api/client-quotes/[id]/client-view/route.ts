@@ -14,6 +14,14 @@ export async function GET(
   try {
     const { id } = await params
 
+    // Validate ID
+    if (!id || id === 'undefined' || id === 'null') {
+      console.error('[Client Invoice View] Invalid ID received:', id)
+      return NextResponse.json({ error: 'Invalid invoice ID' }, { status: 400 })
+    }
+
+    console.log('[Client Invoice View] Fetching invoice with ID:', id)
+
     // Get the client quote - this is a public endpoint for clients
     const quote = await prisma.clientQuote.findFirst({
       where: { id },
@@ -63,8 +71,11 @@ export async function GET(
     })
 
     if (!quote) {
+      console.error('[Client Invoice View] Invoice not found for ID:', id)
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
+
+    console.log('[Client Invoice View] Found invoice:', quote.quoteNumber)
 
     // Get organization info separately
     const organization = await prisma.organization.findUnique({

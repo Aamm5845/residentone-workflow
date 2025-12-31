@@ -40,26 +40,26 @@ export async function GET(
       return NextResponse.json({ error: 'This link has expired' }, { status: 410 })
     }
 
-    // Fetch the item first
+    // Check if item is in the share link's items
+    if (!shareLink.itemIds.includes(itemId)) {
+      return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
+    }
+
+    // Fetch the item
     const item = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
       include: {
-        section: {
+        room: {
           select: {
             id: true,
             name: true,
-            instance: {
-              select: {
-                room: {
-                  select: {
-                    id: true,
-                    name: true,
-                    type: true,
-                    projectId: true
-                  }
-                }
-              }
-            }
+            type: true
+          }
+        },
+        section: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }
@@ -69,60 +69,18 @@ export async function GET(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Check if item belongs to the project and is in the share link's items
-    // If itemIds is empty, we allow all items from the project
-    const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
-    const room = item.section?.instance?.room
-
-    if (hasItemIds) {
-      // Specific items are selected - check if this item is in the list
-      if (!shareLink.itemIds.includes(itemId)) {
-        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
-      }
-    } else {
-      // No specific items - verify item belongs to the project
-      if (room?.projectId !== shareLink.projectId) {
-        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
-      }
-    }
-
     // Get all items for navigation (previous/next)
-    // If itemIds is set, use those; otherwise get all visible items from project
-    let allItems
-    if (hasItemIds) {
-      allItems = await prisma.roomFFEItem.findMany({
-        where: {
-          id: { in: shareLink.itemIds },
-          visibility: 'VISIBLE'
-        },
-        select: {
-          id: true,
-          name: true
-        },
-        orderBy: { order: 'asc' }
-      })
-    } else {
-      allItems = await prisma.roomFFEItem.findMany({
-        where: {
-          section: {
-            instance: {
-              room: {
-                projectId: shareLink.projectId
-              }
-            }
-          },
-          visibility: 'VISIBLE',
-          specStatus: {
-            notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
-          }
-        },
-        select: {
-          id: true,
-          name: true
-        },
-        orderBy: { order: 'asc' }
-      })
-    }
+    const allItems = await prisma.roomFFEItem.findMany({
+      where: {
+        id: { in: shareLink.itemIds },
+        visibility: 'VISIBLE'
+      },
+      select: {
+        id: true,
+        name: true
+      },
+      orderBy: { order: 'asc' }
+    })
 
     const currentIndex = allItems.findIndex(i => i.id === itemId)
     const previousItem = currentIndex > 0 ? allItems[currentIndex - 1] : null
@@ -133,8 +91,8 @@ export async function GET(
       id: item.id,
       name: item.name,
       description: item.description,
-      roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
-      roomType: room?.type,
+      roomName: item.room?.name || item.room?.type?.replace(/_/g, ' ') || 'Room',
+      roomType: item.room?.type,
       sectionName: item.section?.name || '',
       categoryName: item.section?.name || '',
       productName: item.modelNumber,
@@ -142,7 +100,7 @@ export async function GET(
       sku: item.sku,
       modelNumber: item.modelNumber,
       supplierName: shareLink.showSupplier ? item.supplierName : null,
-      supplierLink: item.supplierLink,
+      supplierLink: shareLink.showSupplier ? item.supplierLink : null,
       quantity: item.quantity,
       leadTime: item.leadTime,
       specStatus: item.specStatus,

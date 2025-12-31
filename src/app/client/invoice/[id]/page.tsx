@@ -87,19 +87,45 @@ export default function ClientInvoicePage() {
     }
   }, [id])
 
-  const loadInvoice = async () => {
+  const loadInvoice = async (retryCount = 0) => {
     try {
+      // Validate ID before making request
+      if (!id || id === 'undefined' || id === 'null') {
+        console.error('[Client Invoice] Invalid ID:', id)
+        setError('Invalid invoice link')
+        setLoading(false)
+        return
+      }
+
+      console.log('[Client Invoice] Loading invoice with ID:', id, retryCount > 0 ? `(retry ${retryCount})` : '')
       const response = await fetch(`/api/client-quotes/${id}/client-view`)
+
       if (response.ok) {
         const data = await response.json()
+        console.log('[Client Invoice] Loaded successfully:', data.quoteNumber)
         setInvoice(data)
+      } else if (response.status === 404 && retryCount < 2) {
+        // Retry once after a short delay in case of database propagation delay
+        console.log('[Client Invoice] Invoice not found, retrying in 1 second...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return loadInvoice(retryCount + 1)
       } else {
-        setError('Invoice not found')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[Client Invoice] Load failed:', response.status, errorData)
+        setError(errorData.error || 'Invoice not found')
       }
     } catch (err) {
+      console.error('[Client Invoice] Error loading invoice:', err)
+      if (retryCount < 2) {
+        // Retry on network errors
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return loadInvoice(retryCount + 1)
+      }
       setError('Failed to load invoice')
     } finally {
-      setLoading(false)
+      if (retryCount === 0 || retryCount >= 2) {
+        setLoading(false)
+      }
     }
   }
 

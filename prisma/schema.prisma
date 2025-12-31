@@ -3495,6 +3495,13 @@ model Order {
   shippingCarrier  String?
   shippingAddress  String?
 
+  // Supplier Payment Tracking
+  supplierPaidAt        DateTime?  // When we paid the supplier
+  supplierPaymentMethod String?    // How we paid (wire, check, credit, etc.)
+  supplierPaymentRef    String?    // Reference number/confirmation
+  supplierPaymentAmount Decimal?   // Amount paid to supplier
+  supplierPaymentNotes  String?    // Any notes about the payment
+
   notes            String?
   internalNotes    String?
 

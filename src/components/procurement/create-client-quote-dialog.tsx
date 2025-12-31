@@ -384,11 +384,25 @@ export default function CreateClientQuoteDialog({
       return
     }
 
-    // Check for items without pricing
-    const itemsWithoutPrice = lineItems.filter(item => item.costPrice === 0)
+    // Check for items without RRP (Recommended Retail Price)
+    const itemsWithoutRrp = lineItems.filter(item => !item.hasRrp)
+    if (itemsWithoutRrp.length > 0) {
+      const itemNames = itemsWithoutRrp.slice(0, 3).map(i => i.name).join(', ')
+      const more = itemsWithoutRrp.length > 3 ? ` and ${itemsWithoutRrp.length - 3} more` : ''
+      const confirmed = window.confirm(
+        `${itemsWithoutRrp.length} item(s) do not have RRP pricing set (${itemNames}${more}).\n\n` +
+        `These items are using calculated prices based on trade price + markup.\n` +
+        `It's recommended to set RRP in the spec before creating client invoices.\n\n` +
+        `Continue anyway?`
+      )
+      if (!confirmed) return
+    }
+
+    // Check for items without any pricing
+    const itemsWithoutPrice = lineItems.filter(item => item.costPrice === 0 && item.sellingPrice === 0)
     if (itemsWithoutPrice.length > 0) {
       const confirmed = window.confirm(
-        `${itemsWithoutPrice.length} item(s) have no cost price set. The client will see these as $0. Continue anyway?`
+        `${itemsWithoutPrice.length} item(s) have no pricing set at all. The client will see these as $0. Continue anyway?`
       )
       if (!confirmed) return
     }
@@ -426,6 +440,12 @@ export default function CreateClientQuoteDialog({
 
       if (response.ok) {
         const data = await response.json()
+        console.log('[CreateClientQuote] Invoice created:', data.quote?.id, data.quote?.quoteNumber)
+        if (!data.quote?.id) {
+          console.error('[CreateClientQuote] No ID in response:', data)
+          toast.error('Invoice created but ID missing - please refresh')
+          return
+        }
         setCreatedQuote(data.quote)
         setStep(3) // Show preview step
         toast.success('Invoice created! Review and send to client.')
@@ -499,7 +519,12 @@ export default function CreateClientQuoteDialog({
   }
 
   const handleViewQuote = () => {
-    if (!createdQuote?.id) return
+    if (!createdQuote?.id) {
+      console.error('[CreateClientQuote] No quote ID available for viewing')
+      toast.error('Invoice ID not available')
+      return
+    }
+    console.log('[CreateClientQuote] Opening client view for ID:', createdQuote.id)
     // Open clean client-facing invoice view
     window.open(`/client/invoice/${createdQuote.id}`, '_blank')
   }

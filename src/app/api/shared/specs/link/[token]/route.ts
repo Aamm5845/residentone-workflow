@@ -53,75 +53,29 @@ export async function GET(
       }
     })
 
-    // Fetch items - if itemIds is set, use those; otherwise get all visible items from project
-    const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
-    
-    let items
-    if (hasItemIds) {
-      items = await prisma.roomFFEItem.findMany({
-        where: {
-          id: { in: shareLink.itemIds },
-          visibility: 'VISIBLE'
-        },
-        include: {
-          section: {
-            select: {
-              id: true,
-              name: true,
-              instance: {
-                select: {
-                  room: {
-                    select: {
-                      id: true,
-                      name: true,
-                      type: true
-                    }
-                  }
-                }
-              }
-            }
+    // Fetch the selected items
+    const items = await prisma.roomFFEItem.findMany({
+      where: {
+        id: { in: shareLink.itemIds },
+        visibility: 'VISIBLE'
+      },
+      include: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            type: true
           }
         },
-        orderBy: { order: 'asc' }
-      })
-    } else {
-      // No specific items selected - get all visible specs from the project
-      items = await prisma.roomFFEItem.findMany({
-        where: {
-          section: {
-            instance: {
-              room: {
-                projectId: shareLink.projectId
-              }
-            }
-          },
-          visibility: 'VISIBLE',
-          specStatus: {
-            notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
+        section: {
+          select: {
+            id: true,
+            name: true
           }
-        },
-        include: {
-          section: {
-            select: {
-              id: true,
-              name: true,
-              instance: {
-                select: {
-                  room: {
-                    select: {
-                      id: true,
-                      name: true,
-                      type: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        orderBy: { order: 'asc' }
-      })
-    }
+        }
+      },
+      orderBy: { order: 'asc' }
+    })
 
     // Get last updated time from items
     const lastUpdated = items.length > 0
@@ -132,22 +86,20 @@ export async function GET(
       : shareLink.updatedAt
 
     // Transform items based on visibility settings
-    const specs = items.map(item => {
-      const room = item.section?.instance?.room
-      return {
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
-        roomType: room?.type,
-        sectionName: item.section?.name || '',
-        categoryName: item.section?.name || '',
+    const specs = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      roomName: item.room?.name || item.room?.type?.replace(/_/g, ' ') || 'Room',
+      roomType: item.room?.type,
+      sectionName: item.section?.name || '',
+      categoryName: item.section?.name || '',
       productName: item.modelNumber,
       brand: shareLink.showBrand ? item.brand : null,
       sku: item.sku,
       modelNumber: item.modelNumber,
       supplierName: shareLink.showSupplier ? item.supplierName : null,
-      supplierLink: item.supplierLink,
+      supplierLink: shareLink.showSupplier ? item.supplierLink : null,
       quantity: item.quantity,
       leadTime: item.leadTime,
       specStatus: item.specStatus,
@@ -161,11 +113,8 @@ export async function GET(
       height: shareLink.showDetails ? item.height : null,
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
-      rrp: shareLink.showPricing ? item.rrp : null,
-      clientApproved: item.clientApproved || false,
-      clientApprovedAt: item.clientApprovedAt?.toISOString() || null
-      }
-    })
+      rrp: shareLink.showPricing ? item.rrp : null
+    }))
 
     return NextResponse.json({
       success: true,
@@ -177,8 +126,7 @@ export async function GET(
         showSupplier: shareLink.showSupplier,
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
-        showDetails: shareLink.showDetails,
-        allowApproval: shareLink.allowApproval || false
+        showDetails: shareLink.showDetails
       },
       expiresAt: shareLink.expiresAt,
       lastUpdated: lastUpdated?.toISOString() || null
