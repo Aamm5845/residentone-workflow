@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Plus,
   Trash2,
@@ -49,6 +49,10 @@ export default function RFQLineItemsManager({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
 
+  // Store onItemsChange in a ref to avoid infinite loops
+  const onItemsChangeRef = useRef(onItemsChange)
+  onItemsChangeRef.current = onItemsChange
+
   // Form state
   const [formData, setFormData] = useState({
     description: '',
@@ -63,13 +67,13 @@ export default function RFQLineItemsManager({
       if (!response.ok) throw new Error('Failed to fetch line items')
       const data = await response.json()
       setLineItems(data.lineItems || [])
-      onItemsChange?.(data.lineItems || [])
+      onItemsChangeRef.current?.(data.lineItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load line items')
     } finally {
       setLoading(false)
     }
-  }, [rfqId, onItemsChange])
+  }, [rfqId])
 
   useEffect(() => {
     fetchLineItems()
