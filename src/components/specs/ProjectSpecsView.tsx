@@ -2934,23 +2934,35 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <div className="flex items-center gap-2">
                     <Circle className="w-4 h-4" />
                     Needs Selection
-                    {ffeItems.length > 0 && (
-                      <Badge 
-                        variant="outline" 
-                        className={cn(
-                          "text-xs px-1.5 py-0 h-5",
-                          activeTab === 'needs' 
-                            ? "bg-amber-100 text-amber-700 border-amber-300" 
-                            : "bg-gray-100 text-gray-600 border-gray-200"
-                        )}
-                      >
-                        {ffeItems.reduce((acc, room) => 
-                          acc + room.sections.reduce((sAcc, section) => 
-                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                          ), 0
-                        )}
-                      </Badge>
-                    )}
+                    {ffeItems.length > 0 && (() => {
+                      // Calculate filtered count (respects room/section filters)
+                      const filteredCount = filteredFfeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                        ), 0
+                      )
+                      // Calculate total count (all items)
+                      const totalCount = ffeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                        ), 0
+                      )
+                      const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
+
+                      return (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs px-1.5 py-0 h-5",
+                            activeTab === 'needs'
+                              ? "bg-amber-100 text-amber-700 border-amber-300"
+                              : "bg-gray-100 text-gray-600 border-gray-200"
+                          )}
+                        >
+                          {isFiltered ? `${filteredCount} of ${totalCount}` : filteredCount}
+                        </Badge>
+                      )
+                    })()}
                   </div>
                   {activeTab === 'needs' && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
