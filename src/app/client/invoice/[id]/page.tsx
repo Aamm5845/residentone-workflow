@@ -1,9 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { Loader2, FileText, Mail, Phone, Calendar, ChevronDown, ChevronUp, Building, Banknote, ExternalLink } from 'lucide-react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { Loader2, FileText, Mail, Phone, Calendar, ChevronDown, ChevronUp, Building, Banknote, ExternalLink, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+// Print styles - hide payment section when printing
+const printStyles = `
+  @media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    body { background: white !important; }
+    .print-break { page-break-after: always; }
+  }
+`
 
 interface SpecDetails {
   manufacturer?: string | null
@@ -74,7 +84,9 @@ interface InvoiceData {
 
 export default function ClientInvoicePage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const id = params?.id as string
+  const paymentStatus = searchParams?.get('payment')
   const [invoice, setInvoice] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +94,7 @@ export default function ClientInvoicePage() {
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
   const [showEtransferInfo, setShowEtransferInfo] = useState(false)
+  const [processingPayment, setProcessingPayment] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -152,9 +165,25 @@ export default function ClientInvoicePage() {
     return invoice.totalAmount + ccFee
   }
 
-  const handlePayWithCard = () => {
-    // TODO: Integrate with Stripe - will redirect to Stripe checkout with 3% added
-    alert(`Redirecting to Stripe checkout for ${formatCurrency(calculateCCTotal())}`)
+  const handlePayWithCard = async () => {
+    try {
+      setProcessingPayment(true)
+      const response = await fetch(`/api/client-quotes/${id}/checkout`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert('Failed to create checkout session. Please try again.')
+      }
+    } catch (err) {
+      console.error('Checkout error:', err)
+      alert('Failed to process payment. Please try again.')
+    } finally {
+      setProcessingPayment(false)
+    }
   }
 
   if (loading) {
@@ -186,65 +215,101 @@ export default function ClientInvoicePage() {
   }, {})
 
   const hasGstQst = (invoice.gstAmount && invoice.gstAmount > 0) || (invoice.qstAmount && invoice.qstAmount > 0)
-  const companyName = invoice.organization?.businessName || invoice.organization?.name || ''
+  const companyName = invoice.organization?.businessName || invoice.organization?.name || 'Meisner Interiors'
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Invoice Card */}
-        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          {/* Header */}
-          <div className="p-6 sm:p-8 border-b">
-            <div className="flex items-start justify-between mb-6">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
+      <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
+        <div className="max-w-2xl mx-auto">
+          {/* Payment Success Message */}
+          {paymentStatus === 'success' && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 no-print">
+              <CheckCircle className="w-6 h-6 text-green-600" />
               <div>
-                {invoice.organization?.logoUrl ? (
-                  <img
-                    src={invoice.organization.logoUrl}
-                    alt={companyName}
-                    className="h-10 object-contain"
-                  />
-                ) : (
-                  <h2 className="text-xl font-bold text-gray-900">{companyName}</h2>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Invoice</p>
-                <p className="font-mono text-sm text-gray-700">{invoice.quoteNumber}</p>
+                <p className="font-medium text-green-800">Payment Successful!</p>
+                <p className="text-sm text-green-600">Thank you for your payment. You will receive a confirmation email shortly.</p>
               </div>
             </div>
+          )}
 
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Bill To</p>
-                <p className="font-medium text-gray-900">{invoice.project.client?.name || 'Client'}</p>
-                {invoice.project.client?.email && (
-                  <p className="text-sm text-gray-500">{invoice.project.client.email}</p>
-                )}
+          {/* Invoice Card */}
+          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden print:shadow-none print:border-0 print:rounded-none">
+            {/* Header */}
+            <div className="p-6 sm:p-8 border-b">
+              <div className="flex items-start justify-between mb-6">
+                {/* Company Info */}
+                <div className="flex-1">
+                  {invoice.organization?.logoUrl ? (
+                    <img
+                      src={invoice.organization.logoUrl}
+                      alt={companyName}
+                      className="h-12 object-contain mb-3"
+                    />
+                  ) : (
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">{companyName}</h2>
+                  )}
+                  <div className="text-xs text-gray-500 space-y-0.5">
+                    {invoice.organization?.businessAddress && (
+                      <p>{invoice.organization.businessAddress}</p>
+                    )}
+                    {(invoice.organization?.businessCity || invoice.organization?.businessProvince || invoice.organization?.businessPostal) && (
+                      <p>
+                        {invoice.organization.businessCity}
+                        {invoice.organization.businessProvince && ` ${invoice.organization.businessProvince}`}
+                        {invoice.organization.businessPostal && ` ${invoice.organization.businessPostal}`}
+                      </p>
+                    )}
+                    {invoice.organization?.businessPhone && (
+                      <p>{invoice.organization.businessPhone}</p>
+                    )}
+                    {invoice.organization?.businessEmail && (
+                      <p>{invoice.organization.businessEmail}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Invoice Number */}
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-gray-900 mb-1">INVOICE</p>
+                  <p className="font-mono text-sm text-gray-600">{invoice.quoteNumber}</p>
+                  {invoice.validUntil && (
+                    <p className="text-xs text-gray-400 mt-2">Due: {formatDate(invoice.validUntil)}</p>
+                  )}
+                </div>
               </div>
-              <div className="sm:text-right">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Project</p>
-                <p className="font-medium text-gray-900">{invoice.project.name}</p>
-                <p className="text-sm text-gray-500">{invoice.title}</p>
+
+              {/* Tax Numbers - for print */}
+              {(invoice.organization?.gstNumber || invoice.organization?.qstNumber) && (
+                <div className="text-xs text-gray-400 mb-4 pb-4 border-b">
+                  {invoice.organization.gstNumber && <span>GST: {invoice.organization.gstNumber}</span>}
+                  {invoice.organization.gstNumber && invoice.organization.qstNumber && <span className="mx-2">•</span>}
+                  {invoice.organization.qstNumber && <span>QST: {invoice.organization.qstNumber}</span>}
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Bill To</p>
+                  <p className="font-medium text-gray-900">{invoice.project.client?.name || 'Client'}</p>
+                  {invoice.project.client?.email && (
+                    <p className="text-sm text-gray-500">{invoice.project.client.email}</p>
+                  )}
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Project</p>
+                  <p className="font-medium text-gray-900">{invoice.project.name}</p>
+                  <p className="text-sm text-gray-500">{invoice.title}</p>
+                </div>
               </div>
+
+              {invoice.paymentTerms && (
+                <div className="mt-6 pt-4 border-t text-sm">
+                  <span className="text-gray-400">Payment Terms:</span>
+                  <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
+                </div>
+              )}
             </div>
-
-            {(invoice.validUntil || invoice.paymentTerms) && (
-              <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t text-sm">
-                {invoice.validUntil && (
-                  <div>
-                    <span className="text-gray-400">Valid until:</span>
-                    <span className="ml-2 text-gray-700">{formatDate(invoice.validUntil)}</span>
-                  </div>
-                )}
-                {invoice.paymentTerms && (
-                  <div>
-                    <span className="text-gray-400">Terms:</span>
-                    <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           {/* Line Items */}
           <div className="p-6 sm:p-8">
@@ -374,8 +439,8 @@ export default function ClientInvoicePage() {
             </div>
           </div>
 
-          {/* Payment Section */}
-          <div className="bg-gray-50 p-6 sm:p-8 border-t">
+          {/* Payment Section - Hidden when printing */}
+          <div className="bg-gray-50 p-6 sm:p-8 border-t no-print">
             <h3 className="font-semibold text-gray-900 mb-4">Payment Options</h3>
 
             <div className="space-y-3">
@@ -383,20 +448,28 @@ export default function ClientInvoicePage() {
               <div className="bg-white rounded-xl border p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <img
-                      src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg"
-                      alt="Stripe"
-                      className="h-6"
-                    />
+                    <div className="w-8 h-8 bg-[#635BFF] rounded flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
+                      </svg>
+                    </div>
                     <span className="text-sm text-gray-600">Credit / Debit Card</span>
                   </div>
-                  <span className="text-xs text-gray-400">+{invoice.ccFeeRate}% processing fee</span>
+                  <span className="text-xs text-gray-400">+{invoice.ccFeeRate}% fee</span>
                 </div>
                 <Button
                   onClick={handlePayWithCard}
+                  disabled={processingPayment}
                   className="w-full bg-[#635BFF] hover:bg-[#5851DB] text-white"
                 >
-                  Pay {formatCurrency(calculateCCTotal())}
+                  {processingPayment ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    `Pay ${formatCurrency(calculateCCTotal())}`
+                  )}
                 </Button>
               </div>
 
@@ -521,28 +594,33 @@ export default function ClientInvoicePage() {
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Footer - shown in print */}
           <div className="px-6 sm:px-8 py-4 border-t text-center text-xs text-gray-400">
-            {companyName}
-            {invoice.organization?.businessEmail && ` • ${invoice.organization.businessEmail}`}
-            {invoice.organization?.businessPhone && ` • ${invoice.organization.businessPhone}`}
+            <p className="font-medium text-gray-600">{companyName}</p>
+            <p className="mt-1">
+              {invoice.organization?.businessEmail && invoice.organization.businessEmail}
+              {invoice.organization?.businessEmail && invoice.organization?.businessPhone && ' • '}
+              {invoice.organization?.businessPhone && invoice.organization.businessPhone}
+            </p>
             {(invoice.organization?.gstNumber || invoice.organization?.qstNumber) && (
-              <div className="mt-1">
+              <p className="mt-1">
                 {invoice.organization.gstNumber && `GST: ${invoice.organization.gstNumber}`}
                 {invoice.organization.gstNumber && invoice.organization.qstNumber && ' • '}
                 {invoice.organization.qstNumber && `QST: ${invoice.organization.qstNumber}`}
-              </div>
+              </p>
             )}
+            <p className="mt-2 text-gray-300">Thank you for your business</p>
           </div>
         </div>
 
-        {/* Print Button */}
-        <div className="text-center mt-6">
+        {/* Print Button - Hidden when printing */}
+        <div className="text-center mt-6 no-print">
           <Button variant="ghost" size="sm" onClick={() => window.print()} className="text-gray-500">
             Print Invoice
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

@@ -105,8 +105,7 @@ export async function GET(
         logoUrl: true,
         gstNumber: true,
         qstNumber: true,
-        wireInstructions: true,
-        etransferEmail: true
+        wireInstructions: true
       }
     })
 
