@@ -5,12 +5,43 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2, FileText, Mail, Phone, Calendar, ChevronDown, ChevronUp, Building, Banknote, ExternalLink, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-// Print styles - hide payment section when printing
+// Print styles - hide payment section and format for full-page printing
 const printStyles = `
   @media print {
     .no-print { display: none !important; }
     .print-only { display: block !important; }
-    body { background: white !important; }
+
+    /* Reset page margins and backgrounds */
+    html, body {
+      background: white !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Make invoice full width on page */
+    .print-container {
+      padding: 0 !important;
+      margin: 0 !important;
+      min-height: auto !important;
+    }
+
+    .print-invoice {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+    }
+
+    /* Ensure proper page sizing */
+    @page {
+      size: letter;
+      margin: 0.5in;
+    }
+
+    /* Prevent page breaks inside items */
+    tr { page-break-inside: avoid; }
     .print-break { page-break-after: always; }
   }
 `
@@ -220,8 +251,8 @@ export default function ClientInvoicePage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
-        <div className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0 print-container">
+        <div className="max-w-2xl mx-auto print:max-w-none">
           {/* Payment Success Message */}
           {paymentStatus === 'success' && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 no-print">
@@ -234,7 +265,7 @@ export default function ClientInvoicePage() {
           )}
 
           {/* Invoice Card */}
-          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden print:shadow-none print:border-0 print:rounded-none">
+          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden print:shadow-none print:border-0 print:rounded-none print-invoice">
             {/* Header */}
             <div className="p-6 sm:p-8 border-b">
               <div className="flex items-start justify-between mb-6">
@@ -597,6 +628,7 @@ export default function ClientInvoicePage() {
           {/* Footer - shown in print */}
           <div className="px-6 sm:px-8 py-4 border-t text-center text-xs text-gray-400">
             <p className="text-gray-500">Thank you for your business</p>
+            <p className="mt-1">Items will be ordered upon receipt of payment</p>
           </div>
         </div>
 
