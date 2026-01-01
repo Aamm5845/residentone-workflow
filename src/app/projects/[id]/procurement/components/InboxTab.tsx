@@ -13,7 +13,13 @@ import {
   AlertCircle,
   ChevronRight,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  XCircle,
+  Eye,
+  CreditCard,
+  ShoppingCart,
+  PackageCheck,
+  Ban
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -27,10 +33,16 @@ interface InboxTabProps {
 type InboxItemType =
   | 'quote_received'
   | 'quote_expiring'
+  | 'supplier_declined'
   | 'invoice_viewed'
+  | 'invoice_overdue'
   | 'payment_received'
+  | 'partial_payment'
+  | 'supplier_payment_pending'
   | 'order_overdue'
   | 'tracking_missing'
+  | 'delivery_confirm'
+  | 'delivery_exception'
 
 interface InboxItem {
   id: string
@@ -65,13 +77,19 @@ const priorityConfig = {
 }
 
 // Item type icons
-const typeIcons = {
+const typeIcons: Record<InboxItemType, any> = {
   quote_received: FileText,
   quote_expiring: Clock,
-  invoice_viewed: DollarSign,
-  payment_received: DollarSign,
+  supplier_declined: Ban,
+  invoice_viewed: Eye,
+  invoice_overdue: AlertCircle,
+  payment_received: CheckCircle2,
+  partial_payment: CreditCard,
+  supplier_payment_pending: DollarSign,
   order_overdue: AlertCircle,
   tracking_missing: Truck,
+  delivery_confirm: PackageCheck,
+  delivery_exception: XCircle,
 }
 
 export default function InboxTab({ projectId, searchQuery, onNavigateToQuote }: InboxTabProps) {

@@ -86,6 +86,18 @@ interface LineItemDetail {
 interface Mismatch {
   itemName: string
   reasons: string[]
+  type?: 'missing' | 'extra' | 'quantity' | 'total' | 'price'
+  severity?: 'error' | 'warning'
+}
+
+interface AIMatchSummary {
+  matched: number
+  partial: number
+  missing: number
+  extra: number
+  totalRequested: number
+  quantityDiscrepancies: number
+  totalDiscrepancy: boolean
 }
 
 interface SupplierQuote {
@@ -126,6 +138,7 @@ interface SupplierQuote {
   lineItemsCount: number
   hasMismatches: boolean
   mismatches: Mismatch[]
+  aiMatchSummary: AIMatchSummary | null
 }
 
 interface Stats {
@@ -164,6 +177,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   // Invoice dialog state
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
   const [selectedQuoteForInvoice, setSelectedQuoteForInvoice] = useState<string | null>(null)
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{ supplierName: string; quoteNumber: string } | null>(null)
 
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
@@ -577,8 +591,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
                     </button>
 
-                    {/* Supplier with logo */}
-                    <div className="w-[200px] flex-shrink-0 flex items-center gap-3 min-w-0 pl-2">
+                    {/* Supplier with logo - flex to fill space */}
+                    <div className="flex-1 min-w-[180px] flex items-center gap-3 min-w-0 pl-2">
                       {quote.supplier.logo ? (
                         <img
                           src={quote.supplier.logo}
@@ -675,6 +689,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                           onClick={() => {
                             setSelectedQuoteForInvoice(quote.id)
+                            setSelectedQuoteData({
+                              supplierName: quote.supplier.name,
+                              quoteNumber: quote.quoteNumber || ''
+                            })
                             setInvoiceDialogOpen(true)
                           }}
                           title="Create Client Invoice"
@@ -729,27 +747,85 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </div>
                       )}
 
-                      {/* Mismatches */}
-                      {quote.hasMismatches && (
-                        <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-                          <div className="flex items-start gap-2">
-                            <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-orange-900">Attention Required</p>
-                              <div className="mt-2 space-y-2">
-                                {quote.mismatches.map((mismatch, idx) => (
-                                  <div key={idx} className="text-sm">
-                                    <span className="font-medium text-orange-800">{mismatch.itemName}:</span>
-                                    <ul className="list-disc list-inside ml-2 text-orange-700">
-                                      {mismatch.reasons.map((reason, rIdx) => (
-                                        <li key={rIdx}>{reason}</li>
-                                      ))}
-                                    </ul>
+                      {/* AI Match Summary & Discrepancies */}
+                      {(quote.hasMismatches || quote.aiMatchSummary) && (
+                        <div className="space-y-3">
+                          {/* AI Match Summary Bar */}
+                          {quote.aiMatchSummary && (
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-gray-600 mb-2">AI Quote Analysis</p>
+                              <div className="flex flex-wrap gap-3 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span className="text-gray-600">Matched:</span>
+                                  <span className="font-semibold text-gray-900">{quote.aiMatchSummary.matched}</span>
+                                </div>
+                                {quote.aiMatchSummary.partial > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                    <span className="text-gray-600">Partial:</span>
+                                    <span className="font-semibold text-amber-700">{quote.aiMatchSummary.partial}</span>
                                   </div>
-                                ))}
+                                )}
+                                {quote.aiMatchSummary.missing > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                                    <span className="text-gray-600">Missing:</span>
+                                    <span className="font-semibold text-red-700">{quote.aiMatchSummary.missing}</span>
+                                  </div>
+                                )}
+                                {quote.aiMatchSummary.extra > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                    <span className="text-gray-600">Extra:</span>
+                                    <span className="font-semibold text-blue-700">{quote.aiMatchSummary.extra}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-1.5 ml-auto">
+                                  <span className="text-gray-500">of {quote.aiMatchSummary.totalRequested} requested</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
+
+                          {/* Discrepancy Details */}
+                          {quote.hasMismatches && quote.mismatches.length > 0 && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-red-900">Discrepancies Detected - Review Required</p>
+                                  <div className="mt-2 space-y-2">
+                                    {quote.mismatches.map((mismatch, idx) => (
+                                      <div key={idx} className={`text-sm p-2 rounded ${
+                                        mismatch.severity === 'error'
+                                          ? 'bg-red-100 border-l-2 border-red-500'
+                                          : 'bg-amber-100 border-l-2 border-amber-500'
+                                      }`}>
+                                        <div className="flex items-center gap-2">
+                                          {mismatch.type === 'missing' && <span className="text-red-700 text-xs font-medium px-1.5 py-0.5 bg-red-200 rounded">MISSING</span>}
+                                          {mismatch.type === 'extra' && <span className="text-blue-700 text-xs font-medium px-1.5 py-0.5 bg-blue-200 rounded">EXTRA</span>}
+                                          {mismatch.type === 'quantity' && <span className="text-amber-700 text-xs font-medium px-1.5 py-0.5 bg-amber-200 rounded">QTY</span>}
+                                          {mismatch.type === 'total' && <span className="text-red-700 text-xs font-medium px-1.5 py-0.5 bg-red-200 rounded">TOTAL</span>}
+                                          {mismatch.type === 'price' && <span className="text-orange-700 text-xs font-medium px-1.5 py-0.5 bg-orange-200 rounded">PRICE</span>}
+                                          <span className="font-medium text-gray-900">{mismatch.itemName}</span>
+                                        </div>
+                                        <ul className="list-disc list-inside ml-2 mt-1 text-gray-700">
+                                          {mismatch.reasons.map((reason, rIdx) => (
+                                            <li key={rIdx}>{reason}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-red-700 mt-3 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Resolve discrepancies before approving. Edit items or request revision from supplier.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1064,31 +1140,86 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                 </div>
               )}
 
-              {/* Discrepancies / Mismatches */}
-              {selectedQuote.hasMismatches && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <p className="text-sm font-semibold text-red-900">Discrepancies Detected - Must Resolve Before Approval</p>
-                  </div>
-                  <div className="space-y-3">
-                    {selectedQuote.mismatches.map((mismatch, idx) => (
-                      <div key={idx} className="bg-white p-3 rounded border border-red-100">
-                        <p className="font-medium text-gray-900 mb-2">{mismatch.itemName}</p>
-                        <ul className="space-y-1.5">
-                          {mismatch.reasons.map((reason, rIdx) => (
-                            <li key={rIdx} className="text-sm text-red-700 flex items-start gap-2">
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                              {reason}
-                            </li>
-                          ))}
-                        </ul>
+              {/* AI Match Summary & Discrepancies */}
+              {(selectedQuote.hasMismatches || selectedQuote.aiMatchSummary) && (
+                <div className="space-y-3">
+                  {/* AI Match Summary */}
+                  {selectedQuote.aiMatchSummary && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs font-medium text-gray-600 mb-2">AI Quote Analysis Summary</p>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                          <span className="text-gray-600">Matched:</span>
+                          <span className="font-bold text-gray-900">{selectedQuote.aiMatchSummary.matched}</span>
+                        </div>
+                        {selectedQuote.aiMatchSummary.partial > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-amber-500" />
+                            <span className="text-gray-600">Partial:</span>
+                            <span className="font-bold text-amber-700">{selectedQuote.aiMatchSummary.partial}</span>
+                          </div>
+                        )}
+                        {selectedQuote.aiMatchSummary.missing > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500" />
+                            <span className="text-gray-600">Missing:</span>
+                            <span className="font-bold text-red-700">{selectedQuote.aiMatchSummary.missing}</span>
+                          </div>
+                        )}
+                        {selectedQuote.aiMatchSummary.extra > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500" />
+                            <span className="text-gray-600">Extra:</span>
+                            <span className="font-bold text-blue-700">{selectedQuote.aiMatchSummary.extra}</span>
+                          </div>
+                        )}
+                        <div className="ml-auto text-gray-500">
+                          of {selectedQuote.aiMatchSummary.totalRequested} items requested
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-red-600 mt-3">
-                    Edit the quote above to resolve discrepancies, or request a revision from the supplier.
-                  </p>
+                    </div>
+                  )}
+
+                  {/* Discrepancy Details */}
+                  {selectedQuote.hasMismatches && selectedQuote.mismatches.length > 0 && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                        <p className="text-sm font-semibold text-red-900">Discrepancies Detected - Must Resolve Before Approval</p>
+                      </div>
+                      <div className="space-y-3">
+                        {selectedQuote.mismatches.map((mismatch, idx) => (
+                          <div key={idx} className={`bg-white p-3 rounded border ${
+                            mismatch.severity === 'error' ? 'border-red-200 border-l-4 border-l-red-500' : 'border-amber-200 border-l-4 border-l-amber-500'
+                          }`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              {mismatch.type === 'missing' && <span className="text-red-700 text-xs font-bold px-2 py-0.5 bg-red-100 rounded">MISSING</span>}
+                              {mismatch.type === 'extra' && <span className="text-blue-700 text-xs font-bold px-2 py-0.5 bg-blue-100 rounded">EXTRA</span>}
+                              {mismatch.type === 'quantity' && <span className="text-amber-700 text-xs font-bold px-2 py-0.5 bg-amber-100 rounded">QTY MISMATCH</span>}
+                              {mismatch.type === 'total' && <span className="text-red-700 text-xs font-bold px-2 py-0.5 bg-red-100 rounded">TOTAL MISMATCH</span>}
+                              {mismatch.type === 'price' && <span className="text-orange-700 text-xs font-bold px-2 py-0.5 bg-orange-100 rounded">PRICE</span>}
+                              <p className="font-medium text-gray-900">{mismatch.itemName}</p>
+                            </div>
+                            <ul className="space-y-1.5 ml-2">
+                              {mismatch.reasons.map((reason, rIdx) => (
+                                <li key={rIdx} className="text-sm text-gray-700 flex items-start gap-2">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                                    mismatch.severity === 'error' ? 'bg-red-500' : 'bg-amber-500'
+                                  }`} />
+                                  {reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-red-600 mt-3 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Edit the quote to resolve discrepancies, or request a revision from the supplier.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1153,9 +1284,11 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         onSuccess={() => {
           setInvoiceDialogOpen(false)
           setSelectedQuoteForInvoice(null)
+          setSelectedQuoteData(null)
           toast.success('Invoice created successfully')
         }}
         preselectedQuoteIds={selectedQuoteForInvoice ? [selectedQuoteForInvoice] : undefined}
+        preselectedQuoteData={selectedQuoteData || undefined}
         source="quotes"
       />
     </div>

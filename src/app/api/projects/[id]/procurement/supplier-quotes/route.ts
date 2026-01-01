@@ -125,6 +125,17 @@ export async function GET(
               }
             }
           }
+        },
+        // Include access logs for AI match data
+        accessLogs: {
+          where: { action: 'AI_MATCH' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            metadata: true,
+            createdAt: true
+          }
         }
       }
     })
@@ -213,6 +224,83 @@ export async function GET(
           leadTimeDisplay = `${maxLeadTimeWeeks} week${maxLeadTimeWeeks > 1 ? 's' : ''}`
         }
 
+        // Get AI match data from access logs
+        const aiMatchLog = sRFQ.accessLogs?.[0]
+        const aiMatchData = aiMatchLog?.metadata as {
+          matched?: number
+          partial?: number
+          missing?: number
+          extra?: number
+          totalRequested?: number
+          quantityDiscrepancies?: number
+          totalDiscrepancy?: boolean
+          quoteTotal?: number
+          calculatedTotal?: number
+          hasShippingFee?: boolean
+          shippingFee?: number
+          discrepancyMessages?: string[]
+          itemDiscrepancies?: Array<{
+            itemName: string
+            type: string
+            requested?: number
+            quoted?: number
+            details: string
+          }>
+        } | null
+
+        // Combine local mismatches with AI-detected issues
+        const aiMismatches: any[] = []
+        if (aiMatchData) {
+          // Add missing items from AI
+          if (aiMatchData.missing && aiMatchData.missing > 0) {
+            aiMismatches.push({
+              itemName: `${aiMatchData.missing} Missing Item${aiMatchData.missing > 1 ? 's' : ''}`,
+              reasons: ['Items we requested but not found in the quote'],
+              type: 'missing',
+              severity: 'error'
+            })
+          }
+
+          // Add extra items from AI
+          if (aiMatchData.extra && aiMatchData.extra > 0) {
+            aiMismatches.push({
+              itemName: `${aiMatchData.extra} Extra Item${aiMatchData.extra > 1 ? 's' : ''}`,
+              reasons: ['Items in the quote we did not request'],
+              type: 'extra',
+              severity: 'warning'
+            })
+          }
+
+          // Add quantity discrepancies with details
+          if (aiMatchData.itemDiscrepancies && aiMatchData.itemDiscrepancies.length > 0) {
+            for (const disc of aiMatchData.itemDiscrepancies) {
+              if (disc.type === 'quantity') {
+                aiMismatches.push({
+                  itemName: disc.itemName,
+                  reasons: [`Quantity mismatch: requested ${disc.requested}, quoted ${disc.quoted}`],
+                  type: 'quantity',
+                  severity: 'warning'
+                })
+              }
+            }
+          }
+
+          // Add total discrepancy
+          if (aiMatchData.totalDiscrepancy) {
+            const diff = Math.abs((aiMatchData.quoteTotal || 0) - (aiMatchData.calculatedTotal || 0))
+            aiMismatches.push({
+              itemName: 'Quote Total',
+              reasons: [`Total mismatch of $${diff.toFixed(2)} - quote total doesn't match line item sum`],
+              type: 'total',
+              severity: 'error'
+            })
+          }
+        }
+
+        // Combine all mismatches (prefer AI if available)
+        const allMismatches = aiMismatches.length > 0 ? aiMismatches : mismatches
+        const hasAnyMismatches = allMismatches.length > 0 || mismatches.length > 0
+
         transformedQuotes.push({
           id: quote.id,
           supplierRFQId: quote.supplierRFQId,
@@ -268,9 +356,20 @@ export async function GET(
           lineItems: lineItemDetails,
           lineItemsCount: lineItemDetails.length,
 
-          // Mismatch summary
-          hasMismatches: mismatches.length > 0,
-          mismatches
+          // Mismatch summary (combined local + AI)
+          hasMismatches: hasAnyMismatches,
+          mismatches: allMismatches,
+
+          // AI match summary data
+          aiMatchSummary: aiMatchData ? {
+            matched: aiMatchData.matched || 0,
+            partial: aiMatchData.partial || 0,
+            missing: aiMatchData.missing || 0,
+            extra: aiMatchData.extra || 0,
+            totalRequested: aiMatchData.totalRequested || 0,
+            quantityDiscrepancies: aiMatchData.quantityDiscrepancies || 0,
+            totalDiscrepancy: aiMatchData.totalDiscrepancy || false
+          } : null
         })
       }
     }
@@ -495,7 +594,7 @@ export async function PATCH(
           await prisma.itemActivity.create({
             data: {
               itemId: roomFFEItemId,
-              type: 'QUOTE_APPROVED',
+              type: 'PRICE_UPDATED',
               title: 'Quote Approved',
               description: `Quote from ${supplierName} approved: Trade $${tradePrice.toLocaleString()}, RRP $${rrp.toLocaleString()} (+${supplierMarkup}% markup)`,
               actorName: (session.user as any).name || 'Team Member',

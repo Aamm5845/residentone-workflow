@@ -41,62 +41,10 @@ export default async function ProjectProcurement({ params, searchParams }: Props
     redirect('/projects')
   }
 
-  // Fetch procurement stats for the status strip
-  const [
-    pendingQuotes,
-    unpaidInvoices,
-    overdueOrders,
-    upcomingDeliveries
-  ] = await Promise.all([
-    // Count supplier quotes pending review
-    prisma.supplierQuote.count({
-      where: {
-        supplierRFQ: {
-          rfq: { projectId: id }
-        },
-        status: 'SUBMITTED'
-      }
-    }),
-    // Count unpaid client invoices
-    prisma.clientQuote.count({
-      where: {
-        projectId: id,
-        status: 'SENT_TO_CLIENT'
-      }
-    }),
-    // Count overdue orders (expected delivery in past, not delivered)
-    prisma.order.count({
-      where: {
-        projectId: id,
-        expectedDelivery: { lt: new Date() },
-        status: { notIn: ['DELIVERED', 'COMPLETED', 'CANCELLED'] }
-      }
-    }),
-    // Count deliveries expected this week
-    prisma.order.count({
-      where: {
-        projectId: id,
-        expectedDelivery: {
-          gte: new Date(),
-          lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        },
-        status: { notIn: ['DELIVERED', 'COMPLETED', 'CANCELLED'] }
-      }
-    })
-  ])
-
-  const stats = {
-    pendingQuotes,
-    unpaidInvoices,
-    overdueOrders,
-    upcomingDeliveries
-  }
-
   return (
     <DashboardLayout session={session}>
       <ProcurementContent
         project={project}
-        stats={stats}
         initialTab={tab || 'inbox'}
       />
     </DashboardLayout>

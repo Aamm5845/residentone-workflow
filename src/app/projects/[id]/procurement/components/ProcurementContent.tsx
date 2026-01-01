@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProcurementHeader from './ProcurementHeader'
-import StatusSummaryStrip from './StatusSummaryStrip'
 import ProcurementTabs from './ProcurementTabs'
 import InboxTab from './InboxTab'
 import RFQsTab from './RFQsTab'
@@ -22,28 +21,20 @@ interface Project {
   } | null
 }
 
-interface Stats {
-  pendingQuotes: number
-  unpaidInvoices: number
-  overdueOrders: number
-  upcomingDeliveries: number
-}
-
 interface ProcurementContentProps {
   project: Project
-  stats: Stats
   initialTab: string
 }
 
 export default function ProcurementContent({
   project,
-  stats,
   initialTab
 }: ProcurementContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(initialTab)
   const [searchQuery, setSearchQuery] = useState('')
+  const [inboxCount, setInboxCount] = useState(0)
 
   // Dialog states
   const [showCreateInvoice, setShowCreateInvoice] = useState(false)
@@ -53,6 +44,22 @@ export default function ProcurementContent({
 
   // Selected quote ID for navigation from RFQs/Inbox to Supplier Quotes
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+
+  // Fetch inbox count dynamically
+  useEffect(() => {
+    const fetchInboxCount = async () => {
+      try {
+        const res = await fetch(`/api/projects/${project.id}/procurement/inbox`)
+        if (res.ok) {
+          const data = await res.json()
+          setInboxCount(data.items?.length || 0)
+        }
+      } catch (error) {
+        console.error('Error fetching inbox count:', error)
+      }
+    }
+    fetchInboxCount()
+  }, [project.id, refreshKey])
 
   // Handle tab change with URL sync
   const handleTabChange = (tab: string) => {
@@ -66,9 +73,6 @@ export default function ProcurementContent({
   const handleSearch = (query: string) => {
     setSearchQuery(query)
   }
-
-  // Calculate inbox count for badge
-  const inboxCount = stats.pendingQuotes + stats.unpaidInvoices + stats.overdueOrders
 
   // Handle Invoice creation success
   const handleInvoiceSuccess = useCallback(() => {
@@ -90,12 +94,6 @@ export default function ProcurementContent({
         project={project}
         onSearch={handleSearch}
         onNewInvoice={() => setShowCreateInvoice(true)}
-      />
-
-      {/* Status Summary Strip */}
-      <StatusSummaryStrip
-        stats={stats}
-        onIndicatorClick={handleTabChange}
       />
 
       {/* Tab Navigation */}

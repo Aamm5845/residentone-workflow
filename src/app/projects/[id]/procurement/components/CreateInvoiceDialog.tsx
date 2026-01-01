@@ -35,6 +35,10 @@ interface CreateInvoiceDialogProps {
   onSuccess: () => void
   preselectedItemIds?: string[]
   preselectedQuoteIds?: string[]
+  preselectedQuoteData?: {
+    supplierName: string
+    quoteNumber: string
+  }
   source?: 'specs' | 'quotes'
 }
 
@@ -93,6 +97,7 @@ export default function CreateInvoiceDialog({
   onSuccess,
   preselectedItemIds,
   preselectedQuoteIds,
+  preselectedQuoteData,
   source = 'specs'
 }: CreateInvoiceDialogProps) {
   const [step, setStep] = useState(1)
@@ -131,7 +136,7 @@ export default function CreateInvoiceDialog({
     }
   }, [open, projectId])
 
-  // Pre-select items/quotes
+  // Pre-select items/quotes and auto-fill title
   useEffect(() => {
     if (preselectedItemIds?.length) {
       setSelectedItemIds(new Set(preselectedItemIds))
@@ -140,8 +145,12 @@ export default function CreateInvoiceDialog({
     if (preselectedQuoteIds?.length) {
       setSelectedQuoteIds(new Set(preselectedQuoteIds))
       setActiveSource('quotes')
+      // Auto-fill title from quote data
+      if (preselectedQuoteData) {
+        setTitle(`Invoice - ${preselectedQuoteData.supplierName}`)
+      }
     }
-  }, [preselectedItemIds, preselectedQuoteIds])
+  }, [preselectedItemIds, preselectedQuoteIds, preselectedQuoteData])
 
   const loadData = async () => {
     setLoading(true)
@@ -277,11 +286,13 @@ export default function CreateInvoiceDialog({
   // Calculate totals
   const totals = useMemo(() => {
     const lineItems = buildLineItems()
+    const supplierCost = lineItems.reduce((sum, item) => sum + (item.supplierTotalPrice || 0), 0)
     const subtotal = lineItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
+    const markup = subtotal - supplierCost
     const gst = subtotal * 0.05
     const qst = subtotal * 0.09975
     const total = subtotal + gst + qst
-    return { subtotal, gst, qst, total, itemCount: lineItems.length }
+    return { supplierCost, subtotal, markup, gst, qst, total, itemCount: lineItems.length }
   }, [selectedItemIds, selectedQuoteIds, activeSource, defaultMarkup])
 
   const toggleCategory = (category: string) => {
@@ -346,31 +357,38 @@ export default function CreateInvoiceDialog({
       return
     }
 
-    // Check for items without valid roomFFEItemId
-    const invalidItems = lineItems.filter(li => !li.roomFFEItemId)
-    if (invalidItems.length > 0 && activeSource === 'quotes') {
-      // For quotes, we need to handle items that don't have linked spec items
-      toast.error('Some quote items are not linked to spec items. Please link them first.')
-      return
-    }
-
     setSaving(true)
     try {
-      const res = await fetch(`/api/projects/${projectId}/procurement/client-invoices`, {
+      // Use the same API as All Specs (/api/client-quotes)
+      const res = await fetch('/api/client-quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          projectId,
           title,
-          description,
-          validUntil,
-          paymentTerms,
-          clientName,
-          clientEmail,
-          lineItems,
-          sourceType: activeSource,
-          sourceIds: activeSource === 'specs'
-            ? Array.from(selectedItemIds)
-            : Array.from(selectedQuoteIds)
+          description: description || null,
+          defaultMarkupPercent: defaultMarkup,
+          validUntil: validUntil || null,
+          paymentTerms: paymentTerms || null,
+          groupingType: 'category',
+          // Bill To information
+          clientName: clientName || null,
+          clientEmail: clientEmail || null,
+          // Map line items to the format expected by the API
+          lineItems: lineItems.map((item, index) => ({
+            roomFFEItemId: item.roomFFEItemId || null,
+            groupId: item.categoryName || 'From Supplier Quote',
+            itemName: item.displayName,
+            itemDescription: item.displayDescription || null,
+            quantity: item.quantity,
+            unitType: item.unitType,
+            costPrice: item.supplierUnitPrice || 0,
+            markupPercent: defaultMarkup,
+            sellingPrice: item.clientUnitPrice,
+            totalCost: item.supplierTotalPrice || 0,
+            totalPrice: item.clientTotalPrice,
+            order: index
+          }))
         })
       })
 
@@ -380,7 +398,7 @@ export default function CreateInvoiceDialog({
       }
 
       const data = await res.json()
-      toast.success(`Invoice ${data.invoice.invoiceNumber} created`)
+      toast.success(`Invoice ${data.quote?.quoteNumber || 'created'} successfully`)
       onSuccess()
       resetForm()
     } catch (error: any) {
@@ -568,7 +586,28 @@ export default function CreateInvoiceDialog({
               </TabsContent>
 
               <TabsContent value="quotes" className="mt-0">
-                <ScrollArea className="h-[400px] border rounded-lg">
+                {/* Markup Input - Prominent when using quotes */}
+                <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-amber-900">Markup Percentage</p>
+                      <p className="text-xs text-amber-700">Applied to supplier prices to calculate client price</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={defaultMarkup}
+                        onChange={(e) => setDefaultMarkup(parseFloat(e.target.value) || 0)}
+                        className="w-20 h-9 text-center bg-white"
+                        min={0}
+                        max={200}
+                      />
+                      <span className="text-amber-800 font-medium">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[350px] border rounded-lg">
                   <div className="p-2 space-y-2">
                     {approvedQuotes.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
@@ -625,8 +664,20 @@ export default function CreateInvoiceDialog({
                   <span className="text-gray-600">Selected Items</span>
                   <span className="font-medium">{totals.itemCount}</span>
                 </div>
+                {activeSource === 'quotes' && totals.supplierCost > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm mt-1 text-gray-500">
+                      <span>Supplier Cost</span>
+                      <span>{formatCurrency(totals.supplierCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-emerald-600">
+                      <span>Your Markup (+{defaultMarkup}%)</span>
+                      <span>+{formatCurrency(totals.markup)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between text-sm mt-1">
-                  <span className="text-gray-600">Subtotal</span>
+                  <span className="text-gray-600">Client Subtotal</span>
                   <span>{formatCurrency(totals.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -634,7 +685,7 @@ export default function CreateInvoiceDialog({
                   <span>{formatCurrency(totals.gst + totals.qst)}</span>
                 </div>
                 <div className="flex justify-between font-medium mt-2 pt-2 border-t">
-                  <span>Total</span>
+                  <span>Client Total</span>
                   <span>{formatCurrency(totals.total)}</span>
                 </div>
               </div>
