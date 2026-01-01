@@ -60,6 +60,7 @@ interface SpecDetails {
 
 interface LineItem {
   id: string
+  roomFFEItemId?: string | null
   displayName: string
   displayDescription?: string
   quantity: number
@@ -387,7 +388,7 @@ export default function ClientInvoicePage() {
                             {expandedItem === item.id && item.specDetails && (
                               <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs space-y-1.5">
                                 {item.specDetails.manufacturer && (
-                                  <p><span className="text-gray-400">Manufacturer:</span> <span className="text-gray-700">{item.specDetails.manufacturer}</span></p>
+                                  <p><span className="text-gray-400">Brand:</span> <span className="text-gray-700">{item.specDetails.manufacturer}</span></p>
                                 )}
                                 {item.specDetails.model && (
                                   <p><span className="text-gray-400">Model:</span> <span className="text-gray-700">{item.specDetails.model}</span></p>
@@ -406,6 +407,19 @@ export default function ClientInvoicePage() {
                                     {item.specDetails.allImages.slice(0, 4).map((img, idx) => (
                                       <img key={idx} src={img} alt="" className="w-12 h-12 rounded object-cover" />
                                     ))}
+                                  </div>
+                                )}
+                                {item.roomFFEItemId && (
+                                  <div className="pt-2 border-t border-gray-200 mt-2">
+                                    <a
+                                      href={`/specs/items/${item.roomFFEItemId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                                    >
+                                      View full item details
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
                                   </div>
                                 )}
                               </div>
@@ -511,7 +525,9 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <Building className="w-5 h-5 text-gray-400" />
+                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                      <Building className="w-5 h-5 text-white" />
+                    </div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Wire Transfer / Direct Deposit</p>
                       <p className="text-xs text-gray-500">No processing fee</p>
@@ -592,7 +608,9 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <Banknote className="w-5 h-5 text-gray-400" />
+                    <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                      <Banknote className="w-5 h-5 text-white" />
+                    </div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Check</p>
                       <p className="text-xs text-gray-500">No processing fee</p>

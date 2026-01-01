@@ -136,6 +136,7 @@ export async function GET(
 
         return {
           id: item.id,
+          roomFFEItemId: item.roomFFEItem?.id || null,
           displayName: item.displayName,
           displayDescription: item.displayDescription,
           quantity: item.quantity,
