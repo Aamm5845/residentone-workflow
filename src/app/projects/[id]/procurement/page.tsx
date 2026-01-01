@@ -4,9 +4,11 @@ import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import ProcurementContent from './components/ProcurementContent'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
-  params: { id: string }
-  searchParams: { tab?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
 export default async function ProjectProcurement({ params, searchParams }: Props) {
