@@ -57,7 +57,8 @@ export async function POST(
                 businessName: true,
                 businessEmail: true,
                 businessPhone: true,
-                logoUrl: true
+                logoUrl: true,
+                etransferEmail: true
               }
             }
           }
@@ -182,10 +183,24 @@ export async function POST(
                 </table>
               </div>
 
+              <!-- Payment Options -->
+              ${invoice.project.organization?.etransferEmail ? `
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                <p style="font-weight: 600; color: #166534; margin: 0 0 8px 0; font-size: 14px;">Pay by Interac e-Transfer (No Fee)</p>
+                <p style="color: #15803d; margin: 0; font-size: 14px;">
+                  Send <strong>$${Number(invoice.totalAmount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</strong> to:
+                  <strong>${invoice.project.organization.etransferEmail}</strong>
+                </p>
+                <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0 0;">
+                  Use invoice number <strong>${invoice.quoteNumber}</strong> as message/memo
+                </p>
+              </div>
+              ` : ''}
+
               <!-- CTA Button -->
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${invoiceLink}" style="display: inline-block; background: #1a1a1a; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 500;">
-                  View Invoice & Pay
+                  View Invoice & Pay Online
                 </a>
               </div>
 
