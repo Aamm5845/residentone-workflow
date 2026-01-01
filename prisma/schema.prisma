@@ -2500,36 +2500,43 @@ enum FFEStatus {
 }
 
 enum FFESpecStatus {
-  // Current statuses
+  // Main workflow statuses
   DRAFT
   HIDDEN
   OPTION
-  SELECTED
+  SELECTED           // Item selected for project
+  RFQ_SENT           // RFQ sent to supplier(s)
+  QUOTE_RECEIVED     // Quote received from supplier
+  QUOTE_APPROVED     // Quote approved, ready for invoicing
+  INVOICED_TO_CLIENT // Invoice sent to client
+  CLIENT_PAID        // Client paid (or deposit paid)
+  ORDERED            // Ordered from supplier
+  SHIPPED            // Shipped from supplier
+  RECEIVED           // Received at warehouse/site
+  DELIVERED          // Delivered to client
+  INSTALLED          // Installed at location
+  CLOSED             // Completed/Closed
+  // Additional statuses
   NEED_SAMPLE
-  QUOTING
-  PRICE_RECEIVED
   BETTER_PRICE
   ISSUE
   NEED_TO_ORDER
   CLIENT_TO_ORDER
-  ORDERED
   IN_PRODUCTION
   COMPLETED
   // Legacy statuses (kept for backward compatibility)
+  QUOTING            // Legacy: now RFQ_SENT
+  PRICE_RECEIVED     // Legacy: now QUOTE_RECEIVED
   INTERNAL_REVIEW
   CLIENT_REVIEW
   RESUBMIT
-  CLOSED
   REJECTED
   APPROVED
   PAYMENT_DUE
   IN_TRANSIT
-  INSTALLED
-  DELIVERED
   NEEDS_SPEC
   SPEC_ADDED
   QUOTED
-  SHIPPED
 }
 
 enum ProductLibraryStatus {

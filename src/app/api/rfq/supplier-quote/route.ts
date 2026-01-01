@@ -429,10 +429,10 @@ export async function POST(request: NextRequest) {
             })
           }
 
-          // Update item status to QUOTING
+          // Update item status to RFQ_SENT
           await prisma.roomFFEItem.update({
             where: { id: item.id },
-            data: { specStatus: 'QUOTING' }
+            data: { specStatus: 'RFQ_SENT' }
           })
         }
 

@@ -96,10 +96,10 @@ export async function GET(
       whereClause.id = { in: itemIds }
     } else {
       // Fetch items that are in a state ready for quoting
-      // Include: SELECTED, QUOTING, NEED_SAMPLE, BETTER_PRICE, NEED_TO_ORDER, or isSpecItem
+      // Include: SELECTED, RFQ_SENT (new), QUOTING (legacy), NEED_SAMPLE, BETTER_PRICE, NEED_TO_ORDER, or isSpecItem
       whereClause.OR = [
         { isSpecItem: true },
-        { specStatus: { in: ['SELECTED', 'QUOTING', 'NEED_SAMPLE', 'BETTER_PRICE', 'NEED_TO_ORDER'] } },
+        { specStatus: { in: ['SELECTED', 'RFQ_SENT', 'QUOTING', 'NEED_SAMPLE', 'BETTER_PRICE', 'NEED_TO_ORDER'] } },
         { state: { in: ['SELECTED', 'CONFIRMED'] } }
       ]
     }

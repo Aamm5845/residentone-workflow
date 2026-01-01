@@ -256,7 +256,7 @@ export async function POST(
       if (roomFFEItemIds.length > 0) {
         await prisma.roomFFEItem.updateMany({
           where: { id: { in: roomFFEItemIds } },
-          data: { specStatus: 'QUOTING' }
+          data: { specStatus: 'RFQ_SENT' }
         })
       }
     }

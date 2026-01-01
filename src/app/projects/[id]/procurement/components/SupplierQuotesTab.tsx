@@ -42,8 +42,10 @@ import {
   Edit3,
   Save,
   Trash2,
-  ArrowUpDown
+  ArrowUpDown,
+  Receipt
 } from 'lucide-react'
+import CreateInvoiceDialog from './CreateInvoiceDialog'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -162,6 +164,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const [sortBy, setSortBy] = useState<'date' | 'supplier' | 'status' | 'amount'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null)
+
+  // Invoice dialog state
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [selectedQuoteForInvoice, setSelectedQuoteForInvoice] = useState<string | null>(null)
 
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
@@ -371,8 +377,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
     setReviewDialogOpen(true)
   }
 
-  const handleAction = async (action: 'approve' | 'decline' | 'request_revision') => {
-    if (!selectedQuote) return
+  const handleAction = async (action: 'approve' | 'decline' | 'request_revision', quote?: SupplierQuote) => {
+    const targetQuote = quote || selectedQuote
+    if (!targetQuote) return
 
     setActionLoading(true)
     try {
@@ -380,7 +387,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quoteId: selectedQuote.id,
+          quoteId: targetQuote.id,
           action,
           internalNotes: internalNotes.trim() || undefined
         })
@@ -655,7 +662,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            onClick={() => { setSelectedQuote(quote); setReviewAction('approve'); handleAction('approve') }}
+                            onClick={() => handleAction('approve', quote)}
+                            disabled={actionLoading}
                           >
                             <Check className="w-3.5 h-3.5" />
                           </Button>
@@ -663,11 +671,27 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
-                            onClick={() => { setSelectedQuote(quote); setReviewAction('decline'); handleAction('decline') }}
+                            onClick={() => handleAction('decline', quote)}
+                            disabled={actionLoading}
                           >
                             <X className="w-3.5 h-3.5" />
                           </Button>
                         </>
+                      )}
+                      {quote.status === 'ACCEPTED' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => {
+                            setSelectedQuoteForInvoice(quote.id)
+                            setInvoiceDialogOpen(true)
+                          }}
+                          title="Create Client Invoice"
+                        >
+                          <Receipt className="w-3.5 h-3.5 mr-1" />
+                          <span className="text-xs">Invoice</span>
+                        </Button>
                       )}
                       {quote.status === 'REJECTED' && (
                         <Button
@@ -998,7 +1022,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => { setSelectedQuote(quote); handleAction('decline') }}
+                              onClick={() => handleAction('decline', quote)}
                               disabled={actionLoading}
                             >
                               <X className="w-4 h-4 mr-1.5" />
@@ -1007,7 +1031,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             <Button
                               size="sm"
                               className="bg-emerald-600 hover:bg-emerald-700"
-                              onClick={() => { setSelectedQuote(quote); handleAction('approve') }}
+                              onClick={() => handleAction('approve', quote)}
                               disabled={actionLoading}
                             >
                               <Check className="w-4 h-4 mr-1.5" />
@@ -1143,6 +1167,20 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Invoice Dialog */}
+      <CreateInvoiceDialog
+        open={invoiceDialogOpen}
+        onOpenChange={setInvoiceDialogOpen}
+        projectId={projectId}
+        onSuccess={() => {
+          setInvoiceDialogOpen(false)
+          setSelectedQuoteForInvoice(null)
+          toast.success('Invoice created successfully')
+        }}
+        preselectedQuoteIds={selectedQuoteForInvoice ? [selectedQuoteForInvoice] : undefined}
+        source="quotes"
+      />
     </div>
   )
 }

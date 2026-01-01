@@ -564,17 +564,32 @@ export async function PATCH(
       if (specStatus !== undefined && specStatus !== existingItem.specStatus) {
         const statusLabels: Record<string, string> = {
           'DRAFT': 'Draft',
+          'HIDDEN': 'Hidden',
+          'OPTION': 'Option',
           'SELECTED': 'Selected',
-          'QUOTING': 'Quoting',
-          'PRICE_RECEIVED': 'Price Received',
-          'NEED_TO_ORDER': 'Need to Order',
-          'CLIENT_TO_ORDER': 'Client to Order',
-          'ORDERED': 'Ordered',
-          'IN_TRANSIT': 'In Transit',
+          'RFQ_SENT': 'RFQ Sent',
+          'QUOTE_RECEIVED': 'Quote Received',
+          'QUOTE_APPROVED': 'Quote Approved',
+          'INVOICED_TO_CLIENT': 'Invoiced to Client',
+          'CLIENT_PAID': 'Client Paid',
+          'ORDERED': 'Ordered from Supplier',
+          'SHIPPED': 'Shipped',
+          'RECEIVED': 'Received',
           'DELIVERED': 'Delivered',
           'INSTALLED': 'Installed',
+          'CLOSED': 'Closed',
+          // Additional statuses
+          'NEED_SAMPLE': 'Need Sample',
+          'BETTER_PRICE': 'Better Price Needed',
           'ISSUE': 'Issue',
-          'BETTER_PRICE': 'Better Price Needed'
+          // Legacy statuses
+          'QUOTING': 'RFQ Sent',
+          'PRICE_RECEIVED': 'Quote Received',
+          'NEED_TO_ORDER': 'Need to Order',
+          'CLIENT_TO_ORDER': 'Client to Order',
+          'IN_TRANSIT': 'In Transit',
+          'IN_PRODUCTION': 'In Production',
+          'COMPLETED': 'Completed'
         }
 
         const newStatusLabel = statusLabels[specStatus] || specStatus

@@ -552,12 +552,12 @@ export async function POST(
           // Get the lead time from the line item or from the global leadTime
           const itemLeadTime = quoteLineItem.leadTime || leadTime || null
 
-          // Update status to PRICE_RECEIVED but DON'T fill trade price yet
+          // Update status to QUOTE_RECEIVED but DON'T fill trade price yet
           // Trade price will be filled when quote is APPROVED in the procurement section
           await prisma.roomFFEItem.update({
             where: { id: roomFFEItemId },
             data: {
-              specStatus: 'PRICE_RECEIVED',
+              specStatus: 'QUOTE_RECEIVED',
               // Note: tradePrice is NOT set here - only set when quote is approved
             }
           })

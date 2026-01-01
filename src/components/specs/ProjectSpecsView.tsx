@@ -112,24 +112,38 @@ import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 
 // Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
+  // Pre-selection statuses
   { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
   { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
   { value: 'OPTION', label: 'Option', icon: Circle, color: 'text-purple-400', requiresApproval: false },
+  // Main workflow statuses
   { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
+  { value: 'RFQ_SENT', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'QUOTE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
+  { value: 'QUOTE_APPROVED', label: 'Quote Approved', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
+  { value: 'INVOICED_TO_CLIENT', label: 'Invoiced to Client', icon: CreditCard, color: 'text-blue-500', requiresApproval: false },
+  { value: 'CLIENT_PAID', label: 'Client Paid', icon: CreditCard, color: 'text-emerald-600', requiresApproval: false },
+  { value: 'ORDERED', label: 'Ordered from Supplier', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
+  { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
+  { value: 'RECEIVED', label: 'Received', icon: Package, color: 'text-cyan-600', requiresApproval: true },
+  { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-teal-600', requiresApproval: true },
+  { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
+  { value: 'CLOSED', label: 'Closed', icon: CheckCheck, color: 'text-gray-600', requiresApproval: true },
+  // Additional statuses
   { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
-  { value: 'QUOTING', label: 'Quoting', icon: Clock, color: 'text-amber-500', requiresApproval: false },
-  { value: 'PRICE_RECEIVED', label: 'Price Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
   { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
+  // Legacy statuses (for backward compatibility)
+  { value: 'QUOTING', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'PRICE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
   { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },
   { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
-  { value: 'ORDERED', label: 'Ordered', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
   { value: 'IN_PRODUCTION', label: 'In Production', icon: Factory, color: 'text-cyan-600', requiresApproval: true },
   { value: 'COMPLETED', label: 'Completed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
 ]
 
 // Statuses that require client approval to select
-const APPROVAL_REQUIRED_STATUSES = ['CLIENT_TO_ORDER', 'ORDERED', 'IN_PRODUCTION', 'COMPLETED']
+const APPROVAL_REQUIRED_STATUSES = ['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED', 'CLIENT_TO_ORDER', 'IN_PRODUCTION', 'COMPLETED']
 
 // Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
@@ -3192,13 +3206,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {financials.totalTradePrice > 0 ? `${financials.avgTradeDiscount.toFixed(2)}%` : '-'}
                 </p>
               </div>
-              <div className="flex-1" />
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Add Markup</span>
-                <button className="w-10 h-5 bg-gray-200 rounded-full relative">
-                  <span className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow" />
-                </button>
-              </div>
             </div>
           )}
           </div>
@@ -3261,10 +3268,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.isLinkedItem && (
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
-                                        linked to {item.parentName}
-                                      </Badge>
+                                    {item.isLinkedItem && item.parentId && (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              // Scroll to parent item
+                                              const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
+                                              if (parentElement) {
+                                                parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                              }
+                                            }}
+                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
+                                            title={`Linked to: ${item.parentName}`}
+                                          >
+                                            <LinkIcon className="w-3 h-3" />
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                          <p className="text-xs text-gray-500 mb-1">Linked to:</p>
+                                          <p className="text-xs font-medium text-gray-900">{item.parentName}</p>
+                                        </PopoverContent>
+                                      </Popover>
                                     )}
                                   </div>
                                   <p className="text-xs text-gray-500">{roomName}</p>
@@ -3352,10 +3380,30 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.isLinkedItem && (
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gray-100 text-gray-500 border-gray-300">
-                                        linked to {item.parentName}
-                                      </Badge>
+                                    {item.isLinkedItem && item.parentId && (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
+                                              if (parentElement) {
+                                                parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                              }
+                                            }}
+                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
+                                            title={`Linked to: ${item.parentName}`}
+                                          >
+                                            <LinkIcon className="w-3 h-3" />
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                          <p className="text-xs text-gray-500 mb-1">Linked to:</p>
+                                          <p className="text-xs font-medium text-gray-900">{item.parentName}</p>
+                                        </PopoverContent>
+                                      </Popover>
                                     )}
                                   </div>
                                   <p className="text-xs text-gray-500">{section.sectionName}</p>
@@ -3602,16 +3650,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         {group.items.length}
                       </Badge>
                       {activeTab === 'financial' && (
-                        <span className="text-sm font-medium text-gray-700 ml-2">
+                        <span className="text-sm font-medium ml-2 flex items-center gap-3">
                           {(() => {
                             const totals = getSectionTotals(group.items)
-                            // Show trade total if available, otherwise show RRP total
-                            if (totals.tradeTotal > 0) {
-                              return formatCurrency(totals.tradeTotal)
-                            } else if (totals.rrpTotal > 0) {
-                              return <span className="text-gray-500">{formatCurrency(totals.rrpTotal)} <span className="text-[10px]">(RRP)</span></span>
-                            }
-                            return formatCurrency(0)
+                            return (
+                              <>
+                                <span className="text-gray-700">
+                                  <span className="text-[10px] text-gray-500 uppercase mr-1">Trade:</span>
+                                  {formatCurrency(totals.tradeTotal)}
+                                </span>
+                                <span className="text-gray-500">
+                                  <span className="text-[10px] uppercase mr-1">RRP:</span>
+                                  {formatCurrency(totals.rrpTotal)}
+                                </span>
+                              </>
+                            )
                           })()}
                         </span>
                       )}
@@ -3686,8 +3739,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           )}
                           
                           {/* Item Row */}
-                          <div 
+                          <div
                           id={`spec-item-${displayItem.id}`}
+                          data-item-id={displayItem.id}
                           className={cn(
                             "group/item relative flex items-center transition-colors border-l-2",
                             highlightedItemId === displayItem.id
@@ -3919,6 +3973,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     // Check for child linked to parent
                                     const isGroupedItem = ffeGrouping?.isGroupedItem || specGrouping?.isLinkedItem || specGrouping?.isGroupedItem
                                     const parentName = ffeGrouping?.parentName || specGrouping?.parentName
+                                    const parentId = specGrouping?.parentId || displayItem.customFields?.parentId
 
                                     return (
                                       <>
@@ -3952,13 +4007,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         )}
                                         {/* Child linked to parent */}
                                         {isGroupedItem && parentName && (
-                                          <span
-                                            className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[9px] font-medium border border-violet-200"
-                                            title={`Linked to: ${parentName}`}
-                                          >
-                                            <LinkIcon className="w-2.5 h-2.5" />
-                                            {parentName}
-                                          </span>
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  if (parentId) {
+                                                    const parentElement = document.querySelector(`[data-item-id="${parentId}"]`)
+                                                    if (parentElement) {
+                                                      parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                      parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                      setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                                    }
+                                                  }
+                                                }}
+                                                className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
+                                                title={`Linked to: ${parentName}`}
+                                              >
+                                                <LinkIcon className="w-3 h-3" />
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                                              <p className="text-xs text-gray-500 mb-1">Linked to:</p>
+                                              <p className="text-xs font-medium text-gray-900">{parentName}</p>
+                                            </PopoverContent>
+                                          </Popover>
                                         )}
                                       </>
                                     )
