@@ -596,20 +596,7 @@ export default function ClientInvoicePage() {
 
           {/* Footer - shown in print */}
           <div className="px-6 sm:px-8 py-4 border-t text-center text-xs text-gray-400">
-            <p className="font-medium text-gray-600">{companyName}</p>
-            <p className="mt-1">
-              {invoice.organization?.businessEmail && invoice.organization.businessEmail}
-              {invoice.organization?.businessEmail && invoice.organization?.businessPhone && ' • '}
-              {invoice.organization?.businessPhone && invoice.organization.businessPhone}
-            </p>
-            {(invoice.organization?.gstNumber || invoice.organization?.qstNumber) && (
-              <p className="mt-1">
-                {invoice.organization.gstNumber && `GST: ${invoice.organization.gstNumber}`}
-                {invoice.organization.gstNumber && invoice.organization.qstNumber && ' • '}
-                {invoice.organization.qstNumber && `QST: ${invoice.organization.qstNumber}`}
-              </p>
-            )}
-            <p className="mt-2 text-gray-300">Thank you for your business</p>
+            <p className="text-gray-500">Thank you for your business</p>
           </div>
         </div>
 
