@@ -132,7 +132,7 @@ export async function GET(
     }
 
     // 3. Get overdue orders
-    const overdueOrders = await prisma.purchaseOrder.findMany({
+    const overdueOrders = await prisma.order.findMany({
       where: {
         projectId,
         status: { notIn: ['DELIVERED', 'CANCELLED'] },
