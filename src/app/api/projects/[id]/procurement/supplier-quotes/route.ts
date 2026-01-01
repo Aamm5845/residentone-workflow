@@ -451,18 +451,35 @@ export async function PATCH(
         ? Number(quote.supplierRFQ.supplier.markupPercent)
         : 25  // Default 25% markup if not configured
 
+      console.log(`[Approve Quote] Processing ${quote.lineItems.length} line items for quote ${quote.id}`)
+
+      // Fetch all RFQ line items to get the roomFFEItemId mapping
+      // This is more reliable than relying on the nested relation
+      const rfqLineItemIds = quote.lineItems.map(li => li.rfqLineItemId).filter(Boolean)
+      const rfqLineItems = await prisma.rFQLineItem.findMany({
+        where: { id: { in: rfqLineItemIds } },
+        select: { id: true, roomFFEItemId: true }
+      })
+      const rfqLineItemMap = new Map(rfqLineItems.map(li => [li.id, li.roomFFEItemId]))
+
+      console.log(`[Approve Quote] Found ${rfqLineItems.length} RFQ line items for ${rfqLineItemIds.length} quote line items`)
+
       for (const lineItem of quote.lineItems) {
-        const roomFFEItemId = lineItem.rfqLineItem?.roomFFEItemId
+        // Get roomFFEItemId from the map (more reliable than nested relation)
+        const roomFFEItemId = rfqLineItemMap.get(lineItem.rfqLineItemId) || lineItem.rfqLineItem?.roomFFEItemId
+        console.log(`[Approve Quote] Line item ${lineItem.id}: rfqLineItemId=${lineItem.rfqLineItemId}, roomFFEItemId=${roomFFEItemId}, unitPrice=${lineItem.unitPrice}`)
+
         if (roomFFEItemId && lineItem.unitPrice) {
           const tradePrice = Number(lineItem.unitPrice)
 
           // Calculate RRP with markup: tradePrice * (1 + markupPercent/100)
           const rrp = tradePrice * (1 + supplierMarkup / 100)
 
-          // Update the RoomFFEItem with trade price, RRP, and lead time
+          // Update the RoomFFEItem with trade price, RRP, lead time, and status
           await prisma.roomFFEItem.update({
             where: { id: roomFFEItemId },
             data: {
+              specStatus: 'QUOTE_APPROVED',  // Update status to Quote Approved
               tradePrice: lineItem.unitPrice,
               tradePriceCurrency: lineItem.currency || 'CAD',
               rrp: rrp,  // RRP with markup applied
