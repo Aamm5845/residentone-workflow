@@ -20,11 +20,17 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid invoice ID' }, { status: 400 })
     }
 
-    console.log('[Client Invoice View] Fetching invoice with ID:', id)
+    console.log('[Client Invoice View] Fetching invoice with ID or token:', id)
 
     // Get the client quote - this is a public endpoint for clients
+    // The param could be either an ID or an accessToken
     const quote = await prisma.clientQuote.findFirst({
-      where: { id },
+      where: {
+        OR: [
+          { id },
+          { accessToken: id }
+        ]
+      },
       include: {
         project: {
           select: {

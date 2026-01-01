@@ -22,7 +22,7 @@ export async function POST(
     const body = await request.json()
     const { email, subject, message } = body
 
-    // Fetch invoice with org info
+    // Fetch invoice with org info and line item images
     const invoice = await prisma.clientQuote.findFirst({
       where: {
         id: invoiceId,
@@ -30,7 +30,18 @@ export async function POST(
         orgId
       },
       include: {
-        lineItems: true,
+        lineItems: {
+          include: {
+            roomFFEItem: {
+              select: {
+                images: true,
+                brand: true,
+                modelNumber: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         project: {
           select: {
             name: true,
@@ -104,6 +115,42 @@ export async function POST(
                 Please find attached your invoice for ${invoice.project.name}.
                 You can view the details and make a payment using the button below.
               </p>
+
+              <!-- Products List -->
+              <div style="margin: 24px 0;">
+                <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 16px 0;">Items in this Invoice</h3>
+                ${invoice.lineItems.slice(0, 6).map(item => {
+                  const images = item.roomFFEItem?.images as string[] | null
+                  const imageUrl = images && images.length > 0 ? images[0] : null
+                  const brand = item.roomFFEItem?.brand || ''
+                  const model = item.roomFFEItem?.modelNumber || ''
+                  const subtitle = [brand, model].filter(Boolean).join(' - ')
+
+                  return `
+                  <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee;">
+                    <div style="width: 60px; height: 60px; flex-shrink: 0; margin-right: 12px; background: #f5f5f5; border-radius: 8px; overflow: hidden;">
+                      ${imageUrl
+                        ? `<img src="${imageUrl}" alt="${item.displayName}" style="width: 100%; height: 100%; object-fit: cover;">`
+                        : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #999; font-size: 20px;">📦</div>`
+                      }
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="color: #1a1a1a; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.displayName}</div>
+                      ${subtitle ? `<div style="color: #666; font-size: 12px;">${subtitle}</div>` : ''}
+                      <div style="color: #999; font-size: 12px;">Qty: ${item.quantity}</div>
+                    </div>
+                    <div style="text-align: right; margin-left: 12px;">
+                      <div style="color: #1a1a1a; font-weight: 500;">$${Number(item.clientTotalPrice).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                  </div>
+                  `
+                }).join('')}
+                ${invoice.lineItems.length > 6 ? `
+                <p style="color: #666; font-size: 13px; text-align: center; margin-top: 12px;">
+                  + ${invoice.lineItems.length - 6} more item${invoice.lineItems.length - 6 !== 1 ? 's' : ''}
+                </p>
+                ` : ''}
+              </div>
 
               <!-- Invoice Summary -->
               <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 24px 0;">
