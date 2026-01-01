@@ -362,7 +362,11 @@ export async function POST(
       quoteDocumentUrl,
       totalAmount,
       leadTime,
-      itemLeadTimes  // Per-item lead times: { [rfqLineItemId]: 'in-stock' | '2-4-weeks' | ... }
+      itemLeadTimes,  // Per-item lead times: { [rfqLineItemId]: 'in-stock' | '2-4-weeks' | ... }
+      depositRequired,  // Deposit amount required
+      depositPercent,   // Deposit as percentage
+      taxAmount,        // Tax amount (GST + QST)
+      deliveryFee       // Shipping/delivery fee
     } = body
 
     const supplierRFQ = await prisma.supplierRFQ.findUnique({
@@ -482,6 +486,10 @@ export async function POST(
           status: 'SUBMITTED',
           subtotal: totalAmount ? null : subtotal,
           totalAmount: finalTotal,
+          shippingCost: deliveryFee || null,
+          taxAmount: taxAmount || null,
+          depositRequired: depositRequired || null,
+          depositPercent: depositPercent || null,
           validUntil: validUntil ? new Date(validUntil) : null,
           paymentTerms: paymentTerms || null,
           shippingTerms: shippingTerms || null,
@@ -673,9 +681,10 @@ async function sendSupplierQuoteNotification(data: {
     'shaya@meisnerinteriors.com'
   ]
 
-  // Build the review URL
+  // Build the review URL - link to project procurement Supplier Quotes tab
   const baseUrl = getBaseUrl()
-  const reviewUrl = `${baseUrl}/procurement/rfq/${supplierRFQ.rfqId}?supplier=${supplierRFQ.id}`
+  const projectId = supplierRFQ.rfq.projectId
+  const reviewUrl = `${baseUrl}/projects/${projectId}/procurement?tab=supplier-quotes&quoteId=${quote.id}`
 
   // Get AI match summary if available (stored in quote metadata or access log)
   const latestAccessLog = await prisma.supplierAccessLog.findFirst({

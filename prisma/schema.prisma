@@ -3154,6 +3154,10 @@ model SupplierQuote {
   totalAmount       Decimal?
   currency          String              @default("CAD")
 
+  // Deposit
+  depositRequired   Decimal?            // Deposit amount required before production/shipping
+  depositPercent    Decimal?            // Deposit as percentage of total
+
   // Terms
   validUntil        DateTime?
   paymentTerms      String?

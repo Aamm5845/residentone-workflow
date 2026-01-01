@@ -191,6 +191,10 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   const [gstAmount, setGstAmount] = useState('')
   const [qstAmount, setQstAmount] = useState('')
 
+  // Deposit required
+  const [depositRequired, setDepositRequired] = useState('')
+  const [depositPercent, setDepositPercent] = useState<string>('')
+
   // Currency - detect USD for US suppliers
   const [currency, setCurrency] = useState<'CAD' | 'USD'>('CAD')
 
@@ -207,6 +211,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
   // Track which items have notes expanded
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 
+  // Global lead time for all items
+  const [globalLeadTime, setGlobalLeadTime] = useState('')
+
+  // AI analysis timing
+  const [aiAnalysisStartTime, setAiAnalysisStartTime] = useState<number | null>(null)
+  const [aiAnalysisMessage, setAiAnalysisMessage] = useState('Analyzing your quote...')
+
   const toggleNoteExpanded = useCallback((itemId: string) => {
     setExpandedNotes(prev => {
       const next = new Set(prev)
@@ -217,6 +228,17 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
       }
       return next
     })
+  }, [])
+
+  // Apply global lead time to all items
+  const applyGlobalLeadTime = useCallback((leadTime: string) => {
+    setGlobalLeadTime(leadTime)
+    if (leadTime) {
+      setLineItems(prev => prev.map(item => ({
+        ...item,
+        leadTime: leadTime
+      })))
+    }
   }, [])
 
   useEffect(() => {
@@ -281,18 +303,23 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
     return parseFloat(deliveryFee) || 0
   }
 
+  // Taxable amount = subtotal + shipping
+  const calculateTaxableAmount = () => {
+    return calculateSubtotal() + calculateDeliveryTotal()
+  }
+
   const calculateGST = () => {
     if (!includeTax || currency !== 'CAD') return 0
     if (gstAmount) return parseFloat(gstAmount) || 0
-    // Auto-calculate 5% GST
-    return calculateSubtotal() * 0.05
+    // Auto-calculate 5% GST on subtotal + shipping
+    return calculateTaxableAmount() * 0.05
   }
 
   const calculateQST = () => {
     if (!includeTax || currency !== 'CAD') return 0
     if (qstAmount) return parseFloat(qstAmount) || 0
-    // Auto-calculate 9.975% QST
-    return calculateSubtotal() * 0.09975
+    // Auto-calculate 9.975% QST on subtotal + shipping
+    return calculateTaxableAmount() * 0.09975
   }
 
   const calculateTaxTotal = () => {
@@ -351,6 +378,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         totalAmount = calculateTotal()
       }
 
+      // Calculate deposit amount
+      const depositAmount = parseFloat(depositRequired) || 0
+
       const response = await fetch(`/api/supplier-portal/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,6 +391,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           supplierNotes: orderNotes || null,
           totalAmount,
           deliveryFee: quoteMode === 'upload' ? (aiMatchResult?.supplierInfo?.shipping || 0) : calculateDeliveryTotal(),
+          depositRequired: depositAmount > 0 ? depositAmount : null,
+          depositPercent: depositPercent ? parseFloat(depositPercent) : null,
+          taxAmount: quoteMode === 'manual' && includeTax ? calculateTaxTotal() : null,
           lineItems: lineItems.map(item => {
             // For upload mode, get price from AI match
             let unitPrice = parseFloat(item.unitPrice) || 0
@@ -460,6 +493,20 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
         const canAnalyze = file.type.startsWith('image/') || file.type === 'application/pdf'
         if (canAnalyze) {
           setAiMatching(true)
+          setAiAnalysisStartTime(Date.now())
+          setAiAnalysisMessage('Analyzing your quote... This may take up to 30 seconds.')
+
+          // Update message after delays
+          const timer1 = setTimeout(() => {
+            setAiAnalysisMessage('Still working on it... Almost there!')
+          }, 15000)
+          const timer2 = setTimeout(() => {
+            setAiAnalysisMessage('Getting there... Just a few more seconds!')
+          }, 30000)
+          const timer3 = setTimeout(() => {
+            setAiAnalysisMessage('Taking a bit longer than usual... Hang tight!')
+          }, 45000)
+
           try {
             const aiResponse = await fetch(`/api/supplier-portal/${token}/ai-match`, {
               method: 'POST',
@@ -469,6 +516,11 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 fileType: file.type
               })
             })
+
+            // Clear timers on completion
+            clearTimeout(timer1)
+            clearTimeout(timer2)
+            clearTimeout(timer3)
 
             const aiResult = await aiResponse.json()
 
@@ -506,8 +558,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           } catch (aiErr) {
             console.error('AI matching failed:', aiErr)
             toast('Analysis failed. Please try again or enter manually.')
+            clearTimeout(timer1)
+            clearTimeout(timer2)
+            clearTimeout(timer3)
           } finally {
             setAiMatching(false)
+            setAiAnalysisStartTime(null)
           }
         }
       } else {
@@ -705,30 +761,15 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             </CardContent>
           </Card>
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={() => setIsRevising(true)}
-              size="lg"
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-            >
-              <Edit3 className="w-4 h-4 mr-2" />
-              Revise Quote
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSendByEmail}
-              size="lg"
-              className="flex-1"
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Send Update by Email
-            </Button>
+          {/* Info Message */}
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600">
+              Your quote has been submitted and is being reviewed.
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              We'll be in touch if we need any clarification.
+            </p>
           </div>
-
-          <p className="text-center text-sm text-gray-500">
-            Need to make changes? Click "Revise Quote" to update your pricing.
-          </p>
         </div>
 
         {/* Messaging widget */}
@@ -883,6 +924,36 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               Items Requested
               <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
             </CardTitle>
+            {/* Global Lead Time - Apply to all items */}
+            {(quoteMode === 'upload' || quoteMode === 'manual') && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">Set lead time for all items:</span>
+                  </div>
+                  <select
+                    value={globalLeadTime}
+                    onChange={(e) => applyGlobalLeadTime(e.target.value)}
+                    className="flex-1 sm:max-w-[200px] h-9 rounded-md border border-blue-300 px-3 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select to apply to all...</option>
+                    <option value="In Stock">In Stock</option>
+                    <option value="1-2 weeks">1-2 Weeks</option>
+                    <option value="2-4 weeks">2-4 Weeks</option>
+                    <option value="4-6 weeks">4-6 Weeks</option>
+                    <option value="6-8 weeks">6-8 Weeks</option>
+                    <option value="8-12 weeks">8-12 Weeks</option>
+                    <option value="12+ weeks">12+ Weeks</option>
+                  </select>
+                  {globalLeadTime && (
+                    <span className="text-xs text-blue-600">
+                      ✓ Applied to all {data.rfq.lineItems.length} items
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="pt-0">
             <div className="divide-y">
@@ -1234,8 +1305,13 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                   <div className="border-2 border-dashed border-emerald-300 rounded-xl p-6 text-center bg-emerald-50">
                     <Loader2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 animate-spin" />
                     <p className="text-emerald-700 font-medium">
-                      {aiMatching ? 'Analyzing your quote...' : 'Uploading...'}
+                      {aiMatching ? aiAnalysisMessage : 'Uploading...'}
                     </p>
+                    {aiMatching && (
+                      <p className="text-emerald-600 text-sm mt-1">
+                        We're reading and matching your quote items
+                      </p>
+                    )}
                   </div>
                 ) : !uploadedFile ? (
                   <div
@@ -1374,6 +1450,70 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Deposit Required - Upload Mode */}
+                <Card className="shadow-sm">
+                  <CardContent className="pt-5 pb-5">
+                    <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-3">
+                      <DollarSign className="w-4 h-4" />
+                      Deposit Required (if applicable)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-gray-500">Deposit Amount</Label>
+                        <div className="relative mt-1">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={depositRequired}
+                            onChange={(e) => {
+                              setDepositRequired(e.target.value)
+                              // Auto-calculate percent if total > 0
+                              const total = aiMatchResult.supplierInfo?.total || 0
+                              if (total > 0 && e.target.value) {
+                                const percent = (parseFloat(e.target.value) / total * 100).toFixed(0)
+                                setDepositPercent(percent)
+                              }
+                            }}
+                            placeholder="0.00"
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Or Percentage</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <select
+                            value={depositPercent}
+                            onChange={(e) => {
+                              setDepositPercent(e.target.value)
+                              // Auto-calculate amount based on total
+                              if (e.target.value) {
+                                const total = aiMatchResult.supplierInfo?.total || 0
+                                const amount = (total * parseFloat(e.target.value) / 100).toFixed(2)
+                                setDepositRequired(amount)
+                              } else {
+                                setDepositRequired('')
+                              }
+                            }}
+                            className="flex-1 h-9 rounded-md border border-gray-200 px-3 text-sm"
+                          >
+                            <option value="">No deposit</option>
+                            <option value="25">25%</option>
+                            <option value="50">50%</option>
+                            <option value="75">75%</option>
+                            <option value="100">100% (Full payment)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Specify if a deposit is required before production/shipping
+                    </p>
+                  </CardContent>
+                </Card>
               </>
             )}
           </>
@@ -1450,9 +1590,9 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               type="number"
                               step="0.01"
                               min="0"
-                              value={gstAmount || (calculateSubtotal() * 0.05).toFixed(2)}
+                              value={gstAmount || (calculateTaxableAmount() * 0.05).toFixed(2)}
                               onChange={(e) => setGstAmount(e.target.value)}
-                              placeholder={(calculateSubtotal() * 0.05).toFixed(2)}
+                              placeholder={(calculateTaxableAmount() * 0.05).toFixed(2)}
                               className="pl-10 h-9"
                             />
                           </div>
@@ -1465,21 +1605,83 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               type="number"
                               step="0.01"
                               min="0"
-                              value={qstAmount || (calculateSubtotal() * 0.09975).toFixed(2)}
+                              value={qstAmount || (calculateTaxableAmount() * 0.09975).toFixed(2)}
                               onChange={(e) => setQstAmount(e.target.value)}
-                              placeholder={(calculateSubtotal() * 0.09975).toFixed(2)}
+                              placeholder={(calculateTaxableAmount() * 0.09975).toFixed(2)}
                               className="pl-10 h-9"
                             />
                           </div>
                         </div>
                       </div>
                       <p className="text-xs text-gray-500">
-                        Taxes are auto-calculated based on subtotal. You can adjust if needed.
+                        Taxes are auto-calculated based on subtotal + delivery. You can adjust if needed.
                       </p>
                     </div>
                   )}
                 </div>
               )}
+
+              {/* Deposit Required */}
+              <div className="border rounded-xl p-4">
+                <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-3">
+                  <DollarSign className="w-4 h-4" />
+                  Deposit Required (if applicable)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Deposit Amount</Label>
+                    <div className="relative mt-1">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={depositRequired}
+                        onChange={(e) => {
+                          setDepositRequired(e.target.value)
+                          // Auto-calculate percent if total > 0
+                          const total = calculateTotal()
+                          if (total > 0 && e.target.value) {
+                            const percent = (parseFloat(e.target.value) / total * 100).toFixed(0)
+                            setDepositPercent(percent)
+                          }
+                        }}
+                        placeholder="0.00"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Or Percentage</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <select
+                        value={depositPercent}
+                        onChange={(e) => {
+                          setDepositPercent(e.target.value)
+                          // Auto-calculate amount based on total
+                          if (e.target.value) {
+                            const total = calculateTotal()
+                            const amount = (total * parseFloat(e.target.value) / 100).toFixed(2)
+                            setDepositRequired(amount)
+                          } else {
+                            setDepositRequired('')
+                          }
+                        }}
+                        className="flex-1 h-9 rounded-md border border-gray-200 px-3 text-sm"
+                      >
+                        <option value="">No deposit</option>
+                        <option value="25">25%</option>
+                        <option value="50">50%</option>
+                        <option value="75">75%</option>
+                        <option value="100">100% (Full payment)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Specify if a deposit is required before production/shipping
+                </p>
+              </div>
 
               {/* Total */}
               <div className="bg-gray-50 rounded-xl p-4 space-y-2">

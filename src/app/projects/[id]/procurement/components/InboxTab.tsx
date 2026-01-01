@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,12 +13,14 @@ import {
   AlertCircle,
   ChevronRight,
   CheckCircle2,
-  CircleDot
+  RefreshCw
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface InboxTabProps {
   projectId: string
   searchQuery: string
+  onNavigateToQuote?: (quoteId: string) => void
 }
 
 // Inbox item types
@@ -39,6 +42,7 @@ interface InboxItem {
   actionLabel: string
   actionHref: string
   createdAt: string
+  quoteId?: string
 }
 
 // Priority colors - more subtle and professional
@@ -70,14 +74,28 @@ const typeIcons = {
   tracking_missing: Truck,
 }
 
-export default function InboxTab({ projectId, searchQuery }: InboxTabProps) {
+export default function InboxTab({ projectId, searchQuery, onNavigateToQuote }: InboxTabProps) {
+  const router = useRouter()
   const [items, setItems] = useState<InboxItem[]>([])
   const [loading, setLoading] = useState(true)
 
+  const fetchInbox = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/procurement/inbox`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      const data = await res.json()
+      setItems(data.items || [])
+    } catch (error) {
+      console.error('Error fetching inbox:', error)
+      toast.error('Failed to load inbox')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // TODO: Fetch real inbox items from API
-    setLoading(false)
-    setItems([])
+    fetchInbox()
   }, [projectId])
 
   // Filter items based on search
@@ -86,6 +104,16 @@ export default function InboxTab({ projectId, searchQuery }: InboxTabProps) {
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.description.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const handleItemClick = (item: InboxItem) => {
+    // If it's a quote and we have the callback, use it to switch tabs
+    if (item.type === 'quote_received' && item.quoteId && onNavigateToQuote) {
+      onNavigateToQuote(item.quoteId)
+    } else {
+      // Otherwise navigate to the href
+      router.push(item.actionHref)
+    }
+  }
 
   if (loading) {
     return (
@@ -123,6 +151,14 @@ export default function InboxTab({ projectId, searchQuery }: InboxTabProps) {
         <p className="text-sm text-gray-500">
           {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} requiring action
         </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchInbox}
+          className="h-8 text-gray-500"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Inbox Cards */}
@@ -133,6 +169,7 @@ export default function InboxTab({ projectId, searchQuery }: InboxTabProps) {
         return (
           <Card
             key={item.id}
+            onClick={() => handleItemClick(item)}
             className={`border-gray-200 border-l-4 ${priority.border} ${priority.bg} transition-colors cursor-pointer`}
           >
             <CardContent className="py-4 px-5">
@@ -167,6 +204,10 @@ export default function InboxTab({ projectId, searchQuery }: InboxTabProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 text-gray-600 hover:text-gray-900 flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleItemClick(item)
+                  }}
                 >
                   {item.actionLabel}
                   <ChevronRight className="w-4 h-4 ml-1" />

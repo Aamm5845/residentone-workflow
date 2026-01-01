@@ -1433,8 +1433,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       const payload = {
         name: urlGenerateData.productName || 'Product from URL',
-        // Description defaults to FFE item name
-        description: ffeItem.name || '',
+        // Use extracted description, fallback to FFE item name
+        description: urlGenerateData.productDescription || ffeItem.name || '',
         brand: urlGenerateData.brand || '',
         sku: urlGenerateData.sku || '',
         // supplierLink = product URL (where we scraped from) - NOT the supplier's website
@@ -1449,6 +1449,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         width: urlGenerateData.width || '',
         height: urlGenerateData.height || '',
         depth: urlGenerateData.depth || '',
+        length: urlGenerateData.length || '',
         notes: urlGenerateShowNotes ? (urlGenerateData.notes || '') : '',
         supplierName: urlGenerateSelectedSupplier?.name || '',
         quantity: 1,
@@ -2733,31 +2734,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       <div className="sticky top-16 z-30 bg-white shadow-sm">
         {/* Action Bar */}
         <div className="border-b border-gray-200">
-          <div className="max-w-full mx-auto px-6 py-3">
+          <div className="max-w-full mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-6">
               <Button
                 onClick={() => router.push(`/projects/${project.id}`)}
                 variant="ghost"
                 size="sm"
-                className="text-gray-500 hover:text-gray-700 -ml-2"
+                className="text-gray-500 hover:text-gray-900 -ml-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
                 Back
               </Button>
-              <div className="h-5 w-px bg-gray-200" />
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <Package className="w-3.5 h-3.5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-sm font-semibold text-gray-900">All Specs</h1>
-                  <p className="text-xs text-gray-500">{project.name}</p>
-                </div>
+              <div className="h-8 w-px bg-gray-200" />
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">All Specs</h1>
+                <p className="text-sm text-gray-500 mt-0.5">{project.name}</p>
               </div>
               {selectedItems.size > 0 && (
                 <>
-                  <div className="h-5 w-px bg-gray-200" />
+                  <div className="h-6 w-px bg-gray-200" />
                   <span className="text-sm font-medium text-blue-600">
                     {selectedItems.size} selected
                   </span>
@@ -5208,10 +5204,42 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
+                      <Label className="text-xs text-gray-500">Length</Label>
+                      <Input
+                        value={urlGenerateData.length || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, length: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
                       <Label className="text-xs text-gray-500">Material</Label>
                       <Input
                         value={urlGenerateData.material || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, material: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Color</Label>
+                      <Input
+                        value={urlGenerateData.colour || urlGenerateData.color || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, colour: e.target.value, color: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Finish</Label>
+                      <Input
+                        value={urlGenerateData.finish || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, finish: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs text-gray-500">Description</Label>
+                      <Input
+                        value={urlGenerateData.productDescription || ''}
+                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, productDescription: e.target.value }))}
                         className="h-8 text-sm"
                       />
                     </div>
@@ -5222,19 +5250,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {urlGenerateData.brand && (
                       <p className="text-sm text-gray-600">Brand: {urlGenerateData.brand}</p>
                     )}
+                    {urlGenerateData.productDescription && (
+                      <p className="text-sm text-gray-500 line-clamp-2">{urlGenerateData.productDescription}</p>
+                    )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {urlGenerateData.sku && <span>SKU: {urlGenerateData.sku}</span>}
                       {urlGenerateData.rrp && <span>RRP: {urlGenerateData.rrp}</span>}
+                      {urlGenerateData.tradePrice && <span>Trade: {urlGenerateData.tradePrice}</span>}
                       {urlGenerateData.leadTime && <span>Lead Time: {urlGenerateData.leadTime}</span>}
                     </div>
-                    {(urlGenerateData.width || urlGenerateData.height || urlGenerateData.depth) && (
+                    {(urlGenerateData.width || urlGenerateData.height || urlGenerateData.depth || urlGenerateData.length) && (
                       <p className="text-xs text-gray-500">
                         Dimensions: {[
                           urlGenerateData.width && `W: ${urlGenerateData.width}`,
                           urlGenerateData.height && `H: ${urlGenerateData.height}`,
-                          urlGenerateData.depth && `D: ${urlGenerateData.depth}`
+                          urlGenerateData.depth && `D: ${urlGenerateData.depth}`,
+                          urlGenerateData.length && `L: ${urlGenerateData.length}`
                         ].filter(Boolean).join(', ')}
                       </p>
+                    )}
+                    {(urlGenerateData.material || urlGenerateData.colour || urlGenerateData.color || urlGenerateData.finish) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                        {urlGenerateData.material && <span>Material: {urlGenerateData.material}</span>}
+                        {(urlGenerateData.colour || urlGenerateData.color) && <span>Color: {urlGenerateData.colour || urlGenerateData.color}</span>}
+                        {urlGenerateData.finish && <span>Finish: {urlGenerateData.finish}</span>}
+                      </div>
                     )}
                   </div>
                 )}
@@ -5661,6 +5701,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
+                      <Label className="text-xs text-gray-500">Length</Label>
+                      <Input
+                        value={extractedData.length || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, length: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
                       <Label className="text-xs text-gray-500">Material</Label>
                       <Input
                         value={extractedData.material || ''}
@@ -5684,6 +5732,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         className="h-8 text-sm"
                       />
                     </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs text-gray-500">Description</Label>
+                      <Input
+                        value={extractedData.productDescription || ''}
+                        onChange={(e) => setExtractedData({ ...extractedData, productDescription: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
                     </div>
                   </div>
                 ) : (
@@ -5692,19 +5748,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {extractedData.brand && (
                       <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
                     )}
+                    {extractedData.productDescription && (
+                      <p className="text-sm text-gray-500 line-clamp-2">{extractedData.productDescription}</p>
+                    )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
                       {extractedData.rrp && <span>RRP: {extractedData.rrp}</span>}
+                      {extractedData.tradePrice && <span>Trade: {extractedData.tradePrice}</span>}
                       {extractedData.leadTime && <span>Lead Time: {extractedData.leadTime}</span>}
                     </div>
-                    {(extractedData.width || extractedData.height || extractedData.depth) && (
+                    {(extractedData.width || extractedData.height || extractedData.depth || extractedData.length) && (
                       <p className="text-xs text-gray-500">
                         Dimensions: {[
                           extractedData.width && `W: ${extractedData.width}`,
                           extractedData.height && `H: ${extractedData.height}`,
-                          extractedData.depth && `D: ${extractedData.depth}`
+                          extractedData.depth && `D: ${extractedData.depth}`,
+                          extractedData.length && `L: ${extractedData.length}`
                         ].filter(Boolean).join(', ')}
                       </p>
+                    )}
+                    {(extractedData.material || extractedData.colour || extractedData.finish) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                        {extractedData.material && <span>Material: {extractedData.material}</span>}
+                        {extractedData.colour && <span>Color: {extractedData.colour}</span>}
+                        {extractedData.finish && <span>Finish: {extractedData.finish}</span>}
+                      </div>
                     )}
                   </div>
                 )}

@@ -51,6 +51,9 @@ export default function ProcurementContent({
   // Refresh key to trigger data refetch in tabs
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Selected quote ID for navigation from RFQs/Inbox to Supplier Quotes
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+
   // Handle tab change with URL sync
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -72,6 +75,12 @@ export default function ProcurementContent({
     setShowCreateInvoice(false)
     setRefreshKey(prev => prev + 1)
     handleTabChange('client-invoices')
+  }, [])
+
+  // Navigate to a specific quote in Supplier Quotes tab
+  const handleViewQuote = useCallback((quoteId: string) => {
+    setSelectedQuoteId(quoteId)
+    handleTabChange('supplier-quotes')
   }, [])
 
   return (
@@ -99,13 +108,27 @@ export default function ProcurementContent({
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === 'inbox' && (
-          <InboxTab projectId={project.id} searchQuery={searchQuery} />
+          <InboxTab
+            projectId={project.id}
+            searchQuery={searchQuery}
+            onNavigateToQuote={handleViewQuote}
+          />
         )}
         {activeTab === 'rfqs' && (
-          <RFQsTab projectId={project.id} searchQuery={searchQuery} refreshKey={refreshKey} />
+          <RFQsTab
+            projectId={project.id}
+            searchQuery={searchQuery}
+            refreshKey={refreshKey}
+            onViewQuote={handleViewQuote}
+          />
         )}
         {activeTab === 'supplier-quotes' && (
-          <SupplierQuotesTab projectId={project.id} searchQuery={searchQuery} />
+          <SupplierQuotesTab
+            projectId={project.id}
+            searchQuery={searchQuery}
+            highlightQuoteId={selectedQuoteId}
+            onQuoteViewed={() => setSelectedQuoteId(null)}
+          />
         )}
         {activeTab === 'client-invoices' && (
           <ClientInvoicesTab projectId={project.id} searchQuery={searchQuery} />

@@ -51,6 +51,7 @@ interface RFQsTabProps {
   projectId: string
   searchQuery: string
   refreshKey?: number
+  onViewQuote?: (quoteId: string) => void
 }
 
 interface RFQ {
@@ -65,6 +66,7 @@ interface RFQ {
   deadline: string | null
   createdAt: string
   status: 'DRAFT' | 'SENT' | 'PARTIALLY_QUOTED' | 'FULLY_QUOTED' | 'QUOTE_ACCEPTED' | 'CANCELLED' | 'EXPIRED'
+  latestQuoteId?: string | null
 }
 
 interface RFQDetail {
@@ -165,7 +167,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   DECLINED: { label: 'Declined', color: 'bg-red-50 text-red-700' },
 }
 
-export default function RFQsTab({ projectId, searchQuery, refreshKey }: RFQsTabProps) {
+export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuote }: RFQsTabProps) {
   const router = useRouter()
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
@@ -219,6 +221,16 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey }: RFQsTabP
             }
           }
 
+          // Get latest quote ID from supplier RFQs that have submitted
+          let latestQuoteId: string | null = null
+          if (rfq.supplierRFQs?.length > 0) {
+            const submittedRfq = rfq.supplierRFQs.find((s: any) => s.responseStatus === 'SUBMITTED')
+            if (submittedRfq?.quotes?.length > 0) {
+              // Get the most recent quote
+              latestQuoteId = submittedRfq.quotes[0]?.id || null
+            }
+          }
+
           return {
             id: rfq.id,
             rfqNumber: rfq.rfqNumber,
@@ -228,7 +240,8 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey }: RFQsTabP
             itemsCount: rfq._count?.lineItems || rfq.lineItems?.length || 0,
             sentAt: rfq.sentAt ? new Date(rfq.sentAt).toLocaleDateString() : null,
             deadline: rfq.responseDeadline ? new Date(rfq.responseDeadline).toLocaleDateString() : null,
-            status: displayStatus
+            status: displayStatus,
+            latestQuoteId
           }
         })
         setRfqs(mappedRfqs)
@@ -657,9 +670,24 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey }: RFQsTabP
                       {rfq.status !== 'DRAFT' && rfq.deadline ? rfq.deadline : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusConfig[rfq.status].color}>
-                        {statusConfig[rfq.status].label}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={statusConfig[rfq.status].color}>
+                          {statusConfig[rfq.status].label}
+                        </Badge>
+                        {rfq.latestQuoteId && onViewQuote && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onViewQuote(rfq.latestQuoteId!)
+                            }}
+                          >
+                            View Quote →
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

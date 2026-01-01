@@ -78,7 +78,16 @@ export async function GET(
                 quantity: true,
                 unitType: true,
                 specifications: true,
-                targetUnitPrice: true
+                targetUnitPrice: true,
+                roomFFEItem: {
+                  select: {
+                    id: true,
+                    images: true,
+                    brand: true,
+                    sku: true,
+                    modelNumber: true
+                  }
+                }
               }
             }
           }
@@ -100,7 +109,17 @@ export async function GET(
                     quantity: true,
                     unitType: true,
                     specifications: true,
-                    targetUnitPrice: true
+                    targetUnitPrice: true,
+                    roomFFEItemId: true,
+                    roomFFEItem: {
+                      select: {
+                        id: true,
+                        images: true,
+                        brand: true,
+                        sku: true,
+                        modelNumber: true
+                      }
+                    }
                   }
                 }
               }
@@ -150,10 +169,19 @@ export async function GET(
             })
           }
 
+          // Get image from roomFFEItem
+          const roomFFEItem = rfqItem?.roomFFEItem
+          const imageUrl = roomFFEItem?.images?.[0] || null
+
           lineItemDetails.push({
             id: li.id,
+            rfqLineItemId: rfqItem?.id,
+            roomFFEItemId: rfqItem?.roomFFEItemId,
             itemName: rfqItem?.itemName || 'Unknown Item',
             itemDescription: rfqItem?.itemDescription,
+            brand: roomFFEItem?.brand,
+            sku: roomFFEItem?.sku || roomFFEItem?.modelNumber,
+            imageUrl,
             requestedQuantity: rfqItem?.quantity || 0,
             quotedQuantity: li.quantity,
             unitPrice: Number(li.unitPrice),
@@ -198,6 +226,10 @@ export async function GET(
           taxAmount: quote.taxAmount ? Number(quote.taxAmount) : null,
           shippingCost: quote.shippingCost ? Number(quote.shippingCost) : null,
           currency: quote.currency,
+
+          // Deposit
+          depositRequired: quote.depositRequired ? Number(quote.depositRequired) : null,
+          depositPercent: quote.depositPercent ? Number(quote.depositPercent) : null,
 
           // Timing
           validUntil: quote.validUntil,
@@ -321,7 +353,13 @@ export async function PATCH(
             id: true,
             supplierId: true,
             vendorName: true,  // For one-time vendors
-            supplier: { select: { id: true, name: true } },
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+                markupPercent: true  // Supplier's markup percentage for RRP calculation
+              }
+            },
             rfq: {
               select: { projectId: true, orgId: true }
             }
@@ -373,21 +411,64 @@ export async function PATCH(
       })
     }
 
-    // When quote is APPROVED, auto-fill trade prices on the RoomFFEItems
+    // When quote is DECLINED, reset item status back to SELECTED
+    if (action === 'decline') {
+      for (const lineItem of quote.lineItems) {
+        const roomFFEItemId = lineItem.rfqLineItem?.roomFFEItemId
+        if (roomFFEItemId) {
+          await prisma.roomFFEItem.update({
+            where: { id: roomFFEItemId },
+            data: {
+              specStatus: 'SELECTED'  // Reset to SELECTED so they can request quotes again
+            }
+          })
+
+          // Create activity for the decline
+          await prisma.itemActivity.create({
+            data: {
+              itemId: roomFFEItemId,
+              type: 'QUOTE_DECLINED',
+              title: 'Quote Declined',
+              description: `Quote from ${quote.supplierRFQ.supplier?.name || quote.supplierRFQ.vendorName || 'Supplier'} was declined`,
+              actorName: (session.user as any).name || 'Team Member',
+              actorType: 'user',
+              metadata: {
+                quoteId: quote.id,
+                declinedById: userId
+              }
+            }
+          })
+        }
+      }
+    }
+
+    // When quote is APPROVED, auto-fill trade prices and RRP on the RoomFFEItems
     if (action === 'approve') {
       const supplierName = quote.supplierRFQ.supplier?.name || quote.supplierRFQ.vendorName || 'Supplier'
+
+      // Get supplier's markup percentage (default to 25% if not set)
+      const supplierMarkup = quote.supplierRFQ.supplier?.markupPercent
+        ? Number(quote.supplierRFQ.supplier.markupPercent)
+        : 25  // Default 25% markup if not configured
 
       for (const lineItem of quote.lineItems) {
         const roomFFEItemId = lineItem.rfqLineItem?.roomFFEItemId
         if (roomFFEItemId && lineItem.unitPrice) {
-          // Update the RoomFFEItem with trade price and lead time
+          const tradePrice = Number(lineItem.unitPrice)
+
+          // Calculate RRP with markup: tradePrice * (1 + markupPercent/100)
+          const rrp = tradePrice * (1 + supplierMarkup / 100)
+
+          // Update the RoomFFEItem with trade price, RRP, and lead time
           await prisma.roomFFEItem.update({
             where: { id: roomFFEItemId },
             data: {
               tradePrice: lineItem.unitPrice,
               tradePriceCurrency: lineItem.currency || 'CAD',
+              rrp: rrp,  // RRP with markup applied
+              rrpCurrency: lineItem.currency || 'CAD',
               ...(lineItem.leadTime ? { leadTime: lineItem.leadTime } : {}),
-              // Update supplier info if not already set
+              // Update supplier info
               ...(quote.supplierRFQ.supplierId ? { supplierId: quote.supplierRFQ.supplierId } : {}),
               supplierName: supplierName
             }
@@ -399,12 +480,14 @@ export async function PATCH(
               itemId: roomFFEItemId,
               type: 'QUOTE_APPROVED',
               title: 'Quote Approved',
-              description: `Quote from ${supplierName} approved at $${Number(lineItem.unitPrice).toLocaleString()} per unit`,
+              description: `Quote from ${supplierName} approved: Trade $${tradePrice.toLocaleString()}, RRP $${rrp.toLocaleString()} (+${supplierMarkup}% markup)`,
               actorName: (session.user as any).name || 'Team Member',
               actorType: 'user',
               metadata: {
                 quoteId: quote.id,
-                approvedPrice: lineItem.unitPrice,
+                tradePrice: lineItem.unitPrice,
+                rrp: rrp,
+                markupPercent: supplierMarkup,
                 supplierId: quote.supplierRFQ.supplierId,
                 approvedById: userId
               }
@@ -426,6 +509,182 @@ export async function PATCH(
     console.error('Error updating supplier quote:', error)
     return NextResponse.json(
       { error: 'Failed to update supplier quote' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PUT /api/projects/[id]/procurement/supplier-quotes
+ * Update supplier quote line items (fix prices, availability, etc.)
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id: projectId } = await params
+    const orgId = (session.user as any).orgId
+    const body = await request.json()
+    const { quoteId, lineItems } = body
+
+    if (!quoteId || !lineItems || !Array.isArray(lineItems)) {
+      return NextResponse.json(
+        { error: 'quoteId and lineItems array are required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify quote exists and belongs to project in this org
+    const quote = await prisma.supplierQuote.findFirst({
+      where: { id: quoteId },
+      include: {
+        supplierRFQ: {
+          include: {
+            rfq: {
+              select: { projectId: true, orgId: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!quote) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+
+    if (quote.supplierRFQ.rfq.orgId !== orgId || quote.supplierRFQ.rfq.projectId !== projectId) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+
+    // Update each line item
+    let newTotal = 0
+    for (const item of lineItems) {
+      const { lineItemId, unitPrice, quantity, availability, leadTime, notes } = item
+
+      if (!lineItemId) continue
+
+      const totalPrice = unitPrice * quantity
+      newTotal += totalPrice
+
+      await prisma.supplierQuoteLineItem.update({
+        where: { id: lineItemId },
+        data: {
+          ...(unitPrice !== undefined && { unitPrice }),
+          ...(quantity !== undefined && { quantity }),
+          ...(unitPrice !== undefined && quantity !== undefined && { totalPrice }),
+          ...(availability !== undefined && { availability }),
+          ...(leadTime !== undefined && { leadTime }),
+          ...(notes !== undefined && { notes })
+        }
+      })
+    }
+
+    // Update quote total if prices were updated
+    if (newTotal > 0) {
+      await prisma.supplierQuote.update({
+        where: { id: quoteId },
+        data: {
+          subtotal: newTotal,
+          totalAmount: newTotal + Number(quote.shippingCost || 0) + Number(quote.taxAmount || 0)
+        }
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Quote line items updated'
+    })
+
+  } catch (error) {
+    console.error('Error updating quote line items:', error)
+    return NextResponse.json(
+      { error: 'Failed to update quote line items' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/projects/[id]/procurement/supplier-quotes
+ * Delete a declined supplier quote
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id: projectId } = await params
+    const orgId = (session.user as any).orgId
+    const body = await request.json()
+    const { quoteId } = body
+
+    if (!quoteId) {
+      return NextResponse.json(
+        { error: 'quoteId is required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify quote exists and belongs to project in this org
+    const quote = await prisma.supplierQuote.findFirst({
+      where: { id: quoteId },
+      include: {
+        supplierRFQ: {
+          include: {
+            rfq: {
+              select: { projectId: true, orgId: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!quote) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+
+    if (quote.supplierRFQ.rfq.orgId !== orgId || quote.supplierRFQ.rfq.projectId !== projectId) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    }
+
+    // Only allow deleting REJECTED quotes
+    if (quote.status !== 'REJECTED') {
+      return NextResponse.json(
+        { error: 'Only declined quotes can be deleted' },
+        { status: 400 }
+      )
+    }
+
+    // Delete associated line items first
+    await prisma.supplierQuoteLineItem.deleteMany({
+      where: { supplierQuoteId: quoteId }
+    })
+
+    // Delete the quote
+    await prisma.supplierQuote.delete({
+      where: { id: quoteId }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Quote deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Error deleting supplier quote:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete supplier quote' },
       { status: 500 }
     )
   }
