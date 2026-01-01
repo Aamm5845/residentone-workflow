@@ -81,6 +81,7 @@ model Organization {
   // Payment Instructions
   wireInstructions  String?       @db.Text
   checkInstructions String?       @db.Text
+  etransferEmail    String?       // Email for Interac e-Transfer
 
   clients        Client[]
   contractors    Contractor[]

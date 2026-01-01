@@ -68,6 +68,7 @@ interface InvoiceData {
     gstNumber?: string
     qstNumber?: string
     wireInstructions?: string
+    etransferEmail?: string
   }
 }
 
@@ -80,6 +81,7 @@ export default function ClientInvoicePage() {
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
+  const [showEtransferInfo, setShowEtransferInfo] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -407,7 +409,7 @@ export default function ClientInvoicePage() {
                   <div className="flex items-center gap-3">
                     <Building className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="font-medium text-gray-900 text-sm">Wire Transfer</p>
+                      <p className="font-medium text-gray-900 text-sm">Wire Transfer / Direct Deposit</p>
                       <p className="text-xs text-gray-500">No processing fee</p>
                     </div>
                   </div>
@@ -423,9 +425,11 @@ export default function ClientInvoicePage() {
                         {invoice.organization.wireInstructions}
                       </pre>
                     ) : (
-                      <p className="text-sm text-gray-500">
-                        Contact {invoice.organization?.businessEmail || 'us'} for wire transfer details.
-                      </p>
+                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-1">
+                        <p><span className="text-gray-400">Account #:</span> 0001827</p>
+                        <p><span className="text-gray-400">Routing #:</span> 01371</p>
+                        <p><span className="text-gray-400">Transit #:</span> 0006</p>
+                      </div>
                     )}
                     <p className="text-xs text-gray-400 mt-2">
                       Reference: {invoice.quoteNumber}
@@ -433,6 +437,45 @@ export default function ClientInvoicePage() {
                   </div>
                 )}
               </div>
+
+              {/* Interac e-Transfer */}
+              {invoice.organization?.etransferEmail && (
+                <div className="bg-white rounded-xl border">
+                  <button
+                    onClick={() => setShowEtransferInfo(!showEtransferInfo)}
+                    className="w-full p-4 flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
+                        <p className="text-xs text-gray-500">No processing fee • Instant</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {showEtransferInfo && (
+                    <div className="px-4 pb-4 border-t pt-4">
+                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        <p className="font-medium text-gray-700 mb-2">Send e-Transfer to:</p>
+                        <p className="text-lg font-mono text-gray-900">{invoice.organization.etransferEmail}</p>
+                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-xs text-gray-500">
+                          <p>1. Log in to your online banking</p>
+                          <p>2. Select "Send Interac e-Transfer"</p>
+                          <p>3. Enter the email above and amount</p>
+                          <p>4. Use invoice number as message/memo</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Message/Memo: {invoice.quoteNumber}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Check */}
               <div className="bg-white rounded-xl border">
