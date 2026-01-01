@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement Workflow Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+
+        h1 {
+            color: #1a365d;
+            font-size: 28px;
+            margin-bottom: 10px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #3182ce;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #2d3748;
+            font-size: 20px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            border-radius: 0 4px 4px 0;
+        }
+
+        h3 {
+            color: #4a5568;
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .step-container {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            background: #3182ce;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        th {
+            background: #4a5568;
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #c53030;
+        }
+
+        .api-route {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        ul {
+            margin: 10px 0 10px 25px;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        .status-flow {
+            background: #faf5ff;
+            border: 1px solid #d6bcfa;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .status-flow .arrow {
+            color: #805ad5;
+            font-size: 20px;
+            margin: 0 10px;
+        }
+
+        .status-box {
+            display: inline-block;
+            background: white;
+            border: 2px solid #805ad5;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #553c9a;
+            margin: 5px;
+        }
+
+        .warning-box {
+            background: #fffbeb;
+            border: 1px solid #f6e05e;
+            border-left: 4px solid #d69e2e;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+            margin: 15px 0;
+        }
+
+        .warning-title {
+            font-weight: 600;
+            color: #b7791f;
+            margin-bottom: 8px;
+        }
+
+        .success-box {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-left: 4px solid #38a169;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+            margin: 15px 0;
+        }
+
+        .formula {
+            background: #edf2f7;
+            padding: 12px 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            text-align: center;
+            font-size: 15px;
+            margin: 10px 0;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .toc {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px 25px;
+            margin: 20px 0 30px 0;
+        }
+
+        .toc-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #2d3748;
+        }
+
+        .toc ol {
+            margin-left: 20px;
+        }
+
+        .toc li {
+            margin: 6px 0;
+            color: #4a5568;
+        }
+
+        .gap-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 10px 0;
+        }
+
+        .gap-icon {
+            color: #e53e3e;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .activity-tracked {
+            color: #38a169;
+        }
+
+        .activity-missing {
+            color: #e53e3e;
+        }
+
+        @media print {
+            body {
+                padding: 20px;
+            }
+
+            .step-container {
+                break-inside: avoid;
+            }
+
+            h2 {
+                break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Procurement Workflow Documentation</h1>
+    <p class="subtitle">ResidentOne Workflow System | Generated: December 31, 2024</p>
+
+    <div class="toc">
+        <div class="toc-title">Table of Contents</div>
+        <ol>
+            <li>Create Quote Request (RFQ)</li>
+            <li>Send to Suppliers</li>
+            <li>Supplier Response via Portal</li>
+            <li>Review & Compare Quotes</li>
+            <li>Create Client Quote (with Markup)</li>
+            <li>Send Quote to Client</li>
+            <li>Client Views Quote</li>
+            <li>Record Payment</li>
+            <li>Create Order (Purchase Order)</li>
+            <li>Order Status Tracking</li>
+            <li>Delivery Tracking</li>
+            <li>Activity Tracking Analysis</li>
+            <li>Database Models Reference</li>
+            <li>Identified Gaps</li>
+            <li style="color: #c53030; font-weight: 600;">Recommendations - Priority 1 (Critical)</li>
+            <li style="color: #d69e2e; font-weight: 600;">Recommendations - Priority 2 (Important)</li>
+            <li style="color: #38a169; font-weight: 600;">Recommendations - Priority 3 (Enhancements)</li>
+            <li style="color: #718096; font-weight: 600;">Recommendations - Priority 4 (Future)</li>
+            <li>Suggested Implementation Roadmap</li>
+        </ol>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">Create Quote Request (RFQ)</div>
+        </div>
+
+        <div class="api-route">POST /api/rfq</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>RFQ Number Format</strong></td>
+                <td><span class="code">RFQ-YYYY-NNNN</span> (auto-generated)</td>
+            </tr>
+            <tr>
+                <td><strong>Initial Status</strong></td>
+                <td><span class="code">DRAFT</span></td>
+            </tr>
+            <tr>
+                <td><strong>Source File</strong></td>
+                <td><span class="code">src/app/api/rfq/route.ts</span> (lines 110-250)</td>
+            </tr>
+        </table>
+
+        <h3>Data Stored:</h3>
+        <ul>
+            <li>Project reference</li>
+            <li>Title and description</li>
+            <li>Line items from spec (linked to RoomFFEItems)</li>
+            <li>Pre-selected supplier IDs</li>
+            <li>Response deadline</li>
+        </ul>
+
+        <h3>What Happens:</h3>
+        <ol>
+            <li>Designer creates RFQ with project + items from the spec</li>
+            <li>System generates unique RFQ number based on year</li>
+            <li>Line items maintain connection to original RoomFFEItem specs</li>
+            <li>Can pre-select which suppliers to send to</li>
+            <li>Activity logged: <span class="code">"RFQ {number} created"</span></li>
+        </ol>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">Send to Suppliers</div>
+        </div>
+
+        <div class="api-route">POST /api/rfq/[id]/send</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Email Service</strong></td>
+                <td>Resend (via <span class="code">src/lib/email-service.ts</span>)</td>
+            </tr>
+            <tr>
+                <td><strong>Portal Access</strong></td>
+                <td>Unique <span class="code">accessToken</span> per supplier</td>
+            </tr>
+            <tr>
+                <td><strong>Token Expiry</strong></td>
+                <td>Response deadline or 30 days</td>
+            </tr>
+            <tr>
+                <td><strong>Source File</strong></td>
+                <td><span class="code">src/app/api/rfq/[id]/send/route.ts</span></td>
+            </tr>
+        </table>
+
+        <h3>What Happens:</h3>
+        <ol>
+            <li>For each selected supplier, system creates <span class="code">SupplierRFQ</span> record</li>
+            <li>Generates unique access token with expiration date</li>
+            <li>Sends HTML email containing:
+                <ul>
+                    <li>RFQ details and item table</li>
+                    <li><strong>"Submit Quote" button</strong> linking to <span class="code">/supplier-portal/[token]</span></li>
+                    <li>Response deadline</li>
+                </ul>
+            </li>
+            <li>RFQ status changes to <span class="code">SENT</span></li>
+            <li>All linked spec items change to <span class="code">specStatus: QUOTING</span></li>
+            <li>Access logging begins for audit trail</li>
+        </ol>
+
+        <div class="success-box">
+            <strong>Activity Tracked:</strong> "RFQ sent to X supplier(s)"
+        </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">Supplier Response via Portal</div>
+        </div>
+
+        <div class="api-route">GET/POST /api/supplier-portal/[token]</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Portal URL</strong></td>
+                <td><span class="code">/supplier-portal/[token]</span></td>
+            </tr>
+            <tr>
+                <td><strong>Authentication</strong></td>
+                <td>Token-based (no login required)</td>
+            </tr>
+            <tr>
+                <td><strong>Frontend</strong></td>
+                <td><span class="code">src/app/supplier-portal/[token]/page.tsx</span></td>
+            </tr>
+        </table>
+
+        <h3>What Supplier Sees:</h3>
+        <ul>
+            <li>All items with images, specifications, brand, SKU, dimensions</li>
+            <li>Linked documents (if marked visible to supplier)</li>
+            <li>Quantities and descriptions</li>
+            <li>Response deadline</li>
+        </ul>
+
+        <h3>What Supplier Can Do:</h3>
+        <ol>
+            <li><strong>View items</strong> - Tracked: viewedAt, accessCount</li>
+            <li><strong>Enter pricing per line item:</strong>
+                <ul>
+                    <li>Unit price, quantity, total</li>
+                    <li>Availability: IN_STOCK, BACKORDER, SPECIAL_ORDER</li>
+                    <li>Lead time in weeks</li>
+                    <li>Alternate product suggestions</li>
+                </ul>
+            </li>
+            <li><strong>Add overall quote info:</strong>
+                <ul>
+                    <li>Quote number, shipping cost, payment terms</li>
+                    <li>Upload quote document (PDF)</li>
+                </ul>
+            </li>
+            <li><strong>Submit quote</strong> - Creates SupplierQuote + line item records</li>
+            <li><strong>Message designer</strong> - Built-in messaging feature</li>
+        </ol>
+
+        <h3>Access Logging:</h3>
+        <table>
+            <tr>
+                <th>Action</th>
+                <th>Data Recorded</th>
+            </tr>
+            <tr>
+                <td>VIEW</td>
+                <td>IP address, user agent, timestamp</td>
+            </tr>
+            <tr>
+                <td>DOWNLOAD</td>
+                <td>Document downloaded, timestamp</td>
+            </tr>
+            <tr>
+                <td>SUBMIT_QUOTE</td>
+                <td>Quote details, timestamp</td>
+            </tr>
+        </table>
+
+        <div class="success-box">
+            <strong>Activities Tracked:</strong> QUOTE_VIEWED, QUOTE_RECEIVED (with price/lead time metadata)
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- STEP 4 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">Review & Compare Quotes</div>
+        </div>
+
+        <div class="api-route">GET /api/rfq/[id]/quotes</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Component</strong></td>
+                <td><span class="code">src/components/procurement/quote-comparison-view.tsx</span></td>
+            </tr>
+            <tr>
+                <td><strong>Accept/Reject API</strong></td>
+                <td><span class="code">POST /api/rfq/[id]/quotes</span></td>
+            </tr>
+        </table>
+
+        <h3>What Happens:</h3>
+        <ol>
+            <li>All supplier quotes displayed in comparison matrix</li>
+            <li>Designer can see price differences per item across all suppliers</li>
+            <li>Accept or reject individual quotes</li>
+            <li>Accepted quotes marked as <span class="code">SupplierQuote.status: ACCEPTED</span></li>
+        </ol>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">Create Client Quote (with Markup)</div>
+        </div>
+
+        <div class="api-route">POST /api/client-quotes</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Quote Number Format</strong></td>
+                <td><span class="code">CQ-YYYY-NNNN</span></td>
+            </tr>
+            <tr>
+                <td><strong>Default Markup</strong></td>
+                <td>25% (configurable)</td>
+            </tr>
+            <tr>
+                <td><strong>Source File</strong></td>
+                <td><span class="code">src/app/api/client-quotes/route.ts</span> (lines 90-320)</td>
+            </tr>
+        </table>
+
+        <h3>Price Calculation:</h3>
+        <div class="formula">
+            Client Price = Supplier Cost &times; (1 + Markup%)
+        </div>
+
+        <h3>Markup Priority (checked in order):</h3>
+        <ol>
+            <li>Category-specific markup (<span class="code">CategoryMarkup</span> table)</li>
+            <li>Supplier-specific markup (<span class="code">Supplier.markupPercent</span>)</li>
+            <li>Organization default (25%)</li>
+        </ol>
+
+        <h3>What's Stored in ClientQuoteLineItem:</h3>
+        <table>
+            <tr>
+                <th>Field</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><span class="code">supplierUnitPrice</span></td>
+                <td>Hidden cost price from supplier</td>
+            </tr>
+            <tr>
+                <td><span class="code">clientUnitPrice</span></td>
+                <td>What client sees (with markup)</td>
+            </tr>
+            <tr>
+                <td><span class="code">markupType</span></td>
+                <td>PERCENTAGE or FIXED</td>
+            </tr>
+            <tr>
+                <td><span class="code">markupValue</span></td>
+                <td>The markup percentage or amount</td>
+            </tr>
+            <tr>
+                <td><span class="code">markupAmount</span></td>
+                <td>Actual markup in dollars</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">6</div>
+            <div class="step-title">Send Quote to Client</div>
+        </div>
+
+        <div class="api-route">POST /api/client-quotes/send-to-client</div>
+
+        <h3>What Happens:</h3>
+        <ol>
+            <li>Generates unique <span class="code">accessToken</span> for client portal</li>
+            <li>Sends HTML email with:
+                <ul>
+                    <li>Quote number, project name</li>
+                    <li>Line items with quantities and client pricing</li>
+                    <li>Subtotal, GST (5%), QST (9.975%), Total</li>
+                    <li><strong>Payment instructions</strong> (wire, check, credit card)</li>
+                    <li>GST# and QST# validation numbers</li>
+                    <li>Link to <span class="code">/quote/[token]</span></li>
+                </ul>
+            </li>
+            <li>Creates <span class="code">ClientQuoteEmailLog</span> for tracking opens</li>
+            <li>Status changes to <span class="code">SENT_TO_CLIENT</span></li>
+        </ol>
+
+        <div class="success-box">
+            <strong>Activity Tracked:</strong> SENT_TO_CLIENT_QUOTE (logged for each item)
+        </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">7</div>
+            <div class="step-title">Client Views Quote</div>
+        </div>
+
+        <div class="api-route">GET /api/quote/[token]</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Portal URL</strong></td>
+                <td><span class="code">/quote/[token]</span></td>
+            </tr>
+            <tr>
+                <td><strong>Authentication</strong></td>
+                <td>Public (token-based, no login)</td>
+            </tr>
+        </table>
+
+        <h3>What Client Sees:</h3>
+        <ul>
+            <li>Organization branding (logo, contact info)</li>
+            <li>Quote details and line items</li>
+            <li>Tax breakdown (GST + QST)</li>
+            <li>Payment options with instructions</li>
+            <li>Total amount due</li>
+        </ul>
+
+        <h3>Tracking:</h3>
+        <ul>
+            <li><span class="code">emailOpenedAt</span> set on first view</li>
+            <li><span class="code">ClientQuoteActivity: VIEWED_BY_CLIENT</span> created</li>
+        </ul>
+
+        <div class="success-box">
+            <strong>Activity Tracked:</strong> CLIENT_QUOTE_VIEWED
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- STEP 8 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">8</div>
+            <div class="step-title">Record Payment</div>
+        </div>
+
+        <div class="api-route">POST /api/payments</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Source File</strong></td>
+                <td><span class="code">src/app/api/payments/route.ts</span> (lines 97-215)</td>
+            </tr>
+            <tr>
+                <td><strong>Currency</strong></td>
+                <td>CAD</td>
+            </tr>
+        </table>
+
+        <h3>Supported Payment Methods:</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>Reference Field</th>
+            </tr>
+            <tr>
+                <td>CREDIT_CARD</td>
+                <td><span class="code">stripePaymentId</span>, <span class="code">stripeChargeId</span></td>
+            </tr>
+            <tr>
+                <td>WIRE</td>
+                <td><span class="code">wireReference</span></td>
+            </tr>
+            <tr>
+                <td>CHECK</td>
+                <td><span class="code">checkNumber</span></td>
+            </tr>
+            <tr>
+                <td>ACH</td>
+                <td><span class="code">achTransactionId</span></td>
+            </tr>
+            <tr>
+                <td>CASH</td>
+                <td>Notes only</td>
+            </tr>
+        </table>
+
+        <h3>What Happens:</h3>
+        <ol>
+            <li>Client pays externally (wire/check/credit card)</li>
+            <li>Designer logs payment with amount, method, and reference</li>
+            <li>System creates <span class="code">Payment</span> record with status <span class="code">PAID</span></li>
+            <li>Tracks <span class="code">confirmedAt</span>, <span class="code">confirmedById</span></li>
+            <li>Calculates total paid across all payments</li>
+            <li>If fully paid: updates order statuses to <span class="code">PAYMENT_RECEIVED</span></li>
+            <li>Creates <span class="code">ClientQuoteActivity: PAYMENT_RECEIVED</span></li>
+        </ol>
+
+        <h3>Payment Status Flow:</h3>
+        <div class="status-flow">
+            <span class="status-box">PENDING</span>
+            <span class="arrow">&rarr;</span>
+            <span class="status-box">PAID</span>
+            <span class="arrow">&rarr;</span>
+            <span class="status-box">REFUNDED</span> or <span class="status-box">CANCELLED</span>
+        </div>
+
+        <h3>Reconciliation:</h3>
+        <ul>
+            <li><span class="code">reconciled</span>: Boolean flag</li>
+            <li><span class="code">reconciledAt</span>, <span class="code">reconciledById</span>: Who reconciled</li>
+            <li><span class="code">reconciledNotes</span>: Additional notes</li>
+        </ul>
+    </div>
+
+    <!-- STEP 9 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">9</div>
+            <div class="step-title">Create Order (Purchase Order)</div>
+        </div>
+
+        <div class="api-route">POST /api/orders</div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Order Number Format</strong></td>
+                <td><span class="code">PO-YYYY-NNNN</span></td>
+            </tr>
+            <tr>
+                <td><strong>Initial Status</strong></td>
+                <td><span class="code">PENDING_PAYMENT</span></td>
+            </tr>
+            <tr>
+                <td><strong>Source File</strong></td>
+                <td><span class="code">src/app/api/orders/route.ts</span> (lines 94-277)</td>
+            </tr>
+        </table>
+
+        <h3>Two Ways to Create Orders:</h3>
+
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><strong>A) From Approved Quote</strong></td>
+                <td>
+                    <ul>
+                        <li>Select approved ClientQuote</li>
+                        <li>System copies line items at <strong>cost price</strong> (not markup)</li>
+                        <li>Links each OrderItem to ClientQuoteLineItem</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>B) Manual Order</strong></td>
+                <td>
+                    <ul>
+                        <li>Enter items manually</li>
+                        <li>Specify supplier, quantities, prices</li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+
+        <h3>Order Record Contains:</h3>
+        <ul>
+            <li>Supplier info (or one-time vendor details)</li>
+            <li><span class="code">supplierOrderRef</span>: Supplier's PO number</li>
+            <li>Pricing at cost: subtotal, tax, shipping, total</li>
+            <li>Supplier payment tracking fields</li>
+        </ul>
+
+        <div class="warning-box">
+            <div class="warning-title">Missing Activity</div>
+            <span class="code">ADDED_TO_ORDER</span> and <span class="code">ORDERED</span> activities are defined but NOT logged when orders are created.
+        </div>
+    </div>
+
+    <!-- STEP 10 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">10</div>
+            <div class="step-title">Order Status Tracking</div>
+        </div>
+
+        <div class="api-route">GET /api/orders</div>
+
+        <h3>Order Status Flow:</h3>
+        <div class="status-flow">
+            <span class="status-box">PENDING_PAYMENT</span>
+            <span class="arrow">&darr;</span><br><br>
+            <span class="status-box">PAYMENT_RECEIVED</span>
+            <span class="arrow">&darr;</span><br><br>
+            <span class="status-box">CONFIRMED</span>
+            <span class="arrow">&darr;</span><br><br>
+            <span class="status-box">SHIPPED</span>
+            <span class="arrow">&darr;</span><br><br>
+            <span class="status-box">DELIVERED</span>
+        </div>
+
+        <h3>Status Transitions:</h3>
+        <table>
+            <tr>
+                <th>From</th>
+                <th>To</th>
+                <th>Trigger</th>
+            </tr>
+            <tr>
+                <td>PENDING_PAYMENT</td>
+                <td>PAYMENT_RECEIVED</td>
+                <td>Client payment received</td>
+            </tr>
+            <tr>
+                <td>PAYMENT_RECEIVED</td>
+                <td>CONFIRMED</td>
+                <td>Designer confirms with supplier</td>
+            </tr>
+            <tr>
+                <td>CONFIRMED</td>
+                <td>SHIPPED</td>
+                <td>Supplier ships, tracking logged</td>
+            </tr>
+            <tr>
+                <td>SHIPPED</td>
+                <td>DELIVERED</td>
+                <td>Delivery received</td>
+            </tr>
+        </table>
+
+        <h3>Dashboard Features:</h3>
+        <ul>
+            <li>Filter by: projectId, supplierId, status</li>
+            <li>Pagination: limit (50), offset (0)</li>
+            <li>Includes: project, supplier, createdBy user</li>
+            <li>Counts: items, deliveries</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- STEP 11 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number">11</div>
+            <div class="step-title">Delivery Tracking</div>
+        </div>
+
+        <table>
+            <tr>
+                <th width="30%">Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td><strong>Model</strong></td>
+                <td><span class="code">Delivery</span> (schema.prisma:3570-3598)</td>
+            </tr>
+            <tr>
+                <td><strong>Carriers</strong></td>
+                <td>FedEx, UPS, DHL, etc.</td>
+            </tr>
+        </table>
+
+        <h3>Delivery Status Flow:</h3>
+        <div class="status-flow">
+            <span class="status-box">PENDING</span>
+            <span class="arrow">&rarr;</span>
+            <span class="status-box">IN_TRANSIT</span>
+            <span class="arrow">&rarr;</span>
+            <span class="status-box">DELIVERED</span>
+            <br><br>
+            <span class="status-box">EXCEPTION</span> (if issues)
+        </div>
+
+        <h3>What's Tracked:</h3>
+        <table>
+            <tr>
+                <th>Field</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><span class="code">carrier</span></td>
+                <td>FedEx, UPS, DHL, etc.</td>
+            </tr>
+            <tr>
+                <td><span class="code">trackingNumber</span></td>
+                <td>Carrier's tracking code</td>
+            </tr>
+            <tr>
+                <td><span class="code">trackingUrl</span></td>
+                <td>Direct link to carrier website</td>
+            </tr>
+            <tr>
+                <td><span class="code">expectedDate</span></td>
+                <td>Expected delivery date</td>
+            </tr>
+            <tr>
+                <td><span class="code">actualDate</span></td>
+                <td>Actual delivery date</td>
+            </tr>
+            <tr>
+                <td><span class="code">recipientName</span></td>
+                <td>Who received it</td>
+            </tr>
+            <tr>
+                <td><span class="code">signedBy</span></td>
+                <td>Signature confirmation</td>
+            </tr>
+        </table>
+
+        <p><strong>Note:</strong> One delivery can include multiple order items. Proof of delivery (POD) documents can be attached.</p>
+
+        <div class="warning-box">
+            <div class="warning-title">Missing Activity</div>
+            <span class="code">SHIPPED</span> and <span class="code">DELIVERED</span> activities are defined in the enum but NOT logged when delivery status changes.
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- ACTIVITY TRACKING -->
+    <h2>12. Activity Tracking Analysis</h2>
+
+    <p>The activity tab in All Specs is located at:</p>
+    <div class="api-route">src/components/specs/ItemDetailPanel.tsx (lines 195-530)</div>
+
+    <h3>Activity Types Defined in Schema:</h3>
+    <p><span class="code">prisma/schema.prisma</span> (lines 1653-1671)</p>
+
+    <table>
+        <tr>
+            <th>Activity Type</th>
+            <th>Status</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td><span class="code">QUOTE_REQUESTED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Quote request sent to supplier</td>
+        </tr>
+        <tr>
+            <td><span class="code">QUOTE_VIEWED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Supplier viewed the request</td>
+        </tr>
+        <tr>
+            <td><span class="code">QUOTE_RECEIVED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Supplier submitted a quote</td>
+        </tr>
+        <tr>
+            <td><span class="code">QUOTE_DECLINED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Supplier declined to quote</td>
+        </tr>
+        <tr>
+            <td><span class="code">STATUS_CHANGED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Item status changed</td>
+        </tr>
+        <tr>
+            <td><span class="code">PRICE_UPDATED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Price was updated</td>
+        </tr>
+        <tr>
+            <td><span class="code">SENT_TO_CLIENT_QUOTE</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Item sent to client via quote</td>
+        </tr>
+        <tr>
+            <td><span class="code">CLIENT_QUOTE_VIEWED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Client viewed the quote</td>
+        </tr>
+        <tr>
+            <td><span class="code">CLIENT_APPROVED</span></td>
+            <td class="activity-tracked">Tracked</td>
+            <td>Client approved the item</td>
+        </tr>
+        <tr>
+            <td><span class="code">CLIENT_REJECTED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Client requested changes</td>
+        </tr>
+        <tr>
+            <td><span class="code">CLIENT_QUOTE_PAID</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Client paid for item via quote</td>
+        </tr>
+        <tr>
+            <td><span class="code">ADDED_TO_ORDER</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Item added to purchase order</td>
+        </tr>
+        <tr>
+            <td><span class="code">ORDERED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Item ordered from supplier</td>
+        </tr>
+        <tr>
+            <td><span class="code">SHIPPED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Item shipped</td>
+        </tr>
+        <tr>
+            <td><span class="code">DELIVERED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Item delivered</td>
+        </tr>
+        <tr>
+            <td><span class="code">NOTE_ADDED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Note added to item</td>
+        </tr>
+        <tr>
+            <td><span class="code">DOCUMENT_UPLOADED</span></td>
+            <td class="activity-missing">NOT Tracked</td>
+            <td>Document attached</td>
+        </tr>
+    </table>
+
+    <h3>Where Activities ARE Logged:</h3>
+    <table>
+        <tr>
+            <th>File</th>
+            <th>Activities Logged</th>
+        </tr>
+        <tr>
+            <td><span class="code">src/app/api/ffe/v2/rooms/[roomId]/items/[itemId]/route.ts</span></td>
+            <td>ITEM_SELECTED, STATUS_CHANGED, CLIENT_APPROVED</td>
+        </tr>
+        <tr>
+            <td><span class="code">src/app/api/supplier-portal/[token]/route.ts</span></td>
+            <td>QUOTE_VIEWED, QUOTE_RECEIVED</td>
+        </tr>
+        <tr>
+            <td><span class="code">src/app/api/client-quotes/send-to-client/route.ts</span></td>
+            <td>SENT_TO_CLIENT_QUOTE</td>
+        </tr>
+        <tr>
+            <td><span class="code">src/app/api/quote/[token]/route.ts</span></td>
+            <td>CLIENT_QUOTE_VIEWED</td>
+        </tr>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- DATABASE MODELS -->
+    <h2>13. Database Models Reference</h2>
+
+    <table>
+        <tr>
+            <th>Stage</th>
+            <th>Models Used</th>
+        </tr>
+        <tr>
+            <td>RFQ Creation</td>
+            <td><span class="code">RFQ</span>, <span class="code">RFQLineItem</span>, <span class="code">RFQDocument</span></td>
+        </tr>
+        <tr>
+            <td>Send to Suppliers</td>
+            <td><span class="code">SupplierRFQ</span>, <span class="code">SupplierAccessLog</span></td>
+        </tr>
+        <tr>
+            <td>Supplier Response</td>
+            <td><span class="code">SupplierQuote</span>, <span class="code">SupplierQuoteLineItem</span></td>
+        </tr>
+        <tr>
+            <td>Client Quote</td>
+            <td><span class="code">ClientQuote</span>, <span class="code">ClientQuoteLineItem</span>, <span class="code">ClientQuoteEmailLog</span></td>
+        </tr>
+        <tr>
+            <td>Payment</td>
+            <td><span class="code">Payment</span></td>
+        </tr>
+        <tr>
+            <td>Order</td>
+            <td><span class="code">Order</span>, <span class="code">OrderItem</span>, <span class="code">OrderActivity</span></td>
+        </tr>
+        <tr>
+            <td>Delivery</td>
+            <td><span class="code">Delivery</span></td>
+        </tr>
+        <tr>
+            <td>Item Activities</td>
+            <td><span class="code">ItemActivity</span>, <span class="code">ItemQuoteRequest</span></td>
+        </tr>
+    </table>
+
+    <h3>Key File Locations:</h3>
+    <table>
+        <tr>
+            <th>Purpose</th>
+            <th>File Path</th>
+        </tr>
+        <tr>
+            <td>RFQ Creation</td>
+            <td><span class="code">src/app/api/rfq/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Send to Suppliers</td>
+            <td><span class="code">src/app/api/rfq/[id]/send/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Supplier Portal</td>
+            <td><span class="code">src/app/api/supplier-portal/[token]/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Client Quotes</td>
+            <td><span class="code">src/app/api/client-quotes/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Send to Client</td>
+            <td><span class="code">src/app/api/client-quotes/send-to-client/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Client Quote View</td>
+            <td><span class="code">src/app/api/quote/[token]/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Payments</td>
+            <td><span class="code">src/app/api/payments/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Orders</td>
+            <td><span class="code">src/app/api/orders/route.ts</span></td>
+        </tr>
+        <tr>
+            <td>Activity Tab</td>
+            <td><span class="code">src/components/specs/ItemDetailPanel.tsx</span></td>
+        </tr>
+        <tr>
+            <td>Database Schema</td>
+            <td><span class="code">prisma/schema.prisma</span></td>
+        </tr>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- IDENTIFIED GAPS -->
+    <h2>14. Identified Gaps & Issues</h2>
+
+    <div class="warning-box">
+        <div class="warning-title">Critical Activity Tracking Gaps</div>
+        <p>The following procurement steps are NOT being logged to the ItemActivity table, meaning they won't appear in the All Specs activity tab:</p>
+        <ul style="margin-top: 10px;">
+            <li><strong>QUOTE_DECLINED</strong> - When supplier explicitly declines</li>
+            <li><strong>PRICE_UPDATED</strong> - When prices change</li>
+            <li><strong>CLIENT_REJECTED</strong> - When client rejects items</li>
+            <li><strong>CLIENT_QUOTE_PAID</strong> - When payment is received</li>
+            <li><strong>ADDED_TO_ORDER</strong> - When item added to PO</li>
+            <li><strong>ORDERED</strong> - When order placed with supplier</li>
+            <li><strong>SHIPPED</strong> - When item ships</li>
+            <li><strong>DELIVERED</strong> - When item is delivered</li>
+            <li><strong>NOTE_ADDED</strong> - When notes are added</li>
+            <li><strong>DOCUMENT_UPLOADED</strong> - When documents attached</li>
+        </ul>
+    </div>
+
+    <div class="warning-box">
+        <div class="warning-title">System Gaps</div>
+        <ul>
+            <li><strong>No separate Invoice model</strong> - ClientQuote is used as invoice</li>
+            <li><strong>No online client approval</strong> - Client must pay externally, designer records payment</li>
+            <li><strong>No Stripe checkout integration</strong> - Payments logged manually</li>
+            <li><strong>No automated delivery updates</strong> - Manual status updates only</li>
+            <li><strong>No PDF invoice generation endpoint</strong> - Only client quote PDF exists</li>
+        </ul>
+    </div>
+
+    <div class="success-box">
+        <strong>What IS Working:</strong>
+        <ul style="margin-top: 10px;">
+            <li>RFQ creation and sending to suppliers</li>
+            <li>Supplier portal with quote submission</li>
+            <li>Quote comparison and acceptance</li>
+            <li>Client quote generation with markup</li>
+            <li>Client quote email sending and viewing</li>
+            <li>Payment recording (manual)</li>
+            <li>Order creation from quotes</li>
+            <li>Basic activity tracking for quote stages</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- RECOMMENDATIONS -->
+    <h2>15. Recommendations - Priority 1 (Critical)</h2>
+    <p style="margin-bottom: 15px; color: #c53030; font-weight: 600;">These issues directly impact workflow visibility and should be addressed first.</p>
+
+    <!-- REC 1.1 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #c53030;">1.1</div>
+            <div class="step-title">Complete Activity Tracking for All Procurement Steps</div>
+        </div>
+
+        <p><strong>Problem:</strong> 10 out of 17 activity types are defined but never logged. The activity tab in All Specs loses track of items after the quote stage.</p>
+
+        <h3>Implementation Required:</h3>
+        <table>
+            <tr>
+                <th>Activity</th>
+                <th>Where to Add</th>
+                <th>Trigger</th>
+            </tr>
+            <tr>
+                <td><span class="code">CLIENT_QUOTE_PAID</span></td>
+                <td><span class="code">src/app/api/payments/route.ts</span></td>
+                <td>When payment is recorded</td>
+            </tr>
+            <tr>
+                <td><span class="code">ADDED_TO_ORDER</span></td>
+                <td><span class="code">src/app/api/orders/route.ts</span></td>
+                <td>When order is created from quote</td>
+            </tr>
+            <tr>
+                <td><span class="code">ORDERED</span></td>
+                <td><span class="code">src/app/api/orders/route.ts</span></td>
+                <td>When order status changes to CONFIRMED</td>
+            </tr>
+            <tr>
+                <td><span class="code">SHIPPED</span></td>
+                <td>Order status update API</td>
+                <td>When tracking number is added</td>
+            </tr>
+            <tr>
+                <td><span class="code">DELIVERED</span></td>
+                <td>Delivery status update API</td>
+                <td>When delivery marked complete</td>
+            </tr>
+            <tr>
+                <td><span class="code">QUOTE_DECLINED</span></td>
+                <td><span class="code">src/app/api/supplier-portal/[token]/route.ts</span></td>
+                <td>When supplier clicks "Decline"</td>
+            </tr>
+            <tr>
+                <td><span class="code">PRICE_UPDATED</span></td>
+                <td><span class="code">src/app/api/ffe/v2/.../items/[itemId]/route.ts</span></td>
+                <td>When unit cost/trade price changes</td>
+            </tr>
+        </table>
+
+        <div class="success-box">
+            <strong>Benefit:</strong> Complete audit trail visible in All Specs activity tab. Designers can see exactly where each item is in the procurement process without leaving the spec view.
+        </div>
+    </div>
+
+    <!-- REC 1.2 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #c53030;">1.2</div>
+            <div class="step-title">Add Supplier "Decline Quote" Functionality</div>
+        </div>
+
+        <p><strong>Problem:</strong> Suppliers can only submit quotes or ignore requests. There's no way for them to formally decline, leaving designers uncertain.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Add "Decline to Quote" button on supplier portal</li>
+            <li>Create decline reason dropdown (out of stock, discontinued, price too low, etc.)</li>
+            <li>Update <span class="code">SupplierRFQ.responseStatus</span> to DECLINED</li>
+            <li>Log <span class="code">QUOTE_DECLINED</span> activity with reason in metadata</li>
+            <li>Send notification email to designer</li>
+        </ul>
+
+        <div class="api-route">
+            POST /api/supplier-portal/[token]/decline<br>
+            Body: { reason: "OUT_OF_STOCK", notes: "Item discontinued" }
+        </div>
+    </div>
+
+    <!-- REC 1.3 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #c53030;">1.3</div>
+            <div class="step-title">Link Order Items Back to Spec Items</div>
+        </div>
+
+        <p><strong>Problem:</strong> When orders are created, there's no direct link from <span class="code">OrderItem</span> to the original <span class="code">RoomFFEItem</span>. This breaks the activity chain.</p>
+
+        <h3>Current Chain:</h3>
+        <div class="formula">
+            RoomFFEItem → RFQLineItem → SupplierQuoteLineItem → ClientQuoteLineItem → OrderItem
+        </div>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Add <span class="code">roomFFEItemId</span> field to <span class="code">OrderItem</span> model</li>
+            <li>Populate this field when creating orders from quotes</li>
+            <li>Use this link to log activities against the original spec item</li>
+        </ul>
+
+        <div class="warning-box">
+            <div class="warning-title">Schema Change Required</div>
+            <pre style="background: #edf2f7; padding: 10px; border-radius: 4px; font-size: 12px;">
+model OrderItem {
+  ...
+  roomFFEItemId    String?
+  roomFFEItem      RoomFFEItem? @relation(fields: [roomFFEItemId], references: [id])
+}</pre>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>16. Recommendations - Priority 2 (Important)</h2>
+    <p style="margin-bottom: 15px; color: #d69e2e; font-weight: 600;">These improvements enhance workflow efficiency and user experience.</p>
+
+    <!-- REC 2.1 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #d69e2e;">2.1</div>
+            <div class="step-title">Client Quote Approval Workflow</div>
+        </div>
+
+        <p><strong>Problem:</strong> Clients cannot approve/reject quotes online. They must pay externally and the designer manually records the payment.</p>
+
+        <h3>Implementation Required:</h3>
+        <ol>
+            <li><strong>Client Portal Enhancements:</strong>
+                <ul>
+                    <li>Add "Approve Quote" button on client quote view page</li>
+                    <li>Add "Request Changes" button with comment field</li>
+                    <li>Show approval status and history</li>
+                </ul>
+            </li>
+            <li><strong>New API Endpoints:</strong>
+                <ul>
+                    <li><span class="code">POST /api/quote/[token]/approve</span></li>
+                    <li><span class="code">POST /api/quote/[token]/request-changes</span></li>
+                </ul>
+            </li>
+            <li><strong>Status Updates:</strong>
+                <ul>
+                    <li>Log <span class="code">CLIENT_APPROVED</span> or <span class="code">CLIENT_REJECTED</span> activities</li>
+                    <li>Send notification email to designer</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="success-box">
+            <strong>Benefit:</strong> Eliminates back-and-forth emails. Designer gets instant notification when client approves. Clear audit trail of client decisions.
+        </div>
+    </div>
+
+    <!-- REC 2.2 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #d69e2e;">2.2</div>
+            <div class="step-title">Stripe Payment Integration</div>
+        </div>
+
+        <p><strong>Problem:</strong> Payment fields exist for Stripe (stripePaymentId, stripeChargeId) but no actual integration. All payments are logged manually.</p>
+
+        <h3>Implementation Required:</h3>
+        <ol>
+            <li><strong>Stripe Checkout Session:</strong>
+                <ul>
+                    <li>Create checkout session when client clicks "Pay Now"</li>
+                    <li>Include quote line items in session</li>
+                    <li>Handle tax calculation (GST/QST)</li>
+                </ul>
+            </li>
+            <li><strong>Webhook Handler:</strong>
+                <ul>
+                    <li><span class="code">POST /api/webhooks/stripe</span></li>
+                    <li>Handle <span class="code">checkout.session.completed</span></li>
+                    <li>Auto-create Payment record with Stripe IDs</li>
+                    <li>Log <span class="code">CLIENT_QUOTE_PAID</span> activity</li>
+                    <li>Update order status to PAYMENT_RECEIVED</li>
+                </ul>
+            </li>
+            <li><strong>Client Portal:</strong>
+                <ul>
+                    <li>Add "Pay with Card" button</li>
+                    <li>Show payment status and receipt link</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="api-route">
+            POST /api/client-quotes/[id]/create-checkout-session<br>
+            Returns: { checkoutUrl: "https://checkout.stripe.com/..." }
+        </div>
+    </div>
+
+    <!-- REC 2.3 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #d69e2e;">2.3</div>
+            <div class="step-title">Invoice Generation System</div>
+        </div>
+
+        <p><strong>Problem:</strong> No separate Invoice model. ClientQuote doubles as invoice, which conflates two different business documents.</p>
+
+        <h3>Implementation Required:</h3>
+        <ol>
+            <li><strong>New Invoice Model:</strong>
+                <ul>
+                    <li>Invoice number format: <span class="code">INV-YYYY-NNNN</span></li>
+                    <li>Link to ClientQuote(s)</li>
+                    <li>Payment terms, due date</li>
+                    <li>Status: DRAFT, SENT, PAID, OVERDUE, VOID</li>
+                </ul>
+            </li>
+            <li><strong>Invoice Features:</strong>
+                <ul>
+                    <li>Generate from one or multiple client quotes</li>
+                    <li>Add/remove line items</li>
+                    <li>Partial invoicing (deposit, milestone payments)</li>
+                    <li>PDF generation with company branding</li>
+                </ul>
+            </li>
+            <li><strong>Client Portal:</strong>
+                <ul>
+                    <li>View invoice history</li>
+                    <li>Download PDF invoices</li>
+                    <li>See payment status</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="warning-box">
+            <div class="warning-title">Schema Addition Required</div>
+            <pre style="background: #edf2f7; padding: 10px; border-radius: 4px; font-size: 12px;">
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  clientQuoteId   String?
+  projectId       String
+  status          InvoiceStatus
+  subtotal        Decimal
+  gstAmount       Decimal
+  qstAmount       Decimal
+  totalAmount     Decimal
+  dueDate         DateTime
+  sentAt          DateTime?
+  paidAt          DateTime?
+  ...
+}</pre>
+        </div>
+    </div>
+
+    <!-- REC 2.4 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #d69e2e;">2.4</div>
+            <div class="step-title">Automated Delivery Tracking</div>
+        </div>
+
+        <p><strong>Problem:</strong> Delivery status is updated manually. No integration with carrier APIs (FedEx, UPS, DHL).</p>
+
+        <h3>Implementation Options:</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Pros</th>
+                <th>Cons</th>
+            </tr>
+            <tr>
+                <td><strong>A) Carrier API Integration</strong></td>
+                <td>Real-time updates, automatic status changes</td>
+                <td>Complex setup, multiple API integrations, costs</td>
+            </tr>
+            <tr>
+                <td><strong>B) Third-party Service</strong><br>(AfterShip, Shippo, EasyPost)</td>
+                <td>Single integration, supports 900+ carriers</td>
+                <td>Monthly cost, dependency on third-party</td>
+            </tr>
+            <tr>
+                <td><strong>C) Tracking Link Only</strong><br>(Current approach)</td>
+                <td>Simple, no cost</td>
+                <td>Manual updates, no automation</td>
+            </tr>
+        </table>
+
+        <h3>Recommended: Option B (Third-party Service)</h3>
+        <ul>
+            <li>Integrate with AfterShip or similar service</li>
+            <li>Webhook receives tracking updates automatically</li>
+            <li>Auto-update Delivery status</li>
+            <li>Log <span class="code">SHIPPED</span> and <span class="code">DELIVERED</span> activities</li>
+            <li>Send notifications to designer and client</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>17. Recommendations - Priority 3 (Enhancements)</h2>
+    <p style="margin-bottom: 15px; color: #38a169; font-weight: 600;">Nice-to-have features that improve the overall system.</p>
+
+    <!-- REC 3.1 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #38a169;">3.1</div>
+            <div class="step-title">Quote Expiration & Reminders</div>
+        </div>
+
+        <p><strong>Current State:</strong> RFQ has <span class="code">responseDeadline</span> but no automated actions when it passes.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li><strong>Scheduled Job:</strong> Check for expiring quotes daily</li>
+            <li><strong>Reminder Emails:</strong> Send to suppliers 3 days before deadline</li>
+            <li><strong>Auto-Expire:</strong> Mark <span class="code">ItemQuoteRequest.status</span> as EXPIRED after deadline</li>
+            <li><strong>Dashboard Alerts:</strong> Show "X quotes expiring soon" on procurement dashboard</li>
+            <li><strong>Log Activity:</strong> <span class="code">QUOTE_EXPIRED</span> for each affected item</li>
+        </ul>
+    </div>
+
+    <!-- REC 3.2 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #38a169;">3.2</div>
+            <div class="step-title">Bulk Order Creation</div>
+        </div>
+
+        <p><strong>Current State:</strong> Orders are created one at a time from approved quotes.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Select multiple approved client quotes</li>
+            <li>Auto-group items by supplier</li>
+            <li>Create one PO per supplier with combined items</li>
+            <li>Maintain links to all source quotes</li>
+            <li>Calculate combined totals</li>
+        </ul>
+
+        <div class="success-box">
+            <strong>Benefit:</strong> Reduce number of POs. Potential for volume discounts. Less paperwork for suppliers.
+        </div>
+    </div>
+
+    <!-- REC 3.3 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #38a169;">3.3</div>
+            <div class="step-title">Supplier Performance Metrics</div>
+        </div>
+
+        <p><strong>Current State:</strong> No tracking of supplier response times, quote accuracy, or delivery performance.</p>
+
+        <h3>Metrics to Track:</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Calculation</th>
+                <th>Data Source</th>
+            </tr>
+            <tr>
+                <td>Response Rate</td>
+                <td>Quotes submitted / RFQs received</td>
+                <td>SupplierRFQ</td>
+            </tr>
+            <tr>
+                <td>Response Time</td>
+                <td>Average time from sentAt to submittedAt</td>
+                <td>SupplierQuote</td>
+            </tr>
+            <tr>
+                <td>Quote Acceptance Rate</td>
+                <td>Accepted quotes / Total quotes</td>
+                <td>SupplierQuote.status</td>
+            </tr>
+            <tr>
+                <td>On-Time Delivery</td>
+                <td>Deliveries on/before expectedDate</td>
+                <td>Delivery</td>
+            </tr>
+            <tr>
+                <td>Price Accuracy</td>
+                <td>Final price vs quoted price variance</td>
+                <td>Order vs SupplierQuote</td>
+            </tr>
+        </table>
+
+        <h3>Display:</h3>
+        <ul>
+            <li>Supplier detail page: Show performance scorecard</li>
+            <li>RFQ creation: Show supplier rating when selecting suppliers</li>
+            <li>Quote comparison: Factor in reliability, not just price</li>
+        </ul>
+    </div>
+
+    <!-- REC 3.4 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #38a169;">3.4</div>
+            <div class="step-title">Document Management Improvements</div>
+        </div>
+
+        <p><strong>Current State:</strong> Documents can be attached but <span class="code">DOCUMENT_UPLOADED</span> activity is never logged.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Log activity when documents are uploaded to RFQ, Quote, Order, or Delivery</li>
+            <li>Add document versioning (replace vs add new version)</li>
+            <li>Add document categories (spec sheet, drawing, invoice, POD, etc.)</li>
+            <li>Show document timeline in activity tab</li>
+            <li>Add document preview in supplier/client portals</li>
+        </ul>
+    </div>
+
+    <!-- REC 3.5 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #38a169;">3.5</div>
+            <div class="step-title">Notes & Comments System</div>
+        </div>
+
+        <p><strong>Current State:</strong> <span class="code">NOTE_ADDED</span> activity type exists but notes are not tracked.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Add notes field to items, quotes, orders, deliveries</li>
+            <li>Log <span class="code">NOTE_ADDED</span> activity with note content in metadata</li>
+            <li>Support @mentions for team notifications</li>
+            <li>Show notes in activity timeline</li>
+            <li>Filter notes by type: internal, client-visible, supplier-visible</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>18. Recommendations - Priority 4 (Future Considerations)</h2>
+    <p style="margin-bottom: 15px; color: #718096; font-weight: 600;">Long-term improvements for scaling the system.</p>
+
+    <!-- REC 4.1 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #718096;">4.1</div>
+            <div class="step-title">Multi-Currency Support</div>
+        </div>
+
+        <p><strong>Current State:</strong> System uses CAD. <span class="code">Supplier.currency</span> exists but isn't actively used for conversion.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>Store supplier quotes in supplier's currency</li>
+            <li>Add exchange rate at time of quote acceptance</li>
+            <li>Convert to organization's currency for client quotes</li>
+            <li>Track currency fluctuation impact on margins</li>
+            <li>Display both currencies where relevant</li>
+        </ul>
+    </div>
+
+    <!-- REC 4.2 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #718096;">4.2</div>
+            <div class="step-title">Supplier Portal Authentication</div>
+        </div>
+
+        <p><strong>Current State:</strong> Token-based access only. Tokens expire. No persistent supplier accounts.</p>
+
+        <h3>Implementation Options:</h3>
+        <ul>
+            <li><strong>Option A:</strong> Continue with tokens (current, simple)</li>
+            <li><strong>Option B:</strong> Add optional supplier login
+                <ul>
+                    <li>Supplier can create account from portal link</li>
+                    <li>See all RFQs, quotes, orders in one place</li>
+                    <li>Manage company profile, contacts</li>
+                    <li>Use <span class="code">Supplier.portalPassword</span> field (already exists)</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- REC 4.3 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #718096;">4.3</div>
+            <div class="step-title">Reporting & Analytics Dashboard</div>
+        </div>
+
+        <h3>Suggested Reports:</h3>
+        <table>
+            <tr>
+                <th>Report</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>Procurement Pipeline</td>
+                <td>Items by stage (quoting, ordered, shipped, delivered)</td>
+            </tr>
+            <tr>
+                <td>Margin Analysis</td>
+                <td>Profit by project, supplier, category</td>
+            </tr>
+            <tr>
+                <td>Supplier Spend</td>
+                <td>Total spend by supplier, trending over time</td>
+            </tr>
+            <tr>
+                <td>Quote Conversion</td>
+                <td>RFQs sent vs quotes received vs orders placed</td>
+            </tr>
+            <tr>
+                <td>Payment Aging</td>
+                <td>Outstanding client payments by age</td>
+            </tr>
+            <tr>
+                <td>Delivery Performance</td>
+                <td>On-time vs late deliveries by supplier</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- REC 4.4 -->
+    <div class="step-container">
+        <div class="step-header">
+            <div class="step-number" style="background: #718096;">4.4</div>
+            <div class="step-title">Email Notification Preferences</div>
+        </div>
+
+        <p><strong>Current State:</strong> All emails sent automatically with no user preferences.</p>
+
+        <h3>Implementation Required:</h3>
+        <ul>
+            <li>User settings for notification preferences</li>
+            <li>Options: instant, daily digest, none</li>
+            <li>Categories: supplier responses, client actions, order updates, delivery updates</li>
+            <li>Unsubscribe links in emails</li>
+            <li>In-app notification center as alternative</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- IMPLEMENTATION ROADMAP -->
+    <h2>19. Suggested Implementation Roadmap</h2>
+
+    <div class="step-container">
+        <h3>Phase 1: Fix Activity Tracking (Foundation)</h3>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Effort</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>1.1 Complete activity logging for all procurement steps</td>
+                <td>Medium</td>
+                <td>High</td>
+            </tr>
+            <tr>
+                <td>1.3 Link OrderItem to RoomFFEItem</td>
+                <td>Low</td>
+                <td>High</td>
+            </tr>
+            <tr>
+                <td>1.2 Add supplier decline functionality</td>
+                <td>Low</td>
+                <td>Medium</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="step-container">
+        <h3>Phase 2: Client Experience</h3>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Effort</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>2.1 Client quote approval workflow</td>
+                <td>Medium</td>
+                <td>High</td>
+            </tr>
+            <tr>
+                <td>2.2 Stripe payment integration</td>
+                <td>High</td>
+                <td>High</td>
+            </tr>
+            <tr>
+                <td>2.3 Invoice generation system</td>
+                <td>High</td>
+                <td>Medium</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="step-container">
+        <h3>Phase 3: Automation & Efficiency</h3>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Effort</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>2.4 Automated delivery tracking</td>
+                <td>Medium</td>
+                <td>Medium</td>
+            </tr>
+            <tr>
+                <td>3.1 Quote expiration & reminders</td>
+                <td>Low</td>
+                <td>Medium</td>
+            </tr>
+            <tr>
+                <td>3.2 Bulk order creation</td>
+                <td>Medium</td>
+                <td>Low</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="step-container">
+        <h3>Phase 4: Analytics & Polish</h3>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Effort</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>3.3 Supplier performance metrics</td>
+                <td>Medium</td>
+                <td>Medium</td>
+            </tr>
+            <tr>
+                <td>3.4 Document management improvements</td>
+                <td>Low</td>
+                <td>Low</td>
+            </tr>
+            <tr>
+                <td>3.5 Notes & comments system</td>
+                <td>Low</td>
+                <td>Low</td>
+            </tr>
+            <tr>
+                <td>4.3 Reporting dashboard</td>
+                <td>High</td>
+                <td>Medium</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="step-container" style="background: #ebf8ff; border-color: #3182ce;">
+        <h3 style="color: #2b6cb0;">Executive Summary</h3>
+        <p>The procurement system has a solid foundation with complete RFQ-to-order flow. The main gaps are:</p>
+        <ol style="margin: 15px 0 15px 20px;">
+            <li><strong>Incomplete Activity Tracking:</strong> 10 of 17 activity types not logged, breaking the audit trail in All Specs</li>
+            <li><strong>Manual Processes:</strong> Payments, approvals, and delivery updates all require manual intervention</li>
+            <li><strong>Missing Client Self-Service:</strong> Clients cannot approve quotes or pay online</li>
+            <li><strong>No Formal Invoicing:</strong> ClientQuote used as invoice, which is not ideal for accounting</li>
+        </ol>
+        <p><strong>Recommended First Step:</strong> Complete the activity tracking (Recommendation 1.1). This provides immediate visibility into the full procurement lifecycle without changing any business logic.</p>
+    </div>
+
+    <hr style="margin: 40px 0; border: none; border-top: 2px solid #e2e8f0;">
+
+    <p style="text-align: center; color: #718096; font-size: 12px;">
+        End of Document | ResidentOne Workflow System<br>
+        Generated: December 31, 2024 | Version 1.0
+    </p>
+</body>
+</html>

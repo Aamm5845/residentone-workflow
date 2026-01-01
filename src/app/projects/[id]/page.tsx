@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList, ShoppingCart, FolderOpen } from 'lucide-react'
 import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -402,8 +402,8 @@ export default async function ProjectDetail({ params }: Props) {
           </div>
         </div>
 
-        {/* Project Features Section */}
-        {(project.hasFloorplanApproval || project.hasSpecBook || project.hasProjectUpdates) && (
+        {/* Project Features Section - Always show since Project Files is always available */}
+        {(true || project.hasFloorplanApproval || project.hasSpecBook || project.hasProjectUpdates) && (
           <div className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-6 py-6">
               <div className="flex items-center justify-between">
@@ -466,7 +466,57 @@ export default async function ProjectDetail({ params }: Props) {
                       </div>
                     </Link>
                   )}
-                  
+
+                  {/* Procurement Card */}
+                  {project.hasSpecBook && (
+                    <Link
+                      href={`/projects/${project.id}/procurement`}
+                      className="group block"
+                    >
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 hover:border-amber-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center shadow-sm">
+                              <ShoppingCart className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-amber-800 group-hover:text-amber-900 transition-colors">
+                                Procurement
+                              </h3>
+                              <p className="text-xs text-amber-600 mt-1">
+                                Quotes, orders, and deliveries
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Project Files Card */}
+                  <Link
+                    href={`/projects/${project.id}/floorplan/sources`}
+                    className="group block"
+                  >
+                    <div className="bg-gradient-to-br from-cyan-50 to-teal-100 border border-cyan-200 hover:border-cyan-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-cyan-500 rounded-lg flex items-center justify-center shadow-sm">
+                            <FolderOpen className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-cyan-800 group-hover:text-cyan-900 transition-colors">
+                              Project Files
+                            </h3>
+                            <p className="text-xs text-cyan-600 mt-1">
+                              Documents, plans, and reference files
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+
                   {/* Project Updates Card */}
                   {project.hasProjectUpdates && (
                     <Link

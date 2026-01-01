@@ -1,42 +1,8 @@
-import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import OrderDetailView from '@/components/procurement/order-detail-view'
-import type { Session } from 'next-auth'
 
 export const dynamic = 'force-dynamic'
 
-export default async function OrderDetailPage({
-  params
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const session = await getSession() as Session & {
-    user: {
-      id: string
-      orgId: string
-      role: string
-      name: string
-    }
-  } | null
-
-  if (!session?.user) {
-    redirect('/auth/signin')
-  }
-
-  const { id } = await params
-
-  return (
-    <DashboardLayout session={session}>
-      <OrderDetailView
-        orderId={id}
-        user={{
-          id: session.user.id,
-          name: session.user.name || '',
-          role: session.user.role || 'DESIGNER'
-        }}
-        orgId={session.user.orgId}
-      />
-    </DashboardLayout>
-  )
+// Old order detail page - redirect to projects
+export default async function OrderDetailPage() {
+  redirect('/projects')
 }

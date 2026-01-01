@@ -512,12 +512,13 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
-                onClick={() => router.push(`/projects/${project.id}/floorplan`)}
+                onClick={() => router.push(`/projects/${project.id}`)}
                 variant="ghost"
                 size="sm"
                 className="text-gray-500 hover:text-gray-900 -ml-2"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back to Project
               </Button>
               
               <div className="h-8 w-px bg-gray-200" />

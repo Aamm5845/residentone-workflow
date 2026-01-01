@@ -93,7 +93,7 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
-    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600' },
+    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', comingSoon: true },
     { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
@@ -124,6 +124,20 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
         <div className="space-y-1">
           {mainNavigation.map((item) => {
             const Icon = item.icon
+            const isComingSoon = 'comingSoon' in item && item.comingSoon
+
+            if (isComingSoon) {
+              return (
+                <div
+                  key={item.name}
+                  className="group flex items-center justify-center p-2 text-sm font-medium rounded-md cursor-not-allowed opacity-50 relative"
+                  title={`${item.name} - Coming Soon`}
+                >
+                  <Icon className="h-5 w-5 text-gray-400" />
+                </div>
+              )
+            }
+
             return (
               <Link
                 key={item.name}
@@ -186,6 +200,24 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
         <nav className="space-y-1">
           {mainNavigation.map((item) => {
             const Icon = item.icon
+            const isComingSoon = 'comingSoon' in item && item.comingSoon
+
+            if (isComingSoon) {
+              return (
+                <div
+                  key={item.name}
+                  className="group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md cursor-not-allowed opacity-50"
+                  title="Coming Soon"
+                >
+                  <div className="flex items-center">
+                    <Icon className="flex-shrink-0 h-5 w-5 mr-3 text-gray-400" />
+                    <span className="text-gray-400">{item.name}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Soon</span>
+                </div>
+              )
+            }
+
             return (
               <Link
                 key={item.name}

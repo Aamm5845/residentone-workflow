@@ -94,11 +94,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch('/api/timeline/me/active')
       if (!response.ok) {
-        if (response.status === 401) {
-          setActiveEntry(null)
-          return
-        }
-        throw new Error('Failed to fetch active timer')
+        // Don't throw on errors - just clear the timer state
+        setActiveEntry(null)
+        setElapsedSeconds(0)
+        return
       }
 
       const data = await response.json()

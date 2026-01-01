@@ -178,8 +178,54 @@ export async function PATCH(
       responseDeadline,
       groupingType,
       categoryFilter,
-      status
+      status,
+      lineItems: newLineItems,
+      supplierId
     } = body
+
+    // If supplierId is provided, update the supplier (only for drafts)
+    if (supplierId !== undefined && existing.status === 'DRAFT') {
+      // Delete existing supplier assignments
+      await prisma.supplierRFQ.deleteMany({
+        where: { rfqId: id }
+      })
+
+      // Create new supplier assignment if supplierId is provided
+      if (supplierId) {
+        await prisma.supplierRFQ.create({
+          data: {
+            rfqId: id,
+            supplierId: supplierId,
+            responseStatus: 'PENDING'
+          }
+        })
+      }
+    }
+
+    // If lineItems are provided, update them
+    if (newLineItems && Array.isArray(newLineItems)) {
+      // Delete existing line items
+      await prisma.rFQLineItem.deleteMany({
+        where: { rfqId: id }
+      })
+
+      // Create new line items
+      if (newLineItems.length > 0) {
+        await prisma.rFQLineItem.createMany({
+          data: newLineItems.map((item: any, index: number) => ({
+            rfqId: id,
+            roomFFEItemId: item.roomFFEItemId || null,
+            itemName: item.itemName,
+            itemDescription: item.itemDescription || null,
+            quantity: item.quantity || 1,
+            unitType: item.unitType || null,
+            specifications: item.specifications || null,
+            notes: item.notes || null,
+            order: index
+          }))
+        })
+      }
+    }
 
     const rfq = await prisma.rFQ.update({
       where: { id },

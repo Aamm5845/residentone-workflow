@@ -89,60 +89,6 @@ export function FloorplanPhasesWorkspace({
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        
-        {/* Client Sources Section - File Organization (NOT a phase) */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">Client Sources</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Organize client files, engineer documents, and reference materials</p>
-            </div>
-          </div>
-          
-          <Link href={`/projects/${project.id}/floorplan/sources`} className="group block">
-            <div className="bg-white rounded-xl border border-gray-200 hover:border-orange-300 p-6 transition-all duration-200 hover:shadow-md">
-              <div className="flex items-center gap-5">
-                {/* Icon */}
-                <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <FolderOpen className="w-7 h-7 text-orange-600" />
-                </div>
-                
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-medium text-gray-900 group-hover:text-orange-600 transition-colors">
-                      Project Files & Documents
-                    </h3>
-                    {sourcesCount > 0 && (
-                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                        {sourcesCount} {sourcesCount === 1 ? 'file' : 'files'}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Client measurements, architect plans, reference images, engineer files, and more
-                  </p>
-                </div>
-
-                {/* Preview icons */}
-                <div className="hidden md:flex items-center gap-2 text-gray-400">
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                    <File className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
-              </div>
-            </div>
-          </Link>
-        </div>
-
         {/* Phase Cards */}
         <div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

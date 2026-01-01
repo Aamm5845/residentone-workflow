@@ -50,7 +50,13 @@ export async function GET(request: NextRequest) {
             }
           },
           supplierRFQs: {
-            include: {
+            select: {
+              id: true,
+              responseStatus: true,
+              viewedAt: true,
+              sentAt: true,
+              vendorName: true,
+              vendorEmail: true,
               supplier: {
                 select: {
                   id: true,
