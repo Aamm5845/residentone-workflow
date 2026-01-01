@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Loader2, DollarSign, CreditCard, Building, Banknote, Wallet } from 'lucide-react'
+import { Loader2, DollarSign, CreditCard, Building, Banknote, Wallet, Upload, FileText, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface RecordPaymentDialogProps {
@@ -60,6 +60,65 @@ export default function RecordPaymentDialog({
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Proof of payment upload
+  const [proofFile, setProofFile] = useState<File | null>(null)
+  const [uploadingProof, setUploadingProof] = useState(false)
+  const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB')
+        return
+      }
+      setProofFile(file)
+      setProofUrl(null)
+    }
+  }
+
+  const removeProofFile = () => {
+    setProofFile(null)
+    setProofUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const uploadProofToDropbox = async (): Promise<string | null> => {
+    if (!proofFile) return null
+
+    setUploadingProof(true)
+    try {
+      // Create form data for upload
+      const formData = new FormData()
+      formData.append('file', proofFile)
+      formData.append('folder', `/Shopping/Payments/${invoice.invoiceNumber}`)
+      formData.append('description', `Payment proof for ${invoice.invoiceNumber}`)
+
+      const res = await fetch(`/api/projects/${projectId}/dropbox/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to upload proof to Dropbox')
+      }
+
+      const data = await res.json()
+      setProofUrl(data.url)
+      return data.url
+    } catch (error) {
+      console.error('Error uploading proof:', error)
+      toast.error('Failed to upload proof document')
+      return null
+    } finally {
+      setUploadingProof(false)
+    }
+  }
+
   const handleRecord = async () => {
     const paymentAmount = parseFloat(amount)
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
@@ -79,6 +138,12 @@ export default function RecordPaymentDialog({
 
     setSaving(true)
     try {
+      // Upload proof document to Dropbox if provided
+      let uploadedProofUrl = proofUrl
+      if (proofFile && !proofUrl) {
+        uploadedProofUrl = await uploadProofToDropbox()
+      }
+
       const res = await fetch(`/api/projects/${projectId}/procurement/client-invoices/${invoice.id}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,7 +152,9 @@ export default function RecordPaymentDialog({
           method,
           reference,
           paidAt,
-          notes
+          notes,
+          proofDocumentUrl: uploadedProofUrl,
+          proofFileName: proofFile?.name
         })
       })
 
@@ -243,6 +310,48 @@ export default function RecordPaymentDialog({
               placeholder="Any additional notes..."
               rows={2}
             />
+          </div>
+
+          {/* Proof of Payment Upload */}
+          <div>
+            <Label>Proof of Payment (optional)</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            {!proofFile ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full mt-1 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 text-gray-500 hover:text-blue-600"
+              >
+                <Upload className="w-4 h-4" />
+                <span className="text-sm">Upload proof document</span>
+              </button>
+            ) : (
+              <div className="mt-1 p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 truncate">{proofFile.name}</span>
+                  {proofUrl && (
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={removeProofFile}
+                  className="p-1 hover:bg-gray-200 rounded"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              PDF, images, or documents up to 10MB
+            </p>
           </div>
         </div>
 

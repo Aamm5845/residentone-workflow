@@ -92,6 +92,9 @@ interface ClientInvoice {
   payments: Payment[]
   createdAt: string
   updatedAt: string
+  // Email tracking
+  emailOpenedAt: string | null
+  viewCount: number
 }
 
 interface Stats {
@@ -403,10 +406,21 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
                         {formatCurrency(invoice.balance)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${statusConfig[invoice.status].color} gap-1`}>
-                          <StatusIcon className="w-3 h-3" />
-                          {statusConfig[invoice.status].label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${statusConfig[invoice.status].color} gap-1`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {statusConfig[invoice.status].label}
+                          </Badge>
+                          {invoice.emailOpenedAt && invoice.status !== 'DRAFT' && (
+                            <div
+                              className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded"
+                              title={`Viewed ${invoice.viewCount > 1 ? `${invoice.viewCount} times` : 'once'} - First opened: ${format(new Date(invoice.emailOpenedAt), 'MMM d, h:mm a')}`}
+                            >
+                              <Eye className="w-3 h-3" />
+                              {invoice.viewCount > 1 && <span>{invoice.viewCount}</span>}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

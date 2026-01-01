@@ -147,11 +147,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   EXPIRED: { label: 'Expired', color: 'bg-gray-100 text-gray-500' },
 }
 
-const availabilityConfig: Record<string, { label: string; color: string }> = {
-  IN_STOCK: { label: 'In Stock', color: 'bg-emerald-50 text-emerald-700' },
-  BACKORDER: { label: 'Backorder', color: 'bg-amber-50 text-amber-700' },
-  SPECIAL_ORDER: { label: 'Special Order', color: 'bg-blue-50 text-blue-700' },
-}
+// availabilityConfig removed - only using Lead Time now
 
 export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuoteId, onQuoteViewed }: SupplierQuotesTabProps) {
   const [quotes, setQuotes] = useState<SupplierQuote[]>([])
@@ -178,7 +174,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
   // Editing state
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
-  const [editedLineItems, setEditedLineItems] = useState<Record<string, { unitPrice: number; availability: string; leadTime: string }>>({})
+  const [editedLineItems, setEditedLineItems] = useState<Record<string, { unitPrice: number; leadTime: string }>>({})
   const [saving, setSaving] = useState(false)
 
   const fetchQuotes = useCallback(async () => {
@@ -279,11 +275,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   // Start editing a quote
   const startEditing = (quote: SupplierQuote) => {
     setEditingQuoteId(quote.id)
-    const initialEdits: Record<string, { unitPrice: number; availability: string; leadTime: string }> = {}
+    const initialEdits: Record<string, { unitPrice: number; leadTime: string }> = {}
     quote.lineItems.forEach(item => {
       initialEdits[item.id] = {
         unitPrice: item.unitPrice,
-        availability: item.availability || '',
         leadTime: item.leadTime || ''
       }
     })
@@ -309,7 +304,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         lineItemId: item.id,
         unitPrice: editedLineItems[item.id]?.unitPrice ?? item.unitPrice,
         quantity: item.quotedQuantity,
-        availability: editedLineItems[item.id]?.availability || item.availability,
         leadTime: editedLineItems[item.id]?.leadTime || item.leadTime
       }))
 
@@ -647,37 +641,33 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[120px] flex-shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                    <div className="w-[120px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {/* Quote Document Thumbnail */}
+                      {quote.quoteDocumentUrl ? (
+                        <button
+                          onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
+                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden"
+                          title="View Quote Document"
+                        >
+                          {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          )}
+                        </button>
+                      ) : (
+                        <div className="w-10 h-10 rounded border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-gray-300" />
+                        </div>
+                      )}
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-7 w-7 p-0 text-gray-500 hover:text-gray-900"
+                        className="h-8 px-2 text-xs"
                         onClick={() => openReviewDialog(quote)}
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        Review
                       </Button>
-                      {quote.status === 'SUBMITTED' && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            onClick={() => handleAction('approve', quote)}
-                            disabled={actionLoading}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
-                            onClick={() => handleAction('decline', quote)}
-                            disabled={actionLoading}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </>
-                      )}
                       {quote.status === 'ACCEPTED' && (
                         <Button
                           variant="ghost"
@@ -702,16 +692,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           disabled={deletingQuoteId === quote.id}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                      {quote.quoteDocumentUrl && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700"
-                          onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                        >
-                          <FileText className="w-3.5 h-3.5" />
                         </Button>
                       )}
                     </div>
@@ -774,22 +754,18 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
 
                       {/* Quote Info Grid */}
-                      <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500 mb-1">Quote Number</p>
                           <p className="font-medium">{quote.quoteNumber || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 mb-1">Submitted</p>
+                          <p className="text-gray-500 mb-1">Received</p>
                           <p className="font-medium">{formatDate(quote.submittedAt)}</p>
                         </div>
                         <div>
                           <p className="text-gray-500 mb-1">Payment Terms</p>
                           <p className="font-medium">{quote.paymentTerms || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500 mb-1">Shipping Terms</p>
-                          <p className="font-medium">{quote.shippingTerms || '-'}</p>
                         </div>
                       </div>
 
@@ -862,8 +838,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               <TableHead className="text-gray-500 font-medium text-center w-24">Qty</TableHead>
                               <TableHead className="text-gray-500 font-medium text-right w-28">Unit Price</TableHead>
                               <TableHead className="text-gray-500 font-medium text-right w-28">Total</TableHead>
-                              <TableHead className="text-gray-500 font-medium text-center w-32">Availability</TableHead>
-                              <TableHead className="text-gray-500 font-medium text-center w-28">Lead Time</TableHead>
+                              <TableHead className="text-gray-500 font-medium text-center w-32">Lead Time</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -871,7 +846,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               const isEditing = editingQuoteId === quote.id
                               const editedItem = editedLineItems[item.id]
                               const currentPrice = isEditing ? (editedItem?.unitPrice ?? item.unitPrice) : item.unitPrice
-                              const currentAvailability = isEditing ? (editedItem?.availability ?? item.availability) : item.availability
                               const currentLeadTime = isEditing ? (editedItem?.leadTime ?? item.leadTime) : item.leadTime
 
                               return (
@@ -941,27 +915,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                   <TableCell className="text-right font-medium">
                                     {formatCurrency(isEditing ? currentPrice * item.quotedQuantity : item.totalPrice, item.currency)}
                                   </TableCell>
-                                  {/* Availability - Editable */}
-                                  <TableCell className="text-center">
-                                    {isEditing ? (
-                                      <select
-                                        value={currentAvailability || ''}
-                                        onChange={(e) => updateLineItem(item.id, 'availability', e.target.value)}
-                                        className="h-8 rounded-md border border-gray-300 px-2 text-xs"
-                                      >
-                                        <option value="">Select...</option>
-                                        <option value="IN_STOCK">In Stock</option>
-                                        <option value="BACKORDER">Backorder</option>
-                                        <option value="SPECIAL_ORDER">Special Order</option>
-                                      </select>
-                                    ) : item.availability ? (
-                                      <Badge className={availabilityConfig[item.availability]?.color || 'bg-gray-100 text-gray-600'}>
-                                        {availabilityConfig[item.availability]?.label || item.availability}
-                                      </Badge>
-                                    ) : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </TableCell>
                                   {/* Lead Time - Editable */}
                                   <TableCell className="text-center">
                                     {isEditing ? (
@@ -1030,12 +983,15 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             </Button>
                             <Button
                               size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700"
+                              className={quote.hasMismatches
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-emerald-600 hover:bg-emerald-700"}
                               onClick={() => handleAction('approve', quote)}
-                              disabled={actionLoading}
+                              disabled={actionLoading || quote.hasMismatches}
+                              title={quote.hasMismatches ? "Resolve all discrepancies before approving" : ""}
                             >
                               <Check className="w-4 h-4 mr-1.5" />
-                              Approve Quote
+                              {quote.hasMismatches ? 'Fix Issues First' : 'Approve Quote'}
                             </Button>
                           </>
                         )}
@@ -1108,22 +1064,31 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                 </div>
               )}
 
-              {/* Mismatches */}
+              {/* Discrepancies / Mismatches */}
               {selectedQuote.hasMismatches && (
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <p className="text-sm font-medium text-orange-900 mb-2">Issues to Review</p>
-                  <div className="space-y-2">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <p className="text-sm font-semibold text-red-900">Discrepancies Detected - Must Resolve Before Approval</p>
+                  </div>
+                  <div className="space-y-3">
                     {selectedQuote.mismatches.map((mismatch, idx) => (
-                      <div key={idx} className="text-sm">
-                        <span className="font-medium text-orange-800">{mismatch.itemName}:</span>
-                        <ul className="list-disc list-inside ml-2 text-orange-700">
+                      <div key={idx} className="bg-white p-3 rounded border border-red-100">
+                        <p className="font-medium text-gray-900 mb-2">{mismatch.itemName}</p>
+                        <ul className="space-y-1.5">
                           {mismatch.reasons.map((reason, rIdx) => (
-                            <li key={rIdx}>{reason}</li>
+                            <li key={rIdx} className="text-sm text-red-700 flex items-start gap-2">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                              {reason}
+                            </li>
                           ))}
                         </ul>
                       </div>
                     ))}
                   </div>
+                  <p className="text-xs text-red-600 mt-3">
+                    Edit the quote above to resolve discrepancies, or request a revision from the supplier.
+                  </p>
                 </div>
               )}
 
@@ -1140,12 +1105,21 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
               Cancel
             </Button>
             {selectedQuote?.status === 'SUBMITTED' && (
               <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleAction('request_revision')}
+                  disabled={actionLoading}
+                  className="text-blue-600 hover:bg-blue-50"
+                >
+                  <MessageSquare className="w-4 h-4 mr-1.5" />
+                  Request Revision
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleAction('decline')}
@@ -1155,12 +1129,15 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   Decline
                 </Button>
                 <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className={selectedQuote.hasMismatches
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700"}
                   onClick={() => handleAction('approve')}
-                  disabled={actionLoading}
+                  disabled={actionLoading || selectedQuote.hasMismatches}
+                  title={selectedQuote.hasMismatches ? "Resolve all discrepancies before approving" : ""}
                 >
                   <Check className="w-4 h-4 mr-1.5" />
-                  Approve
+                  {selectedQuote.hasMismatches ? 'Cannot Approve - Fix Issues' : 'Approve'}
                 </Button>
               </>
             )}

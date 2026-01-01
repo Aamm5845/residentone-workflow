@@ -74,6 +74,7 @@ interface LineItem {
 
 interface InvoiceData {
   id: string
+  projectId: string
   quoteNumber: string
   title: string
   description?: string
@@ -88,6 +89,7 @@ interface InvoiceData {
   taxAmount?: number
   totalAmount: number
   ccFeeRate: number
+  allowCreditCard?: boolean
   lineItems: LineItem[]
   project: {
     name: string
@@ -409,10 +411,10 @@ export default function ClientInvoicePage() {
                                     ))}
                                   </div>
                                 )}
-                                {item.roomFFEItemId && (
+                                {item.roomFFEItemId && invoice.projectId && (
                                   <div className="pt-2 border-t border-gray-200 mt-2">
                                     <a
-                                      href={`/specs/items/${item.roomFFEItemId}`}
+                                      href={`/shared/specs/${invoice.projectId}/item/${item.roomFFEItemId}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
@@ -489,34 +491,50 @@ export default function ClientInvoicePage() {
             <h3 className="font-semibold text-gray-900 mb-4">Payment Options</h3>
 
             <div className="space-y-3">
-              {/* Credit Card */}
-              <div className="bg-white rounded-xl border p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-[#635BFF] rounded flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
-                      </svg>
+              {/* Credit Card - only show if allowed */}
+              {invoice.allowCreditCard !== false && (
+                <div className="bg-white rounded-xl border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#635BFF] rounded flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
+                        </svg>
+                      </div>
+                      <span className="text-sm text-gray-600">Credit / Debit Card</span>
                     </div>
-                    <span className="text-sm text-gray-600">Credit / Debit Card</span>
                   </div>
-                  <span className="text-xs text-gray-400">+{invoice.ccFeeRate}% fee</span>
+                  {/* Payment breakdown */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm space-y-1">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Invoice Total</span>
+                      <span>{formatCurrency(invoice.totalAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Credit Card Fee ({invoice.ccFeeRate}%)</span>
+                      <span>+{formatCurrency(invoice.totalAmount * (invoice.ccFeeRate / 100))}</span>
+                    </div>
+                    <div className="flex justify-between font-medium text-gray-900 pt-1 border-t border-gray-200">
+                      <span>Total to Pay</span>
+                      <span>{formatCurrency(calculateCCTotal())}</span>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handlePayWithCard}
+                    disabled={processingPayment}
+                    className="w-full bg-[#635BFF] hover:bg-[#5851DB] text-white"
+                  >
+                    {processingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Pay ${formatCurrency(calculateCCTotal())}`
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handlePayWithCard}
-                  disabled={processingPayment}
-                  className="w-full bg-[#635BFF] hover:bg-[#5851DB] text-white"
-                >
-                  {processingPayment ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    `Pay ${formatCurrency(calculateCCTotal())}`
-                  )}
-                </Button>
-              </div>
+              )}
 
               {/* Wire Transfer */}
               <div className="bg-white rounded-xl border">

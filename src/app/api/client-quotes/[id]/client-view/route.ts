@@ -113,6 +113,7 @@ export async function GET(
     // Return only client-facing data (no cost, markup, or profit info)
     return NextResponse.json({
       id: quote.id,
+      projectId: quote.projectId,
       quoteNumber: quote.quoteNumber,
       title: quote.title,
       description: quote.description,
@@ -129,6 +130,8 @@ export async function GET(
       totalAmount: parseFloat(quote.totalAmount?.toString() || quote.subtotal?.toString() || '0'),
       // CC processing fee rate (3%)
       ccFeeRate: 3,
+      // Payment options
+      allowCreditCard: quote.allowCreditCard !== false, // Default to true for backwards compatibility
       lineItems: quote.lineItems.map(item => {
         // Get first image from roomFFEItem if available
         const images = item.roomFFEItem?.images as string[] | null

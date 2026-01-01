@@ -106,6 +106,13 @@ export async function POST(request: NextRequest) {
       validUntil,
       paymentTerms,
       depositRequired,
+      // Bill To information
+      clientName,
+      clientEmail,
+      clientPhone,
+      clientAddress,
+      // Payment options
+      allowCreditCard,
       lineItems: customLineItems // Optional: override with custom line items
     } = body
 
@@ -282,6 +289,13 @@ export async function POST(request: NextRequest) {
         validUntil: validUntil ? new Date(validUntil) : null,
         paymentTerms: paymentTerms || null,
         depositRequired: depositRequired || null,
+        // Bill To information
+        clientName: clientName || null,
+        clientEmail: clientEmail || null,
+        clientPhone: clientPhone || null,
+        clientAddress: clientAddress || null,
+        // Payment options
+        allowCreditCard: allowCreditCard !== false, // Default to true
         createdById: userId,
         updatedById: userId,
         lineItems: {

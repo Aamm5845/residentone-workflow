@@ -30,7 +30,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, Search, DollarSign, Percent, AlertCircle, Package, ChevronDown, ChevronRight, CheckCircle, Send, Printer, Mail, FileText, ExternalLink } from 'lucide-react'
+import { Loader2, Search, DollarSign, Percent, AlertCircle, Package, ChevronDown, ChevronRight, CheckCircle, Send, Printer, Mail, FileText, ExternalLink, User, Phone, MapPin, Edit3, CreditCard, Plus, Trash2, Truck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -100,6 +100,9 @@ export default function CreateClientQuoteDialog({
   const [createdQuote, setCreatedQuote] = useState<any>(null)
   const [clientEmail, setClientEmail] = useState('')
   const [clientName, setClientName] = useState('')
+  const [clientPhone, setClientPhone] = useState('')
+  const [clientAddress, setClientAddress] = useState('')
+  const [showCreditCardOption, setShowCreditCardOption] = useState(true)
 
   // Form data - Step 1
   const [title, setTitle] = useState('')
@@ -108,6 +111,14 @@ export default function CreateClientQuoteDialog({
   const [paymentTerms, setPaymentTerms] = useState('100% upfront')
   const [depositRequired, setDepositRequired] = useState<number | undefined>(undefined)
   const [defaultMarkup, setDefaultMarkup] = useState(25)
+
+  // Additional charges (delivery, duties, custom)
+  interface AdditionalCharge {
+    id: string
+    name: string
+    amount: number
+  }
+  const [additionalCharges, setAdditionalCharges] = useState<AdditionalCharge[]>([])
 
   // Step 2: Items & Pricing
   const [specItems, setSpecItems] = useState<SpecItem[]>([])
@@ -137,9 +148,22 @@ export default function CreateClientQuoteDialog({
       const response = await fetch(`/api/projects/${projectId}`)
       const project = await response.json()
 
-      if (response.ok && project?.client) {
-        setClientEmail(project.client.email || '')
-        setClientName(project.client.name || '')
+      if (response.ok) {
+        // Load client info
+        if (project?.client) {
+          setClientEmail(project.client.email || '')
+          setClientName(project.client.name || '')
+          setClientPhone(project.client.phone || '')
+        }
+
+        // Build address from project (streetAddress, city, postalCode)
+        const addressParts = []
+        if (project.streetAddress) addressParts.push(project.streetAddress)
+        if (project.city) addressParts.push(project.city)
+        if (project.postalCode) addressParts.push(project.postalCode)
+        if (addressParts.length > 0) {
+          setClientAddress(addressParts.join(', '))
+        }
       }
     } catch (error) {
       console.error('Error loading project client:', error)
@@ -361,15 +385,19 @@ export default function CreateClientQuoteDialog({
   // Calculate totals
   const totals = useMemo(() => {
     const totalCost = lineItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0)
-    const subtotal = lineItems.reduce((sum, item) => sum + item.totalPrice, 0)
+    const itemsSubtotal = lineItems.reduce((sum, item) => sum + item.totalPrice, 0)
+    const chargesTotal = additionalCharges.reduce((sum, charge) => sum + charge.amount, 0)
+    const subtotal = itemsSubtotal + chargesTotal
     const gstAmount = subtotal * (gstRate / 100)
     const qstAmount = subtotal * (qstRate / 100)
     const totalRevenue = subtotal + gstAmount + qstAmount
-    const grossProfit = subtotal - totalCost // Profit before taxes
+    const grossProfit = subtotal - totalCost // Profit before taxes (charges are pure profit)
     const marginPercent = subtotal > 0 ? (grossProfit / subtotal) * 100 : 0
 
     return {
       totalCost,
+      itemsSubtotal,
+      chargesTotal,
       subtotal,
       gstAmount,
       qstAmount,
@@ -378,7 +406,22 @@ export default function CreateClientQuoteDialog({
       marginPercent,
       depositAmount: depositRequired ? (totalRevenue * depositRequired / 100) : 0
     }
-  }, [lineItems, depositRequired, gstRate, qstRate])
+  }, [lineItems, additionalCharges, depositRequired, gstRate, qstRate])
+
+  // Add charge helpers
+  const addCharge = (name: string = 'Delivery', amount: number = 0) => {
+    setAdditionalCharges(prev => [...prev, { id: `charge-${Date.now()}`, name, amount }])
+  }
+
+  const updateCharge = (id: string, field: 'name' | 'amount', value: string | number) => {
+    setAdditionalCharges(prev => prev.map(charge =>
+      charge.id === id ? { ...charge, [field]: field === 'amount' ? Number(value) || 0 : value } : charge
+    ))
+  }
+
+  const removeCharge = (id: string) => {
+    setAdditionalCharges(prev => prev.filter(charge => charge.id !== id))
+  }
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -440,20 +483,45 @@ export default function CreateClientQuoteDialog({
           paymentTerms: paymentTerms || null,
           depositRequired: depositRequired || null,
           groupingType: 'category',
-          lineItems: lineItems.map((item, index) => ({
-            roomFFEItemId: item.itemId,
-            groupId: item.category,
-            itemName: item.name,
-            itemDescription: item.description || null,
-            quantity: item.quantity,
-            unitType: item.unitType,
-            costPrice: item.costPrice,
-            markupPercent: item.markupPercent,
-            sellingPrice: item.sellingPrice,
-            totalCost: item.costPrice * item.quantity,
-            totalPrice: item.totalPrice,
-            order: index
-          }))
+          // Bill To information
+          clientName: clientName || null,
+          clientEmail: clientEmail || null,
+          clientPhone: clientPhone || null,
+          clientAddress: clientAddress || null,
+          // Payment options
+          allowCreditCard: showCreditCardOption,
+          lineItems: [
+            // Regular product line items
+            ...lineItems.map((item, index) => ({
+              roomFFEItemId: item.itemId,
+              groupId: item.category,
+              itemName: item.name,
+              itemDescription: item.description || null,
+              quantity: item.quantity,
+              unitType: item.unitType,
+              costPrice: item.costPrice,
+              markupPercent: item.markupPercent,
+              sellingPrice: item.sellingPrice,
+              totalCost: item.costPrice * item.quantity,
+              totalPrice: item.totalPrice,
+              order: index
+            })),
+            // Additional charges as line items
+            ...additionalCharges.filter(c => c.amount > 0).map((charge, index) => ({
+              roomFFEItemId: null,
+              groupId: 'Additional Charges',
+              itemName: charge.name,
+              itemDescription: null,
+              quantity: 1,
+              unitType: 'flat',
+              costPrice: 0, // No cost - all profit
+              markupPercent: 100,
+              sellingPrice: charge.amount,
+              totalCost: 0,
+              totalPrice: charge.amount,
+              order: lineItems.length + index
+            }))
+          ]
         })
       })
 
@@ -492,6 +560,12 @@ export default function CreateClientQuoteDialog({
     setSearchQuery('')
     setExpandedCategories(new Set())
     setCreatedQuote(null)
+    setClientName('')
+    setClientEmail('')
+    setClientPhone('')
+    setClientAddress('')
+    setShowCreditCardOption(true)
+    setAdditionalCharges([])
   }
 
   const handleSendToClient = async () => {
@@ -657,17 +731,107 @@ export default function CreateClientQuoteDialog({
                 </div>
               )}
 
+              {/* Additional Charges Section */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-gray-500" />
+                    <h4 className="font-medium text-gray-700">Additional Charges</h4>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addCharge('Delivery', 0)}
+                      className="text-xs h-7"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Delivery
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addCharge('Duties/Import Fee', 0)}
+                      className="text-xs h-7"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Duties
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addCharge('Custom Charge', 0)}
+                      className="text-xs h-7"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Custom
+                    </Button>
+                  </div>
+                </div>
+
+                {additionalCharges.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-2">No additional charges added</p>
+                ) : (
+                  <div className="space-y-2">
+                    {additionalCharges.map(charge => (
+                      <div key={charge.id} className="flex items-center gap-2">
+                        <Input
+                          value={charge.name}
+                          onChange={(e) => updateCharge(charge.id, 'name', e.target.value)}
+                          placeholder="Charge name"
+                          className="flex-1 h-9"
+                        />
+                        <div className="relative w-28">
+                          <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                          <Input
+                            type="number"
+                            value={charge.amount || ''}
+                            onChange={(e) => updateCharge(charge.id, 'amount', e.target.value)}
+                            placeholder="0.00"
+                            className="h-9 pl-6 text-right"
+                            min={0}
+                            step={0.01}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCharge(charge.id)}
+                          className="h-9 w-9 p-0 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm pt-2 border-t">
+                      <span className="text-gray-500">Additional Charges Total</span>
+                      <span className="font-medium">{formatCurrency(totals.chargesTotal)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Summary Preview */}
               {lineItems.length > 0 && (
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <h4 className="font-medium text-gray-700 mb-3">Invoice Summary</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Items</span>
-                      <span className="font-semibold">{lineItems.length}</span>
+                      <span className="text-gray-500">Items ({lineItems.length})</span>
+                      <span className="font-semibold">{formatCurrency(totals.itemsSubtotal)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Subtotal</span>
+                    {additionalCharges.length > 0 && (
+                      <div className="flex justify-between text-gray-500">
+                        <span>Additional Charges</span>
+                        <span>{formatCurrency(totals.chargesTotal)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-1 border-t">
+                      <span className="text-gray-600">Subtotal</span>
                       <span className="font-semibold">{formatCurrency(totals.subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-gray-400">
@@ -970,26 +1134,93 @@ export default function CreateClientQuoteDialog({
                 <span className="font-bold text-emerald-700">{formatCurrency(totals.grossProfit)} ({totals.marginPercent.toFixed(1)}%)</span>
               </div>
 
+              {/* Bill To Section - Editable client info */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="w-5 h-5 text-gray-600" />
+                  <h4 className="font-medium text-gray-900">Bill To</h4>
+                  <span className="text-xs text-gray-400">(editable)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Client Name</Label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Client name..."
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Email</Label>
+                    <Input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="client@email.com"
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Phone</Label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Phone number..."
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Address</Label>
+                    <Input
+                      value={clientAddress}
+                      onChange={(e) => setClientAddress(e.target.value)}
+                      placeholder="Street, City, Postal Code"
+                      className="bg-white h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Options */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <CreditCard className="w-5 h-5 text-gray-600" />
+                  <h4 className="font-medium text-gray-900">Payment Options</h4>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="showCreditCard"
+                    checked={showCreditCardOption}
+                    onCheckedChange={(checked) => setShowCreditCardOption(checked === true)}
+                  />
+                  <Label htmlFor="showCreditCard" className="text-sm text-gray-700 cursor-pointer">
+                    Allow credit card payments (Stripe)
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 ml-7">
+                  {showCreditCardOption
+                    ? 'Client will see credit card option with 3% processing fee'
+                    : 'Client will only see e-Transfer and wire transfer options'}
+                </p>
+              </div>
+
               {/* Send to Client Section */}
               <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
                 <div className="flex items-center gap-2 mb-3">
                   <Mail className="w-5 h-5 text-blue-600" />
                   <h4 className="font-medium text-gray-900">Send Invoice to Client</h4>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                   <div className="flex-1">
-                    <Input
-                      type="email"
-                      value={clientEmail}
-                      onChange={(e) => setClientEmail(e.target.value)}
-                      placeholder="Enter client email..."
-                      className="bg-white"
-                    />
-                    {clientName ? (
-                      <p className="text-xs text-blue-600 mt-1">{clientName}</p>
-                    ) : !clientEmail && (
-                      <p className="text-xs text-orange-600 mt-1">
-                        No client email found in project settings
+                    <p className="text-sm text-gray-700">
+                      {clientName && <span className="font-medium">{clientName}</span>}
+                      {clientName && clientEmail && <span className="text-gray-400"> • </span>}
+                      {clientEmail && <span className="text-blue-600">{clientEmail}</span>}
+                    </p>
+                    {!clientEmail && (
+                      <p className="text-xs text-orange-600">
+                        Please enter client email in Bill To section above
                       </p>
                     )}
                   </div>

@@ -60,6 +60,14 @@ export async function GET(
           select: {
             name: true
           }
+        },
+        emailLogs: {
+          select: {
+            openedAt: true
+          },
+          where: {
+            openedAt: { not: null }
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -126,7 +134,10 @@ export async function GET(
           notes: p.notes
         })),
         createdAt: invoice.createdAt,
-        updatedAt: invoice.updatedAt
+        updatedAt: invoice.updatedAt,
+        // Email tracking
+        emailOpenedAt: invoice.emailOpenedAt || (invoice.emailLogs.length > 0 ? invoice.emailLogs[0].openedAt : null),
+        viewCount: invoice.emailLogs.length
       }
     })
 

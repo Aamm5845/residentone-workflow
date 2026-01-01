@@ -3286,6 +3286,7 @@ model ClientQuote {
   selectedPaymentMethod String?          // CREDIT_CARD, WIRE, CHECK, CASH
   ccSurchargePercent    Decimal?         @default(3.0)
   ccSurchargeAmount     Decimal?
+  allowCreditCard       Boolean          @default(true)
 
   // Email tracking
   sentToClientAt       DateTime?
