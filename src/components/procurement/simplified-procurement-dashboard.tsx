@@ -130,14 +130,31 @@ export default function SimplifiedProcurementDashboard() {
     setLoading(true)
     try {
       const [quotesRes, invoicesRes, suppliersRes] = await Promise.all([
-        fetch('/api/procurement/quote-requests'),
+        fetch('/api/supplier-quotes?limit=100'),
         fetch('/api/client-quotes'),
         fetch('/api/suppliers')
       ])
 
       if (quotesRes.ok) {
         const data = await quotesRes.json()
-        setQuoteRequests(data.requests || [])
+        // Transform supplier quotes to our format
+        const quotes = (data.quotes || []).map((q: any) => ({
+          id: q.id,
+          rfqId: q.rfq?.id || '',
+          rfqNumber: q.rfq?.rfqNumber || '',
+          title: q.rfq?.title || '',
+          projectName: q.project?.name || 'Unknown',
+          supplierName: q.supplier?.name || q.vendorName || 'Unknown',
+          supplierId: q.supplier?.id || null,
+          vendorEmail: q.vendorEmail,
+          status: q.status,
+          sentAt: q.createdAt,
+          submittedAt: q.submittedAt,
+          totalAmount: q.totalAmount || q.subtotal,
+          lineItemsCount: q.lineItemsCount || q._count?.lineItems || 0,
+          quoteDocumentUrl: q.quoteDocumentUrl
+        }))
+        setQuoteRequests(quotes)
       }
 
       if (invoicesRes.ok) {
