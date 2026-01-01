@@ -57,12 +57,16 @@ export async function GET(
                 notes: true,
                 section: {
                   select: {
-                    name: true
-                  }
-                },
-                room: {
-                  select: {
-                    name: true
+                    name: true,
+                    instance: {
+                      select: {
+                        room: {
+                          select: {
+                            name: true
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -146,7 +150,7 @@ export async function GET(
             ].filter(Boolean).join(' x ') || null,
             leadTime: item.roomFFEItem.leadTime,
             notes: item.roomFFEItem.notes,
-            room: item.roomFFEItem.room?.name,
+            room: (item.roomFFEItem.section as any)?.instance?.room?.name,
             section: item.roomFFEItem.section?.name,
             allImages: images
           } : null
