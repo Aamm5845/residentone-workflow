@@ -525,9 +525,7 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                      <Building className="w-5 h-5 text-white" />
-                    </div>
+                    <Building className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Wire Transfer / Direct Deposit</p>
                       <p className="text-xs text-gray-500">No processing fee</p>
@@ -566,11 +564,7 @@ export default function ClientInvoicePage() {
                     className="w-full p-4 flex items-center justify-between text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#FFCC00] rounded flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-black" fill="currentColor">
-                          <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"/>
-                        </svg>
-                      </div>
+                      <Mail className="w-5 h-5 text-gray-400" />
                       <div>
                         <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
                         <p className="text-xs text-gray-500">No processing fee</p>
@@ -608,9 +602,7 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
-                      <Banknote className="w-5 h-5 text-white" />
-                    </div>
+                    <Banknote className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Check</p>
                       <p className="text-xs text-gray-500">No processing fee</p>
