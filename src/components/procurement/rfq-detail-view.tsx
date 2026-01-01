@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -161,9 +161,12 @@ const statusColors: Record<string, string> = {
 
 export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const supplierParam = searchParams.get('supplier')
+  
   const [rfq, setRfq] = useState<RFQ | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(supplierParam ? 'quotes' : 'overview')
   const [showSendDialog, setShowSendDialog] = useState(false)
   const [sending, setSending] = useState(false)
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])

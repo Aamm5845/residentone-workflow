@@ -36,6 +36,7 @@ interface QuoteRequest {
   projectName: string
   supplierName: string
   supplierId?: string
+  supplierRFQId?: string
   vendorEmail?: string
   sentAt: string
   submittedAt?: string
@@ -146,6 +147,7 @@ export default function SimplifiedProcurementDashboard() {
           projectName: q.project?.name || 'Unknown',
           supplierName: q.supplier?.name || q.vendorName || 'Unknown',
           supplierId: q.supplier?.id || null,
+          supplierRFQId: q.supplierRFQId || '', // For correct URL navigation
           vendorEmail: q.vendorEmail,
           status: q.status,
           sentAt: q.createdAt,
@@ -417,7 +419,7 @@ export default function SimplifiedProcurementDashboard() {
                         {statusQuotes.map((quote) => (
                           <Link
                             key={quote.id}
-                            href={`/procurement/rfq/${quote.rfqId}?supplier=${quote.id}`}
+                            href={`/procurement/rfq/${quote.rfqId}?supplier=${quote.supplierRFQId || quote.id}`}
                             className={`flex items-center justify-between py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors ${
                               isReceived ? 'hover:bg-blue-100/50 bg-white shadow-sm mb-2' : ''
                             }`}
