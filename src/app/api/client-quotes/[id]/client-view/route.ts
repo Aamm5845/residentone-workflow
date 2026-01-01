@@ -46,12 +46,15 @@ export async function GET(
                 name: true,
                 images: true,
                 description: true,
-                manufacturer: true,
-                model: true,
+                brand: true,
+                modelNumber: true,
                 finish: true,
-                dimensions: true,
+                width: true,
+                height: true,
+                depth: true,
+                length: true,
                 leadTime: true,
-                specNotes: true,
+                notes: true,
                 section: {
                   select: {
                     name: true
@@ -132,12 +135,17 @@ export async function GET(
           imageUrl,
           // Spec details for client viewing
           specDetails: item.roomFFEItem ? {
-            manufacturer: item.roomFFEItem.manufacturer,
-            model: item.roomFFEItem.model,
+            brand: item.roomFFEItem.brand,
+            model: item.roomFFEItem.modelNumber,
             finish: item.roomFFEItem.finish,
-            dimensions: item.roomFFEItem.dimensions,
+            dimensions: [
+              item.roomFFEItem.width ? `W: ${item.roomFFEItem.width}` : null,
+              item.roomFFEItem.height ? `H: ${item.roomFFEItem.height}` : null,
+              item.roomFFEItem.depth ? `D: ${item.roomFFEItem.depth}` : null,
+              item.roomFFEItem.length ? `L: ${item.roomFFEItem.length}` : null
+            ].filter(Boolean).join(' x ') || null,
             leadTime: item.roomFFEItem.leadTime,
-            specNotes: item.roomFFEItem.specNotes,
+            notes: item.roomFFEItem.notes,
             room: item.roomFFEItem.room?.name,
             section: item.roomFFEItem.section?.name,
             allImages: images
