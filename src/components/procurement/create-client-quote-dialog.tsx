@@ -151,7 +151,7 @@ export default function CreateClientQuoteDialog({
     if (specItems.length > 0 && preselectedItemIds?.length) {
       const items = specItems.filter(item => preselectedItemIds.includes(item.id))
       buildLineItems(items)
-      
+
       // Auto-generate title - use item name if only one item, otherwise use categories
       if (items.length === 1) {
         // Single item: use the item name as title
@@ -173,6 +173,25 @@ export default function CreateClientQuoteDialog({
       setExpandedCategories(new Set(categories))
     }
   }, [specItems, preselectedItemIds, categoryMarkups])
+
+  // Update line items when default markup changes (for items without RRP)
+  useEffect(() => {
+    if (lineItems.length > 0) {
+      setLineItems(prev => prev.map(item => {
+        // Only update items without RRP (those using calculated markup)
+        if (!item.hasRrp) {
+          const sellingPrice = item.costPrice * (1 + defaultMarkup / 100)
+          return {
+            ...item,
+            markupPercent: defaultMarkup,
+            sellingPrice,
+            totalPrice: sellingPrice * item.quantity
+          }
+        }
+        return item
+      }))
+    }
+  }, [defaultMarkup])
 
   const loadSpecItems = async () => {
     setLoading(true)
