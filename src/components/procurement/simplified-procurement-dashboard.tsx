@@ -241,11 +241,19 @@ export default function SimplifiedProcurementDashboard() {
     i.clientName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredSuppliers = suppliers.filter(s =>
-    !searchQuery ||
-    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.specialty?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Get supplier IDs that have quote requests
+  const supplierIdsWithQuotes = new Set(
+    quoteRequests.map(q => q.supplierId).filter(Boolean)
   )
+  
+  // Only show suppliers that have quote requests
+  const filteredSuppliers = suppliers
+    .filter(s => supplierIdsWithQuotes.has(s.id))
+    .filter(s =>
+      !searchQuery ||
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.specialty?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

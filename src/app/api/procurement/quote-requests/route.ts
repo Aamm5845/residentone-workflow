@@ -57,6 +57,11 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true
               }
+            },
+            _count: {
+              select: {
+                lineItems: true
+              }
             }
           }
         },
@@ -70,19 +75,16 @@ export async function GET(request: NextRequest) {
             subtotal: true,
             quoteDocumentUrl: true,
             submittedAt: true,
-            lineItems: {
-              select: { id: true }
+            _count: {
+              select: {
+                lineItems: true
+              }
             }
-          }
-        },
-        _count: {
-          select: {
-            lineItems: true
           }
         }
       },
       orderBy: [
-        { status: 'asc' }, // Show SUBMITTED first
+        { responseStatus: 'desc' }, // Show SUBMITTED first
         { sentAt: 'desc' }
       ]
     })
@@ -92,7 +94,7 @@ export async function GET(request: NextRequest) {
       const latestQuote = sr.quotes[0]
       
       // Determine the effective status
-      let effectiveStatus = sr.status
+      let effectiveStatus = sr.responseStatus
       if (latestQuote) {
         effectiveStatus = latestQuote.status
       }
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
         sentAt: sr.sentAt?.toISOString() || sr.createdAt.toISOString(),
         submittedAt: latestQuote?.submittedAt?.toISOString() || null,
         totalAmount: latestQuote?.totalAmount || latestQuote?.subtotal || null,
-        lineItemsCount: latestQuote?.lineItems?.length || sr._count.lineItems,
+        lineItemsCount: latestQuote?._count?.lineItems || sr.rfq._count.lineItems,
         quoteDocumentUrl: latestQuote?.quoteDocumentUrl || null,
         hasQuote: !!latestQuote,
         quoteId: latestQuote?.id || null
