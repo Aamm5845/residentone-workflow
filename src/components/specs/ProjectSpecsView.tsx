@@ -1175,13 +1175,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
     // Apply search filter
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(spec => 
-        spec.name.toLowerCase().includes(query) ||
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(spec =>
+        spec.name?.toLowerCase().includes(query) ||
         spec.productName?.toLowerCase().includes(query) ||
         spec.brand?.toLowerCase().includes(query) ||
-        spec.roomName.toLowerCase().includes(query) ||
-        spec.supplierName?.toLowerCase().includes(query)
+        spec.roomName?.toLowerCase().includes(query) ||
+        spec.supplierName?.toLowerCase().includes(query) ||
+        spec.sku?.toLowerCase().includes(query) ||
+        spec.modelNumber?.toLowerCase().includes(query) ||
+        spec.docCode?.toLowerCase().includes(query) ||
+        spec.description?.toLowerCase().includes(query) ||
+        spec.sectionName?.toLowerCase().includes(query)
       )
     }
 
@@ -2563,6 +2568,90 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
+  // Export specs to Excel (CSV format)
+  const handleExportExcel = () => {
+    const specsToExport = selectedItems.size > 0
+      ? specs.filter(s => selectedItems.has(s.id))
+      : specs
+
+    if (specsToExport.length === 0) {
+      toast.error('No items to export')
+      return
+    }
+
+    // Define CSV headers
+    const headers = [
+      'Doc Code',
+      'Name',
+      'Room',
+      'Section',
+      'Brand',
+      'Model/SKU',
+      'Supplier',
+      'Qty',
+      'Trade Price',
+      'RRP',
+      'Status',
+      'Lead Time',
+      'Color',
+      'Finish',
+      'Material',
+      'Dimensions (WxHxD)',
+      'Description',
+      'Notes'
+    ]
+
+    // Convert specs to CSV rows
+    const rows = specsToExport.map(spec => [
+      spec.docCode || '',
+      spec.name || '',
+      spec.roomName || '',
+      spec.sectionName || '',
+      spec.brand || '',
+      spec.modelNumber || spec.sku || '',
+      spec.supplierName || '',
+      spec.quantity || 1,
+      spec.tradePrice ? `$${Number(spec.tradePrice).toFixed(2)}` : '',
+      spec.rrp ? `$${Number(spec.rrp).toFixed(2)}` : '',
+      spec.specStatus || '',
+      spec.leadTime || '',
+      spec.color || '',
+      spec.finish || '',
+      spec.material || '',
+      [spec.width, spec.height, spec.depth].filter(Boolean).join(' x ') || '',
+      spec.description || '',
+      spec.notes || ''
+    ])
+
+    // Escape CSV values
+    const escapeCSV = (value: string | number) => {
+      const str = String(value)
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    // Build CSV content
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${project.name.replace(/[^a-z0-9]/gi, '_')}_specs_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success(`Exported ${specsToExport.length} items to Excel`)
+  }
+
   // Bulk delete selected items
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) return
@@ -2923,12 +3012,28 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <h1 className="text-xl font-semibold text-gray-900">All Specs</h1>
                 <p className="text-sm text-gray-500 mt-0.5">{project.name}</p>
               </div>
-              {selectedItems.size > 0 && (
+              {specs.length > 0 && (
                 <>
                   <div className="h-6 w-px bg-gray-200" />
-                  <span className="text-sm font-medium text-blue-600">
-                    {selectedItems.size} selected
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-gray-600 hover:text-gray-900"
+                    onClick={() => {
+                      if (selectedItems.size === specs.length) {
+                        setSelectedItems(new Set())
+                      } else {
+                        setSelectedItems(new Set(specs.map(s => s.id)))
+                      }
+                    }}
+                  >
+                    {selectedItems.size === specs.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                  {selectedItems.size > 0 && (
+                    <span className="text-sm font-medium text-blue-600">
+                      {selectedItems.size} selected
+                    </span>
+                  )}
                 </>
               )}
             </div>
@@ -2999,6 +3104,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   >
                     <FileDown className="w-4 h-4 mr-2" />
                     Export PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-sm cursor-pointer"
+                    onClick={handleExportExcel}
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export Excel {selectedItems.size > 0 && `(${selectedItems.size} selected)`}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
