@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Plus, 
-  FolderPlus, 
-  RefreshCw, 
+import {
+  Plus,
+  FolderPlus,
+  RefreshCw,
   Eye,
   EyeOff,
   ChevronRight,
@@ -33,7 +33,12 @@ import {
   Pencil,
   Check,
   X,
-  Info
+  Info,
+  Copy,
+  ArrowUp,
+  ArrowDown,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
 import toast from 'react-hot-toast'
@@ -556,6 +561,67 @@ export default function FFESettingsDepartment({
     } catch (error) {
       console.error('Error saving Programa link:', error)
       toast.error('Failed to save Programa link')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Duplicate section with all its items
+  const handleDuplicateSection = async (sectionId: string, sectionName: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId })
+      })
+      if (!response.ok) throw new Error('Failed to duplicate section')
+      const result = await response.json()
+      await loadFFEData()
+      toast.success(`Section "${sectionName}" duplicated with ${result.data.itemCount} items`)
+    } catch (error) {
+      console.error('Error duplicating section:', error)
+      toast.error('Failed to duplicate section')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Reorder item within section (move up or down)
+  const handleReorderItem = async (itemId: string, direction: 'up' | 'down', sectionId: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, direction, sectionId })
+      })
+      if (!response.ok) throw new Error('Failed to reorder item')
+      await loadFFEData()
+    } catch (error) {
+      console.error('Error reordering item:', error)
+      toast.error('Failed to reorder item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Bulk visibility toggle for all items in a section
+  const handleBulkVisibilityToggle = async (sectionId: string, targetVisibility: 'VISIBLE' | 'HIDDEN') => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/bulk-visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId, visibility: targetVisibility })
+      })
+      if (!response.ok) throw new Error('Failed to update visibility')
+      const result = await response.json()
+      await loadFFEData()
+      toast.success(result.message)
+    } catch (error) {
+      console.error('Error updating bulk visibility:', error)
+      toast.error('Failed to update visibility')
     } finally {
       setSaving(false)
     }
@@ -1319,9 +1385,44 @@ export default function FFESettingsDepartment({
                     </div>
                     
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      {/* Bulk visibility toggle */}
+                      {section.items.length > 0 && (
+                        visibleCount === section.items.length ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleBulkVisibilityToggle(section.id, 'HIDDEN')}
+                            className="text-[#f6762e] hover:bg-[#f6762e]/10"
+                            title="Remove all items from workspace"
+                          >
+                            <EyeOff className="w-4 h-4 mr-1" />
+                            Hide All
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleBulkVisibilityToggle(section.id, 'VISIBLE')}
+                            className="text-[#14b8a6] hover:bg-[#14b8a6]/10"
+                            title="Add all items to workspace"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Show All
+                          </Button>
+                        )
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
                         <Plus className="w-4 h-4 mr-1" />
                         Add Item
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDuplicateSection(section.id, section.name)}
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        title="Duplicate section with all items"
+                      >
+                        <Copy className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteSection(section.id, section.name)} className="text-gray-400 hover:text-red-500">
                         <Trash2 className="w-4 h-4" />
@@ -1440,10 +1541,34 @@ export default function FFESettingsDepartment({
                                   </div>
                                   
                                   <div className="flex items-center gap-2 flex-shrink-0">
+                                    {/* Reorder buttons */}
+                                    <div className="flex items-center border border-gray-200 rounded-md">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleReorderItem(item.id, 'up', section.id)}
+                                        disabled={parentItems.indexOf(item) === 0}
+                                        className="h-7 w-7 p-0 rounded-r-none text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                        title="Move up"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleReorderItem(item.id, 'down', section.id)}
+                                        disabled={parentItems.indexOf(item) === parentItems.length - 1}
+                                        className="h-7 w-7 p-0 rounded-l-none border-l text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                        title="Move down"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+
                                     {/* Add Linked Item Button */}
-                                    <Button 
-                                      size="sm" 
-                                      variant="ghost" 
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
                                       onClick={() => {
                                         setSelectedParentItem({ id: item.id, name: item.name, sectionId: section.id })
                                         setShowAddLinkedItemDialog(true)
@@ -1453,7 +1578,7 @@ export default function FFESettingsDepartment({
                                       <LinkIcon className="w-4 h-4 mr-1" />
                                       Link
                                     </Button>
-                                    
+
                                     {isInWorkspace ? (
                                       <Button size="sm" variant="outline" onClick={() => handleVisibilityChange(item.id, 'HIDDEN')} className="text-[#f6762e] border-[#f6762e]/30 hover:bg-[#f6762e]/10">
                                         <EyeOff className="w-4 h-4 mr-1" />

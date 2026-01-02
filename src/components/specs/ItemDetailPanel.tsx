@@ -602,19 +602,6 @@ export function ItemDetailPanel({
     }
   }, [isOpen, mode, initialFfeRoomId, initialFfeSectionId, initialFfeItemId, ffeItems])
 
-  // Warn before page refresh/navigation when saving
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (saving || savingSupplier) {
-        e.preventDefault()
-        e.returnValue = 'Changes are being saved. Are you sure you want to leave?'
-        return e.returnValue
-      }
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [saving, savingSupplier])
 
   // Get filtered sections based on selected room (with fallback to initial value)
   const effectiveRoomId = selectedFfeRoom || initialFfeRoomId
@@ -706,7 +693,21 @@ export function ItemDetailPanel({
   })
   const [supplierCategories, setSupplierCategories] = useState<Array<{ id: string; name: string; icon?: string; color?: string }>>([])
   const [loadingSupplierCategories, setLoadingSupplierCategories] = useState(false)
-  
+
+  // Warn before page refresh/navigation when saving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saving || savingSupplier) {
+        e.preventDefault()
+        e.returnValue = 'Changes are being saved. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [saving, savingSupplier])
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
