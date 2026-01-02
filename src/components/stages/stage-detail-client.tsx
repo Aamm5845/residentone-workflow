@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DesignStage from './design-stage'
 import ThreeDStage from './three-d-stage'
 import ClientApprovalStage from './client-approval-stage'
 import DrawingsStage from './drawings-stage'
-import FFEStage from './ffe-stage'
 import DesignConceptStage from './design-concept-stage'
 import { getStageName } from '@/constants/workflow'
 
@@ -17,6 +16,13 @@ interface StageDetailClientProps {
 export default function StageDetailClient({ stage: initialStage }: StageDetailClientProps) {
   const [stage, setStage] = useState(initialStage)
   const router = useRouter()
+
+  // Redirect FFE stages to the unified workspace
+  useEffect(() => {
+    if (stage.type === 'FFE' && stage.room?.id) {
+      router.push(`/ffe/${stage.room.id}/workspace`)
+    }
+  }, [stage.type, stage.room?.id, router])
 
   const handleStageComplete = async () => {
     try {
@@ -221,16 +227,14 @@ export default function StageDetailClient({ stage: initialStage }: StageDetailCl
       )
     
     case 'FFE':
+      // Redirect handled by useEffect - show loading while redirecting
       return (
-        <FFEStage
-          stage={stage}
-          room={stage.room}
-          project={stage.room.project}
-          onComplete={handleStageComplete}
-          onUpdateSection={handleUpdateSection}
-          onAddComment={handleAddComment}
-          onUploadFile={handleUploadFile}
-        />
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Redirecting to FFE Workspace...</p>
+          </div>
+        </div>
       )
     
     default:

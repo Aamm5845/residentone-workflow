@@ -1502,6 +1502,81 @@ export default function FFEUnifiedWorkspace({
             </div>
           </div>
 
+          {/* Programa Link Section */}
+          <div className="mb-5 p-4 bg-gradient-to-r from-violet-50 to-indigo-50 rounded-xl border border-violet-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-500 flex items-center justify-center">
+                  <Globe className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Programa Link</div>
+                  <div className="text-xs text-gray-500">External FFE schedule or documentation</div>
+                </div>
+              </div>
+
+              {editingProgramaLink ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={tempProgramaLink}
+                    onChange={(e) => setTempProgramaLink(e.target.value)}
+                    placeholder="https://programa.com/..."
+                    className="w-80 h-9"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveProgramaLink}
+                    disabled={savingProgramaLink}
+                    className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    {savingProgramaLink ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setEditingProgramaLink(false); setTempProgramaLink(programaLink) }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {programaLink ? (
+                    <>
+                      <a
+                        href={programaLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-violet-600 hover:text-violet-800 underline flex items-center gap-1"
+                      >
+                        {programaLink.length > 50 ? programaLink.substring(0, 50) + '...' : programaLink}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setEditingProgramaLink(true); setTempProgramaLink(programaLink) }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setEditingProgramaLink(true); setTempProgramaLink('') }}
+                      className="text-violet-600 border-violet-300 hover:bg-violet-50"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Programa Link
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Action Bar */}
           <div className="flex items-center justify-between">
             <div className="relative flex-1 max-w-md">
@@ -1513,7 +1588,7 @@ export default function FFEUnifiedWorkspace({
                 className="pl-10 bg-white"
               />
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={disabled}>
                 <Import className="w-4 h-4 mr-2" />
@@ -1623,9 +1698,31 @@ export default function FFEUnifiedWorkspace({
                     </div>
                     
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      {/* Bulk visibility toggle */}
+                      {parentItems.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleBulkVisibilityToggle(section.id, 'VISIBLE')}
+                          className="text-emerald-600 hover:bg-emerald-50"
+                          title="Show all items in workspace"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Show All
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
                         <Plus className="w-4 h-4 mr-1" />
                         Add Item
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDuplicateSection(section.id, section.name)}
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        title="Duplicate section with all items"
+                      >
+                        <Copy className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteSection(section.id, section.name)} className="text-gray-400 hover:text-red-500">
                         <Trash2 className="w-4 h-4" />
@@ -1879,7 +1976,20 @@ export default function FFEUnifiedWorkspace({
                                             Move to Section {groupedChildren.length > 0 ? `(+${groupedChildren.length} items)` : ''}
                                           </DropdownMenuItem>
                                         )}
-                                        <DropdownMenuItem 
+                                        {/* Reorder items */}
+                                        {parentItems.indexOf(item) > 0 && (
+                                          <DropdownMenuItem onClick={() => handleReorderItem(item.id, 'up', section.id)}>
+                                            <ArrowUp className="w-4 h-4 mr-2 text-gray-600" />
+                                            Move Up
+                                          </DropdownMenuItem>
+                                        )}
+                                        {parentItems.indexOf(item) < parentItems.length - 1 && (
+                                          <DropdownMenuItem onClick={() => handleReorderItem(item.id, 'down', section.id)}>
+                                            <ArrowDown className="w-4 h-4 mr-2 text-gray-600" />
+                                            Move Down
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem
                                           onClick={() => { if (confirm(`Delete "${item.name}"?`)) handleDeleteItem(item.id) }}
                                           className="text-red-600"
                                         >
