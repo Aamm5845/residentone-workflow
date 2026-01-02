@@ -1140,16 +1140,20 @@ export default function FFEUnifiedWorkspace({
   const handleUpdateItemDocCode = async (itemId: string) => {
     try {
       setSavingDocCode(true)
+      const newDocCode = editDocCodeValue.trim() || null
+
+      // Update the FFE item's doc code
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docCode: editDocCodeValue.trim() || null })
+        body: JSON.stringify({ docCode: newDocCode, syncToLinkedSpecs: true })
       })
       if (!response.ok) throw new Error('Failed to update doc code')
+
       await loadFFEData()
       setEditingDocCodeItemId(null)
       setEditDocCodeValue('')
-      toast.success('Doc Code updated')
+      toast.success('Doc Code updated (synced to linked specs)')
     } catch (error) {
       toast.error('Failed to update doc code')
     } finally {
@@ -1592,15 +1596,15 @@ export default function FFEUnifiedWorkspace({
                                       <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
                                     )}
 
-                                    {/* Doc Code - inline editable */}
-                                    <div className="flex items-center gap-1">
+                                    {/* Doc Code - inline editable with fixed width */}
+                                    <div className="w-24 flex-shrink-0">
                                       {editingDocCodeItemId === item.id ? (
                                         <div className="flex items-center gap-1">
                                           <Input
                                             value={editDocCodeValue}
                                             onChange={(e) => setEditDocCodeValue(e.target.value)}
-                                            placeholder="Doc Code"
-                                            className="h-6 w-24 text-xs"
+                                            placeholder="Code"
+                                            className="h-6 w-16 text-xs"
                                             autoFocus
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter') handleUpdateItemDocCode(item.id)
@@ -1630,7 +1634,7 @@ export default function FFEUnifiedWorkspace({
                                         <Badge
                                           variant="outline"
                                           className={cn(
-                                            "text-xs cursor-pointer hover:bg-gray-100 transition-colors",
+                                            "text-xs cursor-pointer hover:bg-gray-100 transition-colors w-full justify-center truncate",
                                             item.docCode ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-gray-50 text-gray-500 border-dashed"
                                           )}
                                           onClick={() => { setEditingDocCodeItemId(item.id); setEditDocCodeValue(item.docCode || '') }}
