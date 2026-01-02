@@ -58,6 +58,18 @@ interface RFQData {
         company?: string
       }
     }
+    // RFQ-level documents (spec sheets, etc. uploaded when sending the RFQ)
+    documents?: Array<{
+      id: string
+      title: string
+      description?: string
+      fileName: string
+      fileUrl: string
+      fileSize: number
+      mimeType: string
+      type: string
+      createdAt: string
+    }>
     lineItems: Array<{
       id: string
       itemName: string
@@ -912,6 +924,52 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             <CardContent className="pt-5 pb-5">
               <p className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Description</p>
               <p className="text-gray-700">{data.rfq.description}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* RFQ-level Documents */}
+        {data.rfq.documents && data.rfq.documents.length > 0 && (
+          <Card className="shadow-sm border-l-4 border-l-purple-500">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                Reference Documents
+                <Badge variant="secondary" className="ml-2">{data.rfq.documents.length}</Badge>
+              </CardTitle>
+              <CardDescription>
+                Documents and spec sheets provided for this quote request
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {data.rfq.documents.map(doc => (
+                  <a
+                    key={doc.id}
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:border-purple-400 hover:bg-purple-100 transition-colors group"
+                  >
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {doc.title || doc.fileName}
+                      </p>
+                      {doc.description && (
+                        <p className="text-xs text-gray-500 truncate">{doc.description}</p>
+                      )}
+                      <p className="text-xs text-purple-600">
+                        {(doc.fileSize / 1024).toFixed(0)} KB
+                      </p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
