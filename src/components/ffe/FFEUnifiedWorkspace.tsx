@@ -1618,7 +1618,7 @@ export default function FFEUnifiedWorkspace({
                                   {/* Status and Actions */}
                                   <div className="flex items-center gap-3">
                                     {/* Doc Code - plain text, fixed width, click to edit */}
-                                    <div className="w-16 flex-shrink-0">
+                                    <div className="w-14 flex-shrink-0 text-right">
                                       {editingDocCodeItemId === item.id ? (
                                         <div className="flex items-center gap-1">
                                           <Input
@@ -1637,8 +1637,8 @@ export default function FFEUnifiedWorkspace({
                                       ) : (
                                         <span
                                           className={cn(
-                                            "text-xs font-mono cursor-pointer hover:text-purple-600 transition-colors block text-center",
-                                            item.docCode ? "text-purple-700 font-medium" : "text-gray-400"
+                                            "text-sm font-mono cursor-pointer hover:text-purple-600 transition-colors",
+                                            item.docCode ? "text-purple-700 font-bold" : "text-gray-400 font-normal"
                                           )}
                                           onClick={() => { setEditingDocCodeItemId(item.id); setEditDocCodeValue(item.docCode || '') }}
                                           title="Click to edit doc code"
@@ -1648,38 +1648,41 @@ export default function FFEUnifiedWorkspace({
                                       )}
                                     </div>
                                     
-                                    {isChosen ? (
-                                      <Badge 
-                                        className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors"
-                                        onClick={() => {
-                                          // Toggle spec details panel
-                                          setExpandedSpecItems(prev => {
-                                            const newSet = new Set(prev)
-                                            if (newSet.has(item.id)) {
-                                              newSet.delete(item.id)
-                                            } else {
-                                              newSet.add(item.id)
-                                              // Initialize to first option if not set
-                                              if (selectedOptionIndex[item.id] === undefined && item.linkedSpecs && item.linkedSpecs.length > 0) {
-                                                setSelectedOptionIndex(prev => ({ ...prev, [item.id]: 0 }))
+                                    {/* Status Badge - fixed width container */}
+                                    <div className="w-28 flex-shrink-0">
+                                      {isChosen ? (
+                                        <Badge 
+                                          className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors w-full justify-center"
+                                          onClick={() => {
+                                            // Toggle spec details panel
+                                            setExpandedSpecItems(prev => {
+                                              const newSet = new Set(prev)
+                                              if (newSet.has(item.id)) {
+                                                newSet.delete(item.id)
+                                              } else {
+                                                newSet.add(item.id)
+                                                // Initialize to first option if not set
+                                                if (selectedOptionIndex[item.id] === undefined && item.linkedSpecs && item.linkedSpecs.length > 0) {
+                                                  setSelectedOptionIndex(prev => ({ ...prev, [item.id]: 0 }))
+                                                }
                                               }
-                                            }
-                                            return newSet
-                                          })
-                                        }}
-                                      >
-                                        {item.linkedSpecs?.length === 1 
-                                          ? 'View Spec' 
-                                          : item.linkedSpecs?.length && item.linkedSpecs.length > 1 
-                                            ? `${item.linkedSpecs.length} options` 
-                                            : 'View Spec'}
-                                        <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", expandedSpecItems.has(item.id) && "rotate-180")} />
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                                        Needs Selection
-                                      </Badge>
-                                    )}
+                                              return newSet
+                                            })
+                                          }}
+                                        >
+                                          {item.linkedSpecs?.length === 1 
+                                            ? 'View Spec' 
+                                            : item.linkedSpecs?.length && item.linkedSpecs.length > 1 
+                                              ? `${item.linkedSpecs.length} options` 
+                                              : 'View Spec'}
+                                          <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", expandedSpecItems.has(item.id) && "rotate-180")} />
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 w-full justify-center">
+                                          Needs Selection
+                                        </Badge>
+                                      )}
+                                    </div>
                                     
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
@@ -2027,14 +2030,13 @@ export default function FFEUnifiedWorkspace({
                                       const childIsChosen = hasSpecs(child)
                                       const childWithSection = child as FFEItem & { fromSection?: string; fromSectionId?: string }
                                       return (
-                                        <div
-                                          key={child.id}
-                                          id={`ffe-item-${child.id}`}
-                                          className={cn(
-                                            "group flex items-center justify-between py-3 px-4 hover:bg-blue-50/50 transition-all",
-                                            highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
-                                          )}
-                                        >
+                                        <div key={child.id} id={`ffe-item-${child.id}`}>
+                                          <div
+                                            className={cn(
+                                              "group flex items-center justify-between py-3 px-4 hover:bg-blue-50/50 transition-all",
+                                              highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
+                                            )}
+                                          >
                                           <div className="flex items-center gap-2 flex-1">
                                             {childIsChosen ? (
                                               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
@@ -2051,8 +2053,8 @@ export default function FFEUnifiedWorkspace({
                                             )}
                                           </div>
                                           <div className="flex items-center gap-3">
-                                            {/* Doc Code for grouped item - plain text, fixed width */}
-                                            <div className="w-16 flex-shrink-0">
+                                            {/* Doc Code for grouped item - same as parent items */}
+                                            <div className="w-14 flex-shrink-0 text-right">
                                               {editingDocCodeItemId === child.id ? (
                                                 <div className="flex items-center gap-1">
                                                   <Input
@@ -2071,8 +2073,8 @@ export default function FFEUnifiedWorkspace({
                                               ) : (
                                                 <span
                                                   className={cn(
-                                                    "text-xs font-mono cursor-pointer hover:text-purple-600 transition-colors block text-center",
-                                                    child.docCode ? "text-purple-700 font-medium" : "text-gray-400"
+                                                    "text-sm font-mono cursor-pointer hover:text-purple-600 transition-colors",
+                                                    child.docCode ? "text-purple-700 font-bold" : "text-gray-400 font-normal"
                                                   )}
                                                   onClick={() => { setEditingDocCodeItemId(child.id); setEditDocCodeValue(child.docCode || '') }}
                                                   title="Click to edit doc code"
@@ -2082,28 +2084,41 @@ export default function FFEUnifiedWorkspace({
                                               )}
                                             </div>
                                             
-                                            {childIsChosen ? (
-                                              <Badge 
-                                                className="bg-emerald-100 text-emerald-700 text-xs cursor-pointer hover:bg-emerald-200 transition-colors"
-                                                onClick={() => {
-                                                  if (projectId) {
-                                                    if (child.linkedSpecs?.length) {
-                                                      const specId = child.linkedSpecs[0].id
-                                                      router.push(`/projects/${projectId}/specs/all?highlightItem=${specId}`)
-                                                    } else {
-                                                      router.push(`/projects/${projectId}/specs/all?highlightItem=${child.id}`)
-                                                    }
-                                                  }
-                                                }}
-                                              >
-                                                View Spec
-                                                <ExternalLink className="w-3 h-3 ml-1" />
-                                              </Badge>
-                                            ) : (
-                                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                                                Needs Selection
-                                              </Badge>
-                                            )}
+                                            {/* Status Badge - fixed width, same as parent items */}
+                                            <div className="w-28 flex-shrink-0">
+                                              {childIsChosen ? (
+                                                <Badge 
+                                                  className="bg-emerald-100 text-emerald-700 text-xs cursor-pointer hover:bg-emerald-200 transition-colors w-full justify-center"
+                                                  onClick={() => {
+                                                    // Toggle spec details panel - same behavior as parent items
+                                                    setExpandedSpecItems(prev => {
+                                                      const newSet = new Set(prev)
+                                                      if (newSet.has(child.id)) {
+                                                        newSet.delete(child.id)
+                                                      } else {
+                                                        newSet.add(child.id)
+                                                        // Initialize to first option if not set
+                                                        if (selectedOptionIndex[child.id] === undefined && child.linkedSpecs && child.linkedSpecs.length > 0) {
+                                                          setSelectedOptionIndex(prev => ({ ...prev, [child.id]: 0 }))
+                                                        }
+                                                      }
+                                                      return newSet
+                                                    })
+                                                  }}
+                                                >
+                                                  {child.linkedSpecs?.length === 1 
+                                                    ? 'View Spec' 
+                                                    : child.linkedSpecs?.length && child.linkedSpecs.length > 1 
+                                                      ? `${child.linkedSpecs.length} options` 
+                                                      : 'View Spec'}
+                                                  <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", expandedSpecItems.has(child.id) && "rotate-180")} />
+                                                </Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs w-full justify-center">
+                                                  Needs Selection
+                                                </Badge>
+                                              )}
+                                            </div>
                                             {/* Full dropdown menu - same as standard items */}
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
@@ -2207,10 +2222,148 @@ export default function FFEUnifiedWorkspace({
                                             </DropdownMenu>
                                           </div>
                                         </div>
-                                      )
-                                    })}
-                                  </div>
-                                )}
+                                        
+                                        {/* Expanded Spec Options Panel for grouped item - same as parent items */}
+                                        {expandedSpecItems.has(child.id) && child.linkedSpecs && child.linkedSpecs.length > 0 && (
+                                          <div className="border-t border-blue-100 bg-white/50 p-4 ml-6">
+                                            {/* Option Tabs - only show if multiple options */}
+                                            {child.linkedSpecs.length > 1 && (
+                                              <div className="flex items-center gap-2 mb-4">
+                                                <span className="text-xs font-medium text-gray-500 mr-2">Options:</span>
+                                                {child.linkedSpecs.map((spec, index) => (
+                                                  <button
+                                                    key={spec.id}
+                                                    onClick={() => setSelectedOptionIndex(prev => ({ ...prev, [child.id]: index }))}
+                                                    className={cn(
+                                                      "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                                      (selectedOptionIndex[child.id] ?? 0) === index
+                                                        ? "bg-blue-600 text-white shadow-sm"
+                                                        : "bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                                                    )}
+                                                  >
+                                                    Option {index + 1}
+                                                    {spec.clientApproved && (
+                                                      <CheckCircle2 className="w-3 h-3 ml-1 inline text-emerald-400" />
+                                                    )}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                            
+                                            {/* Selected Option Details */}
+                                            {(() => {
+                                              const selectedSpec = child.linkedSpecs![(selectedOptionIndex[child.id] ?? 0)]
+                                              if (!selectedSpec) return null
+                                              
+                                              const imageUrl = selectedSpec.images?.[0]
+                                              
+                                              return (
+                                                <div className="flex gap-4">
+                                                  {/* Product Image */}
+                                                  {imageUrl && (
+                                                    <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-white border border-gray-200">
+                                                      <img 
+                                                        src={imageUrl} 
+                                                        alt={selectedSpec.name}
+                                                        className="w-full h-full object-cover"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                  
+                                                  {/* Product Details */}
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                                      <div>
+                                                        <h4 className="font-medium text-gray-900 text-sm">{selectedSpec.name}</h4>
+                                                        {selectedSpec.brand && (
+                                                          <p className="text-xs text-gray-500">{selectedSpec.brand}</p>
+                                                        )}
+                                                      </div>
+                                                      {/* Actions */}
+                                                      <div className="flex items-center gap-2">
+                                                        {projectId && (
+                                                          <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 text-xs"
+                                                            onClick={() => router.push(`/projects/${projectId}/specs/all?highlightItem=${selectedSpec.id}`)}
+                                                          >
+                                                            <ExternalLink className="w-3 h-3 mr-1" />
+                                                            View in Specs
+                                                          </Button>
+                                                        )}
+                                                        <Button
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          className="h-6 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                          onClick={() => handleUnlinkFromSpec(child.id, selectedSpec.id, selectedSpec.name)}
+                                                        >
+                                                          <LinkIcon className="w-3 h-3 mr-1" />
+                                                          Unlink
+                                                        </Button>
+                                                      </div>
+                                                    </div>
+                                                    
+                                                    {/* Spec Details Grid */}
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs">
+                                                      {selectedSpec.sku && (
+                                                        <div>
+                                                          <span className="text-gray-400">SKU:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.sku}</span>
+                                                        </div>
+                                                      )}
+                                                      {selectedSpec.supplierName && (
+                                                        <div>
+                                                          <span className="text-gray-400">Supplier:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.supplierName}</span>
+                                                        </div>
+                                                      )}
+                                                      {selectedSpec.color && (
+                                                        <div>
+                                                          <span className="text-gray-400">Color:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.color}</span>
+                                                        </div>
+                                                      )}
+                                                      {selectedSpec.finish && (
+                                                        <div>
+                                                          <span className="text-gray-400">Finish:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.finish}</span>
+                                                        </div>
+                                                      )}
+                                                      {selectedSpec.material && (
+                                                        <div>
+                                                          <span className="text-gray-400">Material:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.material}</span>
+                                                        </div>
+                                                      )}
+                                                      {selectedSpec.leadTime && (
+                                                        <div>
+                                                          <span className="text-gray-400">Lead Time:</span>
+                                                          <span className="ml-1 text-gray-700">{selectedSpec.leadTime}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                    
+                                                    {/* Approval Status */}
+                                                    {selectedSpec.clientApproved && (
+                                                      <div className="mt-2">
+                                                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+                                                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                          Client Approved
+                                                        </Badge>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )
+                                            })()}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
                               </div>
                             )
                           })}
