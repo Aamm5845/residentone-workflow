@@ -728,6 +728,8 @@ export default function NewProjectForm({ session }: NewProjectFormProps) {
                       type="date"
                       value={formData.dueDate}
                       onChange={(e) => handleInputChange('dueDate', e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      max={new Date(new Date().getFullYear() + 10, 11, 31).toISOString().split('T')[0]}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>

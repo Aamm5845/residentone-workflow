@@ -483,7 +483,7 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
                 {/* Metadata badges */}
                 {activity.metadata && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {activity.metadata.quoteAmount && (
+                    {activity.metadata.quoteAmount && !isNaN(Number(activity.metadata.quoteAmount)) && (
                       <Badge variant="secondary" className="text-xs">
                         ${Number(activity.metadata.quoteAmount).toLocaleString()}
                       </Badge>

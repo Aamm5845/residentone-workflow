@@ -479,7 +479,7 @@ export default function QuickQuoteDialog({
                               <div className="w-12 h-12 relative flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border">
                                 {item.thumbnailUrl || item.images?.[0] ? (
                                   <img
-                                    src={item.thumbnailUrl || item.images![0]}
+                                    src={item.thumbnailUrl || item.images?.[0]}
                                     alt={item.name}
                                     className="w-full h-full object-cover"
                                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}

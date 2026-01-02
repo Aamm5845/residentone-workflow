@@ -356,6 +356,7 @@ export default function CreateSpecShareLinkDialog({
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
+              max={new Date(new Date().getFullYear() + 5, 11, 31).toISOString().split('T')[0]}
               className="h-10 w-48"
             />
             <p className="text-xs text-slate-500">

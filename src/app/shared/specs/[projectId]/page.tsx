@@ -455,7 +455,7 @@ export default function SharedSpecsPage() {
                           <div className="w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
                             {item.thumbnailUrl || item.images?.[0] ? (
                               <img
-                                src={item.thumbnailUrl || item.images[0]}
+                                src={item.thumbnailUrl || item.images?.[0]}
                                 alt={item.name}
                                 className="w-full h-full object-cover"
                               />

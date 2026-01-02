@@ -255,6 +255,7 @@ export default function ClientAccessManagement({
                 value={newTokenExpiry}
                 onChange={(e) => setNewTokenExpiry(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
+                max={new Date(new Date().getFullYear() + 5, 11, 31).toISOString().split('T')[0]}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Leave empty for permanent access

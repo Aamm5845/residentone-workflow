@@ -4015,7 +4015,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       if (displayItem.thumbnailUrl || displayItem.images?.[0]) {
                                         setImageEditorModal({
                                           open: true,
-                                          imageUrl: displayItem.thumbnailUrl || displayItem.images[0],
+                                          imageUrl: displayItem.thumbnailUrl || displayItem.images?.[0],
                                           imageTitle: `${displayItem.sectionName}: ${displayItem.name}`,
                                           itemId: displayItem.id
                                         })
@@ -4030,7 +4030,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                                     ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
                                       <img
-                                        src={displayItem.thumbnailUrl || displayItem.images[0]}
+                                        src={displayItem.thumbnailUrl || displayItem.images?.[0]}
                                         alt={displayItem.name}
                                         className="w-full h-full object-cover"
                                         loading="eager"
@@ -4049,7 +4049,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <div className="flex gap-3">
                                       {(displayItem.thumbnailUrl || displayItem.images?.[0]) && (
                                         <img
-                                          src={displayItem.thumbnailUrl || displayItem.images[0]}
+                                          src={displayItem.thumbnailUrl || displayItem.images?.[0]}
                                           alt={displayItem.name}
                                           className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                                           loading="eager"

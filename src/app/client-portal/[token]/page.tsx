@@ -442,7 +442,7 @@ export default function ClientPortalPage({ params }: ClientPortalPageProps) {
                               <div className="flex-shrink-0 w-20 h-20 relative rounded-lg overflow-hidden bg-gray-100">
                                 {item.thumbnailUrl || (item.images && item.images[0]) ? (
                                   <Image
-                                    src={item.thumbnailUrl || item.images![0]}
+                                    src={item.thumbnailUrl || item.images?.[0] || ''}
                                     alt={item.name}
                                     fill
                                     className="object-cover"

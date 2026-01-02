@@ -192,7 +192,7 @@ function ProductCard({
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {product.thumbnailUrl || product.images?.[0] ? (
           <img
-            src={product.thumbnailUrl || product.images[0]}
+            src={product.thumbnailUrl || product.images?.[0]}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -1118,7 +1118,7 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                     <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                       {product.thumbnailUrl || product.images?.[0] ? (
                         <img
-                          src={product.thumbnailUrl || product.images[0]}
+                          src={product.thumbnailUrl || product.images?.[0]}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
