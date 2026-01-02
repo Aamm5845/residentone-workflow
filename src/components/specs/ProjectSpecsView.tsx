@@ -16,6 +16,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog,
@@ -377,6 +378,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
   const prevSortByRef = useRef<'category' | 'room' | 'status'>('category')
+  const [itemSortBy, setItemSortBy] = useState<'default' | 'name' | 'brand' | 'price_asc' | 'price_desc' | 'status'>('default')
+  const [itemSortDirection, setItemSortDirection] = useState<'asc' | 'desc'>('asc')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
   const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
   
@@ -1234,22 +1237,47 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       groups[key].items.push(spec)
     })
 
-    // Convert to array and sort
-    // Keep items in their original order from the database (order field)
-    // to preserve drag-and-drop reordering
+    // Sort items within each group based on itemSortBy
+    const sortItems = (items: SpecItem[]) => {
+      if (itemSortBy === 'default') return items // Keep original database order
+
+      return [...items].sort((a, b) => {
+        let comparison = 0
+        switch (itemSortBy) {
+          case 'name':
+            comparison = (a.name || '').localeCompare(b.name || '')
+            break
+          case 'brand':
+            comparison = (a.brand || '').localeCompare(b.brand || '')
+            break
+          case 'price_asc':
+            comparison = (Number(a.tradePrice) || 0) - (Number(b.tradePrice) || 0)
+            break
+          case 'price_desc':
+            comparison = (Number(b.tradePrice) || 0) - (Number(a.tradePrice) || 0)
+            break
+          case 'status':
+            comparison = (a.specStatus || '').localeCompare(b.specStatus || '')
+            break
+        }
+        return comparison
+      })
+    }
+
+    // Convert to array and sort items within each group
     const groupedArray = Object.values(groups).map(group => ({
       ...group,
-      items: group.items // Keep original order from database
+      items: sortItems(group.items)
     }))
 
     setGroupedSpecs(groupedArray.sort((a, b) => a.name.localeCompare(b.name)))
-    
+
     // Expand all groups when sortBy changes (e.g., switching from category to room)
     if (sortBy !== prevSortByRef.current) {
       setExpandedCategories(new Set(groupedArray.map(g => g.name)))
       prevSortByRef.current = sortBy
     }
-  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, summaryFilter, sortBy])
+  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, summaryFilter, sortBy, itemSortBy])
   
   // Filter ffeItems based on room and section filters for Needs Selection tab
   const filteredFfeItems = useMemo(() => {
@@ -3374,17 +3402,44 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 text-gray-500">
+                  <Button variant="ghost" size="sm" className={cn(
+                    "h-8",
+                    itemSortBy !== 'default' ? "text-blue-600" : "text-gray-500"
+                  )}>
                     <SortAsc className="w-4 h-4 mr-1.5" />
                     Sort
+                    {itemSortBy !== 'default' && (
+                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-blue-100 text-blue-600">1</Badge>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500">Group by</div>
                   <DropdownMenuItem onClick={() => setSortBy('category')} className={cn(sortBy === 'category' && "bg-gray-100")}>
-                    By Category
+                    Category
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy('room')} className={cn(sortBy === 'room' && "bg-gray-100")}>
-                    By Room
+                    Room
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500">Sort items by</div>
+                  <DropdownMenuItem onClick={() => setItemSortBy('default')} className={cn(itemSortBy === 'default' && "bg-gray-100")}>
+                    Default Order
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setItemSortBy('name')} className={cn(itemSortBy === 'name' && "bg-gray-100")}>
+                    Name (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setItemSortBy('brand')} className={cn(itemSortBy === 'brand' && "bg-gray-100")}>
+                    Brand (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setItemSortBy('price_asc')} className={cn(itemSortBy === 'price_asc' && "bg-gray-100")}>
+                    Price (Low → High)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setItemSortBy('price_desc')} className={cn(itemSortBy === 'price_desc' && "bg-gray-100")}>
+                    Price (High → Low)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setItemSortBy('status')} className={cn(itemSortBy === 'status' && "bg-gray-100")}>
+                    Status
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
