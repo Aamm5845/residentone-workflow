@@ -10,10 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  Plus, 
-  FolderPlus, 
-  RefreshCw, 
+import {
+  Plus,
+  FolderPlus,
+  RefreshCw,
   ChevronRight,
   ChevronDown,
   Import,
@@ -39,7 +39,12 @@ import {
   Upload,
   Scissors,
   ArrowRightLeft,
-  Layers
+  Layers,
+  Copy,
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -267,6 +272,12 @@ export default function FFEUnifiedWorkspace({
     sectionsCount: 0
   })
 
+  // Programa link state
+  const [programaLink, setProgramaLink] = useState('')
+  const [tempProgramaLink, setTempProgramaLink] = useState('')
+  const [editingProgramaLink, setEditingProgramaLink] = useState(false)
+  const [savingProgramaLink, setSavingProgramaLink] = useState(false)
+
   // Load FFE data
   useEffect(() => {
     loadFFEData()
@@ -317,6 +328,11 @@ export default function FFEUnifiedWorkspace({
         }))
         setSections(sectionsWithExpanded)
         calculateStats(sectionsWithExpanded)
+        // Load programa link if available
+        if (ffeData.programaLink) {
+          setProgramaLink(ffeData.programaLink)
+          setTempProgramaLink(ffeData.programaLink)
+        }
       } else {
         setSections([])
         setStats({ totalItems: 0, chosenItems: 0, needsSelection: 0, sectionsCount: 0 })
@@ -986,6 +1002,88 @@ export default function FFEUnifiedWorkspace({
       toast.success('Item deleted')
     } catch (error) {
       toast.error('Failed to delete item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Save Programa link
+  const handleSaveProgramaLink = async () => {
+    try {
+      setSavingProgramaLink(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programaLink: tempProgramaLink.trim() || null })
+      })
+      if (!response.ok) throw new Error('Failed to save Programa link')
+      setProgramaLink(tempProgramaLink.trim())
+      setEditingProgramaLink(false)
+      toast.success('Programa link saved')
+    } catch (error) {
+      console.error('Error saving Programa link:', error)
+      toast.error('Failed to save Programa link')
+    } finally {
+      setSavingProgramaLink(false)
+    }
+  }
+
+  // Duplicate section with all its items
+  const handleDuplicateSection = async (sectionId: string, sectionName: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId })
+      })
+      if (!response.ok) throw new Error('Failed to duplicate section')
+      const result = await response.json()
+      await loadFFEData()
+      toast.success(`Section "${sectionName}" duplicated with ${result.data?.itemCount || 0} items`)
+    } catch (error) {
+      console.error('Error duplicating section:', error)
+      toast.error('Failed to duplicate section')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Reorder item within section (move up or down)
+  const handleReorderItem = async (itemId: string, direction: 'up' | 'down', sectionId: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, direction, sectionId })
+      })
+      if (!response.ok) throw new Error('Failed to reorder item')
+      await loadFFEData()
+    } catch (error) {
+      console.error('Error reordering item:', error)
+      toast.error('Failed to reorder item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Bulk visibility toggle for all items in a section
+  const handleBulkVisibilityToggle = async (sectionId: string, targetVisibility: 'VISIBLE' | 'HIDDEN') => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/bulk-visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId, visibility: targetVisibility })
+      })
+      if (!response.ok) throw new Error('Failed to update visibility')
+      const result = await response.json()
+      await loadFFEData()
+      toast.success(result.message || 'Visibility updated')
+    } catch (error) {
+      console.error('Error updating bulk visibility:', error)
+      toast.error('Failed to update visibility')
     } finally {
       setSaving(false)
     }

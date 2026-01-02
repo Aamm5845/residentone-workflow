@@ -232,6 +232,16 @@ export async function POST(
       }
     }
 
+    // If linking to an FFE requirement, fetch its doc code to copy to the spec item
+    let ffeRequirementDocCode: string | null = null
+    if (ffeRequirementId && !docCode) {
+      const ffeReq = await prisma.roomFFEItem.findUnique({
+        where: { id: ffeRequirementId },
+        select: { docCode: true }
+      })
+      ffeRequirementDocCode = ffeReq?.docCode || null
+    }
+
     await prisma.$transaction(async (tx) => {
       for (let i = 1; i <= quantity; i++) {
         const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
@@ -245,10 +255,11 @@ export async function POST(
         const finalSpecStatus = specStatus || (isActualSpec ? 'SELECTED' : 'DRAFT')
 
         // Generate unique doc code for each item in bulk creation
-        let itemDocCode = docCode || null
-        if (!docCode && section.docCodePrefix && currentDocCodeNumber > 0) {
+        // Priority: explicit docCode > FFE requirement's docCode > auto-generated > null
+        let itemDocCode = docCode || ffeRequirementDocCode || null
+        if (!docCode && !ffeRequirementDocCode && section.docCodePrefix && currentDocCodeNumber > 0) {
           itemDocCode = `${section.docCodePrefix}-${String(currentDocCodeNumber + i - 1).padStart(2, '0')}`
-        } else if (!docCode && generatedDocCode && i === 1) {
+        } else if (!docCode && !ffeRequirementDocCode && generatedDocCode && i === 1) {
           itemDocCode = generatedDocCode
         }
 
