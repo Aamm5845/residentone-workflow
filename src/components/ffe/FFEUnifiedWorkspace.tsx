@@ -1138,26 +1138,38 @@ export default function FFEUnifiedWorkspace({
   }
 
   const handleUpdateItemDocCode = async (itemId: string) => {
+    const newDocCode = editDocCodeValue.trim() || null
+    
+    // Close the editor immediately
+    setEditingDocCodeItemId(null)
+    setEditDocCodeValue('')
+    
+    // Optimistic update - update local state immediately without reloading
+    setSections(prevSections => 
+      prevSections.map(section => ({
+        ...section,
+        items: section.items.map(item => 
+          item.id === itemId 
+            ? { ...item, docCode: newDocCode || undefined }
+            : item
+        )
+      }))
+    )
+    
     try {
-      setSavingDocCode(true)
-      const newDocCode = editDocCodeValue.trim() || null
-
-      // Update the FFE item's doc code
+      // Update the FFE item's doc code in background
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ docCode: newDocCode, syncToLinkedSpecs: true })
       })
       if (!response.ok) throw new Error('Failed to update doc code')
-
-      await loadFFEData()
-      setEditingDocCodeItemId(null)
-      setEditDocCodeValue('')
-      toast.success('Doc Code updated (synced to linked specs)')
+      
+      toast.success('Doc Code updated')
     } catch (error) {
       toast.error('Failed to update doc code')
-    } finally {
-      setSavingDocCode(false)
+      // Revert on error by reloading data
+      await loadFFEData()
     }
   }
 
