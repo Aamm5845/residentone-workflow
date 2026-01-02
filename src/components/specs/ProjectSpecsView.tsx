@@ -4429,6 +4429,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                         }}
                                                       >
                                                         <div className="w-1 h-6 bg-violet-300 rounded-full flex-shrink-0" />
+                                                        {/* Doc Code for linked item */}
+                                                        {childSpec?.docCode && (
+                                                          <span className="text-xs font-mono text-purple-700 font-medium flex-shrink-0">
+                                                            {childSpec.docCode}
+                                                          </span>
+                                                        )}
                                                         <div className="flex-1 min-w-0">
                                                           <p className="text-xs font-medium text-gray-900 truncate">{childName}</p>
                                                           {childSpec && (

@@ -1591,65 +1591,12 @@ export default function FFEUnifiedWorkspace({
                                       </div>
                                     )}
                                     
-                                    {/* Quantity badge */}
-                                    {item.quantity > 1 && (
-                                      <Badge variant="outline" className="text-xs">{item.quantity}x</Badge>
-                                    )}
-
-                                    {/* Doc Code - inline editable with fixed width */}
-                                    <div className="w-24 flex-shrink-0">
-                                      {editingDocCodeItemId === item.id ? (
-                                        <div className="flex items-center gap-1">
-                                          <Input
-                                            value={editDocCodeValue}
-                                            onChange={(e) => setEditDocCodeValue(e.target.value)}
-                                            placeholder="Code"
-                                            className="h-6 w-16 text-xs"
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleUpdateItemDocCode(item.id)
-                                              if (e.key === 'Escape') { setEditingDocCodeItemId(null); setEditDocCodeValue('') }
-                                            }}
-                                          />
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleUpdateItemDocCode(item.id)}
-                                            className="h-6 w-6 p-0 text-green-600"
-                                            disabled={savingDocCode}
-                                          >
-                                            {savingDocCode ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => { setEditingDocCodeItemId(null); setEditDocCodeValue('') }}
-                                            className="h-6 w-6 p-0 text-gray-400"
-                                            disabled={savingDocCode}
-                                          >
-                                            <X className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <Badge
-                                          variant="outline"
-                                          className={cn(
-                                            "text-xs cursor-pointer hover:bg-gray-100 transition-colors w-full justify-center truncate",
-                                            item.docCode ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-gray-50 text-gray-500 border-dashed"
-                                          )}
-                                          onClick={() => { setEditingDocCodeItemId(item.id); setEditDocCodeValue(item.docCode || '') }}
-                                        >
-                                          {item.docCode || '+ Code'}
-                                        </Badge>
-                                      )}
-                                    </div>
-
                                     {/* Linked children indicator */}
                                     {groupedChildren.length > 0 && (
-                                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
-                                        <LinkIcon className="w-3 h-3 mr-1" />
-                                        {groupedChildren.length} grouped
-                                      </Badge>
+                                      <div className="flex items-center gap-1 text-blue-600">
+                                        <LinkIcon className="w-3 h-3" />
+                                        <span className="text-xs font-medium">{groupedChildren.length}</span>
+                                      </div>
                                     )}
                                     
                                     {/* Description toggle */}
@@ -1669,7 +1616,38 @@ export default function FFEUnifiedWorkspace({
                                   )}
                                   
                                   {/* Status and Actions */}
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-3">
+                                    {/* Doc Code - plain text, fixed width, click to edit */}
+                                    <div className="w-16 flex-shrink-0">
+                                      {editingDocCodeItemId === item.id ? (
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            value={editDocCodeValue}
+                                            onChange={(e) => setEditDocCodeValue(e.target.value)}
+                                            placeholder="Code"
+                                            className="h-6 w-14 text-xs text-center font-mono"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleUpdateItemDocCode(item.id)
+                                              if (e.key === 'Escape') { setEditingDocCodeItemId(null); setEditDocCodeValue('') }
+                                            }}
+                                            onBlur={() => handleUpdateItemDocCode(item.id)}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className={cn(
+                                            "text-xs font-mono cursor-pointer hover:text-purple-600 transition-colors block text-center",
+                                            item.docCode ? "text-purple-700 font-medium" : "text-gray-400"
+                                          )}
+                                          onClick={() => { setEditingDocCodeItemId(item.id); setEditDocCodeValue(item.docCode || '') }}
+                                          title="Click to edit doc code"
+                                        >
+                                          {item.docCode || '—'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
                                     {isChosen ? (
                                       <Badge 
                                         className="bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-200 transition-colors"
@@ -2057,13 +2035,13 @@ export default function FFEUnifiedWorkspace({
                                             highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
                                           )}
                                         >
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-2 flex-1">
                                             {childIsChosen ? (
-                                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                                             ) : (
-                                              <Circle className="w-4 h-4 text-gray-300" />
+                                              <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />
                                             )}
-                                            <LinkIcon className="w-3 h-3 text-blue-500" />
+                                            <LinkIcon className="w-3 h-3 text-blue-500 flex-shrink-0" />
                                             <span className="text-sm text-gray-700">{child.name}</span>
                                             {/* Cross-category indicator */}
                                             {childWithSection.fromSection && (
@@ -2071,12 +2049,39 @@ export default function FFEUnifiedWorkspace({
                                                 from {childWithSection.fromSection}
                                               </Badge>
                                             )}
-                                            {/* Quantity badge for grouped items */}
-                                            {child.quantity > 1 && (
-                                              <Badge variant="outline" className="text-xs">{child.quantity}x</Badge>
-                                            )}
                                           </div>
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-3">
+                                            {/* Doc Code for grouped item - plain text, fixed width */}
+                                            <div className="w-16 flex-shrink-0">
+                                              {editingDocCodeItemId === child.id ? (
+                                                <div className="flex items-center gap-1">
+                                                  <Input
+                                                    value={editDocCodeValue}
+                                                    onChange={(e) => setEditDocCodeValue(e.target.value)}
+                                                    placeholder="Code"
+                                                    className="h-5 w-14 text-xs text-center font-mono"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') handleUpdateItemDocCode(child.id)
+                                                      if (e.key === 'Escape') { setEditingDocCodeItemId(null); setEditDocCodeValue('') }
+                                                    }}
+                                                    onBlur={() => handleUpdateItemDocCode(child.id)}
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <span
+                                                  className={cn(
+                                                    "text-xs font-mono cursor-pointer hover:text-purple-600 transition-colors block text-center",
+                                                    child.docCode ? "text-purple-700 font-medium" : "text-gray-400"
+                                                  )}
+                                                  onClick={() => { setEditingDocCodeItemId(child.id); setEditDocCodeValue(child.docCode || '') }}
+                                                  title="Click to edit doc code"
+                                                >
+                                                  {child.docCode || '—'}
+                                                </span>
+                                              )}
+                                            </div>
+                                            
                                             {childIsChosen ? (
                                               <Badge 
                                                 className="bg-emerald-100 text-emerald-700 text-xs cursor-pointer hover:bg-emerald-200 transition-colors"
@@ -2091,7 +2096,7 @@ export default function FFEUnifiedWorkspace({
                                                   }
                                                 }}
                                               >
-                                                Chosen
+                                                View Spec
                                                 <ExternalLink className="w-3 h-3 ml-1" />
                                               </Badge>
                                             ) : (
