@@ -757,41 +757,42 @@ export function ItemDetailPanel({
     { id: 'Other', label: 'Other', color: 'gray', dbType: 'OTHER' },
   ]
   
-  // Handle file upload
+  // Handle file upload - allow up to 10 images
+  const MAX_IMAGES = 10
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
-    if (images.length >= 2) {
-      toast.error('Maximum 2 images allowed')
+    if (images.length >= MAX_IMAGES) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed`)
       return
     }
-    
+
     const file = files[0]
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file')
       return
     }
-    
+
     if (file.size > 4 * 1024 * 1024) {
       toast.error('Image must be less than 4MB')
       return
     }
-    
+
     setUploadingImage(true)
     try {
       // Upload to server and get URL
       const formData = new FormData()
       formData.append('file', file)
       formData.append('imageType', 'general')
-      
+
       const res = await fetch('/api/upload-image', {
         method: 'POST',
         body: formData
       })
-      
+
       if (res.ok) {
         const data = await res.json()
         if (data.url) {
-          setImages(prev => [...prev, data.url].slice(0, 2))
+          setImages(prev => [...prev, data.url].slice(0, MAX_IMAGES))
           toast.success('Image uploaded')
         } else {
           throw new Error('No URL returned')
@@ -1623,7 +1624,7 @@ export function ItemDetailPanel({
           <div className="p-5 space-y-6">
             {activeTab === 'summary' && (
               <>
-                {/* Image Upload */}
+                {/* Image Upload - supports up to 10 images */}
                 <div className="space-y-2">
                   <input
                     ref={fileInputRef}
@@ -1632,28 +1633,39 @@ export function ItemDetailPanel({
                     className="hidden"
                     onChange={(e) => handleFileUpload(e.target.files)}
                   />
-                  <div className="flex gap-3">
-                    {images.filter(img => img && img.trim()).map((img, idx) => (
-                      <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border">
-                        <img src={img} alt="" className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                          className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                  <div className="space-y-3">
+                    {/* Image Grid */}
+                    {images.filter(img => img && img.trim()).length > 0 && (
+                      <div className="grid grid-cols-4 gap-2">
+                        {images.filter(img => img && img.trim()).map((img, idx) => (
+                          <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 border group">
+                            <img src={img} alt="" className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                              className="absolute top-1 right-1 p-1 bg-white/80 rounded-full hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            {idx === 0 && (
+                              <span className="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 bg-emerald-500 text-white rounded font-medium">
+                                Main
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {images.filter(img => img && img.trim()).length < 2 && (
-                      <div 
+                    )}
+                    {/* Upload Area */}
+                    {images.filter(img => img && img.trim()).length < MAX_IMAGES && (
+                      <div
                         onClick={() => fileInputRef.current?.click()}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         className={cn(
-                          "flex-1 min-w-[200px] border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
-                          isDragging 
-                            ? "border-emerald-500 bg-emerald-50" 
+                          "border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                          isDragging
+                            ? "border-emerald-500 bg-emerald-50"
                             : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                         )}
                       >
@@ -1665,7 +1677,9 @@ export function ItemDetailPanel({
                             <p className="text-sm text-gray-500">
                               Drag & drop or <span className="text-blue-600 hover:underline">browse files</span>
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">Upload up to 2 images</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {images.filter(img => img && img.trim()).length}/{MAX_IMAGES} images
+                            </p>
                           </>
                         )}
                       </div>

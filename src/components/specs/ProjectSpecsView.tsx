@@ -1716,19 +1716,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       // Find the item to get roomId
       const item = specs.find(s => s.id === itemId)
       if (!item) return
-      
+
       // Check if new status requires approval and item is not approved
       if (APPROVAL_REQUIRED_STATUSES.includes(newStatus) && !item.clientApproved) {
         toast.error('Client approval required for this status')
         return
       }
-      
+
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ specStatus: newStatus })
       })
-      
+
       if (res.ok) {
         // Update local state
         setSpecs(prev => prev.map(s => s.id === itemId ? { ...s, specStatus: newStatus } : s))
@@ -1741,7 +1741,37 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       toast.error('Failed to update status')
     }
   }
-  
+
+  // Archive item - sets status to ARCHIVED and removes all FFE links
+  const handleArchiveItem = async (item: SpecItem) => {
+    if (!confirm(`Archive "${item.name}"? This will unlink it from all FFE workspace items.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}/archive`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (res.ok) {
+        // Update local state - set status to ARCHIVED and clear FFE links
+        setSpecs(prev => prev.map(s =>
+          s.id === item.id
+            ? { ...s, specStatus: 'ARCHIVED', linkedFfeItems: [], ffeRequirementId: null, ffeRequirementName: null }
+            : s
+        ))
+        toast.success(`"${item.name}" archived`)
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to archive item')
+      }
+    } catch (error) {
+      console.error('Error archiving item:', error)
+      toast.error('Failed to archive item')
+    }
+  }
+
   // Toggle client approval
   const handleToggleClientApproval = async (itemId: string, currentApproval: boolean) => {
     try {
@@ -3274,7 +3304,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation()
-                                              // Scroll to parent item
                                               const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
                                               if (parentElement) {
                                                 parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -3288,9 +3317,36 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             <LinkIcon className="w-3 h-3" />
                                           </button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                                          <p className="text-xs text-gray-500 mb-1">Linked to:</p>
-                                          <p className="text-xs font-medium text-gray-900">{item.parentName}</p>
+                                        <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                          <div className="p-3 border-b bg-violet-50">
+                                            <div className="flex items-center gap-2">
+                                              <Layers className="w-4 h-4 text-violet-600" />
+                                              <p className="text-xs font-semibold text-violet-800">Grouped with Parent</p>
+                                            </div>
+                                          </div>
+                                          <div className="p-3 space-y-2">
+                                            <div>
+                                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                              <p className="text-sm font-medium text-gray-900">{item.parentName}</p>
+                                            </div>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="w-full h-7 text-xs"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
+                                                if (parentElement) {
+                                                  parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                  parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                  setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                                }
+                                              }}
+                                            >
+                                              <Eye className="w-3 h-3 mr-1" />
+                                              Find Parent in List
+                                            </Button>
+                                          </div>
                                         </PopoverContent>
                                       </Popover>
                                     )}
@@ -3399,9 +3455,37 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             <LinkIcon className="w-3 h-3" />
                                           </button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                                          <p className="text-xs text-gray-500 mb-1">Linked to:</p>
-                                          <p className="text-xs font-medium text-gray-900">{item.parentName}</p>
+                                        <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                          <div className="p-3 border-b bg-violet-50">
+                                            <div className="flex items-center gap-2">
+                                              <Layers className="w-4 h-4 text-violet-600" />
+                                              <p className="text-xs font-semibold text-violet-800">Grouped with Parent</p>
+                                            </div>
+                                          </div>
+                                          <div className="p-3 space-y-2">
+                                            <div>
+                                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                              <p className="text-sm font-medium text-gray-900">{item.parentName}</p>
+                                              <p className="text-xs text-gray-500 mt-0.5">Section: {section.sectionName}</p>
+                                            </div>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="w-full h-7 text-xs"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
+                                                if (parentElement) {
+                                                  parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                  parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                  setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                                }
+                                              }}
+                                            >
+                                              <Eye className="w-3 h-3 mr-1" />
+                                              Find Parent in List
+                                            </Button>
+                                          </div>
                                         </PopoverContent>
                                       </Popover>
                                     )}
@@ -3977,7 +4061,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                     return (
                                       <>
-                                        {/* Parent with children */}
+                                        {/* Parent with children - enhanced to show child details */}
                                         {hasChildren && linkedItems.length > 0 && (
                                           <Popover>
                                             <PopoverTrigger asChild>
@@ -3990,22 +4074,77 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 {linkedItems.length}
                                               </button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                                <Layers className="w-3.5 h-3.5 text-violet-600" />
-                                                Grouped Items (FFE)
-                                              </p>
-                                              <div className="space-y-1">
-                                                {linkedItems.map((childName: string, idx: number) => (
-                                                  <div key={idx} className="text-xs text-gray-600 pl-2 border-l-2 border-violet-200">
-                                                    {childName}
+                                            <PopoverContent className="w-72 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                              <div className="p-3 border-b bg-violet-50">
+                                                <div className="flex items-center gap-2">
+                                                  <Layers className="w-4 h-4 text-violet-600" />
+                                                  <div>
+                                                    <p className="text-xs font-semibold text-violet-800">Grouped Items</p>
+                                                    <p className="text-[10px] text-violet-600">{linkedItems.length} items linked to this parent</p>
                                                   </div>
-                                                ))}
+                                                </div>
+                                              </div>
+                                              <div className="p-2 max-h-48 overflow-y-auto">
+                                                <div className="space-y-1">
+                                                  {linkedItems.map((childName: string, idx: number) => {
+                                                    // Try to find this child in the current specs list
+                                                    const childSpec = filteredSpecs.find(s =>
+                                                      s.name === childName &&
+                                                      (s.customFields as any)?.parentName === displayItem.name
+                                                    )
+                                                    return (
+                                                      <div
+                                                        key={idx}
+                                                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 transition-colors cursor-pointer"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation()
+                                                          // Try to find and scroll to the child item
+                                                          if (childSpec) {
+                                                            const childElement = document.querySelector(`[data-item-id="${childSpec.id}"]`)
+                                                            if (childElement) {
+                                                              childElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                              childElement.classList.add('ring-2', 'ring-violet-400')
+                                                              setTimeout(() => childElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                                            }
+                                                          }
+                                                        }}
+                                                      >
+                                                        <div className="w-1 h-6 bg-violet-300 rounded-full flex-shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                          <p className="text-xs font-medium text-gray-900 truncate">{childName}</p>
+                                                          {childSpec && (
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                              {childSpec.brand && (
+                                                                <span className="text-[10px] text-gray-500">{childSpec.brand}</span>
+                                                              )}
+                                                              {childSpec.specStatus && (
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                                                                  childSpec.specStatus === 'SELECTED' ? 'bg-emerald-100 text-emerald-700' :
+                                                                  childSpec.specStatus === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
+                                                                  'bg-blue-100 text-blue-700'
+                                                                }`}>
+                                                                  {childSpec.specStatus}
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                        {childSpec?.thumbnailUrl && (
+                                                          <img
+                                                            src={childSpec.thumbnailUrl}
+                                                            alt={childName}
+                                                            className="w-8 h-8 rounded object-cover flex-shrink-0"
+                                                          />
+                                                        )}
+                                                      </div>
+                                                    )
+                                                  })}
+                                                </div>
                                               </div>
                                             </PopoverContent>
                                           </Popover>
                                         )}
-                                        {/* Child linked to parent */}
+                                        {/* Child linked to parent - enhanced popover with details */}
                                         {isGroupedItem && parentName && (
                                           <Popover>
                                             <PopoverTrigger asChild>
@@ -4027,9 +4166,74 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 <LinkIcon className="w-3 h-3" />
                                               </button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                                              <p className="text-xs text-gray-500 mb-1">Linked to:</p>
-                                              <p className="text-xs font-medium text-gray-900">{parentName}</p>
+                                            <PopoverContent className="w-72 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                              <div className="p-3 border-b bg-violet-50">
+                                                <div className="flex items-center gap-2">
+                                                  <Layers className="w-4 h-4 text-violet-600" />
+                                                  <p className="text-xs font-semibold text-violet-800">Grouped with Parent Item</p>
+                                                </div>
+                                              </div>
+                                              <div className="p-3 space-y-3">
+                                                {/* Parent item info */}
+                                                <div>
+                                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                                  <p className="text-sm font-medium text-gray-900">{parentName}</p>
+                                                  {displayItem.linkedFfeItems?.[0]?.sectionName && (
+                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                      Section: {displayItem.linkedFfeItems[0].sectionName}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                                {/* Find parent item in list */}
+                                                <div className="flex items-center gap-2">
+                                                  {parentId && (
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      className="h-7 text-xs flex-1"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        const parentElement = document.querySelector(`[data-item-id="${parentId}"]`)
+                                                        if (parentElement) {
+                                                          parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                          parentElement.classList.add('ring-2', 'ring-violet-400')
+                                                          setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
+                                                        }
+                                                      }}
+                                                    >
+                                                      <Eye className="w-3 h-3 mr-1" />
+                                                      Find in List
+                                                    </Button>
+                                                  )}
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50"
+                                                    onClick={async (e) => {
+                                                      e.stopPropagation()
+                                                      if (!displayItem.roomId) return
+                                                      // Call ungroup API
+                                                      try {
+                                                        const response = await fetch(`/api/ffe/v2/rooms/${displayItem.roomId}/items/${displayItem.id}/ungroup`, {
+                                                          method: 'PATCH',
+                                                          headers: { 'Content-Type': 'application/json' }
+                                                        })
+                                                        if (response.ok) {
+                                                          toast.success(`"${displayItem.name}" ungrouped successfully`)
+                                                          fetchSpecs()
+                                                        } else {
+                                                          toast.error('Failed to ungroup item')
+                                                        }
+                                                      } catch {
+                                                        toast.error('Failed to ungroup item')
+                                                      }
+                                                    }}
+                                                  >
+                                                    <X className="w-3 h-3 mr-1" />
+                                                    Ungroup
+                                                  </Button>
+                                                </div>
+                                              </div>
                                             </PopoverContent>
                                           </Popover>
                                         )}
@@ -4816,9 +5020,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <Flag className="w-3.5 h-3.5 mr-2" />
                                     Add a Flag
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    className="text-xs text-gray-400"
-                                    onSelect={() => toast('Archive feature coming soon')}
+                                  <DropdownMenuItem
+                                    className="text-xs text-orange-600"
+                                    onSelect={(e) => {
+                                      e.preventDefault()
+                                      handleArchiveItem(item)
+                                    }}
                                   >
                                     <Archive className="w-3.5 h-3.5 mr-2" />
                                     Archive

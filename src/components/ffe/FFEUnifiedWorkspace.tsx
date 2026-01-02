@@ -991,6 +991,53 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
+  // Ungroup an item (remove parent-child relationship, make it a standalone item)
+  const handleUngroupItem = async (childItemId: string, childName: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${childItemId}/ungroup`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to ungroup item')
+      }
+      await loadFFEData()
+      toast.success(`"${childName}" is now a standalone item`)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to ungroup item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Unlink an FFE item from a spec item (removes the connection, spec becomes "unlinked" and can be relinked)
+  const handleUnlinkFromSpec = async (ffeItemId: string, specId: string, specName: string) => {
+    if (!confirm(`Unlink "${specName}" from this item? The spec will become available for linking to another FFE item.`)) {
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${ffeItemId}/unlink-spec`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specId })
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to unlink spec')
+      }
+      await loadFFEData()
+      toast.success(`"${specName}" unlinked - it can now be linked to another item`)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to unlink spec')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Move item to a different section
   const handleMoveToSection = async () => {
     if (!moveItem || !selectedMoveTargetSection) return
@@ -1191,11 +1238,24 @@ export default function FFEUnifiedWorkspace({
   })).filter(section => section.items.length > 0 || !searchQuery)
 
   // Get grouped children for an item (supports both new parentId and legacy parentName)
-  const getGroupedChildren = (item: FFEItem, section: FFESection) => {
-    return section.items.filter(
-      child => (child.customFields?.isGroupedItem || child.customFields?.isLinkedItem) && 
-               (child.customFields?.parentId === item.id || child.customFields?.parentName === item.name)
-    )
+  // Now searches across ALL sections for cross-category grouping
+  const getGroupedChildren = (item: FFEItem, currentSection: FFESection) => {
+    const allChildren: Array<FFEItem & { fromSection?: string; fromSectionId?: string }> = []
+
+    sections.forEach(section => {
+      section.items.forEach(child => {
+        if ((child.customFields?.isGroupedItem || child.customFields?.isLinkedItem) &&
+            (child.customFields?.parentId === item.id || child.customFields?.parentName === item.name)) {
+          allChildren.push({
+            ...child,
+            fromSection: section.id !== currentSection.id ? section.name : undefined,
+            fromSectionId: section.id
+          })
+        }
+      })
+    })
+
+    return allChildren.sort((a, b) => (a.order || 0) - (b.order || 0))
   }
 
   // Check if item has specs selected
@@ -1857,6 +1917,15 @@ export default function FFEUnifiedWorkspace({
                                                     View in Specs
                                                   </Button>
                                                 )}
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  onClick={() => handleUnlinkFromSpec(item.id, selectedSpec.id, selectedSpec.name)}
+                                                >
+                                                  <LinkIcon className="w-3 h-3 mr-1" />
+                                                  Unlink
+                                                </Button>
                                               </div>
                                             </div>
                                             
@@ -1974,9 +2043,10 @@ export default function FFEUnifiedWorkspace({
                                   <div className="ml-10 border-l-2 border-blue-200 bg-blue-50/30">
                                     {groupedChildren.map(child => {
                                       const childIsChosen = hasSpecs(child)
+                                      const childWithSection = child as FFEItem & { fromSection?: string; fromSectionId?: string }
                                       return (
-                                        <div 
-                                          key={child.id} 
+                                        <div
+                                          key={child.id}
                                           id={`ffe-item-${child.id}`}
                                           className={cn(
                                             "group flex items-center justify-between py-3 px-4 hover:bg-blue-50/50 transition-all",
@@ -1991,6 +2061,12 @@ export default function FFEUnifiedWorkspace({
                                             )}
                                             <LinkIcon className="w-3 h-3 text-blue-500" />
                                             <span className="text-sm text-gray-700">{child.name}</span>
+                                            {/* Cross-category indicator */}
+                                            {childWithSection.fromSection && (
+                                              <Badge variant="outline" className="text-[10px] bg-violet-50 text-violet-600 border-violet-200">
+                                                from {childWithSection.fromSection}
+                                              </Badge>
+                                            )}
                                             {/* Quantity badge for grouped items */}
                                             {child.quantity > 1 && (
                                               <Badge variant="outline" className="text-xs">{child.quantity}x</Badge>
@@ -2098,9 +2174,20 @@ export default function FFEUnifiedWorkspace({
                                                   <Search className="w-4 h-4 mr-2 text-purple-600" />
                                                   Search Item
                                                 </DropdownMenuItem>
-                                                {/* Note: Child/grouped items cannot be moved directly - they move with their parent */}
+                                                {/* Ungroup - remove from parent */}
+                                                <DropdownMenuItem
+                                                  onClick={() => {
+                                                    if (confirm(`Ungroup "${child.name}"? It will become a standalone item in its current section.`)) {
+                                                      handleUngroupItem(child.id, child.name)
+                                                    }
+                                                  }}
+                                                  className="text-violet-600"
+                                                >
+                                                  <X className="w-4 h-4 mr-2" />
+                                                  Ungroup from Parent
+                                                </DropdownMenuItem>
                                                 {/* Delete */}
-                                                <DropdownMenuItem 
+                                                <DropdownMenuItem
                                                   onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
                                                   className="text-red-600"
                                                 >
@@ -2231,10 +2318,23 @@ export default function FFEUnifiedWorkspace({
               </Select>
             </div>
             
-            {/* Group with Parent Option */}
+            {/* Group with Parent Option - supports cross-category grouping */}
             {selectedSectionId && (() => {
-              const sectionItems = sections.find(s => s.id === selectedSectionId)?.items.filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem) || []
-              const hasParentItems = sectionItems.length > 0
+              // Get ALL parent items from ALL sections (not just the current section)
+              const allParentItems = sections.flatMap(section =>
+                section.items
+                  .filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem)
+                  .map(item => ({ ...item, sectionId: section.id, sectionName: section.name }))
+              )
+              const hasParentItems = allParentItems.length > 0
+
+              // Group parent items by section for the dropdown
+              const itemsBySection = sections.map(section => ({
+                sectionId: section.id,
+                sectionName: section.name,
+                items: section.items.filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem)
+              })).filter(s => s.items.length > 0)
+
               return (
                 <div className="border rounded-lg p-3 bg-blue-50/50 space-y-3">
                   <div className="flex items-center gap-2">
@@ -2256,24 +2356,44 @@ export default function FFEUnifiedWorkspace({
                       </div>
                     </Label>
                   </div>
-                  
+
                   {!hasParentItems && (
                     <p className="text-xs text-gray-500 pl-6">Add parent items first to group under them</p>
                   )}
-                  
+
                   {linkToParent && hasParentItems && (
                     <div>
-                      <Label className="text-xs text-gray-500">Select parent item to group under</Label>
+                      <Label className="text-xs text-gray-500">Select parent item to group under (can be from any category)</Label>
                       <Select value={selectedParentItemId} onValueChange={setSelectedParentItemId}>
                         <SelectTrigger className="mt-1">
                           <SelectValue placeholder="Select a parent item..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {sectionItems.map(item => (
-                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          {itemsBySection.map(section => (
+                            <div key={section.sectionId}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                                {section.sectionName}
+                              </div>
+                              {section.items.map(item => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  <span className="flex items-center gap-2">
+                                    {item.name}
+                                    {section.sectionId !== selectedSectionId && (
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded">
+                                        {section.sectionName}
+                                      </span>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </div>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-[11px] text-blue-600 mt-1.5 flex items-center gap-1">
+                        <Layers className="w-3 h-3" />
+                        Items can be grouped across different categories
+                      </p>
                     </div>
                   )}
                 </div>

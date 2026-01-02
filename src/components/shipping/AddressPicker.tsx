@@ -301,7 +301,7 @@ export default function AddressPicker({
                   {selectedAddressId && savedAddresses.find(a => a.id === selectedAddressId)?.name}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4} className="max-h-[300px] overflow-y-auto z-[9999]">
                 {savedAddresses.map(addr => (
                   <SelectItem key={addr.id} value={addr.id}>
                     <div className="flex items-center gap-2">
