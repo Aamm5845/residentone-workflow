@@ -248,58 +248,122 @@ export async function GET(
           }>
         } | null
 
-        // Combine local mismatches with AI-detected issues
-        const aiMismatches: any[] = []
-        if (aiMatchData) {
-          // Add missing items from AI
-          if (aiMatchData.missing && aiMatchData.missing > 0) {
-            aiMismatches.push({
-              itemName: `${aiMatchData.missing} Missing Item${aiMatchData.missing > 1 ? 's' : ''}`,
-              reasons: ['Items we requested but not found in the quote'],
+        // Build enhanced mismatch list with full item details
+        const enhancedMismatches: any[] = []
+
+        // Get all RFQ line items for this quote's RFQ to detect missing items
+        const rfqLineItems = sRFQ.rfq.lineItems
+        const quotedRfqLineItemIds = new Set(quote.lineItems.map(li => li.rfqLineItemId).filter(Boolean))
+
+        // Find missing items (RFQ items not in quote)
+        for (const rfqItem of rfqLineItems) {
+          if (!quotedRfqLineItemIds.has(rfqItem.id)) {
+            const roomFFEItem = rfqItem.roomFFEItem
+            enhancedMismatches.push({
+              itemName: rfqItem.itemName,
+              reasons: ['This item was requested but NOT included in the supplier\'s quote'],
               type: 'missing',
-              severity: 'error'
-            })
-          }
-
-          // Add extra items from AI
-          if (aiMatchData.extra && aiMatchData.extra > 0) {
-            aiMismatches.push({
-              itemName: `${aiMatchData.extra} Extra Item${aiMatchData.extra > 1 ? 's' : ''}`,
-              reasons: ['Items in the quote we did not request'],
-              type: 'extra',
-              severity: 'warning'
-            })
-          }
-
-          // Add quantity discrepancies with details
-          if (aiMatchData.itemDiscrepancies && aiMatchData.itemDiscrepancies.length > 0) {
-            for (const disc of aiMatchData.itemDiscrepancies) {
-              if (disc.type === 'quantity') {
-                aiMismatches.push({
-                  itemName: disc.itemName,
-                  reasons: [`Quantity mismatch: requested ${disc.requested}, quoted ${disc.quoted}`],
-                  type: 'quantity',
-                  severity: 'warning'
-                })
-              }
-            }
-          }
-
-          // Add total discrepancy
-          if (aiMatchData.totalDiscrepancy) {
-            const diff = Math.abs((aiMatchData.quoteTotal || 0) - (aiMatchData.calculatedTotal || 0))
-            aiMismatches.push({
-              itemName: 'Quote Total',
-              reasons: [`Total mismatch of $${diff.toFixed(2)} - quote total doesn't match line item sum`],
-              type: 'total',
-              severity: 'error'
+              severity: 'error',
+              // Full item details
+              quantity: rfqItem.quantity,
+              unitPrice: rfqItem.targetUnitPrice ? Number(rfqItem.targetUnitPrice) : undefined,
+              brand: roomFFEItem?.brand,
+              sku: roomFFEItem?.sku || roomFFEItem?.modelNumber,
+              description: rfqItem.itemDescription,
+              imageUrl: roomFFEItem?.images?.[0] || null
             })
           }
         }
 
-        // Combine all mismatches (prefer AI if available)
-        const allMismatches = aiMismatches.length > 0 ? aiMismatches : mismatches
-        const hasAnyMismatches = allMismatches.length > 0 || mismatches.length > 0
+        // Find extra items (quote items without RFQ reference or marked as alternate)
+        for (const quoteItem of quote.lineItems) {
+          if (!quoteItem.rfqLineItemId) {
+            enhancedMismatches.push({
+              itemName: quoteItem.itemName || 'Unknown Item',
+              reasons: ['This item was added by the supplier but was NOT in the original request'],
+              type: 'extra',
+              severity: 'warning',
+              // Full item details from quote
+              quantity: quoteItem.quantity,
+              unitPrice: Number(quoteItem.unitPrice),
+              totalPrice: Number(quoteItem.totalPrice),
+              brand: quoteItem.supplierModelNumber ? undefined : undefined,
+              sku: quoteItem.supplierSKU || quoteItem.supplierModelNumber
+            })
+          }
+        }
+
+        // Add quantity mismatches for items that exist in both
+        for (const li of quote.lineItems) {
+          const rfqItem = li.rfqLineItem
+          if (rfqItem && li.quantity !== rfqItem.quantity) {
+            const roomFFEItem = rfqItem.roomFFEItem
+            enhancedMismatches.push({
+              itemName: rfqItem.itemName,
+              reasons: [
+                `Requested quantity: ${rfqItem.quantity}`,
+                `Quoted quantity: ${li.quantity}`,
+                `Difference: ${li.quantity - rfqItem.quantity > 0 ? '+' : ''}${li.quantity - rfqItem.quantity}`
+              ],
+              type: 'quantity',
+              severity: 'warning',
+              quantity: li.quantity,
+              unitPrice: Number(li.unitPrice),
+              totalPrice: Number(li.totalPrice),
+              brand: roomFFEItem?.brand,
+              sku: roomFFEItem?.sku,
+              imageUrl: roomFFEItem?.images?.[0] || null
+            })
+          }
+        }
+
+        // Add price discrepancies (more than 15% above target)
+        for (const li of quote.lineItems) {
+          const rfqItem = li.rfqLineItem
+          if (rfqItem?.targetUnitPrice && li.unitPrice) {
+            const target = Number(rfqItem.targetUnitPrice)
+            const quoted = Number(li.unitPrice)
+            if (quoted > target * 1.15) { // More than 15% over target
+              const diff = ((quoted - target) / target * 100).toFixed(0)
+              const roomFFEItem = rfqItem.roomFFEItem
+              enhancedMismatches.push({
+                itemName: rfqItem.itemName,
+                reasons: [
+                  `Target price: $${target.toFixed(2)}`,
+                  `Quoted price: $${quoted.toFixed(2)}`,
+                  `${diff}% above target budget`
+                ],
+                type: 'price',
+                severity: 'warning',
+                quantity: li.quantity,
+                unitPrice: quoted,
+                totalPrice: Number(li.totalPrice),
+                brand: roomFFEItem?.brand,
+                sku: roomFFEItem?.sku,
+                imageUrl: roomFFEItem?.images?.[0] || null
+              })
+            }
+          }
+        }
+
+        // Add AI-detected total discrepancy if present
+        if (aiMatchData?.totalDiscrepancy) {
+          const diff = Math.abs((aiMatchData.quoteTotal || 0) - (aiMatchData.calculatedTotal || 0))
+          enhancedMismatches.push({
+            itemName: 'Quote Total Calculation',
+            reasons: [
+              `Quote shows total: $${(aiMatchData.quoteTotal || 0).toFixed(2)}`,
+              `Sum of line items: $${(aiMatchData.calculatedTotal || 0).toFixed(2)}`,
+              `Discrepancy: $${diff.toFixed(2)}`
+            ],
+            type: 'total',
+            severity: 'error'
+          })
+        }
+
+        // Use enhanced mismatches, fall back to basic mismatches if no enhanced found
+        const allMismatches = enhancedMismatches.length > 0 ? enhancedMismatches : mismatches
+        const hasAnyMismatches = allMismatches.length > 0
 
         transformedQuotes.push({
           id: quote.id,
