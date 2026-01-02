@@ -43,8 +43,6 @@ import {
   Copy,
   ArrowUp,
   ArrowDown,
-  Eye,
-  EyeOff,
   ArrowLeft,
   Keyboard
 } from 'lucide-react'
@@ -274,12 +272,6 @@ export default function FFEUnifiedWorkspace({
     sectionsCount: 0
   })
 
-  // Programa link state
-  const [programaLink, setProgramaLink] = useState('')
-  const [tempProgramaLink, setTempProgramaLink] = useState('')
-  const [editingProgramaLink, setEditingProgramaLink] = useState(false)
-  const [savingProgramaLink, setSavingProgramaLink] = useState(false)
-
   // Keyboard shortcuts state
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
 
@@ -436,11 +428,6 @@ export default function FFEUnifiedWorkspace({
         }))
         setSections(sectionsWithExpanded)
         calculateStats(sectionsWithExpanded)
-        // Load programa link if available
-        if (ffeData.programaLink) {
-          setProgramaLink(ffeData.programaLink)
-          setTempProgramaLink(ffeData.programaLink)
-        }
       } else {
         setSections([])
         setStats({ totalItems: 0, chosenItems: 0, needsSelection: 0, sectionsCount: 0 })
@@ -1115,27 +1102,6 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
-  // Save Programa link
-  const handleSaveProgramaLink = async () => {
-    try {
-      setSavingProgramaLink(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ programaLink: tempProgramaLink.trim() || null })
-      })
-      if (!response.ok) throw new Error('Failed to save Programa link')
-      setProgramaLink(tempProgramaLink.trim())
-      setEditingProgramaLink(false)
-      toast.success('Programa link saved')
-    } catch (error) {
-      console.error('Error saving Programa link:', error)
-      toast.error('Failed to save Programa link')
-    } finally {
-      setSavingProgramaLink(false)
-    }
-  }
-
   // Duplicate section with all its items
   const handleDuplicateSection = async (sectionId: string, sectionName: string) => {
     try {
@@ -1171,27 +1137,6 @@ export default function FFEUnifiedWorkspace({
     } catch (error) {
       console.error('Error reordering item:', error)
       toast.error('Failed to reorder item')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Bulk visibility toggle for all items in a section
-  const handleBulkVisibilityToggle = async (sectionId: string, targetVisibility: 'VISIBLE' | 'HIDDEN') => {
-    try {
-      setSaving(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/bulk-visibility`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sectionId, visibility: targetVisibility })
-      })
-      if (!response.ok) throw new Error('Failed to update visibility')
-      const result = await response.json()
-      await loadFFEData()
-      toast.success(result.message || 'Visibility updated')
-    } catch (error) {
-      console.error('Error updating bulk visibility:', error)
-      toast.error('Failed to update visibility')
     } finally {
       setSaving(false)
     }
@@ -1636,81 +1581,6 @@ export default function FFEUnifiedWorkspace({
             </div>
           </div>
 
-          {/* Programa Link Section */}
-          <div className="mb-5 p-4 bg-gradient-to-r from-violet-50 to-indigo-50 rounded-xl border border-violet-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-500 flex items-center justify-center">
-                  <Globe className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">Programa Link</div>
-                  <div className="text-xs text-gray-500">External FFE schedule or documentation</div>
-                </div>
-              </div>
-
-              {editingProgramaLink ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={tempProgramaLink}
-                    onChange={(e) => setTempProgramaLink(e.target.value)}
-                    placeholder="https://programa.com/..."
-                    className="w-80 h-9"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveProgramaLink}
-                    disabled={savingProgramaLink}
-                    className="bg-violet-600 hover:bg-violet-700"
-                  >
-                    {savingProgramaLink ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { setEditingProgramaLink(false); setTempProgramaLink(programaLink) }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {programaLink ? (
-                    <>
-                      <a
-                        href={programaLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-violet-600 hover:text-violet-800 underline flex items-center gap-1"
-                      >
-                        {programaLink.length > 50 ? programaLink.substring(0, 50) + '...' : programaLink}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => { setEditingProgramaLink(true); setTempProgramaLink(programaLink) }}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => { setEditingProgramaLink(true); setTempProgramaLink('') }}
-                      className="text-violet-600 border-violet-300 hover:bg-violet-50"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Programa Link
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Action Bar */}
           <div className="flex items-center justify-between">
             <div className="relative flex-1 max-w-md">
@@ -1833,19 +1703,6 @@ export default function FFEUnifiedWorkspace({
                     </div>
                     
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      {/* Bulk visibility toggle */}
-                      {parentItems.length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleBulkVisibilityToggle(section.id, 'VISIBLE')}
-                          className="text-emerald-600 hover:bg-emerald-50"
-                          title="Show all items in workspace"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Show All
-                        </Button>
-                      )}
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedSectionId(section.id); setShowAddItemDialog(true) }}>
                         <Plus className="w-4 h-4 mr-1" />
                         Add Item
