@@ -872,3 +872,190 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
 
   return { subject, html }
 }
+
+/**
+ * Payment confirmation email template
+ */
+export interface PaymentConfirmationEmailData {
+  clientName: string
+  clientEmail: string
+  projectName: string
+  invoiceNumber: string
+  paymentAmount: number
+  paymentMethod: string
+  totalAmount: number
+  paidToDate: number
+  remainingBalance: number
+  isFullyPaid: boolean
+  paidAt: Date
+  companyName: string
+  companyEmail?: string
+  companyPhone?: string
+  companyLogo?: string
+}
+
+export function generatePaymentConfirmationEmailTemplate(data: PaymentConfirmationEmailData): {
+  subject: string
+  html: string
+} {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+    }).format(amount)
+  }
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  const formatPaymentMethod = (method: string) => {
+    const methodMap: Record<string, string> = {
+      'CREDIT_CARD': 'Credit Card',
+      'WIRE_TRANSFER': 'Wire Transfer',
+      'CHECK': 'Check',
+      'ACH_BANK_TRANSFER': 'ACH Bank Transfer',
+      'CASH': 'Cash',
+      'E_TRANSFER': 'Interac e-Transfer',
+      'OTHER': 'Other'
+    }
+    return methodMap[method] || method.replace(/_/g, ' ')
+  }
+
+  const subject = data.isFullyPaid
+    ? `Payment Received - Invoice ${data.invoiceNumber} Paid in Full`
+    : `Payment Received - Invoice ${data.invoiceNumber}`
+
+  const statusBadgeHtml = data.isFullyPaid
+    ? `<span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">PAID IN FULL</span>`
+    : `<span style="background: #f59e0b; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">PARTIAL PAYMENT</span>`
+
+  const balanceHtml = !data.isFullyPaid ? `
+    <tr>
+      <td style="padding: 12px 16px; color: #6b7280;">Remaining Balance</td>
+      <td style="padding: 12px 16px; text-align: right; color: #ef4444; font-weight: 600;">${formatCurrency(data.remainingBalance)}</td>
+    </tr>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Confirmation</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px; text-align: center;">
+            ${data.companyLogo ? `
+            <img src="${data.companyLogo}"
+                 alt="${data.companyName}"
+                 style="max-width: 180px; max-height: 60px; height: auto; margin-bottom: 16px; background-color: white; padding: 12px; border-radius: 6px;" />
+            ` : `
+            <div style="color: white; font-size: 24px; font-weight: 700; margin-bottom: 16px;">${data.companyName}</div>
+            `}
+            <div style="width: 64px; height: 64px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 16px auto;">
+              <span style="font-size: 32px; line-height: 64px; color: white;">✓</span>
+            </div>
+            <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Payment Received</h1>
+            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Thank you for your payment</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+            <p style="margin: 0 0 24px 0; color: #1f2937; font-size: 16px;">Dear ${data.clientName},</p>
+
+            <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 15px;">
+                We have received your payment for Invoice <strong>${data.invoiceNumber}</strong>. Thank you for your prompt payment.
+            </p>
+
+            <!-- Payment Details Card -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">Payment Details</span>
+                    <span style="float: right;">${statusBadgeHtml}</span>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Invoice Number</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937; font-weight: 500;">${data.invoiceNumber}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Project</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${data.projectName}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Payment Date</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${formatDate(data.paidAt)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Payment Method</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${formatPaymentMethod(data.paymentMethod)}</td>
+                    </tr>
+                    <tr style="background: #ecfdf5;">
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #065f46; font-weight: 600;">Amount Paid</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #065f46; font-weight: 700; font-size: 18px;">${formatCurrency(data.paymentAmount)}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Invoice Summary -->
+            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 16px; font-weight: 600;">Invoice Summary</h3>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Invoice Total</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #1f2937;">${formatCurrency(data.totalAmount)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Total Paid to Date</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #10b981; font-weight: 600;">${formatCurrency(data.paidToDate)}</td>
+                    </tr>
+                    ${balanceHtml}
+                </table>
+            </div>
+
+            ${data.isFullyPaid ? `
+            <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 24px; text-align: center;">
+                <p style="margin: 0; color: #065f46; font-size: 15px;">
+                    <strong>Your invoice has been paid in full.</strong><br/>
+                    Thank you for your business!
+                </p>
+            </div>
+            ` : `
+            <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 24px; text-align: center;">
+                <p style="margin: 0; color: #92400e; font-size: 15px;">
+                    <strong>Remaining balance: ${formatCurrency(data.remainingBalance)}</strong><br/>
+                    Please remit the remaining amount at your earliest convenience.
+                </p>
+            </div>
+            `}
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <p style="margin: 0; color: #6b7280; font-size: 13px; text-align: center;">
+                Questions? Contact us at ${data.companyEmail || 'info@company.com'}
+                ${data.companyPhone ? ` or ${data.companyPhone}` : ''}
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 24px; text-align: center;">
+            <div style="color: #374151; font-size: 14px; font-weight: 600; margin-bottom: 8px;">${data.companyName}</div>
+            <p style="margin: 0; color: #9ca3af; font-size: 12px;">&copy; ${new Date().getFullYear()} All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}

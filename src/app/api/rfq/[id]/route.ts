@@ -147,21 +147,53 @@ export async function PATCH(
     const orgId = (session.user as any).orgId
     const userId = session.user.id
 
-    // Verify RFQ belongs to org
+    // Verify RFQ belongs to org and check for quotes
     const existing = await prisma.rFQ.findFirst({
-      where: { id, orgId }
+      where: { id, orgId },
+      include: {
+        supplierRFQs: {
+          include: {
+            quotes: { select: { id: true } }
+          }
+        }
+      }
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'RFQ not found' }, { status: 404 })
     }
 
+    // Check if any suppliers have submitted quotes
+    const hasQuotes = existing.supplierRFQs.some(s => s.quotes.length > 0)
+
+    // Valid status transitions
+    const validTransitions: Record<string, string[]> = {
+      'DRAFT': ['SENT', 'CANCELLED'],
+      'SENT': ['PARTIALLY_QUOTED', 'FULLY_QUOTED', 'CANCELLED', 'EXPIRED'],
+      'PARTIALLY_QUOTED': ['FULLY_QUOTED', 'QUOTE_ACCEPTED', 'CANCELLED', 'EXPIRED'],
+      'FULLY_QUOTED': ['QUOTE_ACCEPTED', 'CANCELLED'],
+      'QUOTE_ACCEPTED': ['CANCELLED'],
+      'CANCELLED': [],
+      'EXPIRED': []
+    }
+
+    // Validate status transition if status is being changed
+    if (body.status && body.status !== existing.status) {
+      const allowedNextStatuses = validTransitions[existing.status] || []
+      if (!allowedNextStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { error: `Cannot transition RFQ from ${existing.status} to ${body.status}` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Can't update if already sent (unless specific fields)
-    const allowedFieldsAfterSent = ['internalNotes']
+    const allowedFieldsAfterSent = ['internalNotes', 'status']
     if (existing.status !== 'DRAFT') {
       const fieldsBeingUpdated = Object.keys(body)
       const hasDisallowedFields = fieldsBeingUpdated.some(
-        f => !allowedFieldsAfterSent.includes(f) && f !== 'status'
+        f => !allowedFieldsAfterSent.includes(f)
       )
       if (hasDisallowedFields && body.status !== 'CANCELLED') {
         return NextResponse.json(
@@ -169,6 +201,14 @@ export async function PATCH(
           { status: 400 }
         )
       }
+    }
+
+    // Can't modify line items if suppliers have already submitted quotes
+    if (body.lineItems && hasQuotes) {
+      return NextResponse.json(
+        { error: 'Cannot modify line items after suppliers have submitted quotes' },
+        { status: 400 }
+      )
     }
 
     const {

@@ -78,7 +78,13 @@ export async function GET(
     if (!quote.emailOpenedAt) {
       await prisma.clientQuote.update({
         where: { id: quote.id },
-        data: { emailOpenedAt: new Date() }
+        data: {
+          emailOpenedAt: new Date(),
+          // Update status to CLIENT_REVIEWING on first view (if still SENT_TO_CLIENT)
+          ...(quote.status === 'SENT_TO_CLIENT' && {
+            status: 'CLIENT_REVIEWING'
+          })
+        }
       })
 
       // Create activity for view
@@ -86,7 +92,7 @@ export async function GET(
         data: {
           clientQuoteId: quote.id,
           type: 'VIEWED_BY_CLIENT',
-          description: 'Client viewed the quote'
+          message: 'Client viewed the quote'
         }
       })
 

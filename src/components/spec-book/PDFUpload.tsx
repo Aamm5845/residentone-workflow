@@ -6,24 +6,24 @@ import { Button } from '@/components/ui/button'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
 
-interface PDFFile {
+interface UploadedFile {
   id: string
   fileName: string
-  uploadedPdfUrl: string
+  uploadedPdfUrl: string  // Keep field name for backwards compatibility
   fileSize?: number
 }
 
 interface PDFUploadProps {
   sectionId: string
   sectionType: string
-  existingFiles?: PDFFile[]
+  existingFiles?: UploadedFile[]
   onUpdate?: () => void
 }
 
 export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate }: PDFUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [files, setFiles] = useState<PDFFile[]>(existingFiles)
+  const [files, setFiles] = useState<UploadedFile[]>(existingFiles)
   
   // Fetch current files on mount and when sectionId changes
   useEffect(() => {
@@ -36,14 +36,14 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
       const response = await fetch(`/api/spec-books/linked-files?sectionId=${sectionId}`)
       if (response.ok) {
         const data = await response.json()
-        // Filter to only show uploaded PDFs
-        const pdfFiles = data.files?.filter((f: any) => f.uploadedPdfUrl).map((f: any) => ({
+        // Filter to only show uploaded files
+        const uploadedFiles = data.files?.filter((f: any) => f.uploadedPdfUrl).map((f: any) => ({
           id: f.id,
           fileName: f.fileName,
           uploadedPdfUrl: f.uploadedPdfUrl,
           fileSize: f.fileSize
         })) || []
-        setFiles(pdfFiles)
+        setFiles(uploadedFiles)
       }
     } catch (error) {
       console.error('Failed to load files:', error)
@@ -58,10 +58,10 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
     setUploading(true)
     try {
       for (const file of acceptedFiles) {
-        // Upload PDF to Vercel Blob
+        // Upload file to Vercel Blob
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('type', 'spec-book-pdf')
+        formData.append('type', 'spec-book-file')
 
         const uploadResponse = await fetch('/api/upload-pdf', {
           method: 'POST',
@@ -69,12 +69,12 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
         })
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload PDF')
+          throw new Error('Failed to upload file')
         }
 
         const uploadResult = await uploadResponse.json()
 
-        // Link the uploaded PDF to the spec book section
+        // Link the uploaded file to the spec book section
         const linkResponse = await fetch('/api/spec-books/upload-pdf', {
           method: 'POST',
           headers: {
@@ -83,13 +83,13 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
           body: JSON.stringify({
             sectionId,
             fileName: file.name,
-            uploadedPdfUrl: uploadResult.url,
+            uploadedFileUrl: uploadResult.url,
             fileSize: file.size
           })
         })
 
         if (!linkResponse.ok) {
-          throw new Error('Failed to link PDF to section')
+          throw new Error('Failed to link file to section')
         }
 
         toast.success(`${file.name} uploaded successfully`)
@@ -100,7 +100,7 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
       onUpdate?.()
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to upload PDF')
+      toast.error(error instanceof Error ? error.message : 'Failed to upload file')
     } finally {
       setUploading(false)
     }
@@ -108,9 +108,7 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf']
-    },
+    // Accept all file types
     multiple: true,
     disabled: uploading
   })
@@ -122,16 +120,16 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
       })
 
       if (!response.ok) {
-        throw new Error('Failed to remove PDF')
+        throw new Error('Failed to remove file')
       }
 
       // Reload files to ensure we have the latest state
       await loadFiles()
-      toast.success('PDF removed')
+      toast.success('File removed')
       onUpdate?.()
     } catch (error) {
       console.error('Remove error:', error)
-      toast.error('Failed to remove PDF')
+      toast.error('Failed to remove file')
     }
   }
 
@@ -159,23 +157,23 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
         {uploading ? (
           <div className="space-y-2">
             <Loader2 className="w-8 h-8 mx-auto text-blue-500 animate-spin" />
-            <p className="text-sm text-gray-600">Uploading PDF...</p>
+            <p className="text-sm text-gray-600">Uploading file...</p>
           </div>
         ) : (
           <div className="space-y-2">
             <Upload className="w-8 h-8 mx-auto text-gray-400" />
             <div>
               <p className="text-sm font-medium text-gray-700">
-                {isDragActive 
-                  ? 'Drop PDF files here'
-                  : 'Upload PDF files'
+                {isDragActive
+                  ? 'Drop files here'
+                  : 'Upload files'
                 }
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Drag & drop or click to select • PDF files only
+                Drag & drop or click to select • All file types supported
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Page numbers will be added automatically in the spec book
+                PDF page numbers will be added automatically in the spec book
               </p>
             </div>
           </div>
@@ -185,7 +183,7 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
       {/* Uploaded Files */}
       {files.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">Uploaded PDFs</h4>
+          <h4 className="text-sm font-medium text-gray-700">Uploaded Files</h4>
           {files.map((file) => (
             <div key={file.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
               <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -213,7 +211,7 @@ export function PDFUpload({ sectionId, sectionType, existingFiles = [], onUpdate
 
       {files.length === 0 && !uploading && (
         <div className="text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          No PDF files uploaded yet
+          No files uploaded yet
         </div>
       )}
     </div>

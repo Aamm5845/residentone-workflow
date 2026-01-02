@@ -124,6 +124,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    // Validate custom line items if provided
+    if (customLineItems && Array.isArray(customLineItems)) {
+      for (let i = 0; i < customLineItems.length; i++) {
+        const item = customLineItems[i]
+
+        // Validate item name is provided
+        if (!item.itemName || item.itemName.trim() === '') {
+          return NextResponse.json({ error: `Line item ${i + 1}: Item name is required` }, { status: 400 })
+        }
+
+        // Validate quantity is positive
+        if (item.quantity !== undefined && item.quantity !== null) {
+          const qty = Number(item.quantity)
+          if (isNaN(qty) || qty <= 0) {
+            return NextResponse.json({ error: `Line item ${i + 1}: Quantity must be a positive number` }, { status: 400 })
+          }
+        }
+
+        // Validate cost price is non-negative
+        if (item.costPrice !== undefined && item.costPrice !== null) {
+          const price = Number(item.costPrice)
+          if (isNaN(price) || price < 0) {
+            return NextResponse.json({ error: `Line item ${i + 1}: Cost price must be a non-negative number` }, { status: 400 })
+          }
+        }
+
+        // Validate markup percent is reasonable (0-500%)
+        if (item.markupPercent !== undefined && item.markupPercent !== null) {
+          const markup = Number(item.markupPercent)
+          if (isNaN(markup) || markup < 0 || markup > 500) {
+            return NextResponse.json({ error: `Line item ${i + 1}: Markup percent must be between 0 and 500` }, { status: 400 })
+          }
+        }
+      }
+    }
+
     const orgId = (session.user as any).orgId
     const userId = session.user.id
 
@@ -320,29 +356,23 @@ export async function POST(request: NextRequest) {
 
 /**
  * Generate a unique quote number with retry logic to handle race conditions
- * Uses optimistic locking - if a duplicate is detected, it retries with a new number
+ * Uses random offset on retry to avoid collision with concurrent requests
  */
 async function generateUniqueQuoteNumber(orgId: string, year: number, maxRetries = 5): Promise<string> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const lastQuote = await prisma.clientQuote.findFirst({
+    // Count total quotes for this year to get accurate next number
+    const count = await prisma.clientQuote.count({
       where: {
         orgId,
         quoteNumber: { startsWith: `CQ-${year}-` }
-      },
-      orderBy: { quoteNumber: 'desc' }
+      }
     })
 
-    let nextNumber = 1
-    if (lastQuote) {
-      const match = lastQuote.quoteNumber.match(/CQ-\d{4}-(\d+)/)
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1
-      }
-    }
+    let nextNumber = count + 1
 
-    // Add random offset on retry to reduce collision probability
+    // Add random offset on retry to avoid collision with concurrent requests
     if (attempt > 0) {
-      nextNumber += attempt
+      nextNumber += Math.floor(Math.random() * 100) + attempt
     }
 
     const quoteNumber = `CQ-${year}-${String(nextNumber).padStart(4, '0')}`
@@ -356,11 +386,11 @@ async function generateUniqueQuoteNumber(orgId: string, year: number, maxRetries
       return quoteNumber
     }
 
-    // If we get here, there was a race condition - retry with next number
     console.warn(`Quote number collision detected: ${quoteNumber}, retrying...`)
   }
 
-  // Fallback: use timestamp-based number to guarantee uniqueness
+  // Fallback: use timestamp + random to guarantee uniqueness
   const timestamp = Date.now().toString().slice(-6)
-  return `CQ-${year}-${timestamp}`
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0')
+  return `CQ-${year}-${timestamp}${random}`
 }

@@ -120,7 +120,11 @@ export async function GET(
         data: {
           viewedAt: supplierRFQ.viewedAt || viewedAt,
           lastAccessedAt: viewedAt,
-          accessCount: { increment: 1 }
+          accessCount: { increment: 1 },
+          // Update status to VIEWED on first view (if still PENDING)
+          ...(isFirstView && supplierRFQ.responseStatus === 'PENDING' && {
+            responseStatus: 'VIEWED'
+          })
         }
       }),
       prisma.supplierAccessLog.create({
@@ -437,6 +441,37 @@ export async function POST(
       // Validate line items
       if (!lineItems?.length) {
         return NextResponse.json({ error: 'Line items are required' }, { status: 400 })
+      }
+
+      // Validate that submitted line items match RFQ line items
+      const rfqLineItemIds = new Set(supplierRFQ.rfq.lineItems.map(item => item.id))
+      const submittedLineItemIds = lineItems.map((item: any) => item.rfqLineItemId)
+
+      // Check for invalid rfqLineItemIds
+      const invalidIds = submittedLineItemIds.filter((id: string) => !rfqLineItemIds.has(id))
+      if (invalidIds.length > 0) {
+        return NextResponse.json({
+          error: `Invalid line item IDs submitted: ${invalidIds.join(', ')}. These items do not belong to this RFQ.`
+        }, { status: 400 })
+      }
+
+      // Validate line item prices and quantities
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i]
+
+        // Validate unit price is non-negative
+        if (item.unitPrice === undefined || item.unitPrice === null || parseFloat(item.unitPrice) < 0) {
+          return NextResponse.json({
+            error: `Line item ${i + 1}: Unit price must be a non-negative number`
+          }, { status: 400 })
+        }
+
+        // Validate quantity is positive
+        if (!item.quantity || parseInt(item.quantity) <= 0) {
+          return NextResponse.json({
+            error: `Line item ${i + 1}: Quantity must be a positive number`
+          }, { status: 400 })
+        }
       }
 
       // Get existing quote to determine version

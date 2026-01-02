@@ -74,6 +74,13 @@ export default function SharedSpecLinkPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [approvingItems, setApprovingItems] = useState<Set<string>>(new Set())
 
+  // Address verification for approval
+  const [verifiedAddress, setVerifiedAddress] = useState<string | null>(null)
+  const [showAddressModal, setShowAddressModal] = useState(false)
+  const [addressInput, setAddressInput] = useState('')
+  const [addressError, setAddressError] = useState<string | null>(null)
+  const [pendingApprovalItemId, setPendingApprovalItemId] = useState<string | null>(null)
+
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     showSupplier: false,
     showBrand: true,
@@ -228,19 +235,47 @@ export default function SharedSpecLinkPage() {
 
     if (approvingItems.has(itemId)) return
 
+    // If no verified address yet, show modal to ask for it
+    if (!verifiedAddress) {
+      setPendingApprovalItemId(itemId)
+      setShowAddressModal(true)
+      setAddressError(null)
+      return
+    }
+
+    // Proceed with approval using verified address
+    await submitApproval(itemId, verifiedAddress)
+  }
+
+  const submitApproval = async (itemId: string, address: string) => {
     setApprovingItems(prev => new Set([...prev, itemId]))
 
     try {
       const res = await fetch(`/api/shared/specs/link/${token}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId })
+        body: JSON.stringify({ itemId, projectAddress: address })
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const data = await res.json()
+        if (data.invalidAddress) {
+          // Address was wrong - clear verified address and show error
+          setVerifiedAddress(null)
+          setAddressError(data.error || 'Invalid address')
+          setPendingApprovalItemId(itemId)
+          setShowAddressModal(true)
+          return
+        }
         throw new Error(data.error || 'Failed to approve')
       }
+
+      // Address is correct - save it for future approvals
+      setVerifiedAddress(address)
+      setShowAddressModal(false)
+      setAddressInput('')
+      setPendingApprovalItemId(null)
 
       // Update local state
       setSpecs(prev => prev.map(s =>
@@ -266,6 +301,16 @@ export default function SharedSpecLinkPage() {
         newSet.delete(itemId)
         return newSet
       })
+    }
+  }
+
+  const handleAddressSubmit = () => {
+    if (!addressInput.trim()) {
+      setAddressError('Please enter the project street address')
+      return
+    }
+    if (pendingApprovalItemId) {
+      submitApproval(pendingApprovalItemId, addressInput.trim())
     }
   }
 
@@ -625,6 +670,74 @@ export default function SharedSpecLinkPage() {
           </div>
         )}
       </main>
+
+      {/* Address Verification Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Verify Your Identity
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              To approve items, please enter the project street address for verification.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project Street Address
+              </label>
+              <input
+                type="text"
+                value={addressInput}
+                onChange={(e) => {
+                  setAddressInput(e.target.value)
+                  setAddressError(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddressSubmit()
+                  }
+                }}
+                placeholder="e.g. 123 Main Street"
+                className={cn(
+                  "w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2",
+                  addressError
+                    ? "border-red-300 focus:ring-red-200"
+                    : "border-gray-300 focus:ring-gray-200"
+                )}
+                autoFocus
+              />
+              {addressError && (
+                <p className="mt-1 text-sm text-red-600">{addressError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowAddressModal(false)
+                  setAddressInput('')
+                  setAddressError(null)
+                  setPendingApprovalItemId(null)
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddressSubmit}
+                disabled={approvingItems.size > 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {approvingItems.size > 0 && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
+                Verify & Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

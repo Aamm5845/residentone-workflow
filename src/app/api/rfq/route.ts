@@ -142,6 +142,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    // Validate line items if provided
+    if (lineItems && Array.isArray(lineItems)) {
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i]
+
+        // Validate item name is provided
+        if (!item.itemName || item.itemName.trim() === '') {
+          return NextResponse.json({ error: `Line item ${i + 1}: Item name is required` }, { status: 400 })
+        }
+
+        // Validate quantity is positive
+        if (item.quantity !== undefined && item.quantity !== null) {
+          const qty = Number(item.quantity)
+          if (isNaN(qty) || qty <= 0) {
+            return NextResponse.json({ error: `Line item ${i + 1}: Quantity must be a positive number` }, { status: 400 })
+          }
+        }
+
+        // Validate target prices if provided (must be non-negative)
+        if (item.targetUnitPrice !== undefined && item.targetUnitPrice !== null) {
+          const price = Number(item.targetUnitPrice)
+          if (isNaN(price) || price < 0) {
+            return NextResponse.json({ error: `Line item ${i + 1}: Target unit price must be a non-negative number` }, { status: 400 })
+          }
+        }
+      }
+    }
+
     const orgId = (session.user as any).orgId
     const userId = session.user.id
 
@@ -242,31 +270,28 @@ export async function POST(request: NextRequest) {
 
 /**
  * Generate a unique RFQ number with retry logic to handle race conditions
+ * Uses random offset on retry to avoid collision with concurrent requests
  */
 async function generateUniqueRFQNumber(orgId: string, year: number, maxRetries = 5): Promise<string> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const lastRFQ = await prisma.rFQ.findFirst({
+    // Count total RFQs for this year to get accurate next number
+    const count = await prisma.rFQ.count({
       where: {
         orgId,
         rfqNumber: { startsWith: `RFQ-${year}-` }
-      },
-      orderBy: { rfqNumber: 'desc' }
+      }
     })
 
-    let nextNumber = 1
-    if (lastRFQ) {
-      const match = lastRFQ.rfqNumber.match(/RFQ-\d{4}-(\d+)/)
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1
-      }
-    }
+    let nextNumber = count + 1
 
+    // Add random offset on retry to avoid collision with concurrent requests
     if (attempt > 0) {
-      nextNumber += attempt
+      nextNumber += Math.floor(Math.random() * 100) + attempt
     }
 
     const rfqNumber = `RFQ-${year}-${String(nextNumber).padStart(4, '0')}`
 
+    // Check if this number already exists (race condition check)
     const existing = await prisma.rFQ.findFirst({
       where: { orgId, rfqNumber }
     })
@@ -278,6 +303,8 @@ async function generateUniqueRFQNumber(orgId: string, year: number, maxRetries =
     console.warn(`RFQ number collision detected: ${rfqNumber}, retrying...`)
   }
 
+  // Fallback: use timestamp + random to guarantee uniqueness
   const timestamp = Date.now().toString().slice(-6)
-  return `RFQ-${year}-${timestamp}`
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0')
+  return `RFQ-${year}-${timestamp}${random}`
 }

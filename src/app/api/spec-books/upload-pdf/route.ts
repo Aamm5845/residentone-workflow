@@ -13,10 +13,10 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get('content-type') || ''
     
     let targetSectionId: string
-    let uploadedPdfUrl: string | undefined
+    let uploadedFileUrl: string | undefined
     let fileName: string
     let fileSize: number | undefined
-    let pageCount: number | undefined
+    let pageCount: number | undefined  // Only for PDF files
 
     if (contentType.includes('multipart/form-data')) {
       // Direct file upload flow with formData
@@ -65,21 +65,24 @@ export async function POST(request: NextRequest) {
       const sharedLink = await dropboxService.createSharedLink(uploadResult.path_display!)
       
       if (!sharedLink) {
-        return NextResponse.json({ 
-          error: 'Failed to create shared link for spec book PDF' 
+        return NextResponse.json({
+          error: 'Failed to create shared link for file'
         }, { status: 500 })
       }
-      
-      uploadedPdfUrl = sharedLink
 
-      // Get page count from PDF
-      try {
-        const PDFDocument = (await import('pdf-lib')).PDFDocument
-        const arrayBuffer = await file.arrayBuffer()
-        const pdfDoc = await PDFDocument.load(arrayBuffer)
-        pageCount = pdfDoc.getPageCount()
-      } catch (error) {
-        console.error('Error reading PDF page count:', error)
+      uploadedFileUrl = sharedLink
+
+      // Get page count only for PDF files
+      const isPdf = file.name.toLowerCase().endsWith('.pdf')
+      if (isPdf) {
+        try {
+          const PDFDocument = (await import('pdf-lib')).PDFDocument
+          const arrayBuffer = await file.arrayBuffer()
+          const pdfDoc = await PDFDocument.load(arrayBuffer)
+          pageCount = pdfDoc.getPageCount()
+        } catch (error) {
+          console.error('Error reading PDF page count:', error)
+        }
       }
 
       // Find or create spec book and section
@@ -129,10 +132,10 @@ export async function POST(request: NextRequest) {
       const jsonData = await request.json()
       const sectionId = jsonData.sectionId
       fileName = jsonData.fileName
-      uploadedPdfUrl = jsonData.uploadedPdfUrl
+      uploadedFileUrl = jsonData.uploadedPdfUrl || jsonData.uploadedFileUrl
       fileSize = jsonData.fileSize
 
-      if (!sectionId || !fileName || !uploadedPdfUrl) {
+      if (!sectionId || !fileName || !uploadedFileUrl) {
         return NextResponse.json(
           { error: 'Missing required fields: sectionId, fileName, and uploadedPdfUrl' },
           { status: 400 }
@@ -161,30 +164,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create a file link entry for the uploaded PDF
-    // Use a unique dropboxPath to avoid conflicts (uploaded PDFs don't have real Dropbox paths)
+    // Create a file link entry for the uploaded file
+    // Use a unique dropboxPath to avoid conflicts (uploaded files don't have real Dropbox paths)
     const fileLink = await prisma.dropboxFileLink.create({
       data: {
         sectionId: targetSectionId,
         fileName,
-        uploadedPdfUrl,
+        uploadedPdfUrl: uploadedFileUrl,  // Keep field name for backwards compatibility
         fileSize: fileSize || null,
-        dropboxPath: `uploaded:${Date.now()}:${fileName}`, // Unique identifier for uploaded PDFs
+        dropboxPath: `uploaded:${Date.now()}:${fileName}`, // Unique identifier for uploaded files
         isActive: true,
-        cadToPdfCacheUrl: uploadedPdfUrl // Store the PDF URL
+        cadToPdfCacheUrl: uploadedFileUrl // Store the file URL
       }
     })
 
     return NextResponse.json({
       success: true,
       fileId: fileLink.id,
-      pdfUrl: uploadedPdfUrl,
+      fileUrl: uploadedFileUrl,
+      pdfUrl: uploadedFileUrl,  // Keep for backwards compatibility
       pageCount,
       fileLink
     })
 
   } catch (error) {
-    console.error('Error linking PDF to section:', error)
+    console.error('Error uploading file to section:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Full error details:', {
       message: errorMessage,

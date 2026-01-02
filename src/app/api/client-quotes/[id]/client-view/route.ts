@@ -87,6 +87,29 @@ export async function GET(
 
     console.log('[Client Invoice View] Found invoice:', quote.quoteNumber)
 
+    // Track client view (only on first view)
+    if (!quote.emailOpenedAt) {
+      await prisma.clientQuote.update({
+        where: { id: quote.id },
+        data: {
+          emailOpenedAt: new Date(),
+          // Update status to CLIENT_REVIEWING on first view (if still SENT_TO_CLIENT)
+          ...(quote.status === 'SENT_TO_CLIENT' && {
+            status: 'CLIENT_REVIEWING'
+          })
+        }
+      })
+
+      // Create activity for view
+      await prisma.clientQuoteActivity.create({
+        data: {
+          clientQuoteId: quote.id,
+          type: 'VIEWED_BY_CLIENT',
+          message: 'Client viewed the invoice'
+        }
+      })
+    }
+
     // Get organization info separately
     const organization = await prisma.organization.findUnique({
       where: { id: quote.orgId },

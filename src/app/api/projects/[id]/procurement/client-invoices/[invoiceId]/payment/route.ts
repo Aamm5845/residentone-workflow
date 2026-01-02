@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email-service'
+import { generatePaymentConfirmationEmailTemplate } from '@/lib/email-templates'
 
 // GET - Get payment history for an invoice
 export async function GET(
@@ -119,6 +121,17 @@ export async function POST(
           where: {
             status: { in: ['PAID', 'PARTIAL'] }
           }
+        },
+        project: {
+          select: {
+            name: true,
+            client: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
         }
       }
     })
@@ -126,6 +139,18 @@ export async function POST(
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
+
+    // Get organization for email branding
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        name: true,
+        businessName: true,
+        businessEmail: true,
+        businessPhone: true,
+        logoUrl: true
+      }
+    })
 
     const totalAmount = Number(invoice.totalAmount) || 0
     const currentPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
@@ -165,7 +190,7 @@ export async function POST(
       await prisma.clientQuote.update({
         where: { id: invoiceId },
         data: {
-          status: 'APPROVED', // Using APPROVED as "PAID" status
+          status: 'PAID',
           clientDecision: 'PAID',
           clientDecidedAt: new Date()
         }
@@ -188,6 +213,51 @@ export async function POST(
         }
       }
     })
+
+    // Send payment confirmation email to client
+    const clientEmail = invoice.clientEmail || invoice.project.client?.email
+    const clientName = invoice.clientName || invoice.project.client?.name || 'Valued Customer'
+
+    if (clientEmail) {
+      try {
+        const emailData = generatePaymentConfirmationEmailTemplate({
+          clientName,
+          clientEmail,
+          projectName: invoice.project.name,
+          invoiceNumber: invoice.quoteNumber,
+          paymentAmount: amount,
+          paymentMethod: method,
+          totalAmount,
+          paidToDate: newPaidAmount,
+          remainingBalance: totalAmount - newPaidAmount,
+          isFullyPaid,
+          paidAt: payment.paidAt || new Date(),
+          companyName: organization?.businessName || organization?.name || 'Our Company',
+          companyEmail: organization?.businessEmail || undefined,
+          companyPhone: organization?.businessPhone || undefined,
+          companyLogo: organization?.logoUrl || undefined
+        })
+
+        await sendEmail({
+          to: clientEmail,
+          subject: emailData.subject,
+          html: emailData.html
+        })
+
+        // Log email sent
+        await prisma.clientQuoteActivity.create({
+          data: {
+            clientQuoteId: invoiceId,
+            type: 'EMAIL_SENT',
+            message: `Payment confirmation email sent to ${clientEmail}`,
+            userId: userId
+          }
+        })
+      } catch (emailError) {
+        // Log email error but don't fail the payment
+        console.error('Failed to send payment confirmation email:', emailError)
+      }
+    }
 
     return NextResponse.json({
       success: true,

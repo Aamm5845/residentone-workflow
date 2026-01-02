@@ -83,6 +83,7 @@ export default function FFEPhaseWorkspace({
   const [isLoadingInstance, setIsLoadingInstance] = useState(true)
   const [instanceError, setInstanceError] = useState(null)
   const { updateItemState } = useFFEItemMutations()
+  const { createRoomInstance } = useRoomFFEMutations()
   const [templates] = useState([])
   
   // Local state

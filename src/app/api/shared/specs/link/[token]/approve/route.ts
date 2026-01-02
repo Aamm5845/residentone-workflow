@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // Public API - no auth required (approval via share link)
+// Requires project street address verification for security
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -9,10 +10,18 @@ export async function POST(
   try {
     const { token } = await params
     const body = await request.json()
-    const { itemId } = body
+    const { itemId, projectAddress } = body
 
     if (!itemId) {
       return NextResponse.json({ error: 'Item ID is required' }, { status: 400 })
+    }
+
+    // Require project address for verification
+    if (!projectAddress || typeof projectAddress !== 'string' || projectAddress.trim() === '') {
+      return NextResponse.json({
+        error: 'Project street address is required for verification',
+        requiresAddress: true
+      }, { status: 400 })
     }
 
     // Find the share link by token
@@ -46,6 +55,35 @@ export async function POST(
     // Check if approval is allowed
     if (!shareLink.allowApproval) {
       return NextResponse.json({ error: 'Approval is not enabled for this link' }, { status: 403 })
+    }
+
+    // Verify project street address for security
+    const project = await prisma.project.findUnique({
+      where: { id: shareLink.projectId },
+      select: { streetAddress: true, address: true }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Check if the entered address matches the project address (case-insensitive, trimmed)
+    const enteredAddress = projectAddress.trim().toLowerCase()
+    const actualStreetAddress = (project.streetAddress || '').trim().toLowerCase()
+    const actualAddress = (project.address || '').trim().toLowerCase()
+
+    // Match against either streetAddress or address field
+    const addressMatches =
+      (actualStreetAddress && enteredAddress === actualStreetAddress) ||
+      (actualAddress && enteredAddress === actualAddress) ||
+      (actualStreetAddress && actualStreetAddress.includes(enteredAddress) && enteredAddress.length >= 5) ||
+      (actualAddress && actualAddress.includes(enteredAddress) && enteredAddress.length >= 5)
+
+    if (!addressMatches) {
+      return NextResponse.json({
+        error: 'The street address you entered does not match our records. Please check and try again.',
+        invalidAddress: true
+      }, { status: 403 })
     }
 
     // Check if item is in the share link's items (if specific items are selected)

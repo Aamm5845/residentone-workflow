@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // DELETE - Clear all room types for an organization
 export async function DELETE(request: Request) {
   try {
+    // Check if user is logged in
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'You must be logged in' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('orgId')
 

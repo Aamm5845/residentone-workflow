@@ -185,6 +185,8 @@ model User {
   updatedRooms                Room[]                      @relation("UpdatedByUserRoom")
   createdFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceCreatedBy")
   updatedFFEInstances         RoomFFEInstance[]           @relation("RoomFFEInstanceUpdatedBy")
+  createdRoomFFEItems         RoomFFEItem[]               @relation("RoomFFEItemCreatedBy")
+  updatedRoomFFEItems         RoomFFEItem[]               @relation("RoomFFEItemUpdatedBy")
   createdFFESpecLinks         FFESpecLink[]               @relation("FFESpecLinkCreatedBy")
   sessions                    Session[]
   smsConversations            SmsConversation[]           @relation("UserSmsConversations")
@@ -1545,6 +1547,8 @@ model RoomFFEItem {
   templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
   libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
   supplier         Supplier?           @relation("SupplierFFEItems", fields: [supplierId], references: [id])
+  createdBy        User                @relation("RoomFFEItemCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User                @relation("RoomFFEItemUpdatedBy", fields: [updatedById], references: [id])
 
   // Self-relation for FFE requirement <-> Spec items (legacy one-to-one)
   ffeRequirement   RoomFFEItem?        @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
@@ -2804,6 +2808,7 @@ enum ClientQuoteStatus {
   REVISION_REQUESTED
   REJECTED
   EXPIRED
+  PAID              // Invoice has been paid (fully or partially)
 }
 
 enum PaymentStatus {

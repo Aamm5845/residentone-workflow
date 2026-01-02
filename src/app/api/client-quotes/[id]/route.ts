@@ -162,10 +162,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
-    // Can't modify if already approved
-    if (existing.status === 'APPROVED') {
+    // Can't modify if already approved or paid
+    if (existing.status === 'APPROVED' || existing.status === 'PAID') {
       return NextResponse.json(
-        { error: 'Cannot modify an approved quote' },
+        { error: `Cannot modify a quote with status ${existing.status}` },
         { status: 400 }
       )
     }
@@ -220,14 +220,56 @@ export async function PATCH(
       }
     })
 
-    // Log status changes
+    // Build audit log for changes
+    const changes: string[] = []
+
     if (status && status !== existing.status) {
+      changes.push(`Status: ${existing.status} → ${status}`)
+    }
+    if (title !== undefined && title !== existing.title) {
+      changes.push(`Title updated`)
+    }
+    if (description !== undefined && description !== existing.description) {
+      changes.push(`Description updated`)
+    }
+    if (validUntil !== undefined) {
+      const oldDate = existing.validUntil?.toISOString().split('T')[0]
+      const newDate = validUntil ? new Date(validUntil).toISOString().split('T')[0] : null
+      if (oldDate !== newDate) {
+        changes.push(`Valid until: ${oldDate || 'none'} → ${newDate || 'none'}`)
+      }
+    }
+    if (paymentTerms !== undefined && paymentTerms !== existing.paymentTerms) {
+      changes.push(`Payment terms updated`)
+    }
+    if (taxRate !== undefined && parseFloat(taxRate) !== parseFloat(existing.taxRate?.toString() || '0')) {
+      changes.push(`Tax rate: ${existing.taxRate || 0}% → ${taxRate}%`)
+    }
+    if (shippingCost !== undefined && parseFloat(shippingCost) !== parseFloat(existing.shippingCost?.toString() || '0')) {
+      changes.push(`Shipping: $${existing.shippingCost || 0} → $${shippingCost}`)
+    }
+    if (depositRequired !== undefined && depositRequired !== existing.depositRequired) {
+      changes.push(`Deposit required: ${existing.depositRequired || 'none'} → ${depositRequired || 'none'}`)
+    }
+
+    // Log changes if any
+    if (changes.length > 0) {
       await prisma.clientQuoteActivity.create({
         data: {
           clientQuoteId: id,
-          type: 'STATUS_CHANGED',
-          message: `Status changed from ${existing.status} to ${status}`,
-          userId
+          type: status && status !== existing.status ? 'STATUS_CHANGED' : 'UPDATED',
+          message: changes.join('; '),
+          userId,
+          metadata: {
+            changes,
+            previousValues: {
+              status: existing.status,
+              title: existing.title,
+              taxRate: existing.taxRate?.toString(),
+              shippingCost: existing.shippingCost?.toString(),
+              validUntil: existing.validUntil?.toISOString()
+            }
+          }
         }
       })
     }

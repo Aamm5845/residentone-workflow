@@ -49,17 +49,21 @@ export async function GET(
     const item = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
       include: {
-        room: {
-          select: {
-            id: true,
-            name: true,
-            type: true
-          }
-        },
         section: {
           select: {
             id: true,
-            name: true
+            name: true,
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -87,12 +91,13 @@ export async function GET(
     const nextItem = currentIndex < allItems.length - 1 ? allItems[currentIndex + 1] : null
 
     // Transform item based on visibility settings
+    const room = item.section?.instance?.room
     const spec = {
       id: item.id,
       name: item.name,
       description: item.description,
-      roomName: item.room?.name || item.room?.type?.replace(/_/g, ' ') || 'Room',
-      roomType: item.room?.type,
+      roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
+      roomType: room?.type,
       sectionName: item.section?.name || '',
       categoryName: item.section?.name || '',
       productName: item.modelNumber,
