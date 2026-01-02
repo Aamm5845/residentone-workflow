@@ -23,6 +23,7 @@ const DARK_COLOR = rgb(0.15, 0.15, 0.15)
 const LABEL_COLOR = rgb(0.5, 0.5, 0.5)
 const LIGHTER_GRAY = rgb(0.75, 0.75, 0.75)
 const LINK_COLOR = rgb(0.1, 0.4, 0.7)
+const RED_COLOR = rgb(0.85, 0.15, 0.15) // Red for notes
 
 export interface SpecPDFItem {
   id: string
@@ -426,23 +427,40 @@ async function drawItemCell(
   // === TEXT AREA - Below image, more centered ===
   const textAreaWidth = CELL_WIDTH - 40
   const textX = cellX + (CELL_WIDTH - textAreaWidth) / 2  // Center the text area
-  const valueX = textX + 75
-  let textY = circleCenterY - IMAGE_RADIUS - 50  // More space between image and text
-  const lineHeight = 22  // Bigger line height
-  const labelSize = 13   // Bigger label text
-  const valueSize = 14   // Bigger value text
-  const maxValueWidth = textAreaWidth - 85
+  const valueX = textX + 85  // More space for larger labels
+  let textY = circleCenterY - IMAGE_RADIUS - 45  // Space between image and text
+  const lineHeight = 28  // BIGGER line height for readability
+  const labelSize = 16   // BIGGER label text (was 13)
+  const valueSize = 17   // BIGGER value text (was 14)
+  const maxValueWidth = textAreaWidth - 95
 
   // DOC CODE (green tag) - use actual docCode only, show "-" if missing
   const docCode = item.docCode || '-'
   page.drawText(docCode, {
     x: textX,
     y: textY,
-    size: 18,  // Bigger doc code
+    size: 20,  // BIGGER doc code (was 18)
     font: boldFont,
     color: BRAND_COLOR
   })
-  textY -= lineHeight + 8
+  textY -= lineHeight
+
+  // ITEM NAME - show prominently below doc code
+  const itemName = item.name || 'Unnamed Item'
+  // Wrap name if too long
+  const nameMaxWidth = textAreaWidth - 10
+  const nameLines = wrapText(itemName, boldFont, 18, nameMaxWidth)
+  for (const line of nameLines) {
+    page.drawText(line, {
+      x: textX,
+      y: textY,
+      size: 18,  // Prominent item name
+      font: boldFont,
+      color: DARK_COLOR
+    })
+    textY -= 24
+  }
+  textY -= 8  // Extra space after name
 
   // Helper to draw field - ALWAYS show label, value can be empty
   const drawField = (label: string, value: string | null | undefined, show: boolean = true) => {
@@ -479,7 +497,33 @@ async function drawItemCell(
   if (options.showFinish) drawField('Finish', item.finish)
   if (options.showColor) drawField('Color', item.color)
   if (options.showMaterial) drawField('Material', item.material)
-  if (options.showNotes) drawField('Notes', item.notes)
+
+  // NOTES - Show in RED, BIGGER, and wrap to multiple lines (no truncation)
+  if (options.showNotes && item.notes) {
+    page.drawText('Notes:', {
+      x: textX,
+      y: textY,
+      size: labelSize,
+      font: font,
+      color: LABEL_COLOR
+    })
+    textY -= lineHeight
+
+    // Wrap notes to multiple lines - show ALL text, no truncation
+    const notesSize = 16  // Bigger notes text
+    const notesMaxWidth = textAreaWidth - 20
+    const notesLines = wrapText(item.notes, font, notesSize, notesMaxWidth)
+    for (const line of notesLines) {
+      page.drawText(line, {
+        x: textX + 10,
+        y: textY,
+        size: notesSize,
+        font: font,
+        color: RED_COLOR  // RED for notes
+      })
+      textY -= 22
+    }
+  }
 
   // Link - show in blue with clickable annotation
   if (options.showLink && item.supplierLink) {
@@ -556,6 +600,41 @@ function truncateText(text: string, font: PDFFont, size: number, maxWidth: numbe
     truncated = truncated.slice(0, -4) + '...'
   }
   return truncated
+}
+
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word
+    const testWidth = font.widthOfTextAtSize(testLine, size)
+
+    if (testWidth <= maxWidth) {
+      currentLine = testLine
+    } else {
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+      // If single word is too long, truncate it
+      if (font.widthOfTextAtSize(word, size) > maxWidth) {
+        let truncWord = word
+        while (font.widthOfTextAtSize(truncWord, size) > maxWidth && truncWord.length > 3) {
+          truncWord = truncWord.slice(0, -1)
+        }
+        currentLine = truncWord
+      } else {
+        currentLine = word
+      }
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  return lines
 }
 
 function shortenUrl(url: string): string {

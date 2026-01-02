@@ -91,6 +91,7 @@ model Organization {
   chatMessages   ChatMessage[] @relation("OrgChatMessages")
   savedAddresses SavedAddress[]
   programaItems  ProgramaItem[] @relation("OrgProgramaItems")
+  budgetQuotes   BudgetQuote[]  @relation("BudgetQuoteOrg")
 }
 
 // Shipping address phonebook - saved addresses for quick selection
@@ -233,6 +234,8 @@ model User {
   createdSpecShareLinks       SpecShareLink[]             @relation("SpecShareLinkCreatedBy")
   // Programa import
   programaItemsLinked         ProgramaItem[]              @relation("ProgramaLinkedBy")
+  // Budget quotes
+  budgetQuotesCreated         BudgetQuote[]               @relation("BudgetQuoteCreatedBy")
 }
 
 model Client {
@@ -342,6 +345,8 @@ model Project {
   shopDrawings              SupplierShopDrawing[]      @relation("ProjectShopDrawings")
   // Spec share links
   specShareLinks            SpecShareLink[]            @relation("ProjectSpecShareLinks")
+  // Budget quotes
+  budgetQuotes              BudgetQuote[]              @relation("BudgetQuoteProject")
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -3443,6 +3448,62 @@ model ClientQuoteActivity {
 
   @@index([clientQuoteId])
   @@index([createdAt])
+}
+
+// Budget Quote - simplified estimate sent to client for bulk approval
+model BudgetQuote {
+  id                String   @id @default(cuid())
+  orgId             String
+  projectId         String
+  token             String   @unique @default(cuid())  // Public access token
+
+  // Display
+  title             String            // e.g., "Tiles – Main Floor"
+  description       String?           // What's included text
+
+  // Items
+  itemIds           String[]          // Array of RoomFFEItem IDs
+
+  // Pricing
+  estimatedTotal    Decimal           // Total estimate
+  currency          String   @default("CAD")
+  includeTax        Boolean  @default(true)  // Show "+ tax" message
+
+  // Included services (displayed as bullet points)
+  includedServices  String[]          // e.g., ["Material selection", "Supplier coordination"]
+
+  // Status
+  status            String   @default("PENDING")  // PENDING, APPROVED, QUESTION_ASKED, EXPIRED
+
+  // Client response
+  clientApproved    Boolean  @default(false)
+  clientApprovedAt  DateTime?
+  clientQuestion    String?           // If they asked a question
+  clientQuestionAt  DateTime?
+  clientEmail       String?           // For sending response
+
+  // Email tracking
+  sentAt            DateTime?
+  sentToEmail       String?
+  emailOpenedAt     DateTime?
+
+  // Validity
+  expiresAt         DateTime?
+
+  // Audit
+  createdById       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  org               Organization @relation("BudgetQuoteOrg", fields: [orgId], references: [id])
+  project           Project      @relation("BudgetQuoteProject", fields: [projectId], references: [id])
+  createdBy         User         @relation("BudgetQuoteCreatedBy", fields: [createdById], references: [id])
+
+  @@index([orgId])
+  @@index([projectId])
+  @@index([token])
+  @@index([status])
 }
 
 // Payment tracking
