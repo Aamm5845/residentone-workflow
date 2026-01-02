@@ -44,8 +44,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   Search,
   Filter,
   SortAsc,
@@ -96,7 +96,9 @@ import {
   DollarSign,
   Mail,
   Link2,
-  FileDown
+  FileDown,
+  FileSpreadsheet,
+  ChevronRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -435,7 +437,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     supplierLink: '',
     quantity: 1
   })
-  
+
+  // Programa Import modal
+  const [programaModal, setProgramaModal] = useState<{
+    open: boolean
+    sectionId: string | null
+    roomId: string | null
+    ffeItemId: string | null
+    ffeItemName: string | null
+  }>({ open: false, sectionId: null, roomId: null, ffeItemId: null, ffeItemName: null })
+  const [programaItems, setProgramaItems] = useState<any[]>([])
+  const [programaCategories, setProgramaCategories] = useState<string[]>([])
+  const [programaLoading, setProgramaLoading] = useState(false)
+  const [programaSearch, setProgramaSearch] = useState('')
+  const [programaCategoryFilter, setProgramaCategoryFilter] = useState<string>('all')
+  const [programaExpandedCategories, setProgramaExpandedCategories] = useState<Set<string>>(new Set())
+  const [linkingProgramaItem, setLinkingProgramaItem] = useState<string | null>(null)
+
   // Add Section modal
   const [addSectionModal, setAddSectionModal] = useState<{ open: boolean; categoryName: string | null }>({ open: false, categoryName: null })
   const [newSectionName, setNewSectionName] = useState('')
@@ -932,12 +950,108 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }, [project.id])
 
+  // Fetch Programa items for linking
+  const fetchProgramaItems = useCallback(async () => {
+    setProgramaLoading(true)
+    try {
+      const url = `/api/programa-import?unlinked=true`
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.items) {
+        setProgramaItems(data.items)
+        setProgramaCategories(data.categories || [])
+        // Auto-expand all categories
+        if (data.categories) {
+          setProgramaExpandedCategories(new Set(data.categories))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch Programa items:', error)
+    } finally {
+      setProgramaLoading(false)
+    }
+  }, [])
+
+  // Link Programa item to FFE item
+  const linkProgramaItem = async (programaItemId: string) => {
+    if (!programaModal.ffeItemId) return
+
+    setLinkingProgramaItem(programaItemId)
+    try {
+      // First link the programa item
+      const linkRes = await fetch(`/api/programa-import/${programaItemId}/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomFFEItemId: programaModal.ffeItemId })
+      })
+
+      if (!linkRes.ok) {
+        throw new Error('Failed to link item')
+      }
+
+      const linkData = await linkRes.json()
+
+      // Get the programa item details
+      const programaItem = programaItems.find(i => i.id === programaItemId)
+      if (!programaItem) {
+        throw new Error('Programa item not found')
+      }
+
+      // Create a spec item from the programa data
+      const createRes = await fetch(`/api/projects/${project.id}/specs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: programaModal.sectionId,
+          roomId: programaModal.roomId,
+          linkedRoomFFEItemId: programaModal.ffeItemId,
+          name: programaItem.name,
+          description: programaItem.description,
+          brand: programaItem.brand,
+          sku: programaItem.sku,
+          color: programaItem.color,
+          finish: programaItem.finish,
+          material: programaItem.material,
+          supplierName: programaItem.supplierCompanyName,
+          tradePrice: programaItem.tradePrice,
+          rrp: programaItem.rrp,
+          leadTime: programaItem.leadTime,
+          websiteUrl: programaItem.websiteUrl,
+          quantity: programaItem.quantity || 1,
+          source: 'programa'
+        })
+      })
+
+      if (!createRes.ok) {
+        throw new Error('Failed to create spec')
+      }
+
+      toast.success('Item linked successfully')
+      setProgramaModal({ open: false, sectionId: null, roomId: null, ffeItemId: null, ffeItemName: null })
+      fetchSpecs(true)
+      loadFfeItems()
+      fetchProgramaItems()
+    } catch (error) {
+      console.error('Error linking programa item:', error)
+      toast.error('Failed to link item')
+    } finally {
+      setLinkingProgramaItem(null)
+    }
+  }
+
   useEffect(() => {
     fetchSpecs()
     loadSuppliers()
     loadFfeItems()
   }, [fetchSpecs, loadSuppliers, loadFfeItems])
-  
+
+  // Fetch Programa items when modal opens
+  useEffect(() => {
+    if (programaModal.open) {
+      fetchProgramaItems()
+    }
+  }, [programaModal.open, fetchProgramaItems])
+
   // Handle URL parameters for pre-selecting FFE item (from FFE Workspace "Choose" action)
   useEffect(() => {
     const linkFfeItemId = searchParams.get('linkFfeItem')
@@ -3391,6 +3505,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add New
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setProgramaModal({
+                                      open: true,
+                                      sectionId: sectionId,
+                                      roomId: roomId,
+                                      ffeItemId: item.id,
+                                      ffeItemName: item.name
+                                    })
+                                  }}>
+                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                    Programa Import
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -3529,6 +3655,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   }}>
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add New
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setProgramaModal({
+                                      open: true,
+                                      sectionId: section.sectionId,
+                                      roomId: room.roomId,
+                                      ffeItemId: item.id,
+                                      ffeItemName: item.name
+                                    })
+                                  }}>
+                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                    Programa Import
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -7923,6 +8061,200 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         items={specs}
         selectedItemIds={selectedItems}
       />
+
+      {/* Programa Import Dialog */}
+      <Dialog
+        open={programaModal.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProgramaModal({ open: false, sectionId: null, roomId: null, ffeItemId: null, ffeItemName: null })
+            setProgramaSearch('')
+            setProgramaCategoryFilter('all')
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+              Link Programa Item
+            </DialogTitle>
+            <DialogDescription>
+              Linking to: <span className="font-medium text-gray-900">{programaModal.ffeItemName}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden flex flex-col space-y-4 py-4">
+            {/* Filters */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  value={programaSearch}
+                  onChange={(e) => setProgramaSearch(e.target.value)}
+                  placeholder="Search Programa items..."
+                  className="pl-9"
+                />
+              </div>
+              <Select value={programaCategoryFilter} onValueChange={setProgramaCategoryFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {programaCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Items List */}
+            <ScrollArea className="flex-1 min-h-0">
+              {programaLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : programaItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-500">No Programa items imported yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Go to Settings → Programa Import to upload items
+                  </p>
+                </div>
+              ) : (() => {
+                // Filter items
+                const filtered = programaItems.filter(item => {
+                  const matchesSearch = !programaSearch ||
+                    item.name.toLowerCase().includes(programaSearch.toLowerCase()) ||
+                    item.description?.toLowerCase().includes(programaSearch.toLowerCase()) ||
+                    item.brand?.toLowerCase().includes(programaSearch.toLowerCase())
+                  const matchesCategory = programaCategoryFilter === 'all' || item.category === programaCategoryFilter
+                  // Only show unlinked items
+                  const isUnlinked = !item.linkedRoomFFEItemId
+                  return matchesSearch && matchesCategory && isUnlinked
+                })
+
+                // Group by category
+                const grouped = filtered.reduce((acc, item) => {
+                  if (!acc[item.category]) acc[item.category] = []
+                  acc[item.category].push(item)
+                  return acc
+                }, {} as Record<string, any[]>)
+
+                if (Object.keys(grouped).length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-gray-500">No unlinked items found</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        All items may already be linked
+                      </p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-4 pr-4">
+                    {Object.entries(grouped).map(([category, items]) => {
+                      const isExpanded = programaExpandedCategories.has(category)
+                      return (
+                        <div key={category} className="border rounded-lg overflow-hidden">
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                              setProgramaExpandedCategories(prev => {
+                                const next = new Set(prev)
+                                if (next.has(category)) {
+                                  next.delete(category)
+                                } else {
+                                  next.add(category)
+                                }
+                                return next
+                              })
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                              )}
+                              <span className="font-medium text-gray-900">{category}</span>
+                              <Badge variant="secondary">{items.length} items</Badge>
+                            </div>
+                          </button>
+                          {isExpanded && (
+                            <div className="divide-y divide-gray-100">
+                              {items.map((item: any) => (
+                                <div
+                                  key={item.id}
+                                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                                  onClick={() => linkProgramaItem(item)}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                                      {item.brand && <span>{item.brand}</span>}
+                                      {item.sku && <span>SKU: {item.sku}</span>}
+                                      {item.color && <span>Color: {item.color}</span>}
+                                    </div>
+                                    {item.supplierCompanyName && (
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        Supplier: {item.supplierCompanyName}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-4">
+                                    {item.tradePrice && (
+                                      <span className="text-sm font-medium text-gray-700">
+                                        ${item.tradePrice.toFixed(2)}
+                                      </span>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      className="bg-emerald-600 hover:bg-emerald-700"
+                                      disabled={linkingProgramaItem === item.id}
+                                    >
+                                      {linkingProgramaItem === item.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Link2 className="w-4 h-4 mr-1" />
+                                          Link
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </ScrollArea>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setProgramaModal({ open: false, sectionId: null, roomId: null, ffeItemId: null, ffeItemName: null })
+                setProgramaSearch('')
+                setProgramaCategoryFilter('all')
+              }}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

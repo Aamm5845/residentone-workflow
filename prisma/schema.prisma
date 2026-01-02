@@ -90,6 +90,7 @@ model Organization {
   users          User[]
   chatMessages   ChatMessage[] @relation("OrgChatMessages")
   savedAddresses SavedAddress[]
+  programaItems  ProgramaItem[] @relation("OrgProgramaItems")
 }
 
 // Shipping address phonebook - saved addresses for quick selection
@@ -228,6 +229,8 @@ model User {
   itemActivities              ItemActivity[]              @relation("ItemActivityActor")
   // Spec share links
   createdSpecShareLinks       SpecShareLink[]             @relation("SpecShareLinkCreatedBy")
+  // Programa import
+  programaItemsLinked         ProgramaItem[]              @relation("ProgramaLinkedBy")
 }
 
 model Client {
@@ -1573,6 +1576,9 @@ model RoomFFEItem {
   // Activity tracking for item
   quoteRequests    ItemQuoteRequest[] @relation("ItemQuoteRequests")
   activities       ItemActivity[]     @relation("ItemActivities")
+
+  // Programa import links
+  programaLinks    ProgramaItem[]     @relation("ProgramaLinkedItem")
 }
 
 // Tracks quote requests sent for a specific item to a specific supplier
@@ -3829,4 +3835,85 @@ model SpecShareLink {
   @@index([projectId])
   @@index([token])
   @@index([active])
+}
+
+// Programa Import - Temporary import from Excel for linking to FFE items
+model ProgramaItem {
+  id                   String    @id @default(cuid())
+  orgId                String
+
+  // Category/Section from Excel
+  category             String
+
+  // Product Info
+  name                 String    // Product Name
+  description          String?   // Product Description
+  details              String?   // Product Details (rooms)
+  brand                String?
+  sku                  String?
+  docCode              String?
+
+  // Appearance
+  color                String?
+  finish               String?
+  material             String?
+
+  // Dimensions
+  width                String?
+  length               String?
+  height               String?
+  depth                String?
+
+  // Pricing
+  quantity             Int       @default(0)
+  rrp                  Decimal?
+  tradePrice           Decimal?
+  tradeDiscount        Decimal?
+  totalCost            Decimal?
+  markup               Decimal?
+  clientPriceExc       Decimal?
+  taxAmount            Decimal?
+  clientPriceInc       Decimal?
+  clientDiscount       Decimal?
+  profit               Decimal?
+
+  // Supplier Info
+  supplierCompanyName  String?
+  supplierName         String?
+  supplierEmail        String?
+  supplierPhone        String?
+  supplierAddress      String?
+  websiteUrl           String?
+
+  // Status & Notes
+  status               String?   @default("draft")
+  importantInfo        String?
+  notes                String?
+  leadTime             String?
+
+  // Image
+  imageUrl             String?
+
+  // Link tracking - which FFE item this is linked to
+  linkedRoomFFEItemId  String?
+  linkedAt             DateTime?
+  linkedById           String?
+
+  // Import tracking
+  importBatchId        String?   // To group items from same import
+  rowNumber            Int?      // Original row in Excel
+
+  // Audit
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  organization         Organization @relation("OrgProgramaItems", fields: [orgId], references: [id], onDelete: Cascade)
+  linkedRoomFFEItem    RoomFFEItem? @relation("ProgramaLinkedItem", fields: [linkedRoomFFEItemId], references: [id])
+  linkedBy             User?        @relation("ProgramaLinkedBy", fields: [linkedById], references: [id])
+
+  @@index([orgId])
+  @@index([category])
+  @@index([linkedRoomFFEItemId])
+  @@index([importBatchId])
 }

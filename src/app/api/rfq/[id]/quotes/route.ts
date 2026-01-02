@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -220,7 +221,46 @@ export async function POST(
         }
       })
 
-      // TODO: Send email to supplier requesting revision
+      // Send email to supplier requesting revision
+      try {
+        // Get supplier/vendor details and portal URL
+        const supplierRFQWithDetails = await prisma.supplierRFQ.findUnique({
+          where: { id: quote.supplierRFQId },
+          include: {
+            supplier: true,
+            rfq: {
+              include: {
+                project: true
+              }
+            }
+          }
+        })
+
+        if (supplierRFQWithDetails) {
+          const supplierEmail = supplierRFQWithDetails.supplier?.email || supplierRFQWithDetails.vendorEmail
+          const supplierName = supplierRFQWithDetails.supplier?.contactName || supplierRFQWithDetails.vendorName || 'Supplier'
+          const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/supplier-portal/${supplierRFQWithDetails.accessToken}`
+          const rfqNumber = supplierRFQWithDetails.rfq.rfqNumber
+          const projectName = supplierRFQWithDetails.rfq.project?.name || 'Project'
+
+          if (supplierEmail) {
+            await sendEmail({
+              to: supplierEmail,
+              subject: `Revision Requested - Quote for RFQ ${rfqNumber}`,
+              html: generateRevisionRequestEmail({
+                supplierName,
+                rfqNumber,
+                projectName,
+                portalUrl,
+                revisionNotes: notes
+              })
+            })
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending revision request email:', emailError)
+        // Don't fail the request if email fails - log and continue
+      }
 
       await prisma.rFQActivity.create({
         data: {
@@ -296,4 +336,60 @@ function buildComparisonMatrix(supplierRFQs: any[]) {
   }
 
   return matrix
+}
+
+/**
+ * Generate email HTML for revision request
+ */
+function generateRevisionRequestEmail({
+  supplierName,
+  rfqNumber,
+  projectName,
+  portalUrl,
+  revisionNotes
+}: {
+  supplierName: string
+  rfqNumber: string
+  projectName: string
+  portalUrl: string
+  revisionNotes?: string
+}) {
+  const brandColor = '#F59E0B' // Amber for revision/warning
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Quote Revision Requested</title></head>
+<body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: ${brandColor}; padding: 20px; border-radius: 8px 8px 0 0;">
+  <h2 style="color: white; margin: 0;">Quote Revision Requested</h2>
+</div>
+<div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+  <p>Dear ${supplierName},</p>
+
+  <p>We have reviewed your quote for <strong>RFQ ${rfqNumber}</strong> (${projectName}) and would like to request a revision.</p>
+
+  ${revisionNotes ? `
+  <div style="background: #FEF3C7; border-left: 4px solid ${brandColor}; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0;">
+    <strong style="color: #92400E;">Revision Notes:</strong>
+    <p style="margin: 10px 0 0 0; color: #78350F;">${revisionNotes}</p>
+  </div>
+  ` : ''}
+
+  <p>Please review the feedback and submit a revised quote through the supplier portal.</p>
+
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${portalUrl}" style="background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      Submit Revised Quote
+    </a>
+  </div>
+
+  <p style="color: #666; font-size: 14px;">If you have any questions, please reply to this email or contact us directly.</p>
+
+  <p>Thank you for your continued partnership.</p>
+</div>
+<div style="text-align: center; padding: 15px; color: #999; font-size: 12px;">
+  This is an automated message. Please do not reply directly to this email.
+</div>
+</body>
+</html>`
 }

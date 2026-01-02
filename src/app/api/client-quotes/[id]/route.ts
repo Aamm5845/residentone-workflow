@@ -115,7 +115,7 @@ export async function GET(
 
     // Calculate profit margins
     const profitAnalysis = {
-      totalCost: quote.lineItems.reduce((sum, item) => sum + parseFloat(item.totalCost?.toString() || '0'), 0),
+      totalCost: quote.lineItems.reduce((sum, item) => sum + parseFloat(item.supplierTotalPrice?.toString() || '0'), 0),
       totalRevenue: parseFloat(quote.subtotal?.toString() || '0'),
       grossProfit: 0,
       marginPercent: 0

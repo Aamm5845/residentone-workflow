@@ -14,22 +14,19 @@ export async function GET(
   try {
     const { id } = await params
 
-    // Validate ID
+    // Validate token
     if (!id || id === 'undefined' || id === 'null') {
-      console.error('[Client Invoice View] Invalid ID received:', id)
-      return NextResponse.json({ error: 'Invalid invoice ID' }, { status: 400 })
+      console.error('[Client Invoice View] Invalid token received:', id)
+      return NextResponse.json({ error: 'Invalid access token' }, { status: 400 })
     }
 
-    console.log('[Client Invoice View] Fetching invoice with ID or token:', id)
+    console.log('[Client Invoice View] Fetching invoice with token:', id)
 
     // Get the client quote - this is a public endpoint for clients
-    // The param could be either an ID or an accessToken
+    // SECURITY: Only allow access via accessToken, not by ID (to prevent enumeration attacks)
     const quote = await prisma.clientQuote.findFirst({
       where: {
-        OR: [
-          { id },
-          { accessToken: id }
-        ]
+        accessToken: id
       },
       include: {
         project: {

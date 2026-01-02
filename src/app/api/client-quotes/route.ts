@@ -136,24 +136,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Generate quote number
+    // Generate quote number with retry logic to handle race conditions
     const year = new Date().getFullYear()
-    const lastQuote = await prisma.clientQuote.findFirst({
-      where: {
-        orgId,
-        quoteNumber: { startsWith: `CQ-${year}-` }
-      },
-      orderBy: { quoteNumber: 'desc' }
-    })
-
-    let nextNumber = 1
-    if (lastQuote) {
-      const match = lastQuote.quoteNumber.match(/CQ-\d{4}-(\d+)/)
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1
-      }
-    }
-    const quoteNumber = `CQ-${year}-${String(nextNumber).padStart(4, '0')}`
+    const quoteNumber = await generateUniqueQuoteNumber(orgId, year)
 
     const markup = defaultMarkupPercent || 25
 
@@ -331,4 +316,51 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Generate a unique quote number with retry logic to handle race conditions
+ * Uses optimistic locking - if a duplicate is detected, it retries with a new number
+ */
+async function generateUniqueQuoteNumber(orgId: string, year: number, maxRetries = 5): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const lastQuote = await prisma.clientQuote.findFirst({
+      where: {
+        orgId,
+        quoteNumber: { startsWith: `CQ-${year}-` }
+      },
+      orderBy: { quoteNumber: 'desc' }
+    })
+
+    let nextNumber = 1
+    if (lastQuote) {
+      const match = lastQuote.quoteNumber.match(/CQ-\d{4}-(\d+)/)
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1
+      }
+    }
+
+    // Add random offset on retry to reduce collision probability
+    if (attempt > 0) {
+      nextNumber += attempt
+    }
+
+    const quoteNumber = `CQ-${year}-${String(nextNumber).padStart(4, '0')}`
+
+    // Check if this number already exists (race condition check)
+    const existing = await prisma.clientQuote.findFirst({
+      where: { orgId, quoteNumber }
+    })
+
+    if (!existing) {
+      return quoteNumber
+    }
+
+    // If we get here, there was a race condition - retry with next number
+    console.warn(`Quote number collision detected: ${quoteNumber}, retrying...`)
+  }
+
+  // Fallback: use timestamp-based number to guarantee uniqueness
+  const timestamp = Date.now().toString().slice(-6)
+  return `CQ-${year}-${timestamp}`
 }

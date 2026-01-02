@@ -19,13 +19,10 @@ export async function POST(
   try {
     const { id } = await params
 
-    // Get invoice by ID or accessToken
+    // Get invoice by accessToken only (SECURITY: prevent ID enumeration attacks)
     const invoice = await prisma.clientQuote.findFirst({
       where: {
-        OR: [
-          { id },
-          { accessToken: id }
-        ]
+        accessToken: id
       },
       include: {
         lineItems: true,

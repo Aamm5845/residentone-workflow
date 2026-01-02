@@ -154,24 +154,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Generate RFQ number
+    // Generate RFQ number with retry logic to handle race conditions
     const year = new Date().getFullYear()
-    const lastRFQ = await prisma.rFQ.findFirst({
-      where: {
-        orgId,
-        rfqNumber: { startsWith: `RFQ-${year}-` }
-      },
-      orderBy: { rfqNumber: 'desc' }
-    })
-
-    let nextNumber = 1
-    if (lastRFQ) {
-      const match = lastRFQ.rfqNumber.match(/RFQ-\d{4}-(\d+)/)
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1
-      }
-    }
-    const rfqNumber = `RFQ-${year}-${String(nextNumber).padStart(4, '0')}`
+    const rfqNumber = await generateUniqueRFQNumber(orgId, year)
 
     // Create RFQ with line items
     const rfq = await prisma.rFQ.create({
@@ -253,4 +238,46 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Generate a unique RFQ number with retry logic to handle race conditions
+ */
+async function generateUniqueRFQNumber(orgId: string, year: number, maxRetries = 5): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const lastRFQ = await prisma.rFQ.findFirst({
+      where: {
+        orgId,
+        rfqNumber: { startsWith: `RFQ-${year}-` }
+      },
+      orderBy: { rfqNumber: 'desc' }
+    })
+
+    let nextNumber = 1
+    if (lastRFQ) {
+      const match = lastRFQ.rfqNumber.match(/RFQ-\d{4}-(\d+)/)
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1
+      }
+    }
+
+    if (attempt > 0) {
+      nextNumber += attempt
+    }
+
+    const rfqNumber = `RFQ-${year}-${String(nextNumber).padStart(4, '0')}`
+
+    const existing = await prisma.rFQ.findFirst({
+      where: { orgId, rfqNumber }
+    })
+
+    if (!existing) {
+      return rfqNumber
+    }
+
+    console.warn(`RFQ number collision detected: ${rfqNumber}, retrying...`)
+  }
+
+  const timestamp = Date.now().toString().slice(-6)
+  return `RFQ-${year}-${timestamp}`
 }
