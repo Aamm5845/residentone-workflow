@@ -1045,6 +1045,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     loadFfeItems()
   }, [fetchSpecs, loadSuppliers, loadFfeItems])
 
+  // Warn before page refresh/navigation when editing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (editingField || savingItem) {
+        e.preventDefault()
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [editingField, savingItem])
+
   // Fetch Programa items when modal opens
   useEffect(() => {
     if (programaModal.open) {

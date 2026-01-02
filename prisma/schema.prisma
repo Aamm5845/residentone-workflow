@@ -1469,6 +1469,7 @@ model FFESectionPreset {
   name          String           // e.g., "Plumbing"
   docCodePrefix String           // e.g., "PL" (1-3 uppercase letters)
   description   String?
+  markupPercent Decimal?         // Default markup % for items in this section
   order         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -3244,6 +3245,9 @@ model SupplierQuoteLineItem {
   matchApproved       Boolean  @default(false)
   matchApprovedAt     DateTime?
   matchApprovedById   String?
+
+  // Approved markup (set when quote is accepted)
+  approvedMarkupPercent Decimal?  // Markup % approved when accepting quote
 
   notes               String?
   createdAt           DateTime @default(now())

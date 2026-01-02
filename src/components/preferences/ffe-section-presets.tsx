@@ -24,13 +24,14 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, FolderCode, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, FolderCode, GripVertical, Percent } from 'lucide-react'
 
 interface SectionPreset {
   id: string
   name: string
   docCodePrefix: string
   description: string | null
+  markupPercent: number | null
   order: number
   isActive: boolean
   createdAt: string
@@ -50,6 +51,7 @@ export default function FFESectionPresets() {
   const [formName, setFormName] = useState('')
   const [formPrefix, setFormPrefix] = useState('')
   const [formDescription, setFormDescription] = useState('')
+  const [formMarkup, setFormMarkup] = useState('')
 
   // Fetch presets on mount
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function FFESectionPresets() {
     setFormName('')
     setFormPrefix('')
     setFormDescription('')
+    setFormMarkup('')
     setDialogOpen(true)
   }
 
@@ -84,6 +87,7 @@ export default function FFESectionPresets() {
     setFormName(preset.name)
     setFormPrefix(preset.docCodePrefix)
     setFormDescription(preset.description || '')
+    setFormMarkup(preset.markupPercent?.toString() || '')
     setDialogOpen(true)
   }
 
@@ -111,7 +115,8 @@ export default function FFESectionPresets() {
           id: editingPreset?.id,
           name: formName.trim(),
           docCodePrefix: formPrefix.toUpperCase().trim(),
-          description: formDescription.trim() || null
+          description: formDescription.trim() || null,
+          markupPercent: formMarkup.trim() || null
         })
       })
 
@@ -223,6 +228,7 @@ export default function FFESectionPresets() {
                   <TableHead>Name</TableHead>
                   <TableHead className="w-24">Prefix</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead className="w-24">Markup %</TableHead>
                   <TableHead className="w-20">Active</TableHead>
                   <TableHead className="w-24 text-right">Actions</TableHead>
                 </TableRow>
@@ -241,6 +247,15 @@ export default function FFESectionPresets() {
                     </TableCell>
                     <TableCell className="text-gray-500 text-sm">
                       {preset.description || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {preset.markupPercent !== null ? (
+                        <Badge variant="outline" className="font-mono">
+                          {preset.markupPercent}%
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Switch
@@ -329,6 +344,26 @@ export default function FFESectionPresets() {
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="e.g., Plumbing fixtures and fittings"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="markup" className="flex items-center gap-2">
+                <Percent className="w-4 h-4" />
+                Default Markup % (optional)
+              </Label>
+              <Input
+                id="markup"
+                type="number"
+                min="0"
+                max="200"
+                step="0.5"
+                value={formMarkup}
+                onChange={(e) => setFormMarkup(e.target.value)}
+                placeholder="e.g., 25"
+              />
+              <p className="text-xs text-gray-500">
+                This markup will be suggested when accepting supplier quotes for items in this section.
+              </p>
             </div>
           </div>
 

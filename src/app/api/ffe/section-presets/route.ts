@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     const orgId = (session.user as any).orgId
     const body = await request.json()
-    const { name, docCodePrefix, description } = body
+    const { name, docCodePrefix, description, markupPercent } = body
 
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -135,6 +135,9 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         docCodePrefix: prefix,
         description: description?.trim() || null,
+        markupPercent: markupPercent !== undefined && markupPercent !== null && markupPercent !== ''
+          ? parseFloat(markupPercent)
+          : null,
         order: nextOrder,
         isActive: true
       }
@@ -164,7 +167,7 @@ export async function PUT(request: NextRequest) {
 
     const orgId = (session.user as any).orgId
     const body = await request.json()
-    const { id, name, docCodePrefix, description, isActive, order } = body
+    const { id, name, docCodePrefix, description, markupPercent, isActive, order } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Preset ID is required' }, { status: 400 })
@@ -229,6 +232,12 @@ export async function PUT(request: NextRequest) {
 
     if (order !== undefined) {
       updateData.order = order
+    }
+
+    if (markupPercent !== undefined) {
+      updateData.markupPercent = markupPercent !== null && markupPercent !== ''
+        ? parseFloat(markupPercent)
+        : null
     }
 
     const preset = await prisma.fFESectionPreset.update({

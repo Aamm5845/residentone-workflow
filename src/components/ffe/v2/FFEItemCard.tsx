@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FFEItemState } from '@prisma/client'
+import toast from 'react-hot-toast'
 
 // Simplified FFE item states - only 3 states needed
 type SimplifiedFFEItemState = 'UNDECIDED' | 'COMPLETED' | 'NOT_NEEDED'
@@ -87,12 +88,13 @@ export default function FFEItemCard({
   // Handle state change
   const handleStateChange = async (newState: SimplifiedFFEItemState) => {
     if (disabled || isUpdating) return
-    
+
     setIsUpdating(true)
     try {
       await onStateChange(item.id, newState, notes)
     } catch (error) {
       console.error('Failed to update item state:', error)
+      toast.error('Failed to update item. Please try again.')
     } finally {
       setIsUpdating(false)
     }
@@ -109,8 +111,10 @@ export default function FFEItemCard({
     try {
       await onStateChange(item.id, item.state, notes)
       setShowNotesDialog(false)
+      toast.success('Notes saved')
     } catch (error) {
       console.error('Failed to update notes:', error)
+      toast.error('Failed to save notes. Please try again.')
     } finally {
       setIsUpdating(false)
     }
@@ -119,13 +123,15 @@ export default function FFEItemCard({
   // Handle delete
   const handleDelete = async () => {
     if (!onDelete || disabled) return
-    
+
     if (confirm(`Delete "${item.name}"?`)) {
       setIsUpdating(true)
       try {
         await onDelete(item.id)
+        toast.success('Item deleted')
       } catch (error) {
         console.error('Failed to delete item:', error)
+        toast.error('Failed to delete item. Please try again.')
       } finally {
         setIsUpdating(false)
       }

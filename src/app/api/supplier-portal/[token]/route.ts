@@ -90,6 +90,22 @@ export async function GET(
                 }
               },
               orderBy: { order: 'asc' }
+            },
+            // RFQ-level documents (visible to suppliers)
+            documents: {
+              where: { visibleToSupplier: true },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                fileName: true,
+                fileUrl: true,
+                fileSize: true,
+                mimeType: true,
+                type: true,
+                createdAt: true
+              },
+              orderBy: { createdAt: 'desc' }
             }
           }
         },
@@ -321,7 +337,9 @@ export async function GET(
             // Only include documents if includeSpecSheet is true
             documents: supplierRFQ.includeSpecSheet ? (item.roomFFEItem.documents || []) : []
           } : null
-        }))
+        })),
+        // RFQ-level documents (uploaded by sender, visible to supplier)
+        documents: supplierRFQ.rfq.documents || []
       },
       supplier: {
         name: supplierRFQ.supplier?.name || supplierRFQ.vendorName,

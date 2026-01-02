@@ -150,6 +150,20 @@ export default function FFEPhaseWorkspace({
     revalidate()
     loadRenderingImages()
   }, [roomId])
+
+  // Warn before page refresh/navigation when creating instance
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isCreatingInstance) {
+        e.preventDefault()
+        e.returnValue = 'Changes are being saved. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isCreatingInstance])
   
   // Sync API data with store
   useEffect(() => {

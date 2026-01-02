@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import QuoteComparisonView from './quote-comparison-view'
 import RFQLineItemsManager from './rfq-line-items-manager'
+import AcceptQuoteMarkupDialog from './accept-quote-markup-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -174,6 +175,11 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
   const [showComparison, setShowComparison] = useState(false)
   const [creatingClientQuote, setCreatingClientQuote] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [acceptDialog, setAcceptDialog] = useState<{
+    open: boolean
+    quoteId: string
+    supplierName: string
+  }>({ open: false, quoteId: '', supplierName: '' })
 
   useEffect(() => {
     loadRFQ()
@@ -238,7 +244,17 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
     }
   }
 
-  const handleAcceptQuote = async (quoteId: string) => {
+  const handleAcceptQuote = (quoteId: string, supplierName: string) => {
+    // Open the markup dialog instead of directly accepting
+    setAcceptDialog({
+      open: true,
+      quoteId,
+      supplierName
+    })
+  }
+
+  const handleAcceptQuoteDirect = async (quoteId: string) => {
+    // Direct accept without markup dialog (fallback)
     try {
       const response = await fetch(`/api/rfq/${rfqId}/quotes`, {
         method: 'POST',
