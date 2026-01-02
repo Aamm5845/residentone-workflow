@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2 } from 'lucide-react'
+import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -214,6 +214,16 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium text-gray-900">Item Library</p>
                     <p className="text-sm text-gray-500">Manage your product library</p>
+                  </div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-gray-400" />
+              </Link>
+              <Link href="/settings/programa-import" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
+                <div className="flex items-center gap-3">
+                  <FileSpreadsheet className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">Programa Import</p>
+                    <p className="text-sm text-gray-500">Import items from Excel and link to FFE</p>
                   </div>
                 </div>
                 <ExternalLink className="w-4 h-4 text-gray-400" />

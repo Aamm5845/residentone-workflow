@@ -981,7 +981,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
     setLinkingProgramaItem(programaItemId)
     try {
-      // First link the programa item
+      // Link the programa item - this also copies programa data to the FFE item
       const linkRes = await fetch(`/api/programa-import/${programaItemId}/link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -989,44 +989,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       })
 
       if (!linkRes.ok) {
-        throw new Error('Failed to link item')
-      }
-
-      const linkData = await linkRes.json()
-
-      // Get the programa item details
-      const programaItem = programaItems.find(i => i.id === programaItemId)
-      if (!programaItem) {
-        throw new Error('Programa item not found')
-      }
-
-      // Create a spec item from the programa data
-      const createRes = await fetch(`/api/projects/${project.id}/specs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sectionId: programaModal.sectionId,
-          roomId: programaModal.roomId,
-          linkedRoomFFEItemId: programaModal.ffeItemId,
-          name: programaItem.name,
-          description: programaItem.description,
-          brand: programaItem.brand,
-          sku: programaItem.sku,
-          color: programaItem.color,
-          finish: programaItem.finish,
-          material: programaItem.material,
-          supplierName: programaItem.supplierCompanyName,
-          tradePrice: programaItem.tradePrice,
-          rrp: programaItem.rrp,
-          leadTime: programaItem.leadTime,
-          websiteUrl: programaItem.websiteUrl,
-          quantity: programaItem.quantity || 1,
-          source: 'programa'
-        })
-      })
-
-      if (!createRes.ok) {
-        throw new Error('Failed to create spec')
+        const errorData = await linkRes.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to link item')
       }
 
       toast.success('Item linked successfully')
@@ -1036,7 +1000,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       fetchProgramaItems()
     } catch (error) {
       console.error('Error linking programa item:', error)
-      toast.error('Failed to link item')
+      toast.error(error instanceof Error ? error.message : 'Failed to link item')
     } finally {
       setLinkingProgramaItem(null)
     }
@@ -8297,7 +8261,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
 
             {/* Items List */}
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="overflow-y-auto max-h-[50vh]" style={{ minHeight: '300px' }}>
               {programaLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -8379,20 +8343,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div
                                   key={item.id}
                                   className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-                                  onClick={() => linkProgramaItem(item)}
+                                  onClick={() => linkProgramaItem(item.id)}
                                 >
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
-                                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                                      {item.brand && <span>{item.brand}</span>}
-                                      {item.sku && <span>SKU: {item.sku}</span>}
-                                      {item.color && <span>Color: {item.color}</span>}
-                                    </div>
-                                    {item.supplierCompanyName && (
-                                      <p className="text-xs text-gray-400 mt-1">
-                                        Supplier: {item.supplierCompanyName}
-                                      </p>
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    {/* Item Image */}
+                                    {item.imageUrl ? (
+                                      <img
+                                        src={item.imageUrl}
+                                        alt={item.name}
+                                        className="w-12 h-12 object-cover rounded border flex-shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center flex-shrink-0">
+                                        <Package className="w-5 h-5 text-gray-400" />
+                                      </div>
                                     )}
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                                      <div className="flex items-center gap-3 text-sm text-gray-500">
+                                        {item.brand && <span>{item.brand}</span>}
+                                        {item.sku && <span>SKU: {item.sku}</span>}
+                                        {item.color && <span>Color: {item.color}</span>}
+                                      </div>
+                                      {item.supplierCompanyName && (
+                                        <p className="text-xs text-gray-400 mt-1">
+                                          Supplier: {item.supplierCompanyName}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2 ml-4">
                                     {item.tradePrice && (
@@ -8425,7 +8403,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 )
               })()}
-            </ScrollArea>
+            </div>
           </div>
 
           <DialogFooter>

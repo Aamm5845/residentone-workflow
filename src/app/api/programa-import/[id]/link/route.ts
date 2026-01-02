@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 
 /**
  * POST /api/programa-import/[id]/link
- * Link a programa item to an FFE item
+ * Link a programa item to an FFE requirement by creating a new spec item
+ * This matches the pattern used by the extension clip API
  */
 export async function POST(
   request: NextRequest,
@@ -32,76 +33,148 @@ export async function POST(
     })
 
     if (!programaItem) {
-      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Programa item not found' }, { status: 404 })
     }
 
-    // Verify FFE item exists
-    const ffeItem = await prisma.roomFFEItem.findFirst({
+    // Verify FFE requirement item exists and get its details
+    const ffeRequirement = await prisma.roomFFEItem.findFirst({
       where: { id: roomFFEItemId },
       include: {
         section: {
           include: {
-            room: {
+            instance: {
               include: {
-                project: { select: { orgId: true } }
+                room: {
+                  include: {
+                    project: { select: { orgId: true } }
+                  }
+                }
               }
             }
           }
+        },
+        // Check how many specs are already linked
+        linkedSpecs: {
+          select: { id: true }
         }
       }
     })
 
-    if (!ffeItem || ffeItem.section.room.project.orgId !== orgId) {
+    if (!ffeRequirement || ffeRequirement.section.instance.room.project.orgId !== orgId) {
       return NextResponse.json({ error: 'FFE item not found' }, { status: 404 })
     }
 
-    // Update programa item with link
-    const updated = await prisma.programaItem.update({
+    // Get next order in section
+    const lastItem = await prisma.roomFFEItem.findFirst({
+      where: { sectionId: ffeRequirement.sectionId },
+      orderBy: { order: 'desc' },
+      select: { order: true }
+    })
+    const nextOrder = (lastItem?.order || 0) + 1
+
+    // Check if this is an option (if requirement already has specs)
+    const existingSpecsCount = ffeRequirement.linkedSpecs?.length || 0
+    const isOption = existingSpecsCount > 0
+    const optionNumber = isOption ? existingSpecsCount + 1 : null
+
+    // Build images array
+    const images = programaItem.imageUrl ? [programaItem.imageUrl] : []
+
+    // Create a NEW spec item linked to the FFE requirement (same pattern as extension clip)
+    const specItem = await prisma.roomFFEItem.create({
+      data: {
+        sectionId: ffeRequirement.sectionId,
+        // Use programa product name
+        name: programaItem.name,
+        description: programaItem.description || null,
+        state: 'PENDING',
+        visibility: 'VISIBLE',
+        // Mark as a spec item linked to the requirement
+        isSpecItem: true,
+        ffeRequirementId: ffeRequirement.id,
+        isOption: isOption,
+        optionNumber: optionNumber,
+        specStatus: 'SELECTED',
+        isRequired: false,
+        isCustom: true,
+        order: nextOrder,
+        // Supplier
+        supplierName: programaItem.supplierCompanyName || null,
+        supplierLink: programaItem.websiteUrl || null,
+        // Product details
+        brand: programaItem.brand || null,
+        sku: programaItem.sku || null,
+        modelNumber: programaItem.sku || null,
+        color: programaItem.color || null,
+        finish: programaItem.finish || null,
+        material: programaItem.material || null,
+        leadTime: programaItem.leadTime || null,
+        // Dimensions
+        width: programaItem.width || null,
+        height: programaItem.height || null,
+        depth: programaItem.depth || null,
+        length: programaItem.length || null,
+        // Pricing
+        quantity: programaItem.quantity || 1,
+        rrp: programaItem.rrp || null,
+        tradePrice: programaItem.tradePrice || null,
+        // Images
+        images: images,
+        notes: programaItem.notes || null,
+        // User tracking
+        createdById: userId,
+        updatedById: userId
+      }
+    })
+
+    // Update programa item to link to the NEW spec item (not the requirement)
+    const updatedProgramaItem = await prisma.programaItem.update({
       where: { id: programaItemId },
       data: {
-        linkedRoomFFEItemId: roomFFEItemId,
+        linkedRoomFFEItemId: specItem.id,
         linkedAt: new Date(),
         linkedById: userId
-      },
+      }
+    })
+
+    // Update FFE instance progress
+    const instanceId = ffeRequirement.section.instanceId
+    const instance = await prisma.roomFFEInstance.findUnique({
+      where: { id: instanceId },
       include: {
-        linkedRoomFFEItem: {
-          select: {
-            id: true,
-            name: true,
-            images: true,
-            section: {
-              select: {
-                name: true,
-                room: { select: { name: true } }
-              }
+        sections: {
+          include: {
+            items: {
+              where: { visibility: 'VISIBLE' }
             }
           }
         }
       }
     })
 
-    // Also update the FFE item with programa data if desired
-    // Copy over relevant fields from programa item to FFE item
-    await prisma.roomFFEItem.update({
-      where: { id: roomFFEItemId },
-      data: {
-        // Only update if FFE item fields are empty
-        brand: ffeItem.brand || programaItem.brand,
-        sku: ffeItem.sku || programaItem.sku,
-        color: ffeItem.color || programaItem.color,
-        finish: ffeItem.finish || programaItem.finish,
-        material: ffeItem.material || programaItem.material,
-        leadTime: ffeItem.leadTime || programaItem.leadTime,
-        rrp: ffeItem.rrp || programaItem.rrp,
-        tradePrice: ffeItem.tradePrice || programaItem.tradePrice,
-        supplierName: ffeItem.supplierName || programaItem.supplierCompanyName,
-        websiteUrl: ffeItem.websiteUrl || programaItem.websiteUrl
-      }
-    })
+    if (instance) {
+      const totalItems = instance.sections.reduce((sum, s) => sum + s.items.length, 0)
+      const completedItems = instance.sections.reduce(
+        (sum, s) => sum + s.items.filter(i => i.state === 'COMPLETED').length,
+        0
+      )
+      const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
+
+      await prisma.roomFFEInstance.update({
+        where: { id: instanceId },
+        data: { progress }
+      })
+    }
 
     return NextResponse.json({
       success: true,
-      item: updated
+      specItem: {
+        id: specItem.id,
+        name: specItem.name,
+        ffeRequirementId: specItem.ffeRequirementId
+      },
+      programaItem: updatedProgramaItem,
+      message: `Product linked to "${ffeRequirement.name}" successfully`
     })
   } catch (error) {
     console.error('Error linking programa item:', error)

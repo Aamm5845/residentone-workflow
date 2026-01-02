@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/products/categories
- * Fetch all product categories (both global defaults and org-specific)
+ * Fetch all product categories from FFE Section Presets (synced with FFE management)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,42 +17,91 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const includeProducts = searchParams.get('includeProducts') === 'true'
-    const parentOnly = searchParams.get('parentOnly') === 'true'
 
-    // Get both global categories (orgId = null) and org-specific ones
-    const categories = await prisma.productCategory.findMany({
+    const orgId = (session.user as any).orgId
+
+    // Fetch FFE Section Presets as categories (synced with FFE management)
+    const ffePresets = await prisma.fFESectionPreset.findMany({
       where: {
-        isActive: true,
-        OR: [
-          { orgId: null }, // Global/default categories
-          { orgId: (session.user as any).orgId } // Org-specific
-        ],
-        ...(parentOnly ? { parentId: null } : {})
-      },
-      include: {
-        children: {
-          where: { isActive: true },
-          orderBy: { order: 'asc' }
-        },
-        ...(includeProducts ? {
-          _count: {
-            select: { products: true }
-          }
-        } : {})
+        orgId,
+        isActive: true
       },
       orderBy: { order: 'asc' }
     })
 
-    // Build hierarchical structure
-    const parentCategories = categories.filter(c => !c.parentId)
-    const categoryTree = parentCategories.map(parent => ({
-      ...parent,
-      children: categories.filter(c => c.parentId === parent.id)
-    }))
+    // Ensure ProductCategory records exist for all FFE presets and get their IDs
+    const categoryMap: Record<string, string> = {}
+    let productCounts: Record<string, number> = {}
 
-    return NextResponse.json({ 
-      categories: categoryTree,
-      total: categories.length 
+    if (orgId) {
+      for (const preset of ffePresets) {
+        const slug = preset.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+        // Find or create corresponding ProductCategory
+        let productCategory = await prisma.productCategory.findFirst({
+          where: { orgId, slug }
+        })
+
+        if (productCategory) {
+          // Update to keep in sync
+          productCategory = await prisma.productCategory.update({
+            where: { id: productCategory.id },
+            data: {
+              name: preset.name,
+              order: preset.order,
+              isActive: true
+            }
+          })
+        } else {
+          productCategory = await prisma.productCategory.create({
+            data: {
+              orgId,
+              name: preset.name,
+              slug,
+              icon: preset.docCodePrefix,
+              order: preset.order,
+              isDefault: false,
+              isActive: true
+            }
+          })
+        }
+
+        categoryMap[preset.id] = productCategory.id
+      }
+
+      // Get product counts if requested
+      if (includeProducts) {
+        const counts = await prisma.productCategory.findMany({
+          where: { orgId, isActive: true },
+          include: { _count: { select: { products: true } } }
+        })
+        productCounts = counts.reduce((acc, cat) => {
+          acc[cat.name] = cat._count.products
+          return acc
+        }, {} as Record<string, number>)
+      }
+    }
+
+    // Transform FFE presets to category format with ProductCategory IDs
+    const categories = ffePresets.map(preset => {
+      const slug = preset.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      return {
+        id: categoryMap[preset.id] || preset.id, // Use ProductCategory ID for product assignment
+        presetId: preset.id, // Keep preset ID for reference
+        name: preset.name,
+        slug,
+        icon: preset.docCodePrefix,
+        color: null,
+        parentId: null,
+        order: preset.order,
+        children: [],
+        _count: includeProducts ? { products: productCounts[preset.name] || 0 } : undefined
+      }
+    })
+
+    return NextResponse.json({
+      categories,
+      total: categories.length
     })
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -65,7 +114,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/products/categories
- * Create a new category (org-specific)
+ * Create a new category - also creates FFE Section Preset for sync
  */
 export async function POST(request: NextRequest) {
   try {
@@ -75,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, icon, color, parentId } = body
+    const { name, icon, color, parentId, docCodePrefix } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -83,39 +132,65 @@ export async function POST(request: NextRequest) {
 
     // Generate slug from name
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    // Generate doc code prefix from name (first 2-3 uppercase letters)
+    const generatedPrefix = docCodePrefix || name.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase()
 
     const orgId = (session.user as any).orgId
 
-    // Check for duplicate slug in org
-    const existing = await prisma.productCategory.findFirst({
-      where: { orgId, slug }
+    // Check for duplicate in FFE presets
+    const existingPreset = await prisma.fFESectionPreset.findFirst({
+      where: { orgId, name }
     })
 
-    if (existing) {
+    if (existingPreset) {
       return NextResponse.json({ error: 'Category with this name already exists' }, { status: 400 })
     }
 
-    // Get max order for this level
-    const maxOrder = await prisma.productCategory.aggregate({
-      where: { orgId, parentId: parentId || null },
+    // Get max order
+    const maxOrder = await prisma.fFESectionPreset.aggregate({
+      where: { orgId },
       _max: { order: true }
     })
 
+    // Create FFE Section Preset (this is the source of truth)
+    const preset = await prisma.fFESectionPreset.create({
+      data: {
+        orgId,
+        name,
+        docCodePrefix: generatedPrefix,
+        order: (maxOrder._max.order || 0) + 1,
+        isActive: true
+      }
+    })
+
+    // Also create corresponding ProductCategory for product assignment
     const category = await prisma.productCategory.create({
       data: {
         orgId,
         name,
         slug,
-        icon,
+        icon: generatedPrefix,
         color,
         parentId,
-        order: (maxOrder._max.order || 0) + 1,
+        order: preset.order,
         isDefault: false,
         isActive: true
       }
     })
 
-    return NextResponse.json({ category })
+    // Return in expected format
+    return NextResponse.json({
+      category: {
+        id: preset.id,
+        name: preset.name,
+        slug,
+        icon: preset.docCodePrefix,
+        color: null,
+        parentId: null,
+        order: preset.order,
+        children: []
+      }
+    })
   } catch (error) {
     console.error('Error creating category:', error)
     return NextResponse.json(

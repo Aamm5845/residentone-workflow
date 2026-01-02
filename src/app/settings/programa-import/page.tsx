@@ -54,12 +54,18 @@ interface ProgramaItem {
   color?: string
   finish?: string
   material?: string
+  width?: string
+  length?: string
+  height?: string
+  depth?: string
   quantity: number
   rrp?: number
   tradePrice?: number
   supplierCompanyName?: string
   websiteUrl?: string
   status?: string
+  notes?: string
+  imageUrl?: string
   linkedRoomFFEItemId?: string
   linkedAt?: string
   linkedRoomFFEItem?: {
@@ -68,7 +74,9 @@ interface ProgramaItem {
     images?: string[]
     section?: {
       name: string
-      room?: { name: string }
+      instance?: {
+        room?: { name: string }
+      }
     }
   }
   linkedBy?: { name: string }
@@ -393,12 +401,12 @@ export default function ProgramaImportPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-12"></TableHead>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Brand</TableHead>
+                            <TableHead className="w-16">Image</TableHead>
+                            <TableHead>Product</TableHead>
                             <TableHead>Details</TableHead>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead>Dimensions</TableHead>
+                            <TableHead className="text-right">RRP</TableHead>
+                            <TableHead className="text-center">Link Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -406,31 +414,55 @@ export default function ProgramaImportPage() {
                           {categoryItems.map((item) => (
                             <TableRow key={item.id} className={item.linkedRoomFFEItemId ? 'bg-emerald-50/50' : ''}>
                               <TableCell>
-                                {item.linkedRoomFFEItemId ? (
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                {item.imageUrl ? (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="w-12 h-12 object-cover rounded border"
+                                  />
                                 ) : (
-                                  <XCircle className="w-5 h-5 text-gray-300" />
+                                  <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-gray-300" />
+                                  </div>
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div>
+                                <div className="max-w-xs">
                                   <p className="font-medium text-gray-900">{item.name}</p>
                                   {item.description && item.description !== item.name && (
-                                    <p className="text-sm text-gray-500 truncate max-w-xs">{item.description}</p>
+                                    <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                                  )}
+                                  {item.brand && (
+                                    <p className="text-xs text-gray-400">Brand: {item.brand}</p>
+                                  )}
+                                  {item.sku && (
+                                    <p className="text-xs text-gray-400">Model: {item.sku}</p>
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <span className="text-sm text-gray-600">{item.brand || '-'}</span>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-500">
-                                  {item.color && <span className="mr-2">Color: {item.color}</span>}
-                                  {item.material && <span>Material: {item.material}</span>}
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  {item.color && <p>Colour: {item.color}</p>}
+                                  {item.finish && <p>Finish: {item.finish}</p>}
+                                  {item.material && <p>Material: {item.material}</p>}
+                                  {item.quantity > 0 && <p>Qty: {item.quantity}</p>}
+                                  {item.notes && <p className="text-gray-400 italic truncate max-w-32" title={item.notes}>Note: {item.notes}</p>}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <span className="text-sm text-gray-600">{item.supplierCompanyName || '-'}</span>
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  {item.width && <p>W: {item.width}</p>}
+                                  {item.length && <p>L: {item.length}</p>}
+                                  {item.height && <p>H: {item.height}</p>}
+                                  {item.depth && <p>D: {item.depth}</p>}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {item.rrp ? (
+                                  <span className="font-medium">${Number(item.rrp).toFixed(2)}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
                               </TableCell>
                               <TableCell className="text-center">
                                 {item.linkedRoomFFEItemId ? (
@@ -440,7 +472,7 @@ export default function ProgramaImportPage() {
                                       {item.linkedRoomFFEItem?.name}
                                     </p>
                                     <p className="text-gray-400">
-                                      {item.linkedRoomFFEItem?.section?.room?.name} / {item.linkedRoomFFEItem?.section?.name}
+                                      {item.linkedRoomFFEItem?.section?.instance?.room?.name} / {item.linkedRoomFFEItem?.section?.name}
                                     </p>
                                   </div>
                                 ) : (
