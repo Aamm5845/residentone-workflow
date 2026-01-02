@@ -184,11 +184,29 @@ export async function GET(
           const roomFFEItem = rfqItem?.roomFFEItem
           const imageUrl = roomFFEItem?.images?.[0] || null
 
+          // Determine match confidence based on name similarity and other factors
+          let matchConfidence: 'high' | 'medium' | 'low' | 'none' = 'none'
+          if (rfqItem) {
+            // Simple heuristic: if item names match closely, high confidence
+            const quotedName = (li.itemName || '').toLowerCase().trim()
+            const rfqName = (rfqItem.itemName || '').toLowerCase().trim()
+            const quotedSku = (li.supplierSKU || li.supplierModelNumber || '').toLowerCase().trim()
+            const rfqSku = (roomFFEItem?.sku || roomFFEItem?.modelNumber || '').toLowerCase().trim()
+
+            if (quotedName === rfqName || (quotedSku && rfqSku && quotedSku === rfqSku)) {
+              matchConfidence = 'high'
+            } else if (rfqName && quotedName && (rfqName.includes(quotedName) || quotedName.includes(rfqName))) {
+              matchConfidence = 'medium'
+            } else if (rfqItem.id) {
+              matchConfidence = 'low' // Has a match but names don't align well
+            }
+          }
+
           lineItemDetails.push({
             id: li.id,
             rfqLineItemId: rfqItem?.id,
             roomFFEItemId: rfqItem?.roomFFEItemId,
-            itemName: rfqItem?.itemName || 'Unknown Item',
+            itemName: li.itemName || rfqItem?.itemName || 'Unknown Item',
             itemDescription: rfqItem?.itemDescription,
             brand: roomFFEItem?.brand,
             sku: roomFFEItem?.sku || roomFFEItem?.modelNumber,
@@ -208,7 +226,14 @@ export async function GET(
             alternateNotes: li.alternateNotes,
             notes: li.notes,
             hasMismatch: mismatchReasons.length > 0,
-            mismatchReasons
+            mismatchReasons,
+            // Match verification fields
+            matchedRfqItemName: rfqItem?.itemName,
+            matchedRfqItemImage: roomFFEItem?.images?.[0] || null,
+            matchedRfqItemBrand: roomFFEItem?.brand,
+            matchedRfqItemSku: roomFFEItem?.sku || roomFFEItem?.modelNumber,
+            matchApproved: (li as any).matchApproved || false,
+            matchConfidence
           })
         }
 

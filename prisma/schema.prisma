@@ -207,6 +207,7 @@ model User {
   rfqsUpdatedBy               RFQ[]                       @relation("RFQUpdatedBy")
   supplierQuotesReviewed      SupplierQuote[]             @relation("QuoteReviewedBy")
   supplierQuotesAccepted      SupplierQuote[]             @relation("QuoteAcceptedBy")
+  matchApprovedLineItems      SupplierQuoteLineItem[]     @relation("MatchApprovedBy")
   clientQuotesSentBy          ClientQuote[]               @relation("ClientQuoteSentBy")
   clientQuotesCreatedBy       ClientQuote[]               @relation("ClientQuoteCreatedBy")
   clientQuotesUpdatedBy       ClientQuote[]               @relation("ClientQuoteUpdatedBy")
@@ -2538,6 +2539,7 @@ enum FFESpecStatus {
   NEEDS_SPEC
   SPEC_ADDED
   QUOTED
+  ARCHIVED           // Item archived, unlinked from FFE
 }
 
 enum ProductLibraryStatus {
@@ -3221,10 +3223,16 @@ model SupplierQuoteLineItem {
   leadTime            String?  // Human-readable: 'in-stock', '2-4-weeks', etc.
 
   // Product info
+  itemName            String?  // Item name from supplier's quote
   supplierSKU         String?
   supplierModelNumber String?
   alternateProduct    Boolean  @default(false)
   alternateNotes      String?
+
+  // Match verification
+  matchApproved       Boolean  @default(false)
+  matchApprovedAt     DateTime?
+  matchApprovedById   String?
 
   notes               String?
   createdAt           DateTime @default(now())
@@ -3232,6 +3240,7 @@ model SupplierQuoteLineItem {
 
   supplierQuote       SupplierQuote @relation(fields: [supplierQuoteId], references: [id], onDelete: Cascade)
   rfqLineItem         RFQLineItem   @relation(fields: [rfqLineItemId], references: [id])
+  matchApprovedBy     User?         @relation("MatchApprovedBy", fields: [matchApprovedById], references: [id])
 
   @@index([supplierQuoteId])
   @@index([rfqLineItemId])

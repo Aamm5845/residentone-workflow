@@ -43,7 +43,11 @@ import {
   Save,
   Trash2,
   ArrowUpDown,
-  Receipt
+  Receipt,
+  Link2,
+  CheckCircle2,
+  HelpCircle,
+  XCircle
 } from 'lucide-react'
 import CreateInvoiceDialog from './CreateInvoiceDialog'
 import { format } from 'date-fns'
@@ -81,6 +85,13 @@ interface LineItemDetail {
   notes?: string
   hasMismatch: boolean
   mismatchReasons: string[]
+  // Match verification fields
+  matchedRfqItemName?: string
+  matchedRfqItemImage?: string | null
+  matchedRfqItemBrand?: string
+  matchedRfqItemSku?: string
+  matchApproved?: boolean
+  matchConfidence?: 'high' | 'medium' | 'low' | 'none'
 }
 
 interface Mismatch {
@@ -198,6 +209,32 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
   const [editedLineItems, setEditedLineItems] = useState<Record<string, { unitPrice: number; leadTime: string }>>({})
   const [saving, setSaving] = useState(false)
+
+  // Match approval state - tracks which line items have been approved
+  const [approvedMatches, setApprovedMatches] = useState<Set<string>>(new Set())
+  const [approvingMatchId, setApprovingMatchId] = useState<string | null>(null)
+
+  // Approve a match between quote line item and RFQ item
+  const approveMatch = async (lineItemId: string, quoteId: string) => {
+    setApprovingMatchId(lineItemId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/approve-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineItemId, quoteId })
+      })
+
+      if (!res.ok) throw new Error('Failed to approve match')
+
+      setApprovedMatches(prev => new Set([...prev, lineItemId]))
+      toast.success('Match approved')
+    } catch (error) {
+      console.error('Error approving match:', error)
+      toast.error('Failed to approve match')
+    } finally {
+      setApprovingMatchId(null)
+    }
+  }
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true)
@@ -1046,6 +1083,87 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                                 {reason}
                                               </div>
                                             ))}
+                                          </div>
+                                        )}
+
+                                        {/* Matched RFQ Item Display */}
+                                        {item.rfqLineItemId && (
+                                          <div className={`mt-2 p-2 rounded-md border text-xs ${
+                                            item.matchApproved || approvedMatches.has(item.id)
+                                              ? 'bg-emerald-50 border-emerald-200'
+                                              : item.matchConfidence === 'high'
+                                              ? 'bg-blue-50 border-blue-200'
+                                              : item.matchConfidence === 'medium'
+                                              ? 'bg-amber-50 border-amber-200'
+                                              : 'bg-gray-50 border-gray-200'
+                                          }`}>
+                                            <div className="flex items-center gap-2">
+                                              <Link2 className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                              <span className="text-gray-500">Matched to:</span>
+                                              {/* Show matched RFQ item image if available */}
+                                              {item.matchedRfqItemImage && (
+                                                <div className="w-6 h-6 rounded overflow-hidden border border-gray-200 flex-shrink-0">
+                                                  <img src={item.matchedRfqItemImage} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                              )}
+                                              <div className="flex-1 min-w-0">
+                                                <span className="font-medium text-gray-900 truncate block">
+                                                  {item.matchedRfqItemName || item.itemName}
+                                                </span>
+                                                {(item.matchedRfqItemBrand || item.matchedRfqItemSku) && (
+                                                  <span className="text-gray-500 truncate block">
+                                                    {item.matchedRfqItemBrand}{item.matchedRfqItemBrand && item.matchedRfqItemSku ? ' • ' : ''}{item.matchedRfqItemSku}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {/* Confidence indicator and approve button */}
+                                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                {item.matchConfidence && !item.matchApproved && !approvedMatches.has(item.id) && (
+                                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                    item.matchConfidence === 'high'
+                                                      ? 'bg-blue-100 text-blue-700'
+                                                      : item.matchConfidence === 'medium'
+                                                      ? 'bg-amber-100 text-amber-700'
+                                                      : 'bg-gray-100 text-gray-600'
+                                                  }`}>
+                                                    {item.matchConfidence === 'high' ? 'AI: High' : item.matchConfidence === 'medium' ? 'AI: Med' : 'AI: Low'}
+                                                  </span>
+                                                )}
+                                                {item.matchApproved || approvedMatches.has(item.id) ? (
+                                                  <span className="flex items-center gap-1 text-emerald-600">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    <span className="font-medium">Verified</span>
+                                                  </span>
+                                                ) : (
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation()
+                                                      approveMatch(item.id, quote.id)
+                                                    }}
+                                                    disabled={approvingMatchId === item.id}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-300 rounded hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                                                    title="Verify this match is correct"
+                                                  >
+                                                    {approvingMatchId === item.id ? (
+                                                      <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                    ) : (
+                                                      <Check className="w-3 h-3" />
+                                                    )}
+                                                    <span>Verify</span>
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* No match indicator for items without RFQ reference */}
+                                        {!item.rfqLineItemId && (
+                                          <div className="mt-2 p-2 rounded-md border border-orange-200 bg-orange-50 text-xs">
+                                            <div className="flex items-center gap-2 text-orange-700">
+                                              <HelpCircle className="w-3 h-3 flex-shrink-0" />
+                                              <span>Not matched to any requested item</span>
+                                            </div>
                                           </div>
                                         )}
                                       </div>
