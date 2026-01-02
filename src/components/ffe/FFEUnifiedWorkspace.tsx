@@ -44,7 +44,9 @@ import {
   ArrowUp,
   ArrowDown,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowLeft,
+  Keyboard
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -278,6 +280,12 @@ export default function FFEUnifiedWorkspace({
   const [editingProgramaLink, setEditingProgramaLink] = useState(false)
   const [savingProgramaLink, setSavingProgramaLink] = useState(false)
 
+  // Keyboard shortcuts state
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+
+  // Search input ref for focus
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
+
   // Load FFE data
   useEffect(() => {
     loadFFEData()
@@ -310,6 +318,106 @@ export default function FFEUnifiedWorkspace({
       }, 3000)
     }
   }, [searchParams, loading, sections.length])
+
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        // Only handle Escape in inputs to blur/cancel
+        if (e.key === 'Escape') {
+          target.blur()
+        }
+        return
+      }
+
+      // ? or Shift+/ = Show keyboard shortcuts
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault()
+        setShowKeyboardShortcuts(true)
+        return
+      }
+
+      // Escape = Close any open dialog
+      if (e.key === 'Escape') {
+        setShowKeyboardShortcuts(false)
+        setShowImportDialog(false)
+        setShowAddSectionDialog(false)
+        setShowAddItemDialog(false)
+        setShowAIGenerateDialog(false)
+        setShowUrlGenerateDialog(false)
+        setShowChooseProductDialog(false)
+        setShowLinkToExistingDialog(false)
+        setShowMoveToSectionDialog(false)
+        setShowSearchDialog(false)
+        return
+      }
+
+      // / or Ctrl+F = Focus search
+      if (e.key === '/' || (e.ctrlKey && e.key === 'f')) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      // N = New item (if a section exists)
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && sections.length > 0) {
+        e.preventDefault()
+        setSelectedSectionId(sections[0].id)
+        setShowAddItemDialog(true)
+        return
+      }
+
+      // S = New section
+      if (e.key === 's' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        setShowAddSectionDialog(true)
+        return
+      }
+
+      // I = Import template
+      if (e.key === 'i' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        setShowImportDialog(true)
+        return
+      }
+
+      // A = AI Generate
+      if (e.key === 'a' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        setShowAIGenerateDialog(true)
+        return
+      }
+
+      // R = Refresh data
+      if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        loadFFEData()
+        toast.success('Refreshing...')
+        return
+      }
+
+      // B or Backspace = Go back
+      if (e.key === 'b' || e.key === 'Backspace') {
+        e.preventDefault()
+        router.back()
+        return
+      }
+
+      // E = Expand/collapse all sections
+      if (e.key === 'e' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        const allExpanded = sections.every(s => s.isExpanded)
+        setSections(prev => prev.map(s => ({ ...s, isExpanded: !allExpanded })))
+        toast.success(allExpanded ? 'All sections collapsed' : 'All sections expanded')
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [sections, router])
 
   const loadFFEData = async () => {
     try {
@@ -1409,6 +1517,17 @@ export default function FFEUnifiedWorkspace({
           {/* Title and Rendering Gallery */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-4">
+              {/* Back Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="h-10 w-10 p-0 rounded-full hover:bg-gray-100"
+                title="Go back (B)"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+
               <div>
                 <h1 className="text-xl font-bold text-gray-900">FFE Workspace</h1>
                 <p className="text-sm text-gray-500">{roomName} • {projectName}</p>
@@ -1438,17 +1557,32 @@ export default function FFEUnifiedWorkspace({
               )}
             </div>
             
-            {/* Go to All Specs button */}
-            {projectId && (
-              <Button 
-                onClick={() => router.push(`/projects/${projectId}/specs/all`)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            {/* Right side buttons */}
+            <div className="flex items-center gap-2">
+              {/* Keyboard Shortcuts button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowKeyboardShortcuts(true)}
+                className="text-gray-600"
+                title="Keyboard shortcuts (?)"
               >
-                <Package className="w-4 h-4 mr-2" />
-                All Specs
-                <ExternalLink className="w-3 h-3 ml-2" />
+                <Keyboard className="w-4 h-4 mr-2" />
+                Shortcuts
               </Button>
-            )}
+
+              {/* Go to All Specs button */}
+              {projectId && (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}/specs/all`)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  All Specs
+                  <ExternalLink className="w-3 h-3 ml-2" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -1582,7 +1716,8 @@ export default function FFEUnifiedWorkspace({
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search items..."
+                ref={searchInputRef}
+                placeholder="Search items... (press /)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-white"
@@ -4303,7 +4438,7 @@ export default function FFEUnifiedWorkspace({
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleMoveToSection}
               disabled={!selectedMoveTargetSection || isMoving}
               className="bg-blue-600 hover:bg-blue-700"
@@ -4319,6 +4454,98 @@ export default function FFEUnifiedWorkspace({
                   Move Item
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <Dialog open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Keyboard className="w-5 h-5" />
+              Keyboard Shortcuts
+            </DialogTitle>
+            <DialogDescription>
+              Use these shortcuts for quick navigation and actions
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Navigation */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Navigation</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Go back</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">B</kbd>
+                    <span className="text-gray-400">or</span>
+                    <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">Backspace</kbd>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Focus search</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">/</kbd>
+                    <span className="text-gray-400">or</span>
+                    <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">Ctrl+F</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Actions</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">New item</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">N</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">New section</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">S</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Import template</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">I</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">AI Generate</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">A</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Refresh data</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">R</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Expand/collapse all</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">E</kbd>
+                </div>
+              </div>
+            </div>
+
+            {/* General */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">General</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Show shortcuts</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">?</kbd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Close dialog / Cancel</span>
+                  <kbd className="px-2 py-1 bg-gray-100 border rounded text-xs font-mono">Esc</kbd>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowKeyboardShortcuts(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
