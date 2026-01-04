@@ -296,7 +296,47 @@ Extract everything you can see in the quote, including any items that might not 
     // Now match extracted items against RFQ items
     const matchResults: MatchResult[] = []
     const matchedRfqIds = new Set<string>()
-    const extractedItems = extractedData.extractedItems || []
+    const rawExtractedItems = extractedData.extractedItems || []
+
+    // Helper to detect shipping/handling/freight items
+    const isShippingItem = (item: ExtractedItem): boolean => {
+      const name = (item.productName || '').toLowerCase()
+      const shippingKeywords = [
+        'shipping', 'handling', 'freight', 'delivery', 'transport',
+        'livraison', 'manutention', 'expédition', 'frais de port',
+        'shipping & handling', 'shipping and handling', 's&h',
+        'delivery charge', 'freight charge', 'transportation'
+      ]
+      return shippingKeywords.some(kw => name.includes(kw))
+    }
+
+    // Separate shipping items from product items
+    const shippingItems: ExtractedItem[] = []
+    const extractedItems: ExtractedItem[] = []
+
+    for (const item of rawExtractedItems) {
+      if (isShippingItem(item)) {
+        shippingItems.push(item)
+      } else {
+        extractedItems.push(item)
+      }
+    }
+
+    // Add detected shipping items to supplierInfo.shipping
+    let detectedShipping = extractedData.supplierInfo?.shipping || 0
+    for (const shippingItem of shippingItems) {
+      const shippingCost = shippingItem.totalPrice || shippingItem.unitPrice || 0
+      detectedShipping += shippingCost
+    }
+
+    // Update supplierInfo with detected shipping
+    if (!extractedData.supplierInfo) {
+      extractedData.supplierInfo = {}
+    }
+    extractedData.supplierInfo.shipping = detectedShipping
+
+    // Store separated shipping items for reference
+    extractedData.supplierInfo.shippingItems = shippingItems
 
     // Try to match each extracted item to an RFQ item
     for (const extracted of extractedItems) {

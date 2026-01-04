@@ -79,6 +79,11 @@ interface SupplierInfo {
   shipping?: number
   taxes?: number
   total?: number
+  shippingItems?: Array<{
+    productName: string
+    unitPrice?: number
+    totalPrice?: number
+  }>
 }
 
 interface AIExtractedData {
@@ -374,9 +379,20 @@ export default function QuotePDFReviewDialog({
                         </div>
                       )}
                       {supplierInfo.shipping !== undefined && supplierInfo.shipping > 0 && (
-                        <div>
-                          <span className="text-gray-500">Shipping:</span>
-                          <span className="ml-2 font-medium">{formatCurrency(supplierInfo.shipping)}</span>
+                        <div className="col-span-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Shipping/Handling:</span>
+                            <span className="font-medium text-emerald-700">{formatCurrency(supplierInfo.shipping)}</span>
+                          </div>
+                          {supplierInfo.shippingItems && supplierInfo.shippingItems.length > 0 && (
+                            <div className="mt-1 pl-4 text-xs text-gray-500">
+                              {supplierInfo.shippingItems.map((item, idx) => (
+                                <div key={idx}>
+                                  {item.productName}: {formatCurrency(item.totalPrice || item.unitPrice)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                       {supplierInfo.taxes !== undefined && supplierInfo.taxes > 0 && (

@@ -281,6 +281,11 @@ export async function GET(
             shipping?: number
             taxes?: number
             total?: number
+            shippingItems?: Array<{
+              productName: string
+              unitPrice?: number
+              totalPrice?: number
+            }>
           }
           extractedItems?: Array<{
             productName: string
