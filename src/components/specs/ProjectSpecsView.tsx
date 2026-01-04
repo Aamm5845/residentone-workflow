@@ -113,7 +113,7 @@ import CreateClientQuoteDialog from '@/components/procurement/create-client-quot
 import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 
-// Item status options - ordered by workflow (clean list)
+// Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
   // === PROCUREMENT WORKFLOW (auto-updated) ===
   { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
@@ -135,6 +135,24 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
   { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-gray-400', requiresApproval: false },
+  // === LEGACY STATUSES (for existing data) ===
+  { value: 'OPTION', label: 'Option', icon: Circle, color: 'text-purple-400', requiresApproval: false },
+  { value: 'QUOTING', label: 'Quoting', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'PRICE_RECEIVED', label: 'Price Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
+  { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
+  { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },
+  { value: 'IN_PRODUCTION', label: 'In Production', icon: Clock, color: 'text-cyan-600', requiresApproval: true },
+  { value: 'COMPLETED', label: 'Completed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
+  { value: 'INTERNAL_REVIEW', label: 'Internal Review', icon: Clock, color: 'text-amber-500', requiresApproval: false },
+  { value: 'CLIENT_REVIEW', label: 'Client Review', icon: Clock, color: 'text-blue-500', requiresApproval: false },
+  { value: 'RESUBMIT', label: 'Resubmit', icon: AlertCircle, color: 'text-orange-500', requiresApproval: false },
+  { value: 'REJECTED', label: 'Rejected', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
+  { value: 'APPROVED', label: 'Approved', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
+  { value: 'PAYMENT_DUE', label: 'Payment Due', icon: CreditCard, color: 'text-orange-500', requiresApproval: false },
+  { value: 'IN_TRANSIT', label: 'In Transit', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
+  { value: 'NEEDS_SPEC', label: 'Needs Spec', icon: Circle, color: 'text-gray-400', requiresApproval: false },
+  { value: 'SPEC_ADDED', label: 'Spec Added', icon: CheckCircle2, color: 'text-emerald-400', requiresApproval: false },
+  { value: 'QUOTED', label: 'Quoted', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
 ]
 
 // Statuses that require client approval to select
