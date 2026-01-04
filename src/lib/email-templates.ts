@@ -1346,3 +1346,325 @@ export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData)
 
   return { subject, html }
 }
+
+/**
+ * Budget Quote Email Template
+ * Sent to clients for budget approval before detailed invoice
+ */
+export interface BudgetQuoteEmailData {
+  budgetQuoteNumber: string
+  clientName: string
+  projectName: string
+  companyName: string
+  companyLogo?: string
+  companyEmail?: string
+  companyPhone?: string
+  title: string
+  description?: string | null
+  items: Array<{
+    name: string
+    categoryName?: string
+  }>
+  estimatedTotal: number
+  currency?: string
+  includeTax: boolean
+  includedServices: string[]
+  validUntil?: Date | null
+  portalUrl: string
+}
+
+export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
+  subject: string
+  html: string
+} {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: data.currency || 'CAD',
+    }).format(amount)
+  }
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(date)
+  }
+
+  const subject = `Budget Estimate for ${data.projectName} - ${data.title}`
+
+  // Group items by category
+  const itemsByCategory = data.items.reduce((acc, item) => {
+    const cat = item.categoryName || 'Items'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(item.name)
+    return acc
+  }, {} as Record<string, string[]>)
+
+  const itemsHtml = Object.entries(itemsByCategory).map(([category, items]) => `
+    <div style="margin-bottom: 16px;">
+      <div style="font-weight: 600; color: #374151; font-size: 14px; margin-bottom: 8px;">${category}</div>
+      <ul style="margin: 0; padding-left: 20px; color: #6b7280; font-size: 13px;">
+        ${items.map(item => `<li style="margin-bottom: 4px;">${item}</li>`).join('')}
+      </ul>
+    </div>
+  `).join('')
+
+  const servicesHtml = data.includedServices.length > 0 ? `
+    <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+      <div style="font-weight: 600; color: #166534; font-size: 14px; margin-bottom: 12px;">Included Services</div>
+      <ul style="margin: 0; padding-left: 20px; color: #15803d; font-size: 13px;">
+        ${data.includedServices.map(s => `<li style="margin-bottom: 4px;">${s}</li>`).join('')}
+      </ul>
+    </div>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Estimate - ${data.title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 32px; text-align: center;">
+            ${data.companyLogo ? `
+            <img src="${data.companyLogo}"
+                 alt="${data.companyName}"
+                 style="max-width: 180px; max-height: 60px; height: auto; margin-bottom: 20px; background-color: white; padding: 12px; border-radius: 8px;" />
+            ` : `
+            <div style="color: white; font-size: 24px; font-weight: 700; margin-bottom: 16px;">${data.companyName}</div>
+            `}
+            <div style="display: inline-block; background: rgba(255,255,255,0.2); color: white; padding: 6px 20px; border-radius: 16px; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">
+                Budget Estimate
+            </div>
+            <h1 style="margin: 16px 0 0 0; color: white; font-size: 24px; font-weight: 600;">${data.title}</h1>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+            <!-- Greeting -->
+            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
+                Dear ${data.clientName},
+            </p>
+
+            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 15px;">
+                We're pleased to provide you with a budget estimate for your project. Please review the details below and let us know if you'd like to proceed.
+            </p>
+
+            <!-- Project Info -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Project</div>
+                <div style="font-size: 16px; color: #111827; font-weight: 600;">${data.projectName}</div>
+            </div>
+
+            ${data.description ? `
+            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                ${data.description}
+            </p>
+            ` : ''}
+
+            <!-- Budget Amount Card -->
+            <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #c084fc; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 13px; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 600;">Estimated Budget</div>
+                <div style="font-size: 36px; color: #6b21a8; font-weight: 700;">${formatCurrency(data.estimatedTotal)}</div>
+                ${data.includeTax ? `<div style="font-size: 13px; color: #9333ea; margin-top: 4px;">+ applicable taxes</div>` : ''}
+            </div>
+
+            ${data.validUntil ? `
+            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 13px; text-align: center;">
+                This estimate is valid until <strong>${formatDate(data.validUntil)}</strong>
+            </p>
+            ` : ''}
+
+            <!-- Items Included -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                    What's Included
+                </h3>
+                ${itemsHtml}
+            </div>
+
+            <!-- Included Services -->
+            ${servicesHtml}
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${data.portalUrl}"
+                   style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
+                    Review &amp; Approve Budget
+                </a>
+            </div>
+
+            <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                Click the button above to review the full details and approve this budget estimate.
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+
+            <!-- Contact -->
+            <div style="text-align: center;">
+                <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px; font-weight: 600;">${data.companyName}</p>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                    ${data.companyEmail || ''}
+                    ${data.companyPhone ? ` | ${data.companyPhone}` : ''}
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px; text-align: center;">
+            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                &copy; ${new Date().getFullYear()} ${data.companyName}. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}
+
+/**
+ * Budget Quote Approval Notification Email
+ * Sent to team when client approves a budget quote
+ */
+export interface BudgetApprovalNotificationData {
+  budgetQuoteNumber: string
+  clientName: string
+  projectName: string
+  title: string
+  estimatedTotal: number
+  currency?: string
+  approvedAt: Date
+  dashboardUrl: string
+}
+
+export function generateBudgetApprovalNotificationEmail(data: BudgetApprovalNotificationData): {
+  subject: string
+  html: string
+} {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: data.currency || 'CAD',
+    }).format(amount)
+  }
+
+  const subject = `Budget Approved: ${data.title} - ${data.projectName}`
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+    <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px;">
+        <div style="background: #10b981; padding: 24px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">✓</div>
+            <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">Budget Approved!</h1>
+        </div>
+        <div style="padding: 24px;">
+            <p style="margin: 0 0 16px 0; color: #374151; font-size: 15px;">
+                <strong>${data.clientName}</strong> has approved the budget estimate.
+            </p>
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Project</div>
+                    <div style="font-size: 14px; color: #111827; font-weight: 500;">${data.projectName}</div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Budget</div>
+                    <div style="font-size: 14px; color: #111827; font-weight: 500;">${data.title}</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Amount</div>
+                    <div style="font-size: 18px; color: #10b981; font-weight: 700;">${formatCurrency(data.estimatedTotal)}</div>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <a href="${data.dashboardUrl}"
+                   style="display: inline-block; background: #111827; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
+                    View in Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}
+
+/**
+ * Budget Quote Question Notification Email
+ * Sent to team when client asks a question
+ */
+export interface BudgetQuestionNotificationData {
+  budgetQuoteNumber: string
+  clientName: string
+  clientEmail?: string
+  projectName: string
+  title: string
+  question: string
+  dashboardUrl: string
+}
+
+export function generateBudgetQuestionNotificationEmail(data: BudgetQuestionNotificationData): {
+  subject: string
+  html: string
+} {
+  const subject = `Question about Budget: ${data.title} - ${data.projectName}`
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+    <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px;">
+        <div style="background: #f59e0b; padding: 24px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">?</div>
+            <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">Client Question</h1>
+        </div>
+        <div style="padding: 24px;">
+            <p style="margin: 0 0 16px 0; color: #374151; font-size: 15px;">
+                <strong>${data.clientName}</strong> has a question about the budget estimate.
+            </p>
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="font-size: 11px; color: #92400e; text-transform: uppercase; margin-bottom: 8px;">Question</div>
+                <div style="font-size: 14px; color: #78350f; line-height: 1.5;">${data.question}</div>
+            </div>
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 8px;">
+                    <div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Project</div>
+                    <div style="font-size: 14px; color: #111827;">${data.projectName}</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Budget</div>
+                    <div style="font-size: 14px; color: #111827;">${data.title}</div>
+                </div>
+            </div>
+            ${data.clientEmail ? `
+            <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 13px;">
+                Reply to: <a href="mailto:${data.clientEmail}" style="color: #7c3aed;">${data.clientEmail}</a>
+            </p>
+            ` : ''}
+            <div style="text-align: center;">
+                <a href="${data.dashboardUrl}"
+                   style="display: inline-block; background: #111827; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
+                    View in Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}

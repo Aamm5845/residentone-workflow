@@ -2524,6 +2524,8 @@ enum FFESpecStatus {
   RFQ_SENT           // RFQ sent to supplier(s)
   QUOTE_RECEIVED     // Quote received from supplier
   QUOTE_APPROVED     // Quote approved, ready for invoicing
+  BUDGET_SENT        // Budget quote sent to client for approval
+  BUDGET_APPROVED    // Client approved budget, ready for detailed invoice
   INVOICED_TO_CLIENT // Invoice sent to client
   CLIENT_PAID        // Client paid (or deposit paid)
   ORDERED            // PO created, ordered from supplier
@@ -3465,9 +3467,11 @@ model BudgetQuote {
 
   // Items
   itemIds           String[]          // Array of RoomFFEItem IDs
+  supplierQuoteIds  String[]          // Array of SupplierQuote IDs (if created from quotes)
 
   // Pricing
   estimatedTotal    Decimal           // Total estimate
+  markupPercent     Decimal?          // Markup applied (if any)
   currency          String   @default("CAD")
   includeTax        Boolean  @default(true)  // Show "+ tax" message
 

@@ -38,6 +38,7 @@ interface RecordPaymentDialogProps {
 }
 
 const paymentMethods = [
+  { value: 'E_TRANSFER', label: 'Interac e-Transfer', icon: Wallet },
   { value: 'WIRE_TRANSFER', label: 'Wire Transfer', icon: Building },
   { value: 'CHECK', label: 'Check', icon: Banknote },
   { value: 'CREDIT_CARD', label: 'Credit Card', icon: CreditCard },
@@ -275,16 +276,16 @@ export default function RecordPaymentDialog({
           </div>
 
           {/* Reference Number */}
-          {(method === 'CHECK' || method === 'WIRE_TRANSFER') && (
+          {(method === 'CHECK' || method === 'WIRE_TRANSFER' || method === 'E_TRANSFER') && (
             <div>
               <Label htmlFor="reference">
-                {method === 'CHECK' ? 'Check Number' : 'Wire Reference'}
+                {method === 'CHECK' ? 'Check Number' : method === 'E_TRANSFER' ? 'Confirmation Number' : 'Wire Reference'}
               </Label>
               <Input
                 id="reference"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder={method === 'CHECK' ? 'e.g., 1234' : 'e.g., TRF-123456'}
+                placeholder={method === 'CHECK' ? 'e.g., 1234' : method === 'E_TRANSFER' ? 'e.g., CA12345678' : 'e.g., TRF-123456'}
               />
             </div>
           )}
