@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-04-30.basil'
@@ -50,8 +51,8 @@ export async function POST(
     const ccFee = subtotal * (ccFeeRate / 100)
     const totalWithFee = Math.round((subtotal + ccFee) * 100) // Stripe uses cents
 
-    // Get base URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Get base URL (always uses production URL on Vercel)
+    const baseUrl = getBaseUrl()
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

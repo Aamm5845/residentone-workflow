@@ -222,7 +222,10 @@ export async function POST(request: NextRequest) {
           const itemMarkup = markupMap.get(category) || markup
 
           const costPrice = parseFloat(item.unitPrice.toString())
-          const sellingPrice = costPrice * (1 + itemMarkup / 100)
+          // Round to 2 decimal places for currency precision
+          const sellingPrice = Math.round(costPrice * (1 + itemMarkup / 100) * 100) / 100
+          const markupAmount = Math.round((sellingPrice - costPrice) * item.quantity * 100) / 100
+          const clientTotal = Math.round(sellingPrice * item.quantity * 100) / 100
 
           lineItemsData.push({
             supplierQuoteId: sqId,
@@ -237,9 +240,9 @@ export async function POST(request: NextRequest) {
             supplierTotalPrice: item.totalPrice,
             markupType: 'PERCENTAGE',
             markupValue: itemMarkup,
-            markupAmount: new Decimal((sellingPrice - costPrice) * item.quantity),
+            markupAmount: new Decimal(markupAmount),
             clientUnitPrice: sellingPrice,
-            clientTotalPrice: new Decimal(sellingPrice * item.quantity)
+            clientTotalPrice: new Decimal(clientTotal)
           })
         }
       }
@@ -248,8 +251,12 @@ export async function POST(request: NextRequest) {
       lineItemsData = customLineItems.map((item: any) => {
         const itemMarkup = item.markupPercent || markup
         const costPrice = parseFloat(item.costPrice || 0)
-        const sellingPrice = costPrice * (1 + itemMarkup / 100)
+        // Round to 2 decimal places for currency precision
+        const sellingPrice = Math.round(costPrice * (1 + itemMarkup / 100) * 100) / 100
         const quantity = item.quantity || 1
+        const markupAmount = Math.round((sellingPrice - costPrice) * quantity * 100) / 100
+        const clientTotal = Math.round(sellingPrice * quantity * 100) / 100
+        const supplierTotal = Math.round(costPrice * quantity * 100) / 100
 
         return {
           roomFFEItemId: item.roomFFEItemId,
@@ -261,18 +268,18 @@ export async function POST(request: NextRequest) {
           quantity: quantity,
           unitType: item.unitType || 'units',
           supplierUnitPrice: costPrice,
-          supplierTotalPrice: costPrice * quantity,
+          supplierTotalPrice: supplierTotal,
           markupType: 'PERCENTAGE',
           markupValue: itemMarkup,
-          markupAmount: (sellingPrice - costPrice) * quantity,
+          markupAmount: markupAmount,
           clientUnitPrice: sellingPrice,
-          clientTotalPrice: sellingPrice * quantity
+          clientTotalPrice: clientTotal
         }
       })
     }
 
-    // Calculate totals
-    const subtotal = lineItemsData.reduce((sum, item) => sum + parseFloat(item.clientTotalPrice.toString()), 0)
+    // Calculate totals - round to 2 decimal places
+    const subtotal = Math.round(lineItemsData.reduce((sum, item) => sum + parseFloat(item.clientTotalPrice.toString()), 0) * 100) / 100
 
     // Get organization tax rates
     const organization = await prisma.organization.findUnique({
@@ -283,12 +290,12 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Calculate GST and QST
+    // Calculate GST and QST - round to 2 decimal places
     const gstRate = organization?.defaultGstRate ? parseFloat(organization.defaultGstRate.toString()) : 5
     const qstRate = organization?.defaultQstRate ? parseFloat(organization.defaultQstRate.toString()) : 9.975
-    const gstAmount = subtotal * (gstRate / 100)
-    const qstAmount = subtotal * (qstRate / 100)
-    const totalAmount = subtotal + gstAmount + qstAmount
+    const gstAmount = Math.round(subtotal * (gstRate / 100) * 100) / 100
+    const qstAmount = Math.round(subtotal * (qstRate / 100) * 100) / 100
+    const totalAmount = Math.round((subtotal + gstAmount + qstAmount) * 100) / 100
 
     // Create client quote
     const clientQuote = await prisma.clientQuote.create({

@@ -102,11 +102,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No items found' }, { status: 404 })
     }
 
-    // Calculate pricing
+    // Calculate pricing - round to 2 decimal places
     let subtotal = 0
     const lineItemsData = items.map(item => {
-      const unitPrice = Number(item.rrp || item.unitCost || item.tradePrice || 0)
-      const total = unitPrice * item.quantity
+      const unitPrice = Math.round(Number(item.rrp || item.unitCost || item.tradePrice || 0) * 100) / 100
+      const total = Math.round(unitPrice * item.quantity * 100) / 100
+      const supplierUnit = Math.round(Number(item.tradePrice || item.unitCost || 0) * 100) / 100
+      const supplierTotal = Math.round(supplierUnit * item.quantity * 100) / 100
       subtotal += total
 
       return {
@@ -119,14 +121,16 @@ export async function POST(request: NextRequest) {
         unitType: item.unitType || 'units',
         clientUnitPrice: unitPrice,
         clientTotalPrice: total,
-        supplierUnitPrice: Number(item.tradePrice || item.unitCost || 0),
-        supplierTotalPrice: Number(item.tradePrice || item.unitCost || 0) * item.quantity,
+        supplierUnitPrice: supplierUnit,
+        supplierTotalPrice: supplierTotal,
         markupType: 'FIXED',
         markupValue: 0,
         markupAmount: 0,
         order: 0
       }
     })
+    // Round subtotal to 2 decimal places
+    subtotal = Math.round(subtotal * 100) / 100
 
     // Calculate taxes
     const effectiveGstRate = Number(gstRate) || Number(organization?.defaultGstRate) || QUEBEC_TAX_RATES.GST
