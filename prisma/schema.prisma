@@ -2539,6 +2539,25 @@ enum FFESpecStatus {
   NEED_SAMPLE        // Need sample before proceeding
   ISSUE              // There's a problem to resolve
   ARCHIVED           // Item archived, unlinked from FFE
+
+  // === LEGACY STATUSES (kept for existing data) ===
+  OPTION
+  QUOTING
+  PRICE_RECEIVED
+  INTERNAL_REVIEW
+  CLIENT_REVIEW
+  RESUBMIT
+  REJECTED
+  APPROVED
+  PAYMENT_DUE
+  IN_TRANSIT
+  NEEDS_SPEC
+  SPEC_ADDED
+  QUOTED
+  BETTER_PRICE
+  NEED_TO_ORDER
+  IN_PRODUCTION
+  COMPLETED
 }
 
 enum ProductLibraryStatus {

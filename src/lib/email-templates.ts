@@ -1059,3 +1059,290 @@ export function generatePaymentConfirmationEmailTemplate(data: PaymentConfirmati
 
   return { subject, html }
 }
+
+/**
+ * Purchase Order Email Template
+ * Professional email sent to suppliers when placing an order
+ */
+export interface PurchaseOrderEmailData {
+  poNumber: string
+  supplierName: string
+  supplierContactName?: string
+  projectName: string
+  projectAddress?: string | null
+  companyName: string
+  companyLogo?: string
+  companyPhone?: string
+  companyEmail?: string
+  companyAddress?: string
+  items: Array<{
+    name: string
+    description?: string | null
+    quantity: number
+    unitType?: string | null
+    unitPrice: number
+    totalPrice: number
+    sku?: string | null
+    brand?: string | null
+    color?: string | null
+    finish?: string | null
+    notes?: string | null
+    images?: string[] | null
+  }>
+  subtotal: number
+  taxAmount?: number
+  shippingCost?: number
+  totalAmount: number
+  currency?: string
+  shippingAddress?: string | null
+  shippingMethod?: string | null
+  expectedDelivery?: Date | null
+  notes?: string | null
+  paymentTerms?: string
+  orderDate: Date
+}
+
+export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData): {
+  subject: string
+  html: string
+} {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: data.currency || 'CAD',
+    }).format(amount)
+  }
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(date)
+  }
+
+  const subject = `Purchase Order ${data.poNumber} from ${data.companyName}`
+
+  // Build item rows HTML
+  const itemRowsHtml = data.items.map((item, index) => {
+    const imageUrl = item.images?.[0]
+    const specs = [
+      item.sku && `SKU: ${item.sku}`,
+      item.brand && `Brand: ${item.brand}`,
+      item.color && `Color: ${item.color}`,
+      item.finish && `Finish: ${item.finish}`,
+    ].filter(Boolean).join(' | ')
+
+    return `
+      <tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 16px; vertical-align: top; width: 50px; color: #6b7280; font-size: 14px;">${index + 1}</td>
+        <td style="padding: 16px; vertical-align: top;">
+          <div style="display: flex; gap: 12px;">
+            ${imageUrl ? `
+              <img src="${imageUrl}" alt="${item.name}"
+                   style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; flex-shrink: 0;" />
+            ` : ''}
+            <div>
+              <div style="font-weight: 600; color: #111827; font-size: 14px;">${item.name}</div>
+              ${item.description ? `<div style="color: #6b7280; font-size: 13px; margin-top: 4px;">${item.description}</div>` : ''}
+              ${specs ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">${specs}</div>` : ''}
+              ${item.notes ? `<div style="color: #b45309; font-size: 12px; margin-top: 4px; font-style: italic;">Note: ${item.notes}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td style="padding: 16px; vertical-align: top; text-align: center; white-space: nowrap;">
+          <div style="font-weight: 600; color: #111827;">${item.quantity}</div>
+          <div style="color: #6b7280; font-size: 12px;">${item.unitType || 'units'}</div>
+        </td>
+        <td style="padding: 16px; vertical-align: top; text-align: right; color: #374151;">${formatCurrency(item.unitPrice)}</td>
+        <td style="padding: 16px; vertical-align: top; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(item.totalPrice)}</td>
+      </tr>
+    `
+  }).join('')
+
+  const shippingInfoHtml = data.shippingAddress ? `
+    <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+        Shipping Information
+      </h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div>
+          <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Delivery Address</div>
+          <div style="color: #111827; font-size: 14px; white-space: pre-line;">${data.shippingAddress}</div>
+        </div>
+        <div>
+          ${data.shippingMethod ? `
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Shipping Method</div>
+            <div style="color: #111827; font-size: 14px;">${data.shippingMethod}</div>
+          ` : ''}
+          ${data.expectedDelivery ? `
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px; margin-top: 12px;">Expected Delivery</div>
+            <div style="color: #111827; font-size: 14px;">${formatDate(data.expectedDelivery)}</div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  ` : ''
+
+  const notesHtml = data.notes ? `
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+      <div style="font-size: 12px; color: #92400e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 600;">Special Instructions</div>
+      <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">${data.notes}</p>
+    </div>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Order ${data.poNumber}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; line-height: 1.6;">
+    <div style="max-width: 700px; margin: 0 auto; background: white;">
+        <!-- Header with Company Branding -->
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 32px; text-align: center;">
+            ${data.companyLogo ? `
+            <img src="${data.companyLogo}"
+                 alt="${data.companyName}"
+                 style="max-width: 200px; max-height: 70px; height: auto; margin-bottom: 20px; background-color: white; padding: 14px; border-radius: 8px;" />
+            ` : `
+            <div style="color: white; font-size: 28px; font-weight: 700; margin-bottom: 20px;">${data.companyName}</div>
+            `}
+            <div style="display: inline-block; background: #10b981; color: white; padding: 8px 24px; border-radius: 20px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                Purchase Order
+            </div>
+            <h1 style="margin: 16px 0 0 0; color: white; font-size: 32px; font-weight: 700;">${data.poNumber}</h1>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+            <!-- Greeting -->
+            <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px;">
+                Dear ${data.supplierContactName || data.supplierName},
+            </p>
+
+            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 15px;">
+                Please find below our official purchase order. We kindly request confirmation of this order and estimated delivery date.
+            </p>
+
+            <!-- Order Details Card -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 140px;">PO Number:</td>
+                        <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${data.poNumber}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Order Date:</td>
+                        <td style="padding: 8px 0; color: #111827; font-size: 14px;">${formatDate(data.orderDate)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Project:</td>
+                        <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.projectName}</td>
+                    </tr>
+                    ${data.projectAddress ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Project Address:</td>
+                        <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.projectAddress}</td>
+                    </tr>
+                    ` : ''}
+                    ${data.paymentTerms ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Payment Terms:</td>
+                        <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.paymentTerms}</td>
+                    </tr>
+                    ` : ''}
+                </table>
+            </div>
+
+            <!-- Shipping Information -->
+            ${shippingInfoHtml}
+
+            <!-- Special Instructions -->
+            ${notesHtml}
+
+            <!-- Items Table -->
+            <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600; border-bottom: 2px solid #111827; padding-bottom: 8px;">
+                Order Items (${data.items.length})
+            </h3>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <thead>
+                    <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                        <th style="padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">#</th>
+                        <th style="padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Item Details</th>
+                        <th style="padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Qty</th>
+                        <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Unit Price</th>
+                        <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemRowsHtml}
+                </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <table style="width: 100%; max-width: 300px; margin-left: auto;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Subtotal</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.subtotal)}</td>
+                    </tr>
+                    ${data.taxAmount ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Tax</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.taxAmount)}</td>
+                    </tr>
+                    ` : ''}
+                    ${data.shippingCost ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Shipping</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.shippingCost)}</td>
+                    </tr>
+                    ` : ''}
+                    <tr style="border-top: 2px solid #e5e7eb;">
+                        <td style="padding: 16px 0 8px 0; color: #111827; font-size: 18px; font-weight: 700;">Total</td>
+                        <td style="padding: 16px 0 8px 0; text-align: right; color: #111827; font-size: 18px; font-weight: 700;">${formatCurrency(data.totalAmount)}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Action Required Box -->
+            <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 16px; color: #065f46; font-weight: 600; margin-bottom: 8px;">
+                    Please Confirm This Order
+                </div>
+                <p style="margin: 0; color: #047857; font-size: 14px;">
+                    Reply to this email to confirm receipt and provide estimated delivery date.
+                </p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <!-- Company Contact Info -->
+            <div style="text-align: center;">
+                <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px; font-weight: 600;">${data.companyName}</p>
+                ${data.companyAddress ? `<p style="margin: 0 0 8px 0; color: #6b7280; font-size: 13px;">${data.companyAddress}</p>` : ''}
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                    ${data.companyEmail || 'info@company.com'}
+                    ${data.companyPhone ? ` | ${data.companyPhone}` : ''}
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 24px; text-align: center;">
+            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px;">
+                This is an official purchase order from ${data.companyName}.
+            </p>
+            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                &copy; ${new Date().getFullYear()} ${data.companyName}. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}
