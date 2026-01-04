@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendEmail } from '@/lib/send-email'
+import { sendEmail } from '@/lib/email'
 import { generateBudgetApprovalNotificationEmail, generateBudgetQuestionNotificationEmail } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'

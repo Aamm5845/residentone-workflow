@@ -6,7 +6,8 @@ import {
   Building2,
   Receipt,
   Package,
-  Truck
+  Truck,
+  DollarSign
 } from 'lucide-react'
 
 interface ProcurementTabsProps {
@@ -19,6 +20,7 @@ const tabs = [
   { id: 'inbox', label: 'Inbox', icon: Inbox, color: 'text-amber-500' },
   { id: 'rfqs', label: 'RFQs', icon: FileText, color: 'text-blue-500' },
   { id: 'supplier-quotes', label: 'Supplier Quotes', icon: Building2, color: 'text-purple-500' },
+  { id: 'budget-quotes', label: 'Budget Quotes', icon: DollarSign, color: 'text-violet-500' },
   { id: 'client-invoices', label: 'Client Invoices', icon: Receipt, color: 'text-emerald-500' },
   { id: 'orders', label: 'Orders', icon: Package, color: 'text-indigo-500' },
   { id: 'delivery', label: 'Delivery Tracker', icon: Truck, color: 'text-cyan-500' },

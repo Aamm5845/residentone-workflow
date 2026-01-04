@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email'
+import { generateBudgetQuoteEmailTemplate } from '@/lib/email-templates'
+import { getBaseUrl } from '@/lib/get-base-url'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/budget-quotes/[id]/send
- * Mark budget quote as sent and optionally send email
+ * Send budget quote to client via email
  */
 export async function POST(
   request: NextRequest,
@@ -19,7 +24,11 @@ export async function POST(
     const { id } = await params
     const orgId = (session.user as any).orgId
     const body = await request.json()
-    const { email, sendEmail = false } = body
+    const { email } = body
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    }
 
     // Verify budget quote exists and belongs to org
     const budgetQuote = await prisma.budgetQuote.findFirst({
@@ -29,7 +38,12 @@ export async function POST(
           select: { id: true, name: true }
         },
         org: {
-          select: { id: true, name: true }
+          select: {
+            id: true,
+            name: true,
+            logoUrl: true,
+            businessName: true
+          }
         }
       }
     })
@@ -38,32 +52,84 @@ export async function POST(
       return NextResponse.json({ error: 'Budget quote not found' }, { status: 404 })
     }
 
-    // Update budget quote with sent info
-    const updated = await prisma.budgetQuote.update({
-      where: { id },
-      data: {
-        sentAt: new Date(),
-        sentToEmail: email || budgetQuote.clientEmail,
-        status: 'SENT'
+    // Fetch item details
+    const items = await prisma.roomFFEItem.findMany({
+      where: {
+        id: { in: budgetQuote.itemIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        section: {
+          select: { name: true }
+        }
       }
     })
 
-    // Generate public URL
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const publicUrl = `${baseUrl}/budget-quote/${budgetQuote.token}`
+    // Get client name from email
+    const clientName = email.split('@')[0].replace(/[._-]/g, ' ')
+      .split(' ')
+      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
 
-    // TODO: Implement actual email sending here
-    // For now, we just mark it as sent and return the URL
-    if (sendEmail && (email || budgetQuote.clientEmail)) {
-      // Email sending would go here
-      // Could use nodemailer, resend, sendgrid, etc.
-      console.log(`Would send budget quote email to: ${email || budgetQuote.clientEmail}`)
+    // Build portal URL
+    const baseUrl = getBaseUrl()
+    const portalUrl = `${baseUrl}/budget-quote/${budgetQuote.token}`
+
+    // Generate email
+    const companyName = budgetQuote.org.businessName || budgetQuote.org.name
+    const emailHtml = generateBudgetQuoteEmailTemplate({
+      budgetQuoteNumber: `BQ-${budgetQuote.id.slice(-6).toUpperCase()}`,
+      clientName,
+      projectName: budgetQuote.project.name,
+      companyName,
+      companyLogo: budgetQuote.org.logoUrl || undefined,
+      title: budgetQuote.title,
+      items: items.map(item => ({
+        name: item.name,
+        categoryName: item.section?.name
+      })),
+      estimatedTotal: parseFloat(budgetQuote.estimatedTotal.toString()),
+      includeTax: budgetQuote.includeTax,
+      includedServices: budgetQuote.includedServices || [],
+      validUntil: budgetQuote.expiresAt,
+      portalUrl
+    })
+
+    // Send email
+    await sendEmail({
+      to: email,
+      subject: `Budget Estimate: ${budgetQuote.title} - ${budgetQuote.project.name}`,
+      html: emailHtml
+    })
+
+    // Update budget quote
+    const updated = await prisma.budgetQuote.update({
+      where: { id },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+        sentToEmail: email,
+        clientEmail: email
+      }
+    })
+
+    // Update items to BUDGET_SENT status
+    if (budgetQuote.itemIds.length > 0) {
+      await prisma.roomFFEItem.updateMany({
+        where: {
+          id: { in: budgetQuote.itemIds }
+        },
+        data: {
+          status: 'BUDGET_SENT'
+        }
+      })
     }
 
     return NextResponse.json({
       success: true,
       budgetQuote: updated,
-      publicUrl
+      publicUrl: portalUrl
     })
   } catch (error) {
     console.error('Error sending budget quote:', error)

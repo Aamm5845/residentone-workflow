@@ -7,6 +7,7 @@ import ProcurementTabs from './ProcurementTabs'
 import InboxTab from './InboxTab'
 import RFQsTab from './RFQsTab'
 import SupplierQuotesTab from './SupplierQuotesTab'
+import BudgetQuotesTab from './BudgetQuotesTab'
 import ClientInvoicesTab from './ClientInvoicesTab'
 import OrdersTab from './OrdersTab'
 import DeliveryTrackerTab from './DeliveryTrackerTab'
@@ -126,6 +127,12 @@ export default function ProcurementContent({
             searchQuery={searchQuery}
             highlightQuoteId={selectedQuoteId}
             onQuoteViewed={() => setSelectedQuoteId(null)}
+          />
+        )}
+        {activeTab === 'budget-quotes' && (
+          <BudgetQuotesTab
+            projectId={project.id}
+            searchQuery={searchQuery}
           />
         )}
         {activeTab === 'client-invoices' && (

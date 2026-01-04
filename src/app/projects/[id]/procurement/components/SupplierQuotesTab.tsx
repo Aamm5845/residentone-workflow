@@ -50,6 +50,7 @@ import {
   XCircle
 } from 'lucide-react'
 import CreateInvoiceDialog from './CreateInvoiceDialog'
+import CreateBudgetQuoteDialog from './CreateBudgetQuoteDialog'
 import QuotePDFReviewDialog from './QuotePDFReviewDialog'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -252,6 +253,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const [selectedQuoteForInvoice, setSelectedQuoteForInvoice] = useState<string | null>(null)
   const [selectedQuoteData, setSelectedQuoteData] = useState<{ supplierName: string; quoteNumber: string } | null>(null)
 
+  // Budget quote dialog state
+  const [budgetQuoteDialogOpen, setBudgetQuoteDialogOpen] = useState(false)
+  const [selectedQuoteForBudget, setSelectedQuoteForBudget] = useState<SupplierQuote | null>(null)
+
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [selectedQuote, setSelectedQuote] = useState<SupplierQuote | null>(null)
@@ -264,10 +269,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const [editedLineItems, setEditedLineItems] = useState<Record<string, { unitPrice: number; leadTime: string }>>({})
   const [saving, setSaving] = useState(false)
 
-  // Match approval state - tracks which line items have been approved
-  const [approvedMatches, setApprovedMatches] = useState<Set<string>>(new Set())
-  const [approvingMatchId, setApprovingMatchId] = useState<string | null>(null)
-
   // PDF Review dialog state
   const [pdfReviewOpen, setPdfReviewOpen] = useState(false)
   const [pdfReviewQuote, setPdfReviewQuote] = useState<SupplierQuote | null>(null)
@@ -276,28 +277,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const openPdfReview = (quote: SupplierQuote) => {
     setPdfReviewQuote(quote)
     setPdfReviewOpen(true)
-  }
-
-  // Approve a match between quote line item and RFQ item
-  const approveMatch = async (lineItemId: string, quoteId: string) => {
-    setApprovingMatchId(lineItemId)
-    try {
-      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/approve-match`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lineItemId, quoteId })
-      })
-
-      if (!res.ok) throw new Error('Failed to approve match')
-
-      setApprovedMatches(prev => new Set([...prev, lineItemId]))
-      toast.success('Match approved')
-    } catch (error) {
-      console.error('Error approving match:', error)
-      toast.error('Failed to approve match')
-    } finally {
-      setApprovingMatchId(null)
-    }
   }
 
   const fetchQuotes = useCallback(async () => {
@@ -764,23 +743,18 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[180px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-                      {/* Quote Document Thumbnail with PDF Review */}
+                    <div className="w-[200px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {/* Quote Document Thumbnail */}
                       {quote.quoteDocumentUrl ? (
                         <button
-                          onClick={() => openPdfReview(quote)}
+                          onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
                           className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden relative group"
-                          title="Review Quote PDF with AI Analysis"
+                          title="Open PDF"
                         >
                           {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                             <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
                           ) : (
-                            <FileText className="w-5 h-5 text-blue-600" />
-                          )}
-                          {quote.aiExtractedData && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
-                              <Eye className="w-2.5 h-2.5 text-white" />
-                            </div>
+                            <FileText className="w-5 h-5 text-gray-500" />
                           )}
                         </button>
                       ) : (
@@ -788,45 +762,53 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           <FileText className="w-4 h-4 text-gray-300" />
                         </div>
                       )}
-                      {/* AI Review Button */}
-                      {quote.aiExtractedData && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-                          onClick={() => openPdfReview(quote)}
-                          title="Review supplier quote vs your request"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          AI Review
-                        </Button>
-                      )}
+                      {/* Review Quote Button - Opens PDF review if AI data exists, otherwise basic review */}
                       <Button
-                        variant="outline"
+                        variant={quote.aiExtractedData ? "default" : "outline"}
                         size="sm"
-                        className="h-8 px-2 text-xs"
-                        onClick={() => openReviewDialog(quote)}
+                        className={quote.aiExtractedData
+                          ? "h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                          : "h-8 px-3 text-xs"
+                        }
+                        onClick={() => quote.aiExtractedData ? openPdfReview(quote) : openReviewDialog(quote)}
+                        title={quote.aiExtractedData ? "Review & verify AI-matched items" : "Review quote"}
                       >
-                        Review
+                        <Eye className="w-3.5 h-3.5 mr-1.5" />
+                        {quote.aiExtractedData ? 'Review Matches' : 'Review'}
                       </Button>
                       {quote.status === 'ACCEPTED' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={() => {
-                            setSelectedQuoteForInvoice(quote.id)
-                            setSelectedQuoteData({
-                              supplierName: quote.supplier.name,
-                              quoteNumber: quote.quoteNumber || ''
-                            })
-                            setInvoiceDialogOpen(true)
-                          }}
-                          title="Create Client Invoice"
-                        >
-                          <Receipt className="w-3.5 h-3.5 mr-1" />
-                          <span className="text-xs">Invoice</span>
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                            onClick={() => {
+                              setSelectedQuoteForBudget(quote)
+                              setBudgetQuoteDialogOpen(true)
+                            }}
+                            title="Create Budget Quote"
+                          >
+                            <DollarSign className="w-3.5 h-3.5 mr-1" />
+                            <span className="text-xs">Budget</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => {
+                              setSelectedQuoteForInvoice(quote.id)
+                              setSelectedQuoteData({
+                                supplierName: quote.supplier.name,
+                                quoteNumber: quote.quoteNumber || ''
+                              })
+                              setInvoiceDialogOpen(true)
+                            }}
+                            title="Create Client Invoice"
+                          >
+                            <Receipt className="w-3.5 h-3.5 mr-1" />
+                            <span className="text-xs">Invoice</span>
+                          </Button>
+                        </>
                       )}
                       {quote.status === 'REJECTED' && (
                         <Button
@@ -1171,7 +1153,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                         {/* Matched RFQ Item Display */}
                                         {item.rfqLineItemId && (
                                           <div className={`mt-2 p-2 rounded-md border text-xs ${
-                                            item.matchApproved || approvedMatches.has(item.id)
+                                            item.matchApproved
                                               ? 'bg-emerald-50 border-emerald-200'
                                               : item.matchConfidence === 'high'
                                               ? 'bg-blue-50 border-blue-200'
@@ -1198,9 +1180,14 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                                   </span>
                                                 )}
                                               </div>
-                                              {/* Confidence indicator and approve button */}
+                                              {/* Status indicator */}
                                               <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                {item.matchConfidence && !item.matchApproved && !approvedMatches.has(item.id) && (
+                                                {item.matchApproved ? (
+                                                  <span className="flex items-center gap-1 text-emerald-600">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    <span className="font-medium">Verified</span>
+                                                  </span>
+                                                ) : item.matchConfidence && (
                                                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                                     item.matchConfidence === 'high'
                                                       ? 'bg-blue-100 text-blue-700'
@@ -1208,31 +1195,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                                       ? 'bg-amber-100 text-amber-700'
                                                       : 'bg-gray-100 text-gray-600'
                                                   }`}>
-                                                    {item.matchConfidence === 'high' ? 'AI: High' : item.matchConfidence === 'medium' ? 'AI: Med' : 'AI: Low'}
+                                                    {item.matchConfidence === 'high' ? 'AI Match' : item.matchConfidence === 'medium' ? 'Needs Review' : 'Low Confidence'}
                                                   </span>
-                                                )}
-                                                {item.matchApproved || approvedMatches.has(item.id) ? (
-                                                  <span className="flex items-center gap-1 text-emerald-600">
-                                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                                    <span className="font-medium">Verified</span>
-                                                  </span>
-                                                ) : (
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation()
-                                                      approveMatch(item.id, quote.id)
-                                                    }}
-                                                    disabled={approvingMatchId === item.id}
-                                                    className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-300 rounded hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 transition-colors disabled:opacity-50"
-                                                    title="Verify this match is correct"
-                                                  >
-                                                    {approvingMatchId === item.id ? (
-                                                      <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                                    ) : (
-                                                      <Check className="w-3 h-3" />
-                                                    )}
-                                                    <span>Verify</span>
-                                                  </button>
                                                 )}
                                               </div>
                                             </div>
@@ -1336,40 +1300,54 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
 
                       {/* Actions for expanded view */}
-                      <div className="flex items-center justify-end gap-2 pt-2">
-                        {quote.status === 'SUBMITTED' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAction('decline', quote)}
-                              disabled={actionLoading}
-                            >
-                              <X className="w-4 h-4 mr-1.5" />
-                              Decline
-                            </Button>
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-200 mt-3">
+                        <div>
+                          {/* Review Matches Button */}
+                          {quote.aiExtractedData && (
                             <Button
                               size="sm"
-                              className={quote.hasMismatches
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-emerald-600 hover:bg-emerald-700"}
-                              onClick={() => handleAction('approve', quote)}
-                              disabled={actionLoading || quote.hasMismatches}
-                              title={quote.hasMismatches ? "Resolve all discrepancies before approving" : ""}
+                              className="bg-blue-600 hover:bg-blue-700"
+                              onClick={() => openPdfReview(quote)}
                             >
-                              <Check className="w-4 h-4 mr-1.5" />
-                              {quote.hasMismatches ? 'Fix Issues First' : 'Approve Quote'}
+                              <Eye className="w-4 h-4 mr-1.5" />
+                              Review & Verify Matches
                             </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openReviewDialog(quote)}
-                        >
-                          <Eye className="w-4 h-4 mr-1.5" />
-                          Full Review
-                        </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {quote.status === 'SUBMITTED' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAction('decline', quote)}
+                                disabled={actionLoading}
+                              >
+                                <X className="w-4 h-4 mr-1.5" />
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                className={quote.hasMismatches
+                                  ? "bg-gray-400 cursor-not-allowed"
+                                  : "bg-emerald-600 hover:bg-emerald-700"}
+                                onClick={() => handleAction('approve', quote)}
+                                disabled={actionLoading || quote.hasMismatches}
+                                title={quote.hasMismatches ? "Resolve all discrepancies before approving" : ""}
+                              >
+                                <Check className="w-4 h-4 mr-1.5" />
+                                {quote.hasMismatches ? 'Fix Issues First' : 'Approve Quote'}
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openReviewDialog(quote)}
+                          >
+                            Status Review
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1647,6 +1625,30 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         preselectedQuoteIds={selectedQuoteForInvoice ? [selectedQuoteForInvoice] : undefined}
         preselectedQuoteData={selectedQuoteData || undefined}
         source="quotes"
+      />
+
+      {/* Create Budget Quote Dialog */}
+      <CreateBudgetQuoteDialog
+        open={budgetQuoteDialogOpen}
+        onOpenChange={(open) => {
+          setBudgetQuoteDialogOpen(open)
+          if (!open) setSelectedQuoteForBudget(null)
+        }}
+        projectId={projectId}
+        onSuccess={() => {
+          setBudgetQuoteDialogOpen(false)
+          setSelectedQuoteForBudget(null)
+          fetchQuotes()
+        }}
+        preselectedItems={selectedQuoteForBudget?.lineItems.map(item => ({
+          id: item.roomFFEItemId || item.id,
+          name: item.itemName,
+          categoryName: item.brand || undefined,
+          totalCost: item.totalPrice,
+          clientApproved: item.matchApproved
+        })) || []}
+        preselectedSupplierQuoteIds={selectedQuoteForBudget ? [selectedQuoteForBudget.id] : []}
+        source="supplier-quotes"
       />
 
       {/* PDF Review Dialog - Compare supplier quote vs request */}
