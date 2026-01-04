@@ -29,6 +29,7 @@ interface OrganizationSettings {
   defaultQstRate: number | null
   wireInstructions: string | null
   checkInstructions: string | null
+  etransferEmail: string | null
 }
 
 export default function BusinessSettingsPage() {
@@ -53,6 +54,7 @@ export default function BusinessSettingsPage() {
     defaultQstRate: '9.975',
     wireInstructions: '',
     checkInstructions: '',
+    etransferEmail: '',
   })
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function BusinessSettingsPage() {
           defaultQstRate: data.organization.defaultQstRate?.toString() || '9.975',
           wireInstructions: data.organization.wireInstructions || '',
           checkInstructions: data.organization.checkInstructions || '',
+          etransferEmail: data.organization.etransferEmail || '',
         })
       }
     } catch (error) {
@@ -378,6 +381,25 @@ export default function BusinessSettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Interac e-Transfer */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <Label htmlFor="etransferEmail" className="text-green-800 font-medium">
+                  Interac e-Transfer Email
+                </Label>
+                <Input
+                  id="etransferEmail"
+                  type="email"
+                  value={formData.etransferEmail}
+                  onChange={(e) => handleInputChange('etransferEmail', e.target.value)}
+                  placeholder="payments@yourcompany.com"
+                  className="mt-2 bg-white"
+                />
+                <p className="text-xs text-green-700 mt-2">
+                  This email will be shown on all invoices for clients to send Interac e-Transfers.
+                  E-Transfer has no processing fee (unlike credit cards with 3% fee).
+                </p>
+              </div>
+
               <div>
                 <Label htmlFor="wireInstructions">Wire Transfer Instructions</Label>
                 <Textarea

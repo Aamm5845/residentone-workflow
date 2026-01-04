@@ -51,6 +51,7 @@ export async function GET() {
         defaultQstRate: true,
         wireInstructions: true,
         checkInstructions: true,
+        etransferEmail: true,
       }
     })
 
@@ -139,6 +140,7 @@ export async function PATCH(request: NextRequest) {
     // Payment Instructions
     if (body.wireInstructions !== undefined) updateData.wireInstructions = body.wireInstructions
     if (body.checkInstructions !== undefined) updateData.checkInstructions = body.checkInstructions
+    if (body.etransferEmail !== undefined) updateData.etransferEmail = body.etransferEmail
 
     const organization = await prisma.organization.update({
       where: { id: orgId },
@@ -162,6 +164,7 @@ export async function PATCH(request: NextRequest) {
         defaultQstRate: true,
         wireInstructions: true,
         checkInstructions: true,
+        etransferEmail: true,
       }
     })
 
