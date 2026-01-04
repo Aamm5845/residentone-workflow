@@ -639,7 +639,8 @@ export default function QuickQuoteDialog({
                     return docs.length > 0
                   })
                   const anyHasSpecs = itemsWithDocs.length > 0 || allItems.some(item =>
-                    item.specStatus === 'CLOSED' || item.specStatus === 'QUOTE_APPROVED'
+                    item.specStatus === 'CLOSED' || item.specStatus === 'QUOTE_APPROVED' ||
+                    item.specStatus === 'COMPLETED' || item.specStatus === 'APPROVED'
                   )
                   const anyHasNotes = allItems.some(item => item.notes && item.notes.trim().length > 0)
 
