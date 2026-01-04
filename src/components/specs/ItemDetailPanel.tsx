@@ -258,8 +258,8 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
     if (hasOrdered) return 'ordered'
     if (hasApproved) return 'approved'
     if (hasSentToClient) return 'sent_to_client'
-    if (hasQuoteReceived || specStatus === 'QUOTED' || specStatus === 'PRICE_RECEIVED' || specStatus === 'QUOTE_RECEIVED') return 'quoted'
-    if (specStatus === 'SELECTED' || specStatus === 'QUOTING' || specStatus === 'RFQ_SENT' || hasQuoteRequested) return 'selected'
+    if (hasQuoteReceived || specStatus === 'QUOTE_RECEIVED') return 'quoted'
+    if (specStatus === 'SELECTED' || specStatus === 'RFQ_SENT' || hasQuoteRequested) return 'selected'
     return 'selected'
   }
 

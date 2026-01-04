@@ -271,6 +271,56 @@ export async function GET(
             quoted?: number
             details: string
           }>
+          // Full extracted data for PDF review
+          supplierInfo?: {
+            companyName?: string
+            quoteNumber?: string
+            quoteDate?: string
+            validUntil?: string
+            subtotal?: number
+            shipping?: number
+            taxes?: number
+            total?: number
+          }
+          extractedItems?: Array<{
+            productName: string
+            productNameOriginal?: string
+            sku?: string
+            quantity?: number
+            unitPrice?: number
+            totalPrice?: number
+            brand?: string
+            description?: string
+            leadTime?: string
+          }>
+          matchResults?: Array<{
+            status: 'matched' | 'partial' | 'missing' | 'extra'
+            confidence: number
+            rfqItem?: {
+              id: string
+              itemName: string
+              quantity: number
+              sku?: string
+              brand?: string
+            }
+            extractedItem?: {
+              productName: string
+              sku?: string
+              quantity?: number
+              unitPrice?: number
+              totalPrice?: number
+              brand?: string
+              description?: string
+              leadTime?: string
+            }
+            discrepancies?: string[]
+            suggestedMatches?: Array<{
+              id: string
+              itemName: string
+              confidence: number
+            }>
+          }>
+          notes?: string
         } | null
 
         // Build enhanced mismatch list with full item details
@@ -458,6 +508,14 @@ export async function GET(
             totalRequested: aiMatchData.totalRequested || 0,
             quantityDiscrepancies: aiMatchData.quantityDiscrepancies || 0,
             totalDiscrepancy: aiMatchData.totalDiscrepancy || false
+          } : null,
+
+          // Full AI extracted data for PDF review
+          aiExtractedData: aiMatchData ? {
+            supplierInfo: aiMatchData.supplierInfo || null,
+            extractedItems: aiMatchData.extractedItems || [],
+            matchResults: aiMatchData.matchResults || [],
+            notes: aiMatchData.notes || null
           } : null
         })
       }

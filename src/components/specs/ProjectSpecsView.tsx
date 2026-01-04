@@ -113,13 +113,10 @@ import CreateClientQuoteDialog from '@/components/procurement/create-client-quot
 import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 
-// Item status options - ordered by workflow
+// Item status options - ordered by workflow (clean list)
 const ITEM_STATUS_OPTIONS = [
-  // Pre-selection statuses
+  // === PROCUREMENT WORKFLOW (auto-updated) ===
   { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
-  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
-  { value: 'OPTION', label: 'Option', icon: Circle, color: 'text-purple-400', requiresApproval: false },
-  // Main workflow statuses
   { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
   { value: 'RFQ_SENT', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
   { value: 'QUOTE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
@@ -132,21 +129,16 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-teal-600', requiresApproval: true },
   { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
   { value: 'CLOSED', label: 'Closed', icon: CheckCheck, color: 'text-gray-600', requiresApproval: true },
-  // Additional statuses
+  // === MANUAL STATUSES ===
+  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
+  { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-purple-500', requiresApproval: false },
   { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
-  { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
-  // Legacy statuses (for backward compatibility)
-  { value: 'QUOTING', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
-  { value: 'PRICE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
-  { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },
-  { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
-  { value: 'IN_PRODUCTION', label: 'In Production', icon: Factory, color: 'text-cyan-600', requiresApproval: true },
-  { value: 'COMPLETED', label: 'Completed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
+  { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-gray-400', requiresApproval: false },
 ]
 
 // Statuses that require client approval to select
-const APPROVAL_REQUIRED_STATUSES = ['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED', 'CLIENT_TO_ORDER', 'IN_PRODUCTION', 'COMPLETED']
+const APPROVAL_REQUIRED_STATUSES = ['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED']
 
 // Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
@@ -4381,14 +4373,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                         className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 transition-colors cursor-pointer"
                                                         onClick={(e) => {
                                                           e.stopPropagation()
-                                                          // Try to find and scroll to the child item
+                                                          // Open the child item in the detail panel
                                                           if (childSpec) {
-                                                            const childElement = document.querySelector(`[data-item-id="${childSpec.id}"]`)
-                                                            if (childElement) {
-                                                              childElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                              childElement.classList.add('ring-2', 'ring-violet-400')
-                                                              setTimeout(() => childElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                                            }
+                                                            setDetailPanel({
+                                                              isOpen: true,
+                                                              mode: 'view',
+                                                              item: childSpec,
+                                                              sectionId: childSpec.sectionId,
+                                                              roomId: childSpec.roomId
+                                                            })
                                                           }
                                                         }}
                                                       >
@@ -4434,19 +4427,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           </Popover>
                                         )}
                                         {/* Child linked to parent - enhanced popover with details */}
-                                        {isGroupedItem && parentName && (
+                                        {isGroupedItem && parentName && (() => {
+                                          // Find the parent item to enable navigation
+                                          const parentSpec = parentId ? filteredSpecs.find(s => s.id === parentId) : null
+                                          return (
                                           <Popover>
                                             <PopoverTrigger asChild>
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation()
-                                                  if (parentId) {
-                                                    const parentElement = document.querySelector(`[data-item-id="${parentId}"]`)
-                                                    if (parentElement) {
-                                                      parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                      parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                      setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                                    }
+                                                  // Navigate to parent item in detail panel
+                                                  if (parentSpec) {
+                                                    setDetailPanel({
+                                                      isOpen: true,
+                                                      mode: 'view',
+                                                      item: parentSpec,
+                                                      sectionId: parentSpec.sectionId,
+                                                      roomId: parentSpec.roomId
+                                                    })
                                                   }
                                                 }}
                                                 className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
@@ -4473,25 +4471,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                     </p>
                                                   )}
                                                 </div>
-                                                {/* Find parent item in list */}
+                                                {/* Navigate to parent item */}
                                                 <div className="flex items-center gap-2">
-                                                  {parentId && (
+                                                  {parentSpec && (
                                                     <Button
                                                       variant="outline"
                                                       size="sm"
                                                       className="h-7 text-xs flex-1"
                                                       onClick={(e) => {
                                                         e.stopPropagation()
-                                                        const parentElement = document.querySelector(`[data-item-id="${parentId}"]`)
-                                                        if (parentElement) {
-                                                          parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                          parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                          setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                                        }
+                                                        // Open parent in detail panel
+                                                        setDetailPanel({
+                                                          isOpen: true,
+                                                          mode: 'view',
+                                                          item: parentSpec,
+                                                          sectionId: parentSpec.sectionId,
+                                                          roomId: parentSpec.roomId
+                                                        })
                                                       }}
                                                     >
                                                       <Eye className="w-3 h-3 mr-1" />
-                                                      Find in List
+                                                      View Parent
                                                     </Button>
                                                   )}
                                                   <Button
@@ -4525,7 +4525,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                               </div>
                                             </PopoverContent>
                                           </Popover>
-                                        )}
+                                          )
+                                        })()}
                                       </>
                                     )
                                   })()}

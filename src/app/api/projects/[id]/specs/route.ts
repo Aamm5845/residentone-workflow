@@ -198,7 +198,7 @@ export async function GET(
 
     // Calculate stats
     const totalItems = visibleSpecs.length
-    const completedItems = visibleSpecs.filter(s => s.specStatus === 'COMPLETED').length
+    const completedItems = visibleSpecs.filter(s => s.specStatus === 'CLOSED').length
     const approvedItems = visibleSpecs.filter(s => s.clientApproved).length
     const unapprovedItems = totalItems - approvedItems
     

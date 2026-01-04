@@ -50,6 +50,7 @@ import {
   XCircle
 } from 'lucide-react'
 import CreateInvoiceDialog from './CreateInvoiceDialog'
+import QuotePDFReviewDialog from './QuotePDFReviewDialog'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -119,6 +120,58 @@ interface AIMatchSummary {
   totalDiscrepancy: boolean
 }
 
+interface AIExtractedData {
+  supplierInfo: {
+    companyName?: string
+    quoteNumber?: string
+    quoteDate?: string
+    validUntil?: string
+    subtotal?: number
+    shipping?: number
+    taxes?: number
+    total?: number
+  } | null
+  extractedItems: Array<{
+    productName: string
+    productNameOriginal?: string
+    sku?: string
+    quantity?: number
+    unitPrice?: number
+    totalPrice?: number
+    brand?: string
+    description?: string
+    leadTime?: string
+  }>
+  matchResults: Array<{
+    status: 'matched' | 'partial' | 'missing' | 'extra'
+    confidence: number
+    rfqItem?: {
+      id: string
+      itemName: string
+      quantity: number
+      sku?: string
+      brand?: string
+    }
+    extractedItem?: {
+      productName: string
+      sku?: string
+      quantity?: number
+      unitPrice?: number
+      totalPrice?: number
+      brand?: string
+      description?: string
+      leadTime?: string
+    }
+    discrepancies?: string[]
+    suggestedMatches?: Array<{
+      id: string
+      itemName: string
+      confidence: number
+    }>
+  }>
+  notes: string | null
+}
+
 interface SupplierQuote {
   id: string
   supplierRFQId: string
@@ -158,6 +211,7 @@ interface SupplierQuote {
   hasMismatches: boolean
   mismatches: Mismatch[]
   aiMatchSummary: AIMatchSummary | null
+  aiExtractedData: AIExtractedData | null
 }
 
 interface Stats {
@@ -213,6 +267,16 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   // Match approval state - tracks which line items have been approved
   const [approvedMatches, setApprovedMatches] = useState<Set<string>>(new Set())
   const [approvingMatchId, setApprovingMatchId] = useState<string | null>(null)
+
+  // PDF Review dialog state
+  const [pdfReviewOpen, setPdfReviewOpen] = useState(false)
+  const [pdfReviewQuote, setPdfReviewQuote] = useState<SupplierQuote | null>(null)
+
+  // Open PDF review dialog
+  const openPdfReview = (quote: SupplierQuote) => {
+    setPdfReviewQuote(quote)
+    setPdfReviewOpen(true)
+  }
 
   // Approve a match between quote line item and RFQ item
   const approveMatch = async (lineItemId: string, quoteId: string) => {
@@ -700,24 +764,42 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[120px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-                      {/* Quote Document Thumbnail */}
+                    <div className="w-[180px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {/* Quote Document Thumbnail with PDF Review */}
                       {quote.quoteDocumentUrl ? (
                         <button
-                          onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden"
-                          title="View Quote Document"
+                          onClick={() => openPdfReview(quote)}
+                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden relative group"
+                          title="Review Quote PDF with AI Analysis"
                         >
                           {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                             <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
                           ) : (
                             <FileText className="w-5 h-5 text-blue-600" />
                           )}
+                          {quote.aiExtractedData && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                              <Eye className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
                         </button>
                       ) : (
                         <div className="w-10 h-10 rounded border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center">
                           <FileText className="w-4 h-4 text-gray-300" />
                         </div>
+                      )}
+                      {/* AI Review Button */}
+                      {quote.aiExtractedData && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => openPdfReview(quote)}
+                          title="Review supplier quote vs your request"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          AI Review
+                        </Button>
                       )}
                       <Button
                         variant="outline"
@@ -1566,6 +1648,31 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         preselectedQuoteData={selectedQuoteData || undefined}
         source="quotes"
       />
+
+      {/* PDF Review Dialog - Compare supplier quote vs request */}
+      {pdfReviewQuote && (
+        <QuotePDFReviewDialog
+          open={pdfReviewOpen}
+          onOpenChange={(open) => {
+            setPdfReviewOpen(open)
+            if (!open) setPdfReviewQuote(null)
+          }}
+          quoteDocumentUrl={pdfReviewQuote.quoteDocumentUrl}
+          aiExtractedData={pdfReviewQuote.aiExtractedData}
+          supplierName={pdfReviewQuote.supplier.name}
+          quoteId={pdfReviewQuote.id}
+          projectId={projectId}
+          rfqLineItems={pdfReviewQuote.lineItems.map(li => ({
+            id: li.rfqLineItemId || li.id,
+            itemName: li.itemName,
+            quantity: li.requestedQuantity,
+            sku: li.sku,
+            brand: li.brand,
+            imageUrl: li.imageUrl || undefined
+          }))}
+          onMatchUpdated={fetchQuotes}
+        />
+      )}
     </div>
   )
 }

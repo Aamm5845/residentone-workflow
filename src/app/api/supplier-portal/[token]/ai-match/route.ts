@@ -502,6 +502,7 @@ Extract everything you can see in the quote, including any items that might not 
     })
 
     // Log AI match results for email notifications
+    // Store full match results for PDF review feature
     await prisma.supplierAccessLog.create({
       data: {
         supplierRFQId: supplierRFQ.id,
@@ -515,14 +516,32 @@ Extract everything you can see in the quote, including any items that might not 
           extractedTotal: extractedItems.length,
           hasTaxes,
           hasShippingFee,
-          shippingFee: extractedData.supplierInfo?.deliveryFee || 0,
+          shippingFee: extractedData.supplierInfo?.shipping || 0,
           quoteTotal,
           calculatedTotal,
           totalDiscrepancy,
           quantityDiscrepancies,
           discrepancyMessages: allDiscrepancies,
           itemDiscrepancies, // Include structured item-level discrepancies
-          fileType: fileType || 'unknown'
+          fileType: fileType || 'unknown',
+          // Store full data for PDF review
+          supplierInfo: extractedData.supplierInfo || {},
+          extractedItems: extractedItems,
+          matchResults: matchResults.map(r => ({
+            status: r.status,
+            confidence: r.confidence,
+            rfqItem: r.rfqItem ? {
+              id: r.rfqItem.id,
+              itemName: r.rfqItem.itemName,
+              quantity: r.rfqItem.quantity,
+              sku: r.rfqItem.sku,
+              brand: r.rfqItem.brand
+            } : undefined,
+            extractedItem: r.extractedItem,
+            discrepancies: r.discrepancies,
+            suggestedMatches: r.suggestedMatches
+          })),
+          notes: extractedData.notes || null
         }
       }
     })
