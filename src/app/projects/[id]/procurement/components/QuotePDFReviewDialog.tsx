@@ -964,6 +964,26 @@ export default function QuotePDFReviewDialog({
                 </Button>
                 <Button
                   variant="outline"
+                  className="border-red-500 text-red-600 hover:bg-red-50"
+                  onClick={async () => {
+                    try {
+                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'REJECTED' })
+                      })
+                      onMatchUpdated?.()
+                      toast.success('Quote declined')
+                      onOpenChange(false)
+                    } catch {
+                      toast.error('Failed to update status')
+                    }
+                  }}
+                >
+                  Decline
+                </Button>
+                <Button
+                  variant="outline"
                   className="border-amber-500 text-amber-600 hover:bg-amber-50"
                   onClick={async () => {
                     try {

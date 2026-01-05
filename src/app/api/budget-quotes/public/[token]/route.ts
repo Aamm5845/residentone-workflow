@@ -27,7 +27,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            logo: true
+            logoUrl: true
           }
         }
       }
@@ -68,7 +68,7 @@ export async function GET(
       projectName: budgetQuote.project.name,
       clientName: budgetQuote.clientEmail?.split('@')[0] || 'Client',
       companyName: budgetQuote.org.name,
-      companyLogo: budgetQuote.org.logo,
+      companyLogo: budgetQuote.org.logoUrl,
       estimatedTotal: parseFloat(budgetQuote.estimatedTotal.toString()),
       currency: budgetQuote.currency,
       includeTax: budgetQuote.includeTax,

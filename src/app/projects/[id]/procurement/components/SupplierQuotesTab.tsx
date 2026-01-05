@@ -762,20 +762,32 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           <FileText className="w-4 h-4 text-gray-300" />
                         </div>
                       )}
-                      {/* Review Quote Button - Opens PDF review if AI data exists, otherwise basic review */}
-                      <Button
-                        variant={quote.aiExtractedData ? "default" : "outline"}
-                        size="sm"
-                        className={quote.aiExtractedData
-                          ? "h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
-                          : "h-8 px-3 text-xs"
-                        }
-                        onClick={() => quote.aiExtractedData ? openPdfReview(quote) : openReviewDialog(quote)}
-                        title={quote.aiExtractedData ? "Review & verify AI-matched items" : "Review quote"}
-                      >
-                        <Eye className="w-3.5 h-3.5 mr-1.5" />
-                        {quote.aiExtractedData ? 'Review Matches' : 'Review'}
-                      </Button>
+                      {/* Show status badge for finalized quotes, review button for others */}
+                      {quote.status === 'ACCEPTED' ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 h-8 px-3">
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                          Approved
+                        </Badge>
+                      ) : quote.status === 'REJECTED' ? (
+                        <Badge className="bg-red-100 text-red-700 h-8 px-3">
+                          <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                          Declined
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant={quote.aiExtractedData ? "default" : "outline"}
+                          size="sm"
+                          className={quote.aiExtractedData
+                            ? "h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                            : "h-8 px-3 text-xs"
+                          }
+                          onClick={() => quote.aiExtractedData ? openPdfReview(quote) : openReviewDialog(quote)}
+                          title={quote.aiExtractedData ? "Review & verify AI-matched items" : "Review quote"}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1.5" />
+                          {quote.aiExtractedData ? 'Review Matches' : 'Review'}
+                        </Button>
+                      )}
                       {quote.status === 'ACCEPTED' && (
                         <>
                           <Button

@@ -3492,6 +3492,7 @@ model BudgetQuote {
   sentAt            DateTime?
   sentToEmail       String?
   emailOpenedAt     DateTime?
+  viewedAt          DateTime?   // When client viewed the portal
 
   // Validity
   expiresAt         DateTime?
