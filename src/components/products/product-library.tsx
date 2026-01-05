@@ -516,12 +516,13 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
         // Find the items for this section
         const section = data.data.sections.find((s: any) => s.id === sectionId)
         if (section?.items && section.items.length > 0) {
-          // Show all items in the section (parent items preferred, but include all)
-          const allItems = section.items.filter((item: any) =>
-            // Exclude only linked child items (not parent groupings)
-            !item.customFields?.isLinkedItem
+          // Only show FFE requirement items (not spec items, not linked child items)
+          const ffeRequirementItems = section.items.filter((item: any) =>
+            !item.isSpecItem && // Exclude All Specs items
+            !item.customFields?.isLinkedItem && // Exclude linked child items
+            !item.customFields?.isGroupedItem // Exclude grouped sub-items
           )
-          setFfeItems(allItems.length > 0 ? allItems : section.items)
+          setFfeItems(ffeRequirementItems)
         } else {
           setFfeItems([])
         }
