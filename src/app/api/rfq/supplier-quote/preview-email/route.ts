@@ -151,6 +151,21 @@ export async function POST(request: NextRequest) {
         }
       })
     } else {
+      // First get all line item IDs to delete their quote line items
+      const existingLineItems = await prisma.rFQLineItem.findMany({
+        where: { rfqId: previewRfq.id },
+        select: { id: true }
+      })
+      const lineItemIds = existingLineItems.map(li => li.id)
+
+      // Delete supplier quote line items first (foreign key constraint)
+      if (lineItemIds.length > 0) {
+        await prisma.supplierQuoteLineItem.deleteMany({
+          where: { rfqLineItemId: { in: lineItemIds } }
+        })
+      }
+
+      // Now safe to delete RFQ line items
       await prisma.rFQLineItem.deleteMany({
         where: { rfqId: previewRfq.id }
       })
