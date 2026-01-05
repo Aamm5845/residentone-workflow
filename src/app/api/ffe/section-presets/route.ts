@@ -30,7 +30,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fallback to database lookup
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     // Check if org has any presets
     let presets = await prisma.fFESectionPreset.findMany({
@@ -79,7 +92,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fallback to database lookup
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
+
     const body = await request.json()
     const { name, docCodePrefix, description, markupPercent } = body
 
@@ -165,7 +192,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fallback to database lookup
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
+
     const body = await request.json()
     const { id, name, docCodePrefix, description, markupPercent, isActive, order } = body
 
@@ -267,7 +308,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session or fallback to database lookup
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
