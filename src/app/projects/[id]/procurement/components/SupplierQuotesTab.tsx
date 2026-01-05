@@ -1128,14 +1128,12 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                       )}
                                       <div className="flex-1">
                                         <p className="font-medium text-gray-900">{item.itemName}</p>
-                                        {item.brand && (
-                                          <p className="text-xs text-gray-500">{item.brand}</p>
-                                        )}
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500 mt-0.5">
+                                          <span>SKU: <span className="font-medium text-gray-700">{item.supplierSKU || item.sku || 'N/A'}</span></span>
+                                          {item.brand && <span>Brand: <span className="font-medium text-gray-700">{item.brand}</span></span>}
+                                        </div>
                                         {item.alternateProduct && (
                                           <p className="text-xs text-orange-600 mt-0.5">Alternate product offered</p>
-                                        )}
-                                        {(item.sku || item.supplierSKU) && (
-                                          <p className="text-xs text-gray-500">SKU: {item.supplierSKU || item.sku}</p>
                                         )}
                                         {/* Show inline mismatch details */}
                                         {item.hasMismatch && item.mismatchReasons && item.mismatchReasons.length > 0 && (

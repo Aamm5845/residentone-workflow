@@ -40,8 +40,13 @@ import {
   Trash2,
   Plus,
   ChevronRight,
-  Check
+  Check,
+  Upload,
+  File,
+  Loader2
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -192,6 +197,153 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
   const [loadingSuppliers, setLoadingSuppliers] = useState(false)
+
+  // Send preview dialog state
+  const [sendPreviewOpen, setSendPreviewOpen] = useState(false)
+  const [sendPreviewRFQ, setSendPreviewRFQ] = useState<RFQDetail | null>(null)
+  const [sendMessage, setSendMessage] = useState('')
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{id: string, title: string, fileName: string, fileSize: number}>>([])
+  const [uploading, setUploading] = useState(false)
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+
+  // Format file size helper
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  // Open send preview dialog
+  const openSendPreview = async (rfqId: string) => {
+    setDetailLoading(true)
+    try {
+      const response = await fetch(`/api/rfq/${rfqId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSendPreviewRFQ(data.rfq)
+        // Load existing documents
+        const docsRes = await fetch(`/api/rfq/${rfqId}/documents`)
+        if (docsRes.ok) {
+          const docsData = await docsRes.json()
+          setUploadedDocs((docsData.documents || []).filter((d: any) => d.visibleToSupplier))
+        }
+        // Pre-select all suppliers
+        const supplierIds = (data.rfq.supplierRFQs || [])
+          .filter((s: any) => !s.sentAt)
+          .map((s: any) => s.supplier?.id || s.id)
+        setSelectedSuppliers(supplierIds)
+        setSendPreviewOpen(true)
+      }
+    } catch (error) {
+      console.error('Error loading RFQ for send preview:', error)
+      toast.error('Failed to load RFQ details')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  // Handle document upload in send preview
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !sendPreviewRFQ) return
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('File type not allowed. Please upload PDF, DOC, DOCX, XLS, XLSX, JPG, or PNG files.')
+      return
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 25MB.')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('title', file.name)
+      formData.append('visibleToSupplier', 'true')
+      formData.append('type', 'SPEC_SHEET')
+
+      const response = await fetch(`/api/rfq/${sendPreviewRFQ.id}/documents`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUploadedDocs([...uploadedDocs, {
+          id: data.document.id,
+          title: data.document.title,
+          fileName: data.document.fileName,
+          fileSize: data.document.fileSize
+        }])
+        toast.success('Document uploaded')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to upload document')
+      }
+    } catch (error) {
+      console.error('Error uploading:', error)
+      toast.error('Failed to upload document')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  // Handle document removal
+  const handleDocRemove = async (docId: string) => {
+    if (!sendPreviewRFQ) return
+    try {
+      const response = await fetch(`/api/rfq/${sendPreviewRFQ.id}/documents?documentId=${docId}`, {
+        method: 'DELETE'
+      })
+      if (response.ok) {
+        setUploadedDocs(uploadedDocs.filter(d => d.id !== docId))
+        toast.success('Document removed')
+      }
+    } catch (error) {
+      console.error('Error removing document:', error)
+    }
+  }
+
+  // Send RFQ from preview dialog
+  const handleSendFromPreview = async () => {
+    if (!sendPreviewRFQ || selectedSuppliers.length === 0) return
+    setSendingId(sendPreviewRFQ.id)
+    try {
+      const response = await fetch(`/api/rfq/${sendPreviewRFQ.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierIds: selectedSuppliers,
+          message: sendMessage || undefined
+        })
+      })
+      if (response.ok) {
+        toast.success('RFQ sent to suppliers')
+        setSendPreviewOpen(false)
+        setSendPreviewRFQ(null)
+        setSendMessage('')
+        setUploadedDocs([])
+        setSelectedSuppliers([])
+        fetchRFQs()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to send RFQ')
+      }
+    } catch (error) {
+      console.error('Error sending RFQ:', error)
+      toast.error('Failed to send RFQ')
+    } finally {
+      setSendingId(null)
+    }
+  }
 
   const fetchRFQs = async () => {
     setLoading(true)
@@ -717,8 +869,11 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={(e) => handleSendRFQ(rfq.id, e as any)}
-                                disabled={sendingId === rfq.id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openSendPreview(rfq.id)
+                                }}
+                                disabled={sendingId === rfq.id || detailLoading}
                                 className="text-blue-600"
                               >
                                 <Send className="w-4 h-4 mr-2" />
@@ -730,8 +885,11 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={(e) => handleSendRFQ(rfq.id, e as any)}
-                                disabled={sendingId === rfq.id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openSendPreview(rfq.id)
+                                }}
+                                disabled={sendingId === rfq.id || detailLoading}
                                 className="text-blue-600"
                               >
                                 <Send className="w-4 h-4 mr-2" />
@@ -972,10 +1130,11 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
                   {selectedRFQ.status === 'DRAFT' && (
                     <Button
                       onClick={() => {
-                        handleSendRFQ(selectedRFQ.id, { stopPropagation: () => {} } as React.MouseEvent)
+                        const rfqId = selectedRFQ.id
                         setSelectedRFQ(null)
+                        openSendPreview(rfqId)
                       }}
-                      disabled={sendingId === selectedRFQ.id}
+                      disabled={sendingId === selectedRFQ.id || detailLoading}
                     >
                       <Send className="w-4 h-4 mr-2" />
                       Send to Suppliers
@@ -1283,6 +1442,173 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
               </div>
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Preview Dialog */}
+      <Dialog open={sendPreviewOpen} onOpenChange={(open) => {
+        if (!open) {
+          setSendPreviewOpen(false)
+          setSendPreviewRFQ(null)
+          setSendMessage('')
+          setSelectedSuppliers([])
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Send RFQ to Suppliers</DialogTitle>
+            {sendPreviewRFQ && (
+              <p className="text-sm text-gray-500 mt-1">
+                {sendPreviewRFQ.rfqNumber} - {sendPreviewRFQ.title}
+              </p>
+            )}
+          </DialogHeader>
+
+          {sendPreviewRFQ && (
+            <div className="space-y-4 py-4">
+              {/* Suppliers */}
+              <div>
+                <Label className="mb-2 block">Select Suppliers</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-2">
+                  {(sendPreviewRFQ.supplierRFQs || []).map((sRFQ: any) => (
+                    <label
+                      key={sRFQ.id}
+                      className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                        selectedSuppliers.includes(sRFQ.supplier?.id || sRFQ.id)
+                          ? 'bg-purple-50 border-purple-200'
+                          : 'hover:bg-gray-50'
+                      } ${sRFQ.sentAt ? 'opacity-50' : ''}`}
+                    >
+                      <Checkbox
+                        checked={selectedSuppliers.includes(sRFQ.supplier?.id || sRFQ.id)}
+                        onCheckedChange={(checked) => {
+                          const id = sRFQ.supplier?.id || sRFQ.id
+                          if (checked) {
+                            setSelectedSuppliers([...selectedSuppliers, id])
+                          } else {
+                            setSelectedSuppliers(selectedSuppliers.filter(s => s !== id))
+                          }
+                        }}
+                        disabled={!!sRFQ.sentAt}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{sRFQ.supplier?.name || sRFQ.vendorName}</p>
+                        <p className="text-xs text-gray-500">{sRFQ.supplier?.email || sRFQ.vendorEmail}</p>
+                      </div>
+                      {sRFQ.sentAt && (
+                        <Badge variant="outline" className="text-xs">Already sent</Badge>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message */}
+              <div>
+                <Label>Message (optional)</Label>
+                <Textarea
+                  value={sendMessage}
+                  onChange={(e) => setSendMessage(e.target.value)}
+                  placeholder="Add a personal message to include in the email..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Document Upload */}
+              <div>
+                <Label className="mb-2 block">Attachments (visible to suppliers)</Label>
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4">
+                  {uploadedDocs.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      {uploadedDocs.map(doc => (
+                        <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-2">
+                            <File className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm font-medium truncate max-w-[200px]">{doc.fileName}</span>
+                            <span className="text-xs text-gray-400">({formatFileSize(doc.fileSize)})</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDocRemove(doc.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-center">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                        onChange={handleDocUpload}
+                        disabled={uploading}
+                      />
+                      <div className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+                        {uploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>Upload PDF, DOC, or image files (max 25MB)</span>
+                          </>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Preview */}
+              <div>
+                <Label className="mb-2 block">Items ({sendPreviewRFQ.lineItems?.length || 0})</Label>
+                <div className="border rounded-lg max-h-32 overflow-y-auto">
+                  {(sendPreviewRFQ.lineItems || []).slice(0, 5).map((item: any, idx: number) => (
+                    <div key={item.id} className="px-3 py-2 text-sm border-b last:border-b-0">
+                      <span className="font-medium">{item.itemName}</span>
+                      <span className="text-gray-500 ml-2">x{item.quantity}</span>
+                    </div>
+                  ))}
+                  {(sendPreviewRFQ.lineItems?.length || 0) > 5 && (
+                    <div className="px-3 py-2 text-xs text-gray-500">
+                      +{sendPreviewRFQ.lineItems.length - 5} more items...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setSendPreviewOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendFromPreview}
+              disabled={sendingId !== null || selectedSuppliers.length === 0}
+            >
+              {sendingId ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send to {selectedSuppliers.length} Supplier{selectedSuppliers.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
