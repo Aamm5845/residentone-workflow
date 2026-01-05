@@ -29,8 +29,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const orgId = (session.user as any).orgId
-    const userId = session.user.id
+    // Get orgId from session or fallback to database lookup
+    let orgId = (session.user as any).orgId
+    let userId = session.user.id
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      })
+      orgId = user?.orgId
+      userId = user?.id || userId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     // Get project details
     const project = await prisma.project.findFirst({
