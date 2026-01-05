@@ -33,17 +33,26 @@ export async function POST(request: NextRequest) {
     let orgId = (session.user as any).orgId
     let userId = session.user.id
 
-    if (!orgId && session.user.email) {
+    // Always try to get the user from database for reliable orgId and userId
+    if (session.user.email) {
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: { id: true, orgId: true }
       })
-      orgId = user?.orgId
-      userId = user?.id || userId
+      if (user) {
+        orgId = user.orgId || orgId
+        userId = user.id || userId
+      }
     }
 
     if (!orgId) {
+      console.error('RFQ preview-email: No orgId found for user:', session.user.email)
       return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
+
+    if (!userId) {
+      console.error('RFQ preview-email: No userId found for user:', session.user.email)
+      return NextResponse.json({ error: 'User not found' }, { status: 400 })
     }
 
     // Get project details
@@ -160,14 +169,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or reuse preview SupplierRFQ
+    const supplierRfqWhere: any = { rfqId: previewRfq.id }
+    if (supplier?.id) {
+      supplierRfqWhere.supplierId = supplier.id
+    } else {
+      supplierRfqWhere.vendorName = 'Preview Supplier'
+    }
+
     let previewSupplierRfq = await prisma.supplierRFQ.findFirst({
-      where: {
-        rfqId: previewRfq.id,
-        OR: [
-          { supplierId: supplier?.id || undefined },
-          { vendorName: 'Preview Supplier' }
-        ].filter(c => Object.values(c)[0] !== undefined)
-      }
+      where: supplierRfqWhere
     })
 
     if (!previewSupplierRfq) {
@@ -232,10 +242,15 @@ export async function POST(request: NextRequest) {
       rfqNumber
     })
 
-  } catch (error) {
-    console.error('Error creating email preview:', error)
+  } catch (error: any) {
+    console.error('Error creating email preview:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code,
+      name: error?.name
+    })
     return NextResponse.json(
-      { error: 'Failed to create email preview' },
+      { error: error?.message || 'Failed to create email preview' },
       { status: 500 }
     )
   }
