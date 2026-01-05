@@ -1655,7 +1655,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           name: item.itemName,
           categoryName: item.brand || undefined,
           totalCost: item.totalPrice,
-          clientApproved: item.matchApproved
+          clientApproved: false // Items from supplier quotes are not yet client-approved
         })) || []}
         preselectedSupplierQuoteIds={selectedQuoteForBudget ? [selectedQuoteForBudget.id] : []}
         source="supplier-quotes"
