@@ -422,11 +422,11 @@ export async function GET(
     // ========================================
 
     // 4a. Delivery arrived, not marked received
+    // Find orders with DELIVERED status (these need confirmation)
     const deliveredNotReceived = await prisma.order.findMany({
       where: {
         projectId,
-        status: 'DELIVERED',
-        receivedAt: null
+        status: 'DELIVERED'
       },
       include: {
         supplier: { select: { name: true } }
