@@ -164,6 +164,7 @@ export default function FFEUnifiedWorkspace({
   }>>([])
   const [presetsLoading, setPresetsLoading] = useState(false)
   const [selectedPresetId, setSelectedPresetId] = useState<string>('')
+  const [selectedPresetIds, setSelectedPresetIds] = useState<Set<string>>(new Set())
   const [showCustomSection, setShowCustomSection] = useState(false)
 
   // Form states
@@ -594,6 +595,7 @@ export default function FFEUnifiedWorkspace({
 
     try {
       setSaving(true)
+      setSelectedPresetId(preset.id)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -612,6 +614,49 @@ export default function FFEUnifiedWorkspace({
       toast.success(`Section "${preset.name}" added`)
     } catch (error) {
       toast.error('Failed to add section')
+    } finally {
+      setSaving(false)
+      setSelectedPresetId('')
+    }
+  }
+
+  const handleAddMultipleSections = async (presetIds: Set<string>) => {
+    if (presetIds.size === 0) {
+      toast.error('Please select at least one section to add')
+      return
+    }
+
+    const presetsToAdd = sectionPresets.filter(p => presetIds.has(p.id))
+
+    try {
+      setSaving(true)
+      let successCount = 0
+
+      for (const preset of presetsToAdd) {
+        // Check if section already exists
+        const existingSection = sections.find(s => s.name.toLowerCase() === preset.name.toLowerCase())
+        if (existingSection) continue
+
+        const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: preset.name,
+            description: preset.description || undefined,
+            presetId: preset.id,
+            docCodePrefix: preset.docCodePrefix,
+            order: sections.length + successCount
+          })
+        })
+        if (response.ok) successCount++
+      }
+
+      await loadFFEData()
+      setShowAddSectionDialog(false)
+      setSelectedPresetIds(new Set())
+      toast.success(`${successCount} section${successCount !== 1 ? 's' : ''} added`)
+    } catch (error) {
+      toast.error('Failed to add sections')
     } finally {
       setSaving(false)
     }
@@ -2708,6 +2753,7 @@ export default function FFEUnifiedWorkspace({
           loadSectionPresets()
           setShowCustomSection(false)
           setSelectedPresetId('')
+          setSelectedPresetIds(new Set())
           setNewSectionName('')
           setNewSectionDescription('')
           setNewSectionDocCode('')
@@ -2720,7 +2766,7 @@ export default function FFEUnifiedWorkspace({
               Add Section
             </DialogTitle>
             <DialogDescription>
-              Select a section type or create a custom section
+              Select sections to add or create a custom section
             </DialogDescription>
           </DialogHeader>
 
@@ -2729,6 +2775,11 @@ export default function FFEUnifiedWorkspace({
               {presetsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : sectionPresets.length === 0 ? (
+                <div className="text-center py-6 text-gray-500">
+                  <p className="text-sm">No section presets configured.</p>
+                  <p className="text-xs mt-1">Go to FFE Management to add section presets.</p>
                 </div>
               ) : (
                 <>
@@ -2745,30 +2796,70 @@ export default function FFEUnifiedWorkspace({
                     return (
                       <>
                         {availablePresets.length > 0 ? (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-gray-500 uppercase tracking-wide">Available Sections</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {availablePresets.map(preset => (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs text-gray-500 uppercase tracking-wide">Available Sections</Label>
+                              <div className="flex gap-2">
                                 <button
-                                  key={preset.id}
-                                  onClick={() => handleAddSectionFromPreset(preset)}
-                                  disabled={saving}
-                                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
+                                  onClick={() => setSelectedPresetIds(new Set(availablePresets.map(p => p.id)))}
+                                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                                 >
-                                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-xs font-bold text-blue-600">{preset.docCodePrefix}</span>
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-sm text-gray-900 truncate">{preset.name}</p>
-                                    {preset.description && (
-                                      <p className="text-xs text-gray-500 truncate">{preset.description}</p>
-                                    )}
-                                  </div>
-                                  {saving && selectedPresetId === preset.id && (
-                                    <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
-                                  )}
+                                  Select All
                                 </button>
-                              ))}
+                                {selectedPresetIds.size > 0 && (
+                                  <button
+                                    onClick={() => setSelectedPresetIds(new Set())}
+                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                  >
+                                    Clear
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                              {availablePresets.map(preset => {
+                                const isSelected = selectedPresetIds.has(preset.id)
+                                return (
+                                  <button
+                                    key={preset.id}
+                                    onClick={() => {
+                                      setSelectedPresetIds(prev => {
+                                        const newSet = new Set(prev)
+                                        if (newSet.has(preset.id)) {
+                                          newSet.delete(preset.id)
+                                        } else {
+                                          newSet.add(preset.id)
+                                        }
+                                        return newSet
+                                      })
+                                    }}
+                                    disabled={saving}
+                                    className={cn(
+                                      "flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
+                                      isSelected
+                                        ? "border-blue-400 bg-blue-50 ring-1 ring-blue-400"
+                                        : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/50"
+                                    )}
+                                  >
+                                    <div className={cn(
+                                      "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                                      isSelected ? "bg-blue-500" : "bg-blue-100"
+                                    )}>
+                                      {isSelected ? (
+                                        <Check className="w-4 h-4 text-white" />
+                                      ) : (
+                                        <span className="text-xs font-bold text-blue-600">{preset.docCodePrefix}</span>
+                                      )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-sm text-gray-900 truncate">{preset.name}</p>
+                                      {preset.description && (
+                                        <p className="text-xs text-gray-500 truncate">{preset.description}</p>
+                                      )}
+                                    </div>
+                                  </button>
+                                )
+                              })}
                             </div>
                           </div>
                         ) : (
@@ -2855,7 +2946,19 @@ export default function FFEUnifiedWorkspace({
                 </Button>
               </>
             ) : (
-              <Button variant="outline" onClick={() => setShowAddSectionDialog(false)}>Cancel</Button>
+              <>
+                <Button variant="outline" onClick={() => setShowAddSectionDialog(false)}>Cancel</Button>
+                {selectedPresetIds.size > 0 && (
+                  <Button
+                    onClick={() => handleAddMultipleSections(selectedPresetIds)}
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Add {selectedPresetIds.size} Section{selectedPresetIds.size !== 1 ? 's' : ''}
+                  </Button>
+                )}
+              </>
             )}
           </DialogFooter>
         </DialogContent>

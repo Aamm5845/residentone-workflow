@@ -108,11 +108,25 @@ export async function POST(
       }
     })
 
+    // 5.5 Fetch section presets for this organization
+    const orgId = room.project.orgId
+    let sectionPresets: Array<{ name: string; docCodePrefix: string; description?: string | null }> = []
+
+    if (orgId) {
+      const presets = await prisma.fFESectionPreset.findMany({
+        where: { orgId, isActive: true },
+        orderBy: { order: 'asc' },
+        select: { name: true, docCodePrefix: true, description: true }
+      })
+      sectionPresets = presets
+    }
+
     // 6. Build context
     const context = {
       roomName: room.name || room.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       roomType: room.type,
-      projectName: room.project.name
+      projectName: room.project.name,
+      sectionPresets
     }
 
     // Filter assets to only include image types (filter client-side since type is an enum)
@@ -231,22 +245,27 @@ export async function POST(
  * Analyze images with OpenAI Vision API
  */
 async function analyzeImages(
-  imageUrls: string[], 
-  context: { roomName: string; roomType: string; projectName: string },
+  imageUrls: string[],
+  context: {
+    roomName: string;
+    roomType: string;
+    projectName: string;
+    sectionPresets?: Array<{ name: string; docCodePrefix: string; description?: string | null }>
+  },
   startTime: number
 ): Promise<NextResponse> {
   const openai = getOpenAI()
-  
+
   const messages = buildFFEDetectionMessages(imageUrls, context)
-  
+
   console.log(`[AI FFE Generate] Analyzing ${imageUrls.length} images for ${context.roomName}`)
-  
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o', // Use GPT-4o for best vision capabilities
     messages: [
       {
         role: 'system',
-        content: getFFEDetectionSystemPrompt()
+        content: getFFEDetectionSystemPrompt(context.sectionPresets)
       },
       {
         role: 'user',

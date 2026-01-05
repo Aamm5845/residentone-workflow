@@ -105,18 +105,31 @@ interface RoomContext {
   roomName: string
   roomType: string
   projectName: string
+  sectionPresets?: Array<{ name: string; docCodePrefix: string; description?: string | null }>
 }
 
 /**
  * Build the system prompt for FFE detection
  */
-export function getFFEDetectionSystemPrompt(): string {
-  return `You are an expert interior design and FFE (Furniture, Fixtures & Equipment) analyst. Your job is to analyze 3D rendering images and identify every visible item that would need to be tracked in an FFE schedule.
+export function getFFEDetectionSystemPrompt(
+  sectionPresets?: Array<{ name: string; docCodePrefix: string; description?: string | null }>
+): string {
+  // Build category list from presets or use defaults
+  let categoryInstructions: string
 
-**Your Task**:
-Examine the provided 3D rendering image(s) and create a comprehensive list of ALL items visible in the space. Be extremely thorough - identify every detail including:
+  if (sectionPresets && sectionPresets.length > 0) {
+    const presetList = sectionPresets
+      .map((p, i) => `${i + 1}. **${p.name}** (${p.docCodePrefix})${p.description ? ` - ${p.description}` : ''}`)
+      .join('\n')
 
-**CATEGORIES TO LOOK FOR**:
+    categoryInstructions = `**IMPORTANT - USE ONLY THESE CATEGORIES**:
+You MUST categorize all items into one of these predefined sections. Do NOT create new categories.
+
+${presetList}
+
+If an item doesn't clearly fit any category, place it in the closest matching category.`
+  } else {
+    categoryInstructions = `**CATEGORIES TO LOOK FOR**:
 1. **Furniture** - Sofas, chairs, tables, desks, beds, storage units, shelving, etc.
 2. **Lighting** - Pendant lights, chandeliers, wall sconces, floor lamps, table lamps, recessed lights, LED strips, etc.
 3. **Flooring** - Tiles, wood flooring, carpet, rugs, vinyl, stone, etc.
@@ -124,13 +137,21 @@ Examine the provided 3D rendering image(s) and create a comprehensive list of AL
 5. **Ceiling** - Ceiling type, coffers, beams, finishes, etc.
 6. **Window Treatments** - Curtains, blinds, shutters, drapes, etc.
 7. **Fixtures & Hardware** - Door handles, cabinet handles, hooks, pulls, hinges, etc.
-8. **Plumbing Fixtures** - Faucets, sinks, toilets, bathtubs, showers, bidets, etc.
+8. **Plumbing** - Faucets, sinks, toilets, bathtubs, showers, bidets, etc.
 9. **Appliances** - Kitchen appliances, bathroom appliances, HVAC units, etc.
 10. **Decorative Items** - Artwork, mirrors, plants, vases, sculptures, accessories, etc.
 11. **Textiles** - Cushions, throws, bedding, upholstery, etc.
 12. **Millwork** - Built-in cabinets, wardrobes, vanities, shelving, trim, moldings, etc.
 13. **Electrical** - Outlets, switches, panels, etc.
-14. **Accessories** - Bathroom accessories, kitchen accessories, etc.
+14. **Accessories** - Bathroom accessories, kitchen accessories, etc.`
+  }
+
+  return `You are an expert interior design and FFE (Furniture, Fixtures & Equipment) analyst. Your job is to analyze 3D rendering images and identify every visible item that would need to be tracked in an FFE schedule.
+
+**Your Task**:
+Examine the provided 3D rendering image(s) and create a comprehensive list of ALL items visible in the space. Be extremely thorough - identify every detail including:
+
+${categoryInstructions}
 
 **MULTI-IMAGE HANDLING**:
 When analyzing MULTIPLE images of the same room:
