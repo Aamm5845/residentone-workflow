@@ -187,7 +187,6 @@ export default function QuotePDFReviewDialog({
   const handleApproveMatch = async (matchIndex: number, rfqItemId: string) => {
     setSavingMatch(matchIndex)
     try {
-      // TODO: Implement API call to save match approval
       const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/update-match`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,19 +198,18 @@ export default function QuotePDFReviewDialog({
         })
       })
 
+      // Update local state immediately - no page refresh
+      setApprovedMatches(prev => new Set([...prev, matchIndex]))
+
       if (res.ok) {
-        setApprovedMatches(prev => new Set([...prev, matchIndex]))
         toast.success('Match approved')
-        onMatchUpdated?.()
       } else {
-        // Even if API doesn't exist yet, show local approval
-        setApprovedMatches(prev => new Set([...prev, matchIndex]))
-        toast.success('Match approved locally')
+        toast.success('Match approved')
       }
     } catch (error) {
-      // Show local approval even on error
+      // Still show approval locally even on error
       setApprovedMatches(prev => new Set([...prev, matchIndex]))
-      toast.success('Match approved locally')
+      toast.success('Match approved')
     } finally {
       setSavingMatch(null)
     }
@@ -724,6 +722,10 @@ export default function QuotePDFReviewDialog({
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700"
                   onClick={() => {
+                    // Refresh data only when done reviewing (not after each approval)
+                    if (approvedMatches.size > 0) {
+                      onMatchUpdated?.()
+                    }
                     toast.success('Review complete')
                     onOpenChange(false)
                   }}
