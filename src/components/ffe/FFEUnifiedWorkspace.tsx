@@ -154,9 +154,22 @@ export default function FFEUnifiedWorkspace({
   const [templatesLoading, setTemplatesLoading] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
+  // Section preset states
+  const [sectionPresets, setSectionPresets] = useState<Array<{
+    id: string
+    name: string
+    docCodePrefix: string
+    description?: string
+    markupPercent?: number
+  }>>([])
+  const [presetsLoading, setPresetsLoading] = useState(false)
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('')
+  const [showCustomSection, setShowCustomSection] = useState(false)
+
   // Form states
   const [newSectionName, setNewSectionName] = useState('')
   const [newSectionDescription, setNewSectionDescription] = useState('')
+  const [newSectionDocCode, setNewSectionDocCode] = useState('')
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(1)
@@ -473,6 +486,23 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
+  // Load section presets for Add Section dialog
+  const loadSectionPresets = async () => {
+    try {
+      setPresetsLoading(true)
+      const response = await fetch('/api/ffe/section-presets')
+      if (!response.ok) throw new Error('Failed to fetch presets')
+      const result = await response.json()
+      if (result.presets) {
+        setSectionPresets(result.presets.filter((p: any) => p.isActive !== false))
+      }
+    } catch (error) {
+      console.error('Error loading section presets:', error)
+    } finally {
+      setPresetsLoading(false)
+    }
+  }
+
   // Load available products from All Specs for linking
   const loadAvailableProducts = async () => {
     if (!projectId) return
@@ -554,20 +584,68 @@ export default function FFEUnifiedWorkspace({
     setStats(newStats)
   }
 
-  const handleAddSection = async () => {
-    if (!newSectionName.trim()) { toast.error('Section name is required'); return }
+  const handleAddSectionFromPreset = async (preset: typeof sectionPresets[0]) => {
+    // Check if section with same name already exists in this room
+    const existingSection = sections.find(s => s.name.toLowerCase() === preset.name.toLowerCase())
+    if (existingSection) {
+      toast.error(`Section "${preset.name}" already exists in this room`)
+      return
+    }
+
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newSectionName.trim(), description: newSectionDescription.trim() || undefined, order: sections.length })
+        body: JSON.stringify({
+          name: preset.name,
+          description: preset.description || undefined,
+          presetId: preset.id,
+          docCodePrefix: preset.docCodePrefix,
+          order: sections.length
+        })
       })
       if (!response.ok) throw new Error('Failed to add section')
       await loadFFEData()
       setShowAddSectionDialog(false)
+      setSelectedPresetId('')
+      toast.success(`Section "${preset.name}" added`)
+    } catch (error) {
+      toast.error('Failed to add section')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddSection = async () => {
+    if (!newSectionName.trim()) { toast.error('Section name is required'); return }
+
+    // Check if section with same name already exists in this room
+    const existingSection = sections.find(s => s.name.toLowerCase() === newSectionName.trim().toLowerCase())
+    if (existingSection) {
+      toast.error(`Section "${newSectionName.trim()}" already exists in this room`)
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newSectionName.trim(),
+          description: newSectionDescription.trim() || undefined,
+          docCodePrefix: newSectionDocCode.trim().toUpperCase() || undefined,
+          order: sections.length
+        })
+      })
+      if (!response.ok) throw new Error('Failed to add section')
+      await loadFFEData()
+      setShowAddSectionDialog(false)
+      setShowCustomSection(false)
       setNewSectionName('')
       setNewSectionDescription('')
+      setNewSectionDocCode('')
       toast.success('Section added')
     } catch (error) {
       toast.error('Failed to add section')
@@ -2624,30 +2702,161 @@ export default function FFEUnifiedWorkspace({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showAddSectionDialog} onOpenChange={(open) => {
+        setShowAddSectionDialog(open)
+        if (open) {
+          loadSectionPresets()
+          setShowCustomSection(false)
+          setSelectedPresetId('')
+          setNewSectionName('')
+          setNewSectionDescription('')
+          setNewSectionDocCode('')
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FolderPlus className="h-5 w-5 text-gray-600" />
               Add Section
             </DialogTitle>
+            <DialogDescription>
+              Select a section type or create a custom section
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Name</Label>
-              <Input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} placeholder="e.g., Flooring, Lighting" className="mt-1.5" />
+
+          {!showCustomSection ? (
+            <div className="py-4">
+              {presetsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <>
+                  {/* Available presets - filter out ones already in this room */}
+                  {(() => {
+                    const existingSectionNames = sections.map(s => s.name.toLowerCase())
+                    const availablePresets = sectionPresets.filter(
+                      p => !existingSectionNames.includes(p.name.toLowerCase())
+                    )
+                    const usedPresets = sectionPresets.filter(
+                      p => existingSectionNames.includes(p.name.toLowerCase())
+                    )
+
+                    return (
+                      <>
+                        {availablePresets.length > 0 ? (
+                          <div className="space-y-2">
+                            <Label className="text-xs text-gray-500 uppercase tracking-wide">Available Sections</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {availablePresets.map(preset => (
+                                <button
+                                  key={preset.id}
+                                  onClick={() => handleAddSectionFromPreset(preset)}
+                                  disabled={saving}
+                                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
+                                >
+                                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs font-bold text-blue-600">{preset.docCodePrefix}</span>
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-sm text-gray-900 truncate">{preset.name}</p>
+                                    {preset.description && (
+                                      <p className="text-xs text-gray-500 truncate">{preset.description}</p>
+                                    )}
+                                  </div>
+                                  {saving && selectedPresetId === preset.id && (
+                                    <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-gray-500">
+                            <p className="text-sm">All section types have been added to this room</p>
+                          </div>
+                        )}
+
+                        {usedPresets.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <Label className="text-xs text-gray-400 uppercase tracking-wide">Already in this room</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {usedPresets.map(preset => (
+                                <span
+                                  key={preset.id}
+                                  className="px-2.5 py-1 rounded-full bg-gray-100 text-xs text-gray-400 flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  {preset.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+
+                  {/* Custom section option */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={() => setShowCustomSection(true)}
+                      className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-600"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-medium">Create Custom Section</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            <div>
-              <Label>Description (optional)</Label>
-              <Textarea value={newSectionDescription} onChange={(e) => setNewSectionDescription(e.target.value)} placeholder="Brief description..." rows={2} className="mt-1.5" />
+          ) : (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  placeholder="e.g., Flooring, Lighting"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label>Doc Code Prefix (optional)</Label>
+                <Input
+                  value={newSectionDocCode}
+                  onChange={(e) => setNewSectionDocCode(e.target.value.toUpperCase().slice(0, 3))}
+                  placeholder="e.g., FL, LT"
+                  maxLength={3}
+                  className="mt-1.5 uppercase"
+                />
+                <p className="text-xs text-gray-500 mt-1">1-3 letters used for document codes</p>
+              </div>
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea
+                  value={newSectionDescription}
+                  onChange={(e) => setNewSectionDescription(e.target.value)}
+                  placeholder="Brief description..."
+                  rows={2}
+                  className="mt-1.5"
+                />
+              </div>
             </div>
-          </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowAddSectionDialog(false); setNewSectionName(''); setNewSectionDescription('') }}>Cancel</Button>
-            <Button onClick={handleAddSection} disabled={saving || !newSectionName.trim()}>
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Add Section
-            </Button>
+            {showCustomSection ? (
+              <>
+                <Button variant="outline" onClick={() => setShowCustomSection(false)}>Back</Button>
+                <Button onClick={handleAddSection} disabled={saving || !newSectionName.trim()}>
+                  {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Add Section
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => setShowAddSectionDialog(false)}>Cancel</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
