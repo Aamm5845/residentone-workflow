@@ -509,6 +509,29 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
       item.material && `Material: ${item.material}`,
     ].filter(Boolean).join(' | ')
 
+    // Show notes under item - in preview mode, always show notes so user can decide
+    // In actual email, only show if includeNotes is enabled
+    let notesHtml = ''
+    if (item.notes) {
+      if (data.isPreview) {
+        // In preview, always show notes but indicate if they will be included
+        if (data.includeNotes) {
+          notesHtml = `<div style="background: #fffbeb; border-left: 3px solid #f59e0b; padding: 8px 12px; margin-top: 8px; border-radius: 0 4px 4px 0;">
+            <span style="color: #92400e; font-size: 12px;"><strong>Note:</strong> ${item.notes}</span>
+          </div>`
+        } else {
+          notesHtml = `<div style="background: #fee2e2; border-left: 3px solid #ef4444; padding: 8px 12px; margin-top: 8px; border-radius: 0 4px 4px 0; opacity: 0.7;">
+            <span style="color: #b91c1c; font-size: 12px;"><strong>Note (NOT included):</strong> ${item.notes}</span>
+          </div>`
+        }
+      } else if (data.includeNotes) {
+        // Actual email - only show if includeNotes is enabled
+        notesHtml = `<div style="background: #fffbeb; border-left: 3px solid #f59e0b; padding: 8px 12px; margin-top: 8px; border-radius: 0 4px 4px 0;">
+          <span style="color: #92400e; font-size: 12px;"><strong>Note:</strong> ${item.notes}</span>
+        </div>`
+      }
+    }
+
     return `
       <tr>
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 80px;">
@@ -522,6 +545,7 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
           ${item.description ? `<div style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${item.description}</div>` : ''}
           ${specs ? `<div style="color: #9ca3af; font-size: 12px;">${specs}</div>` : ''}
           ${item.section?.instance?.room?.name ? `<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">📍 ${item.section.instance.room.name} - ${item.section.name}</div>` : ''}
+          ${notesHtml}
         </td>
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: center; width: 100px;">
           <div style="font-weight: 600; color: #111827; font-size: 16px;">${item.quantity || 1}</div>

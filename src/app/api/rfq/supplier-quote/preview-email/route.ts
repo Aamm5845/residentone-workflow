@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
       message,
       deadline,
       includeSpecSheet: includeSpecSheet && hasDocuments,
-      includeNotes: includeNotes && hasNotes,
+      includeNotes: includeNotes,  // Template will show notes in preview regardless, but indicate if they'll be included
       isPreview: true
     })
 
