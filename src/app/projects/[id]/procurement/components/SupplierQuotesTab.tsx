@@ -743,7 +743,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[200px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                       {/* Quote Document Thumbnail */}
                       {quote.quoteDocumentUrl ? (
                         <button
@@ -764,15 +764,41 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
                       {/* Show status badge for finalized quotes, review button for others */}
                       {quote.status === 'ACCEPTED' ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 h-8 px-3">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                          Approved
-                        </Badge>
+                        <>
+                          <Badge className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Approved
+                          </Badge>
+                          {quote.quoteDocumentUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
+                              title="View PDF"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </>
                       ) : quote.status === 'REJECTED' ? (
-                        <Badge className="bg-red-100 text-red-700 h-8 px-3">
-                          <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                          Declined
-                        </Badge>
+                        <>
+                          <Badge className="bg-red-100 text-red-700 text-xs px-2 py-1">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Declined
+                          </Badge>
+                          {quote.quoteDocumentUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
+                              title="View PDF"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <Button
                           variant={quote.aiExtractedData ? "default" : "outline"}
