@@ -13,17 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import {
   Loader2,
   DollarSign,
-  Package,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  X,
-  Calendar
+  CheckCircle2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -52,14 +46,6 @@ interface FFEItem {
   clientApproved: boolean
 }
 
-const DEFAULT_SERVICES = [
-  'Material selection & sourcing',
-  'Supplier coordination',
-  'Quality inspection',
-  'Delivery coordination',
-  'Installation oversight'
-]
-
 export default function CreateBudgetQuoteDialog({
   open,
   onOpenChange,
@@ -79,11 +65,6 @@ export default function CreateBudgetQuoteDialog({
   const [items, setItems] = useState<FFEItem[]>([])
   const [markupPercent, setMarkupPercent] = useState<number>(15)
   const [includeTax, setIncludeTax] = useState(true)
-  const [includedServices, setIncludedServices] = useState<string[]>([
-    'Material selection & sourcing',
-    'Supplier coordination'
-  ])
-  const [newService, setNewService] = useState('')
   const [expiresInDays, setExpiresInDays] = useState(30)
   const [includeApprovedItems, setIncludeApprovedItems] = useState(false)
 
@@ -134,26 +115,6 @@ export default function CreateBudgetQuoteDialog({
     setSelectedItems(new Set())
   }
 
-  const handleToggleService = (service: string) => {
-    setIncludedServices(prev => {
-      if (prev.includes(service)) {
-        return prev.filter(s => s !== service)
-      }
-      return [...prev, service]
-    })
-  }
-
-  const handleAddService = () => {
-    if (newService.trim() && !includedServices.includes(newService.trim())) {
-      setIncludedServices(prev => [...prev, newService.trim()])
-      setNewService('')
-    }
-  }
-
-  const handleRemoveService = (service: string) => {
-    setIncludedServices(prev => prev.filter(s => s !== service))
-  }
-
   const handleCreate = async () => {
     if (!title.trim()) {
       toast.error('Please enter a title')
@@ -182,7 +143,7 @@ export default function CreateBudgetQuoteDialog({
           markupPercent,
           currency: 'CAD',
           includeTax,
-          includedServices,
+          includedServices: [],
           expiresAt: expiresAt.toISOString()
         })
       })
@@ -210,7 +171,6 @@ export default function CreateBudgetQuoteDialog({
     setSelectedItems(new Set())
     setMarkupPercent(15)
     setIncludeTax(true)
-    setIncludedServices(['Material selection & sourcing', 'Supplier coordination'])
     setExpiresInDays(30)
     setIncludeApprovedItems(false)
   }
@@ -405,60 +365,6 @@ export default function CreateBudgetQuoteDialog({
             </div>
           </div>
 
-          {/* Included Services */}
-          <div>
-            <Label className="mb-2 block">Included Services</Label>
-            <div className="space-y-2">
-              {DEFAULT_SERVICES.map(service => (
-                <div key={service} className="flex items-center gap-2">
-                  <Checkbox
-                    id={service}
-                    checked={includedServices.includes(service)}
-                    onCheckedChange={() => handleToggleService(service)}
-                  />
-                  <label htmlFor={service} className="text-sm text-gray-700 cursor-pointer">
-                    {service}
-                  </label>
-                </div>
-              ))}
-              {/* Custom services */}
-              {includedServices.filter(s => !DEFAULT_SERVICES.includes(s)).map(service => (
-                <div key={service} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={true}
-                    onCheckedChange={() => handleRemoveService(service)}
-                  />
-                  <span className="text-sm text-gray-700 flex-1">{service}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveService(service)}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {/* Add custom service */}
-              <div className="flex items-center gap-2 mt-2">
-                <Input
-                  value={newService}
-                  onChange={(e) => setNewService(e.target.value)}
-                  placeholder="Add custom service..."
-                  className="flex-1 h-8 text-sm"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddService()}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddService}
-                  disabled={!newService.trim()}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <DialogFooter>

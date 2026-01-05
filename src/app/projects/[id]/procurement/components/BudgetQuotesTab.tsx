@@ -29,7 +29,9 @@ import {
   Mail,
   Calendar,
   DollarSign,
-  Loader2
+  Loader2,
+  Trash2,
+  Edit3
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -103,6 +105,11 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
   const [selectedQuote, setSelectedQuote] = useState<BudgetQuote | null>(null)
   const [sendEmail, setSendEmail] = useState('')
   const [sending, setSending] = useState(false)
+
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [quoteToDelete, setQuoteToDelete] = useState<BudgetQuote | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchBudgetQuotes = useCallback(async () => {
     setLoading(true)
@@ -202,6 +209,34 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
     } finally {
       setSending(false)
     }
+  }
+
+  const handleDelete = async () => {
+    if (!quoteToDelete) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/budget-quotes/${quoteToDelete.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!res.ok) throw new Error('Failed to delete')
+
+      toast.success('Budget quote deleted')
+      setDeleteDialogOpen(false)
+      setQuoteToDelete(null)
+      fetchBudgetQuotes()
+    } catch (error) {
+      console.error('Error deleting budget quote:', error)
+      toast.error('Failed to delete budget quote')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const openDeleteDialog = (quote: BudgetQuote) => {
+    setQuoteToDelete(quote)
+    setDeleteDialogOpen(true)
   }
 
   const copyLink = async (token: string) => {
@@ -395,35 +430,46 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                       </div>
 
                       {/* Actions */}
-                      <div className="w-[120px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      <div className="w-[160px] flex-shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                         {(quote.status === 'DRAFT' || quote.status === 'PENDING') && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-8 bg-violet-600 hover:bg-violet-700"
-                            onClick={() => openSendDialog(quote)}
-                          >
-                            <Send className="w-3.5 h-3.5 mr-1" />
-                            Send
-                          </Button>
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 px-2 bg-violet-600 hover:bg-violet-700"
+                              onClick={() => openSendDialog(quote)}
+                            >
+                              <Send className="w-3.5 h-3.5 mr-1" />
+                              Send
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => openDeleteDialog(quote)}
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                           onClick={() => copyLink(quote.token)}
                           title="Copy link"
                         >
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         </Button>
                         <a
                           href={`/budget-quote/${quote.token}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center text-gray-500 hover:text-gray-700"
+                          className="h-7 w-7 p-0 inline-flex items-center justify-center text-gray-500 hover:text-gray-700"
                           title="Preview"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
                     </div>
@@ -585,6 +631,50 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                 <>
                   <Send className="w-4 h-4 mr-2" />
                   Send Budget Quote
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Budget Quote</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this budget quote? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {quoteToDelete && (
+            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+              <p className="font-medium text-red-900">{quoteToDelete.title}</p>
+              <p className="text-sm text-red-700 mt-1">
+                {formatCurrency(quoteToDelete.estimatedTotal, quoteToDelete.currency)} • {quoteToDelete.itemIds.length} items
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
                 </>
               )}
             </Button>

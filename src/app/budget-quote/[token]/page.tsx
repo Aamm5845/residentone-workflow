@@ -20,7 +20,6 @@ import {
   Loader2,
   Package,
   Calendar,
-  Building2,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -336,26 +335,6 @@ export default function BudgetQuoteClientPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Included Services */}
-        {data.includedServices.length > 0 && (
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-600" />
-                Included Services
-              </h3>
-              <ul className="space-y-2">
-                {data.includedServices.map((service, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-700">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    {service}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Action Buttons */}
         {!isApproved && !isExpired && !hasQuestion && (

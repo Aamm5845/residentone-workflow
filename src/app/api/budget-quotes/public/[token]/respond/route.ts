@@ -38,7 +38,7 @@ export async function POST(
           select: {
             id: true,
             name: true,
-            logo: true
+            logoUrl: true
           }
         }
       }
