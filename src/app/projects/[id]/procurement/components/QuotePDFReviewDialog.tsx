@@ -155,6 +155,8 @@ export default function QuotePDFReviewDialog({
   const [selectedMatches, setSelectedMatches] = useState<Record<number, string>>({})
   const [approvedMatches, setApprovedMatches] = useState<Set<number>>(new Set())
   const [savingMatch, setSavingMatch] = useState<number | null>(null)
+  // Editable values for matched items (price, quantity)
+  const [editedValues, setEditedValues] = useState<Record<number, { unitPrice?: number; quantity?: number }>>({})
 
   // Add to All Specs dialog state
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
@@ -304,11 +306,12 @@ export default function QuotePDFReviewDialog({
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
   const sections = selectedRoom?.sections || []
 
-  // Initialize selected matches and approved status from current matchResults
+  // Initialize selected matches, approved status, and editable values from current matchResults
   useEffect(() => {
     if (aiExtractedData?.matchResults) {
       const initialMatches: Record<number, string> = {}
       const initialApproved = new Set<number>()
+      const initialEdited: Record<number, { unitPrice?: number; quantity?: number }> = {}
 
       aiExtractedData.matchResults.forEach((match, idx) => {
         if (match.rfqItem?.id) {
@@ -318,10 +321,18 @@ export default function QuotePDFReviewDialog({
         if ((match as any).approved) {
           initialApproved.add(idx)
         }
+        // Initialize editable values from extracted data
+        if (match.extractedItem) {
+          initialEdited[idx] = {
+            unitPrice: match.extractedItem.unitPrice,
+            quantity: match.extractedItem.quantity
+          }
+        }
       })
 
       setSelectedMatches(initialMatches)
       setApprovedMatches(initialApproved)
+      setEditedValues(initialEdited)
     }
   }, [aiExtractedData])
 
@@ -370,6 +381,7 @@ export default function QuotePDFReviewDialog({
 
   const handleApproveMatch = async (matchIndex: number, rfqItemId: string) => {
     setSavingMatch(matchIndex)
+    const edited = editedValues[matchIndex]
     try {
       const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/update-match`, {
         method: 'POST',
@@ -378,7 +390,9 @@ export default function QuotePDFReviewDialog({
           quoteId,
           matchIndex,
           rfqItemId,
-          action: 'approve'
+          action: 'approve',
+          unitPrice: edited?.unitPrice,
+          quantity: edited?.quantity
         })
       })
 
@@ -397,6 +411,16 @@ export default function QuotePDFReviewDialog({
     } finally {
       setSavingMatch(null)
     }
+  }
+
+  const handleEditValue = (matchIndex: number, field: 'unitPrice' | 'quantity', value: number) => {
+    setEditedValues(prev => ({
+      ...prev,
+      [matchIndex]: {
+        ...prev[matchIndex],
+        [field]: value
+      }
+    }))
   }
 
   const handleChangeMatch = (matchIndex: number, newRfqItemId: string) => {
@@ -560,23 +584,25 @@ export default function QuotePDFReviewDialog({
                           <span className="ml-2 font-medium">{formatCurrency(supplierInfo.subtotal)}</span>
                         </div>
                       )}
-                      {supplierInfo.shipping !== undefined && supplierInfo.shipping > 0 && (
+                      {/* Show shipping - prefer breakdown if available */}
+                      {supplierInfo.shippingItems && supplierInfo.shippingItems.length > 0 ? (
                         <div className="col-span-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500">Shipping/Handling:</span>
-                            <span className="font-medium text-emerald-700">{formatCurrency(supplierInfo.shipping)}</span>
+                          <span className="text-gray-500">Shipping/Handling:</span>
+                          <div className="mt-1 space-y-1">
+                            {supplierInfo.shippingItems.map((item, idx) => (
+                              <div key={idx} className="flex justify-between pl-4 text-sm">
+                                <span className="text-gray-600">{item.productName}</span>
+                                <span className="font-medium text-emerald-700">{formatCurrency(item.totalPrice || item.unitPrice)}</span>
+                              </div>
+                            ))}
                           </div>
-                          {supplierInfo.shippingItems && supplierInfo.shippingItems.length > 0 && (
-                            <div className="mt-1 pl-4 text-xs text-gray-500">
-                              {supplierInfo.shippingItems.map((item, idx) => (
-                                <div key={idx}>
-                                  {item.productName}: {formatCurrency(item.totalPrice || item.unitPrice)}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
-                      )}
+                      ) : supplierInfo.shipping !== undefined && supplierInfo.shipping > 0 ? (
+                        <div>
+                          <span className="text-gray-500">Shipping/Handling:</span>
+                          <span className="ml-2 font-medium text-emerald-700">{formatCurrency(supplierInfo.shipping)}</span>
+                        </div>
+                      ) : null}
                       {supplierInfo.taxes !== undefined && supplierInfo.taxes > 0 && (
                         <div>
                           <span className="text-gray-500">Taxes:</span>
@@ -655,18 +681,38 @@ export default function QuotePDFReviewDialog({
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-blue-200 text-sm">
-                                    <div>
+                                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-blue-200 text-sm">
+                                    <div className="flex items-center gap-1">
                                       <span className="text-gray-500">Qty:</span>
-                                      <span className="ml-1 font-bold">{match.extractedItem.quantity || '-'}</span>
+                                      <Input
+                                        type="number"
+                                        min={1}
+                                        className="w-16 h-7 text-sm px-2"
+                                        value={editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? ''}
+                                        onChange={(e) => handleEditValue(globalIdx, 'quantity', parseInt(e.target.value) || 0)}
+                                        disabled={isApproved}
+                                      />
                                     </div>
-                                    <div>
+                                    <div className="flex items-center gap-1">
                                       <span className="text-gray-500">Price:</span>
-                                      <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.unitPrice)}</span>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        className="w-24 h-7 text-sm px-2"
+                                        value={editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? ''}
+                                        onChange={(e) => handleEditValue(globalIdx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                        disabled={isApproved}
+                                      />
                                     </div>
                                     <div>
                                       <span className="text-gray-500">Total:</span>
-                                      <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.totalPrice)}</span>
+                                      <span className="ml-1 font-bold">
+                                        {formatCurrency(
+                                          (editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? 0) *
+                                          (editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? 1)
+                                        )}
+                                      </span>
                                     </div>
                                   </div>
                                   {match.extractedItem.leadTime && (

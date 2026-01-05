@@ -21,7 +21,7 @@ export async function POST(
     const { id: projectId } = await params
     const orgId = (session.user as any).orgId
     const body = await request.json()
-    const { quoteId, matchIndex, rfqItemId, action } = body
+    const { quoteId, matchIndex, rfqItemId, action, unitPrice, quantity } = body
 
     if (!quoteId || matchIndex === undefined) {
       return NextResponse.json(
@@ -81,6 +81,18 @@ export async function POST(
         matchResults[matchIndex].rfqItem = {
           ...matchResults[matchIndex].rfqItem,
           id: rfqItemId
+        }
+      }
+
+      // Save edited price/quantity
+      if (unitPrice !== undefined || quantity !== undefined) {
+        matchResults[matchIndex].extractedItem = {
+          ...matchResults[matchIndex].extractedItem,
+          ...(unitPrice !== undefined && { unitPrice }),
+          ...(quantity !== undefined && { quantity }),
+          // Recalculate total
+          totalPrice: (unitPrice ?? matchResults[matchIndex].extractedItem?.unitPrice ?? 0) *
+                      (quantity ?? matchResults[matchIndex].extractedItem?.quantity ?? 1)
         }
       }
     } else if (action === 'change' && rfqItemId) {
