@@ -172,113 +172,107 @@ const categoryIcons: Record<string, typeof Armchair> = {
   outdoor: Flower2
 }
 
-// Product Card Component
-function ProductCard({ 
-  product, 
-  onOpen, 
-  onAddToRoom, 
+// Product Card Component - Ultra compact
+function ProductCard({
+  product,
+  onOpen,
+  onEdit,
+  onAddToRoom,
   onDelete,
-  formatPrice 
-}: { 
+  formatPrice
+}: {
   product: Product
   onOpen: (p: Product) => void
+  onEdit: (p: Product) => void
   onAddToRoom: (p: Product) => void
   onDelete: (p: Product) => void
   formatPrice: (price: number | null) => string
 }) {
   return (
-    <Card className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onOpen(product)}>
-      {/* Image */}
+    <Card className="group overflow-hidden hover:shadow-sm transition-shadow cursor-pointer" onClick={() => onOpen(product)}>
+      {/* Small square image */}
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {product.thumbnailUrl || product.images?.[0] ? (
           <img
             src={product.thumbnailUrl || product.images?.[0]}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-12 h-12 text-gray-300" />
+            <ImageIcon className="w-5 h-5 text-gray-300" />
           </div>
         )}
-        
-        {/* Quick Actions Overlay */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={(e) => { e.stopPropagation(); onOpen(product); }}
+
+        {/* Hover actions */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+          <button
+            className="p-1 bg-white rounded hover:bg-gray-100"
+            onClick={(e) => { e.stopPropagation(); onEdit(product); }}
+            title="Edit"
           >
-            <Eye className="w-4 h-4 mr-1" />
-            View
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            className="p-1 bg-white rounded hover:bg-gray-100"
             onClick={(e) => { e.stopPropagation(); onAddToRoom(product); }}
+            title="Add to Room"
           >
-            <Building className="w-4 h-4 mr-1" />
-            Add
-          </Button>
+            <Plus className="w-3 h-3" />
+          </button>
         </div>
 
         {/* Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button 
-              className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+            <button
+              className="absolute top-0.5 right-0.5 p-0.5 bg-white/80 rounded opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
             >
-              <MoreVertical className="w-4 h-4" />
+              <MoreVertical className="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onOpen(product)}>
-              <Eye className="w-4 h-4 mr-2" />
-              View Details
+              <Eye className="w-3 h-3 mr-2" />
+              View
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(product)}>
+              <Pencil className="w-3 h-3 mr-2" />
+              Edit
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddToRoom(product)}>
-              <Building className="w-4 h-4 mr-2" />
+              <Building className="w-3 h-3 mr-2" />
               Add to Room
             </DropdownMenuItem>
             {product.supplierLink && (
               <DropdownMenuItem asChild>
                 <a href={product.supplierLink} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View Source
+                  <ExternalLink className="w-3 h-3 mr-2" />
+                  Source
                 </a>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="text-red-600"
-              onClick={() => onDelete(product)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
+            <DropdownMenuItem className="text-red-600" onClick={() => onDelete(product)}>
+              <Trash2 className="w-3 h-3 mr-2" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Price badge */}
+        {product.rrp && (
+          <div className="absolute bottom-0.5 left-0.5 px-1 py-0.5 bg-black/60 rounded text-[8px] font-medium text-white">
+            {formatPrice(product.rrp)}
+          </div>
+        )}
       </div>
 
-      {/* Content */}
-      <CardContent className="p-3">
-        <h3 className="font-medium text-sm text-gray-900 line-clamp-2 mb-1">
-          {product.name}
-        </h3>
-        {product.brand && (
-          <p className="text-xs text-gray-500 mb-2">{product.brand}</p>
-        )}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-gray-900">
-            {formatPrice(product.rrp)}
-          </span>
-          {product.usageCount > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              Used {product.usageCount}x
-            </Badge>
-          )}
-        </div>
+      {/* Minimal text */}
+      <CardContent className="p-1.5">
+        <h3 className="font-medium text-[10px] text-gray-900 line-clamp-1">{product.name}</h3>
+        {product.brand && <p className="text-[9px] text-gray-400 truncate">{product.brand}</p>}
       </CardContent>
     </Card>
   )
@@ -488,13 +482,24 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
     }
   }
 
-  // Load sections for selected room
-  const loadSections = async (roomId: string) => {
+  // Load sections for selected room and auto-select matching category
+  const loadSections = async (roomId: string, productCategoryName?: string) => {
     try {
       const res = await fetch(`/api/extension/sections?roomId=${roomId}`)
       const data = await res.json()
       if (data.sections) {
         setSections(data.sections)
+
+        // Auto-select section matching product's category
+        if (productCategoryName) {
+          const matchingSection = data.sections.find(
+            (s: any) => s.name.toLowerCase() === productCategoryName.toLowerCase()
+          )
+          if (matchingSection) {
+            setSelectedSection(matchingSection.id)
+            loadFfeItems(roomId, matchingSection.id)
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load sections:', error)
@@ -504,20 +509,24 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
   // Load FFE items for selected section
   const loadFfeItems = async (roomId: string, sectionId: string) => {
     try {
-      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items?sectionId=${sectionId}`)
+      // Use includeHidden to get all items regardless of visibility
+      const res = await fetch(`/api/ffe/v2/rooms/${roomId}/items?includeHidden=true`)
       const data = await res.json()
       if (data.success && data.data?.sections) {
         // Find the items for this section
         const section = data.data.sections.find((s: any) => s.id === sectionId)
-        if (section?.items) {
-          // Filter to only show parent items (not grouped items) that don't already have specs
-          const parentItems = section.items.filter((item: any) => 
-            !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem
+        if (section?.items && section.items.length > 0) {
+          // Show all items in the section (parent items preferred, but include all)
+          const allItems = section.items.filter((item: any) =>
+            // Exclude only linked child items (not parent groupings)
+            !item.customFields?.isLinkedItem
           )
-          setFfeItems(parentItems)
+          setFfeItems(allItems.length > 0 ? allItems : section.items)
         } else {
           setFfeItems([])
         }
+      } else {
+        setFfeItems([])
       }
     } catch (error) {
       console.error('Failed to load FFE items:', error)
@@ -547,6 +556,16 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
   }
 
   const handleAddToRoom = (product: Product) => {
+    // Reset all form state for fresh start
+    setSelectedProject('')
+    setSelectedRoom('')
+    setSelectedSection('')
+    setSelectedFfeItem('')
+    setRooms([])
+    setSections([])
+    setFfeItems([])
+    setLinkToExisting(true)
+    // Open modal and load projects
     setAddToRoomModal({ open: true, product })
     loadProjects()
   }
@@ -633,6 +652,11 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
 
   const handleOpenProduct = (product: Product) => {
     setProductDetail({ open: true, product, editing: false })
+    setEditForm(product)
+  }
+
+  const handleEditProduct = (product: Product) => {
+    setProductDetail({ open: true, product, editing: true })
     setEditForm(product)
   }
 
@@ -1075,12 +1099,13 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                       )}
                       <Badge variant="secondary" className="text-xs">{catProducts.length}</Badge>
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2">
                       {catProducts.map(product => (
-                        <ProductCard 
-                          key={product.id} 
-                          product={product} 
+                        <ProductCard
+                          key={product.id}
+                          product={product}
                           onOpen={handleOpenProduct}
+                          onEdit={handleEditProduct}
                           onAddToRoom={handleAddToRoom}
                           onDelete={(p) => setDeleteConfirm({ open: true, product: p })}
                           formatPrice={formatPrice}
@@ -1091,12 +1116,13 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2">
                 {products.map(product => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product} 
+                  <ProductCard
+                    key={product.id}
+                    product={product}
                     onOpen={handleOpenProduct}
+                    onEdit={handleEditProduct}
                     onAddToRoom={handleAddToRoom}
                     onDelete={(p) => setDeleteConfirm({ open: true, product: p })}
                     formatPrice={formatPrice}
@@ -1234,6 +1260,11 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
             <DialogTitle>Add to Room</DialogTitle>
             <DialogDescription>
               Add "{addToRoomModal.product?.name}" to a room's FFE schedule.
+              {addToRoomModal.product?.category?.name && (
+                <span className="block text-xs mt-1 text-blue-600">
+                  Category "{addToRoomModal.product.category.name}" will be auto-selected.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -1266,12 +1297,14 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
             {selectedProject && rooms.length > 0 && (
               <div className="space-y-2">
                 <Label>Room</Label>
-                <Select 
-                  value={selectedRoom} 
+                <Select
+                  value={selectedRoom}
                   onValueChange={(val) => {
                     setSelectedRoom(val)
                     setSelectedSection('')
-                    loadSections(val)
+                    setSelectedFfeItem('')
+                    // Pass product's category name to auto-select matching section
+                    loadSections(val, addToRoomModal.product?.category?.name)
                   }}
                 >
                   <SelectTrigger>
@@ -1341,8 +1374,17 @@ export default function ProductLibrary({ userId }: ProductLibraryProps) {
                         </SelectTrigger>
                         <SelectContent>
                           {ffeItems.map(item => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name}
+                            <SelectItem
+                              key={item.id}
+                              value={item.id}
+                              disabled={!!item.libraryProductId}
+                            >
+                              <span className="flex items-center gap-2">
+                                {item.name}
+                                {item.libraryProductId && (
+                                  <span className="text-xs text-amber-600 font-medium">(already linked)</span>
+                                )}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>

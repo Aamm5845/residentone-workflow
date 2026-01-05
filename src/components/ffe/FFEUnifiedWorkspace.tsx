@@ -1455,7 +1455,7 @@ export default function FFEUnifiedWorkspace({
   }
 
   return (
-    <div className="bg-slate-50/50 -mx-6 -my-6 min-h-screen">
+    <div className="bg-slate-50/50 -mx-6 min-h-screen">
       {/* Header */}
       <div className="bg-white border-b border-slate-200/80 shadow-sm">
         <div className="px-6 py-5">

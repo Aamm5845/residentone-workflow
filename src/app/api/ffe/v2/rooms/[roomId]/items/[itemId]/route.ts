@@ -319,9 +319,17 @@ export async function PATCH(
 
     const resolvedParams = await params
     const { roomId, itemId } = resolvedParams
-    const body = await request.json()
-    const { 
-      targetSectionId, 
+
+    // Parse body with error handling for empty requests
+    let body: any = {}
+    try {
+      body = await request.json()
+    } catch (e) {
+      return NextResponse.json({ error: 'Request body is required' }, { status: 400 })
+    }
+
+    const {
+      targetSectionId,
       customFields,
       // Field updates
       name,

@@ -178,10 +178,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Return in expected format
+    // Return in expected format - use ProductCategory ID for product assignment
     return NextResponse.json({
       category: {
-        id: preset.id,
+        id: category.id,  // Use ProductCategory ID, not preset ID
+        presetId: preset.id,
         name: preset.name,
         slug,
         icon: preset.docCodePrefix,

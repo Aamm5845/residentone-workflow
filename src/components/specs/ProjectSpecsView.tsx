@@ -5338,12 +5338,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <Archive className="w-3.5 h-3.5 mr-2" />
                                     Archive
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     className="text-xs"
-                                    onSelect={(e) => {
-                                      e.preventDefault()
-                                      handleAddToLibrary(item)
-                                    }}
+                                    onSelect={() => handleAddToLibrary(item)}
                                   >
                                     <BookPlus className="w-3.5 h-3.5 mr-2" />
                                     Add to Product Library

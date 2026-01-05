@@ -24,7 +24,20 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    const orgId = (session.user as any).orgId
+    // Get orgId from session, with fallback to database lookup
+    let orgId = (session.user as any).orgId
+
+    if (!orgId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { orgId: true }
+      })
+      orgId = user?.orgId
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     // Build where clause
     const where: any = {
@@ -139,8 +152,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product name is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
-    const userId = (session.user as any).id
+    // Get orgId and userId from session, with fallback to database lookup
+    let orgId = (session.user as any).orgId
+    let userId = (session.user as any).id
+
+    // If userId is missing, fetch from database
+    if (!userId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      })
+      if (user) {
+        userId = user.id
+        orgId = orgId || user.orgId
+      }
+    }
+
+    if (!orgId || !userId) {
+      console.error('Missing orgId or userId:', { orgId, userId, email: session.user.email })
+      return NextResponse.json({ error: 'Session data incomplete' }, { status: 400 })
+    }
 
     const product = await prisma.productLibraryItem.create({
       data: {
@@ -219,8 +250,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
-    const userId = (session.user as any).id
+    // Get orgId and userId from session, with fallback to database lookup
+    let orgId = (session.user as any).orgId
+    let userId = (session.user as any).id
+
+    if (!userId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      })
+      if (user) {
+        userId = user.id
+        orgId = orgId || user.orgId
+      }
+    }
+
+    if (!orgId || !userId) {
+      return NextResponse.json({ error: 'Session data incomplete' }, { status: 400 })
+    }
 
     // Verify product belongs to org
     const existing = await prisma.productLibraryItem.findFirst({
@@ -231,13 +278,30 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    // Parse numeric fields
-    const updateData: any = { ...updateFields, updatedById: userId }
-    if (updateFields.rrp !== undefined) {
-      updateData.rrp = updateFields.rrp ? parseFloat(updateFields.rrp) : null
+    // Only allow specific updatable fields (filter out read-only and relation fields)
+    const allowedFields = [
+      'name', 'description', 'categoryId', 'brand', 'sku', 'modelNumber',
+      'color', 'finish', 'material', 'width', 'height', 'depth', 'length',
+      'dimensionUnit', 'rrp', 'tradePrice', 'currency', 'supplierName',
+      'supplierPhone', 'supplierEmail', 'supplierAddress', 'supplierLink',
+      'leadTime', 'isTaxable', 'images', 'thumbnailUrl', 'attachments',
+      'tags', 'customFields', 'notes', 'status'
+    ]
+
+    const updateData: any = { updatedById: userId }
+
+    for (const field of allowedFields) {
+      if (updateFields[field] !== undefined) {
+        updateData[field] = updateFields[field]
+      }
     }
-    if (updateFields.tradePrice !== undefined) {
-      updateData.tradePrice = updateFields.tradePrice ? parseFloat(updateFields.tradePrice) : null
+
+    // Parse numeric fields
+    if (updateData.rrp !== undefined) {
+      updateData.rrp = updateData.rrp ? parseFloat(updateData.rrp) : null
+    }
+    if (updateData.tradePrice !== undefined) {
+      updateData.tradePrice = updateData.tradePrice ? parseFloat(updateData.tradePrice) : null
     }
 
     const product = await prisma.productLibraryItem.update({
@@ -284,8 +348,24 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 })
     }
 
-    const orgId = (session.user as any).orgId
-    const userId = (session.user as any).id
+    // Get orgId and userId from session, with fallback to database lookup
+    let orgId = (session.user as any).orgId
+    let userId = (session.user as any).id
+
+    if (!userId && session.user.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, orgId: true }
+      })
+      if (user) {
+        userId = user.id
+        orgId = orgId || user.orgId
+      }
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Session data incomplete' }, { status: 400 })
+    }
 
     // Verify product belongs to org
     const existing = await prisma.productLibraryItem.findFirst({
