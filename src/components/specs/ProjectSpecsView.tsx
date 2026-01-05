@@ -2448,8 +2448,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           depth: item.depth,
           length: item.length,
           leadTime: item.leadTime,
-          tradePrice: item.tradePrice,
-          rrp: item.rrp,
           supplierName: item.supplierName,
           supplierLink: item.supplierLink,
           categoryId: categoryId // Include category if found/created
