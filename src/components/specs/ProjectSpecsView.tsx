@@ -112,6 +112,7 @@ import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
 import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
 import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
+import BudgetApprovalDialog from '@/components/specs/BudgetApprovalDialog'
 
 // Item status options - ordered by workflow
 const ITEM_STATUS_OPTIONS = [
@@ -520,6 +521,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   // Client Quote Dialog (direct invoice to client with markup)
   const [clientQuoteDialogOpen, setClientQuoteDialogOpen] = useState(false)
   const [clientQuotePreselectedItems, setClientQuotePreselectedItems] = useState<string[]>([])
+
+  // Budget Approval Dialog
+  const [budgetApprovalDialogOpen, setBudgetApprovalDialogOpen] = useState(false)
 
   // Send to Client Dialog (send quote with payment link)
   const [sendToClientDialogOpen, setSendToClientDialogOpen] = useState(false)
@@ -3072,6 +3076,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               >
                 <DollarSign className="w-3.5 h-3.5 mr-1.5" />
                 Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (selectedItems.size === 0) {
+                    toast.error('Please select items first')
+                    return
+                  }
+                  setBudgetApprovalDialogOpen(true)
+                }}
+                disabled={selectedItems.size === 0}
+                className="h-8 border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 disabled:opacity-50"
+              >
+                <DollarSign className="w-3.5 h-3.5 mr-1.5" />
+                Budget Approval {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <div className="h-5 w-px bg-gray-200 mx-1" />
               <DropdownMenu>
@@ -8197,6 +8217,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }}
         projectId={project.id}
         preselectedItemIds={clientQuotePreselectedItems}
+      />
+
+      {/* Budget Approval Dialog - Send budget to client for approval */}
+      <BudgetApprovalDialog
+        open={budgetApprovalDialogOpen}
+        onOpenChange={(open) => {
+          setBudgetApprovalDialogOpen(open)
+        }}
+        projectId={project.id}
+        projectName={project.name}
+        selectedItemIds={Array.from(selectedItems)}
+        specs={specs}
+        onSuccess={() => {
+          setBudgetApprovalDialogOpen(false)
+          setSelectedItems(new Set()) // Clear selection
+          fetchSpecs() // Refresh specs
+        }}
       />
 
       {/* Send to Client Dialog - Send quote with payment link */}

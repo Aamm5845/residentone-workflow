@@ -328,13 +328,16 @@ export default function CreateRFQDialog({
               {/* File Attachments */}
               {projectId && (
                 <div className="space-y-2">
-                  <Label>Attachments</Label>
+                  <Label className="flex items-center gap-2">
+                    <Paperclip className="w-4 h-4" />
+                    Attachments for Suppliers
+                  </Label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Attach drawings, specs, or photos for suppliers
+                    Upload PDFs, images, or drawings that suppliers will see in their portal
                   </p>
                   <FileUpload
                     projectId={projectId}
-                    category="General"
+                    category="Shopping"
                     fileType="Drawings"
                     onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
                     onUploadError={(error) => console.error('Upload error:', error)}
@@ -353,6 +356,34 @@ export default function CreateRFQDialog({
               <p className="text-sm text-gray-500">
                 Select suppliers to receive this RFQ
               </p>
+
+              {/* File Attachments - show here when skipping Step 1 from preselected items */}
+              {projectId && (
+                <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <Label className="flex items-center gap-2">
+                    <Paperclip className="w-4 h-4" />
+                    Attachments for Suppliers
+                  </Label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload PDFs, images, or drawings that suppliers will see in their portal
+                  </p>
+                  <FileUpload
+                    projectId={projectId}
+                    category="Shopping"
+                    fileType="Drawings"
+                    onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
+                    onUploadError={(error) => console.error('Upload error:', error)}
+                    maxFiles={10}
+                    visibleToSupplier={true}
+                    compact={true}
+                  />
+                  {attachedFiles.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      {attachedFiles.length} file(s) will be visible to suppliers
+                    </div>
+                  )}
+                </div>
+              )}
 
               {suppliers.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg">

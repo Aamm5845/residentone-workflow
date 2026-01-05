@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
-        // Upload to FFE folder
-        const result = await dropboxService.uploadFFEFile(
+        // Upload to Shopping folder
+        const result = await dropboxService.uploadShoppingFile(
           project.dropboxFolder,
           category,
           fileType,
