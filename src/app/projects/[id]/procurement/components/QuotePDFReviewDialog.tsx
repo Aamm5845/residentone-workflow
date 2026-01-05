@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Check,
   X,
@@ -32,9 +36,33 @@ import {
   ExternalLink,
   ZoomIn,
   ZoomOut,
-  RotateCw
+  RotateCw,
+  Plus,
+  Upload,
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface Room {
+  id: string
+  name: string
+  sections: Array<{
+    id: string
+    name: string
+  }>
+}
+
+interface AddItemForm {
+  name: string
+  description: string
+  brand: string
+  sku: string
+  quantity: number
+  unitPrice: number
+  supplierName: string
+  imageUrl: string
+}
 
 interface ExtractedItem {
   productName: string
@@ -128,16 +156,172 @@ export default function QuotePDFReviewDialog({
   const [approvedMatches, setApprovedMatches] = useState<Set<number>>(new Set())
   const [savingMatch, setSavingMatch] = useState<number | null>(null)
 
-  // Initialize selected matches from current matchResults
+  // Add to All Specs dialog state
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false)
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('')
+  const [loadingRooms, setLoadingRooms] = useState(false)
+  const [addingItem, setAddingItem] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [addItemForm, setAddItemForm] = useState<AddItemForm>({
+    name: '',
+    description: '',
+    brand: '',
+    sku: '',
+    quantity: 1,
+    unitPrice: 0,
+    supplierName: '',
+    imageUrl: ''
+  })
+
+  // Fetch rooms and sections for the project
+  const fetchRooms = useCallback(async () => {
+    if (rooms.length > 0) return // Already loaded
+    setLoadingRooms(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/rooms-with-sections`)
+      if (res.ok) {
+        const data = await res.json()
+        setRooms(data.rooms || [])
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error)
+    } finally {
+      setLoadingRooms(false)
+    }
+  }, [projectId, rooms.length])
+
+  // Open add item dialog with pre-filled data from extracted item
+  const openAddItemDialog = (extractedItem: ExtractedItem) => {
+    setAddItemForm({
+      name: extractedItem.productName || '',
+      description: extractedItem.description || '',
+      brand: extractedItem.brand || '',
+      sku: extractedItem.sku || '',
+      quantity: extractedItem.quantity || 1,
+      unitPrice: extractedItem.unitPrice || 0,
+      supplierName: supplierName,
+      imageUrl: ''
+    })
+    setSelectedRoomId('')
+    setSelectedSectionId('')
+    fetchRooms()
+    setShowAddItemDialog(true)
+  }
+
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Image too large. Maximum 4MB.')
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('imageType', 'spec-item')
+      formData.append('projectId', projectId)
+
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setAddItemForm(prev => ({ ...prev, imageUrl: data.url }))
+        toast.success('Image uploaded')
+      } else {
+        toast.error('Failed to upload image')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+      e.target.value = ''
+    }
+  }
+
+  // Create the spec item
+  const handleAddItem = async () => {
+    if (!selectedRoomId || !selectedSectionId || !addItemForm.name.trim()) {
+      toast.error('Please select a room, section, and enter item name')
+      return
+    }
+
+    setAddingItem(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${selectedRoomId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionId: selectedSectionId,
+          name: addItemForm.name,
+          description: addItemForm.description,
+          brand: addItemForm.brand,
+          sku: addItemForm.sku,
+          quantity: addItemForm.quantity,
+          tradePrice: addItemForm.unitPrice,
+          supplierName: addItemForm.supplierName,
+          images: addItemForm.imageUrl ? [addItemForm.imageUrl] : [],
+          isSpecItem: true,
+          specStatus: 'DRAFT'
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Item added to All Specs')
+        setShowAddItemDialog(false)
+        setAddItemForm({
+          name: '',
+          description: '',
+          brand: '',
+          sku: '',
+          quantity: 1,
+          unitPrice: 0,
+          supplierName: '',
+          imageUrl: ''
+        })
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to add item')
+      }
+    } catch (error) {
+      console.error('Error adding item:', error)
+      toast.error('Failed to add item')
+    } finally {
+      setAddingItem(false)
+    }
+  }
+
+  // Get sections for selected room
+  const selectedRoom = rooms.find(r => r.id === selectedRoomId)
+  const sections = selectedRoom?.sections || []
+
+  // Initialize selected matches and approved status from current matchResults
   useEffect(() => {
     if (aiExtractedData?.matchResults) {
-      const initial: Record<number, string> = {}
+      const initialMatches: Record<number, string> = {}
+      const initialApproved = new Set<number>()
+
       aiExtractedData.matchResults.forEach((match, idx) => {
         if (match.rfqItem?.id) {
-          initial[idx] = match.rfqItem.id
+          initialMatches[idx] = match.rfqItem.id
+        }
+        // Restore approved status from saved metadata
+        if ((match as any).approved) {
+          initialApproved.add(idx)
         }
       })
-      setSelectedMatches(initial)
+
+      setSelectedMatches(initialMatches)
+      setApprovedMatches(initialApproved)
     }
   }, [aiExtractedData])
 
@@ -650,6 +834,19 @@ export default function QuotePDFReviewDialog({
                                 </div>
                               </div>
                             )}
+
+                            {/* Add to All Specs Button */}
+                            <div className="mt-3 pt-3 border-t border-blue-200">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                                onClick={() => openAddItemDialog(match.extractedItem!)}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add to All Specs
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -737,6 +934,184 @@ export default function QuotePDFReviewDialog({
           </div>
         </div>
       </DialogContent>
+
+      {/* Add to All Specs Dialog */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Item to All Specs</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Room Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Room *</Label>
+                <Select value={selectedRoomId} onValueChange={(v) => {
+                  setSelectedRoomId(v)
+                  setSelectedSectionId('')
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingRooms ? "Loading..." : "Select room"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rooms.map(room => (
+                      <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-2 block">Section *</Label>
+                <Select value={selectedSectionId} onValueChange={setSelectedSectionId} disabled={!selectedRoomId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map(section => (
+                      <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Item Name */}
+            <div>
+              <Label className="mb-2 block">Item Name *</Label>
+              <Input
+                value={addItemForm.name}
+                onChange={(e) => setAddItemForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Product name"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <Label className="mb-2 block">Description</Label>
+              <Textarea
+                value={addItemForm.description}
+                onChange={(e) => setAddItemForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Optional description"
+                rows={2}
+              />
+            </div>
+
+            {/* Brand & SKU */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Brand</Label>
+                <Input
+                  value={addItemForm.brand}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="Brand name"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">SKU / Model</Label>
+                <Input
+                  value={addItemForm.sku}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, sku: e.target.value }))}
+                  placeholder="SKU or model number"
+                />
+              </div>
+            </div>
+
+            {/* Quantity & Price */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Quantity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={addItemForm.quantity}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Unit Price</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={addItemForm.unitPrice}
+                  onChange={(e) => setAddItemForm(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+
+            {/* Supplier */}
+            <div>
+              <Label className="mb-2 block">Supplier</Label>
+              <Input
+                value={addItemForm.supplierName}
+                onChange={(e) => setAddItemForm(prev => ({ ...prev, supplierName: e.target.value }))}
+                placeholder="Supplier name"
+              />
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <Label className="mb-2 block">Image</Label>
+              <div className="flex items-center gap-3">
+                {addItemForm.imageUrl ? (
+                  <div className="relative w-16 h-16 rounded border overflow-hidden">
+                    <img src={addItemForm.imageUrl} alt="Product" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => setAddItemForm(prev => ({ ...prev, imageUrl: '' }))}
+                      className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    <div className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                      {uploadingImage ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 text-gray-500" />
+                      )}
+                      <span className="text-sm text-gray-600">
+                        {uploadingImage ? 'Uploading...' : 'Upload image'}
+                      </span>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddItem}
+              disabled={addingItem || !selectedRoomId || !selectedSectionId || !addItemForm.name.trim()}
+            >
+              {addingItem ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
