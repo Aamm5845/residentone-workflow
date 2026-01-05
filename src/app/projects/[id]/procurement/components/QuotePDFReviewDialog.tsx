@@ -963,17 +963,43 @@ export default function QuotePDFReviewDialog({
                   Close
                 </Button>
                 <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => {
-                    // Refresh data only when done reviewing (not after each approval)
-                    if (approvedMatches.size > 0) {
+                  variant="outline"
+                  className="border-amber-500 text-amber-600 hover:bg-amber-50"
+                  onClick={async () => {
+                    try {
+                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'REVISION_REQUESTED' })
+                      })
                       onMatchUpdated?.()
+                      toast.success('Quote marked as needs revision')
+                      onOpenChange(false)
+                    } catch {
+                      toast.error('Failed to update status')
                     }
-                    toast.success('Review complete')
-                    onOpenChange(false)
                   }}
                 >
-                  Done Reviewing
+                  Request Revision
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={async () => {
+                    try {
+                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'ACCEPTED' })
+                      })
+                      onMatchUpdated?.()
+                      toast.success('Quote approved')
+                      onOpenChange(false)
+                    } catch {
+                      toast.error('Failed to update status')
+                    }
+                  }}
+                >
+                  Approve Quote
                 </Button>
               </div>
             </div>
@@ -981,9 +1007,9 @@ export default function QuotePDFReviewDialog({
         </div>
       </DialogContent>
 
-      {/* Add to All Specs Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent className="max-w-lg">
+      {/* Add to All Specs Dialog - modal={false} fixes select dropdown inside nested dialog */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog} modal={false}>
+        <DialogContent className="max-w-lg z-[60]">
           <DialogHeader>
             <DialogTitle>Add Item to All Specs</DialogTitle>
           </DialogHeader>
@@ -1000,7 +1026,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder={loadingRooms ? "Loading..." : "Select room"} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" className="z-[70]">
                     {rooms.map(room => (
                       <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
                     ))}
@@ -1013,7 +1039,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Select section" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" className="z-[70]">
                     {sections.map(section => (
                       <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
                     ))}
