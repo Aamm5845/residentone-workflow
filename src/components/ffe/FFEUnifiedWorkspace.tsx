@@ -378,6 +378,7 @@ export default function FFEUnifiedWorkspace({
       // S = New section
       if (e.key === 's' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
+        loadSectionPresets()
         setShowAddSectionDialog(true)
         return
       }
@@ -1722,7 +1723,7 @@ export default function FFEUnifiedWorkspace({
                 <Import className="w-4 h-4 mr-2" />
                 Import Template
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowAddSectionDialog(true)} disabled={disabled}>
+              <Button variant="outline" size="sm" onClick={() => { loadSectionPresets(); setShowAddSectionDialog(true) }} disabled={disabled}>
                 <FolderPlus className="w-4 h-4 mr-2" />
                 Add Section
               </Button>
@@ -1759,7 +1760,7 @@ export default function FFEUnifiedWorkspace({
                   <Import className="w-4 h-4 mr-2" />
                   Import Template
                 </Button>
-                <Button variant="outline" onClick={() => setShowAddSectionDialog(true)}>
+                <Button variant="outline" onClick={() => { loadSectionPresets(); setShowAddSectionDialog(true) }}>
                   <FolderPlus className="w-4 h-4 mr-2" />
                   Add Section
                 </Button>
@@ -2749,8 +2750,7 @@ export default function FFEUnifiedWorkspace({
 
       <Dialog open={showAddSectionDialog} onOpenChange={(open) => {
         setShowAddSectionDialog(open)
-        if (open) {
-          loadSectionPresets()
+        if (!open) {
           setShowCustomSection(false)
           setSelectedPresetId('')
           setSelectedPresetIds(new Set())
@@ -2986,23 +2986,31 @@ export default function FFEUnifiedWorkspace({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div>
-              <Label>Section</Label>
-              <Select value={selectedSectionId} onValueChange={(val) => { 
-                setSelectedSectionId(val)
-                setLinkToParent(false)
-                setSelectedParentItemId('')
-              }}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Select a section..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sections.map(section => (
-                    <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Only show section dropdown if no section was pre-selected */}
+            {!selectedSectionId ? (
+              <div>
+                <Label>Section</Label>
+                <Select value={selectedSectionId} onValueChange={(val) => {
+                  setSelectedSectionId(val)
+                  setLinkToParent(false)
+                  setSelectedParentItemId('')
+                }}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Select a section..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map(section => (
+                      <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                <FolderPlus className="w-4 h-4" />
+                <span>Adding to: <span className="font-medium text-gray-900">{sections.find(s => s.id === selectedSectionId)?.name}</span></span>
+              </div>
+            )}
             
             {/* Group with Parent Option - supports cross-category grouping */}
             {selectedSectionId && (() => {
