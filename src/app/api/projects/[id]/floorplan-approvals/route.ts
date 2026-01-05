@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { 
+import {
   logActivity,
   ActivityActions,
   EntityTypes,
   getIPAddress,
   isValidAuthSession
 } from '@/lib/attribution'
+import { sendEmail } from '@/lib/email/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export async function GET(
   request: NextRequest,
@@ -508,6 +510,102 @@ export async function PATCH(
       },
       ipAddress
     })
+
+    // Send email notification to Shaya when floorplan is pushed to approval
+    if (action === 'push_to_approval') {
+      try {
+        const shaya = await prisma.user.findFirst({
+          where: {
+            email: 'shaya@meisnerinteriors.com'
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailNotificationsEnabled: true
+          }
+        })
+
+        if (shaya && shaya.emailNotificationsEnabled) {
+          const baseUrl = getBaseUrl()
+          const projectName = version.project.name
+          const projectUrl = `${baseUrl}/projects/${version.projectId}/floorplan-approval`
+          const pushedByName = session.user.name || 'A team member'
+
+          console.log(`[Email] Sending Floorplan Approval notification to Shaya for ${projectName}...`)
+
+          await sendEmail({
+            to: shaya.email,
+            subject: `${projectName} - Floorplan Ready for Client Approval`,
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floorplan Ready for Client Approval</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 40px 32px; text-align: center;">
+            <img src="${baseUrl}/meisnerinteriorlogo.png"
+                 alt="Meisner Interiors"
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Ready for Approval</h1>
+            <p style="margin: 8px 0 0 0; color: #ddd6fe; font-size: 16px; font-weight: 400;">${projectName}</p>
+        </div>
+
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${shaya.name},</p>
+
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${pushedByName}</strong> has pushed a floorplan version to <strong>Client Approval</strong>.
+            </p>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #8b5cf6; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Project Details</p>
+                <p style="margin: 0 0 8px 0; color: #1e293b; font-size: 15px;"><strong>Project:</strong> ${projectName}</p>
+                <p style="margin: 0; color: #1e293b; font-size: 15px;"><strong>Version:</strong> ${version.version}</p>
+            </div>
+
+            <p style="margin: 24px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                The floorplan is now ready for you to review and send to the client.
+            </p>
+
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}"
+                   style="background: #8b5cf6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);"
+                   target="_blank">View Floorplan</a>
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com"
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957"
+                   style="color: #2563eb; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+            text: `Hi ${shaya.name},\n\n${pushedByName} has pushed a floorplan version to Client Approval.\n\nProject: ${projectName}\nVersion: ${version.version}\n\nThe floorplan is now ready for you to review and send to the client.\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nThe Team`
+          })
+
+          console.log(`[Email] Floorplan Approval notification sent to Shaya`)
+        } else if (shaya && !shaya.emailNotificationsEnabled) {
+          console.log(`[Email] Skipping notification to Shaya (email notifications disabled)`)
+        } else {
+          console.log(`[Email] Shaya user not found in database`)
+        }
+      } catch (emailError) {
+        console.error('[Email] Failed to send Floorplan Approval notification to Shaya:', emailError)
+        // Don't fail the main operation if email notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

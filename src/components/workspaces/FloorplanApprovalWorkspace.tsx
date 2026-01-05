@@ -156,7 +156,7 @@ export default function FloorplanApprovalWorkspace({
           setNotes(currentPushed?.notes || '')
           
           if (currentPushed?.assets) {
-            setSelectedAssets(currentPushed.assets.filter((a: any) => a.includeInEmail).map((a: any) => a.id))
+            setSelectedAssets((currentPushed.assets || []).filter((a: any) => a.includeInEmail).map((a: any) => a.id))
           }
           
           if (currentPushed?.sentToClientAt) {
@@ -499,6 +499,7 @@ export default function FloorplanApprovalWorkspace({
 
   const statusConfig = getStatusConfig(currentVersion.status)
   const isApprovedByAaron = currentVersion.approvedByAaron || currentVersion.status !== 'DRAFT'
+  const isSentToClient = !!currentVersion.sentToClientAt
 
   return (
     <>
@@ -559,16 +560,23 @@ export default function FloorplanApprovalWorkspace({
           {/* Main Content - Left Side */}
           <div className="flex-1 p-6 space-y-6">
             {/* Internal Approval Card */}
-            <div className={`${isApprovedByAaron 
-              ? 'bg-green-50 border-green-200' 
-              : 'bg-blue-50 border-blue-200'
+            <div className={`${
+              isSentToClient
+                ? 'bg-purple-50 border-purple-200'
+                : isApprovedByAaron
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-blue-50 border-blue-200'
             } border rounded-lg p-6`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    isApprovedByAaron ? 'bg-green-500' : 'bg-blue-500'
+                    isSentToClient
+                      ? 'bg-purple-500'
+                      : isApprovedByAaron ? 'bg-green-500' : 'bg-blue-500'
                   }`}>
-                    {isApprovedByAaron ? (
+                    {isSentToClient ? (
+                      <Send className="w-5 h-5 text-white" />
+                    ) : isApprovedByAaron ? (
                       <CheckCircle className="w-5 h-5 text-white" />
                     ) : (
                       <Info className="w-5 h-5 text-white" />
@@ -576,14 +584,24 @@ export default function FloorplanApprovalWorkspace({
                   </div>
                   <div>
                     <h3 className={`text-lg font-semibold ${
-                      isApprovedByAaron ? 'text-green-900' : 'text-blue-900'
+                      isSentToClient
+                        ? 'text-purple-900'
+                        : isApprovedByAaron ? 'text-green-900' : 'text-blue-900'
                     }`}>
-                      {isApprovedByAaron ? 'Ready for Client' : 'Internal Review Required'}
+                      {isSentToClient
+                        ? 'Sent to Client'
+                        : isApprovedByAaron ? 'Ready for Client' : 'Internal Review Required'}
                     </h3>
-                    <p className={isApprovedByAaron ? 'text-green-700' : 'text-blue-700'}>
-                      {isApprovedByAaron 
-                        ? 'This floorplan version is approved and ready to send to the client.' 
-                        : 'Review and approve this floorplan before sending to client.'}
+                    <p className={
+                      isSentToClient
+                        ? 'text-purple-700'
+                        : isApprovedByAaron ? 'text-green-700' : 'text-blue-700'
+                    }>
+                      {isSentToClient
+                        ? `Floorplan was sent to client on ${new Date(currentVersion.sentToClientAt!).toLocaleDateString()}. Awaiting client response.`
+                        : isApprovedByAaron
+                          ? 'This floorplan version is approved and ready to send to the client.'
+                          : 'Review and approve this floorplan before sending to client.'}
                     </p>
                   </div>
                 </div>
