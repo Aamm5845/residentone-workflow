@@ -112,11 +112,15 @@ export async function POST(
 
     // Check if item is in the share link's items (if specific items are selected)
     const hasItemIds = shareLink.itemIds && shareLink.itemIds.length > 0
+    console.log('Approval check - itemIds:', { hasItemIds, itemId, linkItemIds: shareLink.itemIds })
+
     if (hasItemIds && !shareLink.itemIds.includes(itemId)) {
+      console.log('Item not in share link itemIds')
       return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
     }
 
     // Verify item exists and belongs to the project
+    console.log('Looking up item:', itemId)
     const item = await prisma.roomFFEItem.findFirst({
       where: {
         id: itemId,
@@ -150,11 +154,15 @@ export async function POST(
     })
 
     if (!item) {
+      console.log('Item not found for id:', itemId)
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    console.log('Found item:', { id: item.id, name: item.name, clientApproved: item.clientApproved })
+
     // Check if already approved
     if (item.clientApproved) {
+      console.log('Item already approved')
       return NextResponse.json({
         success: true,
         message: 'Item already approved',
@@ -163,6 +171,7 @@ export async function POST(
     }
 
     // Update the item to mark as approved
+    console.log('Updating item to approved...')
     const updatedItem = await prisma.roomFFEItem.update({
       where: { id: itemId },
       data: {
@@ -193,6 +202,8 @@ export async function POST(
       })
     }
 
+    console.log('Item approved successfully:', updatedItem.id)
+
     return NextResponse.json({
       success: true,
       message: 'Item approved successfully',
@@ -203,10 +214,11 @@ export async function POST(
       }
     })
 
-  } catch (error) {
-    console.error('Error approving item:', error)
+  } catch (error: any) {
+    console.error('Error approving item:', error?.message || error)
+    console.error('Full error:', JSON.stringify(error, null, 2))
     return NextResponse.json(
-      { error: 'Failed to approve item' },
+      { error: 'Failed to approve item: ' + (error?.message || 'Unknown error') },
       { status: 500 }
     )
   }
