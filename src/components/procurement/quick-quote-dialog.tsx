@@ -32,7 +32,10 @@ import {
   Building2,
   Eye,
   MapPin,
-  FileText
+  FileText,
+  Upload,
+  X,
+  Paperclip
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AddressPicker from '@/components/shipping/AddressPicker'
@@ -144,6 +147,9 @@ export default function QuickQuoteDialog({
   })
   // Preview state
   const [previewLoading, setPreviewLoading] = useState(false)
+  // File attachments
+  const [attachments, setAttachments] = useState<Array<{ name: string; url: string; size: number }>>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
     if (open && itemIds.length > 0) {
@@ -155,6 +161,7 @@ export default function QuickQuoteDialog({
       setExpandedGroups(new Set())
       setUseCustomShipping(false)
       setShippingAddress({ street: '', city: '', province: '', postalCode: '', country: 'Canada' })
+      setAttachments([])
     }
   }, [open, itemIds])
 
@@ -264,6 +271,53 @@ export default function QuickQuoteDialog({
     }
   }
 
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingFile(true)
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`File ${file.name} is too large. Maximum 10MB.`)
+          continue
+        }
+
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'rfq-attachments')
+        formData.append('projectId', projectId)
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          setAttachments(prev => [...prev, {
+            name: file.name,
+            url: data.url,
+            size: file.size
+          }])
+        } else {
+          toast.error(`Failed to upload ${file.name}`)
+        }
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload file')
+    } finally {
+      setUploadingFile(false)
+      e.target.value = ''
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSend = async () => {
     if (!preview) return
 
@@ -296,7 +350,8 @@ export default function QuickQuoteDialog({
           responseDeadline,
           includeSpecSheet,
           includeNotes,
-          shippingAddress: useCustomShipping ? shippingAddress : undefined
+          shippingAddress: useCustomShipping ? shippingAddress : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined
         })
       })
 
@@ -629,6 +684,62 @@ export default function QuickQuoteDialog({
                     min={new Date().toISOString().split('T')[0]}
                     className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+
+                {/* File Attachments */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Paperclip className="w-4 h-4" />
+                    Attachments (optional)
+                  </Label>
+                  <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                    <input
+                      type="file"
+                      id="rfq-file-upload"
+                      className="hidden"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      onChange={handleFileUpload}
+                      disabled={uploadingFile}
+                    />
+                    <label
+                      htmlFor="rfq-file-upload"
+                      className="flex flex-col items-center gap-2 cursor-pointer"
+                    >
+                      {uploadingFile ? (
+                        <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                      ) : (
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      )}
+                      <span className="text-sm text-gray-500">
+                        {uploadingFile ? 'Uploading...' : 'Click to upload PDF, images, or documents'}
+                      </span>
+                      <span className="text-xs text-gray-400">Max 10MB per file</span>
+                    </label>
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {attachments.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm text-gray-700 truncate max-w-[200px]">{file.name}</span>
+                            <span className="text-xs text-gray-400">
+                              ({(file.size / 1024).toFixed(0)} KB)
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                            onClick={() => removeAttachment(idx)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Include Spec Sheet & Notes - only show if applicable */}
