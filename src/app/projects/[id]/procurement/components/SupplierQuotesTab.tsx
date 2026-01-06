@@ -705,40 +705,45 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       </div>
                     </div>
 
-                    {/* Quote Number */}
-                    <div className="w-[80px] flex-shrink-0 text-center">
+                    {/* Quote # */}
+                    <div className="w-[85px] flex-shrink-0 text-center">
+                      <p className="text-[10px] text-gray-400 uppercase">Quote #</p>
                       <p className="text-sm font-medium text-gray-900">{quote.quoteNumber || '-'}</p>
                     </div>
 
-                    {/* Items Count */}
-                    <div className="w-[60px] flex-shrink-0 text-center">
-                      <p className="text-sm text-gray-600">{quote.lineItemsCount} items</p>
+                    {/* Items */}
+                    <div className="w-[55px] flex-shrink-0 text-center">
+                      <p className="text-[10px] text-gray-400 uppercase">Items</p>
+                      <p className="text-sm text-gray-700">{quote.lineItemsCount}</p>
                     </div>
 
-                    {/* Total Cost */}
-                    <div className="w-[100px] flex-shrink-0 text-right">
-                      <p className="font-medium text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</p>
+                    {/* Total */}
+                    <div className="w-[95px] flex-shrink-0 text-right">
+                      <p className="text-[10px] text-gray-400 uppercase">Total</p>
+                      <p className="font-semibold text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</p>
                     </div>
 
-                    {/* Received Date */}
-                    <div className="w-[80px] flex-shrink-0 text-center">
-                      <p className="text-xs text-gray-500">{formatDate(quote.submittedAt)}</p>
+                    {/* Received */}
+                    <div className="w-[85px] flex-shrink-0 text-center">
+                      <p className="text-[10px] text-gray-400 uppercase">Received</p>
+                      <p className="text-sm text-gray-700">{formatDate(quote.submittedAt)}</p>
                     </div>
 
                     {/* Status */}
-                    <div className="w-[110px] flex-shrink-0 text-center">
+                    <div className="w-[100px] flex-shrink-0 text-center">
+                      <p className="text-[10px] text-gray-400 uppercase">Status</p>
                       <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
                         {statusConfig[quote.status]?.label || quote.status}
                       </Badge>
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                       {/* Quote Document or Manual Entry indicator */}
                       {quote.quoteDocumentUrl ? (
                         <button
                           onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden relative group"
+                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden relative group flex-shrink-0"
                           title="Open PDF"
                         >
                           {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
@@ -748,65 +753,30 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           )}
                         </button>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
+                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300 flex-shrink-0">
                           Manual
                         </Badge>
                       )}
-                      {/* Show status badge for finalized quotes, review button for others */}
-                      {quote.status === 'ACCEPTED' ? (
-                        <>
-                          <Badge className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Approved
-                          </Badge>
-                          {quote.quoteDocumentUrl && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                              title="View PDF"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                        </>
-                      ) : quote.status === 'REJECTED' ? (
-                        <>
-                          <Badge className="bg-red-100 text-red-700 text-xs px-2 py-1">
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Declined
-                          </Badge>
-                          {quote.quoteDocumentUrl && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                              title="View PDF"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                        </>
-                      ) : quote.quoteDocumentUrl && quote.aiExtractedData ? (
+                      {/* Review button for PDF quotes with AI data (not finalized) */}
+                      {quote.status !== 'ACCEPTED' && quote.status !== 'REJECTED' && quote.quoteDocumentUrl && quote.aiExtractedData && (
                         <Button
                           variant="default"
                           size="sm"
-                          className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                          className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 flex-shrink-0"
                           onClick={() => openPdfReview(quote)}
                           title="Review & verify AI-matched items"
                         >
                           <Eye className="w-3.5 h-3.5 mr-1.5" />
                           Review Matches
                         </Button>
-                      ) : null}
+                      )}
+                      {/* Actions for approved quotes */}
                       {quote.status === 'ACCEPTED' && (
                         <>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                            className="h-7 px-2 text-violet-600 hover:text-violet-700 hover:bg-violet-50 flex-shrink-0"
                             onClick={() => {
                               setSelectedQuoteForBudget(quote)
                               setBudgetQuoteDialogOpen(true)
@@ -819,7 +789,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 flex-shrink-0"
                             onClick={() => {
                               setSelectedQuoteForInvoice(quote.id)
                               setSelectedQuoteData({
@@ -835,11 +805,12 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           </Button>
                         </>
                       )}
+                      {/* Delete button for rejected quotes */}
                       {quote.status === 'REJECTED' && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                           onClick={() => handleDeleteQuote(quote.id)}
                           disabled={deletingQuoteId === quote.id}
                         >
@@ -1099,6 +1070,14 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                         {item.alternateProduct && (
                                           <p className="text-xs text-orange-600 mt-0.5">Alternate product offered</p>
                                         )}
+                                        {/* Inline item notes */}
+                                        {(item.alternateNotes || item.leadTimeNotes || item.notes) && (
+                                          <p className="text-xs text-gray-500 mt-1 italic">
+                                            {item.alternateNotes && <span className="text-orange-600">{item.alternateNotes} </span>}
+                                            {item.leadTimeNotes && <span>{item.leadTimeNotes} </span>}
+                                            {item.notes && <span>{item.notes}</span>}
+                                          </p>
+                                        )}
                                         {/* Show inline mismatch details */}
                                         {item.hasMismatch && item.mismatchReasons && item.mismatchReasons.length > 0 && (
                                           <div className="mt-1.5 p-1.5 bg-amber-200/50 rounded text-xs">
@@ -1274,21 +1253,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           )}
                         </div>
                       </div>
-
-                      {/* Notes Section */}
-                      {quote.lineItems.some(item => item.alternateNotes || item.leadTimeNotes || item.notes) && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
-                          <p className="font-medium text-gray-700 mb-2">Item Notes:</p>
-                          {quote.lineItems.filter(item => item.alternateNotes || item.leadTimeNotes || item.notes).map(item => (
-                            <div key={item.id} className="mb-2 last:mb-0">
-                              <span className="font-medium">{item.itemName}:</span>
-                              {item.alternateNotes && <span className="text-orange-600 ml-2">{item.alternateNotes}</span>}
-                              {item.leadTimeNotes && <span className="text-gray-600 ml-2">{item.leadTimeNotes}</span>}
-                              {item.notes && <span className="text-gray-600 ml-2">{item.notes}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
 
                       {/* Supplier Notes */}
                       {quote.supplierNotes && (
