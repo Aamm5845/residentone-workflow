@@ -608,39 +608,20 @@ export default function SharedSpecLinkPage() {
                           <p className="text-[10px] text-gray-400 uppercase">Qty</p>
                         </div>
 
+                        {/* Lead Time - always show */}
+                        <div className="col-span-1 text-center">
+                          <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
+                        </div>
+
                         {/* Price - only if pricing is shown */}
-                        {shareSettings.showPricing ? (
-                          <>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{formatCurrency(item.rrp)}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Price</p>
-                            </div>
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm font-medium text-gray-900">
-                                {formatCurrency((item.rrp || 0) * (item.quantity || 1))}
-                              </p>
-                              <p className="text-[10px] text-gray-400 uppercase">Total</p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* Lead Time when no pricing */}
-                            <div className="col-span-1 text-center">
-                              <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
-                            </div>
-                            {/* Vendor when no pricing */}
-                            <div className="col-span-1 min-w-0">
-                              {item.supplierName ? (
-                                <>
-                                  <p className="text-sm text-gray-700 truncate">{item.supplierName}</p>
-                                  <p className="text-[10px] text-gray-400 uppercase">Vendor</p>
-                                </>
-                              ) : (
-                                <p className="text-sm text-gray-400">-</p>
-                              )}
-                            </div>
-                          </>
+                        {shareSettings.showPricing && (
+                          <div className="col-span-1 text-center">
+                            <p className="text-sm font-medium text-gray-900">
+                              {formatCurrency((item.rrp || 0) * (item.quantity || 1))}
+                            </p>
+                            <p className="text-[10px] text-gray-400 uppercase">Total</p>
+                          </div>
                         )}
 
                         {/* Status Column */}
