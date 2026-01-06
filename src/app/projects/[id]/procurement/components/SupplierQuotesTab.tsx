@@ -705,40 +705,40 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       </div>
                     </div>
 
-                    {/* Quote # */}
-                    <div className="w-[85px] flex-shrink-0 text-center">
+                    {/* Quote # - closer to supplier */}
+                    <div className="flex-shrink-0 text-center ml-2">
                       <p className="text-[10px] text-gray-400 uppercase">Quote #</p>
-                      <p className="text-sm font-medium text-gray-900">{quote.quoteNumber || '-'}</p>
+                      <p className="text-sm font-medium text-gray-900 whitespace-nowrap">{quote.quoteNumber || '-'}</p>
                     </div>
 
                     {/* Items */}
-                    <div className="w-[55px] flex-shrink-0 text-center">
+                    <div className="flex-shrink-0 text-center ml-6">
                       <p className="text-[10px] text-gray-400 uppercase">Items</p>
                       <p className="text-sm text-gray-700">{quote.lineItemsCount}</p>
                     </div>
 
                     {/* Total */}
-                    <div className="w-[95px] flex-shrink-0 text-right">
+                    <div className="flex-shrink-0 text-right ml-6">
                       <p className="text-[10px] text-gray-400 uppercase">Total</p>
-                      <p className="font-semibold text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</p>
+                      <p className="font-semibold text-gray-900 text-sm whitespace-nowrap">{formatCurrency(quote.totalAmount, quote.currency)}</p>
                     </div>
 
                     {/* Received */}
-                    <div className="w-[85px] flex-shrink-0 text-center">
+                    <div className="flex-shrink-0 text-center ml-6">
                       <p className="text-[10px] text-gray-400 uppercase">Received</p>
-                      <p className="text-sm text-gray-700">{formatDate(quote.submittedAt)}</p>
+                      <p className="text-sm text-gray-700 whitespace-nowrap">{formatDate(quote.submittedAt)}</p>
                     </div>
 
                     {/* Status */}
-                    <div className="w-[100px] flex-shrink-0 text-center">
+                    <div className="flex-shrink-0 text-center ml-6">
                       <p className="text-[10px] text-gray-400 uppercase">Status</p>
-                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
+                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs whitespace-nowrap`}>
                         {statusConfig[quote.status]?.label || quote.status}
                       </Badge>
                     </div>
 
                     {/* Actions - fixed width */}
-                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2 ml-auto" onClick={e => e.stopPropagation()}>
                       {/* Quote Document or Manual Entry indicator */}
                       {quote.quoteDocumentUrl ? (
                         <button
