@@ -5177,7 +5177,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                 {/* RRP */}
                                 <div className="flex-shrink-0 w-20 h-9 text-right">
-                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">RRP</p>
+                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                    RRP {item.rrpCurrency === 'USD' && <span className="text-blue-500">(USD)</span>}
+                                  </p>
                                   {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
                                     <Input
                                       value={editValue}
@@ -5191,7 +5193,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     />
                                   ) : (
                                     <p
-                                      className="text-xs text-gray-900 cursor-text hover:bg-gray-100 rounded px-1"
+                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.rrpCurrency === 'USD' ? 'text-blue-600' : 'text-gray-900'}`}
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
                                     >
                                       {item.rrp ? formatCurrency(item.rrp) : '-'}
