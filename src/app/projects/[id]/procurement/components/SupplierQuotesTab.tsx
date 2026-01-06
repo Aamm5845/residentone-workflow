@@ -655,103 +655,95 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
               </p>
             </div>
           ) : (
-            <div>
-              {/* Table Header */}
-              <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                <div className="w-6 flex-shrink-0"></div>
-                <div className="flex-1 min-w-[180px] pl-2">Supplier</div>
-                <div className="w-24 text-center">Quote #</div>
-                <div className="w-16 text-center">Items</div>
-                <div className="w-28 text-right">Total</div>
-                <div className="w-24 text-center">Received</div>
-                <div className="w-28 text-center">Status</div>
-                <div className="w-[200px] text-right">Actions</div>
-              </div>
-
-              {/* Quote Rows */}
-              <div className="divide-y divide-gray-100">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-gray-500 font-medium w-8"></TableHead>
+                  <TableHead className="text-gray-500 font-medium">Quote #</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Supplier</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Items</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Total</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Received</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {filteredQuotes.map((quote) => (
-                <div
-                  key={quote.id}
-                  className={`transition-all duration-300 ${
+                <React.Fragment key={quote.id}>
+                <TableRow
+                  className={`cursor-pointer hover:bg-gray-50 ${
                     highlightedQuoteId === quote.id
                       ? 'bg-blue-50/50 ring-1 ring-inset ring-blue-200'
                       : ''
                   } ${expandedQuotes.has(quote.id) ? 'bg-gray-50/50' : ''}`}
+                  onClick={() => toggleExpanded(quote.id)}
                 >
-                  {/* Main Row */}
-                  <div
-                    className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => toggleExpanded(quote.id)}
-                  >
-                    {/* Expand button */}
-                    <button className="text-gray-400 hover:text-gray-600 w-6 flex-shrink-0">
+                  {/* Expand button */}
+                  <TableCell className="w-8 p-2">
+                    <button className="text-gray-400 hover:text-gray-600">
                       {expandedQuotes.has(quote.id) ? (
                         <ChevronDown className="w-4 h-4" />
                       ) : (
                         <ChevronRight className="w-4 h-4" />
                       )}
                     </button>
+                  </TableCell>
 
-                    {/* Supplier with logo */}
-                    <div className="flex-1 min-w-[180px] flex items-center gap-3 pl-2">
+                  {/* Quote # */}
+                  <TableCell className="font-medium text-gray-900">
+                    {quote.quoteNumber || '-'}
+                  </TableCell>
+
+                  {/* Supplier with logo */}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
                       {quote.supplier.logo ? (
                         <img
                           src={quote.supplier.logo}
                           alt={quote.supplier.name}
-                          className="w-8 h-8 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                          className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                           <span className="text-xs font-medium text-gray-600">
                             {quote.supplier.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-gray-900 truncate text-sm">{quote.supplier.name}</span>
-                          {quote.hasMismatches && (
-                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-                          )}
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-600">{quote.supplier.name}</span>
+                        {quote.hasMismatches && (
+                          <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                        )}
                       </div>
                     </div>
+                  </TableCell>
 
-                    {/* Quote # */}
-                    <div className="w-24 text-center flex-shrink-0">
-                      <span className="text-sm text-gray-900">{quote.quoteNumber || '-'}</span>
-                    </div>
+                  {/* Items */}
+                  <TableCell className="text-gray-600">{quote.lineItemsCount}</TableCell>
 
-                    {/* Items */}
-                    <div className="w-16 text-center flex-shrink-0">
-                      <span className="text-sm text-gray-600">{quote.lineItemsCount}</span>
-                    </div>
+                  {/* Total */}
+                  <TableCell className="text-gray-600">{formatCurrency(quote.totalAmount, quote.currency)}</TableCell>
 
-                    {/* Total */}
-                    <div className="w-28 text-right flex-shrink-0">
-                      <span className="font-medium text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</span>
-                    </div>
+                  {/* Received */}
+                  <TableCell className="text-gray-600">{formatDate(quote.submittedAt)}</TableCell>
 
-                    {/* Received */}
-                    <div className="w-24 text-center flex-shrink-0">
-                      <span className="text-sm text-gray-600">{formatDate(quote.submittedAt)}</span>
-                    </div>
+                  {/* Status */}
+                  <TableCell>
+                    <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
+                      {statusConfig[quote.status]?.label || quote.status}
+                    </Badge>
+                  </TableCell>
 
-                    {/* Status */}
-                    <div className="w-28 text-center flex-shrink-0">
-                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
-                        {statusConfig[quote.status]?.label || quote.status}
-                      </Badge>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="w-[200px] flex-shrink-0 flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                  {/* Actions */}
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-2">
                       {/* Quote Document */}
                       {quote.quoteDocumentUrl && (
                         <button
                           onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                          className="w-8 h-8 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden flex-shrink-0"
+                          className="w-7 h-7 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden flex-shrink-0"
                           title="View PDF"
                         >
                           {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
@@ -763,7 +755,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
                       {/* Manual indicator */}
                       {!quote.quoteDocumentUrl && (
-                        <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-200 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs text-gray-400 border-gray-200">
                           Manual
                         </Badge>
                       )}
@@ -772,9 +764,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         <Button
                           variant="default"
                           size="sm"
-                          className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                          className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700"
                           onClick={() => openPdfReview(quote)}
-                          title="Review & verify AI-matched items"
                         >
                           <Eye className="w-3 h-3 mr-1" />
                           Review
@@ -786,19 +777,19 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-violet-600 hover:text-violet-700 hover:bg-violet-50 flex-shrink-0"
+                            className="h-7 px-2 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50"
                             onClick={() => {
                               setSelectedQuoteForBudget(quote)
                               setBudgetQuoteDialogOpen(true)
                             }}
-                            title="Create Budget Quote"
                           >
-                            <DollarSign className="w-3.5 h-3.5" />
+                            <DollarSign className="w-3.5 h-3.5 mr-1" />
+                            Budget
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 flex-shrink-0"
+                            className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                             onClick={() => {
                               setSelectedQuoteForInvoice(quote.id)
                               setSelectedQuoteData({
@@ -807,9 +798,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               })
                               setInvoiceDialogOpen(true)
                             }}
-                            title="Create Client Invoice"
                           >
-                            <Receipt className="w-3.5 h-3.5" />
+                            <Receipt className="w-3.5 h-3.5 mr-1" />
+                            Invoice
                           </Button>
                         </>
                       )}
@@ -818,7 +809,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDeleteQuote(quote.id)}
                           disabled={deletingQuoteId === quote.id}
                         >
@@ -826,7 +817,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </Button>
                       )}
                     </div>
-                  </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              </TableBody>
 
                   {/* Expanded Details */}
                   {expandedQuotes.has(quote.id) && (

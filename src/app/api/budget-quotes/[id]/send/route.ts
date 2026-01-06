@@ -78,7 +78,7 @@ export async function POST(
 
     // Generate email
     const companyName = budgetQuote.org.businessName || budgetQuote.org.name
-    const emailHtml = generateBudgetQuoteEmailTemplate({
+    const { subject: emailSubject, html: emailHtml } = generateBudgetQuoteEmailTemplate({
       budgetQuoteNumber: `BQ-${budgetQuote.id.slice(-6).toUpperCase()}`,
       clientName,
       projectName: budgetQuote.project.name,
@@ -99,7 +99,7 @@ export async function POST(
     // Send email
     await sendEmail({
       to: email,
-      subject: `Budget Estimate: ${budgetQuote.title} - ${budgetQuote.project.name}`,
+      subject: emailSubject,
       html: emailHtml
     })
 
@@ -114,14 +114,14 @@ export async function POST(
       }
     })
 
-    // Update items to BUDGET_SENT status
+    // Update items to BUDGET_SENT specStatus
     if (budgetQuote.itemIds.length > 0) {
       await prisma.roomFFEItem.updateMany({
         where: {
           id: { in: budgetQuote.itemIds }
         },
         data: {
-          status: 'BUDGET_SENT'
+          specStatus: 'BUDGET_SENT'
         }
       })
     }

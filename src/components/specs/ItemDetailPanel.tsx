@@ -735,6 +735,7 @@ export function ItemDetailPanel({
     tradePrice: '',
     rrp: '',
     tradeDiscount: '',
+    markupPercent: '',
     rrpCurrency: 'CAD',
     tradePriceCurrency: 'CAD',
     notes: '',
@@ -1209,6 +1210,7 @@ export function ItemDetailPanel({
         tradePrice: item.tradePrice?.toString() || '',
         rrp: item.rrp?.toString() || '',
         tradeDiscount: item.tradeDiscount?.toString() || '',
+        markupPercent: (item as any).markupPercent?.toString() || '',
         rrpCurrency: (item as any).rrpCurrency || 'CAD',
         tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
         notes: item.notes || '',
@@ -1243,6 +1245,7 @@ export function ItemDetailPanel({
         tradePrice: '',
         rrp: '',
         tradeDiscount: '',
+        markupPercent: '',
         currency: 'CAD',
         notes: '',
       })
@@ -1304,6 +1307,7 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : undefined,
             rrpCurrency: formData.rrpCurrency,
             tradePriceCurrency: formData.tradePriceCurrency,
             images: images,
@@ -1356,12 +1360,13 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : undefined,
             rrpCurrency: formData.rrpCurrency,
             tradePriceCurrency: formData.tradePriceCurrency,
             images: images,
           })
         })
-        
+
         if (res.ok) {
           toast.success('Item updated successfully')
           onSave?.()
@@ -1441,6 +1446,7 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : undefined,
             rrpCurrency: formData.rrpCurrency,
             tradePriceCurrency: formData.tradePriceCurrency,
             images: images,
@@ -1519,6 +1525,7 @@ export function ItemDetailPanel({
             tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
             rrp: formData.rrp ? parseFloat(formData.rrp) : undefined,
             tradeDiscount: formData.tradeDiscount ? parseFloat(formData.tradeDiscount) : undefined,
+            markupPercent: formData.markupPercent ? parseFloat(formData.markupPercent) : undefined,
             rrpCurrency: formData.rrpCurrency,
             tradePriceCurrency: formData.tradePriceCurrency,
             images: images,

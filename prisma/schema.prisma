@@ -1474,7 +1474,6 @@ model FFESectionPreset {
   name          String           // e.g., "Plumbing"
   docCodePrefix String           // e.g., "PL" (1-3 uppercase letters)
   description   String?
-  markupPercent Decimal?         // Default markup % for items in this section
   order         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -1510,6 +1509,7 @@ model RoomFFEItem {
   tradePrice       Decimal?
   rrp              Decimal?
   tradeDiscount    Decimal?            // Percentage discount
+  markupPercent    Decimal?            // Markup percentage for client pricing (from supplier default, can override)
   currency         String?             @default("CAD") // Currency: CAD or USD (legacy)
   rrpCurrency      String?             @default("CAD") // RRP currency: CAD or USD
   tradePriceCurrency String?           @default("CAD") // Trade price currency: CAD or USD
