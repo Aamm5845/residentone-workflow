@@ -2265,11 +2265,19 @@ export function ItemDetailPanel({
                         value={formData.rrp}
                         onChange={(e) => {
                           const newRrp = e.target.value
-                          // Auto-calculate trade price if discount is set
+                          const tradePrice = parseFloat(formData.tradePrice) || 0
                           const discount = parseFloat(formData.tradeDiscount) || 0
+
+                          // Auto-calculate trade price if discount is set
                           if (discount > 0 && newRrp) {
                             const calculatedTradePrice = (parseFloat(newRrp) * (1 - discount / 100)).toFixed(2)
                             setFormData({ ...formData, rrp: newRrp, tradePrice: calculatedTradePrice })
+                          }
+                          // Auto-calculate markup if trade price exists
+                          else if (tradePrice > 0 && newRrp) {
+                            const rrpValue = parseFloat(newRrp)
+                            const calculatedMarkup = ((rrpValue - tradePrice) / tradePrice * 100).toFixed(0)
+                            setFormData({ ...formData, rrp: newRrp, markupPercent: calculatedMarkup })
                           } else {
                             setFormData({ ...formData, rrp: newRrp })
                           }
@@ -2314,7 +2322,18 @@ export function ItemDetailPanel({
                         type="number"
                         step="0.01"
                         value={formData.tradePrice}
-                        onChange={(e) => setFormData({ ...formData, tradePrice: e.target.value })}
+                        onChange={(e) => {
+                          const newTradePrice = e.target.value
+                          const rrp = parseFloat(formData.rrp) || 0
+                          // Auto-calculate markup if RRP exists
+                          if (rrp > 0 && newTradePrice) {
+                            const tradePriceValue = parseFloat(newTradePrice)
+                            const calculatedMarkup = ((rrp - tradePriceValue) / tradePriceValue * 100).toFixed(0)
+                            setFormData({ ...formData, tradePrice: newTradePrice, markupPercent: calculatedMarkup })
+                          } else {
+                            setFormData({ ...formData, tradePrice: newTradePrice })
+                          }
+                        }}
                         placeholder="0.00"
                         className="pl-7"
                       />
