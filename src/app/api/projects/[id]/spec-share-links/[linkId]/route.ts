@@ -105,6 +105,8 @@ export async function PATCH(
       showBrand,
       showPricing,
       showDetails,
+      showSpecSheets,
+      allowApproval,
       expiresAt,
       active
     } = body
@@ -143,6 +145,8 @@ export async function PATCH(
         ...(showBrand !== undefined && { showBrand }),
         ...(showPricing !== undefined && { showPricing }),
         ...(showDetails !== undefined && { showDetails }),
+        ...(showSpecSheets !== undefined && { showSpecSheets }),
+        ...(allowApproval !== undefined && { allowApproval }),
         ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
         ...(active !== undefined && { active })
       },

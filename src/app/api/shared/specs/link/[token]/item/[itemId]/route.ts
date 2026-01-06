@@ -120,6 +120,7 @@ export async function GET(
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
       rrp: shareLink.showPricing ? item.rrp : null,
+      attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
       updatedAt: item.updatedAt
     }
 
@@ -139,7 +140,8 @@ export async function GET(
         showSupplier: shareLink.showSupplier,
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
-        showDetails: shareLink.showDetails
+        showDetails: shareLink.showDetails,
+        showSpecSheets: shareLink.showSpecSheets || false
       }
     })
 

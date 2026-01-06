@@ -23,7 +23,8 @@ import {
   Building2,
   UserCheck,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  FileSpreadsheet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -50,6 +51,7 @@ interface CreateSpecShareLinkDialogProps {
     showBrand: boolean
     showPricing: boolean
     showDetails: boolean
+    showSpecSheets: boolean
     allowApproval: boolean
     expiresAt: string | null
   } | null
@@ -74,6 +76,7 @@ export default function CreateSpecShareLinkDialog({
   const [showBrand, setShowBrand] = useState(true)
   const [showPricing, setShowPricing] = useState(false)
   const [showDetails, setShowDetails] = useState(true)
+  const [showSpecSheets, setShowSpecSheets] = useState(false)
   const [allowApproval, setAllowApproval] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
 
@@ -87,6 +90,7 @@ export default function CreateSpecShareLinkDialog({
         setShowBrand(editingLink.showBrand)
         setShowPricing(editingLink.showPricing)
         setShowDetails(editingLink.showDetails)
+        setShowSpecSheets(editingLink.showSpecSheets || false)
         setAllowApproval(editingLink.allowApproval || false)
         setExpiresAt(editingLink.expiresAt ? editingLink.expiresAt.split('T')[0] : '')
       } else {
@@ -96,6 +100,7 @@ export default function CreateSpecShareLinkDialog({
         setShowBrand(true)
         setShowPricing(false)
         setShowDetails(true)
+        setShowSpecSheets(false)
         setAllowApproval(false)
         setExpiresAt('')
       }
@@ -208,6 +213,7 @@ export default function CreateSpecShareLinkDialog({
           showBrand,
           showPricing,
           showDetails,
+          showSpecSheets,
           allowApproval,
           expiresAt: expiresAt || null
         })
@@ -293,7 +299,7 @@ export default function CreateSpecShareLinkDialog({
             </div>
 
             {/* Items List */}
-            <ScrollArea className="border rounded-lg min-h-[200px] max-h-[300px]">
+            <div className="border rounded-lg h-[250px] overflow-y-auto">
               <div className="p-2 space-y-1">
                 {filteredGroups.map(({ category, items: categoryItems }) => {
                   const isExpanded = expandedCategories.has(category)
@@ -377,7 +383,7 @@ export default function CreateSpecShareLinkDialog({
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             <p className="text-xs text-slate-500 mt-1">
               {selectedItemIds.size} of {items.length} items selected
@@ -420,6 +426,18 @@ export default function CreateSpecShareLinkDialog({
                 <Switch checked={showDetails} onCheckedChange={setShowDetails} />
               </label>
             </div>
+
+            {/* Spec Sheets Option */}
+            <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50 mt-3">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-slate-500" />
+                <div>
+                  <span className="text-sm">Spec Sheets</span>
+                  <p className="text-xs text-slate-500">Include uploaded spec sheet documents</p>
+                </div>
+              </div>
+              <Switch checked={showSpecSheets} onCheckedChange={setShowSpecSheets} />
+            </label>
           </div>
 
           {/* Client Approval Option */}

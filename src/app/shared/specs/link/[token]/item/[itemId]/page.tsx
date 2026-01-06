@@ -38,6 +38,7 @@ interface SpecItem {
   length: string | null
   height: string | null
   depth: string | null
+  attachments: any[] | null
   updatedAt: string
 }
 
@@ -53,6 +54,7 @@ interface ShareSettings {
   showBrand: boolean
   showPricing: boolean
   showDetails: boolean
+  showSpecSheets: boolean
 }
 
 export default function ItemDetailPage() {
@@ -72,7 +74,8 @@ export default function ItemDetailPage() {
     showSupplier: false,
     showBrand: true,
     showPricing: false,
-    showDetails: true
+    showDetails: true,
+    showSpecSheets: false
   })
 
   const [imageLightbox, setImageLightbox] = useState<{
@@ -415,6 +418,37 @@ export default function ItemDetailPage() {
                 <p className="text-xs text-gray-400 uppercase mt-1">Room</p>
               </div>
             </div>
+
+            {/* Spec Sheets / Attachments */}
+            {shareSettings.showSpecSheets && item.attachments && Array.isArray(item.attachments) && item.attachments.length > 0 && (
+              <div className="mt-8">
+                <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Spec Sheets</h4>
+                <div className="space-y-2">
+                  {item.attachments.map((attachment: any, idx: number) => (
+                    <a
+                      key={idx}
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+                        <Download className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {attachment.name || `Document ${idx + 1}`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {attachment.type || 'PDF'}
+                        </p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -123,6 +123,8 @@ export async function GET(
         depth: shareLink.showDetails ? item.depth : null,
         tradePrice: shareLink.showPricing ? item.tradePrice : null,
         rrp: shareLink.showPricing ? item.rrp : null,
+        // Spec sheets / attachments
+        attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
         // Approval fields - always include so UI can show status
         clientApproved: item.clientApproved || false,
         clientApprovedAt: item.clientApprovedAt?.toISOString() || null
@@ -142,6 +144,7 @@ export async function GET(
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
         showDetails: shareLink.showDetails,
+        showSpecSheets: shareLink.showSpecSheets || false,
         allowApproval: shareLink.allowApproval || false
       },
       expiresAt: shareLink.expiresAt,

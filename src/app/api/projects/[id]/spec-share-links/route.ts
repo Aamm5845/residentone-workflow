@@ -95,6 +95,7 @@ export async function POST(
       showBrand = true,
       showPricing = false,
       showDetails = true,
+      showSpecSheets = false,
       allowApproval = false,
       expiresAt
     } = body
@@ -136,6 +137,7 @@ export async function POST(
         showBrand,
         showPricing,
         showDetails,
+        showSpecSheets,
         allowApproval,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         createdById: userId

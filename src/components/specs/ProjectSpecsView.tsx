@@ -7715,13 +7715,33 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
-                              <span>{link.itemCount} items</span>
-                              {link.showPricing && <span>• with pricing</span>}
-                              {link.expiresAt && !link.isExpired && (
-                                <span>• expires {new Date(link.expiresAt).toLocaleDateString()}</span>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              {link.allowApproval && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 rounded">
+                                  Approval
+                                </span>
+                              )}
+                              {link.showPricing && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">
+                                  Pricing
+                                </span>
+                              )}
+                              {link.showSpecSheets && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-50 text-purple-700 rounded">
+                                  Spec Sheets
+                                </span>
+                              )}
+                              {link.showSupplier && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded">
+                                  Supplier
+                                </span>
                               )}
                             </div>
+                            {link.expiresAt && !link.isExpired && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Expires {new Date(link.expiresAt).toLocaleDateString()}
+                              </p>
+                            )}
                             {link.accessCount > 0 && (
                               <p className="text-xs text-gray-400 mt-1">
                                 Viewed {link.accessCount} time{link.accessCount !== 1 ? 's' : ''}
