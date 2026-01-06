@@ -1,10 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -370,73 +378,82 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-gray-500 font-medium w-8"></TableHead>
+                  <TableHead className="text-gray-500 font-medium">Quote #</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Title</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Items</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Total</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Created</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {filteredQuotes.map((quote) => {
                 const StatusIcon = statusConfig[quote.status]?.icon || FileText
 
                 return (
-                  <div
-                    key={quote.id}
-                    className="border rounded-lg overflow-hidden border-gray-200"
+                  <React.Fragment key={quote.id}>
+                  <TableRow
+                    className={`cursor-pointer hover:bg-gray-50 ${expandedQuotes.has(quote.id) ? 'bg-gray-50/50' : ''}`}
+                    onClick={() => toggleExpanded(quote.id)}
                   >
-                    {/* Main Row */}
-                    <div
-                      className="flex items-center p-4 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => toggleExpanded(quote.id)}
-                    >
-                      {/* Expand button */}
-                      <button className="text-gray-400 hover:text-gray-600 w-6 flex-shrink-0">
+                    {/* Expand button */}
+                    <TableCell className="w-8 p-2">
+                      <button className="text-gray-400 hover:text-gray-600">
                         {expandedQuotes.has(quote.id) ? (
                           <ChevronDown className="w-4 h-4" />
                         ) : (
                           <ChevronRight className="w-4 h-4" />
                         )}
                       </button>
+                    </TableCell>
 
-                      {/* Title and info */}
-                      <div className="flex-1 min-w-[200px] pl-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{quote.title}</span>
-                          <span className="text-xs text-gray-400">{getQuoteNumber(quote.id)}</span>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {quote.itemIds.length} items • Created by {quote.createdBy.name || quote.createdBy.email}
-                        </p>
-                      </div>
+                    {/* Quote # */}
+                    <TableCell className="font-medium text-gray-900">
+                      {getQuoteNumber(quote.id)}
+                    </TableCell>
 
-                      {/* Amount */}
-                      <div className="w-[120px] flex-shrink-0 text-right">
-                        <p className="font-semibold text-gray-900">{formatCurrency(quote.estimatedTotal, quote.currency)}</p>
-                        {quote.includeTax && <p className="text-xs text-gray-500">+ tax</p>}
-                      </div>
+                    {/* Title */}
+                    <TableCell className="text-gray-600">
+                      {quote.title}
+                    </TableCell>
 
-                      {/* Client Email */}
-                      <div className="w-[180px] flex-shrink-0 text-center">
-                        <p className="text-sm text-gray-600 truncate">{quote.clientEmail || '-'}</p>
-                      </div>
+                    {/* Items */}
+                    <TableCell className="text-gray-600">
+                      {quote.itemIds.length}
+                    </TableCell>
 
-                      {/* Created Date */}
-                      <div className="w-[100px] flex-shrink-0 text-center">
-                        <p className="text-xs text-gray-500">Created</p>
-                        <p className="text-sm text-gray-700">{formatDate(quote.createdAt)}</p>
-                      </div>
+                    {/* Total */}
+                    <TableCell className="text-gray-600">
+                      {formatCurrency(quote.estimatedTotal, quote.currency)}
+                      {quote.includeTax && <span className="text-xs text-gray-400 ml-1">+tax</span>}
+                    </TableCell>
 
-                      {/* Status */}
-                      <div className="w-[110px] flex-shrink-0 text-center">
-                        <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
-                          <StatusIcon className="w-3 h-3 mr-1" />
-                          {statusConfig[quote.status]?.label || quote.status}
-                        </Badge>
-                      </div>
+                    {/* Created */}
+                    <TableCell className="text-gray-600">
+                      {formatDate(quote.createdAt)}
+                    </TableCell>
 
-                      {/* Actions */}
-                      <div className="w-[160px] flex-shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                    {/* Status */}
+                    <TableCell>
+                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
+                        {statusConfig[quote.status]?.label || quote.status}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
                         {(quote.status === 'DRAFT' || quote.status === 'PENDING') && (
                           <>
                             <Button
                               variant="default"
                               size="sm"
-                              className="h-7 px-2 bg-violet-600 hover:bg-violet-700"
+                              className="h-7 px-2 text-xs bg-violet-600 hover:bg-violet-700"
                               onClick={() => openSendDialog(quote)}
                             >
                               <Send className="w-3.5 h-3.5 mr-1" />
@@ -472,11 +489,14 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
-                    </div>
+                    </TableCell>
+                  </TableRow>
 
                     {/* Expanded Details */}
                     {expandedQuotes.has(quote.id) && (
-                      <div className="border-t border-gray-200 bg-gray-50/50 p-4 space-y-4">
+                      <tr>
+                        <td colSpan={8} className="p-0">
+                      <div className="border-t border-b border-gray-200 bg-gray-50 p-4 space-y-4">
                         {/* Description */}
                         {quote.description && (
                           <div className="bg-white rounded-lg p-3 border border-gray-200">
@@ -569,11 +589,14 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                           )}
                         </div>
                       </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
+                  </React.Fragment>
                 )
               })}
-            </div>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

@@ -1259,9 +1259,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
                       {/* Supplier Notes */}
                       {quote.supplierNotes && (
-                        <div className="bg-blue-50 rounded-lg p-3 text-sm">
-                          <p className="text-gray-500 mb-1">Supplier Notes</p>
-                          <p className="text-gray-700 whitespace-pre-wrap">{quote.supplierNotes}</p>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                          <p className="text-red-600 font-medium mb-1">Supplier Notes</p>
+                          <p className="text-red-800 whitespace-pre-wrap">{quote.supplierNotes}</p>
                         </div>
                       )}
 
@@ -1373,9 +1373,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
               {/* Supplier Notes */}
               {selectedQuote.supplierNotes && (
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm font-medium text-blue-900 mb-1">Supplier Notes</p>
-                  <p className="text-sm text-blue-800 whitespace-pre-wrap">{selectedQuote.supplierNotes}</p>
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-600 mb-1">Supplier Notes</p>
+                  <p className="text-sm text-red-800 whitespace-pre-wrap">{selectedQuote.supplierNotes}</p>
                 </div>
               )}
 
