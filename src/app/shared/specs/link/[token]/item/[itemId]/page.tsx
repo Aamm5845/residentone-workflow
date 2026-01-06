@@ -265,32 +265,31 @@ export default function ItemDetailPage() {
           )}
         </div>
 
-        {/* Product Image */}
+        {/* Product Images */}
         {item.images && item.images.length > 0 && (
           <div className="mb-10">
-            <div 
-              className="w-64 h-64 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all"
-              onClick={() => setImageLightbox({ open: true, imageUrl: item.images[0], imageIndex: 0 })}
-            >
-              <img
-                src={item.images[0]}
-                alt={item.name}
-                className="w-full h-full object-cover"
-              />
+            <div className="flex flex-wrap gap-3">
+              {item.images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all",
+                    idx === 0 ? "w-64 h-64" : "w-32 h-32"
+                  )}
+                  onClick={() => setImageLightbox({ open: true, imageUrl: img, imageIndex: idx })}
+                >
+                  <img
+                    src={img}
+                    alt={`${item.name}${idx > 0 ? ` ${idx + 1}` : ''}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
             </div>
-            {/* Additional images */}
             {item.images.length > 1 && (
-              <div className="flex gap-2 mt-3">
-                {item.images.slice(1).map((img, idx) => (
-                  <div 
-                    key={idx}
-                    className="w-16 h-16 rounded-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all"
-                    onClick={() => setImageLightbox({ open: true, imageUrl: img, imageIndex: idx + 1 })}
-                  >
-                    <img src={img} alt={`${item.name} ${idx + 2}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {item.images.length} images - click to enlarge
+              </p>
             )}
           </div>
         )}

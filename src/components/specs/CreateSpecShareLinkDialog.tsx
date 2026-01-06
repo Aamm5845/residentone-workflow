@@ -238,7 +238,7 @@ export default function CreateSpecShareLinkDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col gap-6 py-4">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-6 py-4">
           {/* Link Name */}
           <div className="space-y-2">
             <Label>Link Name (optional)</Label>
@@ -293,7 +293,7 @@ export default function CreateSpecShareLinkDialog({
             </div>
 
             {/* Items List */}
-            <ScrollArea className="flex-1 border rounded-lg h-[300px]">
+            <ScrollArea className="border rounded-lg min-h-[200px] max-h-[300px]">
               <div className="p-2 space-y-1">
                 {filteredGroups.map(({ category, items: categoryItems }) => {
                   const isExpanded = expandedCategories.has(category)

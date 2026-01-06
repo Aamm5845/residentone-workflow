@@ -21,7 +21,7 @@ export async function GET(
             id: true,
             name: true,
             organization: {
-              select: { name: true, businessName: true }
+              select: { name: true, businessName: true, businessEmail: true }
             },
             client: {
               select: { name: true }
@@ -135,6 +135,7 @@ export async function GET(
       projectName: shareLink.project.name,
       clientName: shareLink.project.client?.name || '',
       orgName: shareLink.project.organization?.businessName || shareLink.project.organization?.name || '',
+      orgEmail: shareLink.project.organization?.businessEmail || '',
       specs,
       shareSettings: {
         showSupplier: shareLink.showSupplier,

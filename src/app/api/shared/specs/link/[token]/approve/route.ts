@@ -16,10 +16,10 @@ export async function POST(
       return NextResponse.json({ error: 'Item ID is required' }, { status: 400 })
     }
 
-    // Require project address for verification
+    // Require street number for verification
     if (!projectAddress || typeof projectAddress !== 'string' || projectAddress.trim() === '') {
       return NextResponse.json({
-        error: 'Project street address is required for verification',
+        error: 'Street number is required for verification',
         requiresAddress: true
       }, { status: 400 })
     }
@@ -67,21 +67,30 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Check if the entered address matches the project address (case-insensitive, trimmed)
-    const enteredAddress = projectAddress.trim().toLowerCase()
-    const actualStreetAddress = (project.streetAddress || '').trim().toLowerCase()
-    const actualAddress = (project.address || '').trim().toLowerCase()
+    // Extract street number from project address for verification
+    const enteredNumber = projectAddress.trim()
+    const actualStreetAddress = (project.streetAddress || '').trim()
+    const actualAddress = (project.address || '').trim()
 
-    // Match against either streetAddress or address field
-    const addressMatches =
-      (actualStreetAddress && enteredAddress === actualStreetAddress) ||
-      (actualAddress && enteredAddress === actualAddress) ||
-      (actualStreetAddress && actualStreetAddress.includes(enteredAddress) && enteredAddress.length >= 5) ||
-      (actualAddress && actualAddress.includes(enteredAddress) && enteredAddress.length >= 5)
+    // Helper function to extract street number from an address
+    const extractStreetNumber = (address: string): string | null => {
+      if (!address) return null
+      // Match leading numbers (e.g., "5655 Main Street" -> "5655")
+      const match = address.match(/^(\d+)/)
+      return match ? match[1] : null
+    }
 
-    if (!addressMatches) {
+    const streetNumberFromStreetAddress = extractStreetNumber(actualStreetAddress)
+    const streetNumberFromAddress = extractStreetNumber(actualAddress)
+
+    // Match the entered number against the extracted street numbers
+    const numberMatches =
+      (streetNumberFromStreetAddress && enteredNumber === streetNumberFromStreetAddress) ||
+      (streetNumberFromAddress && enteredNumber === streetNumberFromAddress)
+
+    if (!numberMatches) {
       return NextResponse.json({
-        error: 'The street address you entered does not match our records. Please check and try again.',
+        error: 'The street number you entered does not match our records. Please check and try again.',
         invalidAddress: true
       }, { status: 403 })
     }

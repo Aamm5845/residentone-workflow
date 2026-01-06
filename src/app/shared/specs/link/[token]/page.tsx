@@ -69,6 +69,7 @@ export default function SharedSpecLinkPage() {
   const [projectName, setProjectName] = useState('')
   const [clientName, setClientName] = useState('')
   const [orgName, setOrgName] = useState('')
+  const [orgEmail, setOrgEmail] = useState('')
   const [specs, setSpecs] = useState<SpecItem[]>([])
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -111,6 +112,7 @@ export default function SharedSpecLinkPage() {
         setProjectName(data.projectName || 'Specifications')
         setClientName(data.clientName || '')
         setOrgName(data.orgName || '')
+        setOrgEmail(data.orgEmail || '')
         setSpecs(data.specs || [])
         setLastUpdated(data.lastUpdated || null)
         setShareSettings(data.shareSettings || {
@@ -232,6 +234,23 @@ export default function SharedSpecLinkPage() {
     router.push(`/shared/specs/link/${token}/item/${itemId}`)
   }
 
+  // Format spec status for display
+  const formatSpecStatus = (status: string | null) => {
+    if (!status) return null
+    const statusMap: Record<string, { label: string; color: string }> = {
+      'PENDING': { label: 'Pending', color: 'bg-gray-100 text-gray-600' },
+      'SPECIFYING': { label: 'Specifying', color: 'bg-blue-50 text-blue-700' },
+      'RFQ_SENT': { label: 'RFQ Sent', color: 'bg-amber-50 text-amber-700' },
+      'QUOTED': { label: 'Quoted', color: 'bg-purple-50 text-purple-700' },
+      'APPROVED': { label: 'Approved', color: 'bg-emerald-50 text-emerald-700' },
+      'ORDERED': { label: 'Ordered', color: 'bg-indigo-50 text-indigo-700' },
+      'SHIPPED': { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
+      'DELIVERED': { label: 'Delivered', color: 'bg-green-50 text-green-700' },
+      'INSTALLED': { label: 'Installed', color: 'bg-green-100 text-green-800' },
+    }
+    return statusMap[status] || { label: status.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-600' }
+  }
+
   const handleApproveItem = async (itemId: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
@@ -308,7 +327,7 @@ export default function SharedSpecLinkPage() {
 
   const handleAddressSubmit = () => {
     if (!addressInput.trim()) {
-      setAddressError('Please enter the project street address')
+      setAddressError('Please enter the street number')
       return
     }
     if (pendingApprovalItemId) {
@@ -363,18 +382,11 @@ export default function SharedSpecLinkPage() {
       <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="max-w-[1400px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                <span className="text-xs font-medium text-gray-500">
-                  {orgName.charAt(0) || 'M'}
-                </span>
-              </div>
-              <div>
-                <h1 className="text-base font-medium text-gray-900">{orgName || 'Design Studio'}</h1>
-                <p className="text-sm text-gray-500">
-                  {clientName ? `${clientName} - ` : ''}{projectName} / <span className="font-medium text-gray-700">Specs</span>
-                </p>
-              </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{projectName}</h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {clientName ? `${clientName} · ` : ''}Specifications
+              </p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -539,9 +551,19 @@ export default function SharedSpecLinkPage() {
 
                         {/* Name & Location */}
                         <div className="col-span-2 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
-                            {item.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                              {item.name}
+                            </p>
+                            {item.specStatus && formatSpecStatus(item.specStatus) && (
+                              <span className={cn(
+                                "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
+                                formatSpecStatus(item.specStatus)!.color
+                              )}>
+                                {formatSpecStatus(item.specStatus)!.label}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-xs text-gray-500">{item.roomName}</p>
@@ -639,7 +661,7 @@ export default function SharedSpecLinkPage() {
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span className="text-xs font-medium">Approved</span>
                             </div>
-                          ) : shareSettings.allowApproval ? (
+                          ) : shareSettings.allowApproval && item.rrp ? (
                             <button
                               onClick={(e) => handleApproveItem(item.id, e)}
                               disabled={approvingItems.has(item.id)}
@@ -652,11 +674,11 @@ export default function SharedSpecLinkPage() {
                               )}
                               Approve
                             </button>
-                          ) : (
+                          ) : shareSettings.allowApproval ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full">
                               <span className="text-xs">Pending</span>
                             </div>
-                          )}
+                          ) : null}
 
                           {/* Details Button */}
                           <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors">
@@ -673,6 +695,28 @@ export default function SharedSpecLinkPage() {
         )}
       </main>
 
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-gray-50 mt-12">
+        <div className="max-w-[1400px] mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">{orgName}</p>
+              {orgEmail && (
+                <a
+                  href={`mailto:${orgEmail}`}
+                  className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {orgEmail}
+                </a>
+              )}
+            </div>
+            <p className="text-xs text-gray-400">
+              Shared specifications document
+            </p>
+          </div>
+        </div>
+      </footer>
+
       {/* Address Verification Modal */}
       {showAddressModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -681,12 +725,12 @@ export default function SharedSpecLinkPage() {
               Verify Your Identity
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              To approve items, please enter the project street address for verification.
+              To approve items, please enter the project street number for verification.
             </p>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Street Address
+                Street Number
               </label>
               <input
                 type="text"
@@ -700,7 +744,7 @@ export default function SharedSpecLinkPage() {
                     handleAddressSubmit()
                   }
                 }}
-                placeholder="e.g. 123 Main Street"
+                placeholder="e.g. 5655"
                 className={cn(
                   "w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2",
                   addressError
