@@ -705,29 +705,15 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       </div>
                     </div>
 
-                    {/* RFQ Ref */}
+                    {/* Quote Number */}
                     <div className="w-[100px] flex-shrink-0 text-center">
-                      <p className="text-sm font-medium text-gray-900">{quote.rfq.rfqNumber}</p>
+                      <p className="text-sm font-medium text-gray-900">{quote.quoteNumber || '-'}</p>
                       <p className="text-xs text-gray-500">{quote.lineItemsCount} items</p>
                     </div>
 
                     {/* Total Cost */}
                     <div className="w-[100px] flex-shrink-0 text-right">
                       <p className="font-medium text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</p>
-                    </div>
-
-                    {/* Lead Time */}
-                    <div className="w-[80px] flex-shrink-0 text-center">
-                      <p className="text-xs text-gray-500">Delivery</p>
-                      <p className="text-sm text-gray-600">{quote.estimatedLeadTime || '-'}</p>
-                    </div>
-
-                    {/* Valid Until */}
-                    <div className="w-[90px] flex-shrink-0 text-center">
-                      <p className="text-xs text-gray-500">Valid Until</p>
-                      <p className={`text-sm ${isExpired(quote.validUntil) ? 'text-red-600' : 'text-gray-600'}`}>
-                        {formatDate(quote.validUntil)}
-                      </p>
                     </div>
 
                     {/* Status */}
@@ -857,37 +843,19 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   {/* Expanded Details */}
                   {expandedQuotes.has(quote.id) && (
                     <div className="border-t border-gray-200 bg-gray-50/50 p-4 space-y-4">
-                      {/* Deposit Required */}
-                      {quote.depositRequired && quote.depositRequired > 0 && (
-                        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
-                          <div className="flex items-start gap-2">
-                            <DollarSign className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-amber-900">Deposit Required</p>
-                              <p className="text-sm text-amber-800 mt-1">
-                                {formatCurrency(quote.depositRequired, quote.currency)}
-                                {quote.depositPercent && ` (${quote.depositPercent}%)`}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      {/* Header with RFQ reference */}
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span>RFQ: <span className="font-medium text-gray-900">{quote.rfq.rfqNumber}</span></span>
+                        <span>Received: <span className="font-medium text-gray-900">{formatDate(quote.submittedAt)}</span></span>
+                        {!quote.quoteDocumentUrl && (
+                          <Badge variant="outline" className="text-xs text-gray-500">
+                            Entered Manually
+                          </Badge>
+                        )}
+                      </div>
 
-                      {/* Supplier Notes */}
-                      {quote.supplierNotes && (
-                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                          <div className="flex items-start gap-2">
-                            <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-blue-900">Supplier Notes</p>
-                              <p className="text-sm text-blue-800 mt-1 whitespace-pre-wrap">{quote.supplierNotes}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* AI Match Summary & Discrepancies */}
-                      {(quote.hasMismatches || quote.aiMatchSummary) && (
+                      {/* AI Match Summary & Discrepancies - ONLY for PDF quotes */}
+                      {quote.quoteDocumentUrl && (quote.hasMismatches || quote.aiMatchSummary) && (
                         <div className="space-y-3">
                           {/* AI Match Summary Bar */}
                           {quote.aiMatchSummary && (
@@ -1037,31 +1005,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </div>
                       )}
 
-                      {/* Quote Summary - Cleaner Layout */}
-                      <div className="flex gap-6">
-                        {/* Left Side - Quote Details */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 text-sm mb-3">
-                            {quote.quoteNumber && (
-                              <div>
-                                <span className="text-gray-500">Quote #:</span>
-                                <span className="ml-1 font-medium">{quote.quoteNumber}</span>
-                              </div>
-                            )}
-                            <div>
-                              <span className="text-gray-500">Received:</span>
-                              <span className="ml-1 font-medium">{formatDate(quote.submittedAt)}</span>
-                            </div>
-                            {!quote.quoteDocumentUrl && (
-                              <Badge variant="outline" className="text-xs text-gray-500">
-                                Entered Manually
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Right Side - Pricing Summary */}
-                        <div className="w-[200px] bg-gray-100 rounded-lg p-3 text-sm space-y-1.5">
+                      {/* Pricing Summary - Right aligned */}
+                      <div className="flex justify-end">
+                        <div className="w-[220px] bg-gray-100 rounded-lg p-3 text-sm space-y-1.5">
                           {quote.subtotal && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Subtotal</span>
@@ -1084,6 +1030,15 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             <span className="font-semibold text-gray-900">Total</span>
                             <span className="font-bold text-gray-900">{formatCurrency(quote.totalAmount, quote.currency)}</span>
                           </div>
+                          {quote.depositRequired && quote.depositRequired > 0 && (
+                            <div className="flex justify-between pt-1.5 border-t border-gray-300 text-amber-700">
+                              <span className="font-medium">Deposit</span>
+                              <span className="font-medium">
+                                {formatCurrency(quote.depositRequired, quote.currency)}
+                                {quote.depositPercent && ` (${quote.depositPercent}%)`}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1186,8 +1141,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                           </div>
                                         )}
 
-                                        {/* Matched RFQ Item Display */}
-                                        {item.rfqLineItemId && (
+                                        {/* Matched RFQ Item Display - Only for PDF quotes with AI matching */}
+                                        {quote.quoteDocumentUrl && item.rfqLineItemId && (
                                           <div className={`mt-2 p-2 rounded-md border text-xs ${
                                             item.matchApproved
                                               ? 'bg-emerald-50 border-emerald-200'
@@ -1239,8 +1194,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                           </div>
                                         )}
 
-                                        {/* No match indicator for items without RFQ reference */}
-                                        {!item.rfqLineItemId && (
+                                        {/* No match indicator - Only for PDF quotes without RFQ reference */}
+                                        {quote.quoteDocumentUrl && !item.rfqLineItemId && (
                                           <div className="mt-2 p-2 rounded-md border border-orange-200 bg-orange-50 text-xs">
                                             <div className="flex items-center gap-2 text-orange-700">
                                               <HelpCircle className="w-3 h-3 flex-shrink-0" />
@@ -1324,6 +1279,14 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               {item.notes && <span className="text-gray-600 ml-2">{item.notes}</span>}
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {/* Supplier Notes */}
+                      {quote.supplierNotes && (
+                        <div className="bg-blue-50 rounded-lg p-3 text-sm">
+                          <p className="text-gray-500 mb-1">Supplier Notes</p>
+                          <p className="text-gray-700 whitespace-pre-wrap">{quote.supplierNotes}</p>
                         </div>
                       )}
 
