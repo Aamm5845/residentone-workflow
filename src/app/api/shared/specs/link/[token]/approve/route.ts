@@ -77,22 +77,37 @@ export async function POST(
       if (!address) return null
       // Match leading numbers (e.g., "5655 Main Street" -> "5655")
       const match = address.match(/^(\d+)/)
-      return match ? match[1] : null
+      if (match) return match[1]
+      // Also try to find numbers anywhere in the address
+      const anyNumberMatch = address.match(/(\d+)/)
+      return anyNumberMatch ? anyNumberMatch[1] : null
     }
 
     const streetNumberFromStreetAddress = extractStreetNumber(actualStreetAddress)
     const streetNumberFromAddress = extractStreetNumber(actualAddress)
 
-    // Match the entered number against the extracted street numbers
-    const numberMatches =
-      (streetNumberFromStreetAddress && enteredNumber === streetNumberFromStreetAddress) ||
-      (streetNumberFromAddress && enteredNumber === streetNumberFromAddress)
+    // If project has no address configured, skip verification
+    const hasProjectAddress = streetNumberFromStreetAddress || streetNumberFromAddress
 
-    if (!numberMatches) {
-      return NextResponse.json({
-        error: 'The street number you entered does not match our records. Please check and try again.',
-        invalidAddress: true
-      }, { status: 403 })
+    if (hasProjectAddress) {
+      // Match the entered number against the extracted street numbers
+      const numberMatches =
+        (streetNumberFromStreetAddress && enteredNumber === streetNumberFromStreetAddress) ||
+        (streetNumberFromAddress && enteredNumber === streetNumberFromAddress)
+
+      if (!numberMatches) {
+        console.log('Address verification failed:', {
+          entered: enteredNumber,
+          fromStreetAddress: streetNumberFromStreetAddress,
+          fromAddress: streetNumberFromAddress,
+          actualStreetAddress,
+          actualAddress
+        })
+        return NextResponse.json({
+          error: 'The street number you entered does not match our records. Please check and try again.',
+          invalidAddress: true
+        }, { status: 403 })
+      }
     }
 
     // Check if item is in the share link's items (if specific items are selected)
