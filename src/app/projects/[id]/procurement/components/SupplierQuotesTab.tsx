@@ -716,6 +716,11 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       <p className="font-medium text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</p>
                     </div>
 
+                    {/* Received Date */}
+                    <div className="w-[80px] flex-shrink-0 text-center">
+                      <p className="text-xs text-gray-500">{formatDate(quote.submittedAt)}</p>
+                    </div>
+
                     {/* Status */}
                     <div className="w-[110px] flex-shrink-0 text-center">
                       <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
@@ -846,7 +851,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       {/* Header with RFQ reference */}
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>RFQ: <span className="font-medium text-gray-900">{quote.rfq.rfqNumber}</span></span>
-                        <span>Received: <span className="font-medium text-gray-900">{formatDate(quote.submittedAt)}</span></span>
                         {!quote.quoteDocumentUrl && (
                           <Badge variant="outline" className="text-xs text-gray-500">
                             Entered Manually
