@@ -7641,35 +7641,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Tabs */}
-          <div className="flex border-b">
-            <button
-              onClick={() => setShareTab('links')}
-              className={cn(
-                "flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                shareTab === 'links'
-                  ? "border-emerald-600 text-emerald-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              )}
-            >
-              Share Links
-            </button>
-            <button
-              onClick={() => setShareTab('publish')}
-              className={cn(
-                "flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors",
-                shareTab === 'publish'
-                  ? "border-emerald-600 text-emerald-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              )}
-            >
-              Publish All
-            </button>
-          </div>
-
           <div className="flex-1 overflow-auto py-4">
-            {shareTab === 'links' ? (
-              <div className="space-y-4">
+            <div className="space-y-4">
                 {/* Create New Link Button */}
                 <Button
                   onClick={() => {
@@ -7795,107 +7768,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Publish Toggle */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-gray-900">Publish to Web</h4>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      Share entire schedule with everyone
-                    </p>
-                  </div>
-                  <Switch
-                    checked={shareSettings.isPublished}
-                    onCheckedChange={handleTogglePublish}
-                    disabled={savingShareSettings}
-                  />
-                </div>
-
-                {shareSettings.isPublished && (
-                  <>
-                    {/* Share URL */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={shareSettings.shareUrl}
-                          readOnly
-                          className="text-sm bg-gray-50"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 p-0"
-                          onClick={copyShareUrl}
-                        >
-                          <ClipboardCopy className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 p-0"
-                          onClick={() => window.open(shareSettings.shareUrl, '_blank')}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Visibility Options */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-700">View supplier</span>
-                        <Switch
-                          checked={shareSettings.showSupplier}
-                          onCheckedChange={(checked) => {
-                            const newSettings = { ...shareSettings, showSupplier: checked }
-                            setShareSettings(newSettings)
-                            handleSaveShareSettings(newSettings)
-                          }}
-                          disabled={savingShareSettings}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-700">View brand</span>
-                        <Switch
-                          checked={shareSettings.showBrand}
-                          onCheckedChange={(checked) => {
-                            const newSettings = { ...shareSettings, showBrand: checked }
-                            setShareSettings(newSettings)
-                            handleSaveShareSettings(newSettings)
-                          }}
-                          disabled={savingShareSettings}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-700">View pricing</span>
-                        <Switch
-                          checked={shareSettings.showPricing}
-                          onCheckedChange={(checked) => {
-                            const newSettings = { ...shareSettings, showPricing: checked }
-                            setShareSettings(newSettings)
-                            handleSaveShareSettings(newSettings)
-                          }}
-                          disabled={savingShareSettings}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-700">View details</span>
-                        <Switch
-                          checked={shareSettings.showDetails}
-                          onCheckedChange={(checked) => {
-                            const newSettings = { ...shareSettings, showDetails: checked }
-                            setShareSettings(newSettings)
-                            handleSaveShareSettings(newSettings)
-                          }}
-                          disabled={savingShareSettings}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           <DialogFooter>

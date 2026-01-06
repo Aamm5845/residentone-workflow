@@ -551,19 +551,9 @@ export default function SharedSpecLinkPage() {
 
                         {/* Name & Location */}
                         <div className="col-span-2 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
-                              {item.name}
-                            </p>
-                            {item.specStatus && formatSpecStatus(item.specStatus) && (
-                              <span className={cn(
-                                "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
-                                formatSpecStatus(item.specStatus)!.color
-                              )}>
-                                {formatSpecStatus(item.specStatus)!.label}
-                              </span>
-                            )}
-                          </div>
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                            {item.name}
+                          </p>
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-xs text-gray-500">{item.roomName}</p>
@@ -653,11 +643,22 @@ export default function SharedSpecLinkPage() {
                           </>
                         )}
 
-                        {/* Status & Approval */}
-                        <div className="col-span-2 flex items-center justify-end gap-3">
-                          {/* Approval Status */}
+                        {/* Status Column */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          {item.specStatus && formatSpecStatus(item.specStatus) && (
+                            <span className={cn(
+                              "px-2 py-0.5 text-[10px] font-medium rounded whitespace-nowrap",
+                              formatSpecStatus(item.specStatus)!.color
+                            )}>
+                              {formatSpecStatus(item.specStatus)!.label}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Approval Column */}
+                        <div className="col-span-1 flex items-center justify-end gap-2">
                           {item.clientApproved ? (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full whitespace-nowrap">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span className="text-xs font-medium">Approved</span>
                             </div>
@@ -665,7 +666,7 @@ export default function SharedSpecLinkPage() {
                             <button
                               onClick={(e) => handleApproveItem(item.id, e)}
                               disabled={approvingItems.has(item.id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               {approvingItems.has(item.id) ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -675,15 +676,14 @@ export default function SharedSpecLinkPage() {
                               Approve
                             </button>
                           ) : shareSettings.allowApproval ? (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full whitespace-nowrap">
                               <span className="text-xs">Pending</span>
                             </div>
-                          ) : null}
-
-                          {/* Details Button */}
-                          <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors">
-                            Details
-                          </span>
+                          ) : (
+                            <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors whitespace-nowrap">
+                              Details
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
