@@ -739,39 +739,41 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   {/* Actions */}
                   <TableCell onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
-                      {/* Quote Document */}
-                      {quote.quoteDocumentUrl && (
-                        <button
-                          onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                          className="w-7 h-7 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden flex-shrink-0"
-                          title="View PDF"
-                        >
-                          {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                            <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
-                          ) : (
-                            <FileText className="w-4 h-4 text-gray-500" />
-                          )}
-                        </button>
-                      )}
-                      {/* Manual indicator */}
-                      {!quote.quoteDocumentUrl && (
-                        <Badge variant="outline" className="text-xs text-gray-400 border-gray-200">
-                          Manual
-                        </Badge>
-                      )}
-                      {/* Review button for PDF quotes with AI data (not finalized) */}
-                      {quote.status !== 'ACCEPTED' && quote.status !== 'REJECTED' && quote.quoteDocumentUrl && quote.aiExtractedData && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700"
-                          onClick={() => openPdfReview(quote)}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          Review
-                        </Button>
-                      )}
-                      {/* Actions for approved quotes */}
+                      {/* PDF/Manual indicator - fixed width */}
+                      <div className="w-14 flex-shrink-0 flex justify-center">
+                        {quote.quoteDocumentUrl ? (
+                          <button
+                            onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
+                            className="w-7 h-7 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden"
+                            title="View PDF"
+                          >
+                            {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-gray-500" />
+                            )}
+                          </button>
+                        ) : (
+                          <Badge variant="outline" className="text-xs text-gray-400 border-gray-200">
+                            Manual
+                          </Badge>
+                        )}
+                      </div>
+                      {/* Review button - fixed width slot */}
+                      <div className="w-16 flex-shrink-0">
+                        {quote.status !== 'ACCEPTED' && quote.status !== 'REJECTED' && quote.quoteDocumentUrl && quote.aiExtractedData && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700"
+                            onClick={() => openPdfReview(quote)}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Review
+                          </Button>
+                        )}
+                      </div>
+                      {/* Budget & Invoice - always in same position */}
                       {quote.status === 'ACCEPTED' && (
                         <>
                           <Button
