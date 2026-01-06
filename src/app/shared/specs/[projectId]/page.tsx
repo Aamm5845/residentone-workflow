@@ -149,20 +149,20 @@ export default function SharedSpecsPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost for financial tab
+  // Calculate total cost for financial tab (RRP only - don't show trade prices to clients)
   const totalCost = useMemo(() => {
     return specs.reduce((sum, item) => {
-      const price = item.rrp || item.tradePrice || 0
+      const price = item.rrp || 0
       return sum + (price * (item.quantity || 1))
     }, 0)
   }, [specs])
 
-  // Calculate category costs
+  // Calculate category costs (RRP only)
   const categoryCosts = useMemo(() => {
     const costs: Record<string, number> = {}
     specs.forEach(item => {
       const category = item.categoryName || 'General'
-      const price = item.rrp || item.tradePrice || 0
+      const price = item.rrp || 0
       costs[category] = (costs[category] || 0) + (price * (item.quantity || 1))
     })
     return costs

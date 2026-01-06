@@ -260,6 +260,7 @@ interface SpecItem {
   tradePrice: number | null
   rrp: number | null
   tradeDiscount: number | null
+  markupPercent: number | null
   // FFE Linking fields (legacy one-to-one)
   ffeRequirementId: string | null
   ffeRequirementName: string | null
@@ -2072,29 +2073,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
     
     try {
-      const updateData: Record<string, string> = {}
+      const updateData: Record<string, any> = {}
       updateData[editingField.field] = editValue
-      
+
+      // If markup is being changed and item has a trade price, calculate RRP
+      let calculatedRrp: number | null = null
+      if (editingField.field === 'markupPercent' && editValue) {
+        const markup = parseFloat(editValue)
+        if (!isNaN(markup) && item.tradePrice) {
+          calculatedRrp = item.tradePrice * (1 + markup / 100)
+          updateData.rrp = calculatedRrp.toFixed(2)
+        }
+      }
+
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${editingField.itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
       })
-      
+
       if (res.ok) {
         // Update local state - handle numeric fields properly
         let parsedValue: any = editValue
         if (editingField.field === 'quantity') {
           parsedValue = parseInt(editValue) || 1
-        } else if (editingField.field === 'tradePrice' || editingField.field === 'rrp' || editingField.field === 'unitCost' || editingField.field === 'tradeDiscount') {
+        } else if (editingField.field === 'tradePrice' || editingField.field === 'rrp' || editingField.field === 'unitCost' || editingField.field === 'tradeDiscount' || editingField.field === 'markupPercent') {
           parsedValue = editValue ? parseFloat(editValue) : null
         }
-        
-        setSpecs(prev => prev.map(s => 
-          s.id === editingField.itemId 
-            ? { ...s, [editingField.field]: parsedValue }
-            : s
-        ))
+
+        setSpecs(prev => prev.map(s => {
+          if (s.id === editingField.itemId) {
+            const updated = { ...s, [editingField.field]: parsedValue }
+            // Also update RRP if markup was changed
+            if (calculatedRrp !== null) {
+              updated.rrp = calculatedRrp
+            }
+            return updated
+          }
+          return s
+        }))
         toast.success('Updated')
       } else {
         const errorData = await res.json().catch(() => ({}))
@@ -5073,7 +5090,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       step="0.01"
                                     />
                                   ) : (
-                                    <p 
+                                    <p
                                       className="text-xs text-gray-900 cursor-text hover:bg-gray-100 rounded px-1"
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
                                     >
@@ -5081,7 +5098,33 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     </p>
                                   )}
                                 </div>
-                                
+
+                                {/* Markup % */}
+                                <div className="flex-shrink-0 w-16 h-9 text-right">
+                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Markup</p>
+                                  {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
+                                    <Input
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={saveInlineEdit}
+                                      onKeyDown={handleEditKeyDown}
+                                      className="h-6 text-xs text-right"
+                                      autoFocus
+                                      type="number"
+                                      step="1"
+                                      placeholder="%"
+                                    />
+                                  ) : (
+                                    <p
+                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.markupPercent ? 'text-gray-900' : 'text-gray-400'}`}
+                                      onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
+                                      title={item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first'}
+                                    >
+                                      {item.markupPercent ? `${item.markupPercent}%` : '-'}
+                                    </p>
+                                  )}
+                                </div>
+
                                 {/* RRP */}
                                 <div className="flex-shrink-0 w-20 h-9 text-right">
                                   <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">RRP</p>
@@ -5097,7 +5140,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       step="0.01"
                                     />
                                   ) : (
-                                    <p 
+                                    <p
                                       className="text-xs text-gray-900 cursor-text hover:bg-gray-100 rounded px-1"
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
                                     >

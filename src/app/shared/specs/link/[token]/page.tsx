@@ -166,10 +166,10 @@ export default function SharedSpecLinkPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost
+  // Calculate total cost (RRP only - don't show trade prices to clients)
   const totalCost = useMemo(() => {
     return specs.reduce((sum, item) => {
-      const price = item.rrp || item.tradePrice || 0
+      const price = item.rrp || 0
       return sum + (price * (item.quantity || 1))
     }, 0)
   }, [specs])
