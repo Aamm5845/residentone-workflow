@@ -2376,15 +2376,25 @@ export function ItemDetailPanel({
                       step="1"
                       min="0"
                       value={formData.markupPercent}
-                      onChange={(e) => setFormData({ ...formData, markupPercent: e.target.value })}
+                      onChange={(e) => {
+                        const newMarkup = e.target.value
+                        const tradePrice = parseFloat(formData.tradePrice) || 0
+                        // Auto-calculate RRP when markup changes and trade price exists
+                        if (tradePrice > 0 && newMarkup) {
+                          const calculatedRrp = (tradePrice * (1 + parseFloat(newMarkup) / 100)).toFixed(2)
+                          setFormData({ ...formData, markupPercent: newMarkup, rrp: calculatedRrp })
+                        } else {
+                          setFormData({ ...formData, markupPercent: newMarkup })
+                        }
+                      }}
                       placeholder="0"
                       className="pr-7"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
                   </div>
                   {formData.tradePrice && formData.markupPercent && (
-                    <p className="text-xs text-gray-500">
-                      ${formData.tradePrice} + {formData.markupPercent}% = ${((parseFloat(formData.tradePrice) || 0) * (1 + (parseFloat(formData.markupPercent) || 0) / 100)).toFixed(2)} selling price
+                    <p className="text-xs text-emerald-600">
+                      RRP auto-calculated: ${((parseFloat(formData.tradePrice) || 0) * (1 + (parseFloat(formData.markupPercent) || 0) / 100)).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -2400,19 +2410,13 @@ export function ItemDetailPanel({
                         <span className="text-xs text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
                       </span>
                     </div>
-                    {formData.markupPercent && parseFloat(formData.tradePrice) > 0 && (
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-gray-600">SELLING PRICE <span className="text-xs">({formData.markupPercent}% markup)</span></span>
-                        <span className="font-semibold text-lg text-emerald-600">
-                          ${((parseFloat(formData.tradePrice) || 0) * (1 + (parseFloat(formData.markupPercent) || 0) / 100) * (formData.quantity || 1)).toFixed(2)}
-                          <span className="text-xs text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
-                        </span>
-                      </div>
-                    )}
                     {formData.rrp && (
                       <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-gray-600">RRP TOTAL</span>
-                        <span className="font-semibold text-lg">
+                        <span className="text-gray-600">
+                          RRP TOTAL
+                          {formData.markupPercent && <span className="text-xs text-emerald-600 ml-1">({formData.markupPercent}% markup)</span>}
+                        </span>
+                        <span className="font-semibold text-lg text-emerald-600">
                           ${((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)).toFixed(2)}
                           <span className="text-xs text-gray-500 ml-1">{formData.rrpCurrency}</span>
                         </span>
