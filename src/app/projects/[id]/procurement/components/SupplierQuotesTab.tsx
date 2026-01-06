@@ -842,7 +842,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
                   {/* Expanded Details */}
                   {expandedQuotes.has(quote.id) && (
-                    <div className="border-t border-gray-200 bg-gray-50/50 p-4 space-y-4">
+                    <div className="border-t-2 border-b-2 border-gray-300 bg-gray-100 p-4 space-y-4">
                       {/* Header with RFQ reference */}
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>RFQ: <span className="font-medium text-gray-900">{quote.rfq.rfqNumber}</span></span>
@@ -1004,43 +1004,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           )}
                         </div>
                       )}
-
-                      {/* Pricing Summary - Right aligned */}
-                      <div className="flex justify-end">
-                        <div className="w-[220px] bg-gray-100 rounded-lg p-3 text-sm space-y-1.5">
-                          {quote.subtotal && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Subtotal</span>
-                              <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
-                            </div>
-                          )}
-                          {quote.shippingCost && quote.shippingCost > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Shipping</span>
-                              <span className="font-medium">{formatCurrency(quote.shippingCost, quote.currency)}</span>
-                            </div>
-                          )}
-                          {quote.taxAmount && quote.taxAmount > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Tax</span>
-                              <span className="font-medium">{formatCurrency(quote.taxAmount, quote.currency)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between pt-1.5 border-t border-gray-300">
-                            <span className="font-semibold text-gray-900">Total</span>
-                            <span className="font-bold text-gray-900">{formatCurrency(quote.totalAmount, quote.currency)}</span>
-                          </div>
-                          {quote.depositRequired && quote.depositRequired > 0 && (
-                            <div className="flex justify-between pt-1.5 border-t border-gray-300 text-amber-700">
-                              <span className="font-medium">Deposit</span>
-                              <span className="font-medium">
-                                {formatCurrency(quote.depositRequired, quote.currency)}
-                                {quote.depositPercent && ` (${quote.depositPercent}%)`}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
 
                       {/* Line Items Table with Edit Controls */}
                       <div className="flex items-center justify-between mb-2">
@@ -1267,6 +1230,43 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </Table>
                       </div>
 
+                      {/* Pricing Summary - Below items */}
+                      <div className="flex justify-end mt-3">
+                        <div className="w-[220px] bg-white border border-gray-200 rounded-lg p-3 text-sm space-y-1.5">
+                          {quote.subtotal && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Subtotal</span>
+                              <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
+                            </div>
+                          )}
+                          {quote.shippingCost && quote.shippingCost > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Shipping</span>
+                              <span className="font-medium">{formatCurrency(quote.shippingCost, quote.currency)}</span>
+                            </div>
+                          )}
+                          {quote.taxAmount && quote.taxAmount > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tax</span>
+                              <span className="font-medium">{formatCurrency(quote.taxAmount, quote.currency)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-1.5 border-t border-gray-300">
+                            <span className="font-semibold text-gray-900">Total</span>
+                            <span className="font-bold text-gray-900">{formatCurrency(quote.totalAmount, quote.currency)}</span>
+                          </div>
+                          {quote.depositRequired && quote.depositRequired > 0 && (
+                            <div className="flex justify-between pt-1.5 border-t border-gray-300 text-amber-700">
+                              <span className="font-medium">Deposit</span>
+                              <span className="font-medium">
+                                {formatCurrency(quote.depositRequired, quote.currency)}
+                                {quote.depositPercent && ` (${quote.depositPercent}%)`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Notes Section */}
                       {quote.lineItems.some(item => item.alternateNotes || item.leadTimeNotes || item.notes) && (
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
@@ -1339,13 +1339,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               </Button>
                             </>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openReviewDialog(quote)}
-                          >
-                            Status Review
-                          </Button>
                         </div>
                       </div>
                     </div>
