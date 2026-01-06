@@ -102,14 +102,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No items found' }, { status: 404 })
     }
 
-    // Calculate pricing - round to 2 decimal places
+    // Calculate pricing with markup - round to 2 decimal places
     let subtotal = 0
     const lineItemsData = items.map(item => {
-      const unitPrice = Math.round(Number(item.rrp || item.unitCost || item.tradePrice || 0) * 100) / 100
-      const total = Math.round(unitPrice * item.quantity * 100) / 100
-      const supplierUnit = Math.round(Number(item.tradePrice || item.unitCost || 0) * 100) / 100
-      const supplierTotal = Math.round(supplierUnit * item.quantity * 100) / 100
-      subtotal += total
+      // Get trade price (cost) and markup
+      const costPrice = Math.round(Number(item.tradePrice || item.unitCost || 0) * 100) / 100
+      const itemMarkup = item.markupPercent ? Number(item.markupPercent) : 0
+
+      // Calculate selling price: if markup is set, apply it to trade price
+      // If no markup but RRP exists, use RRP as selling price
+      let sellingPrice: number
+      if (itemMarkup > 0 && costPrice > 0) {
+        sellingPrice = Math.round(costPrice * (1 + itemMarkup / 100) * 100) / 100
+      } else if (item.rrp) {
+        sellingPrice = Math.round(Number(item.rrp) * 100) / 100
+      } else {
+        sellingPrice = costPrice
+      }
+
+      const clientTotal = Math.round(sellingPrice * item.quantity * 100) / 100
+      const supplierTotal = Math.round(costPrice * item.quantity * 100) / 100
+      const markupAmount = Math.round((sellingPrice - costPrice) * item.quantity * 100) / 100
+      subtotal += clientTotal
 
       return {
         roomFFEItemId: item.id,
@@ -119,13 +133,13 @@ export async function POST(request: NextRequest) {
         roomName: item.section?.instance?.room?.name || '',
         quantity: item.quantity,
         unitType: item.unitType || 'units',
-        clientUnitPrice: unitPrice,
-        clientTotalPrice: total,
-        supplierUnitPrice: supplierUnit,
+        clientUnitPrice: sellingPrice,
+        clientTotalPrice: clientTotal,
+        supplierUnitPrice: costPrice,
         supplierTotalPrice: supplierTotal,
-        markupType: 'FIXED',
-        markupValue: 0,
-        markupAmount: 0,
+        markupType: 'PERCENTAGE',
+        markupValue: itemMarkup,
+        markupAmount: markupAmount,
         order: 0
       }
     })

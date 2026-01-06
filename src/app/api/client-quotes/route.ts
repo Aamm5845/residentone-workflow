@@ -182,17 +182,18 @@ export async function POST(request: NextRequest) {
     let lineItemsData: any[] = []
 
     if (supplierQuoteIds?.length) {
-      // Get category markups
-      const categoryMarkups = await prisma.categoryMarkup.findMany({
-        where: { orgId, isActive: true }
-      })
-      const markupMap = new Map(categoryMarkups.map(m => [m.categoryName, parseFloat(m.markupPercent.toString())]))
-
-      // Get supplier quote line items
+      // Get supplier quote line items with item and supplier markup info
       for (const sqId of supplierQuoteIds) {
         const supplierQuote = await prisma.supplierQuote.findFirst({
           where: { id: sqId },
           include: {
+            supplierRFQ: {
+              include: {
+                supplier: {
+                  select: { markupPercent: true }
+                }
+              }
+            },
             lineItems: {
               include: {
                 rfqLineItem: {
@@ -201,6 +202,7 @@ export async function POST(request: NextRequest) {
                       select: {
                         id: true,
                         name: true,
+                        markupPercent: true, // Item's saved markup
                         section: {
                           select: {
                             name: true
@@ -217,9 +219,19 @@ export async function POST(request: NextRequest) {
 
         if (!supplierQuote) continue
 
+        // Get supplier's default markup as fallback
+        const supplierMarkup = supplierQuote.supplierRFQ?.supplier?.markupPercent
+          ? parseFloat(supplierQuote.supplierRFQ.supplier.markupPercent.toString())
+          : null
+
         for (const item of supplierQuote.lineItems) {
           const category = item.rfqLineItem.roomFFEItem?.section?.name || 'General'
-          const itemMarkup = markupMap.get(category) || markup
+
+          // Priority: Item's markupPercent > Supplier's markupPercent > Default markup
+          const itemStoredMarkup = item.rfqLineItem.roomFFEItem?.markupPercent
+            ? parseFloat(item.rfqLineItem.roomFFEItem.markupPercent.toString())
+            : null
+          const itemMarkup = itemStoredMarkup ?? supplierMarkup ?? markup
 
           const costPrice = parseFloat(item.unitPrice.toString())
           // Round to 2 decimal places for currency precision
