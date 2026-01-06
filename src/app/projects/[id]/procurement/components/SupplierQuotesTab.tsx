@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -819,12 +819,11 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-              </TableBody>
-
                   {/* Expanded Details */}
                   {expandedQuotes.has(quote.id) && (
-                    <div className="border-t-2 border-b-2 border-gray-300 bg-gray-100 p-4 space-y-4">
+                    <tr>
+                      <td colSpan={8} className="p-0">
+                    <div className="border-t border-b border-gray-200 bg-gray-50 p-4 space-y-4">
                       {/* Header with RFQ reference */}
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>RFQ: <span className="font-medium text-gray-900">{quote.rfq.rfqNumber}</span></span>
@@ -1316,11 +1315,13 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </div>
                       </div>
                     </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
+                </React.Fragment>
               ))}
-              </div>
-            </div>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

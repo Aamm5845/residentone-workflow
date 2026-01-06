@@ -1549,13 +1549,18 @@ export function ItemDetailPanel({
     const supplier = suppliers.find(s => s.id === supplierId)
     if (supplier) {
       // Store business name in supplierName, contact name separately
+      // Auto-fill markup from supplier's default markup if set
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
         supplierName: supplier.name,
         supplierContactName: supplier.contactName || '',
         supplierEmail: supplier.email || '',
-        supplierLogo: supplier.logo || ''
+        supplierLogo: supplier.logo || '',
+        // Auto-fill markup from supplier if not already set
+        markupPercent: !prev.markupPercent && (supplier as any).markupPercent
+          ? (supplier as any).markupPercent.toString()
+          : prev.markupPercent
         // Don't overwrite supplierLink (Product URL) - that's separate from supplier's website
       }))
       setChangingSupplier(false) // Close the supplier selector
@@ -2361,7 +2366,29 @@ export function ItemDetailPanel({
                     </p>
                   )}
                 </div>
-                
+
+                {/* Markup Row */}
+                <div className="space-y-2">
+                  <Label>Markup %</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={formData.markupPercent}
+                      onChange={(e) => setFormData({ ...formData, markupPercent: e.target.value })}
+                      placeholder="0"
+                      className="pr-7"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                  </div>
+                  {formData.tradePrice && formData.markupPercent && (
+                    <p className="text-xs text-gray-500">
+                      ${formData.tradePrice} + {formData.markupPercent}% = ${((parseFloat(formData.tradePrice) || 0) * (1 + (parseFloat(formData.markupPercent) || 0) / 100)).toFixed(2)} selling price
+                    </p>
+                  )}
+                </div>
+
                 {/* TOTALS Section */}
                 <div className="bg-gray-50 rounded-lg p-4 mt-4">
                   <h3 className="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">TOTALS</h3>
@@ -2373,6 +2400,15 @@ export function ItemDetailPanel({
                         <span className="text-xs text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
                       </span>
                     </div>
+                    {formData.markupPercent && parseFloat(formData.tradePrice) > 0 && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-gray-600">SELLING PRICE <span className="text-xs">({formData.markupPercent}% markup)</span></span>
+                        <span className="font-semibold text-lg text-emerald-600">
+                          ${((parseFloat(formData.tradePrice) || 0) * (1 + (parseFloat(formData.markupPercent) || 0) / 100) * (formData.quantity || 1)).toFixed(2)}
+                          <span className="text-xs text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
+                        </span>
+                      </div>
+                    )}
                     {formData.rrp && (
                       <div className="flex justify-between items-center py-2 border-b border-gray-200">
                         <span className="text-gray-600">RRP TOTAL</span>

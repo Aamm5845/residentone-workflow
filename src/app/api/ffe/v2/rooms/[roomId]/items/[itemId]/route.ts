@@ -350,6 +350,7 @@ export async function PATCH(
       tradePrice,
       rrp,
       tradeDiscount,
+      markupPercent,
       unitCost,
       description,
       color,
@@ -467,6 +468,7 @@ export async function PATCH(
     if (tradePrice !== undefined) updateData.tradePrice = tradePrice ? parseFloat(tradePrice) : null
     if (rrp !== undefined) updateData.rrp = rrp ? parseFloat(rrp) : null
     if (tradeDiscount !== undefined) updateData.tradeDiscount = tradeDiscount ? parseFloat(tradeDiscount) : null
+    if (markupPercent !== undefined) updateData.markupPercent = markupPercent ? parseFloat(markupPercent) : null
     if (unitCost !== undefined) updateData.unitCost = unitCost ? parseFloat(unitCost) : null
     if (description !== undefined) updateData.description = description
     if (color !== undefined) updateData.color = color
