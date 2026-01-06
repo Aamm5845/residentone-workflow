@@ -136,6 +136,7 @@ export async function GET(
           tradePrice: item.tradePrice ? Number(item.tradePrice) : null,
           rrp: item.rrp ? Number(item.rrp) : null,
           tradeDiscount: item.tradeDiscount ? Number(item.tradeDiscount) : null,
+          markupPercent: item.markupPercent ? Number(item.markupPercent) : null,
           libraryProductId: item.libraryProductId,
           // FFE Linking info (legacy one-to-one)
           isSpecItem: item.isSpecItem,
