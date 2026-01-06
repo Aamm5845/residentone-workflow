@@ -584,6 +584,48 @@ export async function PATCH(
         }
       })
 
+      // Sync docCode to linked items (bidirectional sync)
+      if (docCode !== undefined) {
+        // Check if this item is an FFE requirement (not a spec item)
+        if (!existingItem.isSpecItem) {
+          // Sync docCode to all linked spec items via FFESpecLink (many-to-many)
+          const ffeLinks = await prisma.fFESpecLink.findMany({
+            where: { ffeRequirementId: itemId }
+          })
+          if (ffeLinks.length > 0) {
+            await prisma.roomFFEItem.updateMany({
+              where: { id: { in: ffeLinks.map(l => l.specItemId) } },
+              data: { docCode: docCode || null }
+            })
+          }
+
+          // Also sync to spec items linked via legacy ffeRequirementId
+          await prisma.roomFFEItem.updateMany({
+            where: { ffeRequirementId: itemId },
+            data: { docCode: docCode || null }
+          })
+        } else {
+          // This is a spec item - sync docCode back to linked FFE requirements
+          const specLinks = await prisma.fFESpecLink.findMany({
+            where: { specItemId: itemId }
+          })
+          if (specLinks.length > 0) {
+            await prisma.roomFFEItem.updateMany({
+              where: { id: { in: specLinks.map(l => l.ffeRequirementId) } },
+              data: { docCode: docCode || null }
+            })
+          }
+
+          // Also sync to FFE requirement via legacy ffeRequirementId
+          if (existingItem.ffeRequirementId) {
+            await prisma.roomFFEItem.update({
+              where: { id: existingItem.ffeRequirementId },
+              data: { docCode: docCode || null }
+            })
+          }
+        }
+      }
+
       // Log activity for status changes
       if (specStatus !== undefined && specStatus !== existingItem.specStatus) {
         const statusLabels: Record<string, string> = {
