@@ -718,13 +718,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
                     {/* Lead Time */}
                     <div className="w-[80px] flex-shrink-0 text-center">
+                      <p className="text-xs text-gray-500">Delivery</p>
                       <p className="text-sm text-gray-600">{quote.estimatedLeadTime || '-'}</p>
-                    </div>
-
-                    {/* Submitted Date */}
-                    <div className="w-[90px] flex-shrink-0 text-center">
-                      <p className="text-xs text-gray-500">Received</p>
-                      <p className="text-sm text-gray-700">{formatDate(quote.submittedAt)}</p>
                     </div>
 
                     {/* Valid Until */}
@@ -744,7 +739,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
 
                     {/* Actions - fixed width */}
                     <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-                      {/* Quote Document Thumbnail */}
+                      {/* Quote Document or Manual Entry indicator */}
                       {quote.quoteDocumentUrl ? (
                         <button
                           onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
@@ -758,9 +753,9 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           )}
                         </button>
                       ) : (
-                        <div className="w-10 h-10 rounded border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center">
-                          <FileText className="w-4 h-4 text-gray-300" />
-                        </div>
+                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
+                          Manual
+                        </Badge>
                       )}
                       {/* Show status badge for finalized quotes, review button for others */}
                       {quote.status === 'ACCEPTED' ? (
@@ -799,21 +794,18 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             </Button>
                           )}
                         </>
-                      ) : (
+                      ) : quote.quoteDocumentUrl && quote.aiExtractedData ? (
                         <Button
-                          variant={quote.aiExtractedData ? "default" : "outline"}
+                          variant="default"
                           size="sm"
-                          className={quote.aiExtractedData
-                            ? "h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
-                            : "h-8 px-3 text-xs"
-                          }
-                          onClick={() => quote.aiExtractedData ? openPdfReview(quote) : openReviewDialog(quote)}
-                          title={quote.aiExtractedData ? "Review & verify AI-matched items" : "Review quote"}
+                          className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                          onClick={() => openPdfReview(quote)}
+                          title="Review & verify AI-matched items"
                         >
                           <Eye className="w-3.5 h-3.5 mr-1.5" />
-                          {quote.aiExtractedData ? 'Review Matches' : 'Review'}
+                          Review Matches
                         </Button>
-                      )}
+                      ) : null}
                       {quote.status === 'ACCEPTED' && (
                         <>
                           <Button
@@ -1045,47 +1037,55 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         </div>
                       )}
 
-                      {/* Quote Info Grid */}
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500 mb-1">Quote Number</p>
-                          <p className="font-medium">{quote.quoteNumber || '-'}</p>
+                      {/* Quote Summary - Cleaner Layout */}
+                      <div className="flex gap-6">
+                        {/* Left Side - Quote Details */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-4 text-sm mb-3">
+                            {quote.quoteNumber && (
+                              <div>
+                                <span className="text-gray-500">Quote #:</span>
+                                <span className="ml-1 font-medium">{quote.quoteNumber}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-gray-500">Received:</span>
+                              <span className="ml-1 font-medium">{formatDate(quote.submittedAt)}</span>
+                            </div>
+                            {!quote.quoteDocumentUrl && (
+                              <Badge variant="outline" className="text-xs text-gray-500">
+                                Entered Manually
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-500 mb-1">Received</p>
-                          <p className="font-medium">{formatDate(quote.submittedAt)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500 mb-1">Payment Terms</p>
-                          <p className="font-medium">{quote.paymentTerms || '-'}</p>
+
+                        {/* Right Side - Pricing Summary */}
+                        <div className="w-[200px] bg-gray-100 rounded-lg p-3 text-sm space-y-1.5">
+                          {quote.subtotal && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Subtotal</span>
+                              <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
+                            </div>
+                          )}
+                          {quote.shippingCost && quote.shippingCost > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Shipping</span>
+                              <span className="font-medium">{formatCurrency(quote.shippingCost, quote.currency)}</span>
+                            </div>
+                          )}
+                          {quote.taxAmount && quote.taxAmount > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tax</span>
+                              <span className="font-medium">{formatCurrency(quote.taxAmount, quote.currency)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-1.5 border-t border-gray-300">
+                            <span className="font-semibold text-gray-900">Total</span>
+                            <span className="font-bold text-gray-900">{formatCurrency(quote.totalAmount, quote.currency)}</span>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Pricing Breakdown */}
-                      {(quote.subtotal || quote.taxAmount || quote.shippingCost) && (
-                        <div className="flex gap-6 text-sm pt-2 border-t border-gray-200">
-                          <div>
-                            <span className="text-gray-500">Subtotal:</span>
-                            <span className="ml-2 font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
-                          </div>
-                          {quote.taxAmount && (
-                            <div>
-                              <span className="text-gray-500">Tax:</span>
-                              <span className="ml-2 font-medium">{formatCurrency(quote.taxAmount, quote.currency)}</span>
-                            </div>
-                          )}
-                          {quote.shippingCost && (
-                            <div>
-                              <span className="text-gray-500">Shipping:</span>
-                              <span className="ml-2 font-medium">{formatCurrency(quote.shippingCost, quote.currency)}</span>
-                            </div>
-                          )}
-                          <div>
-                            <span className="text-gray-500">Total:</span>
-                            <span className="ml-2 font-semibold">{formatCurrency(quote.totalAmount, quote.currency)}</span>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Line Items Table with Edit Controls */}
                       <div className="flex items-center justify-between mb-2">
