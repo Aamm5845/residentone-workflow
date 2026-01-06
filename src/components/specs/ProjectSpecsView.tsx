@@ -4416,7 +4416,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 <div className="space-y-1">
                                                   {linkedItems.map((childName: string, idx: number) => {
                                                     // Try to find this child in the current specs list
-                                                    const childSpec = filteredSpecs.find(s =>
+                                                    // Search in full specs list, not filteredSpecs (child might be filtered out)
+                                                    const childSpec = specs.find(s =>
                                                       s.name === childName &&
                                                       (s.customFields as any)?.parentName === displayItem.name
                                                     )
@@ -4482,7 +4483,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         {/* Child linked to parent - enhanced popover with details */}
                                         {isGroupedItem && parentName && (() => {
                                           // Find the parent item to enable navigation
-                                          const parentSpec = parentId ? filteredSpecs.find(s => s.id === parentId) : null
+                                          // Search in full specs list, not filteredSpecs (parent might be filtered out)
+                                          const parentSpec = parentId ? specs.find(s => s.id === parentId) : null
                                           return (
                                           <Popover>
                                             <PopoverTrigger asChild>
