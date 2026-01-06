@@ -258,7 +258,9 @@ interface SpecItem {
   unitCost: number | null
   totalCost: number | null
   tradePrice: number | null
+  tradePriceCurrency: string
   rrp: number | null
+  rrpCurrency: string
   tradeDiscount: number | null
   markupPercent: number | null
   // FFE Linking fields (legacy one-to-one)
@@ -393,7 +395,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [itemSortBy, setItemSortBy] = useState<'default' | 'name' | 'brand' | 'price_asc' | 'price_desc' | 'status'>('default')
   const [itemSortDirection, setItemSortDirection] = useState<'asc' | 'desc'>('asc')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
-  const [financials, setFinancials] = useState({ totalTradePrice: 0, totalRRP: 0, avgTradeDiscount: 0 })
+  const [financials, setFinancials] = useState({
+    totalTradePriceCAD: 0,
+    totalTradePriceUSD: 0,
+    totalRRPCAD: 0,
+    totalRRPUSD: 0,
+    avgTradeDiscount: 0
+  })
   
   // Team-only: Show unchosen FFE items (not visible in shared view)
   const [showUnchosenItems, setShowUnchosenItems] = useState(false)
@@ -1128,25 +1136,46 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   useEffect(() => {
     const specsToCalculate = filteredSpecs.length > 0 ? filteredSpecs : specs
 
-    const totalTradePrice = specsToCalculate.reduce((sum, s) => {
+    // Separate trade prices by currency
+    const totalTradePriceCAD = specsToCalculate.reduce((sum, s) => {
+      if ((s.tradePriceCurrency || 'CAD') !== 'CAD') return sum
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
-    const totalRRP = specsToCalculate.reduce((sum, s) => {
+    const totalTradePriceUSD = specsToCalculate.reduce((sum, s) => {
+      if ((s.tradePriceCurrency || 'CAD') !== 'USD') return sum
+      const price = s.tradePrice || 0
+      const qty = s.quantity || 1
+      return sum + (price * qty)
+    }, 0)
+
+    // Separate RRP by currency
+    const totalRRPCAD = specsToCalculate.reduce((sum, s) => {
+      if ((s.rrpCurrency || 'CAD') !== 'CAD') return sum
       const price = s.rrp || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
-    const avgTradeDiscount = totalRRP > 0
-      ? ((totalRRP - totalTradePrice) / totalRRP * 100)
+    const totalRRPUSD = specsToCalculate.reduce((sum, s) => {
+      if ((s.rrpCurrency || 'CAD') !== 'USD') return sum
+      const price = s.rrp || 0
+      const qty = s.quantity || 1
+      return sum + (price * qty)
+    }, 0)
+
+    // Calculate average discount based on CAD values (primary currency)
+    const avgTradeDiscount = totalRRPCAD > 0
+      ? ((totalRRPCAD - totalTradePriceCAD) / totalRRPCAD * 100)
       : 0
 
     setFinancials({
-      totalTradePrice,
-      totalRRP,
+      totalTradePriceCAD,
+      totalTradePriceUSD,
+      totalRRPCAD,
+      totalRRPUSD,
       avgTradeDiscount: Math.round(avgTradeDiscount * 100) / 100
     })
   }, [filteredSpecs, specs])
@@ -3525,19 +3554,36 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           {/* Financial Summary Bar - Only in Financial Tab */}
           {activeTab === 'financial' && (
-            <div className="flex items-center gap-8 mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-8 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+              {/* CAD Trade Price */}
               <div>
-                <p className="text-xs text-gray-500 uppercase">Total Trade Price</p>
-                <p className="text-lg font-semibold text-gray-900">{formatCurrency(financials.totalTradePrice)}</p>
+                <p className="text-xs text-gray-500 uppercase">Trade Price (CAD)</p>
+                <p className="text-lg font-semibold text-gray-900">${financials.totalTradePriceCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
+              {/* USD Trade Price - Only show if there are USD items */}
+              {financials.totalTradePriceUSD > 0 && (
+                <div>
+                  <p className="text-xs text-blue-500 uppercase">Trade Price (USD)</p>
+                  <p className="text-lg font-semibold text-blue-600">${financials.totalTradePriceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              )}
+              {/* CAD RRP */}
               <div>
-                <p className="text-xs text-gray-500 uppercase">Total RRP</p>
-                <p className="text-lg font-semibold text-gray-900">{formatCurrency(financials.totalRRP)}</p>
+                <p className="text-xs text-gray-500 uppercase">RRP (CAD)</p>
+                <p className="text-lg font-semibold text-gray-900">${financials.totalRRPCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
+              {/* USD RRP - Only show if there are USD items */}
+              {financials.totalRRPUSD > 0 && (
+                <div>
+                  <p className="text-xs text-blue-500 uppercase">RRP (USD)</p>
+                  <p className="text-lg font-semibold text-blue-600">${financials.totalRRPUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              )}
+              {/* Avg Discount */}
               <div>
-                <p className="text-xs text-gray-500 uppercase">Avg Trade Discount</p>
+                <p className="text-xs text-gray-500 uppercase">Avg Margin</p>
                 <p className="text-lg font-semibold text-gray-900">
-                  {financials.totalTradePrice > 0 ? `${financials.avgTradeDiscount.toFixed(2)}%` : '-'}
+                  {financials.totalTradePriceCAD > 0 ? `${financials.avgTradeDiscount.toFixed(2)}%` : '-'}
                 </p>
               </div>
             </div>
@@ -5078,8 +5124,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {activeTab === 'financial' && (
                               <>
                                 {/* Trade Price */}
-                                <div className="flex-shrink-0 w-20 h-9 text-right">
-                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Trade</p>
+                                <div className="flex-shrink-0 w-24 h-9 text-right">
+                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                    Trade {item.tradePriceCurrency === 'USD' && <span className="text-blue-500">(USD)</span>}
+                                  </p>
                                   {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
                                     <Input
                                       value={editValue}
@@ -5093,7 +5141,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     />
                                   ) : (
                                     <p
-                                      className="text-xs text-gray-900 cursor-text hover:bg-gray-100 rounded px-1"
+                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.tradePriceCurrency === 'USD' ? 'text-blue-600' : 'text-gray-900'}`}
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
                                     >
                                       {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
