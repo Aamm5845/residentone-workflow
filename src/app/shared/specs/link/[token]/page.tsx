@@ -67,6 +67,7 @@ export default function SharedSpecLinkPage() {
   const [error, setError] = useState<string | null>(null)
   const [linkName, setLinkName] = useState<string | null>(null)
   const [projectName, setProjectName] = useState('')
+  const [clientName, setClientName] = useState('')
   const [orgName, setOrgName] = useState('')
   const [specs, setSpecs] = useState<SpecItem[]>([])
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
@@ -108,6 +109,7 @@ export default function SharedSpecLinkPage() {
 
         setLinkName(data.linkName)
         setProjectName(data.projectName || 'Specifications')
+        setClientName(data.clientName || '')
         setOrgName(data.orgName || '')
         setSpecs(data.specs || [])
         setLastUpdated(data.lastUpdated || null)
@@ -368,9 +370,9 @@ export default function SharedSpecLinkPage() {
                 </span>
               </div>
               <div>
-                <h1 className="text-base font-medium text-gray-900">{orgName || 'Meisner Interiors'}</h1>
+                <h1 className="text-base font-medium text-gray-900">{orgName || 'Design Studio'}</h1>
                 <p className="text-sm text-gray-500">
-                  {linkName || projectName} / <span className="font-medium text-gray-700">Specs</span>
+                  {clientName ? `${clientName} - ` : ''}{projectName} / <span className="font-medium text-gray-700">Specs</span>
                 </p>
               </div>
             </div>

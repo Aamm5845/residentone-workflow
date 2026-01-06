@@ -21,6 +21,9 @@ export async function GET(
             id: true,
             name: true,
             organization: {
+              select: { name: true, businessName: true }
+            },
+            client: {
               select: { name: true }
             }
           }
@@ -98,28 +101,31 @@ export async function GET(
         description: item.description,
         roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
         roomType: room?.type,
-      sectionName: item.section?.name || '',
-      categoryName: item.section?.name || '',
-      productName: item.modelNumber,
-      brand: shareLink.showBrand ? item.brand : null,
-      sku: item.sku,
-      modelNumber: item.modelNumber,
-      supplierName: shareLink.showSupplier ? item.supplierName : null,
-      supplierLink: shareLink.showSupplier ? item.supplierLink : null,
-      quantity: item.quantity,
-      leadTime: item.leadTime,
-      specStatus: item.specStatus,
-      images: item.images || [],
-      thumbnailUrl: (item.images as string[])?.[0] || null,
-      color: shareLink.showDetails ? item.color : null,
-      finish: shareLink.showDetails ? item.finish : null,
-      material: shareLink.showDetails ? item.material : null,
-      width: shareLink.showDetails ? item.width : null,
-      length: shareLink.showDetails ? item.length : null,
-      height: shareLink.showDetails ? item.height : null,
-      depth: shareLink.showDetails ? item.depth : null,
-      tradePrice: shareLink.showPricing ? item.tradePrice : null,
-      rrp: shareLink.showPricing ? item.rrp : null
+        sectionName: item.section?.name || '',
+        categoryName: item.section?.name || '',
+        productName: item.modelNumber,
+        brand: shareLink.showBrand ? item.brand : null,
+        sku: item.sku,
+        modelNumber: item.modelNumber,
+        supplierName: shareLink.showSupplier ? item.supplierName : null,
+        supplierLink: shareLink.showSupplier ? item.supplierLink : null,
+        quantity: item.quantity,
+        leadTime: item.leadTime,
+        specStatus: item.specStatus,
+        images: item.images || [],
+        thumbnailUrl: (item.images as string[])?.[0] || null,
+        color: shareLink.showDetails ? item.color : null,
+        finish: shareLink.showDetails ? item.finish : null,
+        material: shareLink.showDetails ? item.material : null,
+        width: shareLink.showDetails ? item.width : null,
+        length: shareLink.showDetails ? item.length : null,
+        height: shareLink.showDetails ? item.height : null,
+        depth: shareLink.showDetails ? item.depth : null,
+        tradePrice: shareLink.showPricing ? item.tradePrice : null,
+        rrp: shareLink.showPricing ? item.rrp : null,
+        // Approval fields - always include so UI can show status
+        clientApproved: item.clientApproved || false,
+        clientApprovedAt: item.clientApprovedAt?.toISOString() || null
       }
     })
 
@@ -127,13 +133,15 @@ export async function GET(
       success: true,
       linkName: shareLink.name,
       projectName: shareLink.project.name,
-      orgName: shareLink.project.organization?.name || '',
+      clientName: shareLink.project.client?.name || '',
+      orgName: shareLink.project.organization?.businessName || shareLink.project.organization?.name || '',
       specs,
       shareSettings: {
         showSupplier: shareLink.showSupplier,
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
-        showDetails: shareLink.showDetails
+        showDetails: shareLink.showDetails,
+        allowApproval: shareLink.allowApproval || false
       },
       expiresAt: shareLink.expiresAt,
       lastUpdated: lastUpdated?.toISOString() || null

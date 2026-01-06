@@ -114,10 +114,9 @@ import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 import BudgetApprovalDialog from '@/components/specs/BudgetApprovalDialog'
 
-// Item status options - ordered by workflow
+// Item status options - ordered by workflow (cleaned up - 16 options)
 const ITEM_STATUS_OPTIONS = [
   // === PROCUREMENT WORKFLOW (auto-updated) ===
-  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
   { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
   { value: 'RFQ_SENT', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
   { value: 'QUOTE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
@@ -126,38 +125,44 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'CLIENT_PAID', label: 'Client Paid', icon: CreditCard, color: 'text-emerald-600', requiresApproval: false },
   { value: 'ORDERED', label: 'Ordered from Supplier', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
   { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
-  { value: 'RECEIVED', label: 'Received', icon: Package, color: 'text-cyan-600', requiresApproval: true },
   { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-teal-600', requiresApproval: true },
   { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
   { value: 'CLOSED', label: 'Closed', icon: CheckCheck, color: 'text-gray-600', requiresApproval: true },
   // === MANUAL STATUSES ===
+  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
   { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
   { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-purple-500', requiresApproval: false },
-  { value: 'NEED_SAMPLE', label: 'Need Sample', icon: Package, color: 'text-orange-500', requiresApproval: false },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
   { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-gray-400', requiresApproval: false },
-  // === LEGACY STATUSES (for existing data) ===
-  { value: 'OPTION', label: 'Option', icon: Circle, color: 'text-purple-400', requiresApproval: false },
-  { value: 'QUOTING', label: 'Quoting', icon: Clock, color: 'text-amber-500', requiresApproval: false },
-  { value: 'PRICE_RECEIVED', label: 'Price Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
-  { value: 'BETTER_PRICE', label: 'Better Price', icon: CreditCard, color: 'text-yellow-600', requiresApproval: false },
-  { value: 'NEED_TO_ORDER', label: 'Need to Order', icon: Package, color: 'text-blue-500', requiresApproval: false },
-  { value: 'IN_PRODUCTION', label: 'In Production', icon: Clock, color: 'text-cyan-600', requiresApproval: true },
-  { value: 'COMPLETED', label: 'Completed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
-  { value: 'INTERNAL_REVIEW', label: 'Internal Review', icon: Clock, color: 'text-amber-500', requiresApproval: false },
-  { value: 'CLIENT_REVIEW', label: 'Client Review', icon: Clock, color: 'text-blue-500', requiresApproval: false },
-  { value: 'RESUBMIT', label: 'Resubmit', icon: AlertCircle, color: 'text-orange-500', requiresApproval: false },
-  { value: 'REJECTED', label: 'Rejected', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
-  { value: 'APPROVED', label: 'Approved', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
-  { value: 'PAYMENT_DUE', label: 'Payment Due', icon: CreditCard, color: 'text-orange-500', requiresApproval: false },
-  { value: 'IN_TRANSIT', label: 'In Transit', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
-  { value: 'NEEDS_SPEC', label: 'Needs Spec', icon: Circle, color: 'text-gray-400', requiresApproval: false },
-  { value: 'SPEC_ADDED', label: 'Spec Added', icon: CheckCircle2, color: 'text-emerald-400', requiresApproval: false },
-  { value: 'QUOTED', label: 'Quoted', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
 ]
 
+// Legacy status display mapping (items with old statuses still show correctly)
+const LEGACY_STATUS_MAP: Record<string, { label: string; icon: any; color: string }> = {
+  'RECEIVED': { label: 'Delivered', icon: PackageCheck, color: 'text-teal-600' },
+  'OPTION': { label: 'Option', icon: Circle, color: 'text-purple-400' },
+  'QUOTING': { label: 'RFQ Sent', icon: Clock, color: 'text-amber-500' },
+  'PRICE_RECEIVED': { label: 'Quote Received', icon: CreditCard, color: 'text-teal-500' },
+  'BETTER_PRICE': { label: 'Better Price', icon: CreditCard, color: 'text-yellow-600' },
+  'NEED_TO_ORDER': { label: 'Need to Order', icon: Package, color: 'text-blue-500' },
+  'NEED_SAMPLE': { label: 'Need Sample', icon: Package, color: 'text-orange-500' },
+  'IN_PRODUCTION': { label: 'In Production', icon: Clock, color: 'text-cyan-600' },
+  'COMPLETED': { label: 'Completed', icon: CheckCheck, color: 'text-green-600' },
+  'INTERNAL_REVIEW': { label: 'Internal Review', icon: Clock, color: 'text-amber-500' },
+  'CLIENT_REVIEW': { label: 'Client Review', icon: Clock, color: 'text-blue-500' },
+  'RESUBMIT': { label: 'Resubmit', icon: AlertCircle, color: 'text-orange-500' },
+  'REJECTED': { label: 'Rejected', icon: AlertCircle, color: 'text-red-500' },
+  'APPROVED': { label: 'Quote Approved', icon: CheckCircle2, color: 'text-green-500' },
+  'PAYMENT_DUE': { label: 'Payment Due', icon: CreditCard, color: 'text-orange-500' },
+  'IN_TRANSIT': { label: 'Shipped', icon: Truck, color: 'text-indigo-500' },
+  'NEEDS_SPEC': { label: 'Needs Spec', icon: Circle, color: 'text-gray-400' },
+  'SPEC_ADDED': { label: 'Spec Added', icon: CheckCircle2, color: 'text-emerald-400' },
+  'QUOTED': { label: 'Quoted', icon: CreditCard, color: 'text-teal-500' },
+  'BUDGET_SENT': { label: 'Budget Sent', icon: Mail, color: 'text-blue-500' },
+  'BUDGET_APPROVED': { label: 'Budget Approved', icon: CheckCircle2, color: 'text-green-500' },
+}
+
 // Statuses that require client approval to select
-const APPROVAL_REQUIRED_STATUSES = ['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED']
+const APPROVAL_REQUIRED_STATUSES = ['ORDERED', 'SHIPPED', 'DELIVERED', 'INSTALLED', 'CLOSED']
 
 // Lead time options (same as ItemDetailPanel and Chrome extension)
 const LEAD_TIME_OPTIONS = [
@@ -1980,14 +1985,37 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
   
-  // Get status display
+  // Get status display (checks legacy map for old statuses)
   const getItemStatusDisplay = (status: string) => {
-    const statusOption = ITEM_STATUS_OPTIONS.find(o => o.value === status) || ITEM_STATUS_OPTIONS[0]
-    const IconComponent = statusOption.icon
+    // First check main options
+    const statusOption = ITEM_STATUS_OPTIONS.find(o => o.value === status)
+    if (statusOption) {
+      const IconComponent = statusOption.icon
+      return (
+        <div className="flex items-center gap-1.5">
+          <IconComponent className={cn("w-3.5 h-3.5", statusOption.color)} />
+          <span className="text-xs">{statusOption.label}</span>
+        </div>
+      )
+    }
+    // Check legacy map for old statuses
+    const legacyStatus = LEGACY_STATUS_MAP[status]
+    if (legacyStatus) {
+      const IconComponent = legacyStatus.icon
+      return (
+        <div className="flex items-center gap-1.5">
+          <IconComponent className={cn("w-3.5 h-3.5", legacyStatus.color)} />
+          <span className="text-xs">{legacyStatus.label}</span>
+        </div>
+      )
+    }
+    // Fallback to first option (SELECTED)
+    const fallback = ITEM_STATUS_OPTIONS[0]
+    const FallbackIcon = fallback.icon
     return (
       <div className="flex items-center gap-1.5">
-        <IconComponent className={cn("w-3.5 h-3.5", statusOption.color)} />
-        <span className="text-xs">{statusOption.label}</span>
+        <FallbackIcon className={cn("w-3.5 h-3.5", fallback.color)} />
+        <span className="text-xs">{fallback.label}</span>
       </div>
     )
   }

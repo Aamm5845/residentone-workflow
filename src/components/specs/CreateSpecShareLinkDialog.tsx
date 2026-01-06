@@ -21,7 +21,9 @@ import {
   CheckSquare,
   Square,
   Building2,
-  UserCheck
+  UserCheck,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -63,6 +65,7 @@ export default function CreateSpecShareLinkDialog({
 }: CreateSpecShareLinkDialogProps) {
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   // Form state
   const [name, setName] = useState('')
@@ -97,8 +100,14 @@ export default function CreateSpecShareLinkDialog({
         setExpiresAt('')
       }
       setSearchQuery('')
+      // Expand all categories by default
+      const categories = Object.keys(items.reduce((acc, item) => {
+        acc[item.categoryName || 'Uncategorized'] = true
+        return acc
+      }, {} as Record<string, boolean>))
+      setExpandedCategories(new Set(categories))
     }
-  }, [open, editingLink])
+  }, [open, editingLink, items])
 
   // Group items by category
   const groupedItems = items.reduce((acc, item) => {
@@ -131,12 +140,50 @@ export default function CreateSpecShareLinkDialog({
     })
   }
 
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(category)) {
+        newSet.delete(category)
+      } else {
+        newSet.add(category)
+      }
+      return newSet
+    })
+  }
+
+  const selectAllInCategory = (category: string) => {
+    const categoryItems = groupedItems[category] || []
+    const categoryIds = categoryItems.map(i => i.id)
+    const allSelected = categoryIds.every(id => selectedItemIds.has(id))
+
+    setSelectedItemIds(prev => {
+      const newSet = new Set(prev)
+      if (allSelected) {
+        // Deselect all in category
+        categoryIds.forEach(id => newSet.delete(id))
+      } else {
+        // Select all in category
+        categoryIds.forEach(id => newSet.add(id))
+      }
+      return newSet
+    })
+  }
+
   const selectAll = () => {
     setSelectedItemIds(new Set(items.map(i => i.id)))
   }
 
   const clearAll = () => {
     setSelectedItemIds(new Set())
+  }
+
+  const getCategorySelectionState = (category: string) => {
+    const categoryItems = groupedItems[category] || []
+    const selectedCount = categoryItems.filter(i => selectedItemIds.has(i.id)).length
+    if (selectedCount === 0) return 'none'
+    if (selectedCount === categoryItems.length) return 'all'
+    return 'partial'
   }
 
   const handleSave = async () => {
@@ -246,39 +293,84 @@ export default function CreateSpecShareLinkDialog({
             </div>
 
             {/* Items List */}
-            <ScrollArea className="flex-1 border rounded-lg">
-              <div className="p-2 space-y-3">
-                {filteredGroups.map(({ category, items: categoryItems }) => (
-                  <div key={category}>
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 py-1">
-                      {category}
-                    </div>
-                    <div className="space-y-1">
-                      {categoryItems.map(item => (
-                        <label
-                          key={item.id}
+            <ScrollArea className="flex-1 border rounded-lg h-[300px]">
+              <div className="p-2 space-y-1">
+                {filteredGroups.map(({ category, items: categoryItems }) => {
+                  const isExpanded = expandedCategories.has(category)
+                  const selectionState = getCategorySelectionState(category)
+                  const selectedInCategory = categoryItems.filter(i => selectedItemIds.has(i.id)).length
+
+                  return (
+                    <div key={category} className="border rounded-lg overflow-hidden">
+                      {/* Category Header - Clickable to expand/collapse */}
+                      <div
+                        className={cn(
+                          "flex items-center justify-between px-3 py-2 cursor-pointer transition-colors",
+                          selectionState === 'all' ? "bg-emerald-50" :
+                          selectionState === 'partial' ? "bg-emerald-50/50" : "bg-slate-50 hover:bg-slate-100"
+                        )}
+                      >
+                        <div
+                          className="flex items-center gap-2 flex-1"
+                          onClick={() => toggleCategory(category)}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-slate-400" />
+                          )}
+                          <span className="text-sm font-medium text-slate-700">{category}</span>
+                          <span className="text-xs text-slate-400">
+                            ({selectedInCategory}/{categoryItems.length})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            selectAllInCategory(category)
+                          }}
                           className={cn(
-                            "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
-                            selectedItemIds.has(item.id)
-                              ? "bg-emerald-50 border border-emerald-200"
-                              : "hover:bg-slate-50"
+                            "text-xs px-2 py-1 rounded transition-colors",
+                            selectionState === 'all'
+                              ? "bg-emerald-200 text-emerald-800 hover:bg-emerald-300"
+                              : "bg-slate-200 text-slate-600 hover:bg-slate-300"
                           )}
                         >
-                          <Checkbox
-                            checked={selectedItemIds.has(item.id)}
-                            onCheckedChange={() => toggleItem(item.id)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">
-                              {item.name}
-                            </p>
-                            <p className="text-xs text-slate-500">{item.roomName}</p>
-                          </div>
-                        </label>
-                      ))}
+                          {selectionState === 'all' ? 'Deselect' : 'Select All'}
+                        </button>
+                      </div>
+
+                      {/* Category Items - Only show when expanded */}
+                      {isExpanded && (
+                        <div className="border-t bg-white">
+                          {categoryItems.map(item => (
+                            <label
+                              key={item.id}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0",
+                                selectedItemIds.has(item.id)
+                                  ? "bg-emerald-50"
+                                  : "hover:bg-slate-50"
+                              )}
+                            >
+                              <Checkbox
+                                checked={selectedItemIds.has(item.id)}
+                                onCheckedChange={() => toggleItem(item.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-slate-500">{item.roomName}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {filteredGroups.length === 0 && (
                   <div className="text-center py-8 text-slate-500 text-sm">
                     No items found
