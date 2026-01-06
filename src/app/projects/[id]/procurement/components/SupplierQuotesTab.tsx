@@ -706,9 +706,13 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
 
                     {/* Quote Number */}
-                    <div className="w-[100px] flex-shrink-0 text-center">
+                    <div className="w-[80px] flex-shrink-0 text-center">
                       <p className="text-sm font-medium text-gray-900">{quote.quoteNumber || '-'}</p>
-                      <p className="text-xs text-gray-500">{quote.lineItemsCount} items</p>
+                    </div>
+
+                    {/* Items Count */}
+                    <div className="w-[60px] flex-shrink-0 text-center">
+                      <p className="text-sm text-gray-600">{quote.lineItemsCount} items</p>
                     </div>
 
                     {/* Total Cost */}
