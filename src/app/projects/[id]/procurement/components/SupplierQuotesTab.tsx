@@ -655,19 +655,33 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
+              {/* Table Header */}
+              <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <div className="w-6 flex-shrink-0"></div>
+                <div className="flex-1 min-w-[180px] pl-2">Supplier</div>
+                <div className="w-24 text-center">Quote #</div>
+                <div className="w-16 text-center">Items</div>
+                <div className="w-28 text-right">Total</div>
+                <div className="w-24 text-center">Received</div>
+                <div className="w-28 text-center">Status</div>
+                <div className="w-[200px] text-right">Actions</div>
+              </div>
+
+              {/* Quote Rows */}
+              <div className="divide-y divide-gray-100">
               {filteredQuotes.map((quote) => (
                 <div
                   key={quote.id}
-                  className={`border rounded-lg overflow-hidden transition-all duration-300 ${
+                  className={`transition-all duration-300 ${
                     highlightedQuoteId === quote.id
-                      ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/30'
-                      : 'border-gray-200'
-                  }`}
+                      ? 'bg-blue-50/50 ring-1 ring-inset ring-blue-200'
+                      : ''
+                  } ${expandedQuotes.has(quote.id) ? 'bg-gray-50/50' : ''}`}
                 >
-                  {/* Main Row - Fixed width columns */}
+                  {/* Main Row */}
                   <div
-                    className="flex items-center p-4 hover:bg-gray-50 cursor-pointer"
+                    className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer"
                     onClick={() => toggleExpanded(quote.id)}
                   >
                     {/* Expand button */}
@@ -679,8 +693,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       )}
                     </button>
 
-                    {/* Supplier with logo - flex to fill space */}
-                    <div className="flex-1 min-w-[180px] flex items-center gap-3 min-w-0 pl-2">
+                    {/* Supplier with logo */}
+                    <div className="flex-1 min-w-[180px] flex items-center gap-3 pl-2">
                       {quote.supplier.logo ? (
                         <img
                           src={quote.supplier.logo}
@@ -701,59 +715,55 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 truncate">{quote.supplier.email}</p>
                       </div>
                     </div>
 
-                    {/* Quote # - closer to supplier */}
-                    <div className="flex-shrink-0 text-center ml-2">
-                      <p className="text-[10px] text-gray-400 uppercase">Quote #</p>
-                      <p className="text-sm font-medium text-gray-900 whitespace-nowrap">{quote.quoteNumber || '-'}</p>
+                    {/* Quote # */}
+                    <div className="w-24 text-center flex-shrink-0">
+                      <span className="text-sm text-gray-900">{quote.quoteNumber || '-'}</span>
                     </div>
 
                     {/* Items */}
-                    <div className="flex-shrink-0 text-center ml-6">
-                      <p className="text-[10px] text-gray-400 uppercase">Items</p>
-                      <p className="text-sm text-gray-700">{quote.lineItemsCount}</p>
+                    <div className="w-16 text-center flex-shrink-0">
+                      <span className="text-sm text-gray-600">{quote.lineItemsCount}</span>
                     </div>
 
                     {/* Total */}
-                    <div className="flex-shrink-0 text-right ml-6">
-                      <p className="text-[10px] text-gray-400 uppercase">Total</p>
-                      <p className="font-semibold text-gray-900 text-sm whitespace-nowrap">{formatCurrency(quote.totalAmount, quote.currency)}</p>
+                    <div className="w-28 text-right flex-shrink-0">
+                      <span className="font-medium text-gray-900 text-sm">{formatCurrency(quote.totalAmount, quote.currency)}</span>
                     </div>
 
                     {/* Received */}
-                    <div className="flex-shrink-0 text-center ml-6">
-                      <p className="text-[10px] text-gray-400 uppercase">Received</p>
-                      <p className="text-sm text-gray-700 whitespace-nowrap">{formatDate(quote.submittedAt)}</p>
+                    <div className="w-24 text-center flex-shrink-0">
+                      <span className="text-sm text-gray-600">{formatDate(quote.submittedAt)}</span>
                     </div>
 
                     {/* Status */}
-                    <div className="flex-shrink-0 text-center ml-6">
-                      <p className="text-[10px] text-gray-400 uppercase">Status</p>
-                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs whitespace-nowrap`}>
+                    <div className="w-28 text-center flex-shrink-0">
+                      <Badge className={`${statusConfig[quote.status]?.color || 'bg-gray-100 text-gray-600'} text-xs`}>
                         {statusConfig[quote.status]?.label || quote.status}
                       </Badge>
                     </div>
 
-                    {/* Actions - fixed width */}
-                    <div className="w-[280px] flex-shrink-0 flex items-center justify-end gap-2 ml-auto" onClick={e => e.stopPropagation()}>
-                      {/* Quote Document or Manual Entry indicator */}
-                      {quote.quoteDocumentUrl ? (
+                    {/* Actions */}
+                    <div className="w-[200px] flex-shrink-0 flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                      {/* Quote Document */}
+                      {quote.quoteDocumentUrl && (
                         <button
                           onClick={() => window.open(quote.quoteDocumentUrl!, '_blank')}
-                          className="w-10 h-10 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden relative group flex-shrink-0"
-                          title="Open PDF"
+                          className="w-8 h-8 rounded border border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-center overflow-hidden flex-shrink-0"
+                          title="View PDF"
                         >
                           {quote.quoteDocumentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                             <img src={quote.quoteDocumentUrl} alt="Quote" className="w-full h-full object-cover" />
                           ) : (
-                            <FileText className="w-5 h-5 text-gray-500" />
+                            <FileText className="w-4 h-4 text-gray-500" />
                           )}
                         </button>
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300 flex-shrink-0">
+                      )}
+                      {/* Manual indicator */}
+                      {!quote.quoteDocumentUrl && (
+                        <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-200 flex-shrink-0">
                           Manual
                         </Badge>
                       )}
@@ -762,12 +772,12 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                         <Button
                           variant="default"
                           size="sm"
-                          className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                          className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 flex-shrink-0"
                           onClick={() => openPdfReview(quote)}
                           title="Review & verify AI-matched items"
                         >
-                          <Eye className="w-3.5 h-3.5 mr-1.5" />
-                          Review Matches
+                          <Eye className="w-3 h-3 mr-1" />
+                          Review
                         </Button>
                       )}
                       {/* Actions for approved quotes */}
@@ -783,8 +793,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             }}
                             title="Create Budget Quote"
                           >
-                            <DollarSign className="w-3.5 h-3.5 mr-1" />
-                            <span className="text-xs">Budget</span>
+                            <DollarSign className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -800,8 +809,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             }}
                             title="Create Client Invoice"
                           >
-                            <Receipt className="w-3.5 h-3.5 mr-1" />
-                            <span className="text-xs">Invoice</span>
+                            <Receipt className="w-3.5 h-3.5" />
                           </Button>
                         </>
                       )}
@@ -1317,6 +1325,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   )}
                 </div>
               ))}
+              </div>
             </div>
           )}
         </CardContent>

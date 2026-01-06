@@ -21,9 +21,12 @@ import {
   Search,
   Package,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  ShieldX
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -56,6 +59,9 @@ interface SpecItem {
   supplierName?: string
   brand?: string
   images?: string[]
+  clientApproved?: boolean
+  clientApprovedAt?: string
+  clientApprovedVia?: string
 }
 
 interface ApprovedQuote {
@@ -225,6 +231,16 @@ export default function CreateInvoiceDialog({
     return specItems.filter(item => !item.rrp && !item.tradePrice)
   }, [specItems])
 
+  // Items not approved by client (cannot be invoiced)
+  const itemsNotApproved = useMemo(() => {
+    return specItems.filter(item => !item.clientApproved && (item.rrp || item.tradePrice))
+  }, [specItems])
+
+  // Check if item can be invoiced (must have price AND be approved)
+  const canInvoiceItem = (item: SpecItem) => {
+    return (item.rrp || item.tradePrice) && item.clientApproved
+  }
+
   // Build line items for invoice
   const buildLineItems = (): LineItem[] => {
     const lineItems: LineItem[] = []
@@ -332,7 +348,8 @@ export default function CreateInvoiceDialog({
   }
 
   const selectAllInCategory = (category: string, items: SpecItem[]) => {
-    const validItems = items.filter(i => i.rrp || i.tradePrice)
+    // Only select items that can be invoiced (have price AND approved)
+    const validItems = items.filter(canInvoiceItem)
     setSelectedItemIds(prev => {
       const next = new Set(prev)
       const allSelected = validItems.every(i => next.has(i.id))
@@ -473,6 +490,17 @@ export default function CreateInvoiceDialog({
                   </div>
                 )}
 
+                {/* Warning for items not approved */}
+                {itemsNotApproved.length > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-4 text-sm">
+                    <ShieldX className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-red-800">
+                      {itemsNotApproved.length} item{itemsNotApproved.length !== 1 ? 's' : ''} need client approval before invoicing.
+                      <span className="text-red-600 font-medium"> Approve in All Specs first.</span>
+                    </p>
+                  </div>
+                )}
+
                 {/* Items list */}
                 <ScrollArea className="h-[400px] border rounded-lg">
                   <div className="p-2">
@@ -482,8 +510,9 @@ export default function CreateInvoiceDialog({
                       </div>
                     ) : (
                       Object.entries(groupedItems).map(([category, items]) => {
-                        const validItems = items.filter(i => i.rrp || i.tradePrice)
-                        const selectedCount = validItems.filter(i => selectedItemIds.has(i.id)).length
+                        // Items that can be invoiced (have price AND approved)
+                        const invoiceableItems = items.filter(canInvoiceItem)
+                        const selectedCount = invoiceableItems.filter(i => selectedItemIds.has(i.id)).length
                         const isExpanded = expandedCategories.has(category)
 
                         return (
@@ -500,8 +529,13 @@ export default function CreateInvoiceDialog({
                                 )}
                                 <span className="font-medium text-sm">{category}</span>
                                 <Badge variant="secondary" className="text-xs">
-                                  {validItems.length} item{validItems.length !== 1 ? 's' : ''}
+                                  {invoiceableItems.length} invoiceable
                                 </Badge>
+                                {items.length > invoiceableItems.length && (
+                                  <Badge variant="outline" className="text-xs text-gray-400">
+                                    {items.length - invoiceableItems.length} not ready
+                                  </Badge>
+                                )}
                               </div>
                               {selectedCount > 0 && (
                                 <Badge className="bg-emerald-100 text-emerald-700">
@@ -513,38 +547,47 @@ export default function CreateInvoiceDialog({
                             {isExpanded && (
                               <div className="ml-6 mt-1 space-y-1">
                                 {/* Select all in category */}
-                                {validItems.length > 1 && (
+                                {invoiceableItems.length > 1 && (
                                   <button
                                     onClick={() => selectAllInCategory(category, items)}
                                     className="text-xs text-blue-600 hover:text-blue-700 mb-2"
                                   >
-                                    {validItems.every(i => selectedItemIds.has(i.id))
+                                    {invoiceableItems.every(i => selectedItemIds.has(i.id))
                                       ? 'Deselect all'
-                                      : 'Select all'}
+                                      : 'Select all approved'}
                                   </button>
                                 )}
 
                                 {items.map(item => {
                                   const hasPrice = item.rrp || item.tradePrice
+                                  const isApproved = item.clientApproved
+                                  const canInvoice = canInvoiceItem(item)
                                   const isSelected = selectedItemIds.has(item.id)
                                   const price = item.rrp || (item.tradePrice ? item.tradePrice * (1 + defaultMarkup / 100) : 0)
+
+                                  // Determine why item can't be invoiced
+                                  const disabledReason = !hasPrice
+                                    ? 'No price'
+                                    : !isApproved
+                                    ? 'Not approved'
+                                    : null
 
                                   return (
                                     <div
                                       key={item.id}
                                       className={cn(
                                         'flex items-center gap-3 p-2 rounded-lg border',
-                                        hasPrice
+                                        canInvoice
                                           ? 'cursor-pointer hover:bg-gray-50'
-                                          : 'opacity-50 cursor-not-allowed bg-gray-50',
+                                          : 'opacity-60 cursor-not-allowed bg-gray-50',
                                         isSelected && 'border-emerald-300 bg-emerald-50'
                                       )}
-                                      onClick={() => hasPrice && toggleItem(item.id)}
+                                      onClick={() => canInvoice && toggleItem(item.id)}
                                     >
                                       <Checkbox
                                         checked={isSelected}
-                                        disabled={!hasPrice}
-                                        className={cn(!hasPrice && 'opacity-50')}
+                                        disabled={!canInvoice}
+                                        className={cn(!canInvoice && 'opacity-50')}
                                       />
                                       {item.images?.[0] && (
                                         <img
@@ -554,14 +597,22 @@ export default function CreateInvoiceDialog({
                                         />
                                       )}
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">{item.name}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm truncate">{item.name}</p>
+                                          {/* Approval indicator */}
+                                          {isApproved ? (
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Client Approved" />
+                                          ) : hasPrice && (
+                                            <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Not Approved" />
+                                          )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                           {item.roomName && <span>{item.roomName}</span>}
                                           {item.brand && <span>• {item.brand}</span>}
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        {hasPrice ? (
+                                        {canInvoice ? (
                                           <>
                                             <p className="font-medium text-sm">{formatCurrency(price)}</p>
                                             <p className="text-xs text-gray-500">
@@ -569,7 +620,12 @@ export default function CreateInvoiceDialog({
                                             </p>
                                           </>
                                         ) : (
-                                          <p className="text-xs text-amber-600">No price</p>
+                                          <p className={cn(
+                                            "text-xs",
+                                            !hasPrice ? "text-amber-600" : "text-red-500"
+                                          )}>
+                                            {disabledReason}
+                                          </p>
                                         )}
                                       </div>
                                     </div>

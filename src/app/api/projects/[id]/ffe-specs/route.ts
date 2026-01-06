@@ -157,7 +157,10 @@ export async function GET(
         state: true,
         notes: true,
         sectionId: true,
-        isSpecItem: true
+        isSpecItem: true,
+        clientApproved: true,
+        clientApprovedAt: true,
+        clientApprovedVia: true
       },
       orderBy: [
         { sectionId: 'asc' },
@@ -196,7 +199,10 @@ export async function GET(
         state: item.state,
         notes: item.notes,
         roomName: roomName,
-        isSpecItem: item.isSpecItem
+        isSpecItem: item.isSpecItem,
+        clientApproved: item.clientApproved,
+        clientApprovedAt: item.clientApprovedAt,
+        clientApprovedVia: item.clientApprovedVia
       }
     })
 
