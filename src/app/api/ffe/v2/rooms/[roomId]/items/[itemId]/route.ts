@@ -716,10 +716,11 @@ export async function PATCH(
       error: 'No update fields provided' 
     }, { status: 400 })
 
-  } catch (error) {
-    console.error('Error moving item:', error)
+  } catch (error: any) {
+    console.error('Error updating item:', error?.message || error)
+    console.error('Stack:', error?.stack)
     return NextResponse.json(
-      { error: 'Failed to move item' },
+      { error: 'Failed to update item: ' + (error?.message || 'Unknown error') },
       { status: 500 }
     )
   }

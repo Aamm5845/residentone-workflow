@@ -1674,8 +1674,10 @@ enum ItemActivityType {
   QUOTE_DECLINED        // Supplier declined to quote
   QUOTE_VIEWED          // Supplier viewed the request
   STATUS_CHANGED        // Item status changed
+  ITEM_SELECTED         // Item selected for project
   PRICE_UPDATED         // Price was updated
   CLIENT_APPROVED       // Client approved the item
+  CLIENT_UNAPPROVED     // Client approval was removed
   CLIENT_REJECTED       // Client requested changes
   ADDED_TO_ORDER        // Item added to purchase order
   ORDERED               // Item ordered from supplier
