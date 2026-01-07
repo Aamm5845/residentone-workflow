@@ -1012,7 +1012,7 @@ export default function QuotePDFReviewDialog({
                         body: JSON.stringify({ status: 'ACCEPTED' })
                       })
                       onMatchUpdated?.()
-                      toast.success('Quote approved')
+                      toast.success('Quote accepted')
                       onOpenChange(false)
                     } catch {
                       toast.error('Failed to update status')

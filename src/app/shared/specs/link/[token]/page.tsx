@@ -242,6 +242,7 @@ export default function SharedSpecLinkPage() {
       'SPECIFYING': { label: 'Specifying', color: 'bg-blue-50 text-blue-700' },
       'RFQ_SENT': { label: 'RFQ Sent', color: 'bg-amber-50 text-amber-700' },
       'QUOTED': { label: 'Quoted', color: 'bg-purple-50 text-purple-700' },
+      'QUOTE_APPROVED': { label: 'Quote Accepted', color: 'bg-emerald-50 text-emerald-700' },
       'APPROVED': { label: 'Approved', color: 'bg-emerald-50 text-emerald-700' },
       'ORDERED': { label: 'Ordered', color: 'bg-indigo-50 text-indigo-700' },
       'SHIPPED': { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },

@@ -120,7 +120,7 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'SELECTED', label: 'Selected', icon: CheckCircle2, color: 'text-emerald-500', requiresApproval: false },
   { value: 'RFQ_SENT', label: 'RFQ Sent', icon: Clock, color: 'text-amber-500', requiresApproval: false },
   { value: 'QUOTE_RECEIVED', label: 'Quote Received', icon: CreditCard, color: 'text-teal-500', requiresApproval: false },
-  { value: 'QUOTE_APPROVED', label: 'Quote Approved', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
+  { value: 'QUOTE_APPROVED', label: 'Quote Accepted', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
   { value: 'INVOICED_TO_CLIENT', label: 'Invoiced to Client', icon: CreditCard, color: 'text-blue-500', requiresApproval: false },
   { value: 'CLIENT_PAID', label: 'Client Paid', icon: CreditCard, color: 'text-emerald-600', requiresApproval: false },
   { value: 'ORDERED', label: 'Ordered from Supplier', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
@@ -151,7 +151,7 @@ const LEGACY_STATUS_MAP: Record<string, { label: string; icon: any; color: strin
   'CLIENT_REVIEW': { label: 'Client Review', icon: Clock, color: 'text-blue-500' },
   'RESUBMIT': { label: 'Resubmit', icon: AlertCircle, color: 'text-orange-500' },
   'REJECTED': { label: 'Rejected', icon: AlertCircle, color: 'text-red-500' },
-  'APPROVED': { label: 'Quote Approved', icon: CheckCircle2, color: 'text-green-500' },
+  'APPROVED': { label: 'Quote Accepted', icon: CheckCircle2, color: 'text-green-500' },
   'PAYMENT_DUE': { label: 'Payment Due', icon: CreditCard, color: 'text-orange-500' },
   'IN_TRANSIT': { label: 'Shipped', icon: Truck, color: 'text-indigo-500' },
   'NEEDS_SPEC': { label: 'Needs Spec', icon: Circle, color: 'text-gray-400' },
@@ -503,7 +503,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [editValue, setEditValue] = useState('')
   
   // Supplier picker
-  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; contactName?: string; email: string; phone?: string; website?: string }>>([])
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; contactName?: string; email: string; phone?: string; website?: string; currency?: string; logo?: string }>>([])
   const [supplierPickerItem, setSupplierPickerItem] = useState<string | null>(null)
   
   // Add New Supplier modal
@@ -1141,16 +1141,32 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   useEffect(() => {
     const specsToCalculate = filteredSpecs.length > 0 ? filteredSpecs : specs
 
+    // Helper to get effective currency for a spec (uses supplier currency if linked)
+    const getEffectiveTradeCurrency = (s: typeof specs[0]) => {
+      if (s.supplierId) {
+        const supplier = suppliers.find(sup => sup.id === s.supplierId)
+        if (supplier?.currency) return supplier.currency
+      }
+      return s.tradePriceCurrency || 'CAD'
+    }
+    const getEffectiveRrpCurrency = (s: typeof specs[0]) => {
+      if (s.supplierId) {
+        const supplier = suppliers.find(sup => sup.id === s.supplierId)
+        if (supplier?.currency) return supplier.currency
+      }
+      return s.rrpCurrency || 'CAD'
+    }
+
     // Separate trade prices by currency
     const totalTradePriceCAD = specsToCalculate.reduce((sum, s) => {
-      if ((s.tradePriceCurrency || 'CAD') !== 'CAD') return sum
+      if (getEffectiveTradeCurrency(s) !== 'CAD') return sum
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
     const totalTradePriceUSD = specsToCalculate.reduce((sum, s) => {
-      if ((s.tradePriceCurrency || 'CAD') !== 'USD') return sum
+      if (getEffectiveTradeCurrency(s) !== 'USD') return sum
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
@@ -1158,14 +1174,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
     // Separate RRP by currency
     const totalRRPCAD = specsToCalculate.reduce((sum, s) => {
-      if ((s.rrpCurrency || 'CAD') !== 'CAD') return sum
+      if (getEffectiveRrpCurrency(s) !== 'CAD') return sum
       const price = s.rrp || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
     const totalRRPUSD = specsToCalculate.reduce((sum, s) => {
-      if ((s.rrpCurrency || 'CAD') !== 'USD') return sum
+      if (getEffectiveRrpCurrency(s) !== 'USD') return sum
       const price = s.rrp || 0
       const qty = s.quantity || 1
       return sum + (price * qty)
@@ -1183,7 +1199,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       totalRRPUSD,
       avgTradeDiscount: Math.round(avgTradeDiscount * 100) / 100
     })
-  }, [filteredSpecs, specs])
+  }, [filteredSpecs, specs, suppliers])
   
   // Filter and group specs
   useEffect(() => {
@@ -5151,83 +5167,97 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {/* Financial Columns - Only in Financial Tab */}
                             {activeTab === 'financial' && (
                               <>
-                                {/* Trade Price */}
-                                <div className="flex-shrink-0 w-24 h-9 text-right">
-                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
-                                    Trade {item.tradePriceCurrency === 'USD' && <span className="text-blue-500">(USD)</span>}
-                                  </p>
-                                  {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onBlur={saveInlineEdit}
-                                      onKeyDown={handleEditKeyDown}
-                                      className="h-6 text-xs text-right"
-                                      autoFocus
-                                      type="number"
-                                      step="0.01"
-                                    />
-                                  ) : (
-                                    <p
-                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.tradePriceCurrency === 'USD' ? 'text-blue-600' : 'text-gray-900'}`}
-                                      onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
-                                    >
-                                      {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
-                                    </p>
-                                  )}
-                                </div>
+                                {(() => {
+                                  // Look up supplier to get their currency setting
+                                  const itemSupplier = item.supplierId ? suppliers.find(s => s.id === item.supplierId) : null
+                                  // Use supplier's currency if linked, otherwise fall back to item's stored currency
+                                  const effectiveTradeCurrency = itemSupplier?.currency || item.tradePriceCurrency || 'CAD'
+                                  const effectiveRrpCurrency = itemSupplier?.currency || item.rrpCurrency || 'CAD'
+                                  const isUsdTrade = effectiveTradeCurrency === 'USD'
+                                  const isUsdRrp = effectiveRrpCurrency === 'USD'
 
-                                {/* Markup % */}
-                                <div className="flex-shrink-0 w-16 h-9 text-right">
-                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Markup</p>
-                                  {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onBlur={saveInlineEdit}
-                                      onKeyDown={handleEditKeyDown}
-                                      className="h-6 text-xs text-right"
-                                      autoFocus
-                                      type="number"
-                                      step="1"
-                                      placeholder="%"
-                                    />
-                                  ) : (
-                                    <p
-                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.markupPercent ? 'text-gray-900' : 'text-gray-400'}`}
-                                      onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
-                                      title={item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first'}
-                                    >
-                                      {item.markupPercent ? `${item.markupPercent}%` : '-'}
-                                    </p>
-                                  )}
-                                </div>
+                                  return (
+                                    <>
+                                      {/* Trade Price */}
+                                      <div className="flex-shrink-0 w-24 h-9 text-right">
+                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                          Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
+                                        </p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="0.01"
+                                          />
+                                        ) : (
+                                          <p
+                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-gray-900'}`}
+                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
+                                          >
+                                            {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
+                                          </p>
+                                        )}
+                                      </div>
 
-                                {/* RRP */}
-                                <div className="flex-shrink-0 w-20 h-9 text-right">
-                                  <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
-                                    RRP {item.rrpCurrency === 'USD' && <span className="text-blue-500">(USD)</span>}
-                                  </p>
-                                  {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onBlur={saveInlineEdit}
-                                      onKeyDown={handleEditKeyDown}
-                                      className="h-6 text-xs text-right"
-                                      autoFocus
-                                      type="number"
-                                      step="0.01"
-                                    />
-                                  ) : (
-                                    <p
-                                      className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.rrpCurrency === 'USD' ? 'text-blue-600' : 'text-gray-900'}`}
-                                      onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
-                                    >
-                                      {item.rrp ? formatCurrency(item.rrp) : '-'}
-                                    </p>
-                                  )}
-                                </div>
+                                      {/* Markup % */}
+                                      <div className="flex-shrink-0 w-16 h-9 text-right">
+                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Markup</p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="1"
+                                            placeholder="%"
+                                          />
+                                        ) : (
+                                          <p
+                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.markupPercent ? 'text-gray-900' : 'text-gray-400'}`}
+                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
+                                            title={item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first'}
+                                          >
+                                            {item.markupPercent ? `${item.markupPercent}%` : '-'}
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* RRP */}
+                                      <div className="flex-shrink-0 w-20 h-9 text-right">
+                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                          RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
+                                        </p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="0.01"
+                                          />
+                                        ) : (
+                                          <p
+                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-gray-900'}`}
+                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
+                                          >
+                                            {item.rrp ? formatCurrency(item.rrp) : '-'}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </>
+                                  )
+                                })()}
                               </>
                             )}
                             
