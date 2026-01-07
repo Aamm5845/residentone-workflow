@@ -317,7 +317,8 @@ export async function POST(request: NextRequest) {
             fileSize: attachment.size,
             mimeType: attachment.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
             visibleToSupplier: true,
-            visibleToClient: false
+            visibleToClient: false,
+            uploadedById: userId
           }
         })
       }
