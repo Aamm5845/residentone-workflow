@@ -942,50 +942,25 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 Documents and spec sheets provided for this quote request
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-              {data.rfq.documents.map(doc => {
-                const isPdf = doc.mimeType === 'application/pdf' || doc.fileName?.toLowerCase().endsWith('.pdf')
-                return (
-                  <div key={doc.id} className="border border-purple-200 rounded-lg overflow-hidden">
-                    {/* Document Header */}
-                    <div className="flex items-center justify-between p-3 bg-purple-50 border-b border-purple-200">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
-                          <FileText className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">
-                            {doc.title || doc.fileName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(0)} KB` : 'PDF Document'}
-                          </p>
-                        </div>
-                      </div>
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
-                      >
-                        <Download className="w-3 h-3" />
-                        Download
-                      </a>
-                    </div>
-                    {/* PDF Embed */}
-                    {isPdf && (
-                      <div className="bg-gray-100">
-                        <iframe
-                          src={doc.fileUrl}
-                          className="w-full h-[500px] border-0"
-                          title={doc.title || doc.fileName}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                {data.rfq.documents.map(doc => (
+                  <a
+                    key={doc.id}
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm font-medium text-gray-900">{doc.title || doc.fileName}</span>
+                    <span className="text-xs text-gray-500">
+                      {doc.fileSize ? `(${(doc.fileSize / 1024).toFixed(0)} KB)` : ''}
+                    </span>
+                    <Download className="w-3 h-3 text-purple-600" />
+                  </a>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -998,8 +973,8 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               Items Requested
               <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
             </CardTitle>
-            {/* Global Lead Time - Apply to all items */}
-            {(quoteMode === 'upload' || quoteMode === 'manual') && (
+            {/* Global Lead Time - Apply to all items (only show if more than 1 item) */}
+            {(quoteMode === 'upload' || quoteMode === 'manual') && data.rfq.lineItems.length > 1 && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex items-center gap-2">
