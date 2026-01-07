@@ -244,7 +244,8 @@ export default function QuickQuoteDialog({
           shippingAddress: useCustomShipping ? shippingAddress : undefined,
           message: message || undefined,
           includeSpecSheet,
-          includeNotes
+          includeNotes,
+          attachments: attachments.length > 0 ? attachments : undefined
         })
       })
 
@@ -296,11 +297,17 @@ export default function QuickQuoteDialog({
 
         if (res.ok) {
           const data = await res.json()
-          setAttachments(prev => [...prev, {
-            name: file.name,
-            url: data.url,
-            size: file.size
-          }])
+          // Upload API returns { success: true, file: { url: ... } }
+          const fileUrl = data.file?.url || data.url
+          if (fileUrl) {
+            setAttachments(prev => [...prev, {
+              name: file.name,
+              url: fileUrl,
+              size: file.size
+            }])
+          } else {
+            toast.error(`Failed to get URL for ${file.name}`)
+          }
         } else {
           toast.error(`Failed to upload ${file.name}`)
         }

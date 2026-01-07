@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { projectId, itemIds, supplierId, shippingAddress, message, includeSpecSheet = true, includeNotes = true } = body
+    const { projectId, itemIds, supplierId, shippingAddress, message, includeSpecSheet = true, includeNotes = true, attachments } = body
 
     if (!projectId || !itemIds?.length) {
       return NextResponse.json(
@@ -181,6 +181,32 @@ export async function POST(request: NextRequest) {
           notes: item.notes || null
         }))
       })
+    }
+
+    // Handle attachments - create or update RFQDocument records for preview
+    if (attachments && attachments.length > 0) {
+      // Delete existing preview documents first to avoid duplicates
+      await prisma.rFQDocument.deleteMany({
+        where: { rfqId: previewRfq.id }
+      })
+
+      // Create new documents for each attachment
+      for (const attachment of attachments) {
+        await prisma.rFQDocument.create({
+          data: {
+            orgId,
+            rfqId: previewRfq.id,
+            type: 'SPECIFICATION',
+            title: attachment.name,
+            fileName: attachment.name,
+            fileUrl: attachment.url,
+            fileSize: attachment.size || 0,
+            mimeType: attachment.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+            visibleToSupplier: true,
+            visibleToClient: false
+          }
+        })
+      }
     }
 
     // Create or reuse preview SupplierRFQ
