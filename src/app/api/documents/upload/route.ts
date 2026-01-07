@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     const title = formData.get('title') as string | null
     const description = formData.get('description') as string | null
     const visibleToClient = formData.get('visibleToClient') === 'true'
-    const visibleToSupplier = formData.get('visibleToSupplier') === 'true'
+    // Default to true for supplier visibility (safer for RFQ documents)
+    const visibleToSupplier = formData.get('visibleToSupplier') !== 'false'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })

@@ -1022,13 +1022,23 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 const hasItemNotes = item.notes || specs?.notes
                 const supplierLink = specs?.supplierLink
 
-                // Build specs line
+                // Build specs line - include brand, sku, color, finish, material, dimensions
                 const specParts: string[] = []
                 if (specs?.brand) specParts.push(specs.brand)
                 if (specs?.sku) specParts.push(specs.sku)
                 else if (specs?.modelNumber) specParts.push(specs.modelNumber)
                 if (specs?.color) specParts.push(specs.color)
                 if (specs?.finish && specs.finish !== specs?.color) specParts.push(specs.finish)
+                if (specs?.material) specParts.push(specs.material)
+
+                // Build dimensions string (W × H × D × L)
+                const dimParts: string[] = []
+                if (specs?.width) dimParts.push(`${specs.width}" W`)
+                if (specs?.height) dimParts.push(`${specs.height}" H`)
+                if (specs?.depth) dimParts.push(`${specs.depth}" D`)
+                if (specs?.length) dimParts.push(`${specs.length}" L`)
+                if (dimParts.length > 0) specParts.push(dimParts.join(' × '))
+
                 const specsLine = specParts.join(' • ')
 
                 // Get matched price if in upload mode
