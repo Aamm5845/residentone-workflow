@@ -111,10 +111,12 @@ export default function ImageEditorModal({
   const [removingBackground, setRemovingBackground] = useState(false)
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)
+  const [corsProxyUrl, setCorsProxyUrl] = useState<string | null>(null)
+  const [loadingProxy, setLoadingProxy] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  // Get the current display URL (processed or original)
-  const displayUrl = processedImageUrl || imageUrl
+  // Get the current display URL (processed or original, with CORS proxy fallback)
+  const displayUrl = corsProxyUrl || processedImageUrl || imageUrl
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (mode === 'crop') {
@@ -124,16 +126,40 @@ export default function ImageEditorModal({
     }
   }, [mode])
 
-  const handleStartCrop = () => {
-    setMode('crop')
+  const handleStartCrop = async () => {
     setCrop(undefined)
     setCompletedCrop(undefined)
+
+    // For cross-origin images, fetch and create a local blob URL to avoid tainted canvas
+    const urlToFetch = processedImageUrl || imageUrl
+    if (urlToFetch && !urlToFetch.startsWith('blob:') && !urlToFetch.startsWith('data:')) {
+      setLoadingProxy(true)
+      try {
+        // Fetch the image through our proxy to avoid CORS issues
+        const response = await fetch(`/api/image/proxy?url=${encodeURIComponent(urlToFetch)}`)
+        if (response.ok) {
+          const blob = await response.blob()
+          const blobUrl = URL.createObjectURL(blob)
+          setCorsProxyUrl(blobUrl)
+        }
+      } catch (error) {
+        console.warn('Could not proxy image, will try direct load:', error)
+      } finally {
+        setLoadingProxy(false)
+      }
+    }
+    setMode('crop')
   }
 
   const handleCancelCrop = () => {
     setMode('view')
     setCrop(undefined)
     setCompletedCrop(undefined)
+    // Clean up blob URL
+    if (corsProxyUrl) {
+      URL.revokeObjectURL(corsProxyUrl)
+      setCorsProxyUrl(null)
+    }
   }
 
   const handleCropComplete = async () => {
@@ -185,6 +211,11 @@ export default function ImageEditorModal({
       setSaving(false)
       setCrop(undefined)
       setCompletedCrop(undefined)
+      // Clean up blob URL
+      if (corsProxyUrl) {
+        URL.revokeObjectURL(corsProxyUrl)
+        setCorsProxyUrl(null)
+      }
     }
   }
 
@@ -222,16 +253,26 @@ export default function ImageEditorModal({
     setMode('view')
     setCrop(undefined)
     setCompletedCrop(undefined)
+    // Clean up blob URL
+    if (corsProxyUrl) {
+      URL.revokeObjectURL(corsProxyUrl)
+      setCorsProxyUrl(null)
+    }
   }
 
   const handleClose = () => {
     onOpenChange(false)
+    // Clean up blob URL
+    if (corsProxyUrl) {
+      URL.revokeObjectURL(corsProxyUrl)
+    }
     // Reset state after close animation
     setTimeout(() => {
       setMode('view')
       setCrop(undefined)
       setCompletedCrop(undefined)
       setProcessedImageUrl(null)
+      setCorsProxyUrl(null)
       setImageError(false)
     }, 200)
   }
@@ -279,11 +320,20 @@ export default function ImageEditorModal({
               <Button
                 variant="outline"
                 onClick={handleStartCrop}
-                disabled={saving || removingBackground}
+                disabled={saving || removingBackground || loadingProxy}
                 className="gap-2"
               >
-                <CropIcon className="w-4 h-4" />
-                Crop Image
+                {loadingProxy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <CropIcon className="w-4 h-4" />
+                    Crop Image
+                  </>
+                )}
               </Button>
               <Button
                 variant="outline"
