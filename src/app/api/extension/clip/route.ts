@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
           quantity: true,
           notes: true,
           customFields: true,
+          docCode: true, // Fetch docCode to copy to linked spec item
           section: {
             select: {
               instanceId: true,
@@ -219,7 +220,8 @@ export async function POST(request: NextRequest) {
             // Product details
             brand: item.brand || null,
             sku: item.sku || null,
-            docCode: item.docCode || null,
+            // Use item's docCode if provided, otherwise copy from FFE requirement
+            docCode: item.docCode || existingItem.docCode || null,
             modelNumber: item.sku || null,
             color: item.colour || null,
             finish: item.finish || null,

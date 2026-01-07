@@ -39,13 +39,18 @@ export async function POST(
     // Verify FFE requirement item exists and get its details
     const ffeRequirement = await prisma.roomFFEItem.findFirst({
       where: { id: roomFFEItemId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        sectionId: true,
+        docCode: true, // Fetch docCode to copy to linked spec item
         section: {
-          include: {
+          select: {
+            instanceId: true,
             instance: {
-              include: {
+              select: {
                 room: {
-                  include: {
+                  select: {
                     project: { select: { orgId: true } }
                   }
                 }
@@ -104,6 +109,8 @@ export async function POST(
         // Product details
         brand: programaItem.brand || null,
         sku: programaItem.sku || null,
+        // Copy docCode from FFE requirement if it has one
+        docCode: ffeRequirement.docCode || null,
         modelNumber: programaItem.sku || null,
         color: programaItem.color || null,
         finish: programaItem.finish || null,
