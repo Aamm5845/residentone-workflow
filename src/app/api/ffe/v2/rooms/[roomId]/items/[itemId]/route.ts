@@ -462,7 +462,14 @@ export async function PATCH(
     if (specStatus !== undefined) updateData.specStatus = specStatus
     if (state !== undefined) updateData.state = state
     if (visibility !== undefined) updateData.visibility = visibility
-    if (clientApproved !== undefined) updateData.clientApproved = clientApproved
+    if (clientApproved !== undefined) {
+      updateData.clientApproved = clientApproved
+      // Clear approval metadata when unapproving
+      if (!clientApproved) {
+        updateData.clientApprovedAt = null
+        updateData.clientApprovedVia = null
+      }
+    }
     if (quantity !== undefined) updateData.quantity = parseInt(quantity) || 1
     if (unitType !== undefined) updateData.unitType = unitType
     if (tradePrice !== undefined) updateData.tradePrice = tradePrice ? parseFloat(tradePrice) : null

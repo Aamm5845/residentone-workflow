@@ -147,6 +147,8 @@ export async function GET(
           isOption: item.isOption,
           optionNumber: item.optionNumber,
           clientApproved: item.clientApproved || false,
+          clientApprovedAt: item.clientApprovedAt?.toISOString() || null,
+          clientApprovedVia: item.clientApprovedVia || null,
           // NEW: Multiple linked FFE items (many-to-many)
           notes: item.notes,
           linkedFfeItems: (item.specLinks || []).map(link => {

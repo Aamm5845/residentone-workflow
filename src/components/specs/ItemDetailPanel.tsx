@@ -120,6 +120,10 @@ interface ItemDetailPanelProps {
       sectionName: string
     }>
     linkedFfeCount?: number
+    // Client approval
+    clientApproved?: boolean
+    clientApprovedAt?: string
+    clientApprovedVia?: string
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
@@ -2757,8 +2761,69 @@ export function ItemDetailPanel({
             )}
 
             {activeTab === 'approvals' && (
-              <div className="text-center py-12 text-gray-500">
-                <p>No approval workflow set up</p>
+              <div className="p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Client Approval</h4>
+                {item?.clientApproved ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-emerald-800">Approved by Client</p>
+                        <p className="text-xs text-emerald-600">
+                          {item.clientApprovedAt
+                            ? new Date(item.clientApprovedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Date not recorded'}
+                          {item.clientApprovedVia === 'share_link' && ' • via Share Link'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={async () => {
+                        if (!item?.id || !item?.roomId) return
+                        try {
+                          const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              clientApproved: false
+                            })
+                          })
+                          if (res.ok) {
+                            toast.success('Approval removed')
+                            onClose()
+                          } else {
+                            toast.error('Failed to remove approval')
+                          }
+                        } catch (err) {
+                          toast.error('Failed to remove approval')
+                        }
+                      }}
+                    >
+                      Remove Approval
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Pending Approval</p>
+                      <p className="text-xs text-gray-500">Client has not yet approved this item</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
