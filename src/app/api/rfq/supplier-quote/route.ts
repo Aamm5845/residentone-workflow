@@ -26,6 +26,11 @@ interface SupplierQuoteRequest {
     postalCode?: string
     country?: string
   }
+  attachments?: Array<{  // Files uploaded with the RFQ
+    name: string
+    url: string
+    size: number
+  }>
 }
 
 /**
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SupplierQuoteRequest = await request.json()
-    const { projectId, items, message, responseDeadline, includeSpecSheet = true, includeNotes = true, shippingAddress } = body
+    const { projectId, items, message, responseDeadline, includeSpecSheet = true, includeNotes = true, shippingAddress, attachments } = body
 
     if (!projectId || !items?.length) {
       return NextResponse.json(
@@ -293,6 +298,26 @@ export async function POST(request: NextRequest) {
             responseDeadline: deadline,
             createdById: userId,
             updatedById: userId
+          }
+        })
+      }
+    }
+
+    // Create RFQDocument records for uploaded attachments
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        await prisma.rFQDocument.create({
+          data: {
+            orgId,
+            rfqId: rfq.id,
+            type: 'SPECIFICATION',
+            title: attachment.name,
+            fileName: attachment.name,
+            fileUrl: attachment.url,
+            fileSize: attachment.size,
+            mimeType: attachment.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+            visibleToSupplier: true,
+            visibleToClient: false
           }
         })
       }
