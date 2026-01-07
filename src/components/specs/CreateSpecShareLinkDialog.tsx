@@ -85,7 +85,9 @@ export default function CreateSpecShareLinkDialog({
     if (open) {
       if (editingLink) {
         setName(editingLink.name || '')
-        setSelectedItemIds(new Set(editingLink.itemIds))
+        // If itemIds is empty, it means "all items" mode - select all
+        const isAllItemsMode = !editingLink.itemIds || editingLink.itemIds.length === 0
+        setSelectedItemIds(isAllItemsMode ? new Set(items.map(i => i.id)) : new Set(editingLink.itemIds))
         setShowSupplier(editingLink.showSupplier)
         setShowBrand(editingLink.showBrand)
         setShowPricing(editingLink.showPricing)
@@ -203,12 +205,16 @@ export default function CreateSpecShareLinkDialog({
         ? `/api/projects/${projectId}/spec-share-links/${editingLink.id}`
         : `/api/projects/${projectId}/spec-share-links`
 
+      // If ALL items are selected, send empty array (means "all items" mode - dynamic)
+      const isAllSelected = selectedItemIds.size === items.length
+      const itemIdsToSend = isAllSelected ? [] : Array.from(selectedItemIds)
+
       const response = await fetch(url, {
         method: editingLink ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name || null,
-          itemIds: Array.from(selectedItemIds),
+          itemIds: itemIdsToSend,
           showSupplier,
           showBrand,
           showPricing,
@@ -386,7 +392,13 @@ export default function CreateSpecShareLinkDialog({
             </div>
 
             <p className="text-xs text-slate-500 mt-1">
-              {selectedItemIds.size} of {items.length} items selected
+              {selectedItemIds.size === items.length ? (
+                <span className="text-emerald-600 font-medium">
+                  All {items.length} items selected • New items will be included automatically
+                </span>
+              ) : (
+                <>{selectedItemIds.size} of {items.length} items selected</>
+              )}
             </p>
           </div>
 

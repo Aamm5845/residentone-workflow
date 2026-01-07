@@ -56,12 +56,29 @@ export async function GET(
       }
     })
 
-    // Fetch the selected items
+    // Fetch items - if itemIds is empty, fetch ALL visible specs from the project (Select All mode)
+    const isSelectAll = !shareLink.itemIds || shareLink.itemIds.length === 0
+
     const items = await prisma.roomFFEItem.findMany({
-      where: {
-        id: { in: shareLink.itemIds },
-        visibility: 'VISIBLE'
-      },
+      where: isSelectAll
+        ? {
+            // Select All mode - fetch all visible spec items from the project
+            visibility: 'VISIBLE',
+            isSpecItem: true,
+            specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+            section: {
+              instance: {
+                room: {
+                  projectId: shareLink.projectId
+                }
+              }
+            }
+          }
+        : {
+            // Specific items mode
+            id: { in: shareLink.itemIds },
+            visibility: 'VISIBLE'
+          },
       include: {
         section: {
           select: {
@@ -108,7 +125,7 @@ export async function GET(
         sku: item.sku,
         modelNumber: item.modelNumber,
         supplierName: shareLink.showSupplier ? item.supplierName : null,
-        supplierLink: shareLink.showSupplier ? item.supplierLink : null,
+        supplierLink: item.supplierLink, // Always provide product link
         quantity: item.quantity,
         leadTime: item.leadTime,
         specStatus: item.specStatus,
