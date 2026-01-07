@@ -21,7 +21,8 @@ import {
   Mail,
   MessageSquare,
   Plus,
-  Info
+  Info,
+  Download
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -928,7 +929,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           </Card>
         )}
 
-        {/* RFQ-level Documents */}
+        {/* RFQ-level Documents - Embedded PDF Viewer */}
         {data.rfq.documents && data.rfq.documents.length > 0 && (
           <Card className="shadow-sm border-l-4 border-l-purple-500">
             <CardHeader className="pb-3">
@@ -941,35 +942,50 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                 Documents and spec sheets provided for this quote request
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {data.rfq.documents.map(doc => (
-                  <a
-                    key={doc.id}
-                    href={doc.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:border-purple-400 hover:bg-purple-100 transition-colors group"
-                  >
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 text-purple-600" />
+            <CardContent className="pt-0 space-y-4">
+              {data.rfq.documents.map(doc => {
+                const isPdf = doc.mimeType === 'application/pdf' || doc.fileName?.toLowerCase().endsWith('.pdf')
+                return (
+                  <div key={doc.id} className="border border-purple-200 rounded-lg overflow-hidden">
+                    {/* Document Header */}
+                    <div className="flex items-center justify-between p-3 bg-purple-50 border-b border-purple-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">
+                            {doc.title || doc.fileName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(0)} KB` : 'PDF Document'}
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download
+                      </a>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">
-                        {doc.title || doc.fileName}
-                      </p>
-                      {doc.description && (
-                        <p className="text-xs text-gray-500 truncate">{doc.description}</p>
-                      )}
-                      <p className="text-xs text-purple-600">
-                        {(doc.fileSize / 1024).toFixed(0)} KB
-                      </p>
-                    </div>
-                    <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 flex-shrink-0" />
-                  </a>
-                ))}
-              </div>
+                    {/* PDF Embed */}
+                    {isPdf && (
+                      <div className="bg-gray-100">
+                        <iframe
+                          src={doc.fileUrl}
+                          className="w-full h-[500px] border-0"
+                          title={doc.title || doc.fileName}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </CardContent>
           </Card>
         )}
