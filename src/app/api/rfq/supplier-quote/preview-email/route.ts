@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
           data: {
             orgId,
             rfqId: previewRfq.id,
-            type: 'SPECIFICATION',
+            type: 'SPEC_SHEET',
             title: attachment.name,
             fileName: attachment.name,
             fileUrl: attachment.url,
