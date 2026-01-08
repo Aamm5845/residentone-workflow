@@ -1145,19 +1145,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   useEffect(() => {
     const specsToCalculate = filteredSpecs.length > 0 ? filteredSpecs : specs
 
-    // Helper to get effective currency for a spec (uses supplier currency if linked)
+    // Helper to get currency for a spec (uses item's own currency fields, which are synced from supplier)
     const getEffectiveTradeCurrency = (s: typeof specs[0]) => {
-      if (s.supplierId) {
-        const supplier = suppliers.find(sup => sup.id === s.supplierId)
-        if (supplier?.currency) return supplier.currency
-      }
       return s.tradePriceCurrency || 'CAD'
     }
     const getEffectiveRrpCurrency = (s: typeof specs[0]) => {
-      if (s.supplierId) {
-        const supplier = suppliers.find(sup => sup.id === s.supplierId)
-        if (supplier?.currency) return supplier.currency
-      }
       return s.rrpCurrency || 'CAD'
     }
 
@@ -1243,15 +1235,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       filtered = filtered.filter(spec => spec.sectionId === filterSection)
     }
 
-    // Apply currency filter (uses supplier currency if linked, otherwise item currency)
+    // Apply currency filter (uses item's own currency fields, which are synced from supplier)
     if (filterCurrency !== 'all') {
       filtered = filtered.filter(spec => {
-        // Get effective currency from supplier or item
-        let currency = spec.tradePriceCurrency || spec.rrpCurrency || 'CAD'
-        if (spec.supplierId) {
-          const supplier = suppliers.find(sup => sup.id === spec.supplierId)
-          if (supplier?.currency) currency = supplier.currency
-        }
+        const currency = spec.tradePriceCurrency || spec.rrpCurrency || 'CAD'
         return currency === filterCurrency
       })
     }
