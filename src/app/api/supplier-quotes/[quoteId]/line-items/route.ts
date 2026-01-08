@@ -44,7 +44,11 @@ export async function GET(
         rfqLineItem: {
           include: {
             roomFFEItem: {
-              include: {
+              select: {
+                id: true,
+                name: true,
+                rrp: true, // Include RRP to check if markup should be skipped
+                markupPercent: true, // Include saved markup
                 section: {
                   select: {
                     name: true,

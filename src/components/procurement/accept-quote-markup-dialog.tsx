@@ -33,6 +33,7 @@ interface LineItemWithMarkup {
   defaultMarkup: number
   markup: number
   sellingPrice: number
+  hasRrp: boolean // True if RRP exists - markup is not editable
 }
 
 interface AcceptQuoteMarkupDialogProps {
@@ -93,17 +94,40 @@ export default function AcceptQuoteMarkupDialog({
         const sectionName = item.rfqLineItem?.roomFFEItem?.section?.name || 'General'
         const defaultMarkup = presetLookup[sectionName.toLowerCase()] ?? 25
         const unitPrice = parseFloat(item.unitPrice) || 0
+        const quantity = item.quantity || 1
+
+        // Check if item already has RRP - if so, use it instead of applying markup
+        const itemRrp = item.rfqLineItem?.roomFFEItem?.rrp
+        const hasRrp = itemRrp && parseFloat(itemRrp) > 0
+
+        let sellingPrice: number
+        let markup: number
+
+        if (hasRrp) {
+          // RRP already includes markup - use it directly
+          sellingPrice = parseFloat(itemRrp)
+          // Calculate markup for display only (reverse calculation)
+          markup = unitPrice > 0 ? ((sellingPrice - unitPrice) / unitPrice) * 100 : 0
+        } else {
+          // No RRP - use item's saved markup or default
+          const savedMarkup = item.rfqLineItem?.roomFFEItem?.markupPercent
+          markup = item.approvedMarkupPercent !== null
+            ? parseFloat(item.approvedMarkupPercent)
+            : (savedMarkup !== null ? parseFloat(savedMarkup) : defaultMarkup)
+          sellingPrice = unitPrice * (1 + markup / 100)
+        }
 
         return {
           id: item.id,
           itemName: item.itemName || item.rfqLineItem?.itemName || 'Unknown Item',
-          quantity: item.quantity || 1,
+          quantity,
           unitPrice,
-          totalPrice: parseFloat(item.totalPrice) || unitPrice * (item.quantity || 1),
+          totalPrice: parseFloat(item.totalPrice) || unitPrice * quantity,
           sectionName,
           defaultMarkup,
-          markup: item.approvedMarkupPercent !== null ? parseFloat(item.approvedMarkupPercent) : defaultMarkup,
-          sellingPrice: unitPrice * (1 + defaultMarkup / 100)
+          markup: Math.round(markup * 100) / 100,
+          sellingPrice,
+          hasRrp
         }
       })
 
@@ -118,7 +142,8 @@ export default function AcceptQuoteMarkupDialog({
 
   const updateMarkup = (itemId: string, newMarkup: number) => {
     setLineItems(prev => prev.map(item => {
-      if (item.id === itemId) {
+      // Don't update items with RRP - their selling price is fixed
+      if (item.id === itemId && !item.hasRrp) {
         return {
           ...item,
           markup: newMarkup,
@@ -184,6 +209,7 @@ export default function AcceptQuoteMarkupDialog({
           </DialogTitle>
           <DialogDescription>
             Review and set markup for each item from <span className="font-medium">{supplierName}</span> before accepting.
+            Items with RRP pricing already set will use their existing selling price.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,21 +249,36 @@ export default function AcceptQuoteMarkupDialog({
                         ${item.unitPrice.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            max="200"
-                            step="0.5"
-                            value={item.markup}
-                            onChange={(e) => updateMarkup(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-20 h-8 text-center text-sm"
-                          />
-                          <Percent className="w-4 h-4 text-gray-400" />
-                        </div>
+                        {item.hasRrp ? (
+                          // RRP exists - show markup as read-only
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {item.markup.toFixed(1)}%
+                            </span>
+                          </div>
+                        ) : (
+                          // No RRP - allow editing markup
+                          <div className="flex items-center justify-center gap-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="200"
+                              step="0.5"
+                              value={item.markup}
+                              onChange={(e) => updateMarkup(item.id, parseFloat(e.target.value) || 0)}
+                              className="w-20 h-8 text-center text-sm"
+                            />
+                            <Percent className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium text-emerald-600">
-                        ${item.sellingPrice.toFixed(2)}
+                        <div>
+                          ${item.sellingPrice.toFixed(2)}
+                          {item.hasRrp && (
+                            <p className="text-[10px] text-blue-500 font-normal">RRP</p>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
