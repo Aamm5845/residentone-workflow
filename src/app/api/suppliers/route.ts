@@ -191,6 +191,18 @@ export async function PATCH(request: NextRequest) {
       }
     })
 
+    // If currency is provided, update all linked spec items to use the supplier's currency
+    if (currency !== undefined && currency) {
+      const updateResult = await prisma.roomFFEItem.updateMany({
+        where: { supplierId: id },
+        data: {
+          tradePriceCurrency: currency,
+          rrpCurrency: currency
+        }
+      })
+      console.log(`Updated ${updateResult.count} items to currency: ${currency}`)
+    }
+
     return NextResponse.json({ supplier })
   } catch (error) {
     console.error('Error updating supplier:', error)

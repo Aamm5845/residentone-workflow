@@ -132,6 +132,7 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
   { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
   { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-purple-500', requiresApproval: false },
+  { value: 'CONTRACTOR_TO_ORDER', label: 'Contractor to Order', icon: Truck, color: 'text-orange-500', requiresApproval: false, skipFilters: true },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
   { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-gray-400', requiresApproval: false },
 ]
@@ -1260,10 +1261,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     const baseFiltered = [...filtered]
 
     // Apply summary filter (needs approval or needs price)
+    // Exclude CONTRACTOR_TO_ORDER from these filters as it's considered "done" (no price/approval needed)
+    const skipFilterStatuses = ['CONTRACTOR_TO_ORDER']
     if (summaryFilter === 'needs_approval') {
-      filtered = filtered.filter(spec => !spec.clientApproved)
+      filtered = filtered.filter(spec => !spec.clientApproved && !skipFilterStatuses.includes(spec.specStatus || ''))
     } else if (summaryFilter === 'needs_price') {
-      filtered = filtered.filter(spec => !spec.rrp)
+      filtered = filtered.filter(spec => !spec.rrp && !skipFilterStatuses.includes(spec.specStatus || ''))
     }
 
     // Update filteredSpecs for stats calculation (use baseFiltered to exclude summary filter from stats)
@@ -3598,8 +3601,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {filteredSpecs.filter(s => s.clientApproved).length} Approved
                 </button>
 
-                {/* Needs Approval - Amber */}
-                {filteredSpecs.filter(s => !s.clientApproved).length > 0 && (
+                {/* Needs Approval - Amber (excludes CONTRACTOR_TO_ORDER as it's considered done) */}
+                {filteredSpecs.filter(s => !s.clientApproved && s.specStatus !== 'CONTRACTOR_TO_ORDER').length > 0 && (
                   <button
                     onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
                     className={cn(
@@ -3610,12 +3613,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    {filteredSpecs.filter(s => !s.clientApproved).length} Need Approval
+                    {filteredSpecs.filter(s => !s.clientApproved && s.specStatus !== 'CONTRACTOR_TO_ORDER').length} Need Approval
                   </button>
                 )}
 
-                {/* Needs Price - Red */}
-                {filteredSpecs.filter(s => !s.rrp).length > 0 && (
+                {/* Needs Price - Red (excludes CONTRACTOR_TO_ORDER as it doesn't need pricing) */}
+                {filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length > 0 && (
                   <button
                     onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
                     className={cn(
@@ -3626,7 +3629,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   >
                     <DollarSign className="w-3.5 h-3.5" />
-                    {filteredSpecs.filter(s => !s.rrp).length} Need Price
+                    {filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length} Need Price
                   </button>
                 )}
 

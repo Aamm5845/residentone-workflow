@@ -662,7 +662,11 @@ export default function SharedSpecLinkPage() {
 
                         {/* Approval Column */}
                         <div className="col-span-1 flex items-center justify-end gap-2">
-                          {item.clientApproved ? (
+                          {item.specStatus === 'CONTRACTOR_TO_ORDER' ? (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full whitespace-nowrap">
+                              <span className="text-xs font-medium">Contractor</span>
+                            </div>
+                          ) : item.clientApproved ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full whitespace-nowrap">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span className="text-xs font-medium">Approved</span>

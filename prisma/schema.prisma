@@ -2540,6 +2540,7 @@ enum FFESpecStatus {
   // === MANUAL STATUSES ===
   HIDDEN             // Hidden from view
   CLIENT_TO_ORDER    // Client will order themselves (not us)
+  CONTRACTOR_TO_ORDER // Contractor will order (no price/approval needed, considered done)
   NEED_SAMPLE        // Need sample before proceeding
   ISSUE              // There's a problem to resolve
   ARCHIVED           // Item archived, unlinked from FFE

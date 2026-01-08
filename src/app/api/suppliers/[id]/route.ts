@@ -336,15 +336,17 @@ export async function PUT(
       }
     })
 
-    // If currency was changed, update all linked spec items to use the new currency
-    if (body.currency && body.currency !== existing.currency) {
-      await prisma.roomFFEItem.updateMany({
+    // If currency is provided, update all linked spec items to use the supplier's currency
+    // Always update to ensure consistency (even if currency appears same, items might be out of sync)
+    if (body.currency) {
+      const updateResult = await prisma.roomFFEItem.updateMany({
         where: { supplierId: id },
         data: {
           tradePriceCurrency: body.currency,
           rrpCurrency: body.currency
         }
       })
+      console.log(`Updated ${updateResult.count} items to currency: ${body.currency}`)
     }
 
     return NextResponse.json({ success: true, supplier: updated })
