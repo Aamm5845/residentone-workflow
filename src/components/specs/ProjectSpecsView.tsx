@@ -1158,31 +1158,33 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
 
     // Separate trade prices by currency
+    // If trade price is missing but RRP exists, use RRP (no markup = same price)
     const totalTradePriceCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveTradeCurrency(s) !== 'CAD') return sum
-      const price = s.tradePrice || 0
+      const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
     const totalTradePriceUSD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveTradeCurrency(s) !== 'USD') return sum
-      const price = s.tradePrice || 0
+      const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
     // Separate RRP by currency
+    // If RRP is missing but trade price exists, use trade price (no markup = same price)
     const totalRRPCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveRrpCurrency(s) !== 'CAD') return sum
-      const price = s.rrp || 0
+      const price = s.rrp ?? s.tradePrice ?? 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
 
     const totalRRPUSD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveRrpCurrency(s) !== 'USD') return sum
-      const price = s.rrp || 0
+      const price = s.rrp ?? s.tradePrice ?? 0
       const qty = s.quantity || 1
       return sum + (price * qty)
     }, 0)
@@ -2159,6 +2161,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         }
       }
 
+      // If trade discount is being changed and item has RRP, calculate trade price
+      let calculatedTradePrice: number | null = null
+      if (editingField.field === 'tradeDiscount' && editValue) {
+        const discount = parseFloat(editValue)
+        if (!isNaN(discount) && item.rrp) {
+          calculatedTradePrice = item.rrp * (1 - discount / 100)
+          updateData.tradePrice = calculatedTradePrice.toFixed(2)
+        }
+      }
+
       const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${editingField.itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -2180,6 +2192,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             // Also update RRP if markup was changed
             if (calculatedRrp !== null) {
               updated.rrp = calculatedRrp
+            }
+            // Also update trade price if trade discount was changed
+            if (calculatedTradePrice !== null) {
+              updated.tradePrice = calculatedTradePrice
             }
             return updated
           }
@@ -3599,31 +3615,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           {/* Financial Summary Bar - Only in Financial Tab */}
           {activeTab === 'financial' && (
             <div className="flex items-center gap-8 mt-3 pt-3 border-t border-gray-100 flex-wrap">
-              {/* CAD Trade Price */}
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Trade Price (CAD)</p>
-                <p className="text-lg font-semibold text-gray-900">${financials.totalTradePriceCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              </div>
-              {/* USD Trade Price - Only show if there are USD items */}
-              {financials.totalTradePriceUSD > 0 && (
+              {/* CAD Totals - Trade & RRP grouped */}
+              <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
                 <div>
-                  <p className="text-xs text-blue-500 uppercase">Trade Price (USD)</p>
-                  <p className="text-lg font-semibold text-blue-600">${financials.totalTradePriceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-xs text-gray-500 uppercase">Trade (CAD)</p>
+                  <p className="text-lg font-semibold text-gray-900">${financials.totalTradePriceCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">RRP (CAD)</p>
+                  <p className="text-lg font-semibold text-gray-900">${financials.totalRRPCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+              {/* USD Totals - Trade & RRP grouped - Only show if there are USD items */}
+              {(financials.totalTradePriceUSD > 0 || financials.totalRRPUSD > 0) && (
+                <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
+                  <div>
+                    <p className="text-xs text-blue-500 uppercase">Trade (USD)</p>
+                    <p className="text-lg font-semibold text-blue-600">${financials.totalTradePriceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-500 uppercase">RRP (USD)</p>
+                    <p className="text-lg font-semibold text-blue-600">${financials.totalRRPUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
                 </div>
               )}
-              {/* CAD RRP */}
-              <div>
-                <p className="text-xs text-gray-500 uppercase">RRP (CAD)</p>
-                <p className="text-lg font-semibold text-gray-900">${financials.totalRRPCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              </div>
-              {/* USD RRP - Only show if there are USD items */}
-              {financials.totalRRPUSD > 0 && (
-                <div>
-                  <p className="text-xs text-blue-500 uppercase">RRP (USD)</p>
-                  <p className="text-lg font-semibold text-blue-600">${financials.totalRRPUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-              )}
-              {/* Avg Discount */}
+              {/* Avg Margin */}
               <div>
                 <p className="text-xs text-gray-500 uppercase">Avg Margin</p>
                 <p className="text-lg font-semibold text-gray-900">
