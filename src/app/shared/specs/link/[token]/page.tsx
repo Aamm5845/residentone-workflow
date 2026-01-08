@@ -446,21 +446,21 @@ export default function SharedSpecLinkPage() {
               </div>
 
               {/* Total Cost - only if pricing is shown */}
-              {shareSettings.showPricing && (
+              {shareSettings.showPricing && totals && (
                 <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
-                  {totals.cadTotal > 0 && (
+                  {(totals.cadTotal || 0) > 0 && (
                     <div>
-                      <span className="text-lg font-semibold text-gray-900">${totals.cadTotal.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-lg font-semibold text-gray-900">${(totals.cadTotal || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <span className="text-xs text-gray-400 uppercase ml-1">CAD</span>
                     </div>
                   )}
-                  {totals.usdTotal > 0 && (
+                  {(totals.usdTotal || 0) > 0 && (
                     <div>
-                      <span className="text-lg font-semibold text-blue-600">${totals.usdTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-lg font-semibold text-blue-600">${(totals.usdTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <span className="text-xs text-blue-400 uppercase ml-1">USD</span>
                     </div>
                   )}
-                  {totals.cadTotal === 0 && totals.usdTotal === 0 && (
+                  {(totals.cadTotal || 0) === 0 && (totals.usdTotal || 0) === 0 && (
                     <span className="text-sm text-gray-400">No pricing set</span>
                   )}
                 </div>
