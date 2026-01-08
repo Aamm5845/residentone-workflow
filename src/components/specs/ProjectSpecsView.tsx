@@ -651,6 +651,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   
   // Section filter
   const [filterSection, setFilterSection] = useState<string>('all')
+
+  // Currency filter (for Financial tab)
+  const [filterCurrency, setFilterCurrency] = useState<'all' | 'CAD' | 'USD'>('all')
   
   // Get filtered sections based on selected room
   const filteredFfeSections = selectedFfeRoom 
@@ -1239,6 +1242,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       filtered = filtered.filter(spec => spec.sectionId === filterSection)
     }
 
+    // Apply currency filter (uses supplier currency if linked, otherwise item currency)
+    if (filterCurrency !== 'all') {
+      filtered = filtered.filter(spec => {
+        // Get effective currency from supplier or item
+        let currency = spec.tradePriceCurrency || spec.rrpCurrency || 'CAD'
+        if (spec.supplierId) {
+          const supplier = suppliers.find(sup => sup.id === spec.supplierId)
+          if (supplier?.currency) currency = supplier.currency
+        }
+        return currency === filterCurrency
+      })
+    }
+
     // Store filtered specs BEFORE summary filter (for accurate stats)
     // Summary filter is a view filter, not a data filter
     const baseFiltered = [...filtered]
@@ -1308,7 +1324,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       setExpandedCategories(new Set(groupedArray.map(g => g.name)))
       prevSortByRef.current = sortBy
     }
-  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, summaryFilter, sortBy, itemSortBy])
+  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, filterCurrency, summaryFilter, sortBy, itemSortBy, suppliers])
   
   // Filter ffeItems based on room and section filters for Needs Selection tab
   const filteredFfeItems = useMemo(() => {
@@ -3406,13 +3422,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
                     "h-8",
-                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') ? "text-emerald-600" : "text-gray-500"
+                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') ? "text-emerald-600" : "text-gray-500"
                   )}>
                     <Filter className="w-4 h-4 mr-1.5" />
                     Filter
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') && (
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
                       <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-emerald-100 text-emerald-600">
-                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0) + (summaryFilter !== 'all' ? 1 : 0)}
+                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0) + (filterCurrency !== 'all' ? 1 : 0) + (summaryFilter !== 'all' ? 1 : 0)}
                       </Badge>
                     )}
                   </Button>
@@ -3476,9 +3492,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
+                    {/* Currency Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Currency</Label>
+                      <Select value={filterCurrency} onValueChange={(v) => setFilterCurrency(v as 'all' | 'CAD' | 'USD')}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Currencies" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Currencies</SelectItem>
+                          <SelectItem value="CAD">CAD Only</SelectItem>
+                          <SelectItem value="USD">USD Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Clear Filters */}
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || summaryFilter !== 'all') && (
+                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -3487,6 +3518,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           setFilterStatus('all')
                           setFilterRoom('all')
                           setFilterSection('all')
+                          setFilterCurrency('all')
                           setSummaryFilter('all')
                         }}
                       >

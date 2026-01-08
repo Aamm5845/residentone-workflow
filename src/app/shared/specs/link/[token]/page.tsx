@@ -34,6 +34,8 @@ interface SpecItem {
   thumbnailUrl: string | null
   tradePrice: number | null
   rrp: number | null
+  tradePriceCurrency: string
+  rrpCurrency: string
   color: string | null
   finish: string | null
   material: string | null
@@ -170,12 +172,20 @@ export default function SharedSpecLinkPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost (RRP only - don't show trade prices to clients)
-  const totalCost = useMemo(() => {
-    return specs.reduce((sum, item) => {
-      const price = item.rrp || 0
+  // Calculate total cost by currency (RRP only - don't show trade prices to clients)
+  // Use same fallback logic as admin view: rrp ?? tradePrice (if no markup, both are same)
+  const totals = useMemo(() => {
+    const cadTotal = specs.reduce((sum, item) => {
+      if (item.rrpCurrency !== 'CAD') return sum
+      const price = item.rrp ?? item.tradePrice ?? 0
       return sum + (price * (item.quantity || 1))
     }, 0)
+    const usdTotal = specs.reduce((sum, item) => {
+      if (item.rrpCurrency !== 'USD') return sum
+      const price = item.rrp ?? item.tradePrice ?? 0
+      return sum + (price * (item.quantity || 1))
+    }, 0)
+    return { cadTotal, usdTotal }
   }, [specs])
 
   // Total filtered items count
@@ -437,9 +447,22 @@ export default function SharedSpecLinkPage() {
 
               {/* Total Cost - only if pricing is shown */}
               {shareSettings.showPricing && (
-                <div className="pl-4 border-l border-gray-200">
-                  <span className="text-lg font-semibold text-gray-900">{formatCurrency(totalCost)}</span>
-                  <span className="text-xs text-gray-400 uppercase ml-2">Total</span>
+                <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
+                  {totals.cadTotal > 0 && (
+                    <div>
+                      <span className="text-lg font-semibold text-gray-900">${totals.cadTotal.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-xs text-gray-400 uppercase ml-1">CAD</span>
+                    </div>
+                  )}
+                  {totals.usdTotal > 0 && (
+                    <div>
+                      <span className="text-lg font-semibold text-blue-600">${totals.usdTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-xs text-blue-400 uppercase ml-1">USD</span>
+                    </div>
+                  )}
+                  {totals.cadTotal === 0 && totals.usdTotal === 0 && (
+                    <span className="text-sm text-gray-400">No pricing set</span>
+                  )}
                 </div>
               )}
             </div>

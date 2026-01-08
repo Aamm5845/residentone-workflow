@@ -140,6 +140,8 @@ export async function GET(
         depth: shareLink.showDetails ? item.depth : null,
         tradePrice: shareLink.showPricing ? item.tradePrice : null,
         rrp: shareLink.showPricing ? item.rrp : null,
+        tradePriceCurrency: item.tradePriceCurrency || 'CAD',
+        rrpCurrency: item.rrpCurrency || 'CAD',
         // Spec sheets / attachments
         attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
         // Approval fields - always include so UI can show status
