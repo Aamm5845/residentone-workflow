@@ -1554,6 +1554,8 @@ export function ItemDetailPanel({
     if (supplier) {
       // Store business name in supplierName, contact name separately
       // Auto-fill markup from supplier's default markup if set
+      // Auto-sync currency from supplier (CAD or USD)
+      const supplierCurrency = (supplier as any).currency || 'CAD'
       setFormData(prev => ({
         ...prev,
         supplierId: supplier.id,
@@ -1564,7 +1566,10 @@ export function ItemDetailPanel({
         // Auto-fill markup from supplier if not already set
         markupPercent: !prev.markupPercent && (supplier as any).markupPercent
           ? (supplier as any).markupPercent.toString()
-          : prev.markupPercent
+          : prev.markupPercent,
+        // Auto-sync currency from supplier - prices from this supplier are in this currency
+        tradePriceCurrency: supplierCurrency,
+        rrpCurrency: supplierCurrency
         // Don't overwrite supplierLink (Product URL) - that's separate from supplier's website
       }))
       setChangingSupplier(false) // Close the supplier selector

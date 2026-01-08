@@ -458,7 +458,22 @@ export async function PATCH(
     if (brand !== undefined) updateData.brand = brand
     if (supplierName !== undefined) updateData.supplierName = supplierName
     if (supplierLink !== undefined) updateData.supplierLink = supplierLink
-    if (supplierId !== undefined) updateData.supplierId = supplierId || null
+    if (supplierId !== undefined) {
+      updateData.supplierId = supplierId || null
+
+      // Auto-sync currency from supplier when supplierId is assigned
+      if (supplierId) {
+        const supplier = await prisma.supplier.findUnique({
+          where: { id: supplierId },
+          select: { currency: true }
+        })
+        if (supplier?.currency) {
+          // Set both trade price and RRP currency to supplier's currency
+          updateData.tradePriceCurrency = supplier.currency
+          updateData.rrpCurrency = supplier.currency
+        }
+      }
+    }
     if (specStatus !== undefined) updateData.specStatus = specStatus
     if (state !== undefined) updateData.state = state
     if (visibility !== undefined) updateData.visibility = visibility

@@ -243,6 +243,16 @@ export async function POST(
       ffeRequirementDocCode = ffeReq?.docCode || null
     }
 
+    // If supplierId is provided, fetch supplier's currency for auto-sync
+    let supplierCurrency: string | null = null
+    if (supplierId) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: supplierId },
+        select: { currency: true }
+      })
+      supplierCurrency = supplier?.currency || null
+    }
+
     await prisma.$transaction(async (tx) => {
       for (let i = 1; i <= quantity; i++) {
         const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
@@ -289,12 +299,15 @@ export async function POST(
             leadTime: leadTime || null,
             supplierName: supplierName || null,
             supplierLink: supplierLink || null,
+            supplierId: supplierId || null,
             unitCost: unitCost ? parseFloat(unitCost) : null,
             tradePrice: tradePrice ? parseFloat(tradePrice) : null,
             rrp: rrp ? parseFloat(rrp) : null,
             tradeDiscount: tradeDiscount ? parseFloat(tradeDiscount) : null,
             markupPercent: markupPercent ? parseFloat(markupPercent) : null,
-            currency: currency || 'CAD',
+            currency: supplierCurrency || currency || 'CAD',
+            tradePriceCurrency: supplierCurrency || currency || 'CAD',
+            rrpCurrency: supplierCurrency || currency || 'CAD',
             unitType: unitType || 'units',
             images: images || [],
             libraryProductId: libraryProductId || null,
