@@ -2869,6 +2869,64 @@ export function ItemDetailPanel({
                   </div>
                 </div>
 
+                {/* Markup & Discount Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Markup %</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="1"
+                        value={formData.markupPercent}
+                        onChange={(e) => {
+                          const newMarkup = e.target.value
+                          const tradePrice = parseFloat(formData.tradePrice) || 0
+
+                          // Auto-calculate RRP from trade price + markup
+                          if (tradePrice > 0 && newMarkup) {
+                            const markupValue = parseFloat(newMarkup)
+                            const calculatedRrp = (tradePrice * (1 + markupValue / 100)).toFixed(2)
+                            setFormData({ ...formData, markupPercent: newMarkup, rrp: calculatedRrp })
+                          } else {
+                            setFormData({ ...formData, markupPercent: newMarkup })
+                          }
+                        }}
+                        placeholder="0"
+                        className="pr-7"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400">Enter markup to calculate RRP from trade</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trade Discount %</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="1"
+                        value={formData.tradeDiscount}
+                        onChange={(e) => {
+                          const newDiscount = e.target.value
+                          const rrp = parseFloat(formData.rrp) || 0
+
+                          // Auto-calculate trade price from RRP - discount
+                          if (rrp > 0 && newDiscount) {
+                            const discountValue = parseFloat(newDiscount)
+                            const calculatedTradePrice = (rrp * (1 - discountValue / 100)).toFixed(2)
+                            setFormData({ ...formData, tradeDiscount: newDiscount, tradePrice: calculatedTradePrice })
+                          } else {
+                            setFormData({ ...formData, tradeDiscount: newDiscount })
+                          }
+                        }}
+                        placeholder="0"
+                        className="pr-7"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400">Enter discount to calculate trade from RRP</p>
+                  </div>
+                </div>
+
                 {/* RRP Row */}
                 <div className="space-y-2">
                   <Label>RRP ({formData.rrpCurrency})</Label>
