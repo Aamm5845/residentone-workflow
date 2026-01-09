@@ -2972,26 +2972,71 @@ export function ItemDetailPanel({
                   />
                 </div>
 
-                {/* RRP TOTAL Section - includes components */}
-                <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                {/* Trade Price TOTAL Section - includes components */}
+                {(parseFloat(formData.tradePrice) > 0 || componentsTotal > 0) && (
+                  <div className="bg-blue-50 rounded-lg p-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 font-medium">TRADE TOTAL</span>
+                      <span className="font-semibold text-xl text-blue-600">
+                        ${(((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 1)) + componentsTotal).toFixed(2)}
+                        <span className="text-sm text-gray-500 ml-1">{formData.tradePriceCurrency}</span>
+                      </span>
+                    </div>
+                    {/* Breakdown */}
+                    <div className="text-xs text-blue-600/70 text-right mt-2 space-y-0.5">
+                      {formData.tradePrice && parseFloat(formData.tradePrice) > 0 && (
+                        <p>Item: ${parseFloat(formData.tradePrice).toFixed(2)} × {formData.quantity || 1} = ${((parseFloat(formData.tradePrice) || 0) * (formData.quantity || 1)).toFixed(2)}</p>
+                      )}
+                      {components.length > 0 && components.map(comp => (
+                        comp.price ? (
+                          <p key={comp.id}>
+                            {comp.name}: ${Number(comp.price).toFixed(2)} × {comp.quantity || 1} = ${(Number(comp.price) * (comp.quantity || 1)).toFixed(2)}
+                          </p>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* RRP TOTAL Section - includes components with markup */}
+                <div className="bg-emerald-50 rounded-lg p-4 mt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 font-medium">RRP TOTAL</span>
-                    <span className={cn(
-                      "font-semibold text-xl",
-                      formData.rrpCurrency === 'USD' ? "text-blue-600" : "text-emerald-600"
-                    )}>
-                      ${(((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)) + componentsTotal).toFixed(2)}
-                      <span className="text-sm text-gray-500 ml-1">{formData.rrpCurrency}</span>
-                    </span>
+                    <span className="text-emerald-700 font-medium">RRP TOTAL</span>
+                    {(() => {
+                      const markupPercent = parseFloat(formData.markupPercent) || 0
+                      const itemRrp = (parseFloat(formData.rrp) || 0) * (formData.quantity || 1)
+                      // Apply markup to components as well
+                      const componentsRrp = componentsTotal * (1 + markupPercent / 100)
+                      const total = itemRrp + componentsRrp
+                      return (
+                        <span className={cn(
+                          "font-semibold text-xl",
+                          formData.rrpCurrency === 'USD' ? "text-blue-600" : "text-emerald-600"
+                        )}>
+                          ${total.toFixed(2)}
+                          <span className="text-sm text-gray-500 ml-1">{formData.rrpCurrency}</span>
+                        </span>
+                      )
+                    })()}
                   </div>
                   {/* Breakdown */}
-                  <div className="text-xs text-gray-500 text-right mt-2 space-y-0.5">
+                  <div className="text-xs text-emerald-600/70 text-right mt-2 space-y-0.5">
                     {formData.rrp && parseFloat(formData.rrp) > 0 && (
-                      <p>Item: ${parseFloat(formData.rrp).toFixed(2)} × {formData.quantity || 1}</p>
+                      <p>Item: ${parseFloat(formData.rrp).toFixed(2)} × {formData.quantity || 1} = ${((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)).toFixed(2)}</p>
                     )}
-                    {componentsTotal > 0 && (
-                      <p>Components: ${componentsTotal.toFixed(2)}</p>
-                    )}
+                    {components.length > 0 && (() => {
+                      const markupPercent = parseFloat(formData.markupPercent) || 0
+                      return components.map(comp => {
+                        if (!comp.price) return null
+                        const compTradeTotal = Number(comp.price) * (comp.quantity || 1)
+                        const compRrp = compTradeTotal * (1 + markupPercent / 100)
+                        return (
+                          <p key={comp.id}>
+                            {comp.name}: ${compRrp.toFixed(2)} {markupPercent > 0 && `(+${markupPercent}%)`}
+                          </p>
+                        )
+                      })
+                    })()}
                   </div>
                 </div>
               </div>

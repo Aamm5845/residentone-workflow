@@ -85,14 +85,17 @@ export async function POST(
     })
     const nextOrder = (lastComponent?.order ?? -1) + 1
 
+    // Ensure quantity is a proper integer (handle string or number input)
+    const parsedQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) : (quantity || 1)
+
     const component = await prisma.itemComponent.create({
       data: {
         itemId,
         name,
         modelNumber: modelNumber || null,
         image: image || null,
-        price: price ? parseFloat(price) : null,
-        quantity: quantity || 1,
+        price: price ? parseFloat(String(price)) : null,
+        quantity: parsedQuantity > 0 ? parsedQuantity : 1,
         order: nextOrder,
         notes: notes || null
       }
@@ -169,8 +172,12 @@ export async function PATCH(
     if (name !== undefined) updateData.name = name
     if (modelNumber !== undefined) updateData.modelNumber = modelNumber || null
     if (image !== undefined) updateData.image = image || null
-    if (price !== undefined) updateData.price = price ? parseFloat(price) : null
-    if (quantity !== undefined) updateData.quantity = quantity || 1
+    if (price !== undefined) updateData.price = price ? parseFloat(String(price)) : null
+    if (quantity !== undefined) {
+      // Ensure quantity is a proper integer (handle string or number input)
+      const parsedQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) : (quantity || 1)
+      updateData.quantity = parsedQuantity > 0 ? parsedQuantity : 1
+    }
     if (notes !== undefined) updateData.notes = notes || null
     if (order !== undefined) updateData.order = order
 
